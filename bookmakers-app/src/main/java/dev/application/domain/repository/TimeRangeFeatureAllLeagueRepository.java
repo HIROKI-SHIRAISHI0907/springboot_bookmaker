@@ -5,7 +5,6 @@ import java.util.List;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
-import org.apache.ibatis.annotations.Update;
 
 import dev.application.analyze.bm_m007_bm_m016.TimeRangeFeatureAllLeagueEntity;
 
@@ -43,16 +42,6 @@ public interface TimeRangeFeatureAllLeagueRepository {
 			""")
 	int insert(TimeRangeFeatureAllLeagueEntity entity);
 
-	@Update("""
-			    UPDATE #{tableName}
-			    SET
-			        target = #{target},
-			        search = #{search};
-			    WHERE
-			    	id = #{id};
-			""")
-	int update(String id, String target, String search, String tableName);
-
 	@Select("""
 			    SELECT
 			        id
@@ -61,9 +50,11 @@ public interface TimeRangeFeatureAllLeagueRepository {
 			    FROM
 			    	#{tableName}
 			    WHERE
-			        time_range = #{timeRange},
-			        feature = #{feature};
+			        time_range = #{timeRange} AND
+			        feature = #{feature} AND
+			        threshold = #{thresHold};
 			    )
 			""")
-	List<TimeRangeFeatureAllLeagueEntity> findData(String timeRange, String feature, String tableName);
+	List<TimeRangeFeatureAllLeagueEntity> findData(String timeRange, String feature,
+			String thresHold, String tableName);
 }

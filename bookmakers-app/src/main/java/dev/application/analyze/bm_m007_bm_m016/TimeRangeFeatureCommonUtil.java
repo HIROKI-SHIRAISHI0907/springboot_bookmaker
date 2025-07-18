@@ -5,11 +5,11 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 /**
- * テーブルマップUtilクラス
+ * CommonUtilクラス
  * @author shiraishitoshio
  *
  */
-public class TimeRangeFeatureTableMapUtil {
+public class TimeRangeFeatureCommonUtil {
 
 	/** テーブル情報Map */
 	private static Map<Integer, String> TABLE_MAP;
@@ -29,7 +29,7 @@ public class TimeRangeFeatureTableMapUtil {
 	}
 
 	/** コンストラクタ生成禁止 */
-	private TimeRangeFeatureTableMapUtil() {}
+	private TimeRangeFeatureCommonUtil() {}
 
 	/**
 	 * テーブル情報マップを取得
@@ -41,6 +41,25 @@ public class TimeRangeFeatureTableMapUtil {
 			return TABLE_MAP.get(key);
 		}
 		return null;
+	}
+
+	/**
+	 * チームデータ分割
+	 * @param mapKey キー
+	 * @return
+	 */
+	public static TimeRangeFeatureOutputDTO splitTeamKey(String mapKey) {
+		String[] key = mapKey.split("-");
+		TimeRangeFeatureOutputDTO dto = new TimeRangeFeatureOutputDTO();
+		if (key.length >= 4) {
+			dto.setCountry(key[0]);
+			dto.setLeague(key[1]);
+			dto.setHome(key[2]);
+			dto.setAway(key[3]);
+			if (key.length > 4)
+				dto.setSeq1(key[4]);
+		}
+		return dto;
 	}
 
 }

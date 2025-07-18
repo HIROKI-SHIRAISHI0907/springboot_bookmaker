@@ -4,12 +4,17 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
+import java.util.concurrent.ConcurrentMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.interf.AnalyzeEntityIF;
+import dev.application.domain.repository.TimeRangeFeatureAllLeagueRepository;
+import dev.application.domain.repository.TimeRangeFeatureRepository;
+import dev.application.domain.repository.TimeRangeFeatureScoredRepository;
+import dev.application.domain.repository.TimeRangeFeatureUpdateRepository;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
@@ -37,6 +42,34 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 	@Autowired
 	private TimeRangeFeatureQueueService queueService;
 
+	/** TimeRangeFeatureRepositoryレポジトリクラス */
+	@Autowired
+	private TimeRangeFeatureRepository timeRangeFeatureRepository;
+
+	/** TimeRangeFeatureScoredRepositoryレポジトリクラス */
+	@Autowired
+	private TimeRangeFeatureScoredRepository timeRangeFeatureScoredRepository;
+
+	/** TimeRangeFeatureAllLeagueRepositoryレポジトリクラス */
+	@Autowired
+	private TimeRangeFeatureAllLeagueRepository timeRangeFeatureAllLeagueRepository;
+
+	/** TimeRangeFeatureUpdateRepositoryレポジトリクラス */
+	@Autowired
+	private TimeRangeFeatureUpdateRepository timeRangeFeatureUpdateRepository;
+
+	/** BookDataToTimeRangeFeatureMapperクラス */
+	@Autowired
+	private BookDataToTimeRangeFeatureMapper bookDataToTimeRangeFeatureMapper;
+
+	/** RegisterDataToTimeRangeFeatureAllLeagueMapperクラス */
+	@Autowired
+	private RegisterDataToTimeRangeFeatureAllLeagueMapper registerDataToTimeRangeFeatureAllLeagueMapper;
+
+	/** RegisterDataToTimeRangeFeatureScoredMapperクラス */
+	@Autowired
+	private RegisterDataToTimeRangeFeatureScoredMapper registerDataToTimeRangeFeatureScoredMapper;
+
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
@@ -44,6 +77,7 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 	/**
 	 * {@inheritDoc}
 	 */
+	@SuppressWarnings("unchecked")
 	@Override
 	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) {
 		final String METHOD_NAME = "calcStat";
@@ -117,7 +151,7 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 
 		filtered.entrySet().parallelStream().forEach(matchEntry -> {
 			int tableSeq = matchEntry.getKey();
-			String tableName = TimeRangeFeatureTableMapUtil.getTableMap(tableSeq);
+			String tableName = TimeRangeFeatureCommonUtil.getTableMap(tableSeq);
 			Map<String, List<BookDataEntity>> entityMap = matchEntry.getValue();
 
 			entityMap.entrySet().parallelStream().forEach(matchSubEntry -> {
@@ -125,9 +159,21 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 				BookDataEntity entity = matchSubEntry.getValue().get(0);
 
 				if (tableSeq == 1) {
-					this.queueService.enqueueMainInsert(teamKey, entity);
+					mainInsert(teamKey, entity);
 				} else {
-					this.queueService.enqueueCommonInsert(teamKey, entity, tableName);
+					ConcurrentMap<String, Object> resultConcurrentMap = this.queueService.enqueueCommonReturn(teamKey,
+							entity, tableName);
+					Map<String, UpdateData> updateMap = (Map<String, UpdateData>) resultConcurrentMap
+							.get("updateMap");
+					for (Map.Entry<String, UpdateData> upd : updateMap.entrySet()) {
+						commonUpdate(upd.getValue());
+					}
+					Map<String, RegisterData> registerMap = (Map<String, RegisterData>) resultConcurrentMap
+							.get("registerMap");
+					for (Map.Entry<String, RegisterData> reg : registerMap.entrySet()) {
+						commonInsert(reg.getValue(), tableName);
+					}
+
 				}
 			});
 		});
@@ -136,6 +182,78 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		this.manageLoggerComponent.clear();
+	}
+
+	/**
+	 * Mainテーブル登録キュー
+	 * @param mapKey
+	 * @param entity
+	 */
+	public synchronized void mainInsert(String mapKey, BookDataEntity entity) {
+		final String METHOD_NAME = "mainInsert";
+		try {
+			TimeRangeFeatureOutputDTO dto = TimeRangeFeatureCommonUtil.splitTeamKey(mapKey);
+			String country = dto.getCountry();
+			String league = dto.getLeague();
+			String home = dto.getHome();
+			String away = dto.getAway();
+			String seq1 = dto.getSeq1(); // 連番ID
+			// ログ設定
+			String tableId = "登録テーブルID: (" + TimeRangeFeatureCommonUtil.getTableMap(Integer.parseInt(seq1)) + ")";
+			String loggers = setLogger(country, league, home, away) + ", " + tableId;
+
+			TimeRangeFeatureEntity timeRangeFeatureEntity = this.bookDataToTimeRangeFeatureMapper.mapStruct(entity,
+					seq1);
+			int result = this.timeRangeFeatureRepository.insert(timeRangeFeatureEntity);
+			if (result != 1) {
+				logAndThrow("新規登録エラー", METHOD_NAME, loggers);
+			}
+		} catch (Exception ex) {
+			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME,
+					CLASS_NAME, METHOD_NAME, "非同期登録失敗", ex, mapKey);
+		}
+	}
+
+	/**
+	 * 登録メソッド
+	 * @param RegisterData 登録データ
+	 * @param table テーブル
+	 */
+	private synchronized void commonInsert(RegisterData registerData, String table) {
+		final String methodName = "commonInsert";
+		String loggers = setLogger(
+				registerData.getCountry(),
+				registerData.getLeague(),
+				"",
+				"");
+		if (table.endsWith("scored")) {
+			TimeRangeFeatureScoredEntity entity = this.registerDataToTimeRangeFeatureScoredMapper
+					.mapStruct(registerData);
+			if (this.timeRangeFeatureScoredRepository.insert(entity) != 1) {
+				logAndThrow("新規登録エラー", methodName, loggers);
+			}
+		} else if (table.endsWith("all_league")) {
+			TimeRangeFeatureAllLeagueEntity entity = this.registerDataToTimeRangeFeatureAllLeagueMapper
+					.mapStruct(registerData);
+			if (this.timeRangeFeatureAllLeagueRepository.insert(entity) != 1) {
+				logAndThrow("新規登録エラー", methodName, loggers);
+			}
+		}
+	}
+
+	/**
+	 * 更新メソッド
+	 * @param updateData 更新データ
+	 */
+	private synchronized void commonUpdate(UpdateData updateData) {
+		final String methodName = "commonUpdate";
+		if (this.timeRangeFeatureUpdateRepository.update(
+				updateData.getId(),
+				updateData.getTarget(),
+				updateData.getSearch(),
+				updateData.getTable()) != 1) {
+			logAndThrow("更新エラー", methodName, "");
+		}
 	}
 
 	/**
@@ -164,6 +282,34 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 					list.add(e);
 					return list;
 				});
+	}
+
+	/**
+	 * ログ設定
+	 * @param country 国
+	 * @param league リーグ
+	 * @param home ホーム
+	 * @param away アウェー
+	 * @return
+	 */
+	private String setLogger(String country, String league, String home, String away) {
+		StringBuilder sBuilder = new StringBuilder();
+		sBuilder.append("country: " + country + ", ");
+		sBuilder.append("league: " + league + ", ");
+		sBuilder.append("home: " + home + ", ");
+		sBuilder.append("away: " + away + ", ");
+		return sBuilder.toString();
+	}
+
+	/**
+	 * 例外共通メソッド
+	 * @param messageCd メッセージコード
+	 * @param methodName メソッド名
+	 * @param loggers ログ
+	 */
+	private void logAndThrow(String messageCd, String methodName, String loggers) {
+		this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, methodName, messageCd, null, loggers);
+		this.manageLoggerComponent.createSystemException(PROJECT_NAME, CLASS_NAME, methodName, messageCd, null);
 	}
 
 }
