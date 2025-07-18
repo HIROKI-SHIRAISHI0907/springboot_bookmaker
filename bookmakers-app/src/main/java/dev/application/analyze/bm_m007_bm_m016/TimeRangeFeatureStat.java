@@ -1,8 +1,6 @@
 package dev.application.analyze.bm_m007_bm_m016;
 
 import java.util.ArrayList;
-import java.util.Collections;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -12,7 +10,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.interf.AnalyzeEntityIF;
-import dev.application.domain.repository.CountryLeagueSummaryRepository;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
@@ -36,34 +33,13 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M007_BM_M016_WITH_IN";
 
-	/** CountryLeagueSummaryRepositoryレポジトリクラス */
+	/** TimeRangeFeatureQueueService非同期キュークラス */
 	@Autowired
-	private CountryLeagueSummaryRepository countryLeagueSummaryRepository;
-
-	/** BookDataToTimeRangeFeatureMapperクラス */
-	@Autowired
-	private BookDataToTimeRangeFeatureMapper bookDataToTimeRangeFeatureMapper;
+	private TimeRangeFeatureQueueService queueService;
 
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
-
-	/** テーブル情報Map */
-	private static Map<Integer, String> TABLE_MAP;
-	{
-		Map<Integer, String> tableMap = new LinkedHashMap<Integer, String>();
-		tableMap.put(1, "within_data");
-		tableMap.put(2, "within_data_20minutes_home_all_league");
-		tableMap.put(3, "within_data_20minutes_home_scored");
-		tableMap.put(4, "within_data_20minutes_away_all_league");
-		tableMap.put(5, "within_data_20minutes_away_scored");
-		tableMap.put(6, "within_data_20minutes_same_scored");
-		tableMap.put(7, "within_data_45minutes_home_all_league");
-		tableMap.put(8, "within_data_45minutes_home_scored");
-		tableMap.put(9, "within_data_45minutes_away_all_league");
-		tableMap.put(10, "within_data_45minutes_away_scored");
-		TABLE_MAP = Collections.unmodifiableMap(tableMap);
-	}
 
 	/**
 	 * {@inheritDoc}
@@ -139,22 +115,22 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 			}
 		});
 
-		if (!filtered.isEmpty()) {
-			for (Map.Entry<Integer, Map<String, List<BookDataEntity>>> matchEntry : filtered.entrySet()) {
-				// indexが1の場合,teamKeyの後部に通番情報が保持されている想定
-				int tableSeq = matchEntry.getKey();
-				String tableName = getTableMap(tableSeq);
-				Map<String, List<BookDataEntity>> entityMap = matchEntry.getValue();
-				for (Map.Entry<String, List<BookDataEntity>> matchSubEntry : entityMap.entrySet()) {
-					String teamKey = matchSubEntry.getKey();
-					BookDataEntity entity = matchSubEntry.getValue().get(0);
+		filtered.entrySet().parallelStream().forEach(matchEntry -> {
+			int tableSeq = matchEntry.getKey();
+			String tableName = TimeRangeFeatureTableMapUtil.getTableMap(tableSeq);
+			Map<String, List<BookDataEntity>> entityMap = matchEntry.getValue();
+
+			entityMap.entrySet().parallelStream().forEach(matchSubEntry -> {
+				String teamKey = matchSubEntry.getKey();
+				BookDataEntity entity = matchSubEntry.getValue().get(0);
+
+				if (tableSeq == 1) {
+					this.queueService.enqueueMainInsert(teamKey, entity);
+				} else {
+					this.queueService.enqueueCommonInsert(teamKey, entity, tableName);
 				}
-			}
-		} else {
-			String messageCd = "登録しない";
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
-		}
+			});
+		});
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
@@ -188,89 +164,6 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 					list.add(e);
 					return list;
 				});
-	}
-
-	/**
-	 * within_data 登録メソッド
-	 * @param mapKey
-	 * @param entity
-	 */
-	private synchronized void setMainEntity(String mapKey, BookDataEntity entity) {
-		TimeRangeFeatureOutputDTO dto = splitTeamKey(mapKey);
-		String seq1 = dto.getSeq1(); // 連番ID
-		TimeRangeFeatureEntity timeRangeFeatureEntity =
-				this.bookDataToTimeRangeFeatureMapper.mapStruct(entity, seq1);
-
-	}
-
-	/**
-	 * within_data_scored 登録メソッド
-	 * @param mapKey
-	 * @param entity
-	 */
-	private synchronized void setScoredEntity(String mapKey, BookDataEntity entity) {
-		TimeRangeFeatureOutputDTO dto = splitTeamKey(mapKey);
-		String country = dto.getCountry();
-		String league = dto.getLeague();
-		String home = dto.getHome();
-		String away = dto.getAway();
-		String seq1 = dto.getSeq1();
-
-	}
-
-	/**
-	 * within_data_all_league 登録メソッド
-	 * @param mapKey
-	 * @param entity
-	 */
-	private synchronized void setAllLeagueEntity(String mapKey, BookDataEntity entity) {
-		TimeRangeFeatureOutputDTO dto = splitTeamKey(mapKey);
-		String country = dto.getCountry();
-		String league = dto.getLeague();
-		String home = dto.getHome();
-		String away = dto.getAway();
-		String seq1 = dto.getSeq1();
-
-	}
-
-	/**
-	 * テーブル情報マップを取得
-	 * @param key キー(国-リーグ-ホーム-アウェー-連番)
-	 * @return テーブル情報のマップ
-	 */
-	private TimeRangeFeatureOutputDTO splitTeamKey(String mapKey) {
-		TimeRangeFeatureOutputDTO timeRangeFeatureOutputDTO = new TimeRangeFeatureOutputDTO();
-		String[] key = mapKey.split("-");
-		timeRangeFeatureOutputDTO.setCountry(key[0]);
-		timeRangeFeatureOutputDTO.setLeague(key[1]);
-		timeRangeFeatureOutputDTO.setHome(key[2]);
-		timeRangeFeatureOutputDTO.setAway(key[3]);
-		if (key.length > 4) {
-			timeRangeFeatureOutputDTO.setSeq1(key[4]);
-		}
-		return timeRangeFeatureOutputDTO;
-	}
-
-	/**
-	 * テーブル情報マップを取得
-	 * @param key キー
-	 * @return テーブル情報のマップ
-	 */
-	private String getTableMap(int key) {
-		final String METHOD_NAME = "getTableMap";
-
-		String messageCd = "";
-		if (!TABLE_MAP.containsKey(key)) {
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-			this.manageLoggerComponent.createSystemException(
-					PROJECT_NAME,
-					CLASS_NAME,
-					METHOD_NAME,
-					messageCd,
-					null);
-		}
-		return TABLE_MAP.get(key);
 	}
 
 }

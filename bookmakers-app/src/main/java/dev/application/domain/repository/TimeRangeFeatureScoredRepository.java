@@ -36,5 +36,5 @@ public interface TimeRangeFeatureScoredRepository {
             #{updateTime}
         )
     """)
-    void insert(TimeRangeFeatureScoredEntity entity);
+    int insert(TimeRangeFeatureScoredEntity entity);
 }

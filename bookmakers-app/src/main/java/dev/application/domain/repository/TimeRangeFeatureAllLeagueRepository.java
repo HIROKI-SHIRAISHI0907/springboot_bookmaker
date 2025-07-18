@@ -40,5 +40,5 @@ public interface TimeRangeFeatureAllLeagueRepository {
             #{updateTime}
         )
     """)
-    void insert(TimeRangeFeatureAllLeagueEntity entity);
+    int insert(TimeRangeFeatureAllLeagueEntity entity);
 }
