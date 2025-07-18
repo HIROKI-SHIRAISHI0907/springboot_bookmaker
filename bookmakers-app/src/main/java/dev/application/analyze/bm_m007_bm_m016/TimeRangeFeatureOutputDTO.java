@@ -40,4 +40,24 @@ public class TimeRangeFeatureOutputDTO implements Serializable {
 	 */
 	private String seq1;
 
+	/**
+	 * ID
+	 */
+	private String id;
+
+	/**
+	 * 対象数
+	 */
+	private String target;
+
+	/**
+	 * 探索数
+	 */
+	private String search;
+
+	/**
+	 * 更新フラグ
+	 */
+	private boolean updFlg;
+
 }
