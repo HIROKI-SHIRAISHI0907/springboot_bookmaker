@@ -3,18 +3,15 @@ package dev.application.analyze.bm_m007_bm_m016;
 import lombok.Data;
 
 /**
- * within_data_xminutesデータEntity
+ * within_data_xminutes_homeoraway_all_leagueデータEntity
  * @author shiraishitoshio
  *
  */
 @Data
-public class TimeRangeFeatureStatsEachLeagueEntity {
+public class TimeRangeFeatureAllLeagueEntity {
 
-	/** 国 */
-	private String country;
-
-	/** リーグ */
-	private String league;
+	/** ID */
+	private String id;
 
 	/** 試合時間範囲 */
 	private String timeRange;
@@ -33,6 +30,9 @@ public class TimeRangeFeatureStatsEachLeagueEntity {
 
 	/** 割合 */
 	private String ratio;
+
+	/** テーブル名 */
+	private String tableName;
 
 	/** 登録ID */
 	private String registerId;

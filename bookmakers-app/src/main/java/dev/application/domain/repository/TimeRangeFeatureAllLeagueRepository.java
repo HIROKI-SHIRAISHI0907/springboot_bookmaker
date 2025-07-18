@@ -3,11 +3,11 @@ package dev.application.domain.repository;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 
-import dev.application.analyze.bm_m007_bm_m016.TimeRangeFeatureStatsEachLeagueEntity;
+import dev.application.analyze.bm_m007_bm_m016.TimeRangeFeatureAllLeagueEntity;
 
 
 @Mapper
-public interface TimeRangeFeatureStatsEachLeagueRepository {
+public interface TimeRangeFeatureAllLeagueRepository {
 
     @Insert("""
         INSERT INTO within_data (
@@ -40,5 +40,5 @@ public interface TimeRangeFeatureStatsEachLeagueRepository {
             #{updateTime}
         )
     """)
-    void insert(TimeRangeFeatureStatsEachLeagueEntity entity);
+    void insert(TimeRangeFeatureAllLeagueEntity entity);
 }

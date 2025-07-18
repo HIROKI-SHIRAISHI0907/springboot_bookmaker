@@ -1,14 +1,28 @@
 package dev.application.analyze.bm_m007_bm_m016;
 
+import java.io.Serializable;
+
 import lombok.Data;
 
 /**
- * within_data_xminutes_all_leagueデータEntity
+ * within_data_xminutes_homeoraway_scoredデータEntity
  * @author shiraishitoshio
  *
  */
 @Data
-public class TimeRangeFeatureStatsAllLeagueEntity {
+public class TimeRangeFeatureScoredEntity implements Serializable {
+
+	/** シリアライズ化 */
+	private static final long serialVersionUID = 1L;
+
+	/** ID */
+	private String id;
+
+	/** 国 */
+	private String country;
+
+	/** リーグ */
+	private String league;
 
 	/** 試合時間範囲 */
 	private String timeRange;
@@ -27,6 +41,9 @@ public class TimeRangeFeatureStatsAllLeagueEntity {
 
 	/** 割合 */
 	private String ratio;
+
+	/** テーブル名 */
+	private String tableName;
 
 	/** 登録ID */
 	private String registerId;

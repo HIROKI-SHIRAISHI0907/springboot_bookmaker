@@ -47,6 +47,9 @@ public class NoGoalMatchStat implements AnalyzeEntityIF {
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
 	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) {
 		final String METHOD_NAME = "calcStat";
@@ -58,9 +61,11 @@ public class NoGoalMatchStat implements AnalyzeEntityIF {
 		// 無得点データのみ抜き出す
 		Map<String, Map<String, List<BookDataEntity>>> noEntities = excerptNoScores(entities);
 
-		// 登録
+		// 登録情報あるか
 		if (noEntities.isEmpty()) {
-
+			String messageCd = "登録しない";
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
 		}
 
 		// Mapを回す
