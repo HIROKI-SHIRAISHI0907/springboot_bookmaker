@@ -1,0 +1,259 @@
+openapi: 3.0.0
+info:
+  title: Make User API
+  description: ユーザー情報に関するAPI
+  version: 1.0.0
+servers:
+  - url: http://localhost:8080/api
+paths:
+  /users:
+    get:
+      summary: ユーザー情報一覧の取得
+      responses:
+        '200':
+          description: ユーザー情報一覧の取得成功
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/UserAll'
+        '500':
+          description: サーバー内部エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorServerInnerResponse'
+  /users/get/{id}:
+    get:
+      summary: ユーザー情報の取得
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: ユーザーID
+          schema:
+            type: string
+            example: "1"
+      responses:
+        '200':
+          description: ユーザー情報取得成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          description: リクエストが不正です
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorUpdateDeleteGetRequestResponse'
+        '404':
+          description: 対応するIDが存在しません
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorGetResponse'
+        '500':
+          description: サーバー内部エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorServerInnerResponse'
+  /users/create/{id}:
+    post:
+      summary: ユーザーの作成
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: ユーザーID
+          schema:
+            type: string
+            example: "1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: ユーザー情報作成成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: リクエストが不正です
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorCreateRequestResponse'
+        '500':
+          description: サーバー内部エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorServerInnerResponse'
+  /users/update/{id}:
+    patch:
+      summary: ユーザー情報の更新
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: ユーザーID
+          schema:
+            type: string
+            example: "1"
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/User'
+      responses:
+        '200':
+          description: ユーザー情報更新成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: リクエストが不正です
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorUpdateDeleteGetRequestResponse'
+        '500':
+          description: サーバー内部エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorServerInnerResponse'
+  /users/delete/{id}:
+    delete:
+      summary: ユーザー情報の削除
+      parameters:
+        - in: path
+          name: id
+          required: true
+          description: ユーザーID
+          schema:
+            type: string
+            example: "1"
+      responses:
+        '200':
+          description: ユーザー情報削除成功
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/SuccessResponse'
+        '400':
+          description: リクエストが不正です
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorUpdateDeleteGetRequestResponse'
+        '500':
+          description: サーバー内部エラー
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ErrorServerInnerResponse'
+components:
+  schemas:
+    UserAll:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - password
+      properties:
+        id:
+          type: string
+          example: "1"
+        name:
+          type: string
+          example: サンプルユーザー
+        email:
+          type: string
+          example: user@example.com
+        password:
+          type: string
+          example: password123
+    User:
+      type: object
+      required:
+        - id
+        - name
+        - email
+        - password
+      properties:
+        id:
+          type: string
+          example: "1"
+        name:
+          type: string
+          example: サンプルユーザー
+        email:
+          type: string
+          example: user@example.com
+        password:
+          type: string
+          example: password123
+          
+    SuccessResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: 200
+        message:
+          type: string
+          example: 処理成功
+          
+    ErrorCreateRequestResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: 400
+        message:
+          type: string
+          example: 入力値が不正です
+        details:
+          type: string
+          example: emailは必須です
+          
+    ErrorUpdateDeleteGetRequestResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: 400
+        message:
+          type: string
+          example: idが不正です
+          
+    ErrorGetResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: 404
+        message:
+          type: string
+          example: 存在しないidです
+          
+    ErrorServerInnerResponse:
+      type: object
+      properties:
+        code:
+          type: string
+          example: 500
+        message:
+          type: string
+          example: サーバー内エラーです
