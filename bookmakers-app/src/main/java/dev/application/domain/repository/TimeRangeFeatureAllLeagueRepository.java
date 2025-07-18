@@ -10,7 +10,7 @@ import dev.application.analyze.bm_m007_bm_m016.TimeRangeFeatureAllLeagueEntity;
 public interface TimeRangeFeatureAllLeagueRepository {
 
     @Insert("""
-        INSERT INTO within_data (
+        INSERT INTO #{tableName} (
             id,
             country,
             league,
