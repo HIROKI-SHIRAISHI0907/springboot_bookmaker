@@ -191,27 +191,25 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 	 */
 	public synchronized void mainInsert(String mapKey, BookDataEntity entity) {
 		final String METHOD_NAME = "mainInsert";
-		try {
-			TimeRangeFeatureOutputDTO dto = TimeRangeFeatureCommonUtil.splitTeamKey(mapKey);
-			String country = dto.getCountry();
-			String league = dto.getLeague();
-			String home = dto.getHome();
-			String away = dto.getAway();
-			String seq1 = dto.getSeq1(); // 連番ID
-			// ログ設定
-			String tableId = "登録テーブルID: (" + TimeRangeFeatureCommonUtil.getTableMap(Integer.parseInt(seq1)) + ")";
-			String loggers = setLogger(country, league, home, away) + ", " + tableId;
+		TimeRangeFeatureOutputDTO dto = TimeRangeFeatureCommonUtil.splitTeamKey(mapKey);
+		String country = dto.getCountry();
+		String league = dto.getLeague();
+		String home = dto.getHome();
+		String away = dto.getAway();
+		String seq1 = dto.getSeq1(); // 連番ID
+		// ログ設定
+		String tableId = "登録テーブルID: (" + TimeRangeFeatureCommonUtil.getTableMap(Integer.parseInt(seq1)) + ")";
+		String loggers = setLogger(country, league, home, away) + ", " + tableId;
 
-			TimeRangeFeatureEntity timeRangeFeatureEntity = this.bookDataToTimeRangeFeatureMapper.mapStruct(entity,
-					seq1);
-			int result = this.timeRangeFeatureRepository.insert(timeRangeFeatureEntity);
-			if (result != 1) {
-				logAndThrow("新規登録エラー", METHOD_NAME, loggers);
-			}
-		} catch (Exception ex) {
-			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME,
-					CLASS_NAME, METHOD_NAME, "非同期登録失敗", ex, mapKey);
+		TimeRangeFeatureEntity timeRangeFeatureEntity = this.bookDataToTimeRangeFeatureMapper.mapStruct(entity,
+				seq1);
+		int result = this.timeRangeFeatureRepository.insert(timeRangeFeatureEntity);
+		if (result != 1) {
+			logAndThrow("新規登録エラー", METHOD_NAME, loggers);
 		}
+		String messageCd = "登録件数";
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, tableId);
 	}
 
 	/**
@@ -239,6 +237,9 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 				logAndThrow("新規登録エラー", methodName, loggers);
 			}
 		}
+		String messageCd = "登録件数";
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, methodName, messageCd, table);
 	}
 
 	/**
@@ -254,6 +255,9 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 				updateData.getTable()) != 1) {
 			logAndThrow("更新エラー", methodName, "");
 		}
+		String messageCd = "更新件数";
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, methodName, messageCd, updateData.getTable());
 	}
 
 	/**

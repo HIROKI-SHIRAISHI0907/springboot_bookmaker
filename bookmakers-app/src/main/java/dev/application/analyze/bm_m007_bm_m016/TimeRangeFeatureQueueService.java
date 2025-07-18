@@ -13,6 +13,7 @@ import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
 import dev.application.domain.repository.TimeRangeFeatureAllLeagueRepository;
@@ -220,15 +221,63 @@ public class TimeRangeFeatureQueueService {
 	 * @return 変換後の文字列（失敗時は元のまま）
 	 */
 	private String normalizeValue(String value) {
-	    if (value != null && value.contains("%")) {
-	        try {
-	            int raw = Integer.parseInt(value.replace("%", ""));
-	            int rounded = (raw / 10) * 10;
-	            return rounded + "%";
-	        } catch (NumberFormatException e) {
-	            // 変換失敗時はそのまま
-	        }
-	    }
-	    return value;
+		if (value != null && value.contains("%")) {
+			try {
+				int raw = Integer.parseInt(value.replace("%", ""));
+				int rounded = (raw / 10) * 10;
+				return rounded + "%";
+			} catch (NumberFormatException e) {
+				// 変換失敗時はそのまま
+			}
+		}
+		return value;
+	}
+
+	@Scheduled(fixedRate = 5000) // 5秒ごと
+	public void monitorQueueStatus() {
+		final String METHOD_NAME = "monitorQueueStatus";
+		String messageCd = "キューモニター監視";
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+				"[QueueMonitor] Queue={" + getQueueSize() + "}"
+						+ ", Pool={" + getPoolSize() + "}"
+						+ ", TotalTask={" + getTotalTaskCount() + "}"
+						+ ", ActiveTask={" + getActiveTaskCount() + "}"
+						+ ", CompletedTask={" + getCompletedTaskCount() + "}");
+	}
+
+	/**
+	 * 現在のキューサイズ（待機中のタスク数）を返す
+	 */
+	public int getQueueSize() {
+		return executorService.getQueue().size();
+	}
+
+	/**
+	 * 現在実行中のタスク数（アクティブスレッド数）を返す
+	 */
+	public int getActiveTaskCount() {
+		return executorService.getActiveCount();
+	}
+
+	/**
+	 * 現在のスレッドプールサイズを返す（実際に存在しているスレッドの数）
+	 */
+	public int getPoolSize() {
+		return executorService.getPoolSize();
+	}
+
+	/**
+	 * 送信済みの累計タスク数を返す（成功/失敗問わず）
+	 */
+	public long getTotalTaskCount() {
+		return executorService.getTaskCount();
+	}
+
+	/**
+	 * 完了済みの累計タスク数を返す
+	 */
+	public long getCompletedTaskCount() {
+		return executorService.getCompletedTaskCount();
 	}
 }
