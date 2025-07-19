@@ -7,6 +7,6 @@ import org.mapstruct.Mapping;
 public interface RegisterDataToTimeRangeFeatureScoredMapper {
 
 	@Mapping(source = "table", target = "tableName")
-	TimeRangeFeatureScoredEntity mapStruct(RegisterData registerData);
+	TimeRangeFeatureScoredEntity mapStruct(TeamRangeRegisterData registerData);
 
 }

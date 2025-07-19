@@ -85,8 +85,8 @@ public class TimeRangeFeatureQueueService {
 	public ConcurrentMap<String, Object> enqueueCommonReturn(String mapKey, BookDataEntity entity, String tableName) {
 		ConcurrentMap<String, Object> result = new ConcurrentHashMap<>();
 		try {
-			Map<String, UpdateData> updateMap = new ConcurrentHashMap<>();
-			Map<String, RegisterData> registerMap = new ConcurrentHashMap<>();
+			Map<String, TeamRangeUpdateData> updateMap = new ConcurrentHashMap<>();
+			Map<String, TeamRangeRegisterData> registerMap = new ConcurrentHashMap<>();
 			TimeRangeFeatureOutputDTO dto = TimeRangeFeatureCommonUtil.splitTeamKey(mapKey);
 			String country = dto.getCountry();
 			String league = dto.getLeague();
@@ -124,7 +124,7 @@ public class TimeRangeFeatureQueueService {
 				if (checkDto.isUpdFlg()) {
 					String target = String.valueOf(Integer.parseInt(checkDto.getTarget()) + 1);
 					String search = String.valueOf(Integer.parseInt(checkDto.getSearch()) + 1);
-					updateMap.put(feature, new UpdateData(
+					updateMap.put(feature, new TeamRangeUpdateData(
 							checkDto.getId(), target, search, tableName));
 				} else {
 					String countryKey = (tableName.endsWith("scored")) ? country : "";
@@ -133,25 +133,25 @@ public class TimeRangeFeatureQueueService {
 					if (feature.startsWith("[SPLIT]")) {
 						String[] split = feature.replace("[SPLIT]", "").split("\\|");
 						String thresHoldSuccess = normalizeValue(split[0]);
-						registerMap.put(feature + "_success", new RegisterData(
+						registerMap.put(feature + "_success", new TeamRangeRegisterData(
 								countryKey, leagueKey, timeRange, feature + "_success", thresHoldSuccess,
 								"1", "1", tableName));
 						String thresHoldTry = normalizeValue(split[1]);
-						registerMap.put(feature + "_try", new RegisterData(
+						registerMap.put(feature + "_try", new TeamRangeRegisterData(
 								countryKey, leagueKey, timeRange, feature + "_try", thresHoldTry,
 								"1", "1", tableName));
 					} else {
 						String thresHold = normalizeValue(value);
-						registerMap.put(feature, new RegisterData(countryKey, leagueKey,
+						registerMap.put(feature, new TeamRangeRegisterData(countryKey, leagueKey,
 								timeRange, feature, thresHold, "1", "1", tableName));
 					}
 				}
 			});
-			result.put("updateMap", updateMap);
-			result.put("registerMap", registerMap);
+			result.put(TimeRangeFeatureCommonUtil.UPDATEMAP, updateMap);
+			result.put(TimeRangeFeatureCommonUtil.REGISTERMAP, registerMap);
 		} catch (Exception e) {
 			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME,
-					"enqueueCommonInsert", "非同期判定失敗", e, mapKey);
+					"enqueueCommonReturn", "非同期判定失敗", e, mapKey);
 		}
 		return result;
 	}

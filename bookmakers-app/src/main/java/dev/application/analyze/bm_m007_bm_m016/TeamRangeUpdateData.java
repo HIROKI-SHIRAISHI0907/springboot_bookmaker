@@ -8,7 +8,7 @@ import lombok.Data;
  *
  */
 @Data
-public class UpdateData {
+public class TeamRangeUpdateData {
 
 	/** id */
 	private String id;
@@ -29,7 +29,7 @@ public class UpdateData {
      * @param search 探索数
      * @param table テーブル
      */
-    public UpdateData(String id, String target, String search, String table) {
+    public TeamRangeUpdateData(String id, String target, String search, String table) {
         this.id = id;
         this.target = target;
         this.search = search;

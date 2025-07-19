@@ -8,7 +8,7 @@ import lombok.Data;
  *
  */
 @Data
-public class RegisterData {
+public class TeamRangeRegisterData {
 
 	/** country */
     private String country;
@@ -45,7 +45,7 @@ public class RegisterData {
      * @param search 探索数
      * @param table テーブル
      */
-    public RegisterData(String country, String league, String timeRange, String feature,
+    public TeamRangeRegisterData(String country, String league, String timeRange, String feature,
     		String thresHold, String target, String search, String table) {
     	this.country = country;
     	this.league = league;

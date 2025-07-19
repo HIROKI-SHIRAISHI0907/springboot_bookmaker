@@ -7,6 +7,6 @@ import org.mapstruct.Mapping;
 public interface RegisterDataToTimeRangeFeatureAllLeagueMapper {
 
 	@Mapping(source = "table", target = "tableName")
-	TimeRangeFeatureAllLeagueEntity mapStruct(RegisterData registerData);
+	TimeRangeFeatureAllLeagueEntity mapStruct(TeamRangeRegisterData registerData);
 
 }

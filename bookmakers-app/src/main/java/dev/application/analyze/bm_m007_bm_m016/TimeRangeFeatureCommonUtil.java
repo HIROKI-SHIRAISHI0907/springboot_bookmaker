@@ -11,6 +11,12 @@ import java.util.Map;
  */
 public class TimeRangeFeatureCommonUtil {
 
+	/** updateMap */
+	public static String UPDATEMAP = "updateMap";
+
+	/** registerMap */
+	public static String REGISTERMAP = "registerMap";
+
 	/** テーブル情報Map */
 	private static Map<Integer, String> TABLE_MAP;
 	{

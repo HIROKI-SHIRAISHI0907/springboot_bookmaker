@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.TimeRangeFeatureAllLeagueRepository;
 import dev.application.domain.repository.TimeRangeFeatureRepository;
@@ -105,6 +106,9 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 				String prevHomeScore = "0";
 				String prevAwayScore = "0";
 				for (BookDataEntity e : dataList) {
+					// ゴール取り消しはスキップ
+					if (BookMakersCommonConst.GOAL_DELETE.equals(e.getTime())) continue;
+
 					double convTime = ExecuteMainUtil.convertToMinutes(e.getTime());
 					String currentHomeScore = e.getHomeScore();
 					String currentAwayScore = e.getAwayScore();
@@ -163,14 +167,14 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 				} else {
 					ConcurrentMap<String, Object> resultConcurrentMap = this.queueService.enqueueCommonReturn(teamKey,
 							entity, tableName);
-					Map<String, UpdateData> updateMap = (Map<String, UpdateData>) resultConcurrentMap
-							.get("updateMap");
-					for (Map.Entry<String, UpdateData> upd : updateMap.entrySet()) {
+					Map<String, TeamRangeUpdateData> updateMap = (Map<String, TeamRangeUpdateData>) resultConcurrentMap
+							.get(TimeRangeFeatureCommonUtil.UPDATEMAP);
+					for (Map.Entry<String, TeamRangeUpdateData> upd : updateMap.entrySet()) {
 						commonUpdate(upd.getValue());
 					}
-					Map<String, RegisterData> registerMap = (Map<String, RegisterData>) resultConcurrentMap
-							.get("registerMap");
-					for (Map.Entry<String, RegisterData> reg : registerMap.entrySet()) {
+					Map<String, TeamRangeRegisterData> registerMap = (Map<String, TeamRangeRegisterData>) resultConcurrentMap
+							.get(TimeRangeFeatureCommonUtil.REGISTERMAP);
+					for (Map.Entry<String, TeamRangeRegisterData> reg : registerMap.entrySet()) {
 						commonInsert(reg.getValue(), tableName);
 					}
 
@@ -214,10 +218,10 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 
 	/**
 	 * 登録メソッド
-	 * @param RegisterData 登録データ
+	 * @param TeamRangeRegisterData 登録データ
 	 * @param table テーブル
 	 */
-	private synchronized void commonInsert(RegisterData registerData, String table) {
+	private synchronized void commonInsert(TeamRangeRegisterData registerData, String table) {
 		final String methodName = "commonInsert";
 		String loggers = setLogger(
 				registerData.getCountry(),
@@ -246,7 +250,7 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 	 * 更新メソッド
 	 * @param updateData 更新データ
 	 */
-	private synchronized void commonUpdate(UpdateData updateData) {
+	private synchronized void commonUpdate(TeamRangeUpdateData updateData) {
 		final String methodName = "commonUpdate";
 		if (this.timeRangeFeatureUpdateRepository.update(
 				updateData.getId(),
