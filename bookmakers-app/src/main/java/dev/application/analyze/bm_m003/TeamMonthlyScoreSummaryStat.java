@@ -74,7 +74,7 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 					int currentAwayScore = 0;
 
 					// ゴール取り消しはスキップ
-					if (BookMakersCommonConst.GOAL_DELETE.equals(entity.getTime())) continue;
+					if (BookMakersCommonConst.GOAL_DELETE.equals(entity.getJudge())) continue;
 
 					if (home.endsWith("-home")) {
 						currentHomeScore = parseScore(entity.getHomeScore());

@@ -107,7 +107,7 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 				String prevAwayScore = "0";
 				for (BookDataEntity e : dataList) {
 					// ゴール取り消しはスキップ
-					if (BookMakersCommonConst.GOAL_DELETE.equals(e.getTime())) continue;
+					if (BookMakersCommonConst.GOAL_DELETE.equals(e.getJudge())) continue;
 
 					double convTime = ExecuteMainUtil.convertToMinutes(e.getTime());
 					String currentHomeScore = e.getHomeScore();

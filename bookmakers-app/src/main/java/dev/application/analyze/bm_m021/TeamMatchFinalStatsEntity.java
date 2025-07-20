@@ -173,13 +173,13 @@ public class TeamMatchFinalStatsEntity {
 	private String oppositePassCountTryCount;
 
 	/** ファイナルサードパス数_成功率 */
-	private String FinalThirdPassCountSuccessRatio;
+	private String finalThirdPassCountSuccessRatio;
 
 	/** ファイナルサードパス数_成功数 */
-	private String FinalThirdPassCountSuccessCount;
+	private String finalThirdPassCountSuccessCount;
 
 	/** ファイナルサードパス数_試行数 */
-	private String FinalThirdPassCountTryCount;
+	private String finalThirdPassCountTryCount;
 
 	/** 対戦相手ファイナルサードパス数_成功率 */
 	private String oppositeFinalThirdPassCountSuccessRatio;

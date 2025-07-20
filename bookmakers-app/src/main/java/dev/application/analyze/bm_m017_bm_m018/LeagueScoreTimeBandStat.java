@@ -76,7 +76,7 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 				int prevAwayScore = 0;
 				for (BookDataEntity e : dataList) {
 					// ゴール取り消しはスキップ
-					if (BookMakersCommonConst.GOAL_DELETE.equals(e.getTime()))
+					if (BookMakersCommonConst.GOAL_DELETE.equals(e.getJudge()))
 						continue;
 					// その時間の得点を取得し,差分があった場合,現在のスコアをeachMapに保存する
 					int currentHomeScore = Integer.parseInt(e.getHomeScore());

@@ -245,7 +245,7 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 	 */
 	private synchronized void saveResultData(List<MatchClassificationResultEntity> entities,
 			String country, String league) {
-		final String METHOD_NAME = "init";
+		final String METHOD_NAME = "saveResultData";
 		String fillChar = setLoggerFillChar(country, league);
 		for (MatchClassificationResultEntity entity : entities) {
 			int result = this.matchClassificationResultRepository.insert(entity);

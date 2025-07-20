@@ -177,5 +177,5 @@ public interface TeamMatchFinalStatsRepository {
     		#{updateTime}
         )
     """)
-    void insert(TeamMatchFinalStatsEntity entity);
+    int insert(TeamMatchFinalStatsEntity entity);
 }
