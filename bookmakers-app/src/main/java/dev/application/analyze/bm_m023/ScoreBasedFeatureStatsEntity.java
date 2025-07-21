@@ -1,5 +1,7 @@
 package dev.application.analyze.bm_m023;
 
+import java.io.Serializable;
+
 import lombok.Data;
 
 /**
@@ -8,7 +10,13 @@ import lombok.Data;
  *
  */
 @Data
-public class ScoreBasedFeatureStatsEntity {
+public class ScoreBasedFeatureStatsEntity implements Serializable {
+
+	/** シリアライズ化 */
+	private static final long serialVersionUID = 1L;
+
+	/** 保管フラグ */
+	private boolean upd;
 
 	/** ID */
 	private String id;
