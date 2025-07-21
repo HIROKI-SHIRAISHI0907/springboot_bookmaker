@@ -12,7 +12,6 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
-import dev.application.analyze.bm_m021.BookDataToTeamMatchFinalMapper;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.ScoreBasedFeatureStatsRepository;
 import dev.common.entity.BookDataEntity;
@@ -44,10 +43,6 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 	@Autowired
 	private ScoreBasedFeatureStatsRepository scoreBasedFeatureStatsRepository;
 
-	/** BookDataToTeamMatchFinalMapperマッパークラス */
-	@Autowired
-	private BookDataToTeamMatchFinalMapper bookDataToTeamMatchFinalMapper;
-
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
@@ -64,6 +59,7 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		// 全リーグ・国を走査
+		ConcurrentHashMap<String, ScoreBasedFeatureStatsEntity> map = new ConcurrentHashMap<>();
 		for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
 			String[] data_category = entry.getKey().split("-");
 			String country = data_category[0];
@@ -71,13 +67,29 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 			Map<String, List<BookDataEntity>> entrySub = entry.getValue();
 			for (List<BookDataEntity> entityList : entrySub.values()) {
 				// null や空リストはスキップ
-				if (entityList == null || entityList.isEmpty()) continue;
+				if (entityList == null || entityList.isEmpty())
+					continue;
 				// decideBasedMain を呼び出して集計マップを取得
-				ConcurrentHashMap<String, ScoreBasedFeatureStatsEntity> map =
-					decideBasedMain(entityList, country, league);
-				// TODO: ここで map の登録処理を行う（例: DB書き込み or 出力バッファに積む）
+				map = decideBasedMain(entityList, country, league);
 			}
 		}
+
+		// 登録・更新
+		ExecutorService executor = Executors.newFixedThreadPool(map.size());
+		List<CompletableFuture<Void>> futures = new ArrayList<>();
+		for (Map.Entry<String, ScoreBasedFeatureStatsEntity> entry : map.entrySet()) {
+			CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+				ScoreBasedFeatureStatsEntity entity = entry.getValue();
+				if (entity.isUpd()) {
+					update(entity);
+				} else {
+					insert(entity);
+				}
+			}, executor);
+			futures.add(future);
+		}
+		CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+		executor.shutdown();
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
@@ -92,8 +104,8 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 	 * @param league リーグ
 	 * @return
 	 */
-	private ConcurrentHashMap<String, ScoreBasedFeatureStatsEntity>
-			decideBasedMain(List<BookDataEntity> entities, String country, String league) {
+	private ConcurrentHashMap<String, ScoreBasedFeatureStatsEntity> decideBasedMain(List<BookDataEntity> entities,
+			String country, String league) {
 		BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
 
 		// situation決定
@@ -103,11 +115,10 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 
 		// 各種flg + connectScoreの組み合わせ
 		List<String> flgs = List.of(
-		    AverageStatisticsSituationConst.ALL_DATA,
-		    AverageStatisticsSituationConst.FIRST_DATA,
-		    AverageStatisticsSituationConst.SECOND_DATA,
-		    AverageStatisticsSituationConst.EACH_SCORE
-		);
+				AverageStatisticsSituationConst.ALL_DATA,
+				AverageStatisticsSituationConst.FIRST_DATA,
+				AverageStatisticsSituationConst.SECOND_DATA,
+				AverageStatisticsSituationConst.EACH_SCORE);
 
 		// 各スコアの組み合わせ(例: ["0-0", "1-0", "1-1", ...])
 		List<String> allScores = extractExistingScorePatterns(entities);
@@ -115,28 +126,29 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 		List<CompletableFuture<Void>> futures = new ArrayList<>();
 		ConcurrentHashMap<String, ScoreBasedFeatureStatsEntity> allMap = new ConcurrentHashMap<>();
 		for (String flg : flgs) {
-		    if (AverageStatisticsSituationConst.EACH_SCORE.equals(flg)) {
-		        if (!AverageStatisticsSituationConst.NOSCORE.equals(situation)) {
-		            for (String score : allScores) {
-		                if ("0-0".equals(score)) continue; // 0-0 スコアはEACH_SCOREから除外
-		                CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-		                    basedEntities(allMap, entities, score, situation, flg, country, league);
-		                }, executor);
-		                futures.add(future);
-		            }
-		        } else {
-		        	 CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-		                    basedEntities(allMap, entities, null, situation, flg, country, league);
-		                }, executor);
-		                futures.add(future);
-		        }
-		    } else {
-		        // ALL_DATA / FIRST_DATA / SECOND_DATA → スコア単位でなく全体処理なので null を渡す
-		        CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-		            basedEntities(allMap, entities, null, situation, flg, country, league);
-		        }, executor);
-		        futures.add(future);
-		    }
+			if (AverageStatisticsSituationConst.EACH_SCORE.equals(flg)) {
+				if (!AverageStatisticsSituationConst.NOSCORE.equals(situation)) {
+					for (String score : allScores) {
+						if ("0-0".equals(score))
+							continue; // 0-0 スコアはEACH_SCOREから除外
+						CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+							basedEntities(allMap, entities, score, situation, flg, country, league);
+						}, executor);
+						futures.add(future);
+					}
+				} else {
+					CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+						basedEntities(allMap, entities, null, situation, flg, country, league);
+					}, executor);
+					futures.add(future);
+				}
+			} else {
+				// ALL_DATA / FIRST_DATA / SECOND_DATA → スコア単位でなく全体処理なので null を渡す
+				CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+					basedEntities(allMap, entities, null, situation, flg, country, league);
+				}, executor);
+				futures.add(future);
+			}
 		}
 		// すべての非同期処理が終わるのを待つ
 		CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
@@ -210,8 +222,7 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 		Integer[] tSigmaCntList = this.bean.getTimeCntList();
 
 		// データが存在した場合の初期化値上書き
-		setInitData(minList, minCntList, maxList, maxCntList
-				,aveList, aveCntList, sigmaList, sigmaCntList,
+		setInitData(minList, minCntList, maxList, maxCntList, aveList, aveCntList, sigmaList, sigmaCntList,
 				tMinList, tMinCntList, tMaxList, tMaxCntList,
 				tAveList, tAveCntList, tSigmaList, tSigmaCntList,
 				statList);
@@ -300,6 +311,62 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 	}
 
 	/**
+	 * 登録メソッド
+	 * @param entity エンティティ
+	 */
+	private synchronized void insert(ScoreBasedFeatureStatsEntity entity) {
+		final String METHOD_NAME = "insert";
+		String fillChar = setLoggerFillChar(
+				entity.getSituation(),
+				entity.getScore(),
+				entity.getCountry(),
+				entity.getLeague());
+		int result = this.scoreBasedFeatureStatsRepository.insert(entity);
+		if (result != 1) {
+			String messageCd = "新規登録エラー";
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
+			this.manageLoggerComponent.createSystemException(
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					messageCd,
+					null);
+		}
+		String messageCd = "登録件数";
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M023 登録件数: 1件");
+	}
+
+	/**
+	 * 登録メソッド
+	 * @param entity エンティティ
+	 */
+	private void update(ScoreBasedFeatureStatsEntity entity) {
+		final String METHOD_NAME = "update";
+		String fillChar = setLoggerFillChar(
+				entity.getSituation(),
+				entity.getScore(),
+				entity.getCountry(),
+				entity.getLeague());
+		int result = this.scoreBasedFeatureStatsRepository.insert(entity);
+		if (result != 1) {
+			String messageCd = "更新エラー";
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
+			this.manageLoggerComponent.createSystemException(
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					messageCd,
+					null);
+		}
+		String messageCd = "登録件数";
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M023 更新件数: 1件");
+	}
+
+	/**
 	 * 初期値設定リスト
 	 * @param minList
 	 * @param minCntList
@@ -318,8 +385,8 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 	 * @param tSigmaList
 	 * @param tSigmaCntList
 	 */
-	private void setInitData(String[] minList, Integer[] minCntList, String[] maxList, Integer[] maxCntList
-			,String[] aveList, Integer[] aveCntList, String[] sigmaList, Integer[] sigmaCntList,
+	private void setInitData(String[] minList, Integer[] minCntList, String[] maxList, Integer[] maxCntList,
+			String[] aveList, Integer[] aveCntList, String[] sigmaList, Integer[] sigmaCntList,
 			String[] tMinList, Integer[] tMinCntList, String[] tMaxList, Integer[] tMaxCntList,
 			String[] tAveList, Integer[] tAveCntList, String[] tSigmaList, Integer[] tSigmaCntList,
 			List<ScoreBasedFeatureStatsEntity> list) {
@@ -741,27 +808,6 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 	}
 
 	/**
-	 * スコアが存在するか
-	 * @param homeScore
-	 * @param awayScore
-	 * @param entities
-	 * @return
-	 */
-	private boolean existsScore(int homeScore, int awayScore, List<BookDataEntity> entities) {
-		for (BookDataEntity entity : entities) {
-			if ("".equals(entity.getHomeScore()) ||
-					"".equals(entity.getAwayScore())) {
-				continue;
-			}
-			if ((Integer.parseInt(entity.getHomeScore()) == homeScore) &&
-					(Integer.parseInt(entity.getAwayScore()) == awayScore)) {
-				return true;
-			}
-		}
-		return false;
-	}
-
-	/**
 	 * 形式を揃える
 	 * @param entity BookDataEntity
 	 * @param list
@@ -939,9 +985,26 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 	 * @return
 	 */
 	private List<String> extractExistingScorePatterns(List<BookDataEntity> entities) {
-	    return entities.stream()
-	        .map(e -> e.getHomeScore() + "-" + e.getAwayScore())
-	        .distinct()
-	        .collect(Collectors.toList());
+		return entities.stream()
+				.map(e -> e.getHomeScore() + "-" + e.getAwayScore())
+				.distinct()
+				.collect(Collectors.toList());
+	}
+
+	/**
+	 * 埋め字設定
+	 * @param situation 状況
+	 * @param score スコア
+	 * @param country 国
+	 * @param league リーグ
+	 * @return
+	 */
+	private String setLoggerFillChar(String situation, String score, String country, String league) {
+		StringBuilder stringBuilder = new StringBuilder();
+		stringBuilder.append("状況: " + situation + ", ");
+		stringBuilder.append("スコア: " + score + ", ");
+		stringBuilder.append("国: " + country + ", ");
+		stringBuilder.append("リーグ: " + league);
+		return stringBuilder.toString();
 	}
 }
