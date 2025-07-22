@@ -13,7 +13,7 @@ import dev.application.analyze.bm_m023.ScoreBasedFeatureStatsEntity;
 public interface ScoreBasedFeatureStatsRepository {
 
     @Insert({
-        "INSERT INTO average_feature_data (",
+        "INSERT INTO average_statistics_data (",
         "id, situation, score, country, league, home_exp_stat, away_exp_stat, home_donation_stat, away_donation_stat,",
         "home_shoot_all_stat, away_shoot_all_stat, home_shoot_in_stat, away_shoot_in_stat, home_shoot_out_stat, away_shoot_out_stat,",
         "home_block_shoot_stat, away_block_shoot_stat, home_big_chance_stat, away_big_chance_stat, home_corner_stat, away_corner_stat,",
@@ -53,7 +53,7 @@ public interface ScoreBasedFeatureStatsRepository {
         "home_pass_count_stat, away_pass_count_stat, home_final_third_pass_count_stat, away_final_third_pass_count_stat,",
         "home_cross_count_stat, away_cross_count_stat, home_tackle_count_stat, away_tackle_count_stat,",
         "home_clear_count_stat, away_clear_count_stat, home_intercept_count_stat, away_intercept_count_stat",
-        "FROM average_feature_data ",
+        "FROM average_statistics_data ",
         "WHERE score = #{score} AND situation = #{situation} AND country = #{country} AND league = #{league};"
     })
     List<ScoreBasedFeatureStatsEntity> findStatData(String score, String situation,

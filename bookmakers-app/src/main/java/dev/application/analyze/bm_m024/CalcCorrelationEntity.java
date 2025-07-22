@@ -1,6 +1,8 @@
 package dev.application.analyze.bm_m024;
 
+import dev.common.entity.MetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 相関係数保存特徴量Mapping
@@ -8,7 +10,8 @@ import lombok.Data;
  *
  */
 @Data
-public class CalcCorrelationEntity {
+@EqualsAndHashCode(callSuper = false)
+public class CalcCorrelationEntity extends MetaEntity {
 
 	/** ID */
 	private String id;
@@ -237,17 +240,5 @@ public class CalcCorrelationEntity {
 
 	/** アウェーインターセプト数のプレースタイル相関係数情報 */
 	private String awayInterceptCountInfo;
-
-	/** 登録ID */
-	private String registerId;
-
-	/** 登録時間 */
-	private String registerTime;
-
-	/** 更新ID */
-	private String updateId;
-
-	/** 更新時間 */
-	private String updateTime;
 
 }

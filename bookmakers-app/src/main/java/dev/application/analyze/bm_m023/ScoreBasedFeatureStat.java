@@ -11,6 +11,8 @@ import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.ScoreBasedFeatureStatsRepository;
@@ -23,6 +25,8 @@ import dev.common.util.ExecuteMainUtil;
  * @author shiraishitoshio
  *
  */
+@Component
+@Transactional
 public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */
@@ -37,7 +41,7 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 
 	/** Beanクラス */
 	@Autowired
-	private BmM023ScoreBasedFeatureBean bean;
+	private BmM023M024InitBean bean;
 
 	/** ScoreBasedFeatureStatsRepositoryレポジトリクラス */
 	@Autowired
@@ -137,10 +141,12 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 						futures.add(future);
 					}
 				} else {
-					CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-						basedEntities(allMap, entities, null, situation, flg, country, league);
-					}, executor);
-					futures.add(future);
+					if (!AverageStatisticsSituationConst.EACH_SCORE.equals(flg)) {
+						CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+							basedEntities(allMap, entities, null, situation, flg, country, league);
+						}, executor);
+						futures.add(future);
+					}
 				}
 			} else {
 				// ALL_DATA / FIRST_DATA / SECOND_DATA → スコア単位でなく全体処理なので null を渡す
@@ -170,6 +176,8 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 	private void basedEntities(ConcurrentHashMap<String, ScoreBasedFeatureStatsEntity> insertMap,
 			List<BookDataEntity> entities, String connectScore, String situation, String flg,
 			String country, String league) {
+		System.err.println("connectScore: " + connectScore + ", situation: " + situation
+				+ ", flg: " + flg);
 		// 既存のリスト
 		List<BookDataEntity> filteredList = null;
 		if (AverageStatisticsSituationConst.EACH_SCORE.equals(flg)) {
@@ -204,22 +212,22 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 		List<ScoreBasedFeatureStatsEntity> statList = dto.getList();
 		boolean updFlg = dto.isUpdFlg();
 
-		String[] minList = this.bean.getMinList();
-		String[] maxList = this.bean.getMaxList();
-		String[] aveList = this.bean.getAvgList();
-		String[] sigmaList = this.bean.getSigmaList();
-		Integer[] minCntList = this.bean.getCntList();
-		Integer[] maxCntList = this.bean.getCntList();
-		Integer[] aveCntList = this.bean.getCntList();
-		Integer[] sigmaCntList = this.bean.getCntList();
-		String[] tMinList = this.bean.getTimeMinList();
-		String[] tMaxList = this.bean.getTimeMaxList();
-		String[] tAveList = this.bean.getTimeAvgList();
-		String[] tSigmaList = this.bean.getTimeSigmaList();
-		Integer[] tMinCntList = this.bean.getTimeCntList();
-		Integer[] tMaxCntList = this.bean.getTimeCntList();
-		Integer[] tAveCntList = this.bean.getTimeCntList();
-		Integer[] tSigmaCntList = this.bean.getTimeCntList();
+		String[] minList = this.bean.getMinList().clone();
+		String[] maxList = this.bean.getMaxList().clone();
+		String[] aveList = this.bean.getAvgList().clone();
+		String[] sigmaList = this.bean.getSigmaList().clone();
+		Integer[] minCntList = this.bean.getCntList().clone();
+		Integer[] maxCntList = this.bean.getCntList().clone();
+		Integer[] aveCntList = this.bean.getCntList().clone();
+		Integer[] sigmaCntList = this.bean.getCntList().clone();
+		String[] tMinList = this.bean.getTimeMinList().clone();
+		String[] tMaxList = this.bean.getTimeMaxList().clone();
+		String[] tAveList = this.bean.getTimeAvgList().clone();
+		String[] tSigmaList = this.bean.getTimeSigmaList().clone();
+		Integer[] tMinCntList = this.bean.getTimeCntList().clone();
+		Integer[] tMaxCntList = this.bean.getTimeCntList().clone();
+		Integer[] tAveCntList = this.bean.getTimeCntList().clone();
+		Integer[] tSigmaCntList = this.bean.getTimeCntList().clone();
 
 		// データが存在した場合の初期化値上書き
 		setInitData(minList, minCntList, maxList, maxCntList, aveList, aveCntList, sigmaList, sigmaCntList,
@@ -237,30 +245,36 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 			tAveList = setTimeSumAve(filter, tAveList, tAveCntList);
 		}
 		// 平均導出
-		aveList = commonDivision(aveList, aveCntList);
-		tAveList = commonDivision(tAveList, tAveCntList);
+		aveList = commonDivision(aveList, aveCntList, "");
+		tAveList = commonDivision(tAveList, tAveCntList, "'");
 		// 標準偏差合計
 		for (BookDataEntity filter : filteredList) {
 			sigmaList = setSumSigma(filter, aveList, sigmaList, sigmaCntList);
 			tSigmaList = setTimeSumSigma(filter, tAveList, tSigmaList, tSigmaCntList);
 		}
 		// 標準偏差導出
-		sigmaList = commonDivision(sigmaList, sigmaCntList);
-		tSigmaList = commonDivision(tSigmaList, tSigmaCntList);
+		sigmaList = commonDivision(sigmaList, sigmaCntList, "");
+		tSigmaList = commonDivision(tSigmaList, tSigmaCntList, "'");
+		for (int i = 0; i < sigmaList.length; i++) {
+			sigmaList[i] = String.format("%.2f",
+					Math.sqrt(Double.parseDouble(sigmaList[i])));
+			tSigmaList[i] = String.format("%.2f",
+					Math.sqrt(Double.parseDouble(tSigmaList[i].replace("'", ""))));
+		}
 
 		ScoreBasedFeatureStatsEntity entity = new ScoreBasedFeatureStatsEntity();
 		// 文字連結
 		StringBuilder stringBuilder = new StringBuilder();
 		for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
 			int idx = i - this.bean.getStartInsertIdx();
-			String min = minList[idx] != null ? minList[idx] : "0.0";
-			String max = maxList[idx] != null ? maxList[idx] : "0.0";
-			String ave = aveList[idx] != null ? aveList[idx] : "0.0";
-			String sigma = sigmaList[idx] != null ? sigmaList[idx] : "0.0";
-			String tMin = tMinList[idx] != null ? tMinList[idx] : "0.0";
-			String tMax = tMaxList[idx] != null ? tMaxList[idx] : "0.0";
-			String tAve = tAveList[idx] != null ? tAveList[idx] : "0.0";
-			String tSigma = tSigmaList[idx] != null ? tSigmaList[idx] : "0.0";
+			String min = formatDecimal(minList[idx]);
+			String max = formatDecimal(maxList[idx]);
+			String ave = formatDecimal(aveList[idx]);
+			String sigma = formatDecimal(sigmaList[idx]);
+			String tMin = formatDecimal(tMinList[idx]);
+			String tMax = formatDecimal(tMaxList[idx]);
+			String tAve = formatDecimal(tAveList[idx]);
+			String tSigma = formatDecimal(tSigmaList[idx]);
 
 			// 1行分をカンマ区切りで連結
 			stringBuilder.append(min).append(",")
@@ -271,15 +285,16 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 					.append(aveCntList[idx]).append(",")
 					.append(sigma).append(",")
 					.append(sigmaCntList[idx]).append(",")
-					.append(tMin).append(",")
+					.append(tMin + "'").append(",")
 					.append(tMinCntList[idx]).append(",")
-					.append(tMax).append(",")
+					.append(tMax + "'").append(",")
 					.append(tMaxCntList[idx]).append(",")
-					.append(tAve).append(",")
+					.append(tAve + "'").append(",")
 					.append(tAveCntList[idx]).append(",")
-					.append(tSigma).append(",")
+					.append(tSigma + "'").append(",")
 					.append(tSigmaCntList[idx]);
 			entity = setStatValuesToEntity(entity, stringBuilder.toString(), i);
+			stringBuilder.setLength(0);
 		}
 		// その他情報を格納する
 		entity = setOtherEntity(connectScore, situation, country, league, updFlg, entity);
@@ -504,6 +519,8 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 				if (currentTimeValue < minTimeTmpsValue) {
 					minList[idx] = String.valueOf(currentTimeTmpValue) + "'";
 				}
+				// 件数カウント
+				cntList[idx]++;
 			} catch (Exception e) {
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
@@ -592,6 +609,8 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 				if (currentTimeValue > maxTimeTmpsValue) {
 					maxList[idx] = String.valueOf(currentTimeTmpValue) + "'";
 				}
+				// 件数カウント
+				cntList[idx]++;
 			} catch (Exception e) {
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
@@ -815,14 +834,15 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 	private void initFormat(BookDataEntity entity,
 			String[] list) {
 		final String METHOD_NAME = "initFormat";
-		final int FEATURE_START = 10;
+		final int FEATURE_START = 11;
 		String feature_name = "";
 		try {
 			Field[] allFields = BookDataEntity.class.getDeclaredFields();
 			for (int i = FEATURE_START; i < FEATURE_START + AverageStatisticsSituationConst.COUNTER; i++) {
 				feature_name = allFields[i].getName();
+				allFields[i].setAccessible(true);
 				String feature_value = (String) allFields[i].get(entity);
-				list[FEATURE_START - 10] = getInitialValueByFormat(feature_value);
+				list[i - FEATURE_START] = getInitialValueByFormat(feature_value);
 			}
 		} catch (Exception ex) {
 			this.manageLoggerComponent.debugErrorLog(
@@ -919,15 +939,20 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 	 * 共通割り算リスト
 	 * @param list
 	 * @param cntList
+	 * @param suffix
 	 * @return
 	 */
-	private String[] commonDivision(String[] list, Integer[] cntList) {
+	private String[] commonDivision(String[] list, Integer[] cntList, String suffix) {
 		// 平均導出
 		for (int i = 0; i < this.bean.getEndIdx() - this.bean.getStartIdx(); i++) {
 			if (isPercentAndFractionFormat(list[i])) {
 				list[i] = "";
 			} else {
-				list[i] = String.valueOf(Double.parseDouble(list[i]) / cntList[i]);
+				if (cntList[i] == 0) {
+					list[i] = "0" + suffix;
+				} else {
+					list[i] = String.valueOf(Double.parseDouble(list[i].replace(suffix, "")) / cntList[i]) + suffix;
+				}
 			}
 		}
 		return list;
@@ -1006,5 +1031,20 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 		stringBuilder.append("国: " + country + ", ");
 		stringBuilder.append("リーグ: " + league);
 		return stringBuilder.toString();
+	}
+
+	/**
+	 * フォーマット変換
+	 * @param value
+	 * @return
+	 */
+	private String formatDecimal(String value) {
+		if (value == null || value.isEmpty()) return "0.00";
+		try {
+			double d = Double.parseDouble(value.replaceAll("'", ""));
+			return String.format("%.2f", d);
+		} catch (NumberFormatException e) {
+			return value; // 不正な値でも安全に対応
+		}
 	}
 }

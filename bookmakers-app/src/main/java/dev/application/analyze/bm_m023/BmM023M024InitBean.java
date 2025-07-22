@@ -5,24 +5,25 @@ import java.lang.reflect.Field;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import dev.application.analyze.bm_m024.CalcCorrelationEntity;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
 import jakarta.annotation.PostConstruct;
 
 /**
- * score_based_featureのbeanロジック
+ * score_based_feature, correlation関係のbeanロジック
  * @author shiraishitoshio
  *
  */
 @Component
-public class BmM023ScoreBasedFeatureBean {
+public class BmM023M024InitBean {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = BmM023ScoreBasedFeatureBean.class.getProtectionDomain()
+	private static final String PROJECT_NAME = BmM023M024InitBean.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = BmM023ScoreBasedFeatureBean.class.getSimpleName();
+	private static final String CLASS_NAME = BmM023M024InitBean.class.getSimpleName();
 
 	/** 最小値 */
 	private String[] minList = new String[AverageStatisticsSituationConst.COUNTER];
@@ -66,6 +67,12 @@ public class BmM023ScoreBasedFeatureBean {
 	/** 終了 */
 	private int endInsertIdx;
 
+	/** 開始 */
+	private int startCalcInsertIdx;
+
+	/** 終了 */
+	private int endCalcInsertIdx;
+
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent loggerComponent;
@@ -106,7 +113,7 @@ public class BmM023ScoreBasedFeatureBean {
 			this.avgList[cnt] = "0.0";
 			this.sigmaList[cnt] = "0.0";
 			this.cntList[cnt] = 0;
-			this.timeMinList[cnt] = "0'";
+			this.timeMinList[cnt] = "10000'";
 			this.timeMaxList[cnt] = "0'";
 			this.timeAvgList[cnt] = "0'";
 			this.timeSigmaList[cnt] = "0'";
@@ -133,6 +140,22 @@ public class BmM023ScoreBasedFeatureBean {
 		this.startInsertIdx = startInsertIdx;
 		// 終了情報
 		this.endInsertIdx = endInsertIdx;
+
+		Field[] insertSubFields = CalcCorrelationEntity.class.getDeclaredFields();
+		// 分析対象のフィールド範囲（homeExpInfo 〜 awayInterceptCountInfo）
+		int startCalcInsertIdx = -1;
+		int endCalcInsertIdx = -1;
+		for (int i = 0; i < insertSubFields.length; i++) {
+			String name = insertSubFields[i].getName();
+			if (name.equals("homeExpInfo"))
+				startInsertIdx = i;
+			if (name.equals("awayInterceptCountInfo"))
+				endInsertIdx = i;
+		}
+		// 開始情報
+		this.startCalcInsertIdx = startCalcInsertIdx;
+		// 終了情報
+		this.endCalcInsertIdx = endCalcInsertIdx;
 	}
 
 	/**
@@ -245,6 +268,22 @@ public class BmM023ScoreBasedFeatureBean {
 	 */
 	public int getEndInsertIdx() {
 		return endInsertIdx;
+	}
+
+	/**
+	 * 開始情報を返却
+	 * @return startCalcInsertIdx
+	 */
+	public int getStartCalcInsertIdx() {
+		return startCalcInsertIdx;
+	}
+
+	/**
+	 * 終了情報を返却
+	 * @return endInsertIdx
+	 */
+	public int endCalcInsertIdx() {
+		return endCalcInsertIdx;
 	}
 
 }

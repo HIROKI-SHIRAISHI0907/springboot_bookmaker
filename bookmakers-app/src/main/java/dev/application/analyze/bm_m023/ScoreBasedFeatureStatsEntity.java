@@ -2,7 +2,9 @@ package dev.application.analyze.bm_m023;
 
 import java.io.Serializable;
 
+import dev.common.entity.MetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 各スコア状況における平均必要特徴量(標準偏差含む)を導出するEntity
@@ -10,7 +12,8 @@ import lombok.Data;
  *
  */
 @Data
-public class ScoreBasedFeatureStatsEntity implements Serializable {
+@EqualsAndHashCode(callSuper = false)
+public class ScoreBasedFeatureStatsEntity extends MetaEntity implements Serializable {
 
 	/** シリアライズ化 */
 	private static final long serialVersionUID = 1L;
@@ -188,17 +191,5 @@ public class ScoreBasedFeatureStatsEntity implements Serializable {
 
 	/** アウェーインターセプト数の統計情報 */
 	private String awayInterceptCountStat;
-
-	/** 登録ID */
-	private String registerId;
-
-	/** 登録時間 */
-	private String registerTime;
-
-	/** 更新ID */
-	private String updateId;
-
-	/** 更新時間 */
-	private String updateTime;
 
 }
