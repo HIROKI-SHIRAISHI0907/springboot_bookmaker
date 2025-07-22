@@ -1,6 +1,8 @@
 package dev.application.analyze.bm_m002;
 
+import dev.common.entity.MetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 読み込んだデータから結果マスタにマッピングさせるためのDTOクラス
@@ -8,7 +10,8 @@ import lombok.Data;
  *
  */
 @Data
-public class ConditionResultDataEntity {
+@EqualsAndHashCode(callSuper = false)
+public class ConditionResultDataEntity extends MetaEntity {
 
 	/** まとめ通番 */
 	private String dataSeq;
@@ -51,17 +54,5 @@ public class ConditionResultDataEntity {
 
 	/** ハッシュ値データ */
 	private String hash;
-
-	/** 登録ID */
-	private String registerId;
-
-	/** 登録時間 */
-	private String registerTime;
-
-	/** 更新ID */
-	private String updateId;
-
-	/** 更新時間 */
-	private String updateTime;
 
 }

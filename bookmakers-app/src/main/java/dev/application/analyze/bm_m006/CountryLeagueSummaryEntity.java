@@ -1,6 +1,8 @@
 package dev.application.analyze.bm_m006;
 
+import dev.common.entity.MetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * output_通番.xlsxブックから読み込んだデータをマッピングさせるためのDTOクラス
@@ -8,7 +10,8 @@ import lombok.Data;
  *
  */
 @Data
-public class CountryLeagueSummaryEntity {
+@EqualsAndHashCode(callSuper = false)
+public class CountryLeagueSummaryEntity extends MetaEntity {
 
 	/** ID */
 	private String id;
@@ -24,17 +27,5 @@ public class CountryLeagueSummaryEntity {
 
 	/** CSV件数 */
 	private String csvCount;
-
-	/** 登録ID */
-	private String registerId;
-
-	/** 登録時間 */
-	private String registerTime;
-
-	/** 更新ID */
-	private String updateId;
-
-	/** 更新時間 */
-	private String updateTime;
 
 }

@@ -1,6 +1,8 @@
 package dev.application.analyze.bm_m007_bm_m016;
 
+import dev.common.entity.MetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * within_data_xminutes_homeoraway_all_leagueデータEntity
@@ -8,7 +10,8 @@ import lombok.Data;
  *
  */
 @Data
-public class TimeRangeFeatureAllLeagueEntity {
+@EqualsAndHashCode(callSuper = false)
+public class TimeRangeFeatureAllLeagueEntity extends MetaEntity {
 
 	/** ID */
 	private String id;
@@ -33,17 +36,5 @@ public class TimeRangeFeatureAllLeagueEntity {
 
 	/** テーブル名 */
 	private String tableName;
-
-	/** 登録ID */
-	private String registerId;
-
-	/** 登録時間 */
-	private String registerTime;
-
-	/** 更新ID */
-	private String updateId;
-
-	/** 更新時間 */
-	private String updateTime;
 
 }

@@ -65,7 +65,7 @@ public class FutureService implements FutureIF {
 					CLASS_NAME,
 					METHOD_NAME,
 					e.getMessage(),
-					null);
+					e.getCause());
 		}
 
 		// endLog

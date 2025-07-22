@@ -65,7 +65,7 @@ public class FutureStat implements FutureEntityIF {
 				insertPath.add(filePath);
 			} catch (Exception e) {
 				String messageCd = "システムエラー";
-				throw new Exception(messageCd);
+				throw new Exception(messageCd, e);
 			}
 		}
 

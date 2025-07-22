@@ -2,7 +2,9 @@ package dev.application.analyze.bm_m007_bm_m016;
 
 import java.io.Serializable;
 
+import dev.common.entity.MetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * within_data_xminutes_homeoraway_scoredデータEntity
@@ -10,7 +12,8 @@ import lombok.Data;
  *
  */
 @Data
-public class TimeRangeFeatureScoredEntity implements Serializable {
+@EqualsAndHashCode(callSuper = false)
+public class TimeRangeFeatureScoredEntity extends MetaEntity implements Serializable {
 
 	/** シリアライズ化 */
 	private static final long serialVersionUID = 1L;
@@ -44,17 +47,5 @@ public class TimeRangeFeatureScoredEntity implements Serializable {
 
 	/** テーブル名 */
 	private String tableName;
-
-	/** 登録ID */
-	private String registerId;
-
-	/** 登録時間 */
-	private String registerTime;
-
-	/** 更新ID */
-	private String updateId;
-
-	/** 更新時間 */
-	private String updateTime;
 
 }

@@ -1,6 +1,8 @@
 package dev.application.analyze.bm_m017_bm_m018;
 
+import dev.common.entity.MetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * within_data_xminutesデータEntity
@@ -8,7 +10,8 @@ import lombok.Data;
  *
  */
 @Data
-public class LeagueScoreTimeBandStatsSplitScoreEntity {
+@EqualsAndHashCode(callSuper = false)
+public class LeagueScoreTimeBandStatsSplitScoreEntity extends MetaEntity {
 
 	/** ID */
 	private String id;
@@ -39,17 +42,5 @@ public class LeagueScoreTimeBandStatsSplitScoreEntity {
 
 	/** 割合 */
 	private String ratio;
-
-	/** 登録ID */
-	private String registerId;
-
-	/** 登録時間 */
-	private String registerTime;
-
-	/** 更新ID */
-	private String updateId;
-
-	/** 更新時間 */
-	private String updateTime;
 
 }

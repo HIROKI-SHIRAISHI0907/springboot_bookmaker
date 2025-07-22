@@ -2,7 +2,9 @@ package dev.application.analyze.bm_m005;
 
 import java.sql.Timestamp;
 
+import dev.common.entity.MetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * DBデータをマッピングさせるためのDTOクラス
@@ -10,7 +12,8 @@ import lombok.Data;
  *
  */
 @Data
-public class NoGoalMatchStatisticsEntity {
+@EqualsAndHashCode(callSuper = false)
+public class NoGoalMatchStatisticsEntity extends MetaEntity {
 
 	/** 通番 */
 	private String seq;
@@ -290,17 +293,5 @@ public class NoGoalMatchStatisticsEntity {
 
 	/** スコア予想時間 */
 	private String predictionScoreTime;
-
-	/** 登録ID */
-	private String registerId;
-
-	/** 登録時間 */
-	private String registerTime;
-
-	/** 更新ID */
-	private String updateId;
-
-	/** 更新時間 */
-	private String updateTime;
 
 }

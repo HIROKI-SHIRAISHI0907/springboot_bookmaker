@@ -5,7 +5,7 @@ import org.mapstruct.Mapping;
 
 import dev.common.entity.BookDataEntity;
 
-@Mapper
+@Mapper(componentModel="spring")
 public interface BookDataToNoGoalMatchMapper {
 
 	@Mapping(source = "gameTeamCategory", target = "dataCategory")

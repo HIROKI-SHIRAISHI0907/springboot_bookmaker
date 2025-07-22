@@ -21,7 +21,10 @@ import org.springframework.context.annotation.Configuration;
 	"dev.common.readfile",
 	"dev.common.logger"
 })
-@MapperScan(basePackages = "dev.application.domain.repository")
+@MapperScan(basePackages = {
+		"dev.application.domain.repository",
+		"dev.application.analyze"
+})
 public class BookMakersConfig {
 
 

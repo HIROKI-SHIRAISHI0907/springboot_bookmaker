@@ -1,6 +1,8 @@
 package dev.application.analyze.bm_m019_bm_m020;
 
+import dev.common.entity.MetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * classify_Result_DataのDTOクラス
@@ -8,7 +10,8 @@ import lombok.Data;
  *
  */
 @Data
-public class MatchClassificationResultEntity {
+@EqualsAndHashCode(callSuper = false)
+public class MatchClassificationResultEntity extends MetaEntity {
 
 	/** 通番 */
 	private String seq;
@@ -291,17 +294,5 @@ public class MatchClassificationResultEntity {
 
 	/** スコア予想時間 */
 	private String predictionScoreTime;
-
-	/** 登録ID */
-	private String registerId;
-
-	/** 登録時間 */
-	private String registerTime;
-
-	/** 更新ID */
-	private String updateId;
-
-	/** 更新時間 */
-	private String updateTime;
 
 }

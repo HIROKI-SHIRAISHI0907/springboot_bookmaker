@@ -1,6 +1,8 @@
 package dev.application.analyze.bm_m003;
 
+import dev.common.entity.MetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 読み込んだデータから結果マスタにマッピングさせるためのDTOクラス
@@ -8,7 +10,8 @@ import lombok.Data;
  *
  */
 @Data
-public class TeamMonthlyScoreSummaryEntity {
+@EqualsAndHashCode(callSuper = false)
+public class TeamMonthlyScoreSummaryEntity extends MetaEntity {
 
 	/** 通番 */
 	private String seq;
@@ -63,17 +66,5 @@ public class TeamMonthlyScoreSummaryEntity {
 
 	/** 12月スコア数 */
 	private String decemberScoreSumCount;
-
-	/** 登録ID */
-	private String registerId;
-
-	/** 登録時間 */
-	private String registerTime;
-
-	/** 更新ID */
-	private String updateId;
-
-	/** 更新時間 */
-	private String updateTime;
 
 }

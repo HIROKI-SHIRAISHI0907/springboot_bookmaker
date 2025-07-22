@@ -1,6 +1,8 @@
 package dev.application.analyze.bm_m004;
 
+import dev.common.entity.MetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 読み込んだデータから結果マスタにマッピングさせるためのDTOクラス
@@ -8,7 +10,8 @@ import lombok.Data;
  *
  */
 @Data
-public class TeamTimeSegmentShootingStatsEntity {
+@EqualsAndHashCode(callSuper = false)
+public class TeamTimeSegmentShootingStatsEntity extends MetaEntity {
 
 	/** データカテゴリ */
 	private String dataCategory;
@@ -282,17 +285,5 @@ public class TeamTimeSegmentShootingStatsEntity {
 
 	/** 自チームアディショナルタイムレッドカード平均数 */
 	private String teamAddiMeanRedCardCount;
-
-	/** 登録ID */
-	private String registerId;
-
-	/** 登録時間 */
-	private String registerTime;
-
-	/** 更新ID */
-	private String updateId;
-
-	/** 更新時間 */
-	private String updateTime;
 
 }

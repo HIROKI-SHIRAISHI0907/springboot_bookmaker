@@ -1,6 +1,8 @@
 package dev.application.analyze.bm_m021;
 
+import dev.common.entity.MetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * DBデータをマッピングさせるためのDTOクラス
@@ -8,7 +10,8 @@ import lombok.Data;
  *
  */
 @Data
-public class TeamMatchFinalStatsEntity {
+@EqualsAndHashCode(callSuper = false)
+public class TeamMatchFinalStatsEntity extends MetaEntity {
 
 	/** 通番 */
 	private String seq;
@@ -247,15 +250,4 @@ public class TeamMatchFinalStatsEntity {
 	/** 湿度 */
 	private String humid;
 
-	/** 登録ID */
-	private String registerId;
-
-	/** 登録時間 */
-	private String registerTime;
-
-	/** 更新ID */
-	private String updateId;
-
-	/** 更新時間 */
-	private String updateTime;
 }

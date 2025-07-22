@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
 import dev.application.domain.repository.FutureRepository;
@@ -45,7 +46,7 @@ public class FutureDBService {
 		for (FutureEntity entity : chkEntities) {
 			try {
 				int count = this.futureRepository.findDataCount(entity);
-				if (count > 0) {
+				if (count == 0) {
 					entities.add(entity);
 				}
 			} catch (Exception e) {
@@ -69,15 +70,26 @@ public class FutureDBService {
 			int end = Math.min(i + BATCH_SIZE, insertEntities.size());
 			List<FutureEntity> batch = insertEntities.subList(i, end);
 			for (FutureEntity entity : batch) {
-				int result = this.futureRepository.insert(entity);
-				if (result != 1) {
-					String messageCd = "新規登録エラー";
-					this.manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-					return 9;
+				try {
+					int result = this.futureRepository.insert(entity);
+					if (result != 1) {
+						String messageCd = "新規登録エラー";
+						this.manageLoggerComponent.debugErrorLog(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
+						return 9;
+					}
+				} catch (DuplicateKeyException e) {
+					String messageCd = "登録済みです";
+					this.manageLoggerComponent.debugWarnLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
+					// 重複は特に例外として出さない
+					continue;
 				}
 			}
 		}
+		String messageCd = "BM_M022 登録件数: " + insertEntities.size();
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
 		return 0;
 	}
 
