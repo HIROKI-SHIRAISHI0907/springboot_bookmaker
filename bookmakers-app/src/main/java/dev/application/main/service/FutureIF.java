@@ -12,6 +12,6 @@ public interface FutureIF {
 	 * @return
 	 * @throws Exception
 	 */
-	public int execute() throws Exception;
+	public void execute() throws Exception;
 
 }

@@ -20,6 +20,13 @@ import dev.common.logger.ManageLoggerComponent;
 @Service
 public class StatService implements StatIF {
 
+	/** プロジェクト名 */
+	private static final String PROJECT_NAME = StatService.class.getProtectionDomain()
+			.getCodeSource().getLocation().getPath();
+
+	/** クラス名 */
+	private static final String CLASS_NAME = StatService.class.getSimpleName();
+
 	/**
 	 * 統計情報取得管理クラス
 	 */
@@ -46,7 +53,10 @@ public class StatService implements StatIF {
 
 	@Override
 	public int execute() throws Exception {
-		final String METHOD = "execute";
+		final String METHOD_NAME = "execute";
+		// ログ出力
+		this.loggerComponent.debugStartInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		// シーケンスデータから取得(最大値情報取得)
 		String csvNumber = "";
@@ -55,8 +65,7 @@ public class StatService implements StatIF {
 		long startTime = System.nanoTime();
 
 		// 直近のCSVデータ情報を取得
-		Map<String, Map<String, List<BookDataEntity>>> getStatMap
-			= this.getStatInfo.getData(csvNumber);
+		Map<String, Map<String, List<BookDataEntity>>> getStatMap = this.getStatInfo.getData(csvNumber);
 
 		// 統計ロジック呼び出し(@Transactionl付き)(国,リーグ単位で並列)
 		this.conditionResultDataStat.calcStat(getStatMap);
@@ -68,8 +77,11 @@ public class StatService implements StatIF {
 
 		System.out.println("時間: " + durationMs);
 
+		// endLog
+		this.loggerComponent.debugEndInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+
 		return 0;
 	}
-
 
 }

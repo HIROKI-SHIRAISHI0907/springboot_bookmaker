@@ -16,6 +16,6 @@ public interface FutureEntityIF {
 	 * 未来データ処理メソッド
 	 * @param entities エンティティ
 	 */
-	public void futureStat(Map<String, List<FutureEntity>> entities);
+	public void futureStat(Map<String, List<FutureEntity>> entities) throws Exception;
 
 }

@@ -5,7 +5,6 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.domain.repository.FutureRepository;
 import dev.common.entity.FutureEntity;
@@ -17,7 +16,6 @@ import dev.common.logger.ManageLoggerComponent;
  *
  */
 @Component
-@Transactional
 public class FutureDBService {
 
 	/** プロジェクト名 */

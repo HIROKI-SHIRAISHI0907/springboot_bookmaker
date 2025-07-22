@@ -19,6 +19,13 @@ import dev.common.logger.ManageLoggerComponent;
 @Service
 public class FutureService implements FutureIF {
 
+	/** プロジェクト名 */
+	private static final String PROJECT_NAME = FutureService.class.getProtectionDomain()
+			.getCodeSource().getLocation().getPath();
+
+	/** クラス名 */
+	private static final String CLASS_NAME = FutureService.class.getSimpleName();
+
 	/**
 	 * 未来情報取得管理クラス
 	 */
@@ -37,15 +44,34 @@ public class FutureService implements FutureIF {
 	@Autowired
 	private ManageLoggerComponent loggerComponent;
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public int execute() throws Exception {
+	public void execute() throws Exception {
+		final String METHOD_NAME = "execute";
+		// ログ出力
+		this.loggerComponent.debugStartInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+
 		// 未来CSVデータ情報を取得
 		Map<String, List<FutureEntity>> getFutureMap = this.getFutureInfo.getData();
-
 		// BM_M022登録(Transactional)
+		try {
+			this.futureStat.futureStat(getFutureMap);
+		} catch (Exception e) {
+			this.loggerComponent.createSystemException(
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					e.getMessage(),
+					null);
+		}
 
-		// 全ての登録ができた場合CSV削除
-		return 0;
+		// endLog
+		this.loggerComponent.debugEndInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+
 	}
 
 }
