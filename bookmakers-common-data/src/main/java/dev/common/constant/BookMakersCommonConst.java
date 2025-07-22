@@ -118,6 +118,9 @@ public class BookMakersCommonConst {
 	/** output_ */
 	public static final String OUTPUT_ = "output_";
 
+	/** future_ */
+	public static final String FUTURE_ = "future_";
+
 	/** .xlsx */
 	public static final String XLSX = ".xlsx";
 

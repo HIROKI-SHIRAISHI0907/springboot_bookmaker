@@ -4,6 +4,7 @@ import java.util.List;
 
 import dev.common.dto.AbstractResultErrDetailOutputDTO;
 import dev.common.entity.BookDataEntity;
+import dev.common.entity.FutureEntity;
 import lombok.Data;
 
 /**
@@ -28,5 +29,10 @@ public class ReadFileOutputDTO extends AbstractResultErrDetailOutputDTO {
 	 * 読み取り結果リスト
 	 */
 	private List<BookDataEntity> readDataList;
+
+	/**
+	 * 未来データ結果リスト
+	 */
+	private List<FutureEntity> futureList;
 
 }
