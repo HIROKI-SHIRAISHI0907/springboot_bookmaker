@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -111,7 +110,7 @@ public class GetFutureInfo {
 				resultMap
 						.computeIfAbsent(file, s -> new ArrayList<>())
 						.addAll(entity);
-			} catch (InterruptedException | ExecutionException e) {
+			} catch (Exception e) {
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e);
 				this.manageLoggerComponent.createBusinessException(
@@ -122,7 +121,7 @@ public class GetFutureInfo {
 						e);
 			}
 		}
-		executor.shutdown();
+		//executor.shutdown();
 
 		// 時間計測終了
 		long endTime = System.nanoTime();

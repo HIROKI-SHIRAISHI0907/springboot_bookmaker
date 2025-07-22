@@ -80,9 +80,15 @@ public class FindStat {
 
 		List<String> bookList = null;
 		// ファイルの存在確認
+		String logMethod = (inputDTO.isGetBookFlg()) ? "getFiles" : "getStatFiles";
 		try {
 			if (inputDTO.isGetBookFlg()) {
 				bookList = getFiles(findPath, inputDTO.getTargetFile(), inputDTO.getPrefixFile(),
+						inputDTO.getSuffixFile(),
+						inputDTO.getContainsList(),
+						inputDTO.getCsvNumber());
+			} else {
+				bookList = getStatFiles(findPath, inputDTO.getTargetFile(), inputDTO.getPrefixFile(),
 						inputDTO.getSuffixFile(),
 						inputDTO.getContainsList(),
 						inputDTO.getCsvNumber());
@@ -90,7 +96,7 @@ public class FindStat {
 		} catch (IOException e) {
 			readBookOutputDTO.setExceptionProject(PROJECT_NAME);
 			readBookOutputDTO.setExceptionClass(CLASS_NAME);
-			readBookOutputDTO.setExceptionMethod("getFiles");
+			readBookOutputDTO.setExceptionMethod(logMethod);
 			readBookOutputDTO.setResultCd(BookMakersCommonConst.ERR_CD_NO_FILE_EXISTS);
 			readBookOutputDTO.setErrMessage(BookMakersCommonConst.ERR_MESSAGE_NO_FILE_EXISTS);
 			readBookOutputDTO.setThrowAble(e);
@@ -186,6 +192,66 @@ public class FindStat {
 		for (String pathStr : filteredSortedList) {
 			// output_,future_をつける
 			String convString = path + prefixFile + pathStr + suffixFile;
+			bookPathList.add(convString);
+		}
+		return bookPathList;
+	}
+
+	/**
+	 * パス内に存在するブックを検索する
+	 * @param path チェックするパス
+	 * @param targetFile 対象ファイル名
+	 * @param prefixFile 先頭情報
+	 * @param suffixFile 拡張子情報
+	 * @param containsList 含有情報
+	 * @throws IOException IOException
+	 */
+	private static List<String> getStatFiles(String path, String targetFile, String prefixFile,
+			String suffixFile,
+			String[] containsList, String csvNumber) throws IOException {
+		List<String> bookPathList = new ArrayList<>();
+		List<Path> bookPathPathList = new ArrayList<>();
+		List<String> bookPathSortList = new ArrayList<>();
+		Files.walk(Paths.get(path))
+				.filter(Files::isRegularFile) // CSVファイルのみ
+				.filter(pathStr -> pathStr.toString().endsWith(suffixFile))
+				.forEach(bookPathPathList::add);
+		for (Path pathStr : bookPathPathList) {
+			if (targetFile != null && pathStr.toString().contains(targetFile)) {
+				bookPathSortList.add(pathStr.toString());
+				return bookPathSortList;
+			}
+
+			// パスが全て含まれていなかったらcontinue
+			boolean chkFlg = false;
+			for (String contains : containsList) {
+				if (contains == null) continue;
+				chkFlg = (pathStr.toString().contains(contains)) ? true : false;
+				if (chkFlg) {
+					break;
+				}
+			}
+			if (chkFlg) {
+				continue;
+			}
+
+			// 数字の部分のみ残す
+			String convString = pathStr.toString().replace(path, "");
+			convString = convString.replace(suffixFile, "");
+			bookPathSortList.add(convString);
+		}
+		// ソート(数字として)
+		Collections.sort(bookPathSortList, Comparator.comparingInt(Integer::parseInt));
+		// フィルタしてソート（csvNumberより大きいものだけ）
+		List<String> filteredSortedList = bookPathSortList.stream()
+		    .map(Integer::parseInt)
+		    .filter(num -> num > Integer.parseInt(csvNumber))
+		    .sorted()
+		    .map(String::valueOf)
+		    .collect(Collectors.toList());
+		for (String pathStr : filteredSortedList) {
+			// output_,future_をつける
+			String convString = path + pathStr + suffixFile;
 			bookPathList.add(convString);
 		}
 		return bookPathList;

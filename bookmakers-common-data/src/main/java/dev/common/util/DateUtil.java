@@ -3,6 +3,9 @@ package dev.common.util;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Calendar;
 import java.util.regex.Pattern;
@@ -46,6 +49,16 @@ public class DateUtil {
 	 * 年月日時分秒ミリ秒(yyyy/MM/dd HH:mm:ss.SSS)のデリミタ入力チェック文字列
 	 */
 	private static final Pattern YMDHMSS_DELIMITER_PATTERN = Pattern.compile("^\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}.\\d{3}$");
+	/**
+	 * ドイツ形式 → 例: "22.07.2025 19:30"
+	 */
+    private static final DateTimeFormatter GERMAN_FORMAT =
+            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+    /**
+     * 日本形式（MySQL DATETIME 対応） → 例: "2025-07-22 19:30:00"
+     */
+    private static final DateTimeFormatter JAPANESE_FORMAT =
+            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
 	/**
 	 * コンストラクタ生成禁止
@@ -113,7 +126,6 @@ public class DateUtil {
 	 * @throws Exception
 	 */
 	private static ArrayList<String> chkDate(String date) throws Exception {
-		final String METHOD_NAME = "chkDate";
 		String chkFormat = null;
 		String[] split = null;
 		StringBuilder sb = new StringBuilder(date);
@@ -291,5 +303,20 @@ public class DateUtil {
 		}
 		return resDate;
 	}
+
+	/**
+     * ドイツ形式から日本形式に変換する
+     *
+     * @param germanDateStr ドイツ形式の日時文字列（例: "22.07.2025 19:30"）
+     * @return 日本形式の日時文字列（例: "2025-07-22 19:30:00"）
+     */
+    public static String convertGermanToJapaneseFormat(String germanDateStr) {
+        try {
+            LocalDateTime dateTime = LocalDateTime.parse(germanDateStr, GERMAN_FORMAT);
+            return dateTime.format(JAPANESE_FORMAT);
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("不正な日時フォーマットです: " + germanDateStr, e);
+        }
+    }
 
 }

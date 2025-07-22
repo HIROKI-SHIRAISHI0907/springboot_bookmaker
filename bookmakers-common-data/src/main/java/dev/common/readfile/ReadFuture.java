@@ -14,6 +14,7 @@ import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.FutureEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.dto.ReadFileOutputDTO;
+import dev.common.util.DateUtil;
 
 
 /**
@@ -65,7 +66,8 @@ public class ReadFuture {
 					FutureEntity mappingDto = new FutureEntity();
 					mappingDto.setFile(fileFullPath);
 					mappingDto.setGameTeamCategory(parts[0]);
-					mappingDto.setFutureTime(parts[1]);
+					mappingDto.setFutureTime(String.valueOf(
+							DateUtil.convertGermanToJapaneseFormat(parts[1])));
 					mappingDto.setHomeRank(parts[2].replace(".0", ""));
 					mappingDto.setAwayRank(parts[3].replace(".0", ""));
 					mappingDto.setHomeTeamName(parts[4]);

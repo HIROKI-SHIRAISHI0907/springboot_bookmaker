@@ -175,7 +175,7 @@ public class GetStatInfo {
 		FindBookInputDTO findBookInputDTO = new FindBookInputDTO();
 		findBookInputDTO.setDataPath(PATH);
 		findBookInputDTO.setCopyFlg(false);
-		findBookInputDTO.setGetBookFlg(true);
+		findBookInputDTO.setGetBookFlg(false);
 		findBookInputDTO.setCsvNumber(csvNumber);
 		String[] containsList = new String[6];
 		containsList[0] = "breakfile";
@@ -184,7 +184,6 @@ public class GetStatInfo {
 		containsList[4] = "python_analytics/";
 		containsList[5] = "average_stats/";
 		findBookInputDTO.setContainsList(containsList);
-		findBookInputDTO.setPrefixFile(BookMakersCommonConst.OUTPUT_);
 		findBookInputDTO.setSuffixFile(BookMakersCommonConst.CSV);
 		return findBookInputDTO;
 	}
