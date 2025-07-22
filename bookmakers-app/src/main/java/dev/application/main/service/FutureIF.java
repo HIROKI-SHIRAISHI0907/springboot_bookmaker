@@ -1,11 +1,11 @@
 package dev.application.main.service;
 
 /**
- * 統計分析用サービスクラスIF
+ * 未来統計用サービスクラスIF
  * @author shiraishitoshio
  *
  */
-public interface StatIF {
+public interface FutureIF {
 
 	/**
 	 * 実行共通メソッド

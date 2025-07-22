@@ -14,8 +14,6 @@ public interface AnalyzeEntityIF {
 
 	/**
 	 * 統計分析処理メソッド
-	 * @param country 国
-	 * @param league リーグ
 	 * @param entities エンティティ
 	 */
 	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities);
