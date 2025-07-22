@@ -103,6 +103,10 @@ public class GetFutureInfo {
 			try {
 				ReadFileOutputDTO dto = future.get();
 				List<FutureEntity> entity = dto.getFutureList();
+				// null または 空チェック
+				if (entity == null || entity.isEmpty()) {
+					continue;
+				}
 				String file = entity.get(0).getFile();
 				resultMap
 						.computeIfAbsent(file, s -> new ArrayList<>())
@@ -145,6 +149,7 @@ public class GetFutureInfo {
 		containsList[4] = "python_analytics/";
 		containsList[5] = "average_stats/";
 		findBookInputDTO.setContainsList(containsList);
+		findBookInputDTO.setCsvNumber("0");
 		findBookInputDTO.setPrefixFile(BookMakersCommonConst.FUTURE_);
 		findBookInputDTO.setSuffixFile(BookMakersCommonConst.CSV);
 		return findBookInputDTO;

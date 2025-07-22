@@ -3,6 +3,7 @@ package dev.common.entity;
 import java.io.Serializable;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * future_通番.xlsxブックから読み込んだデータをマッピングさせるためのDTOクラス
@@ -10,7 +11,8 @@ import lombok.Data;
  *
  */
 @Data
-public class FutureEntity implements Serializable {
+@EqualsAndHashCode(callSuper = false)
+public class FutureEntity extends MetaEntity implements Serializable{
 
 	/** シリアライズ化 */
 	private static final long serialVersionUID = 1L;
@@ -36,14 +38,8 @@ public class FutureEntity implements Serializable {
 	/** ホームチーム */
 	private String homeTeamName;
 
-	/** ホームスコア */
-	private String homeScore;
-
 	/** アウェーチーム */
 	private String awayTeamName;
-
-	/** アウェースコア */
-	private String awayScore;
 
 	/** ホームチーム最大得点者 */
 	private String homeMaxGettingScorer;

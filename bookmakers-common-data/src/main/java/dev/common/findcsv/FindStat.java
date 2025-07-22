@@ -146,8 +146,8 @@ public class FindStat {
 		List<String> bookPathSortList = new ArrayList<>();
 		Files.walk(Paths.get(path))
 				.filter(Files::isRegularFile) // CSVファイルのみ
-				.filter(pathStr -> pathStr.toString().endsWith(suffixFile) ||
-						pathStr.toString().startsWith(prefixFile))
+				.filter(pathStr -> pathStr.toString().endsWith(suffixFile) &&
+						pathStr.getFileName().toString().startsWith(prefixFile))
 				.forEach(bookPathPathList::add);
 		for (Path pathStr : bookPathPathList) {
 			if (targetFile != null && pathStr.toString().contains(targetFile)) {
@@ -184,8 +184,8 @@ public class FindStat {
 		    .map(String::valueOf)
 		    .collect(Collectors.toList());
 		for (String pathStr : filteredSortedList) {
-			// output_をつける
-			String convString = path + pathStr + suffixFile;
+			// output_,future_をつける
+			String convString = path + prefixFile + pathStr + suffixFile;
 			bookPathList.add(convString);
 		}
 		return bookPathList;
