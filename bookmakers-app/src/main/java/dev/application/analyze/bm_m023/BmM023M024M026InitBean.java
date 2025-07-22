@@ -16,14 +16,14 @@ import jakarta.annotation.PostConstruct;
  *
  */
 @Component
-public class BmM023M024InitBean {
+public class BmM023M024M026InitBean {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = BmM023M024InitBean.class.getProtectionDomain()
+	private static final String PROJECT_NAME = BmM023M024M026InitBean.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = BmM023M024InitBean.class.getSimpleName();
+	private static final String CLASS_NAME = BmM023M024M026InitBean.class.getSimpleName();
 
 	/** 最小値 */
 	private String[] minList = new String[AverageStatisticsSituationConst.COUNTER];

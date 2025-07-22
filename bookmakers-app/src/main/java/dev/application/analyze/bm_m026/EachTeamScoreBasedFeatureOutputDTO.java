@@ -1,18 +1,17 @@
-package dev.application.analyze.bm_m024;
+package dev.application.analyze.bm_m026;
 
 import java.io.Serializable;
 import java.util.List;
 
-import dev.application.analyze.bm_m023.ScoreBasedFeatureStatsEntity;
 import lombok.Data;
 
 /**
- * calc_correlation outputDTO
+ * match_classification_result outputDTO
  * @author shiraishitoshio
  *
  */
 @Data
-public class CalcCorrelationOutputDTO implements Serializable {
+public class EachTeamScoreBasedFeatureOutputDTO implements Serializable {
 
 	/** シリアライズ化 */
 	private static final long serialVersionUID = 1L;
@@ -35,5 +34,6 @@ public class CalcCorrelationOutputDTO implements Serializable {
 	/**
 	 * リスト
 	 */
-	private List<ScoreBasedFeatureStatsEntity> list;
+	private List<EachTeamScoreBasedFeatureEntity> list;
+
 }

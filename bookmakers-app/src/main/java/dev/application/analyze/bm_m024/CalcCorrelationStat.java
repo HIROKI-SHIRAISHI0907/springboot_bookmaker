@@ -12,7 +12,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 
 import dev.application.analyze.bm_m023.AverageStatisticsSituationConst;
-import dev.application.analyze.bm_m023.BmM023M024InitBean;
+import dev.application.analyze.bm_m023.BmM023M024M026InitBean;
 import dev.application.analyze.bm_m023.ScoreBasedFeatureStat;
 import dev.application.analyze.bm_m023.ScoreBasedFeatureStatsEntity;
 import dev.application.analyze.interf.AnalyzeEntityIF;
@@ -40,7 +40,7 @@ public class CalcCorrelationStat implements AnalyzeEntityIF {
 
 	/** Beanクラス */
 	@Autowired
-	private BmM023M024InitBean bean;
+	private BmM023M024M026InitBean bean;
 
 	/** ScoreBasedFeatureStatsRepositoryレポジトリクラス */
 	@Autowired
@@ -149,5 +149,24 @@ public class CalcCorrelationStat implements AnalyzeEntityIF {
 		if (filteredList == null || filteredList.isEmpty()) {
 			return;
 		}
+
+		String[] minList = this.bean.getMinList().clone();
+		String[] maxList = this.bean.getMaxList().clone();
+		String[] aveList = this.bean.getAvgList().clone();
+		String[] sigmaList = this.bean.getSigmaList().clone();
+		Integer[] minCntList = this.bean.getCntList().clone();
+		Integer[] maxCntList = this.bean.getCntList().clone();
+		Integer[] aveCntList = this.bean.getCntList().clone();
+		Integer[] sigmaCntList = this.bean.getCntList().clone();
+		String[] tMinList = this.bean.getTimeMinList().clone();
+		String[] tMaxList = this.bean.getTimeMaxList().clone();
+		String[] tAveList = this.bean.getTimeAvgList().clone();
+		String[] tSigmaList = this.bean.getTimeSigmaList().clone();
+		Integer[] tMinCntList = this.bean.getTimeCntList().clone();
+		Integer[] tMaxCntList = this.bean.getTimeCntList().clone();
+		Integer[] tAveCntList = this.bean.getTimeCntList().clone();
+		Integer[] tSigmaCntList = this.bean.getTimeCntList().clone();
+
+		// TODO: 得点と特徴量との相関関係を導出
 	}
 }

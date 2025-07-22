@@ -1,7 +1,10 @@
 package dev.application.analyze.bm_m026;
 
-import dev.application.common.mapping.StatSummary;
+import java.io.Serializable;
+
+import dev.common.entity.MetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 各スコア状況における平均必要特徴量(標準偏差含む)を導出するEntity
@@ -9,7 +12,14 @@ import lombok.Data;
  *
  */
 @Data
-public class AverageStatisticsDetailEntity {
+@EqualsAndHashCode(callSuper = false)
+public class EachTeamScoreBasedFeatureEntity extends MetaEntity implements Serializable {
+
+	/** シリアライズ化 */
+	private static final long serialVersionUID = 1L;
+
+	/** 保管フラグ */
+	private boolean upd;
 
 	/** ID */
 	private String id;
@@ -30,159 +40,159 @@ public class AverageStatisticsDetailEntity {
 	private String team;
 
 	/** ホーム期待値の統計情報 */
-	private StatSummary homeExpStat;
+	private String homeExpStat;
 
 	/** アウェー期待値の統計情報 */
-	private StatSummary awayExpStat;
+	private String awayExpStat;
 
 	/** ホームポゼッションの統計情報 */
-	private StatSummary homeDonationStat;
+	private String homeDonationStat;
 
 	/** アウェーポゼッションの統計情報 */
-	private StatSummary awayDonationStat;
+	private String awayDonationStat;
 
 	/** ホームシュート数の統計情報 */
-	private StatSummary homeShootAllStat;
+	private String homeShootAllStat;
 
 	/** アウェーシュート数の統計情報 */
-	private StatSummary awayShootAllStat;
+	private String awayShootAllStat;
 
 	/** ホーム枠内シュートの統計情報 */
-	private StatSummary homeShootInStat;
+	private String homeShootInStat;
 
 	/** アウェー枠内シュートの統計情報 */
-	private StatSummary awayShootInStat;
+	private String awayShootInStat;
 
 	/** ホーム枠外シュートの統計情報 */
-	private StatSummary homeShootOutStat;
+	private String homeShootOutStat;
 
 	/** アウェー枠外シュートの統計情報 */
-	private StatSummary awayShootOutStat;
+	private String awayShootOutStat;
 
 	/** ホームブロックシュートの統計情報 */
-	private StatSummary homeBlockShootStat;
+	private String homeBlockShootStat;
 
 	/** アウェーブロックシュートの統計情報 */
-	private StatSummary awayBlockShootStat;
+	private String awayBlockShootStat;
 
 	/** ホームビッグチャンスの統計情報 */
-	private StatSummary homeBigChanceStat;
+	private String homeBigChanceStat;
 
 	/** アウェービッグチャンスの統計情報 */
-	private StatSummary awayBigChanceStat;
+	private String awayBigChanceStat;
 
 	/** ホームコーナーキックの統計情報 */
-	private StatSummary homeCornerStat;
+	private String homeCornerStat;
 
 	/** アウェーコーナーキックの統計情報 */
-	private StatSummary awayCornerStat;
+	private String awayCornerStat;
 
 	/** ホームボックス内シュートの統計情報 */
-	private StatSummary homeBoxShootInStat;
+	private String homeBoxShootInStat;
 
 	/** アウェーボックス内シュートの統計情報 */
-	private StatSummary awayBoxShootInStat;
+	private String awayBoxShootInStat;
 
 	/** ホームボックス外シュートの統計情報 */
-	private StatSummary homeBoxShootOutStat;
+	private String homeBoxShootOutStat;
 
 	/** アウェーボックス外シュートの統計情報 */
-	private StatSummary awayBoxShootOutStat;
+	private String awayBoxShootOutStat;
 
 	/** ホームゴールポストの統計情報 */
-	private StatSummary homeGoalPostStat;
+	private String homeGoalPostStat;
 
 	/** アウェーゴールポストの統計情報 */
-	private StatSummary awayGoalPostStat;
+	private String awayGoalPostStat;
 
 	/** ホームヘディングゴールの統計情報 */
-	private StatSummary homeGoalHeadStat;
+	private String homeGoalHeadStat;
 
 	/** アウェーヘディングゴールの統計情報 */
-	private StatSummary awayGoalHeadStat;
+	private String awayGoalHeadStat;
 
 	/** ホームキーパーセーブの統計情報 */
-	private StatSummary homeKeeperSaveStat;
+	private String homeKeeperSaveStat;
 
 	/** アウェーキーパーセーブの統計情報 */
-	private StatSummary awayKeeperSaveStat;
+	private String awayKeeperSaveStat;
 
 	/** ホームフリーキックの統計情報 */
-	private StatSummary homeFreeKickStat;
+	private String homeFreeKickStat;
 
 	/** アウェーフリーキックの統計情報 */
-	private StatSummary awayFreeKickStat;
+	private String awayFreeKickStat;
 
 	/** ホームオフサイドの統計情報 */
-	private StatSummary homeOffsideStat;
+	private String homeOffsideStat;
 
 	/** アウェーオフサイドの統計情報 */
-	private StatSummary awayOffsideStat;
+	private String awayOffsideStat;
 
 	/** ホームファウルの統計情報 */
-	private StatSummary homeFoulStat;
+	private String homeFoulStat;
 
 	/** アウェーファウルの統計情報 */
-	private StatSummary awayFoulStat;
+	private String awayFoulStat;
 
 	/** ホームイエローカードの統計情報 */
-	private StatSummary homeYellowCardStat;
+	private String homeYellowCardStat;
 
 	/** アウェーイエローカードの統計情報 */
-	private StatSummary awayYellowCardStat;
+	private String awayYellowCardStat;
 
 	/** ホームレッドカードの統計情報 */
-	private StatSummary homeRedCardStat;
+	private String homeRedCardStat;
 
 	/** アウェーレッドカードの統計情報 */
-	private StatSummary awayRedCardStat;
+	private String awayRedCardStat;
 
 	/** ホームスローインの統計情報 */
-	private StatSummary homeSlowInStat;
+	private String homeSlowInStat;
 
 	/** アウェースローインの統計情報 */
-	private StatSummary awaySlowInStat;
+	private String awaySlowInStat;
 
 	/** ホームボックスタッチの統計情報 */
-	private StatSummary homeBoxTouchStat;
+	private String homeBoxTouchStat;
 
 	/** アウェーボックスタッチの統計情報 */
-	private StatSummary awayBoxTouchStat;
+	private String awayBoxTouchStat;
 
 	/** ホームパス数の統計情報 */
-	private StatSummary homePassCountStat;
+	private String homePassCountStat;
 
 	/** アウェーパス数の統計情報 */
-	private StatSummary awayPassCountStat;
+	private String awayPassCountStat;
 
 	/** ホームファイナルサードパス数の統計情報 */
-	private StatSummary homeFinalThirdPassCountStat;
+	private String homeFinalThirdPassCountStat;
 
 	/** アウェーファイナルサードパス数の統計情報 */
-	private StatSummary awayFinalThirdPassCountStat;
+	private String awayFinalThirdPassCountStat;
 
 	/** ホームクロス数の統計情報 */
-	private StatSummary homeCrossCountStat;
+	private String homeCrossCountStat;
 
 	/** アウェークロス数の統計情報 */
-	private StatSummary awayCrossCountStat;
+	private String awayCrossCountStat;
 
 	/** ホームタックル数の統計情報 */
-	private StatSummary homeTackleCountStat;
+	private String homeTackleCountStat;
 
 	/** アウェータックル数の統計情報 */
-	private StatSummary awayTackleCountStat;
+	private String awayTackleCountStat;
 
 	/** ホームクリア数の統計情報 */
-	private StatSummary homeClearCountStat;
+	private String homeClearCountStat;
 
 	/** アウェークリア数の統計情報 */
-	private StatSummary awayClearCountStat;
+	private String awayClearCountStat;
 
 	/** ホームインターセプト数の統計情報 */
-	private StatSummary homeInterceptCountStat;
+	private String homeInterceptCountStat;
 
 	/** アウェーインターセプト数の統計情報 */
-	private StatSummary awayInterceptCountStat;
+	private String awayInterceptCountStat;
 
 }

@@ -5,7 +5,7 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.stream.Collectors;
 
-import dev.application.analyze.bm_m026.AverageStatisticsDetailEntity;
+import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureEntity;
 import dev.application.analyze.bm_m027.AverageStatisticsCsvTmpDataEntity;
 import dev.application.analyze.common.entity.ThresHoldEntity;
 import dev.application.analyze.common.util.ExecuteMainUtil;
@@ -1548,8 +1548,8 @@ public class DecidePlayStyleAndThresHoldLogic {
 			System.out.println("BM_M026を更新しました。country: " + country + ", league: " + league +
 					", team: " + team + ", score: " + connectScore);
 		} else {
-			List<AverageStatisticsDetailEntity> insertEntities = new ArrayList<AverageStatisticsDetailEntity>();
-			AverageStatisticsDetailEntity statSummaries = new AverageStatisticsDetailEntity();
+			List<EachTeamScoreBasedFeatureEntity> insertEntities = new ArrayList<EachTeamScoreBasedFeatureEntity>();
+			EachTeamScoreBasedFeatureEntity statSummaries = new EachTeamScoreBasedFeatureEntity();
 			statSummaries.setSituation(situation);
 			statSummaries.setScore(connectScore);
 			statSummaries.setCountry(country);
