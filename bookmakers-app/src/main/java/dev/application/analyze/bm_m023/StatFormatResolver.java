@@ -3,6 +3,8 @@ package dev.application.analyze.bm_m023;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.tuple.Triple;
+
 import dev.common.entity.BookDataEntity;
 import dev.common.util.ExecuteMainUtil;
 
@@ -122,6 +124,21 @@ public abstract class StatFormatResolver {
 		} catch (NumberFormatException e) {
 			return value; // 不正な値でも安全に対応
 		}
+	}
+
+	/**
+	 * 3分割データ
+	 * @param valueStr
+	 * @return
+	 */
+	protected Triple<String, String, String> splitPercentageWithFraction(String valueStr) {
+	    if (valueStr == null || !valueStr.contains("%") || !valueStr.contains("(")) return null;
+	    try {
+	        List<String> parts = ExecuteMainUtil.splitFlgGroup(valueStr);
+	        return Triple.of(parts.get(0), parts.get(1), parts.get(2));
+	    } catch (Exception e) {
+	        return null;
+	    }
 	}
 
 }

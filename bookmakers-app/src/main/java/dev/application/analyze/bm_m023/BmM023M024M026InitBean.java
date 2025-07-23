@@ -86,6 +86,9 @@ public class BmM023M024M026InitBean {
 	/** 件数 */
 	private Integer[] timeCntSplitList = new Integer[AverageStatisticsSituationConst.SPLIT_COUNTER];
 
+	/** 相関係数 */
+	private String[] corrList = new String[AverageStatisticsSituationConst.SPLIT_COUNTER];
+
 	/** 開始 */
 	private int startIdx;
 
@@ -370,6 +373,14 @@ public class BmM023M024M026InitBean {
 	 */
 	public Integer[] getTimeCntSplitList() {
 		return timeCntSplitList;
+	}
+
+	/**
+	 * 相関係数リストを返却
+	 * @return corrList
+	 */
+	public String[] getCorrList() {
+		return corrList;
 	}
 
 	/**

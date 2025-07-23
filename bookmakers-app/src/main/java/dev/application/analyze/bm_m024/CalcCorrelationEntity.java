@@ -1,5 +1,7 @@
 package dev.application.analyze.bm_m024;
 
+import java.io.Serializable;
+
 import dev.common.entity.MetaEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -11,7 +13,10 @@ import lombok.EqualsAndHashCode;
  */
 @Data
 @EqualsAndHashCode(callSuper = false)
-public class CalcCorrelationEntity extends MetaEntity {
+public class CalcCorrelationEntity extends MetaEntity implements Serializable {
+
+	/** シリアライズ化 */
+	private static final long serialVersionUID = 1L;
 
 	/** ID */
 	private String id;
