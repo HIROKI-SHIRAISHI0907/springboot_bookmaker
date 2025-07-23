@@ -12,4 +12,10 @@ public class CalcCorrelationConst {
 	 */
 	public static final int COUNTER = 68;
 
+	/** 調査内容（KmeansCluster） */
+	public static final String KMEANSCLUSTER = "KmeansCluster";
+
+	/** 調査内容（peason） */
+	public static final String PEARSON = "Pearson";
+
 }

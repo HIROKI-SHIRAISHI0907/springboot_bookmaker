@@ -6,6 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.application.analyze.bm_m024.CalcCorrelationEntity;
+import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureEntity;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
 import jakarta.annotation.PostConstruct;
@@ -55,6 +56,36 @@ public class BmM023M024M026InitBean {
 	/** 件数 */
 	private Integer[] timeCntList = new Integer[AverageStatisticsSituationConst.COUNTER];
 
+	/** 最小値 */
+	private String[] minSplitList = new String[AverageStatisticsSituationConst.SPLIT_COUNTER];
+
+	/** 最大値 */
+	private String[] maxSplitList = new String[AverageStatisticsSituationConst.SPLIT_COUNTER];
+
+	/** 平均値 */
+	private String[] avgSplitList = new String[AverageStatisticsSituationConst.SPLIT_COUNTER];
+
+	/** 標準偏差 */
+	private String[] sigmaSplitList = new String[AverageStatisticsSituationConst.SPLIT_COUNTER];
+
+	/** 件数 */
+	private Integer[] cntSplitList = new Integer[AverageStatisticsSituationConst.SPLIT_COUNTER];
+
+	/** 最小値 */
+	private String[] timeMinSplitList = new String[AverageStatisticsSituationConst.SPLIT_COUNTER];
+
+	/** 最大値 */
+	private String[] timeMaxSplitList = new String[AverageStatisticsSituationConst.SPLIT_COUNTER];
+
+	/** 平均値 */
+	private String[] timeAvgSplitList = new String[AverageStatisticsSituationConst.SPLIT_COUNTER];
+
+	/** 標準偏差 */
+	private String[] timeSigmaSplitList = new String[AverageStatisticsSituationConst.SPLIT_COUNTER];
+
+	/** 件数 */
+	private Integer[] timeCntSplitList = new Integer[AverageStatisticsSituationConst.SPLIT_COUNTER];
+
 	/** 開始 */
 	private int startIdx;
 
@@ -66,6 +97,12 @@ public class BmM023M024M026InitBean {
 
 	/** 終了 */
 	private int endInsertIdx;
+
+	/** 開始 */
+	private int startScoreInsertIdx;
+
+	/** 終了 */
+	private int endScoreInsertIdx;
 
 	/** 開始 */
 	private int startCalcInsertIdx;
@@ -141,6 +178,23 @@ public class BmM023M024M026InitBean {
 		// 終了情報
 		this.endInsertIdx = endInsertIdx;
 
+		// 全フィールド取得（※順序は保証されない可能性あり）
+		Field[] insertScoreFields = EachTeamScoreBasedFeatureEntity.class.getDeclaredFields();
+		// 分析対象のフィールド範囲（homeExp 〜 awayInterceptCount）
+		int startScoreInsertIdx = -1;
+		int endScoreInsertIdx = -1;
+		for (int i = 0; i < insertScoreFields.length; i++) {
+			String name = insertScoreFields[i].getName();
+			if (name.equals("homeExpStat"))
+				startScoreInsertIdx = i;
+			if (name.equals("awayInterceptCountStat"))
+				endScoreInsertIdx = i;
+		}
+		// 開始情報
+		this.startScoreInsertIdx = startScoreInsertIdx;
+		// 終了情報
+		this.endScoreInsertIdx = endScoreInsertIdx;
+
 		Field[] insertSubFields = CalcCorrelationEntity.class.getDeclaredFields();
 		// 分析対象のフィールド範囲（homeExpInfo 〜 awayInterceptCountInfo）
 		int startCalcInsertIdx = -1;
@@ -148,9 +202,9 @@ public class BmM023M024M026InitBean {
 		for (int i = 0; i < insertSubFields.length; i++) {
 			String name = insertSubFields[i].getName();
 			if (name.equals("homeExpInfo"))
-				startInsertIdx = i;
+				startCalcInsertIdx = i;
 			if (name.equals("awayInterceptCountInfo"))
-				endInsertIdx = i;
+				endCalcInsertIdx = i;
 		}
 		// 開始情報
 		this.startCalcInsertIdx = startCalcInsertIdx;
@@ -239,6 +293,86 @@ public class BmM023M024M026InitBean {
 	}
 
 	/**
+	 * 最小値リストを返却
+	 * @return minSplitList
+	 */
+	public String[] getMinSplitList() {
+		return minSplitList;
+	}
+
+	/**
+	 * 最大値リストを返却
+	 * @return maxSplitList
+	 */
+	public String[] getMaxSplitList() {
+		return maxSplitList;
+	}
+
+	/**
+	 * 平均値リストを返却
+	 * @return avgSplitList
+	 */
+	public String[] getAvgSplitList() {
+		return avgSplitList;
+	}
+
+	/**
+	 * 標準偏差リストを返却
+	 * @return sigmaSplitList
+	 */
+	public String[] getSigmaSplitList() {
+		return sigmaSplitList;
+	}
+
+	/**
+	 * 件数リストを返却
+	 * @return cntSplitList
+	 */
+	public Integer[] getCntSplitList() {
+		return cntSplitList;
+	}
+
+	/**
+	 * 時間の最小値リストを返却
+	 * @return timeMinSplitList
+	 */
+	public String[] getTimeMinSplitList() {
+		return timeMinSplitList;
+	}
+
+	/**
+	 * 時間の最大値リストを返却
+	 * @return timeMaxSplitList
+	 */
+	public String[] getTimeMaxSplitList() {
+		return timeMaxSplitList;
+	}
+
+	/**
+	 * 時間の平均値リストを返却
+	 * @return timeAvgSplitList
+	 */
+	public String[] getTimeAvgSplitList() {
+		return timeAvgSplitList;
+	}
+
+	/**
+	 * 時間の標準偏差リストを返却
+	 * @return timeSigmaSplitList
+	 */
+	public String[] getTimeSigmaSplitList() {
+		return timeSigmaSplitList;
+	}
+
+	/**
+	 * 時間の件数リストを返却
+	 * @return timeCntSplitList
+	 */
+	public Integer[] getTimeCntSplitList() {
+		return timeCntSplitList;
+	}
+
+	/**
 	 * 開始情報を返却
 	 * @return startIdx
 	 */
@@ -272,6 +406,22 @@ public class BmM023M024M026InitBean {
 
 	/**
 	 * 開始情報を返却
+	 * @return startInsertIdx
+	 */
+	public int getStartScoreInsertIdx() {
+		return startScoreInsertIdx;
+	}
+
+	/**
+	 * 終了情報を返却
+	 * @return endScoreInsertIdx
+	 */
+	public int getEndScoreInsertIdx() {
+		return endScoreInsertIdx;
+	}
+
+	/**
+	 * 開始情報を返却
 	 * @return startCalcInsertIdx
 	 */
 	public int getStartCalcInsertIdx() {
@@ -280,9 +430,9 @@ public class BmM023M024M026InitBean {
 
 	/**
 	 * 終了情報を返却
-	 * @return endInsertIdx
+	 * @return endCalcInsertIdx
 	 */
-	public int endCalcInsertIdx() {
+	public int getEndCalcInsertIdx() {
 		return endCalcInsertIdx;
 	}
 

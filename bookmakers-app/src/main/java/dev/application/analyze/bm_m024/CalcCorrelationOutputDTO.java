@@ -3,7 +3,6 @@ package dev.application.analyze.bm_m024;
 import java.io.Serializable;
 import java.util.List;
 
-import dev.application.analyze.bm_m023.ScoreBasedFeatureStatsEntity;
 import lombok.Data;
 
 /**
@@ -35,5 +34,5 @@ public class CalcCorrelationOutputDTO implements Serializable {
 	/**
 	 * リスト
 	 */
-	private List<ScoreBasedFeatureStatsEntity> list;
+	private List<CalcCorrelationEntity> list;
 }

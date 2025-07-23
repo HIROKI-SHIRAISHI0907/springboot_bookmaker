@@ -27,7 +27,7 @@ import dev.common.util.ExecuteMainUtil;
  */
 @Component
 @Transactional
-public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
+public class ScoreBasedFeatureStat extends StatFormatResolver implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = ScoreBasedFeatureStat.class.getProtectionDomain()
@@ -460,8 +460,8 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 		// BookDataEntityの全フィールドを取得
 		Field[] allFields = BookDataEntity.class.getDeclaredFields();
 		String fillChar = "";
-		for (int i = this.bean.getStartIdx(); i < this.bean.getEndIdx(); i++) {
-			int idx = i - this.bean.getStartIdx();
+		for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
+			int idx = i - this.bean.getStartInsertIdx();
 			Field field = allFields[i];
 			field.setAccessible(true);
 			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
@@ -508,8 +508,8 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 		final String METHOD_NAME = "setTimeMin";
 		// BookDataEntityの全フィールドを取得
 		String fillChar = "";
-		for (int i = this.bean.getStartIdx(); i < this.bean.getEndIdx(); i++) {
-			int idx = i - this.bean.getStartIdx();
+		for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
+			int idx = i - this.bean.getStartInsertIdx();
 			fillChar = "連番No: " + filter.getSeq();
 			try {
 				String minTimeValue = minList[idx];
@@ -550,8 +550,8 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 		// BookDataEntityの全フィールドを取得
 		Field[] allFields = BookDataEntity.class.getDeclaredFields();
 		String fillChar = "";
-		for (int i = this.bean.getStartIdx(); i < this.bean.getEndIdx(); i++) {
-			int idx = i - this.bean.getStartIdx();
+		for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
+			int idx = i - this.bean.getStartInsertIdx();
 			Field field = allFields[i];
 			field.setAccessible(true);
 			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
@@ -598,8 +598,8 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 		final String METHOD_NAME = "setTimeMax";
 		// BookDataEntityの全フィールドを取得
 		String fillChar = "";
-		for (int i = this.bean.getStartIdx(); i < this.bean.getEndIdx(); i++) {
-			int idx = i - this.bean.getStartIdx();
+		for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
+			int idx = i - this.bean.getStartInsertIdx();
 			fillChar = "連番No: " + filter.getSeq();
 			try {
 				String maxTimeValue = maxList[idx];
@@ -635,11 +635,11 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 	 * @return 加算後のaveList
 	 */
 	private String[] setSumAve(BookDataEntity filter, String[] aveList, Integer[] cntList) {
-		final String METHOD_NAME = "setAve";
+		final String METHOD_NAME = "setSumAve";
 		Field[] allFields = BookDataEntity.class.getDeclaredFields();
 		String fillChar = "";
-		for (int i = this.bean.getStartIdx(); i < this.bean.getEndIdx(); i++) {
-			int idx = i - this.bean.getStartIdx();
+		for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
+			int idx = i - this.bean.getStartInsertIdx();
 			Field field = allFields[i];
 			field.setAccessible(true);
 			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
@@ -690,8 +690,8 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 		final String METHOD_NAME = "setTimeSumAve";
 		// BookDataEntityの全フィールドを取得
 		String fillChar = "";
-		for (int i = this.bean.getStartIdx(); i < this.bean.getEndIdx(); i++) {
-			int idx = i - this.bean.getStartIdx();
+		for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
+			int idx = i - this.bean.getStartInsertIdx();
 			fillChar = "連番No: " + filter.getSeq();
 			try {
 				String aveTimeValue = aveList[idx];
@@ -732,8 +732,8 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 		final String METHOD_NAME = "setSumSigma";
 		Field[] allFields = BookDataEntity.class.getDeclaredFields();
 		String fillChar = "";
-		for (int i = this.bean.getStartIdx(); i < this.bean.getEndIdx(); i++) {
-			int idx = i - this.bean.getStartIdx();
+		for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
+			int idx = i - this.bean.getStartInsertIdx();
 			Field field = allFields[i];
 			field.setAccessible(true);
 			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
@@ -789,8 +789,8 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 			// 試合時間（文字列）→ 分に変換
 			double currentTimeValue = ExecuteMainUtil.convertToMinutes(filter.getTime());
 
-			for (int i = this.bean.getStartIdx(); i < this.bean.getEndIdx(); i++) {
-				int idx = i - this.bean.getStartIdx();
+			for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
+				int idx = i - this.bean.getStartInsertIdx();
 				// 平均値とsigmaの取得
 				String aveStr = aveList[idx];
 				String sigmaStr = sigmaList[idx];
@@ -853,90 +853,6 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 	}
 
 	/**
-	 * 初期化時の値を、元の文字列形式に基づいて適切に戻す
-	 * 例:
-	 * - "65%" → "0.0%"
-	 * - "65% (13/20)" → "0.0% (0/0)"
-	 */
-	private String getInitialValueByFormat(String valueStr) {
-		if (valueStr == null || valueStr.isBlank()) {
-			return "0.0";
-		}
-		// % (x/y) が含まれる場合
-		if (valueStr.matches(".*%\\s*\\(\\s*\\d+\\s*/\\s*\\d+\\s*\\).*")) {
-			return "0.0% (0/0)";
-		}
-		// % だけの場合
-		if (valueStr.contains("%")) {
-			return "0.0%";
-		}
-		// 通常の数値
-		return "0.0";
-	}
-
-	/**
-	 * 同じフォーマットのみ比較
-	 * @param a
-	 * @param b
-	 * @return
-	 */
-	private boolean isSameFormat(String a, String b) {
-		if (a == null || b == null)
-			return false;
-		// "0.0%" vs "65%" → OK, "0.0% (0/0)" vs "70% (13/20)" → OK
-		if (a.contains("% (") && b.contains("% ("))
-			return true;
-		if (a.contains("%") && b.contains("%") && !a.contains("(") && !b.contains("("))
-			return true;
-		if (a.contains("/") && b.contains("/") && !a.contains("%"))
-			return true;
-		if (!a.contains("%") && !a.contains("/") && !b.contains("%") && !b.contains("/"))
-			return true;
-		return false;
-	}
-
-	/**
-	 * データのパース
-	 * @param valueStr
-	 * @return
-	 */
-	private String parseStatValue(String valueStr) {
-		if (valueStr == null || valueStr.isBlank())
-			return null;
-		try {
-			if (valueStr.contains("%") && valueStr.contains("(")) {
-				// 形式: 65% (13/20)
-				List<String> list = ExecuteMainUtil.splitFlgGroup(valueStr);
-				if (list.size() >= 2 && !list.get(1).isBlank()) {
-					return String.valueOf(Double.parseDouble(list.get(1).trim())); // 分子（成功数）を優先
-				}
-			} else if (valueStr.contains("%")) {
-				// 形式: 65%
-				int idx = valueStr.indexOf('%');
-				String percent = valueStr.substring(0, idx).trim();
-				return String.valueOf(Double.parseDouble(percent));
-			} else {
-				// 通常の数値
-				return String.valueOf(Double.parseDouble(valueStr.trim()));
-			}
-		} catch (NumberFormatException e) {
-			return null;
-		}
-		return valueStr;
-	}
-
-	/**
-	 * 値が "X% (X/X)" 形式かを判定
-	 */
-	private boolean isPercentAndFractionFormat(String valueStr) {
-		return valueStr != null
-				&& valueStr.contains("%")
-				&& valueStr.contains("(")
-				&& valueStr.contains("/")
-				&& valueStr.contains(")");
-	}
-
-	/**
 	 * 共通割り算リスト
 	 * @param list
 	 * @param cntList
@@ -945,7 +861,7 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 	 */
 	private String[] commonDivision(String[] list, Integer[] cntList, String suffix) {
 		// 平均導出
-		for (int i = 0; i < this.bean.getEndIdx() - this.bean.getStartIdx(); i++) {
+		for (int i = 0; i < this.bean.getEndInsertIdx() - this.bean.getStartInsertIdx(); i++) {
 			if (isPercentAndFractionFormat(list[i])) {
 				list[i] = "";
 			} else {
@@ -1006,18 +922,6 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 	}
 
 	/**
-	 * スコアパターン補助メソッド
-	 * @param entities
-	 * @return
-	 */
-	private List<String> extractExistingScorePatterns(List<BookDataEntity> entities) {
-		return entities.stream()
-				.map(e -> e.getHomeScore() + "-" + e.getAwayScore())
-				.distinct()
-				.collect(Collectors.toList());
-	}
-
-	/**
 	 * 埋め字設定
 	 * @param situation 状況
 	 * @param score スコア
@@ -1032,20 +936,5 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 		stringBuilder.append("国: " + country + ", ");
 		stringBuilder.append("リーグ: " + league);
 		return stringBuilder.toString();
-	}
-
-	/**
-	 * フォーマット変換
-	 * @param value
-	 * @return
-	 */
-	private String formatDecimal(String value) {
-		if (value == null || value.isEmpty()) return "0.00";
-		try {
-			double d = Double.parseDouble(value.replaceAll("'", ""));
-			return String.format("%.2f", d);
-		} catch (NumberFormatException e) {
-			return value; // 不正な値でも安全に対応
-		}
 	}
 }
