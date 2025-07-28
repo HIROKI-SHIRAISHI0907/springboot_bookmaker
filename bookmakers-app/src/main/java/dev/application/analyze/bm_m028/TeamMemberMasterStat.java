@@ -73,8 +73,8 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 					if ("監督".equals(entity.getPosition())) continue;
 					// insertとupdateで分ける
 					if (memberMap.containsKey(member)) {
-						TeamMemberMasterEntity base = memberMap.get(member);
-						TeamMemberMasterEntity updData = updateData(entity, base);
+						TeamMemberMasterEntity oldEntity = memberMap.get(member);
+						TeamMemberMasterEntity updData = updateData(entity, oldEntity);
 						if (updData != null) {
 							updateEntities.add(updData);
 						}
@@ -150,20 +150,22 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 		}
 		TeamMemberMasterEntity newDto = new TeamMemberMasterEntity();
 		newDto.setId(oldDto.getId());
-		newDto.setCountry(exDto.getCountry());
-		newDto.setLeague(exDto.getLeague());
-		newDto.setMember(exDto.getMember());
-		newDto.setJersey(exDto.getJersey());
-		newDto.setFacePicPath(exDto.getFacePicPath());
-		newDto.setBirth(exDto.getBirth());
-		newDto.setAge(exDto.getAge());
-		newDto.setInjury(exDto.getInjury());
-
-		newDto.setBelongList(exDto.getTeam());
+		newDto.setCountry(oldDto.getCountry());
+		newDto.setLeague(oldDto.getLeague());
+		newDto.setMember(oldDto.getMember());
+		newDto.setJersey((oldDto.getJersey() == null || "".equals(oldDto.getJersey())
+				? exDto.getJersey() : oldDto.getJersey()));
+		newDto.setFacePicPath((oldDto.getFacePicPath() == null || "".equals(oldDto.getFacePicPath())
+				? exDto.getFacePicPath() : oldDto.getFacePicPath()));
+		newDto.setBirth(oldDto.getBirth());
+		newDto.setAge((oldDto.getAge() == null || "".equals(oldDto.getAge())
+				? exDto.getAge() : oldDto.getAge()));
+		newDto.setInjury((oldDto.getInjury() == null || "".equals(oldDto.getInjury())
+				? exDto.getInjury() : oldDto.getInjury()));
 		String deadline = (!"".equals(exDto.getLoanBelong())) ? "1" : "0";
 		newDto.setDeadline(deadline);
 		newDto.setRetireFlg("0");
-
+		newDto.setBelongList(mergeHistory(oldDto.getTeam(), exDto.getTeam()));
 		newDto.setHeight(mergeHistory(oldDto.getHeight(), exDto.getHeight()));
 		newDto.setWeight(mergeHistory(oldDto.getWeight(), exDto.getWeight()));
 		newDto.setPosition(mergeHistory(oldDto.getPosition(), exDto.getPosition()));
