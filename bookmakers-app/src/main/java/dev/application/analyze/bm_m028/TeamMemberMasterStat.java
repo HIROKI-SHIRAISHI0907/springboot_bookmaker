@@ -1,5 +1,8 @@
 package dev.application.analyze.bm_m028;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -70,7 +73,8 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 				for (TeamMemberMasterEntity entity : editedList) {
 					String member = entity.getMember();
 					// 監督はskip
-					if ("監督".equals(entity.getPosition())) continue;
+					if ("監督".equals(entity.getPosition()))
+						continue;
 					// insertとupdateで分ける
 					if (memberMap.containsKey(member)) {
 						TeamMemberMasterEntity oldEntity = memberMap.get(member);
@@ -100,15 +104,15 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 		}
 
 		// 途中で例外が起きなければ全てのファイルを削除する
-		//		for (String path : insertPath) {
-		//			try {
-		//				Files.deleteIfExists(Paths.get(path));
-		//			} catch (IOException e) {
-		//				this.manageLoggerComponent.debugErrorLog(
-		//						PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ファイル削除失敗", e, path);
-		//				// ここでは例外をthrowしないことで、DB登録は保持
-		//			}
-		//		}
+		for (String path : insertPath) {
+			try {
+				Files.deleteIfExists(Paths.get(path));
+			} catch (IOException e) {
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ファイル削除失敗", e, path);
+				// ここでは例外をthrowしないことで、DB登録は保持
+			}
+		}
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
@@ -152,24 +156,53 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 		newDto.setId(oldDto.getId());
 		newDto.setCountry(oldDto.getCountry());
 		newDto.setLeague(oldDto.getLeague());
+		newDto.setTeam(oldDto.getTeam());
 		newDto.setMember(oldDto.getMember());
+		newDto.setScore((oldDto.getScore() == null || "".equals(oldDto.getScore())
+				? exDto.getScore()
+				: oldDto.getScore()));
+		newDto.setLoanBelong((oldDto.getLoanBelong() == null || "".equals(oldDto.getLoanBelong())
+				? exDto.getLoanBelong()
+				: oldDto.getLoanBelong()));
 		newDto.setJersey((oldDto.getJersey() == null || "".equals(oldDto.getJersey())
-				? exDto.getJersey() : oldDto.getJersey()));
+				? exDto.getJersey()
+				: oldDto.getJersey()));
 		newDto.setFacePicPath((oldDto.getFacePicPath() == null || "".equals(oldDto.getFacePicPath())
-				? exDto.getFacePicPath() : oldDto.getFacePicPath()));
+				? exDto.getFacePicPath()
+				: oldDto.getFacePicPath()));
 		newDto.setBirth(oldDto.getBirth());
 		newDto.setAge((oldDto.getAge() == null || "".equals(oldDto.getAge())
-				? exDto.getAge() : oldDto.getAge()));
+				? exDto.getAge()
+				: oldDto.getAge()));
 		newDto.setInjury((oldDto.getInjury() == null || "".equals(oldDto.getInjury())
-				? exDto.getInjury() : oldDto.getInjury()));
-		String deadline = (!"".equals(exDto.getLoanBelong())) ? "1" : "0";
+				? exDto.getInjury()
+				: oldDto.getInjury()));
+		String deadline = (exDto.getLoanBelong() != null &&
+				!"".equals(exDto.getLoanBelong())) ? "1" : "0";
 		newDto.setDeadline(deadline);
-		newDto.setRetireFlg("0");
+		// 普通は1度引退フラグが1になるとそれ以降は変わらない(現役復帰でない限り)
+		newDto.setRetireFlg((oldDto.getRetireFlg() == null || "".equals(oldDto.getRetireFlg())
+				? exDto.getRetireFlg()
+				: oldDto.getRetireFlg()));
+		if (newDto.getRetireFlg() == null || "".equals(newDto.getRetireFlg())) {
+			newDto.setRetireFlg("0");
+		}
+		newDto.setDeadlineContractDate(mergeHistory(
+				oldDto.getDeadlineContractDate(), exDto.getDeadlineContractDate()));
 		newDto.setBelongList(mergeHistory(oldDto.getTeam(), exDto.getTeam()));
 		newDto.setHeight(mergeHistory(oldDto.getHeight(), exDto.getHeight()));
 		newDto.setWeight(mergeHistory(oldDto.getWeight(), exDto.getWeight()));
 		newDto.setPosition(mergeHistory(oldDto.getPosition(), exDto.getPosition()));
 		newDto.setMarketValue(mergeHistory(oldDto.getMarketValue(), exDto.getMarketValue()));
+		newDto.setLatestInfoDate(exDto.getLatestInfoDate());
+		String updStr = (oldDto.getUpdStamp() == null || "".equals(oldDto.getUpdStamp()))
+				? "更新済み1" : oldDto.getUpdStamp();
+		// +1をして更新
+		if (!"更新済み1".equals(updStr)) {
+			String rem = updStr.replace("更新済み", "");
+			updStr = String.valueOf(Integer.parseInt(rem) + 1);
+		}
+		newDto.setUpdStamp(updStr);
 		return newDto;
 	}
 
