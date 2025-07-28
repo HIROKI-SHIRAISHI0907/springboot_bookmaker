@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m022;
+package dev.application.analyze.bm_m029;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -7,28 +7,28 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
-import dev.application.domain.repository.FutureRepository;
-import dev.common.entity.FutureEntity;
+import dev.application.domain.repository.CountryLeagueSeasonMasterRepository;
+import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
- * BM_M022未来データDB管理部品
+ * BM_M029シーズンデータDB管理部品
  * @author shiraishitoshio
  *
  */
 @Component
-public class FutureDBService {
+public class CountryLeagueSeasonDBService {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = FutureDBService.class.getProtectionDomain()
+	private static final String PROJECT_NAME = CountryLeagueSeasonDBService.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = FutureDBService.class.getSimpleName();
+	private static final String CLASS_NAME = CountryLeagueSeasonDBService.class.getSimpleName();
 
-	/** FutureRepositoryレポジトリクラス */
+	/** CountryLeagueSeasonMasterRepositoryレポジトリクラス */
 	@Autowired
-	private FutureRepository futureRepository;
+	private CountryLeagueSeasonMasterRepository countryLeagueSeasonMasterRepository;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -39,13 +39,13 @@ public class FutureDBService {
 	 * @param chkEntities
 	 * @param fillChar
 	 */
-	public List<FutureEntity> selectInBatch(List<FutureEntity> chkEntities,
+	public List<CountryLeagueSeasonMasterEntity> selectInBatch(List<CountryLeagueSeasonMasterEntity> chkEntities,
 			String fillChar) {
 		final String METHOD_NAME = "selectInBatch";
-		List<FutureEntity> entities = new ArrayList<FutureEntity>();
-		for (FutureEntity entity : chkEntities) {
+		List<CountryLeagueSeasonMasterEntity> entities = new ArrayList<CountryLeagueSeasonMasterEntity>();
+		for (CountryLeagueSeasonMasterEntity entity : chkEntities) {
 			try {
-				int count = this.futureRepository.findDataCount(entity);
+				int count = this.countryLeagueSeasonMasterRepository.findDataCount(entity);
 				if (count == 0) {
 					entities.add(entity);
 				}
@@ -63,15 +63,15 @@ public class FutureDBService {
 	 * 登録メソッド
 	 * @param insertEntities
 	 */
-	public int insertInBatch(List<FutureEntity> insertEntities) {
+	public int insertInBatch(List<CountryLeagueSeasonMasterEntity> insertEntities) {
 		final String METHOD_NAME = "insertInBatch";
 		final int BATCH_SIZE = 100;
 		for (int i = 0; i < insertEntities.size(); i += BATCH_SIZE) {
 			int end = Math.min(i + BATCH_SIZE, insertEntities.size());
-			List<FutureEntity> batch = insertEntities.subList(i, end);
-			for (FutureEntity entity : batch) {
+			List<CountryLeagueSeasonMasterEntity> batch = insertEntities.subList(i, end);
+			for (CountryLeagueSeasonMasterEntity entity : batch) {
 				try {
-					int result = this.futureRepository.insert(entity);
+					int result = this.countryLeagueSeasonMasterRepository.insert(entity);
 					if (result != 1) {
 						String messageCd = "新規登録エラー";
 						this.manageLoggerComponent.debugErrorLog(
@@ -87,7 +87,7 @@ public class FutureDBService {
 				}
 			}
 		}
-		String messageCd = "BM_M022 登録件数: " + insertEntities.size();
+		String messageCd = "BM_M028 登録件数: " + insertEntities.size();
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
 		return 0;
