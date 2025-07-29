@@ -1,0 +1,3 @@
+docker build [ -t ｛イメージ名｝ [ :｛タグ名｝ ] ] ｛Dockerfileのあるディレクトリ｝
+
+Ex) docker build -t sample/nginx :1.0 .

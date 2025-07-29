@@ -1,0 +1,38 @@
+services:
+  ruby: #ruby on railsが動作するコンテナイメージ
+    build: rails
+    environment:
+      RAILS_ENV: production
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+    ports:
+      - "3000:3000" #ホストマシンからもアクセスできるよう3000番ポートを開放してください
+    depends_on:
+      - app
+  app:
+    build: rails
+    tty: true #RailsアプリのログがDocker Compose上のログにも表示されるよう定義してください。
+    environment:
+      APP_DATABASE_HOST: db
+      APP_DATABASE: soccer_bm
+      APP_DATABASE_USER: root
+      APP_DATABASE_PASSWORD: sonic3717
+      RAILS_ENV: production
+      SECRET_KEY_BASE: ${SECRET_KEY_BASE}
+    depends_on:
+      - mysqldb
+      - redis
+    env_file:
+      - .env
+  mysqldb: #mysqlが動作するコンテナイメージ
+    image: "mysql:8.0" # Dockerイメージはmysql:8.0を利用してください
+    environment:
+      MYSQL_ROOT_PASSWORD: sonic3717
+      MYSQL_DATABASE: soccer_bm
+    volumes:
+      - "./mysql/db:/var/lib/mysql" #MySQL 内のデータが永続化するよう定義してください。
+      - "./mysql/init:/docker-entrypoint-createdb.d"
+  redis: #redisが動作するコンテナイメージが動作するコンテナイメージ
+    image: "redis:latest" # Dockerイメージはredis:latestを利用してください
+    volumes:
+      - "./data/redis:/data"
+
