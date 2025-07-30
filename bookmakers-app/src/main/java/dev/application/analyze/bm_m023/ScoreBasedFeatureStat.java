@@ -63,8 +63,8 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		// 全リーグ・国を走査
-		ConcurrentHashMap<String, ScoreBasedFeatureStatsEntity> map = new ConcurrentHashMap<>();
 		for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
+			ConcurrentHashMap<String, List<ScoreBasedFeatureStatsEntity>> map = new ConcurrentHashMap<>();
 			String[] data_category = entry.getKey().split("-");
 			String country = data_category[0];
 			String league = data_category[1];
@@ -75,25 +75,25 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 					continue;
 				// decideBasedMain を呼び出して集計マップを取得
 				map = decideBasedMain(entityList, country, league);
+				// 登録・更新
+				ExecutorService executor = Executors.newFixedThreadPool(map.size());
+				List<CompletableFuture<Void>> futures = new ArrayList<>();
+				for (Map.Entry<String, List<ScoreBasedFeatureStatsEntity>> entrys : map.entrySet()) {
+					CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
+						for (ScoreBasedFeatureStatsEntity subSubEntity : entrys.getValue()) {
+							if (subSubEntity.isUpd()) {
+								update(subSubEntity);
+							} else {
+								insert(subSubEntity);
+							}
+						}
+					}, executor);
+					futures.add(future);
+				}
+				CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
+				executor.shutdown();
 			}
 		}
-
-		// 登録・更新
-		ExecutorService executor = Executors.newFixedThreadPool(map.size());
-		List<CompletableFuture<Void>> futures = new ArrayList<>();
-		for (Map.Entry<String, ScoreBasedFeatureStatsEntity> entry : map.entrySet()) {
-			CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-				ScoreBasedFeatureStatsEntity entity = entry.getValue();
-				if (entity.isUpd()) {
-					update(entity);
-				} else {
-					insert(entity);
-				}
-			}, executor);
-			futures.add(future);
-		}
-		CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-		executor.shutdown();
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
@@ -108,7 +108,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	 * @param league リーグ
 	 * @return
 	 */
-	private ConcurrentHashMap<String, ScoreBasedFeatureStatsEntity> decideBasedMain(List<BookDataEntity> entities,
+	private ConcurrentHashMap<String, List<ScoreBasedFeatureStatsEntity>> decideBasedMain(List<BookDataEntity> entities,
 			String country, String league) {
 		BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
 
@@ -128,7 +128,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		List<String> allScores = extractExistingScorePatterns(entities);
 		ExecutorService executor = Executors.newFixedThreadPool(20); // スレッド数は状況に応じて調整
 		List<CompletableFuture<Void>> futures = new ArrayList<>();
-		ConcurrentHashMap<String, ScoreBasedFeatureStatsEntity> allMap = new ConcurrentHashMap<>();
+		ConcurrentHashMap<String, List<ScoreBasedFeatureStatsEntity>> allMap = new ConcurrentHashMap<>();
 		for (String flg : flgs) {
 			if (AverageStatisticsSituationConst.EACH_SCORE.equals(flg)) {
 				if (!AverageStatisticsSituationConst.NOSCORE.equals(situation)) {
@@ -173,7 +173,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	 * @param league リーグ
 	 * @return
 	 */
-	private void basedEntities(ConcurrentHashMap<String, ScoreBasedFeatureStatsEntity> insertMap,
+	private void basedEntities(ConcurrentHashMap<String, List<ScoreBasedFeatureStatsEntity>> insertMap,
 			List<BookDataEntity> entities, String connectScore, String situation, String flg,
 			String country, String league) {
 		System.err.println("connectScore: " + connectScore + ", situation: " + situation
@@ -195,7 +195,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				filteredList = entities.stream()
 						.filter(entity -> entity.getSeq().compareTo(halfTimeSeq) <= 0) // 通番がハーフタイム(含む)より前
 						.collect(Collectors.toList());
-			} else if (AverageStatisticsSituationConst.SECOND_DATA.equals(flg)) {
+			} else if (AverageStatisticsSituationConst.FIRST_DATA.equals(flg)) {
 				filteredList = entities.stream()
 						.filter(entity -> entity.getSeq().compareTo(halfTimeSeq) > 0) // 通番がハーフタイムより後
 						.collect(Collectors.toList());
@@ -207,10 +207,26 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			return;
 		}
 
-		// 取得メソッド
-		ScoreBasedFeatureOutputDTO dto = getData(connectScore, situation, country, league);
-		List<ScoreBasedFeatureStatsEntity> statList = dto.getList();
-		boolean updFlg = dto.isUpdFlg();
+		// flgがALL,1st,2ndの時は,それをsituation扱いとする
+		boolean updFlg = false;
+		String id = null;
+		List<ScoreBasedFeatureStatsEntity> statList = null;
+		if (AverageStatisticsSituationConst.ALL_DATA.equals(flg) ||
+				AverageStatisticsSituationConst.FIRST_DATA.equals(flg) ||
+				AverageStatisticsSituationConst.FIRST_DATA.equals(flg)) {
+			String score = flg;
+			// 取得メソッド
+			ScoreBasedFeatureOutputDTO dto = getData(score, situation, country, league);
+			statList = dto.getList();
+			updFlg = dto.isUpdFlg();
+			id = dto.getId();
+		} else {
+			// 取得メソッド
+			ScoreBasedFeatureOutputDTO dto = getData(connectScore, situation, country, league);
+			statList = dto.getList();
+			updFlg = dto.isUpdFlg();
+			id = dto.getId();
+		}
 
 		String[] minList = this.bean.getMinList().clone();
 		String[] maxList = this.bean.getMaxList().clone();
@@ -265,7 +281,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		ScoreBasedFeatureStatsEntity entity = new ScoreBasedFeatureStatsEntity();
 		// 文字連結
 		StringBuilder stringBuilder = new StringBuilder();
-		for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
+		for (int i = this.bean.getStartInsertIdx(); i <= this.bean.getEndInsertIdx(); i++) {
 			int idx = i - this.bean.getStartInsertIdx();
 			String min = formatDecimal(minList[idx]);
 			String max = formatDecimal(maxList[idx]);
@@ -297,9 +313,17 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			stringBuilder.setLength(0);
 		}
 		// その他情報を格納する
-		entity = setOtherEntity(connectScore, situation, country, league, updFlg, entity);
+		if (AverageStatisticsSituationConst.ALL_DATA.equals(flg) ||
+				AverageStatisticsSituationConst.FIRST_DATA.equals(flg) ||
+				AverageStatisticsSituationConst.FIRST_DATA.equals(flg)) {
+			String score = flg;
+			entity = setOtherEntity(score, situation, country, league, updFlg, id, entity);
+		} else {
+			entity = setOtherEntity(connectScore, situation, country, league, updFlg, id, entity);
+		}
 		// スレッドセーフな格納
-		insertMap.put(flg, entity);
+		insertMap.computeIfAbsent(flg, k -> new ArrayList<ScoreBasedFeatureStatsEntity>())
+				.add(entity);
 	}
 
 	/**
@@ -364,8 +388,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				entity.getScore(),
 				entity.getCountry(),
 				entity.getLeague());
-		int result = this.scoreBasedFeatureStatsRepository.
-				updateStatValues(entity);
+		int result = this.scoreBasedFeatureStatsRepository.updateStatValues(entity);
 		if (result != 1) {
 			String messageCd = "更新エラー";
 			this.manageLoggerComponent.debugErrorLog(
@@ -410,7 +433,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		if (list != null && !list.isEmpty()) {
 			ScoreBasedFeatureStatsEntity statEntity = list.get(0); // 最新データのみ使用
 			Field[] fields = ScoreBasedFeatureStatsEntity.class.getDeclaredFields();
-			for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
+			for (int i = this.bean.getStartInsertIdx(); i <= this.bean.getEndInsertIdx(); i++) {
 				int idx = i - this.bean.getStartInsertIdx();
 				Field field = fields[i];
 				field.setAccessible(true);
@@ -460,8 +483,8 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		// BookDataEntityの全フィールドを取得
 		Field[] allFields = BookDataEntity.class.getDeclaredFields();
 		String fillChar = "";
-		for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
-			int idx = i - this.bean.getStartInsertIdx();
+		for (int i = this.bean.getStartIdx(); i <= this.bean.getEndIdx(); i++) {
+			int idx = i - this.bean.getStartIdx();
 			Field field = allFields[i];
 			field.setAccessible(true);
 			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
@@ -508,7 +531,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		final String METHOD_NAME = "setTimeMin";
 		// BookDataEntityの全フィールドを取得
 		String fillChar = "";
-		for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
+		for (int i = this.bean.getStartInsertIdx(); i <= this.bean.getEndInsertIdx(); i++) {
 			int idx = i - this.bean.getStartInsertIdx();
 			fillChar = "連番No: " + filter.getSeq();
 			try {
@@ -550,8 +573,8 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		// BookDataEntityの全フィールドを取得
 		Field[] allFields = BookDataEntity.class.getDeclaredFields();
 		String fillChar = "";
-		for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
-			int idx = i - this.bean.getStartInsertIdx();
+		for (int i = this.bean.getStartIdx(); i <= this.bean.getEndIdx(); i++) {
+			int idx = i - this.bean.getStartIdx();
 			Field field = allFields[i];
 			field.setAccessible(true);
 			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
@@ -598,7 +621,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		final String METHOD_NAME = "setTimeMax";
 		// BookDataEntityの全フィールドを取得
 		String fillChar = "";
-		for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
+		for (int i = this.bean.getStartInsertIdx(); i <= this.bean.getEndInsertIdx(); i++) {
 			int idx = i - this.bean.getStartInsertIdx();
 			fillChar = "連番No: " + filter.getSeq();
 			try {
@@ -638,8 +661,8 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		final String METHOD_NAME = "setSumAve";
 		Field[] allFields = BookDataEntity.class.getDeclaredFields();
 		String fillChar = "";
-		for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
-			int idx = i - this.bean.getStartInsertIdx();
+		for (int i = this.bean.getStartIdx(); i <= this.bean.getEndIdx(); i++) {
+			int idx = i - this.bean.getStartIdx();
 			Field field = allFields[i];
 			field.setAccessible(true);
 			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
@@ -690,7 +713,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		final String METHOD_NAME = "setTimeSumAve";
 		// BookDataEntityの全フィールドを取得
 		String fillChar = "";
-		for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
+		for (int i = this.bean.getStartInsertIdx(); i <= this.bean.getEndInsertIdx(); i++) {
 			int idx = i - this.bean.getStartInsertIdx();
 			fillChar = "連番No: " + filter.getSeq();
 			try {
@@ -732,8 +755,8 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		final String METHOD_NAME = "setSumSigma";
 		Field[] allFields = BookDataEntity.class.getDeclaredFields();
 		String fillChar = "";
-		for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
-			int idx = i - this.bean.getStartInsertIdx();
+		for (int i = this.bean.getStartIdx(); i <= this.bean.getEndIdx(); i++) {
+			int idx = i - this.bean.getStartIdx();
 			Field field = allFields[i];
 			field.setAccessible(true);
 			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
@@ -789,7 +812,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			// 試合時間（文字列）→ 分に変換
 			double currentTimeValue = ExecuteMainUtil.convertToMinutes(filter.getTime());
 
-			for (int i = this.bean.getStartInsertIdx(); i < this.bean.getEndInsertIdx(); i++) {
+			for (int i = this.bean.getStartInsertIdx(); i <= this.bean.getEndInsertIdx(); i++) {
 				int idx = i - this.bean.getStartInsertIdx();
 				// 平均値とsigmaの取得
 				String aveStr = aveList[idx];
@@ -909,10 +932,12 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	 * @param country 国
 	 * @param league リーグ
 	 * @param updFlg 更新フラグ
+	 * @param id ID
 	 * @return
 	 */
 	private ScoreBasedFeatureStatsEntity setOtherEntity(String score, String situation,
-			String country, String league, Boolean updFlg, ScoreBasedFeatureStatsEntity entity) {
+			String country, String league, Boolean updFlg, String id, ScoreBasedFeatureStatsEntity entity) {
+		entity.setId(id);
 		entity.setUpd(updFlg);
 		entity.setScore(score);
 		entity.setSituation(situation);

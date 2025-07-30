@@ -60,7 +60,7 @@ public interface ScoreBasedFeatureStatsRepository {
 			String country, String league);
 
     @Update({
-        "UPDATE average_feature_data SET",
+        "UPDATE average_statistics_data SET",
         "home_exp_stat = #{homeExpStat},",
         "away_exp_stat = #{awayExpStat},",
         "home_donation_stat = #{homeDonationStat},",
@@ -114,7 +114,7 @@ public interface ScoreBasedFeatureStatsRepository {
         "home_intercept_count_stat = #{homeInterceptCountStat},",
         "away_intercept_count_stat = #{awayInterceptCountStat},",
         "update_id = #{updateId},",
-        "update_time = #{updateTime}",
+        "update_time = #{updateTime} ",
         "WHERE id = #{id}"
     })
     int updateStatValues(ScoreBasedFeatureStatsEntity entity);

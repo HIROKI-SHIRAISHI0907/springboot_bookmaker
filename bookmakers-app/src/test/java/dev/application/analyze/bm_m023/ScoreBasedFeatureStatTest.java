@@ -29,7 +29,7 @@ class ScoreBasedFeatureStatTest {
 	@Test
 	void test_calcStat_shouldUpdateCorrectly() {
 		// Act
-		String csvNumber = "4151";
+		String csvNumber = "4296";
 		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber);
 
 		this.scoreBasedFeatureStat.calcStat(entities);
