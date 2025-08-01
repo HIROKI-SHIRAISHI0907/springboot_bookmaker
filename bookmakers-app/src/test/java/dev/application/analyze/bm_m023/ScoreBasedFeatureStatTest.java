@@ -26,11 +26,44 @@ class ScoreBasedFeatureStatTest {
 	@Autowired
 	private ScoreBasedFeatureStat scoreBasedFeatureStat;
 
+	/**
+	 * メモリ効率試験
+	 */
 	@Test
 	void test_calcStat_shouldUpdateCorrectly() {
 		// Act
-		String csvNumber = "4296";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber);
+		String csvNumber = "3999";
+		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, null);
+
+		this.scoreBasedFeatureStat.calcStat(entities);
+	}
+
+	/**
+	 * XX% (XX/XX)の形式を持つデータのマップ
+	 */
+	@Test
+	void test_calcStat_shouldInitData() {
+		String csvNumber = "174";
+		String csvBackNumber = "175";
+		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvBackNumber);
+
+		this.scoreBasedFeatureStat.calcStat(entities);
+	}
+
+	/**
+	 * XX% (XX/XX)の形式を持つデータのマップかつ同一国,リーグデータ
+	 */
+	@Test
+	void test_calcStat_shouldInitUpdateData() {
+		String csvNumber = "174";
+		String csvBackNumber = "175";
+		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvBackNumber);
+
+		this.scoreBasedFeatureStat.calcStat(entities);
+
+		csvNumber = "257";
+		csvBackNumber = "258";
+		entities = this.getStatInfo.getData(csvNumber, csvBackNumber);
 
 		this.scoreBasedFeatureStat.calcStat(entities);
 	}

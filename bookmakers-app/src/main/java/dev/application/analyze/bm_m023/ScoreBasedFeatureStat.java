@@ -195,7 +195,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				filteredList = entities.stream()
 						.filter(entity -> entity.getSeq().compareTo(halfTimeSeq) <= 0) // 通番がハーフタイム(含む)より前
 						.collect(Collectors.toList());
-			} else if (AverageStatisticsSituationConst.FIRST_DATA.equals(flg)) {
+			} else if (AverageStatisticsSituationConst.SECOND_DATA.equals(flg)) {
 				filteredList = entities.stream()
 						.filter(entity -> entity.getSeq().compareTo(halfTimeSeq) > 0) // 通番がハーフタイムより後
 						.collect(Collectors.toList());
@@ -213,7 +213,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		List<ScoreBasedFeatureStatsEntity> statList = null;
 		if (AverageStatisticsSituationConst.ALL_DATA.equals(flg) ||
 				AverageStatisticsSituationConst.FIRST_DATA.equals(flg) ||
-				AverageStatisticsSituationConst.FIRST_DATA.equals(flg)) {
+				AverageStatisticsSituationConst.SECOND_DATA.equals(flg)) {
 			String score = flg;
 			// 取得メソッド
 			ScoreBasedFeatureOutputDTO dto = getData(score, situation, country, league);
@@ -252,6 +252,10 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				statList);
 
 		// 最小値,最大値,平均合計
+		// 形式設定
+		BookDataEntity returnDataEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
+		initFormat(returnDataEntity, minList, "Min");
+		initFormat(returnDataEntity, maxList, "Max");
 		for (BookDataEntity filter : filteredList) {
 			minList = setMin(filter, minList, minCntList);
 			maxList = setMax(filter, maxList, maxCntList);
@@ -315,7 +319,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		// その他情報を格納する
 		if (AverageStatisticsSituationConst.ALL_DATA.equals(flg) ||
 				AverageStatisticsSituationConst.FIRST_DATA.equals(flg) ||
-				AverageStatisticsSituationConst.FIRST_DATA.equals(flg)) {
+				AverageStatisticsSituationConst.SECOND_DATA.equals(flg)) {
 			String score = flg;
 			entity = setOtherEntity(score, situation, country, league, updFlg, id, entity);
 		} else {
@@ -478,8 +482,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	 */
 	private String[] setMin(BookDataEntity filter, String[] minList, Integer[] cntList) {
 		final String METHOD_NAME = "setMin";
-		// 形式設定
-		initFormat(filter, minList);
 		// BookDataEntityの全フィールドを取得
 		Field[] allFields = BookDataEntity.class.getDeclaredFields();
 		String fillChar = "";
@@ -568,8 +570,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	 */
 	private String[] setMax(BookDataEntity filter, String[] maxList, Integer[] cntList) {
 		final String METHOD_NAME = "setMax";
-		// 形式設定
-		initFormat(filter, maxList);
 		// BookDataEntityの全フィールドを取得
 		Field[] allFields = BookDataEntity.class.getDeclaredFields();
 		String fillChar = "";
@@ -671,9 +671,9 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				if (currentValue == null || currentValue.isBlank())
 					continue;
 
-				// 数値化（成功数・もしくは%・通常値）
+				// 数値化（成功数・もしくは%・通常値）XX% (XX/XX)の形式は分子の数を足す
 				String numericStr = parseStatValue(currentValue);
-				if (numericStr == null || numericStr.isBlank() || isPercentAndFractionFormat(currentValue))
+				if (numericStr == null || numericStr.isBlank())
 					continue;
 
 				// 文字列 → double → 加算
@@ -764,7 +764,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				String currentValue = (String) field.get(filter);
 				String avgStr = avgList[idx];
 				// スキップ条件：空 or null or X% (X/X) 形式
-				if (currentValue == null || currentValue.isBlank() || isPercentAndFractionFormat(currentValue)) {
+				if (currentValue == null || currentValue.isBlank()) {
 					continue;
 				}
 				if (avgStr == null || avgStr.isBlank())
@@ -856,7 +856,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	 * @param list
 	 */
 	private void initFormat(BookDataEntity entity,
-			String[] list) {
+			String[] list, String listStr) {
 		final String METHOD_NAME = "initFormat";
 		final int FEATURE_START = 11;
 		String feature_name = "";
@@ -866,7 +866,12 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				feature_name = allFields[i].getName();
 				allFields[i].setAccessible(true);
 				String feature_value = (String) allFields[i].get(entity);
-				list[i - FEATURE_START] = getInitialValueByFormat(feature_value);
+				String format = getInitialValueByFormat(feature_value);
+				if (listStr.contains("Min")) {
+					format = format.replace("0.0", "10000.0");
+					format = format.replace("0/0", "10000/10000");
+				}
+				list[i - FEATURE_START] = format;
 			}
 		} catch (Exception ex) {
 			this.manageLoggerComponent.debugErrorLog(

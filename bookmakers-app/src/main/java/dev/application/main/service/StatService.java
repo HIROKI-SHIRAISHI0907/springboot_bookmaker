@@ -60,12 +60,13 @@ public class StatService implements StatIF {
 
 		// シーケンスデータから取得(最大値情報取得)
 		String csvNumber = "";
+		String csvBackNumber = "";
 
 		// 時間計測開始
 		long startTime = System.nanoTime();
 
 		// 直近のCSVデータ情報を取得
-		Map<String, Map<String, List<BookDataEntity>>> getStatMap = this.getStatInfo.getData(csvNumber);
+		Map<String, Map<String, List<BookDataEntity>>> getStatMap = this.getStatInfo.getData(csvNumber, csvBackNumber);
 
 		// 統計ロジック呼び出し(@Transactionl付き)(国,リーグ単位で並列)
 		this.conditionResultDataStat.calcStat(getStatMap);
