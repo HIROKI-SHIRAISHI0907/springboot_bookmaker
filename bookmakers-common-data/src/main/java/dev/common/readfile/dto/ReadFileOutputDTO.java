@@ -4,8 +4,11 @@ import java.util.List;
 
 import dev.common.dto.AbstractResultErrDetailOutputDTO;
 import dev.common.entity.BookDataEntity;
+import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.entity.FutureEntity;
+import dev.common.entity.TeamMemberMasterEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * ブック読み取りoutputDTO
@@ -13,6 +16,7 @@ import lombok.Data;
  *
  */
 @Data
+@EqualsAndHashCode(callSuper = false)
 public class ReadFileOutputDTO extends AbstractResultErrDetailOutputDTO {
 
 	/**
@@ -34,5 +38,15 @@ public class ReadFileOutputDTO extends AbstractResultErrDetailOutputDTO {
 	 * 未来データ結果リスト
 	 */
 	private List<FutureEntity> futureList;
+
+	/**
+	 * 選手データ結果リスト
+	 */
+	private List<TeamMemberMasterEntity> memberList;
+
+	/**
+	 * シーズンデータ結果リスト
+	 */
+	private List<CountryLeagueSeasonMasterEntity> countryLeagueSeasonList;
 
 }

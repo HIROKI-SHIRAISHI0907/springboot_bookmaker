@@ -86,12 +86,14 @@ public class FindStat {
 				bookList = getFiles(findPath, inputDTO.getTargetFile(), inputDTO.getPrefixFile(),
 						inputDTO.getSuffixFile(),
 						inputDTO.getContainsList(),
-						inputDTO.getCsvNumber());
+						inputDTO.getCsvNumber(),
+						inputDTO.getCsvBackNumber());
 			} else {
 				bookList = getStatFiles(findPath, inputDTO.getTargetFile(), inputDTO.getPrefixFile(),
 						inputDTO.getSuffixFile(),
 						inputDTO.getContainsList(),
-						inputDTO.getCsvNumber());
+						inputDTO.getCsvNumber(),
+						inputDTO.getCsvBackNumber());
 			}
 		} catch (IOException e) {
 			readBookOutputDTO.setExceptionProject(PROJECT_NAME);
@@ -142,11 +144,13 @@ public class FindStat {
 	 * @param prefixFile 先頭情報
 	 * @param suffixFile 拡張子情報
 	 * @param containsList 含有情報
+	 * @param csvNumber CSV情報
+	 * @param csvBackNumber CSV情報
 	 * @throws IOException IOException
 	 */
 	private static List<String> getFiles(String path, String targetFile, String prefixFile,
 			String suffixFile,
-			String[] containsList, String csvNumber) throws IOException {
+			String[] containsList, String csvNumber, String csvBackNumber) throws IOException {
 		List<String> bookPathList = new ArrayList<>();
 		List<Path> bookPathPathList = new ArrayList<>();
 		List<String> bookPathSortList = new ArrayList<>();
@@ -164,7 +168,8 @@ public class FindStat {
 			// パスが全て含まれていなかったらcontinue
 			boolean chkFlg = false;
 			for (String contains : containsList) {
-				if (contains == null) continue;
+				if (contains == null)
+					continue;
 				chkFlg = (pathStr.toString().contains(contains)) ? true : false;
 				if (chkFlg) {
 					break;
@@ -183,12 +188,23 @@ public class FindStat {
 		// ソート(数字として)
 		Collections.sort(bookPathSortList, Comparator.comparingInt(Integer::parseInt));
 		// フィルタしてソート（csvNumberより大きいものだけ）
-		List<String> filteredSortedList = bookPathSortList.stream()
-		    .map(Integer::parseInt)
-		    .filter(num -> num > Integer.parseInt(csvNumber))
-		    .sorted()
-		    .map(String::valueOf)
-		    .collect(Collectors.toList());
+		List<String> filteredSortedList = null;
+		if (csvBackNumber != null) {
+			filteredSortedList = bookPathSortList.stream()
+					.map(Integer::parseInt)
+					.filter(num -> num > Integer.parseInt(csvNumber) &&
+							num <= Integer.parseInt(csvBackNumber))
+					.sorted()
+					.map(String::valueOf)
+					.collect(Collectors.toList());
+		} else {
+			filteredSortedList = bookPathSortList.stream()
+					.map(Integer::parseInt)
+					.filter(num -> num > Integer.parseInt(csvNumber))
+					.sorted()
+					.map(String::valueOf)
+					.collect(Collectors.toList());
+		}
 		for (String pathStr : filteredSortedList) {
 			// output_,future_をつける
 			String convString = path + prefixFile + pathStr + suffixFile;
@@ -204,11 +220,13 @@ public class FindStat {
 	 * @param prefixFile 先頭情報
 	 * @param suffixFile 拡張子情報
 	 * @param containsList 含有情報
+	 * @param csvNumber CSV情報
+	 * @param csvBackNumber CSV情報
 	 * @throws IOException IOException
 	 */
 	private static List<String> getStatFiles(String path, String targetFile, String prefixFile,
 			String suffixFile,
-			String[] containsList, String csvNumber) throws IOException {
+			String[] containsList, String csvNumber, String csvBackNumber) throws IOException {
 		List<String> bookPathList = new ArrayList<>();
 		List<Path> bookPathPathList = new ArrayList<>();
 		List<String> bookPathSortList = new ArrayList<>();
@@ -225,7 +243,8 @@ public class FindStat {
 			// パスが全て含まれていなかったらcontinue
 			boolean chkFlg = false;
 			for (String contains : containsList) {
-				if (contains == null) continue;
+				if (contains == null)
+					continue;
 				chkFlg = (pathStr.toString().contains(contains)) ? true : false;
 				if (chkFlg) {
 					break;
@@ -243,12 +262,23 @@ public class FindStat {
 		// ソート(数字として)
 		Collections.sort(bookPathSortList, Comparator.comparingInt(Integer::parseInt));
 		// フィルタしてソート（csvNumberより大きいものだけ）
-		List<String> filteredSortedList = bookPathSortList.stream()
-		    .map(Integer::parseInt)
-		    .filter(num -> num > Integer.parseInt(csvNumber))
-		    .sorted()
-		    .map(String::valueOf)
-		    .collect(Collectors.toList());
+		List<String> filteredSortedList = null;
+		if (csvBackNumber != null) {
+			filteredSortedList = bookPathSortList.stream()
+					.map(Integer::parseInt)
+					.filter(num -> num > Integer.parseInt(csvNumber) &&
+							num <= Integer.parseInt(csvBackNumber))
+					.sorted()
+					.map(String::valueOf)
+					.collect(Collectors.toList());
+		} else {
+			filteredSortedList = bookPathSortList.stream()
+					.map(Integer::parseInt)
+					.filter(num -> num > Integer.parseInt(csvNumber))
+					.sorted()
+					.map(String::valueOf)
+					.collect(Collectors.toList());
+		}
 		for (String pathStr : filteredSortedList) {
 			// output_,future_をつける
 			String convString = path + pathStr + suffixFile;

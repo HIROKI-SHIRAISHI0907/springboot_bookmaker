@@ -118,6 +118,9 @@ public class BookMakersCommonConst {
 	/** output_ */
 	public static final String OUTPUT_ = "output_";
 
+	/** team_member_ */
+	public static final String TEAM_MEMBER_ = "team_member_";
+
 	/** future_ */
 	public static final String FUTURE_ = "future_";
 

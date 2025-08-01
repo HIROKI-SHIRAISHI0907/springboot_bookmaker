@@ -55,4 +55,9 @@ public class FindBookInputDTO {
 	 */
 	private String csvNumber;
 
+	/**
+	 * CSV番号(後発)
+	 */
+	private String csvBackNumber;
+
 }

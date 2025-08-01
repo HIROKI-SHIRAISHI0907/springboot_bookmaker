@@ -3,6 +3,7 @@ package dev.common.util;
 import java.sql.Timestamp;
 import java.text.ParseException;
 import java.text.SimpleDateFormat;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
@@ -40,7 +41,8 @@ public class DateUtil {
 	/**
 	 * 年月日時分秒(yyyy/MM/dd HH:mm:ss)のデリミタ入力チェック文字列
 	 */
-	private static final Pattern YMDHMS_DELIMITER_PATTERN = Pattern.compile("^\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}$");
+	private static final Pattern YMDHMS_DELIMITER_PATTERN = Pattern
+			.compile("^\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}$");
 	/**
 	 * 年月日時分秒ミリ秒(yyyyMMddHHmmssSSS)の入力チェック文字列
 	 */
@@ -48,22 +50,27 @@ public class DateUtil {
 	/**
 	 * 年月日時分秒ミリ秒(yyyy/MM/dd HH:mm:ss.SSS)のデリミタ入力チェック文字列
 	 */
-	private static final Pattern YMDHMSS_DELIMITER_PATTERN = Pattern.compile("^\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}.\\d{3}$");
+	private static final Pattern YMDHMSS_DELIMITER_PATTERN = Pattern
+			.compile("^\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}.\\d{3}$");
 	/**
 	 * ドイツ形式 → 例: "22.07.2025 19:30"
 	 */
-    private static final DateTimeFormatter GERMAN_FORMAT =
-            DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
-    /**
-     * 日本形式（MySQL DATETIME 対応） → 例: "2025-07-22 19:30:00"
-     */
-    private static final DateTimeFormatter JAPANESE_FORMAT =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+	private static final DateTimeFormatter GERMAN_FORMAT = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm");
+	/**
+	 * 日本形式（MySQL DATETIME 対応） → 例: "2025-07-22 19:30:00"
+	 */
+	private static final DateTimeFormatter JAPANESE_FORMAT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+	/**
+	 * dd.MM.yyyy
+	 */
+	private static final DateTimeFormatter PATTERN_DD_MM_YYYY = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
 	/**
 	 * コンストラクタ生成禁止
 	 */
-	private DateUtil() {}
+	private DateUtil() {
+	}
 
 	/**
 	 * 日付管理機能
@@ -98,20 +105,20 @@ public class DateUtil {
 		String result = resultList.get(1);
 		Timestamp timestamp = null;
 		switch (result) {
-			case "yMd":
-				timestamp = convDateYmd(time);
-				break;
-			case "m":
-				timestamp = convDateYmdhm(time);
-				break;
-			case "s":
-				timestamp = convDateYmdhms(time);
-				break;
-			case "S":
-				timestamp = convDateYmdhmsS(time);
-				break;
-			default:
-				throw new Exception("time値について該当するメソッドに振り分けできない。(入力値:" + time + ")");
+		case "yMd":
+			timestamp = convDateYmd(time);
+			break;
+		case "m":
+			timestamp = convDateYmdhm(time);
+			break;
+		case "s":
+			timestamp = convDateYmdhms(time);
+			break;
+		case "S":
+			timestamp = convDateYmdhmsS(time);
+			break;
+		default:
+			throw new Exception("time値について該当するメソッドに振り分けできない。(入力値:" + time + ")");
 		}
 		return timestamp;
 	}
@@ -145,18 +152,18 @@ public class DateUtil {
 		} else {
 			split = date.split("\\:");
 			switch (split.length) {
-				case 1:
-					chkFormat = "H";
-					break;
-				case 2:
-					chkFormat = "m";
-					break;
-				case 3:
-					chkFormat = "s";
-					break;
-				default:
-					chkFormat = "yMd";
-					break;
+			case 1:
+				chkFormat = "H";
+				break;
+			case 2:
+				chkFormat = "m";
+				break;
+			case 3:
+				chkFormat = "s";
+				break;
+			default:
+				chkFormat = "yMd";
+				break;
 			}
 			resultList.add(date);
 		}
@@ -305,18 +312,37 @@ public class DateUtil {
 	}
 
 	/**
-     * ドイツ形式から日本形式に変換する
-     *
-     * @param germanDateStr ドイツ形式の日時文字列（例: "22.07.2025 19:30"）
-     * @return 日本形式の日時文字列（例: "2025-07-22 19:30:00"）
-     */
-    public static String convertGermanToJapaneseFormat(String germanDateStr) {
-        try {
-            LocalDateTime dateTime = LocalDateTime.parse(germanDateStr, GERMAN_FORMAT);
-            return dateTime.format(JAPANESE_FORMAT);
-        } catch (DateTimeParseException e) {
-            throw new IllegalArgumentException("不正な日時フォーマットです: " + germanDateStr, e);
-        }
-    }
+	 * ドイツ形式から日本形式に変換する
+	 *
+	 * @param germanDateStr ドイツ形式の日時文字列（例: "22.07.2025 19:30"）
+	 * @return 日本形式の日時文字列（例: "2025-07-22 19:30:00"）
+	 */
+	public static String convertGermanToJapaneseFormat(String germanDateStr) {
+		try {
+			LocalDateTime dateTime = LocalDateTime.parse(germanDateStr, GERMAN_FORMAT);
+			return dateTime.format(JAPANESE_FORMAT);
+		} catch (DateTimeParseException e) {
+			throw new IllegalArgumentException("不正な日時フォーマットです: " + germanDateStr, e);
+		}
+	}
+
+	/**
+	 *
+	 * @param input
+	 * @return
+	 */
+	public static String convertOnlyDD_MM_YYYY(String input) {
+		if ("".equals(input)) {
+			return "";
+		}
+		try {
+			// 変換処理（00:00:00.000 を補完）
+			LocalDate date = LocalDate.parse(input, PATTERN_DD_MM_YYYY);
+			LocalDateTime dateTime = date.atStartOfDay();
+			return dateTime.format(JAPANESE_FORMAT);
+		} catch (DateTimeParseException e) {
+			throw new IllegalArgumentException("不正な日時フォーマットです: " + input, e);
+		}
+	}
 
 }
