@@ -69,8 +69,8 @@ public class GetStatInfo {
 		// 時間計測開始
 		long startTime = System.nanoTime();
 
-//		DeleteFolderInFile deleteFolderInFile = new DeleteFolderInFile();
-//		deleteFolderInFile.delete(COPY_PATH);
+		//		DeleteFolderInFile deleteFolderInFile = new DeleteFolderInFile();
+		//		deleteFolderInFile.delete(COPY_PATH);
 
 		// 設定
 		FindBookInputDTO findBookInputDTO = setBookInputDTO(csvNumber, csvBackNumber);
@@ -89,6 +89,15 @@ public class GetStatInfo {
 
 		// 読み込んだパスからデータ取得
 		List<String> fileStatList = findBookOutputDTO.getBookList();
+		// 結果構造：Map<"JPN-J1", Map<"HOME", List<BookDataEntity>>>
+		Map<String, Map<String, List<BookDataEntity>>> resultMap = new HashMap<>();
+		if (fileStatList.size() <= 0) {
+			String messageCd = "データなし";
+			String fillChar = "GetStatInfo";
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar);
+			return resultMap;
+		}
 		// スレッドプールを作成（例：同時に最大4スレッド）
 		ExecutorService executor = Executors.newFixedThreadPool(fileStatList.size());
 		// タスク送信
@@ -98,8 +107,6 @@ public class GetStatInfo {
 			futureList.add(future);
 		}
 
-		// 結果構造：Map<"JPN-J1", Map<"HOME", List<BookDataEntity>>>
-		Map<String, Map<String, List<BookDataEntity>>> resultMap = new HashMap<>();
 		for (Future<ReadFileOutputDTO> future : futureList) {
 			try {
 				ReadFileOutputDTO dto = future.get();
