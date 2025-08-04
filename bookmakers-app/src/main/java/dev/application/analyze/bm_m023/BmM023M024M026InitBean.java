@@ -164,7 +164,6 @@ public class BmM023M024M026InitBean {
 		// 終了情報
 		this.endIdx = endIdx;
 
-		// 全フィールド取得（※順序は保証されない可能性あり）
 		Field[] insertFields = ScoreBasedFeatureStatsEntity.class.getDeclaredFields();
 		// 分析対象のフィールド範囲（homeExp 〜 awayInterceptCount）
 		int startInsertIdx = -1;

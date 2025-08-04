@@ -60,7 +60,7 @@ public interface EachTeamScoreBasedFeatureStatsRepository {
 			String country, String league, String team);
 
     @Update({
-        "UPDATE average_feature_data_detail SET",
+        "UPDATE average_statistics_data_detail SET",
         "home_exp_stat = #{homeExpStat},",
         "away_exp_stat = #{awayExpStat},",
         "home_donation_stat = #{homeDonationStat},",

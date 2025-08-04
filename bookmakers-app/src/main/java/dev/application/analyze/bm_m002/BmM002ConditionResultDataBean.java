@@ -29,7 +29,7 @@ public class BmM002ConditionResultDataBean {
 	/** クラス名 */
 	private static final String CLASS_NAME = BmM002ConditionResultDataBean.class.getSimpleName();
 
-	/** パス */
+	/** アルゴリズム */
 	@Value("${bmbusiness.hashAlgorithm:SHA-256}")
 	private String hashAlgorithm = "SHA-256";
 

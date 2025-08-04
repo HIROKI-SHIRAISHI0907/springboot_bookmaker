@@ -18,6 +18,9 @@ public class StatEncryptionEntity extends MetaEntity implements Serializable {
 	/** シリアライズ化 */
 	private static final long serialVersionUID = 1L;
 
+	/** 国 */
+	private boolean updFlg;
+
 	/** ID */
 	private String id;
 
@@ -35,6 +38,9 @@ public class StatEncryptionEntity extends MetaEntity implements Serializable {
 
 	/** チーム単体 */
 	private String team;
+
+	/** チェックボディ */
+	private String chkBody;
 
 	/** ホーム期待値のプレースタイル相関係数情報 */
 	private String homeExpInfo;
