@@ -1,0 +1,22 @@
+<div class='container mt-3 mb-5'>
+   <h1 class='text-center mb-5'>掲示板作成</h1>
+
+   <%= form_for @post, url: all_posts_path do |f| %> <%# posts_pathはroutes.rbで定義したヘルバー名(posts POST /posts(::formatのようなやつ)に_pathをつけるルール)%>
+      <div class='col-md-6 mx-auto mb-5'>
+         <div class='mb-3'> 
+            <%# postidはpost_controler.rbで定義したpost_paramsのpermitと同じ %>
+            <%= f.label :name, class: 'form-label border-start border-primary border-4 ps-1' %>
+            <%= f.text_field :postid, size: 40, class: 'form-control' %>
+            <%= f.label :title, class: 'form-label border-start border-primary border-4 ps-1' %>
+            <%= f.text_field :postid, size: 40, class: 'form-control' %>
+            <%= f.label :body, class: 'form-label border-start border-primary border-4 ps-1' %>
+            <%= f.text_area :postid, size: "50x20", placeholder: '本文', class: 'form-control' %>
+            <%= f.label :reviewer, class: 'form-label border-start border-primary border-4 ps-1' %>
+            <%= f.text_field :postid, size: 40,  class: 'form-control' %>
+         </div>
+         <div class='d-grid col-md-6 mx-auto'>
+            <%= f.button '保存', class: 'btn btn-lg btn-primary' %>
+         </div>
+      </div>
+   <% end %>
+</div>

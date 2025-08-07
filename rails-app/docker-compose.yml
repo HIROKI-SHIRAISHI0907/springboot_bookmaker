@@ -1,0 +1,22 @@
+services:
+  app: 
+    build: .
+    volumes:
+      - .:/app
+    ports:
+      - "3000:3000"
+    command: bash -c "bundle install && bundle exec foreman start"
+    depends_on:
+      - mailcatcher
+      - redis
+    environment:
+      - TZ=Asia/Tokyo
+  mailcatcher:
+    image: schickling/mailcatcher
+    ports:
+      - "1080:1080"
+      - "1025:1025"
+  redis:
+    image: redis:7.0
+    ports:
+      - "6379:6379"

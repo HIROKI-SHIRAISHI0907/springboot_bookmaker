@@ -1,0 +1,27 @@
+require: rubocop-performance
+
+AllCops:
+  DisplayCopNames: true
+  DisplayStyleGuide: true
+  StyleGuideBaseURL: https://github.com/fortissimo1997/ruby-style-guide/blob/japanese/README.ja.md
+  Exclude:
+    - 'bin/*'
+    - 'db/**/*'
+    - 'config/environments/**/*'
+    - 'public/**/*'
+    - 'log/**/*'
+    - 'tmp/**/*'
+    - '.git/**/*'
+    - 'spec/spec_helper.rb'
+    - 'spec/rails_helper.rb'
+
+Style/Documentation:
+  Enabled: false
+
+Metrics/BlockLength:
+  Exclude:
+    - 'spec/**/*'
+
+Layout/HeredocIndentation:
+  Exclude:
+    - 'spec/**/*'

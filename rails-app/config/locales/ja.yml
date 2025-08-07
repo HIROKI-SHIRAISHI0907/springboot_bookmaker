@@ -1,0 +1,8 @@
+ja:
+  activerecord:
+    attributes:
+      post:
+        name: 名前
+        title: タイトル
+        body: 本文
+        reviewer: 担当者
