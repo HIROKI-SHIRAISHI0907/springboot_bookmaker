@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.bm_m023.AverageStatisticsSituationConst;
 import dev.application.analyze.bm_m023.BmM023M024M026InitBean;
+import dev.application.analyze.bm_m023.ScoreBasedFeatureOutputDTO;
 import dev.application.analyze.bm_m023.StatFormatResolver;
 import dev.application.analyze.bm_m030.BmM030StatEncryptionBean;
 import dev.application.analyze.bm_m030.StatEncryptionEntity;
@@ -48,8 +49,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 
 	/** クラススコープに以下を追加 */
 	private final ConcurrentHashMap<String, Object> lockMap = new ConcurrentHashMap<>();
-
-
 
 	/** BmM023M024M026InitBeanクラス */
 	@Autowired
@@ -326,28 +325,35 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			StatEncryptionEntity entityToUse;
 
 			if (bmM30Map.containsKey(containsKey)) {
-			    // すでにMapにある → DBに存在する可能性が高い
-			    StatEncryptionEntity exist = bmM30Map.get(containsKey);
-			    // 存在するレコードのidを維持（上書きしない）
-			    StatEncryptionEntity addPart = buildBmM30Form(filteredFinalList, country, league, ha, chkFinalBody,
+				// すでにMapにある → DBに存在する可能性が高い
+				StatEncryptionEntity exist = bmM30Map.get(containsKey);
+				// 存在するレコードのidを維持（上書きしない）
+				StatEncryptionEntity addPart = buildBmM30Form(filteredFinalList, country, league, ha, chkFinalBody,
 						fieldMap);
-			    entityToUse = mergeStatEncryptionEntity(exist, addPart, ha);
-			    entityToUse.setId(exist.getId());
-			    entityToUse.setUpdFlg(true);
-			    System.out.println("country, league, team, id, chkFinalBody: " + country + ", " + league
+				entityToUse = mergeStatEncryptionEntity(exist, addPart, ha);
+				entityToUse.setId(exist.getId());
+				entityToUse.setUpdFlg(true);
+				System.out.println("country, league, team, id, chkFinalBody: " + country + ", " + league
 						+ ", " + team + ", " + exist.getId() + ", " + chkFinalBody + ", upd");
-			    bmM30Map.put(containsKey, entityToUse);
+				bmM30Map.put(containsKey, entityToUse);
 			} else {
-			    // 新規Entity（insert対象）
-			    entityToUse = buildBmM30Form(filteredFinalList, country, league, ha,
+				// 新規Entity（insert対象）
+				entityToUse = buildBmM30Form(filteredFinalList, country, league, ha,
 						chkFinalBody, fieldMap);
-			    entityToUse.setId(null); // ★ここ大事！insert用
-			    System.out.println("country, league, team, chkFinalBody: " + country + ", " + league
+				entityToUse.setId(null);
+				System.out.println("country, league, team, chkFinalBody: " + country + ", " + league
 						+ ", " + team + ", " + chkFinalBody + ", reg");
-			    String insertKey = team + "-" + chkFinalBody;
-			    bmM30Map.put(insertKey, entityToUse);
+				String insertKey = team + "-" + chkFinalBody;
+				bmM30Map.put(insertKey, entityToUse);
 			}
 
+			// 2通りのチェックを行う(country + "-" + league + "-" + team + "-" + chkBody)
+			// team + "-" + chkFinalBody
+			StatEncryptionEntity decidedEntity = bmM30Map.get(containsKey);
+			if (decidedEntity == null) {
+				String insertKey = team + "-" + chkFinalBody;
+				decidedEntity = bmM30Map.get(insertKey);
+			}
 
 			String[] minList = this.bmM023M024M026InitBean.getMinList().clone();
 			String[] maxList = this.bmM023M024M026InitBean.getMaxList().clone();
@@ -406,6 +412,20 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 						Math.sqrt(Double.parseDouble(tSigmaList[i].replace("'", ""))));
 			}
 
+			// 歪度,尖度導出
+			// 歪度,尖度用の初期設定(StatEncryptionから取得)
+			String[] aveSkewKurtList = this.bmM023M024M026InitBean.getAvgList().clone();
+			String[] sigmaSkewKurtList = this.bmM023M024M026InitBean.getSigmaList().clone();
+			String[] skewnessList = this.bmM023M024M026InitBean.getSkewnessList().clone();
+			String[] kurtosisList = this.bmM023M024M026InitBean.getKurtosisList().clone();
+			//String[] tSkewnessList = this.bmM023M024M026InitBean.getTimeSkewnessList().clone();
+			//String[] tKurtosisList = this.bmM023M024M026InitBean.getTimeKurtosisList().clone();
+			Integer[] kurtosisCntList = this.bmM023M024M026InitBean.getSkewnessCntList().clone();
+			skewnessList = setSkewness(decidedEntity, skewnessList, aveSkewKurtList, sigmaSkewKurtList, kurtosisCntList,
+					ha);
+			kurtosisList = setKurtosis(decidedEntity, kurtosisList, aveSkewKurtList, sigmaSkewKurtList, kurtosisCntList,
+					ha);
+
 			EachTeamScoreBasedFeatureEntity entity = new EachTeamScoreBasedFeatureEntity();
 			// 文字連結
 			StringBuilder stringBuilder = new StringBuilder();
@@ -420,6 +440,8 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				String tMax = formatDecimal(tMaxList[idx]);
 				String tAve = formatDecimal(tAveList[idx]);
 				String tSigma = formatDecimal(tSigmaList[idx]);
+				String skewness = skewnessList[idx];
+				String kurtosis = kurtosisList[idx];
 
 				// 1行分をカンマ区切りで連結
 				stringBuilder.append(min).append(",")
@@ -437,7 +459,9 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 						.append(tAve + "'").append(",")
 						.append(tAveCntList[idx]).append(",")
 						.append(tSigma + "'").append(",")
-						.append(tSigmaCntList[idx]);
+						.append(tSigmaCntList[idx]).append(",")
+						.append(skewness).append(",")
+						.append(kurtosis);
 				entity = setStatValuesToEntity(entity, stringBuilder.toString(), i);
 				stringBuilder.setLength(0);
 			}
@@ -557,6 +581,8 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	 * @param tAveCntList
 	 * @param tSigmaList
 	 * @param tSigmaCntList
+	 * @param skewnessList
+	 * @param kurtosisList
 	 * @param ha
 	 */
 	private void setInitData(String[] minList, Integer[] minCntList, String[] maxList, Integer[] maxCntList,
@@ -1024,6 +1050,207 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	}
 
 	/**
+	 * 歪度設定(n/(n-1)(n-2)*sum(i=1->n((xi - xver) / sigma)^3)
+	 * @param entity
+	 * @param skewnessList
+	 * @param aveList
+	 * @param sigmaList
+	 * @param cntList
+	 * @param ha homeaway
+	 */
+	private String[] setSkewness(StatEncryptionEntity entity,
+			String[] skewnessList, String[] aveList,
+			String[] sigmaList, Integer[] cntList, String ha) {
+		final String METHOD_NAME = "setSkewness";
+		Double[] skewness = new Double[AverageStatisticsSituationConst.COUNTER];
+		for (int i = 0; i < skewness.length; i++) {
+			skewness[i] = 0.0;
+		}
+		// StatEncryptionEntityの全フィールドを取得
+		Field[] allFields = StatEncryptionEntity.class.getDeclaredFields();
+		String fillChar = "";
+		for (int i = this.bmM030StatEncryptionBean.getStartEncryptionIdx(); i <= this.bmM030StatEncryptionBean
+				.getEndEncryptionIdx(); i++) {
+			int idx = i - this.bmM030StatEncryptionBean.getStartEncryptionIdx();
+			if (("H".equals(ha) && idx % 2 == 1) || ("A".equals(ha) && idx % 2 == 0)) {
+				continue;
+			}
+			Field field = allFields[i];
+			field.setAccessible(true);
+			fillChar = "フィールド名: " + field.getName();
+			try {
+				String currentValue = (String) field.get(entity);
+				if (currentValue == null || currentValue.isBlank() || isPercentAndFractionFormat(currentValue))
+					continue;
+
+				// カンマ分割
+				String[] skewList = currentValue.split(",");
+				// 平均値,標準偏差導出
+				int cnt = 0;
+				ScoreBasedFeatureOutputDTO dto1 = setSkewnessOrKurtosisSumAve(skewList, cnt);
+				String skewSumAve = dto1.getAve();
+				cnt = Integer.parseInt(dto1.getCnt());
+				String skewAve = (cnt == 0) ? ""
+						: String.valueOf(
+								Double.parseDouble(skewSumAve) / cnt);
+				cnt = 0;
+				ScoreBasedFeatureOutputDTO dto2 = setSkewnessOrKurtosisSumSigma(skewList, skewAve, cnt);
+				String skewSumSigma = dto2.getSigma();
+				cnt = Integer.parseInt(dto2.getCnt());
+				// 不偏分散のルート
+				String skewSigma = (cnt == 1) ? ""
+						: String.valueOf(
+								Math.sqrt(Double.parseDouble(skewSumSigma) / (cnt - 1)));
+				System.out.println("skewAve, skewSigma, cnt: " + skewAve + ", " + skewSigma + ", " + cnt);
+				// 導出できなければskip
+				if ("".equals(skewAve) || "".equals(skewSigma))
+					continue;
+
+				// 現在の歪度情報を加算
+				for (String skew : skewList) {
+					String currentSkewnessNumeric = parseStatValue(skew);
+					if (currentSkewnessNumeric == null)
+						continue;
+					skewness[idx] += Math.pow((Double.parseDouble(currentSkewnessNumeric)
+							- Double.parseDouble(skewAve)) / Double.parseDouble(skewSigma), 3);
+				}
+				System.out.println("setSkewness, fillChar: " + fillChar + ", currentValue: " + currentValue
+						+ ", skewness[idx]: " + skewness[idx]);
+				// 件数カウント
+				cntList[idx] = cnt;
+			} catch (Exception e) {
+				String messageCd = "リフレクションエラー";
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
+				this.manageLoggerComponent.createSystemException(
+						PROJECT_NAME,
+						CLASS_NAME,
+						METHOD_NAME,
+						messageCd,
+						e);
+			}
+		}
+		// n/(n-1)(n-2)との積をとる
+		for (int i = 0; i < skewness.length; i++) {
+			if (("H".equals(ha) && i % 2 == 1) ||
+					("A".equals(ha) && i % 2 == 0)) {
+				continue;
+			}
+			int cnt = cntList[i];
+			double skew = skewness[i];
+			double result = (cnt / ((cnt - 1.0) * (cnt - 2.0))) * skew;
+			skewnessList[i] = String.format("%.3f", result);
+			System.out
+					.println("setSkewness/division, skewness[idx]: " + skew + ", cnt: " + cnt + ", result: " + result);
+		}
+		return skewnessList;
+	}
+
+	/**
+	 * 尖度設定((n(n+1))/(n-1)(n-2)(n-3)*sum(i=1->n((xi - xver)^4 / sigma^3 - 3*(n-1)^2 / (n-2)(n-3))
+	 * @param entity
+	 * @param kurtosisList
+	 * @param aveList
+	 * @param sigmaList
+	 * @param cntList(歪度で求めた件数を設定)
+	 * @param ha homeaway
+	 */
+	private String[] setKurtosis(StatEncryptionEntity entity,
+			String[] kurtosisList, String[] aveList,
+			String[] sigmaList, Integer[] cntList, String ha) {
+		final String METHOD_NAME = "setKurtosis";
+		Double[] kurtosis = new Double[AverageStatisticsSituationConst.COUNTER];
+		for (int i = 0; i < kurtosis.length; i++) {
+			kurtosis[i] = 0.0;
+		}
+		// StatEncryptionEntityの全フィールドを取得
+		Field[] allFields = StatEncryptionEntity.class.getDeclaredFields();
+		String fillChar = "";
+		for (int i = this.bmM030StatEncryptionBean.getStartEncryptionIdx(); i <= this.bmM030StatEncryptionBean
+				.getEndEncryptionIdx(); i++) {
+			int idx = i - this.bmM030StatEncryptionBean.getStartEncryptionIdx();
+			if (("H".equals(ha) && idx % 2 == 1) || ("A".equals(ha) && idx % 2 == 0)) {
+				continue;
+			}
+			Field field = allFields[i];
+			field.setAccessible(true);
+			fillChar = "フィールド名: " + field.getName();
+			try {
+				String currentValue = (String) field.get(entity);
+				if (currentValue == null || currentValue.isBlank() || isPercentAndFractionFormat(currentValue))
+					continue;
+
+				// カンマ分割
+				String[] kurtList = currentValue.split(",");
+				// 平均値,標準偏差導出
+				int cnt = 0;
+				ScoreBasedFeatureOutputDTO dto1 = setSkewnessOrKurtosisSumAve(kurtList, cnt);
+				String kurtSumAve = dto1.getAve();
+				cnt = Integer.parseInt(dto1.getCnt());
+				String kurtAve = (cnt == 0) ? ""
+						: String.valueOf(
+								Double.parseDouble(kurtSumAve) / cnt);
+				cnt = 0;
+				ScoreBasedFeatureOutputDTO dto2 = setSkewnessOrKurtosisSumSigma(kurtList, kurtAve, cnt);
+				String kurtSumSigma = dto2.getSigma();
+				cnt = Integer.parseInt(dto2.getCnt());
+				// 不偏分散のルート
+				String kurtSigma = (cnt == 1) ? ""
+						: String.valueOf(
+								Math.sqrt(Double.parseDouble(kurtSumSigma) / (cnt - 1)));
+				// 導出できなければskip
+				if ("".equals(kurtAve) || "".equals(kurtSigma))
+					continue;
+
+				// 現在の尖度情報を加算
+				for (String kurt : kurtList) {
+					String currentKurtosisNumeric = parseStatValue(kurt);
+					if (currentKurtosisNumeric == null)
+						continue;
+					kurtosis[idx] += (Math.pow((Double.parseDouble(currentKurtosisNumeric)
+							- Double.parseDouble(kurtAve)), 4) / Math.pow(
+									Double.parseDouble(kurtSigma), 4));
+				}
+				System.out.println("setKurtosis, fillChar: " + fillChar + ", currentValue: " + currentValue
+						+ ", kurtosis[idx]: " + kurtosis[idx]);
+				// 件数カウント
+				cntList[idx] = cnt;
+			} catch (Exception e) {
+				String messageCd = "リフレクションエラー";
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
+				this.manageLoggerComponent.createSystemException(
+						PROJECT_NAME,
+						CLASS_NAME,
+						METHOD_NAME,
+						messageCd,
+						e);
+			}
+		}
+		// (n(n+1))/(n-1)(n-2)(n-3)との積をとり,3(n-1)^2 / (n-2)(n-3)を引く
+		for (int i = 0; i < kurtosis.length; i++) {
+			int cnt = cntList[i];
+			double kurt = kurtosis[i];
+			double result;
+			if (cnt >= 4 && Double.isFinite(kurt)) {
+				double a = (cnt * (cnt + 1.0)) / ((cnt - 1.0) * (cnt - 2.0) * (cnt - 3.0));
+				double b = (3.0 * Math.pow(cnt - 1.0, 2.0)) / ((cnt - 2.0) * (cnt - 3.0)); // ← 括弧で積に！
+				result = a * kurt - b; // ← 補正項は “1回だけ” 引く
+			} else if (cnt > 0 && Double.isFinite(kurt)) {
+				// n<4 は補正式未定義。フォールバック（例：過剰尖度 = moment - 3）
+				double moment = kurt / cnt; // 標準化4次モーメント
+				result = moment - 3.0; // 過剰尖度が欲しい場合
+			} else {
+				result = Double.NaN; // cnt==0 や std==0 など
+			}
+			kurtosisList[i] = String.format("%.3f", result);
+			System.out
+					.println("setKurtosis/division, kurtosis[idx]: " + kurt + ", cnt: " + cnt + ", result: " + result);
+		}
+		return kurtosisList;
+	}
+
+	/**
 	 * 形式を揃える
 	 * @param entity BookDataEntity
 	 * @param list
@@ -1206,7 +1433,8 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	 * @param source 追加データ
 	 * @param ha Home or Away
 	 */
-	private StatEncryptionEntity mergeStatEncryptionEntity(StatEncryptionEntity target, StatEncryptionEntity source, String ha) {
+	private StatEncryptionEntity mergeStatEncryptionEntity(StatEncryptionEntity target, StatEncryptionEntity source,
+			String ha) {
 		Field[] fields = StatEncryptionEntity.class.getDeclaredFields();
 		String prefix = ha.equals("H") ? "home" : "away";
 		int i = 0;
@@ -1291,6 +1519,96 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	 */
 	private Object getLock(String key) {
 		return lockMap.computeIfAbsent(key, k -> new Object());
+	}
+
+	/**
+	 * 歪度or尖度平均値計算のための加算処理（値を加算し、件数もインクリメント）
+	 * @param skewOrKurtList 加算リスト（String型）
+	 * @param cnt 件数カウント（Integer型）
+	 * @return 加算後のaveList
+	 */
+	private ScoreBasedFeatureOutputDTO setSkewnessOrKurtosisSumAve(String[] skewOrKurtList, Integer cnt) {
+		ScoreBasedFeatureOutputDTO scoreBasedFeatureOutputDTO = new ScoreBasedFeatureOutputDTO();
+		final String METHOD_NAME = "setSkewnessOrKurtosisSumAve";
+		double sum = 0.0;
+		for (int i = 0; i < skewOrKurtList.length; i++) {
+			String currentValue = skewOrKurtList[i];
+			// 数値化（成功数・もしくは%・通常値）XX% (XX/XX)の形式は分子の数を足す
+			String numericStr = parseStatValue(currentValue);
+			if (numericStr == null || numericStr.isBlank() || isPercentAndFractionFormat(currentValue))
+				continue;
+
+			try {
+				// 文字列 → double → 加算
+				double numeric = Double.parseDouble(numericStr);
+				sum += numeric;
+				// 件数カウント
+				cnt++;
+			} catch (NumberFormatException e) {
+				// 数値変換失敗時はスキップ（加算しない）
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						null, e);
+			} catch (Exception e) {
+				// リフレクション等の例外
+				String messageCd = "リフレクションエラー";
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+				this.manageLoggerComponent.createSystemException(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+			}
+		}
+		String skewOrKurtSumAve = String.valueOf(sum);
+		scoreBasedFeatureOutputDTO.setCnt(String.valueOf(cnt));
+		scoreBasedFeatureOutputDTO.setAve(skewOrKurtSumAve);
+		return scoreBasedFeatureOutputDTO;
+	}
+
+	/**
+	 * 歪度or尖度標準偏差導出のための加算処理（値を加算し、件数もインクリメント）
+	 * @param skewOrKurtList 加算リスト（String型）
+	 * @param skewOrKurtAve
+	 * @param cnt 件数カウント（Integer型）
+	 * @return 加算後のaveList
+	 */
+	private ScoreBasedFeatureOutputDTO setSkewnessOrKurtosisSumSigma(String[] skewOrKurtList, String skewOrKurtAve,
+			Integer cnt) {
+		ScoreBasedFeatureOutputDTO scoreBasedFeatureOutputDTO = new ScoreBasedFeatureOutputDTO();
+		final String METHOD_NAME = "setSkewnessOrKurtosisSumSigma";
+		double sum = 0.0;
+		for (int i = 0; i < skewOrKurtList.length; i++) {
+			String currentValue = skewOrKurtList[i];
+			// 数値化（成功数・もしくは%・通常値）XX% (XX/XX)の形式は分子の数を足す
+			String numericStr = parseStatValue(currentValue);
+			if (numericStr == null || numericStr.isBlank() || isPercentAndFractionFormat(currentValue))
+				continue;
+
+			try {
+				// 文字列 → double → 加算
+				double numeric = Double.parseDouble(numericStr);
+				double ave = Double.parseDouble(skewOrKurtAve);
+				numeric = Math.pow((numeric - ave), 2);
+				sum += numeric;
+				// 件数カウント
+				cnt++;
+			} catch (NumberFormatException e) {
+				// 数値変換失敗時はスキップ（加算しない）
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						null, e);
+			} catch (Exception e) {
+				// リフレクション等の例外
+				String messageCd = "リフレクションエラー";
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+				this.manageLoggerComponent.createSystemException(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+			}
+		}
+		String skewOrKurtSumSigma = String.valueOf(sum);
+		scoreBasedFeatureOutputDTO.setCnt(String.valueOf(cnt));
+		scoreBasedFeatureOutputDTO.setSigma(skewOrKurtSumSigma);
+		return scoreBasedFeatureOutputDTO;
 	}
 
 }

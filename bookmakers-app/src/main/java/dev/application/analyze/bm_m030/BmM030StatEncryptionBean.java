@@ -75,65 +75,70 @@ public class BmM030StatEncryptionBean {
 	/** データマップ */
 	private ConcurrentHashMap<String, StatEncryptionEntity> encMap;
 
+	/** 開始 */
+	private int startEncryptionIdx;
+
+	/** 終了 */
+	private int endEncryptionIdx;
+
 	/** フィールドマップ */
 	private static final Map<String, Function<BookDataEntity, String>> FIELDMAP;
 	static {
-	    Map<String, Function<BookDataEntity, String>> fieldMap = new LinkedHashMap<>();
-	    fieldMap.put("homeExpInfo", BookDataEntity::getHomeExp);
-	    fieldMap.put("awayExpInfo", BookDataEntity::getAwayExp);
-	    fieldMap.put("homeDonationInfo", BookDataEntity::getHomeBallPossesion);
-	    fieldMap.put("awayDonationInfo", BookDataEntity::getAwayBallPossesion);
-	    fieldMap.put("homeShootAllInfo", BookDataEntity::getHomeShootAll);
-	    fieldMap.put("awayShootAllInfo", BookDataEntity::getAwayShootAll);
-	    fieldMap.put("homeShootInInfo", BookDataEntity::getHomeShootIn);
-	    fieldMap.put("awayShootInInfo", BookDataEntity::getAwayShootIn);
-	    fieldMap.put("homeShootOutInfo", BookDataEntity::getHomeShootOut);
-	    fieldMap.put("awayShootOutInfo", BookDataEntity::getAwayShootOut);
-	    fieldMap.put("homeBlockShootInfo", BookDataEntity::getHomeShootBlocked);
-	    fieldMap.put("awayBlockShootInfo", BookDataEntity::getAwayShootBlocked);
-	    fieldMap.put("homeBigChanceInfo", BookDataEntity::getHomeBigChance);
-	    fieldMap.put("awayBigChanceInfo", BookDataEntity::getAwayBigChance);
-	    fieldMap.put("homeCornerInfo", BookDataEntity::getHomeCornerKick);
-	    fieldMap.put("awayCornerInfo", BookDataEntity::getAwayCornerKick);
-	    fieldMap.put("homeBoxShootInInfo", BookDataEntity::getHomeBoxShootIn);
-	    fieldMap.put("awayBoxShootInInfo", BookDataEntity::getAwayBoxShootIn);
-	    fieldMap.put("homeBoxShootOutInfo", BookDataEntity::getHomeBoxShootOut);
-	    fieldMap.put("awayBoxShootOutInfo", BookDataEntity::getAwayBoxShootOut);
-	    fieldMap.put("homeGoalPostInfo", BookDataEntity::getHomeGoalPost);
-	    fieldMap.put("awayGoalPostInfo", BookDataEntity::getAwayGoalPost);
-	    fieldMap.put("homeGoalHeadInfo", BookDataEntity::getHomeGoalHead);
-	    fieldMap.put("awayGoalHeadInfo", BookDataEntity::getAwayGoalHead);
-	    fieldMap.put("homeKeeperSaveInfo", BookDataEntity::getHomeKeeperSave);
-	    fieldMap.put("awayKeeperSaveInfo", BookDataEntity::getAwayKeeperSave);
-	    fieldMap.put("homeFreeKickInfo", BookDataEntity::getHomeFreeKick);
-	    fieldMap.put("awayFreeKickInfo", BookDataEntity::getAwayFreeKick);
-	    fieldMap.put("homeOffsideInfo", BookDataEntity::getHomeOffSide);
-	    fieldMap.put("awayOffsideInfo", BookDataEntity::getAwayOffSide);
-	    fieldMap.put("homeFoulInfo", BookDataEntity::getHomeFoul);
-	    fieldMap.put("awayFoulInfo", BookDataEntity::getAwayFoul);
-	    fieldMap.put("homeYellowCardInfo", BookDataEntity::getHomeYellowCard);
-	    fieldMap.put("awayYellowCardInfo", BookDataEntity::getAwayYellowCard);
-	    fieldMap.put("homeRedCardInfo", BookDataEntity::getHomeRedCard);
-	    fieldMap.put("awayRedCardInfo", BookDataEntity::getAwayRedCard);
-	    fieldMap.put("homeSlowInInfo", BookDataEntity::getHomeSlowIn);
-	    fieldMap.put("awaySlowInInfo", BookDataEntity::getAwaySlowIn);
-	    fieldMap.put("homeBoxTouchInfo", BookDataEntity::getHomeBoxTouch);
-	    fieldMap.put("awayBoxTouchInfo", BookDataEntity::getAwayBoxTouch);
-	    fieldMap.put("homePassCountInfoOnSuccessCount", BookDataEntity::getHomePassCount);
-	    fieldMap.put("awayPassCountInfoOnSuccessCount", BookDataEntity::getAwayPassCount);
-	    fieldMap.put("homeFinalThirdPassCountInfoOnSuccessCount", BookDataEntity::getHomeFinalThirdPassCount);
-	    fieldMap.put("awayFinalThirdPassCountInfoOnSuccessCount", BookDataEntity::getAwayFinalThirdPassCount);
-	    fieldMap.put("homeCrossCountInfoOnSuccessCount", BookDataEntity::getHomeCrossCount);
-	    fieldMap.put("awayCrossCountInfoOnSuccessCount", BookDataEntity::getAwayCrossCount);
-	    fieldMap.put("homeTackleCountInfoOnSuccessCount", BookDataEntity::getHomeTackleCount);
-	    fieldMap.put("awayTackleCountInfoOnSuccessCount", BookDataEntity::getAwayTackleCount);
-	    fieldMap.put("homeClearCountInfo", BookDataEntity::getHomeClearCount);
-	    fieldMap.put("awayClearCountInfo", BookDataEntity::getAwayClearCount);
-	    fieldMap.put("homeInterceptCountInfo", BookDataEntity::getHomeInterceptCount);
-	    fieldMap.put("awayInterceptCountInfo", BookDataEntity::getAwayInterceptCount);
-	    FIELDMAP = Collections.unmodifiableMap(fieldMap);
+		Map<String, Function<BookDataEntity, String>> fieldMap = new LinkedHashMap<>();
+		fieldMap.put("homeExpInfo", BookDataEntity::getHomeExp);
+		fieldMap.put("awayExpInfo", BookDataEntity::getAwayExp);
+		fieldMap.put("homeDonationInfo", BookDataEntity::getHomeBallPossesion);
+		fieldMap.put("awayDonationInfo", BookDataEntity::getAwayBallPossesion);
+		fieldMap.put("homeShootAllInfo", BookDataEntity::getHomeShootAll);
+		fieldMap.put("awayShootAllInfo", BookDataEntity::getAwayShootAll);
+		fieldMap.put("homeShootInInfo", BookDataEntity::getHomeShootIn);
+		fieldMap.put("awayShootInInfo", BookDataEntity::getAwayShootIn);
+		fieldMap.put("homeShootOutInfo", BookDataEntity::getHomeShootOut);
+		fieldMap.put("awayShootOutInfo", BookDataEntity::getAwayShootOut);
+		fieldMap.put("homeBlockShootInfo", BookDataEntity::getHomeShootBlocked);
+		fieldMap.put("awayBlockShootInfo", BookDataEntity::getAwayShootBlocked);
+		fieldMap.put("homeBigChanceInfo", BookDataEntity::getHomeBigChance);
+		fieldMap.put("awayBigChanceInfo", BookDataEntity::getAwayBigChance);
+		fieldMap.put("homeCornerInfo", BookDataEntity::getHomeCornerKick);
+		fieldMap.put("awayCornerInfo", BookDataEntity::getAwayCornerKick);
+		fieldMap.put("homeBoxShootInInfo", BookDataEntity::getHomeBoxShootIn);
+		fieldMap.put("awayBoxShootInInfo", BookDataEntity::getAwayBoxShootIn);
+		fieldMap.put("homeBoxShootOutInfo", BookDataEntity::getHomeBoxShootOut);
+		fieldMap.put("awayBoxShootOutInfo", BookDataEntity::getAwayBoxShootOut);
+		fieldMap.put("homeGoalPostInfo", BookDataEntity::getHomeGoalPost);
+		fieldMap.put("awayGoalPostInfo", BookDataEntity::getAwayGoalPost);
+		fieldMap.put("homeGoalHeadInfo", BookDataEntity::getHomeGoalHead);
+		fieldMap.put("awayGoalHeadInfo", BookDataEntity::getAwayGoalHead);
+		fieldMap.put("homeKeeperSaveInfo", BookDataEntity::getHomeKeeperSave);
+		fieldMap.put("awayKeeperSaveInfo", BookDataEntity::getAwayKeeperSave);
+		fieldMap.put("homeFreeKickInfo", BookDataEntity::getHomeFreeKick);
+		fieldMap.put("awayFreeKickInfo", BookDataEntity::getAwayFreeKick);
+		fieldMap.put("homeOffsideInfo", BookDataEntity::getHomeOffSide);
+		fieldMap.put("awayOffsideInfo", BookDataEntity::getAwayOffSide);
+		fieldMap.put("homeFoulInfo", BookDataEntity::getHomeFoul);
+		fieldMap.put("awayFoulInfo", BookDataEntity::getAwayFoul);
+		fieldMap.put("homeYellowCardInfo", BookDataEntity::getHomeYellowCard);
+		fieldMap.put("awayYellowCardInfo", BookDataEntity::getAwayYellowCard);
+		fieldMap.put("homeRedCardInfo", BookDataEntity::getHomeRedCard);
+		fieldMap.put("awayRedCardInfo", BookDataEntity::getAwayRedCard);
+		fieldMap.put("homeSlowInInfo", BookDataEntity::getHomeSlowIn);
+		fieldMap.put("awaySlowInInfo", BookDataEntity::getAwaySlowIn);
+		fieldMap.put("homeBoxTouchInfo", BookDataEntity::getHomeBoxTouch);
+		fieldMap.put("awayBoxTouchInfo", BookDataEntity::getAwayBoxTouch);
+		fieldMap.put("homePassCountInfoOnSuccessCount", BookDataEntity::getHomePassCount);
+		fieldMap.put("awayPassCountInfoOnSuccessCount", BookDataEntity::getAwayPassCount);
+		fieldMap.put("homeFinalThirdPassCountInfoOnSuccessCount", BookDataEntity::getHomeFinalThirdPassCount);
+		fieldMap.put("awayFinalThirdPassCountInfoOnSuccessCount", BookDataEntity::getAwayFinalThirdPassCount);
+		fieldMap.put("homeCrossCountInfoOnSuccessCount", BookDataEntity::getHomeCrossCount);
+		fieldMap.put("awayCrossCountInfoOnSuccessCount", BookDataEntity::getAwayCrossCount);
+		fieldMap.put("homeTackleCountInfoOnSuccessCount", BookDataEntity::getHomeTackleCount);
+		fieldMap.put("awayTackleCountInfoOnSuccessCount", BookDataEntity::getAwayTackleCount);
+		fieldMap.put("homeClearCountInfo", BookDataEntity::getHomeClearCount);
+		fieldMap.put("awayClearCountInfo", BookDataEntity::getAwayClearCount);
+		fieldMap.put("homeInterceptCountInfo", BookDataEntity::getHomeInterceptCount);
+		fieldMap.put("awayInterceptCountInfo", BookDataEntity::getAwayInterceptCount);
+		FIELDMAP = Collections.unmodifiableMap(fieldMap);
 	}
-
 
 	/** 初期化
 	 * @throws Exception */
@@ -246,6 +251,36 @@ public class BmM030StatEncryptionBean {
 			encMap.put(key, newEntity);
 		}
 		this.encMap = encMap;
+
+		// 全フィールド取得（※順序は保証されない可能性あり）
+		Field[] allFields = StatEncryptionEntity.class.getDeclaredFields();
+		// 分析対象のフィールド範囲（homeExp 〜 awayInterceptCount）
+		int startEncryptionIdx = -1;
+		int endEncryptionIdx = -1;
+		for (int i = 0; i < allFields.length; i++) {
+			String name = allFields[i].getName();
+			if (name.equals("homeExpInfo"))
+				startEncryptionIdx = i;
+			if (name.equals("awayInterceptCountInfo"))
+				endEncryptionIdx = i;
+		}
+
+		if (startEncryptionIdx == -1 || endEncryptionIdx == -1 || startEncryptionIdx > endEncryptionIdx) {
+			String fillChar = "startEncryptionIdx: " + startEncryptionIdx + ", endEncryptionIdx: " + endEncryptionIdx;
+			String messageCd = "初期化エラー: 対象フィールド範囲なし";
+			this.loggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, fillChar);
+			this.loggerComponent.createBusinessException(
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					messageCd,
+					null);
+		}
+		// 開始情報
+		this.startEncryptionIdx = startEncryptionIdx;
+		// 終了情報
+		this.endEncryptionIdx = endEncryptionIdx;
 	}
 
 	/**
@@ -326,6 +361,22 @@ public class BmM030StatEncryptionBean {
 	 */
 	public Map<String, Function<BookDataEntity, String>> getFieldMap() {
 		return FIELDMAP;
+	}
+
+	/**
+	 * 開始情報を返却
+	 * @return startEncryptionIdx
+	 */
+	public int getStartEncryptionIdx() {
+		return startEncryptionIdx;
+	}
+
+	/**
+	 * 終了情報を返却
+	 * @return endEncryptionIdx
+	 */
+	public int getEndEncryptionIdx() {
+		return endEncryptionIdx;
 	}
 
 }

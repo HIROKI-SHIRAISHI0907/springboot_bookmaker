@@ -38,6 +38,15 @@ public class BmM023M024M026InitBean {
 	/** 標準偏差 */
 	private String[] sigmaList = new String[AverageStatisticsSituationConst.COUNTER];
 
+	/** 歪度(正規分布の釣鐘型がどの左右に歪んでいるか(+なら左寄りに歪んでいる)) */
+	private String[] skewnessList = new String[AverageStatisticsSituationConst.COUNTER];
+
+	/** 尖度(正規分布の釣鐘型がどの程度尖っているか(+なら尖っている)) */
+	private String[] kurtosisList = new String[AverageStatisticsSituationConst.COUNTER];
+
+	/** 件数 */
+	private Integer[] skewnessCntList = new Integer[AverageStatisticsSituationConst.SPLIT_COUNTER];
+
 	/** 件数 */
 	private Integer[] cntList = new Integer[AverageStatisticsSituationConst.COUNTER];
 
@@ -52,6 +61,12 @@ public class BmM023M024M026InitBean {
 
 	/** 標準偏差 */
 	private String[] timeSigmaList = new String[AverageStatisticsSituationConst.COUNTER];
+
+	/** 歪度(正規分布の釣鐘型がどの左右に歪んでいるか(+なら左寄りに歪んでいる)) */
+	private String[] timeSkewnessList = new String[AverageStatisticsSituationConst.COUNTER];
+
+	/** 尖度(正規分布の釣鐘型がどの程度尖っているか(+なら尖っている)) */
+	private String[] timeKurtosisList = new String[AverageStatisticsSituationConst.COUNTER];
 
 	/** 件数 */
 	private Integer[] timeCntList = new Integer[AverageStatisticsSituationConst.COUNTER];
@@ -82,6 +97,12 @@ public class BmM023M024M026InitBean {
 
 	/** 標準偏差 */
 	private String[] timeSigmaSplitList = new String[AverageStatisticsSituationConst.SPLIT_COUNTER];
+
+	/** 歪度(正規分布の釣鐘型がどの左右に歪んでいるか(+なら左寄りに歪んでいる)) */
+	private String[] timeSkewnessSplitList = new String[AverageStatisticsSituationConst.SPLIT_COUNTER];
+
+	/** 尖度(正規分布の釣鐘型がどの程度尖っているか(+なら尖っている)) */
+	private String[] timeKurtosisSplitList = new String[AverageStatisticsSituationConst.SPLIT_COUNTER];
 
 	/** 件数 */
 	private Integer[] timeCntSplitList = new Integer[AverageStatisticsSituationConst.SPLIT_COUNTER];
@@ -212,6 +233,10 @@ public class BmM023M024M026InitBean {
 		this.startCalcInsertIdx = startCalcInsertIdx;
 		// 終了情報
 		this.endCalcInsertIdx = endCalcInsertIdx;
+
+		for (int cnt = 0; cnt < AverageStatisticsSituationConst.COUNTER; cnt++) {
+			this.skewnessCntList[cnt] = 0;
+		}
 	}
 
 	/**
@@ -287,6 +312,22 @@ public class BmM023M024M026InitBean {
 	}
 
 	/**
+	 * 時間の歪度リストを返却
+	 * @return timeSkewnessList
+	 */
+	public String[] getTimeSkewnessList() {
+		return timeSkewnessList;
+	}
+
+	/**
+	 * 時間の尖度リストを返却
+	 * @return timeKurtosisList
+	 */
+	public String[] getTimeKurtosisList() {
+		return timeKurtosisList;
+	}
+
+	/**
 	 * 時間の件数リストを返却
 	 * @return timeCntList
 	 */
@@ -324,6 +365,22 @@ public class BmM023M024M026InitBean {
 	 */
 	public String[] getSigmaSplitList() {
 		return sigmaSplitList;
+	}
+
+	/**
+	 * 歪度リストを返却
+	 * @return skewnessList
+	 */
+	public String[] getSkewnessList() {
+		return skewnessList;
+	}
+
+	/**
+	 * 尖度リストを返却
+	 * @return kurtosisList
+	 */
+	public String[] getKurtosisList() {
+		return kurtosisList;
 	}
 
 	/**
@@ -367,6 +424,22 @@ public class BmM023M024M026InitBean {
 	}
 
 	/**
+	 * 時間の歪度リストを返却
+	 * @return timeSkewnessSplitList
+	 */
+	public String[] getTimeSkewnessSplitList() {
+		return timeSkewnessSplitList;
+	}
+
+	/**
+	 * 時間の尖度リストを返却
+	 * @return timeKurtosisSplitList
+	 */
+	public String[] getTimeKurtosisSplitList() {
+		return timeKurtosisSplitList;
+	}
+
+	/**
 	 * 時間の件数リストを返却
 	 * @return timeCntSplitList
 	 */
@@ -380,6 +453,14 @@ public class BmM023M024M026InitBean {
 	 */
 	public String[] getCorrList() {
 		return corrList;
+	}
+
+	/**
+	 * 件数リストを返却
+	 * @return skewnessCntList
+	 */
+	public Integer[] getSkewnessCntList() {
+		return skewnessCntList;
 	}
 
 	/**

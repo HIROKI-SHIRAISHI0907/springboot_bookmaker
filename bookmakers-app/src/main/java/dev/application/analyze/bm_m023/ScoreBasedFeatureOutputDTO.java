@@ -36,4 +36,14 @@ public class ScoreBasedFeatureOutputDTO implements Serializable {
 	 */
 	private List<ScoreBasedFeatureStatsEntity> list;
 
+	/**
+	 * 平均
+	 */
+	private String ave;
+
+	/**
+	 * 標準偏差
+	 */
+	private String sigma;
+
 }

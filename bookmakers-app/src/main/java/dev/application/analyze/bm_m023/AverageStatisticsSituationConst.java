@@ -13,6 +13,9 @@ public class AverageStatisticsSituationConst {
 	/** 件数 */
 	public static final int SPLIT_COUNTER = 68;
 
+	/** 件数 */
+	public static final int STAT_ENCRYPTION_COUNTER = 68;
+
 	/** 得点あり */
 	public static final String SCORE = "得点あり";
 

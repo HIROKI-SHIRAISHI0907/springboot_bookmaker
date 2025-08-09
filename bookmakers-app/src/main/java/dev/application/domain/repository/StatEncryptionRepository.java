@@ -182,4 +182,46 @@ public interface StatEncryptionRepository {
 	    })
 	    int updateEncValues(StatEncryptionEntity entity);
 
+	    @Select({
+	        "SELECT ",
+	        "id, country, league, home, away, team, chk_body,",
+	        "home_exp_info, away_exp_info,",
+	        "home_donation_info, away_donation_info,",
+	        "home_shoot_all_info, away_shoot_all_info,",
+	        "home_shoot_in_info, away_shoot_in_info,",
+	        "home_shoot_out_info, away_shoot_out_info,",
+	        "home_block_shoot_info, away_block_shoot_info,",
+	        "home_big_chance_info, away_big_chance_info,",
+	        "home_corner_info, away_corner_info,",
+	        "home_box_shoot_in_info, away_box_shoot_in_info,",
+	        "home_box_shoot_out_info, away_box_shoot_out_info,",
+	        "home_goal_post_info, away_goal_post_info,",
+	        "home_goal_head_info, away_goal_head_info,",
+	        "home_keeper_save_info, away_keeper_save_info,",
+	        "home_free_kick_info, away_free_kick_info,",
+	        "home_offside_info, away_offside_info,",
+	        "home_foul_info, away_foul_info,",
+	        "home_yellow_card_info, away_yellow_card_info,",
+	        "home_red_card_info, away_red_card_info,",
+	        "home_slow_in_info, away_slow_in_info,",
+	        "home_box_touch_info, away_box_touch_info,",
+	        "home_pass_count_info_on_success_count,",
+	        "away_pass_count_info_on_success_count,",
+	        "home_final_third_pass_count_info_on_success_count,",
+	        "away_final_third_pass_count_info_on_success_count,",
+	        "home_cross_count_info_on_success_count,",
+	        "away_cross_count_info_on_success_count,",
+	        "home_tackle_count_info_on_success_count,",
+	        "away_tackle_count_info_on_success_count,",
+	        "home_clear_count_info,",
+	        "away_clear_count_info,",
+	        "home_intercept_count_info,",
+	        "away_intercept_count_info",
+	        " FROM stat_encryption ",
+	        " WHERE country = #{country} AND league = #{league} AND "
+	        + "team = #{team} AND chk_body = #{chkBody};"
+	    })
+	    List<StatEncryptionEntity> findEncData(String country, String league,
+	    		String team, String chkBody);
+
 }
