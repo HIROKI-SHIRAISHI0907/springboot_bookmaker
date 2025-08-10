@@ -1,8 +1,54 @@
+   <div class="position-relative">
+      <button type="button" class="btn btn-primary position-absolute top-0 end-0">右上ボタン</button>
+   </div>
+
 <div class='container mt-3 mb-5'>
-   <h1 class='text-center mb-5'>掲示板一覧</h1>
+   <h1 class='text-left mb-5'>掲示板一覧</h1>
 
    <div class='coll-md-6 mx-auto mb5'>
-      <p>検索</p>
+      <div class='card mb-4 shadow-sm'>
+         <div class='card-header'>
+            <p>検索</p>
+         </div>
+         <div class='cord-body'>
+            <%# タイトル %>
+            <div class="dropdown">
+               <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  タイトル
+               </button>
+               <ul class="dropdown-menu">
+                  <li><a class="dropdown-item" href="#">Action</a></li>
+                  <li><a class="dropdown-item" href="#">Another action</a></li>
+                  <li><a class="dropdown-item" href="#">Something else here</a></li>
+               </ul>
+            </div>
+            <%# 担当者 %>
+            <div class="dropdown">
+               <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  担当者
+               </button>
+               <ul class="dropdown-menu">
+                  <li><a class="dropdown-item" href="#">Action</a></li>
+                  <li><a class="dropdown-item" href="#">Another action</a></li>
+                  <li><a class="dropdown-item" href="#">Something else here</a></li>
+               </ul>
+            </div>
+            <%# 閲覧者 %>
+            <div class="dropdown">
+               <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
+                  閲覧者
+               </button>
+               <ul class="dropdown-menu">
+                  <li><a class="dropdown-item" href="#">Action</a></li>
+                  <li><a class="dropdown-item" href="#">Another action</a></li>
+                  <li><a class="dropdown-item" href="#">Something else here</a></li>
+               </ul>
+            </div>
+            <div class='d-grid col-md-6 mx-auto'>
+               <%# <%= f.button '検索', class: 'btn btn-lg btn-primary' %>
+            </div>
+         </div>
+      </div>
    </div>
 
    <div class='col-md-6 mx-auto mb-5'>
