@@ -37,6 +37,7 @@ public interface CountryLeagueSummaryRepository {
 
 	@Select("""
 			    SELECT
+			    	id,
 			        country,
 			        league,
 			        data_count,
@@ -55,7 +56,7 @@ public interface CountryLeagueSummaryRepository {
 			        country = #{country},
 			        league = #{league},
 			        data_count = #{dataCount},
-			        csv_count = #{csvCount},
+			        csv_count = #{csvCount}
 			    WHERE
 			        id = #{id};
 			""")

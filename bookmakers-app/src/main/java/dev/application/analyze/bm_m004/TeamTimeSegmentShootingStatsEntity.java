@@ -13,6 +13,9 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = false)
 public class TeamTimeSegmentShootingStatsEntity extends MetaEntity {
 
+	/** ID */
+	private String id;
+
 	/** データカテゴリ */
 	private String dataCategory;
 

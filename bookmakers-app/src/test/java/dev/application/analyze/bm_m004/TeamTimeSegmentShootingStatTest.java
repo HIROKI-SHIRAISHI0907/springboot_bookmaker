@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m002;
+package dev.application.analyze.bm_m004;
 
 import java.util.List;
 import java.util.Map;
@@ -12,28 +12,31 @@ import dev.common.entity.BookDataEntity;
 import dev.common.getstatinfo.GetStatInfo;
 
 /**
- * BM_M002統計分析ロジックテスト
+ * BM_M004統計分析ロジックテスト
  * @author shiraishitoshio
  *
  */
 @SpringBootTest
 @ActiveProfiles("test")
-class ConditionResultDataStatTest {
+public class TeamTimeSegmentShootingStatTest {
 
 	@Autowired
 	private GetStatInfo getStatInfo;
 
 	@Autowired
-	private ConditionResultDataStat conditionResultDataStat;
+	private TeamTimeSegmentShootingStat teamTimeSegmentShootingStat;
 
+	/**
+	 * 処理速度実験
+	 */
 	@Test
-	void test_calcStat_shouldUpdateCorrectly() {
+	void test_calcStat_shouldUpdateCorrectly_memory() {
 		// Act
-		String csvNumber = "4050";
+		String csvNumber = "2";
 		String csvNumberAfter = "4060";
 		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
 
-		this.conditionResultDataStat.calcStat(entities);
+		this.teamTimeSegmentShootingStat.calcStat(entities);
 	}
 
 }

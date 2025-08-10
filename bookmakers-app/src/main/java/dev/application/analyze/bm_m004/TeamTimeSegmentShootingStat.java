@@ -226,53 +226,52 @@ public class TeamTimeSegmentShootingStat implements AnalyzeEntityIF {
 	 * @param elapsedTimeStr (XX:XX, 第一ハーフなど)
 	 * @return
 	 */
-	private synchronized String getTimeZone(String elapsedTimeStr) {
+	private String getTimeZone(String elapsedTimeStr) {
+		if (elapsedTimeStr == null || elapsedTimeStr.isBlank()) return "AT";
+
 		if (BookMakersCommonConst.HALF_TIME.equals(elapsedTimeStr) ||
 				BookMakersCommonConst.FIRST_HALF_TIME.equals(elapsedTimeStr)) {
 			return "41-45";
 		}
-		// 45+,90+
-		if (elapsedTimeStr.contains("+")) {
-			String[] data = elapsedTimeStr.split("+");
-			int minute = Integer.parseInt(data[0]);
-			int second = 0;
-			if (data.length > 1) {
-				second = Integer.parseInt(data[1].replace("'", ""));
-			}
-			int sumtime = minute + second;
-			if (sumtime > 90) return "AT";
-			if (minute > 45 && minute < 50)
-				return "46-50";
-			if (minute > 51 && minute < 60)
-				return "51-60";
-		}
+
+		String s = elapsedTimeStr.trim();
 		try {
-			int minute = Integer.parseInt(elapsedTimeStr.split(":")[0]);
-			if (minute <= 10)
-				return "0-10";
-			else if (minute <= 20)
-				return "11-20";
-			else if (minute <= 30)
-				return "21-30";
-			else if (minute <= 40)
-				return "31-40";
-			else if (minute <= 45)
-				return "41-45";
-			else if (minute <= 50)
-				return "46-50";
-			else if (minute <= 60)
-				return "51-60";
-			else if (minute <= 70)
-				return "61-70";
-			else if (minute <= 80)
-				return "71-80";
-			else if (minute <= 90)
-				return "81-90";
-			else
-				return "AT";
-		} catch (Exception e) {
-			return "AT"; // 失敗時はATとみなす
-		}
+	        int totalMinute;
+
+	        if (s.contains("+")) {
+	            // 例: "45+2'", "45 + 2’", "90+"
+	            String[] data = s.split("\\+", 2);              // 2分割に限定
+	            String baseStr = data[0].replaceAll("\\D+", ""); // 非数字を全部除去
+	            String addStr  = (data.length > 1 ? data[1] : "").replaceAll("\\D+", "");
+	            int base = baseStr.isEmpty() ? 0 : Integer.parseInt(baseStr);
+	            int add  = addStr.isEmpty()  ? 0 : Integer.parseInt(addStr);
+	            totalMinute = base + add;                        // 45+2 → 47分として扱う
+	        } else if (s.contains(":")) {
+	            // 例: "12:34"
+	            String mStr = s.split(":", 2)[0].replaceAll("\\D+", "");
+	            totalMinute = mStr.isEmpty() ? 0 : Integer.parseInt(mStr);
+	        } else {
+	            // 例: "45'", "90"
+	            String mStr = s.replaceAll("\\D+", "");
+	            totalMinute = mStr.isEmpty() ? 0 : Integer.parseInt(mStr);
+	        }
+
+	        // 帯域判定（<= で抜け漏れ無し）
+	        if (totalMinute > 90) return "AT";
+	        if (totalMinute <= 10) return "0-10";
+	        if (totalMinute <= 20) return "11-20";
+	        if (totalMinute <= 30) return "21-30";
+	        if (totalMinute <= 40) return "31-40";
+	        if (totalMinute <= 45) return "41-45";
+	        if (totalMinute <= 50) return "46-50";
+	        if (totalMinute <= 60) return "51-60";
+	        if (totalMinute <= 70) return "61-70";
+	        if (totalMinute <= 80) return "71-80";
+	        return "81-90";
+	    } catch (Exception e) {
+	        // どんなパース失敗でもATへ
+	        return "AT";
+	    }
 	}
 
 	/**

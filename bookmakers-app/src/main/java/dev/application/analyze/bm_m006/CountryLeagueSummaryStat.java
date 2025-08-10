@@ -118,10 +118,12 @@ public class CountryLeagueSummaryStat implements AnalyzeEntityIF {
 		final String METHOD_NAME = "save";
 
 		CountryLeagueSummaryEntity countryLeagueSummaryEntity = new CountryLeagueSummaryEntity();
+		countryLeagueSummaryEntity.setCountry(country);
+		countryLeagueSummaryEntity.setLeague(league);
+		countryLeagueSummaryEntity.setDataCount("0");
 		if (updFlg) {
 			countryLeagueSummaryEntity.setId(id);
 			countryLeagueSummaryEntity.setCsvCount(cnt);
-
 			int result = this.countryLeagueSummaryRepository.update(countryLeagueSummaryEntity);
 			if (result != 1) {
 				String messageCd = "更新エラー";
@@ -137,13 +139,10 @@ public class CountryLeagueSummaryStat implements AnalyzeEntityIF {
 			String messageCd = "更新件数";
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-					"BM_M006 更新件数: " + befCnt + "件→" + cnt + "件");
+					"BM_M006 更新件数: (country, league)" + "(" + country + ", " + league + ") "
+					+ befCnt + "件→" + cnt + "件");
 		} else {
-			countryLeagueSummaryEntity.setCountry(country);
-			countryLeagueSummaryEntity.setLeague(league);
-			countryLeagueSummaryEntity.setDataCount("0");
 			countryLeagueSummaryEntity.setCsvCount(cnt);
-
 			int result = this.countryLeagueSummaryRepository.insert(countryLeagueSummaryEntity);
 			if (result != 1) {
 				String messageCd = "新規登録エラー";
@@ -159,7 +158,8 @@ public class CountryLeagueSummaryStat implements AnalyzeEntityIF {
 			String messageCd = "登録件数";
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-					"BM_M006 登録件数: 0件→" + cnt + "件");
+					"BM_M006 登録件数: (country, league)" + "(" + country + ", " + league + ") "
+							+ "0件→" + cnt + "件");
 		}
 
 	}
