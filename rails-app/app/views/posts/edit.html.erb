@@ -1,19 +1,30 @@
 <div class='container mt-3 mb-5'>
-   <h1 class='text-center mb-5'>掲示板編集</h1>
+   <h1 class='text-left mb-5'>掲示板編集</h1>
 
-   <%= form_for @post, url: all_posts_path do |f| %> <%# posts_pathはroutes.rbで定義したヘルバー名(posts POST /posts(::formatのようなやつ)に_pathをつけるルール)%>
-      <div class='col-md-6 mx-auto mb-5'>
-         <div class='mb-3'> 
-            <%# postidはpost_controler.rbで定義したpost_paramsのpermitと同じ %>
-            <%= f.label :name, class: 'form-label border-start border-primary border-4 ps-1' %>
-            <%= f.text_field :postid, size: 40, class: 'form-control' %>
-            <%= f.label :title, class: 'form-label border-start border-primary border-4 ps-1' %>
-            <%= f.text_field :postid, size: 40, class: 'form-control' %>
-            <%= f.label :body, class: 'form-label border-start border-primary border-4 ps-1' %>
-            <%= f.text_area :postid, size: "50x20", placeholder: '本文', class: 'form-control' %>
-            <%= f.label :reviewer, class: 'form-label border-start border-primary border-4 ps-1' %>
-            <%= f.text_field :postid, size: 40,  class: 'form-control' %>
+   <%= form_for @post, url: posts_path do |f| %> <%# posts_pathはroutes.rbで定義したヘルバー名(posts POST /posts(::formatのようなやつ)に_pathをつけるルール)%>
+      <%# ただしPost#createを経由してall_posts_pathにredirectしたい %>
+      <div class='col-lg-8 mx-auto mb-5'>
+         <div class='row g-3'>
+            <div class="col-12">
+               <%# postidはpost_controler.rbで定義したpost_paramsのpermitと同じ %>
+               <%= f.label :name, class: 'form-label border-start border-primary border-4 ps-1' %>
+               <%= f.text_field :name, size: 80, class: 'form-control' %>
+            </div>
+            <div class="col-12">
+               <%= f.label :title, class: 'form-label border-start border-primary border-4 ps-1' %>
+               <%= f.text_field :title, size: 80, class: 'form-control' %>
+            </div>
+            <div class="col-12">
+               <%= f.label :body, class: 'form-label border-start border-primary border-4 ps-1' %>
+               <%= f.text_area :body, size: "50x20", placeholder: '本文', class: 'form-control' %>
+            </div>
+            <div class="col-12">
+               <%= f.label :reviewer, class: 'form-label border-start border-primary border-4 ps-2' %>
+               <%= f.select :reviewer, options_for_select(['Active', 'Inactive']), {}, class: 'form-select' %>
+            </div>
          </div>
+      </div>
+      <div class='row g-3'>
          <div class='d-grid col-md-6 mx-auto'>
             <%= f.button '保存', class: 'btn btn-lg btn-primary' %>
          </div>

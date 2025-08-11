@@ -1,14 +1,80 @@
 <div class='container mt-3 mb-5'>
-   <h1 class='text-center mb-5'>掲示板一覧</h1>
+   <div class="row">
+      <div class="col-md-6 text-start">
+         <button type="button" class="btn btn-light">一覧</button>
+      </div>
+      <div class="col-md-6 text-end">
+         <button type="button" class="btn btn-light">編集</button>
+      </div>
+  </div>
 
    <div class='coll-md-6 mx-auto mb5'>
-      <p>投稿一覧です。</p>
-   </div>
-
-   <div class='col-md-6 mx-auto mb-5'>
-      <div class='mb-3'> 
-         <div class='form-label border-start border-primary border-4 ps-1'>
-         <%= t('activerecord.attributes.post.name')%> <%# ja.ymlから呼び出すようにするとja.yml側で日本語辞書を直すだけで良い %>
+      <div class='card mb-4 shadow-sm'>
+         <div class='card-header'>
+            <%# 作成者,タイトル %>
+            <p>検索</p>
+         </div>
+         <div class='cord-body'>
+            <%# 本文 %>
+            <div class="d-block p-2 text-bg-dark">
+              あああ
+            </div>
+            <%# 作成日時 %>
+            <div class="d-block p-2 text-bg-dark">
+               いいい
+            </div>
+            <%# 更新日時 %>
+            <div class="d-block p-2 text-bg-dark">
+               ううう
+            </div>
+            <div class='d-grid col-md-6 mx-auto'>
+               <%# <%= f.button '検索', class: 'btn btn-lg btn-primary' %>
+            </div>
+         </div>
+         <div class='card-footer'>
+            <%# 作成者,タイトル %>
+            <p>コメント</p>
+            <div class="list-group mt-3">
+               <% if @comments.present? %>
+                  <% @comments.each do |c| %>
+                  <div class="list-group-item" id="comment-<%= c.commentid %>">
+                     <div class="d-flex w-100 justify-content-between">
+                        <h6 class="mb-1"><%= c.userid %></h6>
+                        <small class="text-muted"><%= l(c.created_at, format: :short) %></small>
+                     </div>
+                     <p class="mb-1"><%= c.comment %></p>
+                  </div>
+                  <% end %>
+               <% else %>
+                  <div class="list-group-item text-muted text-left">
+                     コメントはまだありません
+                  </div>
+               <% end %>
+            </div>
+         </div>
       </div>
    </div>
+</div>
+
+<div class="container mt-3">
+   <%= form_for @comment, url: comment_post_path do |f| %> <%# @XXXはcontroller側のnewでインスタンス生成しておく必要がある%>
+      <div class="row g-2 align-items-center">
+         <%# Post.detailで呼び出された@detail.postidで投稿IDをhiddenしておく。コメントテーブルに登録するため%>
+         <%= f.hidden_field :postid, value: @detail.postid %>
+      <!-- 名前 -->
+         <div class="col-auto">
+            <%= f.text_field :userid, value: 'UNKNOWN', readonly: true, class: 'form-control' %>
+         </div>
+
+         <!-- 内容 -->
+         <div class="col">
+            <%= f.text_field :comment, placeholder: '内容', class: 'form-control' %>
+         </div>
+
+         <!-- 投稿ボタン -->
+         <div class="col-auto">
+            <%= f.button '投稿', class: 'btn btn-primary' %>
+         </div>
+      </div>
+   <% end %>
 </div>

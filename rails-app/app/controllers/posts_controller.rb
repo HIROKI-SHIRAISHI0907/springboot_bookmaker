@@ -1,6 +1,7 @@
 class PostsController < ApplicationController
    def new  #routes.rbで設定した posts#newの箇所
       @post = Post.new #Postクラスのインスタンスを作成
+      @comment = Comment.new #Commentクラスのインスタンスを作成
    end
 
    #掲示板作成画面
@@ -16,17 +17,20 @@ class PostsController < ApplicationController
 
    #掲示板一覧画面
    def all
-      @post = Post.all
+      @posts = Post.all
    end
 
    #掲示板詳細画面(postidに対応するデータを取得)
    def detail
-      @post = Post.detail(post_params)
+      @detail = Post.find_by!(postid: params[:postid])
+      @comment = Comment.new(postid: @detail.postid)
+      # コメント一覧
+      @comments = Comment.where(postid: @detail.postid).order(:created_at)  
    end
 
    #掲示板編集画面(postidに対応するデータを取得)
    def edit
-      @post = Post.edit(post_params)
+      @edit = Post.edit(post_id_param)
    end
 
    private
@@ -34,4 +38,10 @@ class PostsController < ApplicationController
    def post_params #受け取るべきパラメータのみ記載
       params.require(:post).permit(:name, :title, :body, :reviewer)
    end
+
+   # IDで取得（/posts/:id, ?postid=, ?get[postid]=どれでもいい）
+   def post_id_param
+      params[:postid] || params.dig(:get, :postid) ||
+      raise(ActionController::ParameterMissing, :postid)
+  end
 end

@@ -13,9 +13,15 @@ Rails.application.routes.draw do
   # 一覧（all）画面
   get 'posts/all', to: 'posts#all', as: :all_posts
 
-  # 詳細・編集（idがある画面にしたい場合）
-  # get 'posts/:id/detail', to: 'posts#detail', as: :detail_post
-  # get 'posts/:id/edit',   to: 'posts#edit',   as: :edit_post
+  # 詳細・編集（postidがある画面）URLにpostidを仕込んでんく
+  resources :posts, param: :postid, only: [] do
+    member do
+      get :detail
+    end
+  end
+  get 'posts/edit',   to: 'posts#edit',   as: :edit_post
+
+  post 'posts/comment',   to: 'comments#create',   as: :comment_post
 
   mount Sidekiq::Web, at: '/sidekiq'
 end

@@ -1,60 +1,67 @@
-   <div class="position-relative">
-      <button type="button" class="btn btn-primary position-absolute top-0 end-0">右上ボタン</button>
-   </div>
-
 <div class='container mt-3 mb-5'>
    <h1 class='text-left mb-5'>掲示板一覧</h1>
 
+   <div class="coll-md-6 mx-auto mb5">
+      <button type="button" class="text-right mb-5">右上ボタン</button>
+   </div>
+
    <div class='coll-md-6 mx-auto mb5'>
       <div class='card mb-4 shadow-sm'>
-         <div class='card-header'>
-            <p>検索</p>
-         </div>
-         <div class='cord-body'>
-            <%# タイトル %>
-            <div class="dropdown">
-               <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                  タイトル
-               </button>
-               <ul class="dropdown-menu">
-                  <li><a class="dropdown-item" href="#">Action</a></li>
-                  <li><a class="dropdown-item" href="#">Another action</a></li>
-                  <li><a class="dropdown-item" href="#">Something else here</a></li>
-               </ul>
-            </div>
-            <%# 担当者 %>
-            <div class="dropdown">
-               <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                  担当者
-               </button>
-               <ul class="dropdown-menu">
-                  <li><a class="dropdown-item" href="#">Action</a></li>
-                  <li><a class="dropdown-item" href="#">Another action</a></li>
-                  <li><a class="dropdown-item" href="#">Something else here</a></li>
-               </ul>
-            </div>
-            <%# 閲覧者 %>
-            <div class="dropdown">
-               <button class="btn btn-secondary btn-sm dropdown-toggle" type="button" data-bs-toggle="dropdown" aria-expanded="false">
-                  閲覧者
-               </button>
-               <ul class="dropdown-menu">
-                  <li><a class="dropdown-item" href="#">Action</a></li>
-                  <li><a class="dropdown-item" href="#">Another action</a></li>
-                  <li><a class="dropdown-item" href="#">Something else here</a></li>
-               </ul>
-            </div>
-            <div class='d-grid col-md-6 mx-auto'>
-               <%# <%= f.button '検索', class: 'btn btn-lg btn-primary' %>
+         <div class="card-body">
+            <div class="row g-2 align-items-center">
+               <!-- タイトル（テキスト） -->
+               <div class="col-md-4">
+                  <input type="text" class="form-control" placeholder="タイトル">
+               </div>
+
+               <!-- 担当者（プルダウン） -->
+               <div class="col-md-3">
+                  <select class="form-select">
+                     <option selected>担当者を選択</option>
+                     <option value="1">担当者A</option>
+                     <option value="2">担当者B</option>
+                     <option value="3">担当者C</option>
+                  </select>
+               </div>
+
+               <!-- 閲覧者（プルダウン） -->
+               <div class="col-md-3">
+                  <select class="form-select">
+                     <option selected>閲覧者を選択</option>
+                     <option value="1">閲覧者X</option>
+                     <option value="2">閲覧者Y</option>
+                     <option value="3">閲覧者Z</option>
+                  </select>
+               </div>
+
+               <div class="col-md-2 d-grid">
+                  <button class="btn btn-primary">検索</button>
+               </div>
             </div>
          </div>
       </div>
    </div>
 
-   <div class='col-md-6 mx-auto mb-5'>
-      <div class='mb-3'> 
-         <div class='form-label border-start border-primary border-4 ps-1'>
-         <%= t('activerecord.attributes.post.name')%> <%# ja.ymlから呼び出すようにするとja.yml側で日本語辞書を直すだけで良い %>
-      </div>
-   </div>
+   <table class="table">
+   <thead>
+      <tr>
+         <th scope="col">ID</th>
+         <th scope="col">タイトル</th>
+         <th scope="col">作成者</th>
+         <th scope="col">作成日時</th>
+         <th scope="col">更新日時</th>
+      </tr>
+   </thead>
+   <tbody>
+      <% @posts.each_with_index do |c, index| %>
+         <tr id="comment-<%= c.postid %>">
+            <th scope="row"><%= index + 1 %></th>
+            <td><%= c.title %></td>
+            <td><%= c.name %></td>
+            <td><%= l(c.created_at, format: :short) %></td>
+            <td><%= l(c.updated_at, format: :short) %></td>
+         </tr>
+      <% end %>
+   </tbody>
+   </table>
 </div>
