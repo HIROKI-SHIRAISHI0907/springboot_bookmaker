@@ -1,7 +1,7 @@
 <div class='container mt-3 mb-5'>
    <h1 class='text-left mb-5'>掲示板編集</h1>
 
-   <%= form_for @post, url: posts_path do |f| %> <%# posts_pathはroutes.rbで定義したヘルバー名(posts POST /posts(::formatのようなやつ)に_pathをつけるルール)%>
+   <%= form_for @edit do |f| %> <%# update_post_pathはroutes.rbで定義したヘルバー名(posts POST /posts(::formatのようなやつ)に_pathをつけるルール)%>
       <%# ただしPost#createを経由してall_posts_pathにredirectしたい %>
       <div class='col-lg-8 mx-auto mb-5'>
          <div class='row g-3'>

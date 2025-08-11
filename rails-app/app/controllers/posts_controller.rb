@@ -24,13 +24,43 @@ class PostsController < ApplicationController
    def detail
       @detail = Post.find_by!(postid: params[:postid])
       @comment = Comment.new(postid: @detail.postid)
-      # コメント一覧
+      # 同一postidに紐づくコメント一覧
       @comments = Comment.where(postid: @detail.postid).order(:created_at)  
+
+      Rails.logger.info "[comments.count] #{@comments.count} for postid=#{@detail.postid}"
    end
 
    #掲示板編集画面(postidに対応するデータを取得)
    def edit
-      @edit = Post.edit(post_id_param)
+      @edit = Post.find_by!(postid: params[:postid])
+   end
+
+   #掲示板投稿更新処理
+   def update
+      # クエリURL内のpostidをキーに更新をかける
+      @update = Post.find_by!(postid: params[:postid])
+      if @update.update(post_params)
+         redirect_to all_posts_path, notice: '投稿を更新しました。', status: :see_other
+      else
+         render :new
+      end
+   end
+
+   #掲示板投稿削除処理
+   def destroy
+      ActiveRecord::Base.transaction do
+         post = Post.find_by!(postid: params[:postid])
+         # 先にコメントを全削除（コールバックが必要なら destroy_all / 不要なら delete_all）
+         Comment.where(postid: post.postid).destroy_all
+         # 投稿本体を削除
+         post.destroy!
+      end
+
+      redirect_to all_posts_path, notice: '投稿を削除しました。', status: :see_other
+   rescue ActiveRecord::RecordNotFound
+      redirect_to all_posts_path, alert: '対象の投稿が見つかりませんでした。'
+   rescue => e
+      render :new, status: :unprocessable_entity
    end
 
    private
@@ -38,10 +68,4 @@ class PostsController < ApplicationController
    def post_params #受け取るべきパラメータのみ記載
       params.require(:post).permit(:name, :title, :body, :reviewer)
    end
-
-   # IDで取得（/posts/:id, ?postid=, ?get[postid]=どれでもいい）
-   def post_id_param
-      params[:postid] || params.dig(:get, :postid) ||
-      raise(ActionController::ParameterMissing, :postid)
-  end
 end

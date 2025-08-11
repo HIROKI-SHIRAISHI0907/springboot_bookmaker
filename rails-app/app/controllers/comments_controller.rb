@@ -20,7 +20,7 @@ class CommentsController < ApplicationController
       # 登録したらGETで掲示板詳細(detail)へリダイレクト
       if @comment.save
          commentid = @comment.commentid
-         redirect_to detail_post_path(@post) status: :see_other
+         redirect_to detail_post_path(@post), status: :see_other
       else
          # 失敗時に詳細画面を再表示
          @get = @post

@@ -1,7 +1,6 @@
 class Post < ApplicationRecord
   # DBに登録する前でPOSTXXXXの形式でpostidを設定
   self.primary_key = 'postid'
-  has_many :comments, foreign_key: :postid, primary_key: :postid
   before_create :assign_postid!
 
   private
@@ -17,15 +16,5 @@ class Post < ApplicationRecord
 
     last_no = last_id ? last_id.delete_prefix("POST").to_i : 0
     self.postid = format("POST%04d", last_no + 1)
-  end
-
-  # /posts/detailから受けたID
-  def self.detail(id)
-    find(id)
-  end
-
-  # /posts/editから受けたID 
-  def self.edit(id)
-    find(id)
   end
 end

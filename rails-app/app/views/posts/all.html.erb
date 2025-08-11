@@ -1,8 +1,9 @@
 <div class='container mt-3 mb-5'>
    <h1 class='text-left mb-5'>掲示板一覧</h1>
 
-   <div class="coll-md-6 mx-auto mb5">
-      <button type="button" class="text-right mb-5">右上ボタン</button>
+   <div class="d-flex justify-content-end mb-3">
+      <!-- リンク -->
+      <%= link_to "新規作成", new_post_path, class: "btn btn-secondary" %>
    </div>
 
    <div class='coll-md-6 mx-auto mb5'>
@@ -18,9 +19,6 @@
                <div class="col-md-3">
                   <select class="form-select">
                      <option selected>担当者を選択</option>
-                     <option value="1">担当者A</option>
-                     <option value="2">担当者B</option>
-                     <option value="3">担当者C</option>
                   </select>
                </div>
 
@@ -28,9 +26,6 @@
                <div class="col-md-3">
                   <select class="form-select">
                      <option selected>閲覧者を選択</option>
-                     <option value="1">閲覧者X</option>
-                     <option value="2">閲覧者Y</option>
-                     <option value="3">閲覧者Z</option>
                   </select>
                </div>
 
@@ -43,25 +38,31 @@
    </div>
 
    <table class="table">
-   <thead>
-      <tr>
-         <th scope="col">ID</th>
-         <th scope="col">タイトル</th>
-         <th scope="col">作成者</th>
-         <th scope="col">作成日時</th>
-         <th scope="col">更新日時</th>
-      </tr>
-   </thead>
-   <tbody>
-      <% @posts.each_with_index do |c, index| %>
-         <tr id="comment-<%= c.postid %>">
-            <th scope="row"><%= index + 1 %></th>
-            <td><%= c.title %></td>
-            <td><%= c.name %></td>
-            <td><%= l(c.created_at, format: :short) %></td>
-            <td><%= l(c.updated_at, format: :short) %></td>
+      <thead>
+         <tr>
+            <th scope="col">ID</th>
+            <th scope="col">タイトル</th>
+            <th scope="col">作成者</th>
+            <th scope="col">作成日時</th>
+            <th scope="col">更新日時</th>
+            <th scope="col"></th>
          </tr>
-      <% end %>
-   </tbody>
+      </thead>
+      <tbody>
+         <% @posts.each_with_index do |c, index| %>
+            <tr id="comment-<%= c.postid %>">
+               <td><%= index + 1 %></td>
+               <td><%= c.title %></td>
+               <td><%= c.name %></td>
+               <td><%= l(c.created_at, format: :short) %></td>
+               <td><%= l(c.updated_at, format: :short) %></td>
+               <td>
+                  <!-- /posts/:postid/detailなので、postidをパラメータとして引き渡す -->
+                  <%= link_to "詳細", detail_post_path(postid: c.postid), class: "btn btn-outline-secondary btn-sm" %>
+                  <%= link_to "削除", post_path(postid: c.postid), class: "btn btn-outline-danger btn-sm" %>
+               </td>
+            </tr>
+         <% end %>
+      </tbody>
    </table>
 </div>

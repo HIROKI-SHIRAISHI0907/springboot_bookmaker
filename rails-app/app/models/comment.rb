@@ -1,8 +1,6 @@
 class Comment < ApplicationRecord
   # DBに登録する前でCOMMENTXXXXの形式でcommentidを設定
   self.primary_key = 'commentid'
-  belongs_to :post, foreign_key: :postid, primary_key: :postid
-
   before_create :assign_commentid!
 
   private

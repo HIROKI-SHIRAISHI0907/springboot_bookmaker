@@ -10,16 +10,12 @@ Rails.application.routes.draw do
   # new_post GET    /posts/new(.:format)   posts#new
   resources :posts, only: %i[new create]
 
-  # 一覧（all）画面
-  get 'posts/all', to: 'posts#all', as: :all_posts
-
-  # 詳細・編集（postidがある画面）URLにpostidを仕込んでんく
-  resources :posts, param: :postid, only: [] do
-    member do
-      get :detail
-    end
+  # 詳細・編集（postidがある画面）URLにpostidを仕込んでいく。deleteしたいときはdestroyと書く
+  resources :posts, param: :postid, only: [:new, :create, :update] do
+     # 一覧（all）画面
+    collection { get :all }
+    member     { get :detail, :edit, :destroy }
   end
-  get 'posts/edit',   to: 'posts#edit',   as: :edit_post
 
   post 'posts/comment',   to: 'comments#create',   as: :comment_post
 
