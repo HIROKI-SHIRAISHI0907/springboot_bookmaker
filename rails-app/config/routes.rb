@@ -11,11 +11,13 @@ Rails.application.routes.draw do
   resources :posts, only: %i[new create]
 
   # 詳細・編集（postidがある画面）URLにpostidを仕込んでいく。deleteしたいときはdestroyと書く
-  resources :posts, param: :postid, only: [:new, :create, :update] do
+  resources :posts, param: :postid, only: [:new, :create, :update, :destroy] do
      # 一覧（all）画面
     collection { get :all }
-    member     { get :detail, :edit, :destroy }
+    member     { get :detail, :edit}
   end
+
+  resources :comments, param: :commentid, only: [:destroy]
 
   post 'posts/comment',   to: 'comments#create',   as: :comment_post
 

@@ -59,7 +59,8 @@
                <td>
                   <!-- /posts/:postid/detailなので、postidをパラメータとして引き渡す -->
                   <%= link_to "詳細", detail_post_path(postid: c.postid), class: "btn btn-outline-secondary btn-sm" %>
-                  <%= link_to "削除", post_path(postid: c.postid), class: "btn btn-outline-danger btn-sm" %>
+                  <!-- button_toでPOST、postidをパラメータとして引き渡す -->
+                  <%= button_to "削除", post_path(postid: c.postid), method: :delete, class: "btn btn-outline-danger btn-sm" %>
                </td>
             </tr>
          <% end %>

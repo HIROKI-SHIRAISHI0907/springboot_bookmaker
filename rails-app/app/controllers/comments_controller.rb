@@ -33,6 +33,15 @@ class CommentsController < ApplicationController
       @comments = Comment.all
    end
 
+   def destroy
+      comment = Comment.find_by!(commentid: params[:commentid])
+      postid  = comment.postid
+      comment.destroy!
+         redirect_to detail_post_path(postid: postid), notice: "コメントを削除しました。", status: :see_other
+   rescue ActiveRecord::RecordNotFound
+      redirect_to all_posts_path, alert: "対象のコメントが見つかりませんでした。"
+   end
+
    private
 
    def comment_params

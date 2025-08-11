@@ -41,6 +41,10 @@
                         <small class="text-muted"><%= l(c.created_at, format: :short) %></small>
                      </div>
                      <p class="mb-1"><%= c.comment %></p>
+                     <div class="d-flex justify-content-end gap-2">
+                        <!-- /posts/:postid/detailなので、postidをパラメータとして引き渡す -->
+                        <%= button_to "削除", comment_path(c.commentid), method: :delete, class: "btn btn-outline-danger btn-sm" %>
+                     </div>
                   </div>
                   <% end %>
                <% else %>
