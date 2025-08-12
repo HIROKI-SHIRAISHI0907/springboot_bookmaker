@@ -1,4 +1,9 @@
 class Post < ApplicationRecord
+  # validate
+  validates :name,  presence: true, length: { maximum: 10 }
+  validates :title, presence: true, length: { maximum: 30 }
+  validates :body,  presence: true, length: { maximum: 300 }
+
   # DBに登録する前でPOSTXXXXの形式でpostidを設定
   self.primary_key = 'postid'
   before_create :assign_postid!

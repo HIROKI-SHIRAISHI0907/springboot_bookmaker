@@ -18,6 +18,14 @@ class PostsController < ApplicationController
    #掲示板一覧画面
    def all
       @posts = Post.all
+
+      # もしinvalidで失敗したら(失敗→true)renderでnew（新規作成オブジェクト）を返す
+      # @post があって、かつ invalid? のときだけ render
+      return render :new if defined?(@post) && @post&.invalid?
+
+      # もしinvalidで失敗したら(失敗→true)renderでedit（編集オブジェクト）を返す
+      # @edit があって、かつ invalid? のときだけ render
+      return render :new if defined?(@edit) && @edit&.invalid?
    end
 
    #掲示板詳細画面(postidに対応するデータを取得)
