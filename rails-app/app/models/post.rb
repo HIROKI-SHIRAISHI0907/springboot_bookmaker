@@ -1,7 +1,7 @@
 class Post < ApplicationRecord
   # validate
   validates :name,  presence: true, length: { maximum: 10 }
-  validates :title, presence: true, length: { maximum: 30 }
+  validates :title, presence: true, length: { maximum: 30 }, uniqueness: { case_sensitive: true }
   validates :body,  presence: true, length: { maximum: 300 }
 
   # DBに登録する前でPOSTXXXXの形式でpostidを設定
