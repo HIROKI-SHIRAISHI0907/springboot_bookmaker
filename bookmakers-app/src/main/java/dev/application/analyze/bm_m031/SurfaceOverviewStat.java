@@ -74,8 +74,8 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			}
 
 			if (!resultMap.isEmpty()) {
-		        //surfaceOverviewRepository.saveAll(resultMap.values());
-		    }
+				//surfaceOverviewRepository.saveAll(resultMap.values());
+			}
 		}
 
 		this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
@@ -100,16 +100,38 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		BookDataEntity returnMiddleEntity = ExecuteMainUtil.getHalfEntities(entities);
 		BookDataEntity returnMinEntity = ExecuteMainUtil.getMinSeqEntities(entities);
 		List<String> scoreList = new ArrayList<String>();
+		String prev = null;
 		for (BookDataEntity entity : entities) {
-			String score = entity.getHomeScore() + "-" + entity.getAwayScore();
-			if (!scoreList.contains(score)) {
-				scoreList.add(score);
-			}
+			String s = entity.getHomeScore() + "-" + entity.getAwayScore();
+			if (!s.equals(prev)) {
+		        scoreList.add(s);
+		        prev = s;
+		    }
 		}
+		// 試合年,月(2025-02-06 07:25:58などの形式から月を算出)
+		String gameTime = returnMaxEntity.getTime();
+		String[] split = gameTime.split("-");
+		String gameYear = split[0];
+		String gameMonth = split[1].replaceFirst("^0", "");
 		// 非同期
 		String homeKey = String.join("|", country, league, home);
-	    synchronized (getLock(homeKey)) {
-	    	SurfaceOverviewEntity resultHomeEntity = resultMap.getOrDefault(homeKey, new SurfaceOverviewEntity());
+		synchronized (getLock(homeKey)) {
+			// データ取得
+			List<SurfaceOverviewEntity> result = this.surfaceOverviewRepository.select(
+					country, league, gameYear, gameMonth, home);
+			SurfaceOverviewEntity resultHomeEntity = new SurfaceOverviewEntity();
+			if (!result.isEmpty()) {
+				resultHomeEntity = result.get(0);
+			}
+			// 国
+			resultHomeEntity.setCountry(country);
+			// リーグ
+			resultHomeEntity.setLeague(league);
+			// 試合年,月
+			resultHomeEntity.setGameYear(gameYear);
+			resultHomeEntity.setGameMonth(gameMonth);
+			// チーム
+			resultHomeEntity.setTeam(home);
 			resultHomeEntity = setTeamMainData(returnMaxEntity, resultHomeEntity, country, league, home);
 			resultHomeEntity = setScoreData(returnMaxEntity, returnMiddleEntity,
 					returnMinEntity, resultHomeEntity, home);
@@ -118,9 +140,24 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			resultHomeEntity = firstWinAndConsecutiveLose(resultHomeEntity);
 			resultMap.put(homeKey, resultHomeEntity);
 		}
-	    String awayKey = String.join("|", country, league, away);
-	    synchronized (getLock(awayKey)) {
-	    	SurfaceOverviewEntity resultAwayEntity = resultMap.getOrDefault(awayKey, new SurfaceOverviewEntity());
+		String awayKey = String.join("|", country, league, away);
+		synchronized (getLock(awayKey)) {
+			// データ取得
+			List<SurfaceOverviewEntity> result = this.surfaceOverviewRepository.select(
+					country, league, gameYear, gameMonth, away);
+			SurfaceOverviewEntity resultAwayEntity = new SurfaceOverviewEntity();
+			if (!result.isEmpty()) {
+				resultAwayEntity = result.get(0);
+			}
+			// 国
+			resultAwayEntity.setCountry(country);
+			// リーグ
+			resultAwayEntity.setLeague(league);
+			// 試合年,月
+			resultAwayEntity.setGameYear(gameYear);
+			resultAwayEntity.setGameMonth(gameMonth);
+			// チーム
+			resultAwayEntity.setTeam(away);
 			resultAwayEntity = setTeamMainData(returnMaxEntity, resultAwayEntity, country, league, away);
 			resultAwayEntity = setScoreData(returnMaxEntity, returnMiddleEntity,
 					returnMinEntity, resultAwayEntity, away);
@@ -143,17 +180,6 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	 */
 	private SurfaceOverviewEntity setTeamMainData(BookDataEntity maxEntity,
 			SurfaceOverviewEntity resultEntity, String country, String league, String team) {
-		// 国
-		resultEntity.setCountry(country);
-		// リーグ
-		resultEntity.setLeague(league);
-		// 試合年,月(2025-02-06 07:25:58などの形式から月を算出)
-		String gameTime = maxEntity.getTime();
-		String[] split = gameTime.split("-");
-		resultEntity.setGameYear(split[0]);
-		resultEntity.setGameMonth(!("10".equals(split[1])) ? split[1].replace("0", "") : split[1]);
-		// チーム
-		resultEntity.setTeam(team);
 		String homeTeam = maxEntity.getHomeTeamName();
 		String awayTeam = maxEntity.getAwayTeamName();
 		int homeScore = Integer.parseInt(maxEntity.getHomeScore());
@@ -319,12 +345,12 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		resultEntity.setHome2ndHalfScore(home2ndHalfScore);
 		// ホーム得点数
 		resultEntity.setHomeSumScore(homeSumScore);
-		// ホーム前半得点割合
-		resultEntity.setHome1stHalfScoreRatio(String.valueOf(
-				Double.parseDouble(home1stHalfScore) / Integer.parseInt(homeSumScore)));
-		// ホーム後半得点割合
-		resultEntity.setHome1stHalfScoreRatio(String.valueOf(
-				Double.parseDouble(home2ndHalfScore) / Integer.parseInt(homeSumScore)));
+		// ホーム前半/後半得点割合（%表記）
+		int h1 = Integer.parseInt(home1stHalfScore);
+		int h2 = Integer.parseInt(home2ndHalfScore);
+		int hSum = Integer.parseInt(homeSumScore);
+		resultEntity.setHome1stHalfScoreRatio(toPercent(h1, hSum));
+		resultEntity.setHome2ndHalfScoreRatio(toPercent(h2, hSum));
 		// ホーム無失点数
 		resultEntity.setHomeCleanSheet(homeCleanSheet);
 		// アウェー前半得点数
@@ -333,12 +359,12 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		resultEntity.setAway2ndHalfScore(away2ndHalfScore);
 		// アウェー得点数
 		resultEntity.setAwaySumScore(awaySumScore);
-		// アウェー前半得点割合
-		resultEntity.setAway1stHalfScoreRatio(String.valueOf(
-				Double.parseDouble(away1stHalfScore) / Integer.parseInt(awaySumScore)));
-		// アウェー後半得点割合
-		resultEntity.setAway2ndHalfScoreRatio(String.valueOf(
-				Double.parseDouble(away2ndHalfScore) / Integer.parseInt(awaySumScore)));
+		// アウェー前半/後半得点割合（%表記）
+		int a1 = Integer.parseInt(away1stHalfScore);
+		int a2 = Integer.parseInt(away2ndHalfScore);
+		int aSum = Integer.parseInt(awaySumScore);
+		resultEntity.setAway1stHalfScoreRatio(toPercent(a1, aSum));
+		resultEntity.setAway2ndHalfScoreRatio(toPercent(a2, aSum));
 		// アウェー無失点数
 		resultEntity.setAwayCleanSheet(awayCleanSheet);
 		// 無得点試合数
@@ -466,8 +492,11 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		resultEntity.setAwayLoseCount(awayLoseCount);
 
 		// スコアによる勝利,敗北の設定
-		resultEntity = updateHomeLeadTrailStats(scoreList, resultEntity);
-		resultEntity = updateAwayLeadTrailStats(scoreList, resultEntity);
+		if (team.equals(homeTeam)) {
+			resultEntity = updateHomeLeadTrailStats(scoreList, resultEntity);
+		} else if (team.equals(awayTeam)) {
+			resultEntity = updateAwayLeadTrailStats(scoreList, resultEntity);
+		}
 		// 逆境表示用
 		updateAdversityDisps(resultEntity);
 
@@ -527,6 +556,18 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 				// 同フレームで両方増などはスキップ（NONEのまま）
 			}
 			prev = cur;
+		}
+
+		// ループ後、先制側が未確定ならフォールバック（最初の非0-0から推定）
+		if ("NONE".equals(firstScorer)) {
+		    for (String sc : scoreList) {
+		        int[] p = parseScorePair(sc);
+		        if (p == null) continue;
+		        if (p[0] != p[1]) {          // スコアが動いた最初の状態
+		            firstScorer = (p[0] > p[1]) ? "HOME" : "AWAY";
+		            break;
+		        }
+		    }
 		}
 
 		// 最終スコア（末尾の有効値）
@@ -645,6 +686,18 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			prev = cur;
 		}
 
+		// ループ後、先制側が未確定ならフォールバック（最初の非0-0から推定）
+		if ("NONE".equals(firstScorer)) {
+		    for (String sc : scoreList) {
+		        int[] p = parseScorePair(sc);
+		        if (p == null) continue;
+		        if (p[0] != p[1]) {
+		            firstScorer = (p[1] > p[0]) ? "AWAY" : "HOME"; // アウェー視点
+		            break;
+		        }
+		    }
+		}
+
 		// 最終スコア（末尾の有効スコア）
 		int finalH = 0, finalA = 0;
 		for (int i = scoreList.size() - 1; i >= 0; i--) {
@@ -720,7 +773,7 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		resultEntity.setFirstWinDisp(null);
 		resultEntity.setLoseStreakDisp(null);
 		// 未勝利状態
-		if (win == "0") {
+		if ("0".equals(win)) {
 			resultEntity.setFirstWinDisp(SurfaceOverviewConst.FIRST_WIN_MOTIVATION);
 		}
 		// 負け込み状態
@@ -735,8 +788,9 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	 * @return
 	 */
 	private static boolean isRatioAtLeast(int num, int denom, double threshold) {
-	    if (denom <= 0) return false;                 // 分母0（勝利0）のときは表示しない
-	    return (double) num / (double) denom >= threshold;
+		if (denom <= 0)
+			return false; // 分母0（勝利0）のときは表示しない
+		return (double) num / (double) denom >= threshold;
 	}
 
 	/**
@@ -744,21 +798,19 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	 * @param SurfaceOverviewEntity
 	 */
 	private void updateAdversityDisps(SurfaceOverviewEntity e) {
-	    final double THRESHOLD = 0.30;
+		final double THRESHOLD = 0.30;
 
-	    // ホーム
-	    int homeWins      = parseOrZero(e.getHomeWinCount());
-	    int homeCFBWins   = parseOrZero(e.getHomeWinBehindCount());
-	    e.setHomeAdversityDisp(
-	        isRatioAtLeast(homeCFBWins, homeWins, THRESHOLD) ? SurfaceOverviewConst.HOME_ADVERSITY : null
-	    );
+		// ホーム
+		int homeWins = parseOrZero(e.getHomeWinCount());
+		int homeCFBWins = parseOrZero(e.getHomeWinBehindCount());
+		e.setHomeAdversityDisp(
+				isRatioAtLeast(homeCFBWins, homeWins, THRESHOLD) ? SurfaceOverviewConst.HOME_ADVERSITY : null);
 
-	    // アウェー
-	    int awayWins      = parseOrZero(e.getAwayWinCount());
-	    int awayCFBWins   = parseOrZero(e.getAwayWinBehindCount());
-	    e.setAwayAdversityDisp(
-	        isRatioAtLeast(awayCFBWins, awayWins, THRESHOLD) ? SurfaceOverviewConst.AWAY_ADVERSITY : null
-	    );
+		// アウェー
+		int awayWins = parseOrZero(e.getAwayWinCount());
+		int awayCFBWins = parseOrZero(e.getAwayWinBehindCount());
+		e.setAwayAdversityDisp(
+				isRatioAtLeast(awayCFBWins, awayWins, THRESHOLD) ? SurfaceOverviewConst.AWAY_ADVERSITY : null);
 	}
 
 	/**
@@ -799,6 +851,19 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		} catch (NumberFormatException e) {
 			return null;
 		}
+	}
+
+	/**
+	 * 割合を NN% 文字列に整形（四捨五入）。分母0なら "0%"
+	 */
+	private static String toPercent(int num, int denom) {
+	    if (denom <= 0) return "0%";
+	    long pct = Math.round((num * 100.0) / denom);
+	    return pct + "%";
+	    // もし 10% 単位（X0%）に丸めたい場合は以下に差し替え：
+	    // long pct = Math.round((num * 100.0) / denom);
+	    // pct = Math.round(pct / 10.0) * 10; // 10%単位に丸め
+	    // return pct + "%";
 	}
 
 	/**

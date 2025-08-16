@@ -146,9 +146,10 @@ public interface SurfaceOverviewRepository {
 			WHERE country = #{country}
 			  AND league  = #{league}
 			    AND team = #{team}
+			    AND game_year = #{gameYear}
 			    AND game_month = #{gameMonth};
 			""")
-	List<SurfaceOverviewEntity> select(String country, String league,  String gameMonth, String team);
+	List<SurfaceOverviewEntity> select(String country, String league,  String gameYear, String gameMonth, String team);
 
 	@Update("""
 			UPDATE bm_m031_surface_overview SET
