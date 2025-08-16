@@ -56,7 +56,7 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 
 		// 全リーグ・国を走査
 		for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
-			ConcurrentHashMap<String, List<SurfaceOverviewEntity>> resultMap = new ConcurrentHashMap<>();
+			ConcurrentHashMap<String, SurfaceOverviewEntity> resultMap = new ConcurrentHashMap<>();
 			String[] data_category = entry.getKey().split("-");
 			String country = data_category[0];
 			String league = data_category[1];
@@ -72,6 +72,10 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 
 				resultMap = basedMain(entityList, country, league, home, away, resultMap);
 			}
+
+			if (!resultMap.isEmpty()) {
+		        //surfaceOverviewRepository.saveAll(resultMap.values());
+		    }
 		}
 
 		this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
@@ -88,10 +92,10 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	 * @param resultMap 保存データマップ
 	 * @return
 	 */
-	private ConcurrentHashMap<String, List<SurfaceOverviewEntity>> basedMain(
+	private ConcurrentHashMap<String, SurfaceOverviewEntity> basedMain(
 			List<BookDataEntity> entities,
 			String country, String league, String home, String away,
-			ConcurrentHashMap<String, List<SurfaceOverviewEntity>> resultMap) {
+			ConcurrentHashMap<String, SurfaceOverviewEntity> resultMap) {
 		BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
 		BookDataEntity returnMiddleEntity = ExecuteMainUtil.getHalfEntities(entities);
 		BookDataEntity returnMinEntity = ExecuteMainUtil.getMinSeqEntities(entities);
@@ -103,26 +107,27 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			}
 		}
 		// 非同期
-		String lockKey = home;
-		synchronized (getLock(lockKey)) {
-			SurfaceOverviewEntity resultHomeEntity = new SurfaceOverviewEntity();
+		String homeKey = String.join("|", country, league, home);
+	    synchronized (getLock(homeKey)) {
+	    	SurfaceOverviewEntity resultHomeEntity = resultMap.getOrDefault(homeKey, new SurfaceOverviewEntity());
 			resultHomeEntity = setTeamMainData(returnMaxEntity, resultHomeEntity, country, league, home);
 			resultHomeEntity = setScoreData(returnMaxEntity, returnMiddleEntity,
 					returnMinEntity, resultHomeEntity, home);
 			resultHomeEntity = setEachScoreCountData(returnMaxEntity, resultHomeEntity);
 			resultHomeEntity = setWinLoseDetailData(returnMaxEntity, scoreList, resultHomeEntity, home);
 			resultHomeEntity = firstWinAndConsecutiveLose(resultHomeEntity);
-
+			resultMap.put(homeKey, resultHomeEntity);
 		}
-		lockKey = away;
-		synchronized (getLock(lockKey)) {
-			SurfaceOverviewEntity resultAwayEntity = new SurfaceOverviewEntity();
+	    String awayKey = String.join("|", country, league, away);
+	    synchronized (getLock(awayKey)) {
+	    	SurfaceOverviewEntity resultAwayEntity = resultMap.getOrDefault(awayKey, new SurfaceOverviewEntity());
 			resultAwayEntity = setTeamMainData(returnMaxEntity, resultAwayEntity, country, league, away);
 			resultAwayEntity = setScoreData(returnMaxEntity, returnMiddleEntity,
 					returnMinEntity, resultAwayEntity, away);
 			resultAwayEntity = setEachScoreCountData(returnMaxEntity, resultAwayEntity);
 			resultAwayEntity = setWinLoseDetailData(returnMaxEntity, scoreList, resultAwayEntity, away);
 			resultAwayEntity = firstWinAndConsecutiveLose(resultAwayEntity);
+			resultMap.put(awayKey, resultAwayEntity);
 		}
 
 		return resultMap;
