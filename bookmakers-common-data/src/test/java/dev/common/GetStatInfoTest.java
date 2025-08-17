@@ -22,7 +22,7 @@ class GetStatInfoTest {
 	void getData_shouldReturnMap_whenAllDataIsValid() throws Exception {
 		// Act
 		String csvNumber = "3000";
-		Map<String, Map<String, List<BookDataEntity>>> result = this.getStatInfo.getData(csvNumber);
+		Map<String, Map<String, List<BookDataEntity>>> result = this.getStatInfo.getData(csvNumber, null);
 
 		// Assert
 		assertNotNull(result);
