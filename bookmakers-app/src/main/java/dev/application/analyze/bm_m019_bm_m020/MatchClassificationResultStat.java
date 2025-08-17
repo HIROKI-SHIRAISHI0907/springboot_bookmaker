@@ -146,7 +146,7 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 	private synchronized void init(String country, String league) {
 		final String METHOD_NAME = "init";
 		String fillChar = setLoggerFillChar(country, league);
-		for (int classify = 1; classify <= ClassifyScoreAISubLogic.SCORE_CLASSIFICATION_ALL_MAP.size()
+		for (int classify = 1; classify <= SCORE_CLASSIFICATION_ALL_MAP.size()
 				- 1; classify++) {
 			MatchClassificationResultCountEntity classifyResultDataDetailEntity = new MatchClassificationResultCountEntity();
 			classifyResultDataDetailEntity.setCountry(country);
@@ -186,7 +186,7 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 		String messageCd = "登録件数";
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M020 登録件数: "
-						+ ClassifyScoreAISubLogic.SCORE_CLASSIFICATION_ALL_MAP.size() + "件");
+						+ SCORE_CLASSIFICATION_ALL_MAP.size() + "件");
 	}
 
 	/**

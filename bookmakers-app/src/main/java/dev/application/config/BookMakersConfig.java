@@ -11,21 +11,20 @@ import org.springframework.context.annotation.Configuration;
  */
 @Configuration
 @ComponentScan(basePackages = {
-	"dev.application.constant",
-	"dev.application.common",
-	"dev.common.getstatinfo",
-	"dev.common.findcsv",
-	"dev.common.delete",
-	"dev.common.copy",
-	"dev.common.convertcsvandread",
-	"dev.common.readfile",
-	"dev.common.logger"
+		"dev.application.constant",
+		"dev.application.common",
+		"dev.common.getstatinfo",
+		"dev.common.findcsv",
+		"dev.common.delete",
+		"dev.common.copy",
+		"dev.common.convertcsvandread",
+		"dev.common.readfile",
+		"dev.common.logger"
 })
-@MapperScan(basePackages = {
-		"dev.application.domain.repository",
-		"dev.application.analyze"
-})
+@MapperScan(
+		basePackages = "dev.application.domain.repository",
+		annotationClass = org.apache.ibatis.annotations.Mapper.class // MyBatisの@Mapper限定
+)
 public class BookMakersConfig {
-
 
 }
