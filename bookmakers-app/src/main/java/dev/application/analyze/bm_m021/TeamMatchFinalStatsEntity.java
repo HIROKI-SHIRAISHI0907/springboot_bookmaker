@@ -245,7 +245,7 @@ public class TeamMatchFinalStatsEntity extends MetaEntity {
 	private String weather;
 
 	/** 気温 */
-	private String temparature;
+	private String temperature;
 
 	/** 湿度 */
 	private String humid;

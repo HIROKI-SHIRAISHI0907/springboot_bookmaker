@@ -1,5 +1,6 @@
 package dev.application.analyze.bm_m007_bm_m016;
 
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 /**
@@ -8,6 +9,7 @@ import lombok.Data;
  *
  */
 @Data
+@AllArgsConstructor
 public class TeamRangeUpdateData {
 
 	/** id */
@@ -21,19 +23,5 @@ public class TeamRangeUpdateData {
 
     /** table */
     private String table;
-
-    /**
-     * コンストラクタ
-     * @param id ID
-     * @param target 対象数
-     * @param search 探索数
-     * @param table テーブル
-     */
-    public TeamRangeUpdateData(String id, String target, String search, String table) {
-        this.id = id;
-        this.target = target;
-        this.search = search;
-        this.table = table;
-    }
 
 }

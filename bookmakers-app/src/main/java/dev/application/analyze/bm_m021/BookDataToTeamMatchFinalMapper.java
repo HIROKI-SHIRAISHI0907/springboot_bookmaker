@@ -13,9 +13,9 @@ public interface BookDataToTeamMatchFinalMapper {
 			// 基本情報
 			@Mapping(source = "book.homeTeamName", target = "teamName"),
 			@Mapping(source = "book.awayTeamName", target = "versusTeamName"),
-			@Mapping(constant = "ha", target = "ha"),
-			@Mapping(constant = "score", target = "score"),
-			@Mapping(constant = "result", target = "result"),
+			@Mapping(source = "ha", target = "ha"),
+			@Mapping(source = "score", target = "score"),
+			@Mapping(source = "result", target = "result"),
 			@Mapping(source = "book.homeRank", target = "gameFinRank"),
 			@Mapping(source = "book.awayRank", target = "oppositeGameFinRank"),
 			// 期待値
@@ -109,9 +109,9 @@ public interface BookDataToTeamMatchFinalMapper {
 			// 基本情報
 			@Mapping(source = "book.awayTeamName", target = "teamName"),
 			@Mapping(source = "book.homeTeamName", target = "versusTeamName"),
-			@Mapping(constant = "ha", target = "ha"),
-			@Mapping(constant = "score", target = "score"),
-			@Mapping(constant = "result", target = "result"),
+			@Mapping(source = "ha", target = "ha"),
+			@Mapping(source = "score", target = "score"),
+			@Mapping(source = "result", target = "result"),
 			@Mapping(source = "book.awayRank", target = "gameFinRank"),
 			@Mapping(source = "book.homeRank", target = "oppositeGameFinRank"),
 			// 期待値

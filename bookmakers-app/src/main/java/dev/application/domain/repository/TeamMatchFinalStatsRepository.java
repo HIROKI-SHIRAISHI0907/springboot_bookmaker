@@ -38,7 +38,7 @@ public interface TeamMatchFinalStatsRepository {
             box_shoot_out,
             opposite_box_shoot_out,
             goal_post,
-            opposite_goal_post
+            opposite_goal_post,
     		goal_head,
     		opposite_goal_head,
     		keeper_save,

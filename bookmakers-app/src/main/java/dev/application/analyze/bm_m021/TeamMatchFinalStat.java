@@ -4,6 +4,8 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.TeamMatchFinalStatsRepository;
@@ -17,6 +19,8 @@ import dev.common.util.ExecuteMainUtil;
  * @author shiraishitoshio
  *
  */
+@Component
+@Transactional
 public class TeamMatchFinalStat implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */
@@ -212,16 +216,18 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 		BookDataEntity mappEntity = returnMaxEntity;
 		FinalData finalHomeData = dto.getHomeObject();
 		FinalData finalAwayData = dto.getAwayObject();
-		String result = compareScore(returnMaxEntity.getHomeScore(),
+		String resultHome = compareScore(returnMaxEntity.getHomeScore(),
 				returnMaxEntity.getAwayScore());
+		String resultAway = compareScore(returnMaxEntity.getAwayScore(),
+				returnMaxEntity.getHomeScore());
 		String fillChar = setLoggerFillChar(returnMaxEntity.getGameTeamCategory(),
 				returnMaxEntity.getHomeTeamName(), returnMaxEntity.getAwayTeamName());
 		TeamMatchFinalStatsEntity homeMatchFinalStatsEntity = this.bookDataToTeamMatchFinalMapper.mapHomeStruct(
 				mappEntity, finalHomeData, finalAwayData,
-				"H", result, setSymbol(result));
+				"H", resultHome, setSymbol(resultHome) + returnMaxEntity.getHomeScore() + "-" + returnMaxEntity.getAwayScore());
 		TeamMatchFinalStatsEntity awayMatchFinalStatsEntity = this.bookDataToTeamMatchFinalMapper.mapAwayStruct(
 				mappEntity, finalAwayData, finalHomeData,
-				"A", result, setSymbol(result));
+				"A", resultAway, setSymbol(resultAway) + returnMaxEntity.getAwayScore() + "-" + returnMaxEntity.getHomeScore());
 
 		saveTeamMatchData(homeMatchFinalStatsEntity, fillChar);
 		saveTeamMatchData(awayMatchFinalStatsEntity, fillChar);
