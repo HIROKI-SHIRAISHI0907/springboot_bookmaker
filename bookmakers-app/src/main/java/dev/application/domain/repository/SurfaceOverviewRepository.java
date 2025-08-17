@@ -3,16 +3,20 @@ package dev.application.domain.repository;
 import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
+import org.apache.ibatis.annotations.Lang;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
+import org.apache.ibatis.scripting.xmltags.XMLLanguageDriver;
 
 import dev.application.analyze.bm_m031.SurfaceOverviewEntity;
 
 @Mapper
 public interface SurfaceOverviewRepository {
 
+	@Lang(XMLLanguageDriver.class)
 	@Insert("""
+			<script>
 			INSERT INTO bm_m031_surface_overview (
 			  id, country, league, game_year, game_month, team,
 			  games, rank, win, lose, draw, winning_points,
@@ -68,9 +72,11 @@ public interface SurfaceOverviewRepository {
 			  #{awayAdversityDisp},
 			  #{promoteDisp}, #{descendDisp}, #{firstWinDisp}, #{loseStreakDisp}
 			)
+			</script>
 			""")
 	int insert(SurfaceOverviewEntity entity);
 
+	@Lang(XMLLanguageDriver.class)
 	@Select("""
 			<script>
 			SELECT
@@ -148,10 +154,13 @@ public interface SurfaceOverviewRepository {
 			    AND team = #{team}
 			    AND game_year = #{gameYear}
 			    AND game_month = #{gameMonth};
+			    </script>
 			""")
-	List<SurfaceOverviewEntity> select(String country, String league,  String gameYear, String gameMonth, String team);
+	List<SurfaceOverviewEntity> select(String country, String league, String gameYear, String gameMonth, String team);
 
+	@Lang(XMLLanguageDriver.class)
 	@Update("""
+			<script>
 			UPDATE bm_m031_surface_overview SET
 			  upd = #{upd},
 			  country = #{country},
@@ -222,6 +231,7 @@ public interface SurfaceOverviewRepository {
 			  first_win_disp = #{firstWinDisp},
 			  lose_streak_disp = #{loseStreakDisp}
 			WHERE id = #{id}
+			</script>
 			""")
 	int update(SurfaceOverviewEntity entity);
 

@@ -74,16 +74,13 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 					int currentAwayScore = 0;
 
 					// ゴール取り消しはスキップ
-					if (BookMakersCommonConst.GOAL_DELETE.equals(entity.getJudge())) continue;
-
-					if (home.endsWith("-home")) {
-						currentHomeScore = parseScore(entity.getHomeScore());
-					} else if (away.endsWith("-away")) {
-						currentAwayScore = parseScore(entity.getAwayScore());
-					} else {
+					if (BookMakersCommonConst.GOAL_DELETE.equals(entity.getJudge()))
 						continue;
-					}
 
+					currentHomeScore = parseScore(entity.getHomeScore());
+					currentAwayScore = parseScore(entity.getAwayScore());
+
+					// 差分でゴール検出
 					int diffHome = currentHomeScore - prevHomeScore;
 					int diffAway = currentAwayScore - prevAwayScore;
 
