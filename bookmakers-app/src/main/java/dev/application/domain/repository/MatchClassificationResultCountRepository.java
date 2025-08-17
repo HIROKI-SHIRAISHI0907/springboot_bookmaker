@@ -3,11 +3,13 @@ package dev.application.domain.repository;
 import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
+import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import dev.application.analyze.bm_m019_bm_m020.MatchClassificationResultCountEntity;
 
+@Mapper
 public interface MatchClassificationResultCountRepository {
 
 	@Insert("""

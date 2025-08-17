@@ -20,6 +20,7 @@ import dev.common.entity.BookDataEntity;
 )
 public interface BookDataToNoGoalMatchMapper {
 
+    @Mapping(source = "seq", target = "seq")
     @Mapping(source = "recordTime", target = "recordTime", qualifiedByName = "stringToTimestamp")
     // ほかの @Mapping はそのまま
     @Mapping(source = "gameTeamCategory", target = "dataCategory")

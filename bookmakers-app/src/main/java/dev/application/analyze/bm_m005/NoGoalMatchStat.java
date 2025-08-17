@@ -81,6 +81,7 @@ public class NoGoalMatchStat implements AnalyzeEntityIF {
 		// MapStructで変換
 		List<NoGoalMatchStatisticsEntity> insertEntities = new ArrayList<NoGoalMatchStatisticsEntity>();
 		for (BookDataEntity entity : entityList) {
+			if (entity == null) continue;
 			insertEntities.add(this.bookDataToNoGoalMatchMapper.mapStruct(entity));
 		}
 
