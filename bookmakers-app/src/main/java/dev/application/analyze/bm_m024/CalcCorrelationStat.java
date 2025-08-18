@@ -10,7 +10,6 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
-import org.apache.commons.lang3.tuple.Triple;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -182,7 +181,6 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
 						: "";
 
 		// 相関係数データ初期化リスト(特徴量分だけloop)
-		Field[] fields = CalcCorrelationEntity.class.getDeclaredFields();
 		CalcCorrelationEntity entity = new CalcCorrelationEntity();
 		entity.setCountry(country);
 		entity.setLeague(league);
@@ -191,103 +189,151 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
 		entity.setScore(flg);
 		entity.setChkBody(chkBody);
 
-		// データ(CalcCorrelation)
-		for (int featInd = 9; featInd < AverageStatisticsSituationConst.COUNTER; featInd++) {
-			// ★ サンプル数ぶん確保
-			String[] xList = new String[filteredList.size() - 1];
-			String[] yList = new String[filteredList.size() - 1];
-			Field[] bookFields = BookDataEntity.class.getDeclaredFields();
-			Field f = bookFields[featInd + 1];
-			f.setAccessible(true);
-			String name = f.getName();
+		// 出力側のフィールド（CalcCorrelationEntity）の配列
+		final Field[] outFields = CalcCorrelationEntity.class.getDeclaredFields();
+		// 入力側（BookDataEntity）のフィールド配列
+		final Field[] inFields  = BookDataEntity.class.getDeclaredFields();
 
-			// tri-split のどれを使うか（全部やるならこのブロックを3回まわす）
-			int subIdx = decideSubIndexFor(featInd, name); // 0/1/2 or -1(非3分割)
+		final int OUT_OFFSET = 8;           // ★ 出力開始インデックス
+		final int IN_START   = 11;          // 例: BookDataEntity で特徴量開始
+		final int IN_END     = Math.min(inFields.length, IN_START + AverageStatisticsSituationConst.COUNTER);
 
-			try {
-				for (int ent_ind = 1; ent_ind < filteredList.size(); ent_ind++) {
-					int pos = ent_ind - 1;
-					BookDataEntity prev = filteredList.get(ent_ind - 1);
-					BookDataEntity curr = filteredList.get(ent_ind);
-					String raw = (String) f.get(curr);
-					// x: 特徴量
-					xList[pos] = extractOneValue(name, raw, subIdx); // tri-splitなら1つ選ぶ
-					// y: 得点増加フラグ
-					yList[pos] = makeFlag(prev, curr, name);
-					// 無効ゴールは0に
-					if (BookMakersCommonConst.GOAL_DELETE.equals(prev.getJudge())
-							|| BookMakersCommonConst.GOAL_DELETE.equals(curr.getJudge())) {
-						yList[pos] = "0";
-					}
-				}
-			} catch (Exception e) {
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, "setCorrelationValuesToEntity",
-						"設定失敗: " + name, e);
-			}
+		int outIdx = 0;                     // ★ 相関の「出力順序」カウンタ（0始まりだが実際はOUT_OFFSETを足して書く）
 
-			boolean isPercent = firstNonNullContainsPercent(xList);
-			double[] xDoubles = convertToDoubleArray(xList, isPercent);
-			double[] yDoubles = convertToDoubleArray(yList, false);
-			double pearson = calculatePearsonCorrelation(xDoubles, yDoubles);
+		for (int inIdx = IN_START; inIdx < IN_END; inIdx++) {
+		    Field f = inFields[inIdx];
+		    f.setAccessible(true);
+		    String name = f.getName();
 
-			// featInd→CalcCorrelationEntity の対応が「1対1」のときだけこれでOK
-			if (featInd < fields.length) {
-				Field out = fields[featInd];
-				out.setAccessible(true);
-				try {
-					out.set(entity, String.format("%.5f", pearson));
-				} catch (IllegalAccessException e) {
-					this.manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, "setCorrelationValuesToEntity",
-							"相関係数フィールドの設定失敗: " + out.getName(), e);
-				}
-			}
+		    // tri-split 対象か？
+		    if (isTriSplitFieldName(name)) {
+		        // --- 3系列分の配列を用意 ---
+		        int n = filteredList.size() - 1;
+		        String[] xRatio = new String[n];
+		        String[] xCount = new String[n];
+		        String[] xTry   = new String[n];
+		        String[] yList  = new String[n];
+
+		        try {
+		        	for (int ent = 1; ent < filteredList.size(); ent++) {
+		                int pos = ent - 1;
+		                BookDataEntity prev = filteredList.get(ent - 1);
+		                BookDataEntity curr = filteredList.get(ent);
+		                String raw = (String) f.get(curr);
+		                // "65% (13/20)" / "93%" / "" を常に3要素に
+		                var t = split3Safe(raw); // left=%, middle=成功数, right=試行数
+
+		                xRatio[pos] = t.getLeft();   // 例: "65%" or "93%" or ""
+		                xCount[pos] = t.getMiddle(); // 例: "13" or ""
+		                xTry[pos]   = t.getRight();  // 例: "20" or ""
+		                yList[pos]  = makeFlag(prev, curr, name);
+		                if (BookMakersCommonConst.GOAL_DELETE.equals(prev.getJudge())
+		                 || BookMakersCommonConst.GOAL_DELETE.equals(curr.getJudge())) {
+		                    yList[pos] = "0";
+		                }
+		            }
+		        } catch (Exception e) {
+		            this.manageLoggerComponent.debugErrorLog(
+		                PROJECT_NAME, CLASS_NAME, "calc-corr-trisplit",
+		                "tri-split 抽出失敗: " + name, e);
+		            setOut(outFields, entity, OUT_OFFSET + outIdx++, 0.0);
+		            setOut(outFields, entity, OUT_OFFSET + outIdx++, 0.0);
+		            setOut(outFields, entity, OUT_OFFSET + outIdx++, 0.0);
+		            continue;
+		        }
+
+		        // --- 相関を3つ計算 ---
+		        double[] yD = convertToDoubleArray(yList, false);
+
+		        double[] xr = convertToDoubleArray(xRatio, firstNonNullContainsPercent(xRatio));
+		        double  pr  = calculatePearsonCorrelation(xr, yD);
+
+		        double[] xc = convertToDoubleArray(xCount, false);
+		        double  pc  = calculatePearsonCorrelation(xc, yD);
+
+		        double[] xt = convertToDoubleArray(xTry, false);
+		        double  pt  = calculatePearsonCorrelation(xt, yD);
+
+		        // --- 連続する3インデックスに割り当て ---
+		        setOut(outFields, entity, OUT_OFFSET + outIdx++, pr);
+		        setOut(outFields, entity, OUT_OFFSET + outIdx++, pc);
+		        setOut(outFields, entity, OUT_OFFSET + outIdx++, pt);
+		    } else {
+		        // --- 単一系列 ---
+		        int n = filteredList.size() - 1;
+		        String[] xList = new String[n];
+		        String[] yList = new String[n];
+
+		        try {
+		            for (int ent_ind = 1; ent_ind < filteredList.size(); ent_ind++) {
+		                int pos = ent_ind - 1;
+		                BookDataEntity prev = filteredList.get(ent_ind - 1);
+		                BookDataEntity curr = filteredList.get(ent_ind);
+
+		                String raw = (String) f.get(curr);
+		                xList[pos] = raw;
+		                yList[pos] = makeFlag(prev, curr, name);
+
+		                if (BookMakersCommonConst.GOAL_DELETE.equals(prev.getJudge())
+		                 || BookMakersCommonConst.GOAL_DELETE.equals(curr.getJudge())) {
+		                    yList[pos] = "0";
+		                }
+		            }
+		        } catch (Exception e) {
+		            this.manageLoggerComponent.debugErrorLog(
+		                PROJECT_NAME, CLASS_NAME, "calc-corr-single",
+		                "単一抽出失敗: " + name, e);
+		            setOut(outFields, entity, OUT_OFFSET + outIdx++, 0.0);
+		            continue;
+		        }
+
+		        boolean isPercent = firstNonNullContainsPercent(xList);
+		        double[] xD = convertToDoubleArray(xList, isPercent);
+		        double[] yD = convertToDoubleArray(yList, false);
+		        double pearson = calculatePearsonCorrelation(xD, yD);
+
+		        setOut(outFields, entity, featInd, pearson);
+
+		        // 1つ進める
+		        featInd += 1;
+		    }
 		}
+
 		// スレッドセーフな格納
 		String mapKey = flg + "_" + chkBody;
 		insertMap.put(mapKey, entity);
 	}
 
 	/**
-	 * featInd→どのサブ要素を使うか（例: 0=成功率, 1=成功数, 2=試行数）
-	 * @param featInd
-	 * @param fieldName
-	 * @return
+	 * 相関係数出力
+	 * @param outFields
+	 * @param entity
+	 * @param idx
+	 * @param value
 	 */
-	// ルールは「CalcCorrelationEntity 側のフィールド順」に合わせて決めてください。
-	// 簡易例: すべて成功率に寄せる場合は 0 固定でもOK。
-	private int decideSubIndexFor(int featInd, String fieldName) {
-		if (!isTriSplitFieldName(fieldName))
-			return -1; // 非3分割
-		// 例1: 全部「成功率」を使う
-		return 0;
-
-		// 例2: featInd の並びに応じて ratio/count/try を割り振るならここで計算
-		// return (featInd - baseIndexForThisTriField) % 3;
+	private void setOut(Field[] outFields, CalcCorrelationEntity entity, int idx, double value) {
+	    if (idx < 0 || idx >= outFields.length) return;
+	    Field out = outFields[idx];
+	    out.setAccessible(true);
+	    try {
+	        out.set(entity, String.format("%.5f", value));
+	    } catch (IllegalAccessException e) {
+	        this.manageLoggerComponent.debugErrorLog(
+	            PROJECT_NAME, CLASS_NAME, "setOut",
+	            "相関係数設定失敗: " + out.getName(), e);
+	    }
 	}
 
 	/**
-	 * 値の抽出（3分割なら subIdx を使って1つだけ返す）
-	 * @param fieldName
-	 * @param raw
-	 * @param subIdx
-	 * @return
+	 * ゼロうめ
+	 * @param outFields
+	 * @param entity
+	 * @param base
 	 */
-	private String extractOneValue(String fieldName, String raw, int subIdx) {
-		if (isTriSplitFieldName(fieldName)) {
-			// "65% (13/20)" or "93%" → 3要素に（常に3返す安全版）
-			Triple<String, String, String> t = split3Safe(raw); // StatFormatResolver に追加推奨
-			if (subIdx == 0)
-				return t.getLeft(); // 成功率
-			if (subIdx == 1)
-				return t.getMiddle(); // 成功数
-			if (subIdx == 2)
-				return t.getRight(); // 試行数
-			// subIdx未指定なら比率にフォールバック
-			return t.getLeft();
-		}
-		return raw;
+	private void fillZeros3AndContinue(Field[] outFields, CalcCorrelationEntity entity, int base) {
+	    setOut(outFields, entity, base + 0, 0.0);
+	    setOut(outFields, entity, base + 1, 0.0);
+	    setOut(outFields, entity, base + 2, 0.0);
 	}
 
 	/**
