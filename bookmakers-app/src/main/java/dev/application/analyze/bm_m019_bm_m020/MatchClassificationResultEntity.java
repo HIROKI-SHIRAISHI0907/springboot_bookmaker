@@ -13,8 +13,8 @@ import lombok.EqualsAndHashCode;
 @EqualsAndHashCode(callSuper = false)
 public class MatchClassificationResultEntity extends MetaEntity {
 
-	/** 通番 */
-	private String seq;
+	/** ID */
+	private String id;
 
 	/** 分類モード */
 	private String classifyMode;

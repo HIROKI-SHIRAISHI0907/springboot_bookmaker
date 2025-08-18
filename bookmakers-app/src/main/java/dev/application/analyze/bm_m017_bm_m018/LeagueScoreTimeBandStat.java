@@ -10,6 +10,8 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
@@ -24,6 +26,8 @@ import dev.common.util.ExecuteMainUtil;
  * @author shiraishitoshio
  *
  */
+@Component
+@Transactional
 public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */
@@ -167,17 +171,22 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 					String mainKey = leagueKey + "-" + DETAIL;
 
 					// 時間帯を追記（ホーム）
-					StringBuilder sbHome = timeRangeMap.computeIfAbsent(mainKey, k -> new HashMap<>())
-							.computeIfAbsent(homeScore + "-H", k -> new StringBuilder());
-					if (sbHome.length() > 0)
-						sbHome.append(",");
-					sbHome.append(timeHomeRange);
+					if (timeHomeRange != null) {
+						StringBuilder sbHome = timeRangeMap.computeIfAbsent(mainKey, k -> new HashMap<>())
+								.computeIfAbsent(homeScore + "-H", k -> new StringBuilder());
+						if (sbHome.length() > 0)
+							sbHome.append(",");
+						sbHome.append(timeHomeRange);
+					}
 
-					StringBuilder sbAway = timeRangeMap.computeIfAbsent(mainKey, k -> new HashMap<>())
-							.computeIfAbsent(awayScore + "-A", k -> new StringBuilder());
-					if (sbAway.length() > 0)
-						sbAway.append(",");
-					sbAway.append(timeAwayRange);
+					// 時間帯を追記（アウェー）
+					if (timeAwayRange != null) {
+						StringBuilder sbAway = timeRangeMap.computeIfAbsent(mainKey, k -> new HashMap<>())
+								.computeIfAbsent(awayScore + "-A", k -> new StringBuilder());
+						if (sbAway.length() > 0)
+							sbAway.append(",");
+						sbAway.append(timeAwayRange);
+					}
 
 					// 件数カウント（1エントリに対して1カウントでOK）
 					countMap
@@ -196,9 +205,10 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 			// String: sumScore + "-S", homeScore + "-H", awayScore + "-A"
 			// StringBuilder: timeRange, timeHomeRange, timeAwayRange
 			String mainKey = map.getKey();
-			String country = mainKey.split("-")[0].split("-")[0];
-			String league = mainKey.split("-")[0].split("-")[1];
-			String table = mainKey.split("-")[0].split("-")[2];
+			String[] split = mainKey.split("-");
+			String country = split[0];
+			String league = split[1];
+			String table = split[2];
 			Map<String, StringBuilder> builder = map.getValue();
 			String mainScore = "";
 			String mainHomeScore = "";
@@ -240,14 +250,14 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 							country, league, mainScore, sortTimeRange);
 					if (dto.isUpdFlg()) {
 						String id = dto.getId();
-						String targetUpd = String.valueOf(Integer.parseInt(dto.getTarget()) + target);
-						String searchUpd = String.valueOf(Integer.parseInt(dto.getSearch()) + search);
+						String targetUpd = String.valueOf(Integer.parseInt(dto.getTarget()) + 1);
+						String searchUpd = String.valueOf(Integer.parseInt(dto.getSearch()) + 1);
 						setUpdData(MAIN, id, String.valueOf(targetUpd), String.valueOf(searchUpd),
 								country, league);
 					} else {
 						// homeのtimeRangeが対象設定値
-						String targetReg = String.valueOf(target);
-						String searchReg = String.valueOf(search);
+						String targetReg = "1";
+						String searchReg = "1";
 						setRegData(MAIN, mainScore, sortTimeRange,
 								null, null, null, null,
 								targetReg, searchReg, country, league);
@@ -256,20 +266,19 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 					sortTimeRange = "";
 				}
 
-
-				if (!mainHomeScore.isBlank() && !mainAwayScore.isBlank()) {
+				if (!mainHomeScore.isBlank() || !mainAwayScore.isBlank()) {
 					LeagueScoreTimeBandOutputDTO dto = getDetailData(
 							country, league, mainHomeScore, mainAwayScore, sortTimeHomeRange, sortTimeAwayRange);
 					if (dto.isUpdFlg()) {
 						String id = dto.getId();
-						String targetUpd = String.valueOf(Integer.parseInt(dto.getTarget()) + target);
-						String searchUpd = String.valueOf(Integer.parseInt(dto.getSearch()) + search);
+						String targetUpd = String.valueOf(Integer.parseInt(dto.getTarget()) + 1);
+						String searchUpd = String.valueOf(Integer.parseInt(dto.getSearch()) + 1);
 						setUpdData(DETAIL, id, String.valueOf(targetUpd), String.valueOf(searchUpd),
 								country, league);
 					} else {
 						// homeのtimeRangeが対象設定値
-						String targetReg = String.valueOf(target);
-						String searchReg = String.valueOf(search);
+						String targetReg = "1";
+						String searchReg = "1";
 						setRegData(DETAIL, null, null,
 								mainHomeScore, mainAwayScore, sortTimeHomeRange, sortTimeAwayRange,
 								targetReg, searchReg, country, league);
@@ -431,8 +440,8 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 			leagueScoreTimeBandStatsSplitScoreEntity.setAwayTimeRangeArea(awayTimeRange);
 			leagueScoreTimeBandStatsSplitScoreEntity.setTarget(target);
 			leagueScoreTimeBandStatsSplitScoreEntity.setSearch(search);
-			int result = this.leagueScoreTimeBandStatsSplitScoreRepository.
-					insert(leagueScoreTimeBandStatsSplitScoreEntity);
+			int result = this.leagueScoreTimeBandStatsSplitScoreRepository
+					.insert(leagueScoreTimeBandStatsSplitScoreEntity);
 			if (result != 1) {
 				String messageCd = "新規登録エラー";
 				this.manageLoggerComponent.debugErrorLog(

@@ -28,7 +28,7 @@ public interface MatchClassificationResultCountRepository {
 			        #{id},
 			        #{country},
 			        #{league},
-			        #{classify_mode},
+			        #{classifyMode},
 			        #{count},
 			        #{remarks},
 			        #{registerId},
@@ -49,7 +49,6 @@ public interface MatchClassificationResultCountRepository {
 			        country = #{country} AND
 			        league = #{league} AND
 			        classify_mode = #{classifyMode};
-			    )
 			""")
 	List<MatchClassificationResultCountEntity> findData(String country, String league, String classifyMode);
 
@@ -57,9 +56,9 @@ public interface MatchClassificationResultCountRepository {
 			    UPDATE classify_result_data_detail
 			    SET
 			        count = #{count},
-			        remarks = #{remarks},
+			        remarks = #{remarks}
 			    WHERE
-			        id = #{id} AND
+			        id = #{id};
 			""")
 	int update(String id, String count, String remarks);
 
