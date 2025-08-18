@@ -292,10 +292,7 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
 		        double[] yD = convertToDoubleArray(yList, false);
 		        double pearson = calculatePearsonCorrelation(xD, yD);
 
-		        setOut(outFields, entity, featInd, pearson);
-
-		        // 1つ進める
-		        featInd += 1;
+		        setOut(outFields, entity, OUT_OFFSET + outIdx++, pearson);
 		    }
 		}
 
