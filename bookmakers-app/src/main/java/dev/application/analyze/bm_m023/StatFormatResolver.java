@@ -141,4 +141,32 @@ public abstract class StatFormatResolver {
 	    }
 	}
 
+	/**
+	 * 3分割データ情報の有無
+	 * @param fieldName
+	 * @return
+	 */
+	protected boolean isTriSplitFieldName(String fieldName) {
+	    if (fieldName == null) return false;
+	    String n = fieldName.toLowerCase();
+	    return n.contains("passcount")
+	        || n.contains("finalthirdpasscount")
+	        || n.contains("crosscount")
+	        || n.contains("tacklecount");
+	    // 必要に応じて追加
+	}
+
+	/**
+	 * 3分割データの安全性によるメソッド
+	 * @param valueStr
+	 * @return
+	 */
+	protected Triple<String, String, String> split3Safe(String valueStr) {
+	    if (valueStr == null || valueStr.isBlank()) return Triple.of("", "", "");
+	    Triple<String,String,String> t = splitPercentageWithFraction(valueStr);
+	    if (t != null) return t;
+	    // "93%" のように%だけのケースも3要素で返す
+	    return Triple.of(valueStr.trim(), "", "");
+	}
+
 }

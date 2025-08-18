@@ -10,13 +10,13 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.tuple.Triple;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.bm_m023.AverageStatisticsSituationConst;
-import dev.application.analyze.bm_m023.ScoreBasedFeatureStat;
 import dev.application.analyze.bm_m023.StatFormatResolver;
 import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
@@ -35,11 +35,11 @@ import dev.common.util.ExecuteMainUtil;
 public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = ScoreBasedFeatureStat.class.getProtectionDomain()
+	private static final String PROJECT_NAME = CalcCorrelationStat.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = ScoreBasedFeatureStat.class.getSimpleName();
+	private static final String CLASS_NAME = CalcCorrelationStat.class.getSimpleName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M024_CALC_CORRELATION";
@@ -190,121 +190,136 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
 		entity.setAway(away);
 		entity.setScore(flg);
 		entity.setChkBody(chkBody);
-		for (int featInd = 0; featInd < AverageStatisticsSituationConst.COUNTER; featInd++) {
-			String[] xList = new String[AverageStatisticsSituationConst.SPLIT_COUNTER];
-			String[] yList = new String[AverageStatisticsSituationConst.SPLIT_COUNTER];
-			// データは BookDataEntity のリスト
-			for (int ent_ind = 1; ent_ind < filteredList.size(); ent_ind++) {
-				BookDataEntity prev = filteredList.get(ent_ind - 1);
-				BookDataEntity curr = filteredList.get(ent_ind);
-				// xList ← 特徴量 featInd 番目の値
-				String[] allFeatures = new String[AverageStatisticsSituationConst.SPLIT_COUNTER];
-				initFormat(curr, allFeatures);
-				xList[ent_ind - 1] = allFeatures[featInd];
 
-				// yList ← スコア増加判定（0 or 1）
-				String[] allFlags = new String[AverageStatisticsSituationConst.SPLIT_COUNTER];
-				initScoreFormat(prev, curr, allFlags);
-				yList[ent_ind - 1] = allFlags[featInd];
+		// データ(CalcCorrelation)
+		for (int featInd = 9; featInd < AverageStatisticsSituationConst.COUNTER; featInd++) {
+			// ★ サンプル数ぶん確保
+			String[] xList = new String[filteredList.size() - 1];
+			String[] yList = new String[filteredList.size() - 1];
+			Field[] bookFields = BookDataEntity.class.getDeclaredFields();
+			Field f = bookFields[featInd + 1];
+			f.setAccessible(true);
+			String name = f.getName();
 
-				// 無効ゴールの削除
-				if (BookMakersCommonConst.GOAL_DELETE.equals(prev.getJudge())
-						|| BookMakersCommonConst.GOAL_DELETE.equals(curr.getJudge())) {
-					yList[ent_ind - 1] = "0";
+			// tri-split のどれを使うか（全部やるならこのブロックを3回まわす）
+			int subIdx = decideSubIndexFor(featInd, name); // 0/1/2 or -1(非3分割)
+
+			try {
+				for (int ent_ind = 1; ent_ind < filteredList.size(); ent_ind++) {
+					int pos = ent_ind - 1;
+					BookDataEntity prev = filteredList.get(ent_ind - 1);
+					BookDataEntity curr = filteredList.get(ent_ind);
+					String raw = (String) f.get(curr);
+					// x: 特徴量
+					xList[pos] = extractOneValue(name, raw, subIdx); // tri-splitなら1つ選ぶ
+					// y: 得点増加フラグ
+					yList[pos] = makeFlag(prev, curr, name);
+					// 無効ゴールは0に
+					if (BookMakersCommonConst.GOAL_DELETE.equals(prev.getJudge())
+							|| BookMakersCommonConst.GOAL_DELETE.equals(curr.getJudge())) {
+						yList[pos] = "0";
+					}
 				}
+			} catch (Exception e) {
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, "setCorrelationValuesToEntity",
+						"設定失敗: " + name, e);
 			}
-			boolean isPercent = xList[0] != null && xList[0].contains("%");
+
+			boolean isPercent = firstNonNullContainsPercent(xList);
 			double[] xDoubles = convertToDoubleArray(xList, isPercent);
-			double[] yDoubles = convertToDoubleArray(yList, false); // yList は "0"/"1" なのでパーセント処理不要
+			double[] yDoubles = convertToDoubleArray(yList, false);
 			double pearson = calculatePearsonCorrelation(xDoubles, yDoubles);
 
-			// 相関係数をエンティティのフィールドに設定
+			// featInd→CalcCorrelationEntity の対応が「1対1」のときだけこれでOK
 			if (featInd < fields.length) {
-				Field field = fields[featInd];
-				field.setAccessible(true);
+				Field out = fields[featInd];
+				out.setAccessible(true);
 				try {
-					field.set(entity, String.format("%.5f", pearson)); // 小数点5桁で保存
+					out.set(entity, String.format("%.5f", pearson));
 				} catch (IllegalAccessException e) {
 					this.manageLoggerComponent.debugErrorLog(
 							PROJECT_NAME, CLASS_NAME, "setCorrelationValuesToEntity",
-							"相関係数フィールドの設定失敗: " + field.getName(), e);
+							"相関係数フィールドの設定失敗: " + out.getName(), e);
 				}
 			}
-			// スレッドセーフな格納
-			String mapKey = flg + "_" + chkBody;
-			insertMap.put(mapKey, entity);
 		}
+		// スレッドセーフな格納
+		String mapKey = flg + "_" + chkBody;
+		insertMap.put(mapKey, entity);
 	}
 
 	/**
-	 * 形式を揃える
-	 * @param entity BookDataEntity
-	 * @param xList
+	 * featInd→どのサブ要素を使うか（例: 0=成功率, 1=成功数, 2=試行数）
+	 * @param featInd
+	 * @param fieldName
+	 * @return
 	 */
-	private void initFormat(BookDataEntity entity, String[] xList) {
-		final String METHOD_NAME = "initFormat";
-		final int INDEX = 11;
-		int index = 0;
-		for (int i = INDEX; i < AverageStatisticsSituationConst.COUNTER + INDEX; i++) {
-			try {
-				Field[] fields = BookDataEntity.class.getDeclaredFields();
-				Field field = fields[i];
-				field.setAccessible(true);
-				String value = (String) field.get(entity);
+	// ルールは「CalcCorrelationEntity 側のフィールド順」に合わせて決めてください。
+	// 簡易例: すべて成功率に寄せる場合は 0 固定でもOK。
+	private int decideSubIndexFor(int featInd, String fieldName) {
+		if (!isTriSplitFieldName(fieldName))
+			return -1; // 非3分割
+		// 例1: 全部「成功率」を使う
+		return 0;
 
-				if (i >= 51 && i < 59) {
-					List<String> parts = ExecuteMainUtil.splitFlgGroup(value); // ["65%", "13", "20"]
-					xList[index++] = parts.get(0); // 成功率（"65%"）
-					xList[index++] = parts.get(1); // 成功数（"13"）
-					xList[index++] = parts.get(2); // 試行数（"20"）
-				} else {
-					xList[index++] = value;
-				}
-			} catch (Exception e) {
-				String messageCd = "リフレクションエラー";
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-			}
-		}
+		// 例2: featInd の並びに応じて ratio/count/try を割り振るならここで計算
+		// return (featInd - baseIndexForThisTriField) % 3;
 	}
 
 	/**
-	 * 特徴量に応じて得点の増加フラグ（0 or 1）を yList にセット
-	 * 特徴量名に "home" または "away" が含まれていることを前提とする
+	 * 値の抽出（3分割なら subIdx を使って1つだけ返す）
+	 * @param fieldName
+	 * @param raw
+	 * @param subIdx
+	 * @return
 	 */
-	private void initScoreFormat(BookDataEntity prev, BookDataEntity curr,
-			String[] yList) {
+	private String extractOneValue(String fieldName, String raw, int subIdx) {
+		if (isTriSplitFieldName(fieldName)) {
+			// "65% (13/20)" or "93%" → 3要素に（常に3返す安全版）
+			Triple<String, String, String> t = split3Safe(raw); // StatFormatResolver に追加推奨
+			if (subIdx == 0)
+				return t.getLeft(); // 成功率
+			if (subIdx == 1)
+				return t.getMiddle(); // 成功数
+			if (subIdx == 2)
+				return t.getRight(); // 試行数
+			// subIdx未指定なら比率にフォールバック
+			return t.getLeft();
+		}
+		return raw;
+	}
+
+	/**
+	 * フラグに対して値抽出
+	 * @param prev
+	 * @param curr
+	 * @param fieldName
+	 * @return
+	 */
+	private String makeFlag(BookDataEntity prev, BookDataEntity curr, String fieldName) {
 		int prevHome = Integer.parseInt(prev.getHomeScore());
 		int currHome = Integer.parseInt(curr.getHomeScore());
 		int prevAway = Integer.parseInt(prev.getAwayScore());
 		int currAway = Integer.parseInt(curr.getAwayScore());
+		String n = fieldName.toLowerCase();
+		if (n.contains("home"))
+			return (currHome > prevHome) ? "1" : "0";
+		if (n.contains("away"))
+			return (currAway > prevAway) ? "1" : "0";
+		return "0";
+	}
 
-		final int INDEX = 11; // homeExp 以降が特徴量開始
-		int index = 0;
-		Field[] fields = BookDataEntity.class.getDeclaredFields();
-		for (int i = INDEX; i < AverageStatisticsSituationConst.COUNTER + INDEX; i++) {
-			String fieldName = fields[i].getName().toLowerCase();
-			if (i >= 51 && i < 59) {
-				// 3分割データ → 成功率・成功数・試行数すべてに y 値をつける
-				for (int j = 0; j < 3; j++) {
-					if (fieldName.contains("home")) {
-						yList[index++] = (currHome > prevHome) ? "1" : "0";
-					} else if (fieldName.contains("away")) {
-						yList[index++] = (currAway > prevAway) ? "1" : "0";
-					} else {
-						yList[index++] = "0";
-					}
-				}
-			} else {
-				if (fieldName.contains("home")) {
-					yList[index++] = (currHome > prevHome) ? "1" : "0";
-				} else if (fieldName.contains("away")) {
-					yList[index++] = (currAway > prevAway) ? "1" : "0";
-				} else {
-					yList[index++] = "0";
-				}
-			}
-		}
+	/**
+	 * nullpercent
+	 * @param arr
+	 * @return
+	 */
+	private boolean firstNonNullContainsPercent(String[] arr) {
+		for (String s : arr)
+			if (s != null)
+				return s.contains("%");
+		return false;
 	}
 
 	/**
@@ -362,19 +377,20 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
 	 */
 	private double[] convertToDoubleArray(String[] strArray, boolean isPercent) {
 		double[] result = new double[strArray.length];
-		for (int i = 0; i < strArray.length; i++) {
-			String val = strArray[i];
+		int ind = 0;
+		for (String val : strArray) {
 			try {
 				if (val == null || val.isBlank()) {
-					result[i] = 0.0;
+					result[ind] = 0.0;
 				} else if (isPercent && val.contains("%")) {
-					result[i] = Double.parseDouble(val.replace("%", "").trim()) / 100.0;
+					result[ind] = Double.parseDouble(val.replace("%", "").trim()) / 100.0;
 				} else {
-					result[i] = Double.parseDouble(val.trim());
+					result[ind] = Double.parseDouble(val.trim());
 				}
 			} catch (NumberFormatException e) {
-				result[i] = 0.0; // 異常値は0扱いに
+				result[ind] = 0.0; // 異常値は0扱いに
 			}
+			ind++;
 		}
 		return result;
 	}
