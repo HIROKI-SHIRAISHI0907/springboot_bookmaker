@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m030;
+package dev.application.analyze.bm_m023_bm_m026_bm_m027_bm_m030;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import dev.application.analyze.bm_m030.StatEncryptionEntity;
 import dev.application.domain.repository.StatEncryptionRepository;
 import dev.application.enc.CommonEncHelper;
 

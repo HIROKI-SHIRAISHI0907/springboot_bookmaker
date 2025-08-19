@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m023_bm_m026_bm_m027;
+package dev.application.analyze.bm_m023_bm_m026_bm_m027_bm_m030;
 
 import java.util.List;
 import java.util.Map;
@@ -33,9 +33,9 @@ public class AnalyzeRankingStatTest {
 	@Test
 	void test_calcStat_shouldCorrectly_memory() {
 		// Act
-		String csvNumber = "915";
-		String csvNumberAfter = "916";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
+		String csvNumber = "174";
+		String csvBackNumber = "175";
+		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvBackNumber);
 
 		// Act
 		this.analyzeRankingStat.calcStat(entities);
