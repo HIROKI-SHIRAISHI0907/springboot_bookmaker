@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m026;
+package dev.application.analyze.bm_m023_bm_m026_bm_m027;
 
 import java.util.List;
 import java.util.Map;
@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureStat;
 import dev.common.entity.BookDataEntity;
 import dev.common.getstatinfo.GetStatInfo;
 
