@@ -194,7 +194,7 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
 		// 入力側（BookDataEntity）のフィールド配列
 		final Field[] inFields  = BookDataEntity.class.getDeclaredFields();
 
-		final int OUT_OFFSET = 8;           // ★ 出力開始インデックス
+		final int OUT_OFFSET = 9;           // ★ 出力開始インデックス
 		final int IN_START   = 11;          // 例: BookDataEntity で特徴量開始
 		final int IN_END     = Math.min(inFields.length, IN_START + AverageStatisticsSituationConst.COUNTER);
 
@@ -319,18 +319,6 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
 	            PROJECT_NAME, CLASS_NAME, "setOut",
 	            "相関係数設定失敗: " + out.getName(), e);
 	    }
-	}
-
-	/**
-	 * ゼロうめ
-	 * @param outFields
-	 * @param entity
-	 * @param base
-	 */
-	private void fillZeros3AndContinue(Field[] outFields, CalcCorrelationEntity entity, int base) {
-	    setOut(outFields, entity, base + 0, 0.0);
-	    setOut(outFields, entity, base + 1, 0.0);
-	    setOut(outFields, entity, base + 2, 0.0);
 	}
 
 	/**
