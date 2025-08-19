@@ -22,7 +22,9 @@ public interface ScoreBasedFeatureStatsRepository {
         "home_offside_stat, away_offside_stat, home_foul_stat, away_foul_stat, home_yellow_card_stat, away_yellow_card_stat,",
         "home_red_card_stat, away_red_card_stat, home_slow_in_stat, away_slow_in_stat, home_box_touch_stat, away_box_touch_stat,",
         "home_pass_count_stat, away_pass_count_stat, home_final_third_pass_count_stat, away_final_third_pass_count_stat,",
-        "home_cross_count_stat, away_cross_count_stat, register_id, register_time, update_id, update_time",
+        "home_cross_count_stat, away_cross_count_stat, home_tackle_count_stat, away_tackle_count_stat,",
+        "home_clear_count_stat, away_clear_count_stat, home_intercept_count_stat, away_intercept_count_stat,",
+        "register_id, register_time, update_id, update_time",
         ") VALUES (",
         "#{id}, #{situation}, #{score}, #{country}, #{league}, #{homeExpStat}, #{awayExpStat}, #{homeDonationStat}, #{awayDonationStat},",
         "#{homeShootAllStat}, #{awayShootAllStat}, #{homeShootInStat}, #{awayShootInStat}, #{homeShootOutStat}, #{awayShootOutStat},",
@@ -32,7 +34,9 @@ public interface ScoreBasedFeatureStatsRepository {
         "#{homeOffsideStat}, #{awayOffsideStat}, #{homeFoulStat}, #{awayFoulStat}, #{homeYellowCardStat}, #{awayYellowCardStat},",
         "#{homeRedCardStat}, #{awayRedCardStat}, #{homeSlowInStat}, #{awaySlowInStat}, #{homeBoxTouchStat}, #{awayBoxTouchStat},",
         "#{homePassCountStat}, #{awayPassCountStat}, #{homeFinalThirdPassCountStat}, #{awayFinalThirdPassCountStat},",
-        "#{homeCrossCountStat}, #{awayCrossCountStat}, #{registerId},#{registerTime},#{updateId},#{updateTime}",
+        "#{homeCrossCountStat}, #{awayCrossCountStat}, #{homeTackleCountStat}, #{awayTackleCountStat},",
+        "#{homeClearCountStat}, #{awayClearCountStat}, #{homeInterceptCountStat}, #{awayInterceptCountStat},",
+        "#{registerId},#{registerTime},#{updateId},#{updateTime}",
         ")"
     })
     int insert(ScoreBasedFeatureStatsEntity entity);

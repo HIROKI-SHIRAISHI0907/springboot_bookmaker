@@ -530,7 +530,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 					if (statValue == null || statValue.isBlank())
 						continue;
 					String[] values = statValue.split(",");
-					if (values.length >= 4) {
+					if (values.length >= 16) {
 						minList[idx] = values[0].trim();
 						minCntList[idx] = Integer.parseInt(values[1]);
 						maxList[idx] = values[2].trim();
