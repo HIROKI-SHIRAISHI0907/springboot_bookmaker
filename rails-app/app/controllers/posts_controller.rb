@@ -40,17 +40,17 @@ class PostsController < ApplicationController
 
    #掲示板編集画面(postidに対応するデータを取得)
    def edit
-      @edit = Post.find_by!(postid: params[:postid])
+      @post = Post.find_by!(postid: params[:postid])
    end
 
    #掲示板投稿更新処理
    def update
       # クエリURL内のpostidをキーに更新をかける
-      @update = Post.find_by!(postid: params[:postid])
-      if @update.update(post_params)
+      @post = Post.find_by!(postid: params[:postid])
+      if @post.update(post_params)
          redirect_to all_posts_path, notice: '投稿を更新しました。', status: :see_other
       else
-         render :new
+         render :edit, status: :unprocessable_entity     # ← :new ではなく :edit
       end
    end
 

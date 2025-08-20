@@ -1,10 +1,10 @@
-<%= form_for(post, url: post.persisted? ? post_path(post) : posts_path) do |f| %>
+<%= form_with model: post, local: true do |f| %>
   <div class='col-lg-8 mx-auto mb-5'>
       <div class='row g-3'>
          <div class="col-12">
             <%= f.label :name, class: 'form-label border-start border-primary border-4 ps-1' %>
             <%= f.text_field :name, size: 80, class: 'form-control' %>
-            <% post.errors.full_messages_for(:name).each do |err_message| %>
+            <% f.object.errors.full_messages_for(:name).each do |err_message| %>
             <div class='text-danger'>*<%= err_message %></div>
             <% end %>
          </div>
@@ -12,7 +12,7 @@
          <div class="col-12">
             <%= f.label :title, class: 'form-label border-start border-primary border-4 ps-1' %>
             <%= f.text_field :title, size: 80, class: 'form-control' %>
-            <% post.errors.full_messages_for(:title).each do |err_message| %>
+            <% f.object.errors.full_messages_for(:title).each do |err_message| %>
             <div class='text-danger'>*<%= err_message %></div>
             <% end %>
          </div>
@@ -20,14 +20,14 @@
          <div class="col-12">
             <%= f.label :body, class: 'form-label border-start border-primary border-4 ps-1' %>
             <%= f.text_area :body, size: "50x20", placeholder: '本文', class: 'form-control' %>
-            <% post.errors.full_messages_for(:body).each do |err_message| %>
+            <% f.object.errors.full_messages_for(:body).each do |err_message| %>
             <div class='text-danger'>*<%= err_message %></div>
             <% end %>
          </div>
 
          <div class="col-12">
             <%= f.label :reviewer, class: 'form-label border-start border-primary border-4 ps-2' %>
-            <%= f.select :reviewer, options_for_select(['Active', 'Inactive'], selected: post.reviewer), {}, class: 'form-select' %>
+            <%= f.select :reviewer, options_for_select(['Active', 'Inactive'], f.object.reviewer), {}, class: 'form-select' %>
          </div>
       </div>
    </div>
