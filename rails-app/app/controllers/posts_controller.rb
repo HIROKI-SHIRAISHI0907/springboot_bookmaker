@@ -17,7 +17,7 @@ class PostsController < ApplicationController
 
    #掲示板一覧画面
    def all
-      @posts = Post.all
+      @posts = Post.all.order(updated_at: "DESC") #更新日時が新しい順に
 
       # もしinvalidで失敗したら(失敗→true)renderでnew（新規作成オブジェクト）を返す
       # @post があって、かつ invalid? のときだけ render
