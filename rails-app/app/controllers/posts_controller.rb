@@ -33,7 +33,7 @@ class PostsController < ApplicationController
       @detail = Post.find_by!(postid: params[:postid])
       @comment = Comment.new(postid: @detail.postid)
       # 同一postidに紐づくコメント一覧
-      @comments = Comment.where(postid: @detail.postid).order(:created_at)  
+      @comments = Comment.where(postid: @detail.postid).order(created_at: "DESC")
 
       Rails.logger.info "[comments.count] #{@comments.count} for postid=#{@detail.postid}"
    end
