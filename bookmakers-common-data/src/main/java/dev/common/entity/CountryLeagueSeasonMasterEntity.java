@@ -15,9 +15,6 @@ public class CountryLeagueSeasonMasterEntity extends MetaEntity {
 	/** ID */
 	private String id;
 
-	/** file */
-	private String file;
-
 	/** 国 */
 	private String country;
 
@@ -29,6 +26,12 @@ public class CountryLeagueSeasonMasterEntity extends MetaEntity {
 
 	/** シーズン終了 */
 	private String endSeasonDate;
+
+	/** パス */
+	private String path;
+
+	/** アイコン */
+	private String icon;
 
 	/** 更新済みスタンプ */
 	private String updStamp;

@@ -1,12 +1,6 @@
 package dev.common.getstatinfo;
 
-import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -61,7 +55,7 @@ public class GetSeasonInfo {
 	/**
 	 * 取得メソッド
 	 */
-	public Map<String, List<CountryLeagueSeasonMasterEntity>> getData() {
+	public List<CountryLeagueSeasonMasterEntity> getData() {
 		final String METHOD_NAME = "getData";
 
 		// 時間計測開始
@@ -73,7 +67,7 @@ public class GetSeasonInfo {
 		// 設定
 		FindBookInputDTO findBookInputDTO = setBookInputDTO();
 
-		// 統計データCsv読み取りクラス
+		// 統計データXlsx読み取りクラス
 		FindBookOutputDTO findBookOutputDTO = this.findStatCsv.execute(findBookInputDTO);
 		// エラーの場合,戻り値の例外を業務例外に集約してスロー
 		if (!BookMakersCommonConst.NORMAL_CD.equals(findBookOutputDTO.getResultCd())) {
@@ -86,47 +80,29 @@ public class GetSeasonInfo {
 		}
 
 		// 読み込んだパスからデータ取得
-		List<String> fileStatList = findBookOutputDTO.getBookList();
+		String fileStatList = findBookOutputDTO.getBookList().get(0);
 		// 結果構造：Map<"JPN-J1", Map<"HOME", List<BookDataEntity>>>
-		Map<String, List<CountryLeagueSeasonMasterEntity>> resultMap = new HashMap<>();
-		if (fileStatList.size() <= 0) {
+		if (fileStatList == null) {
 			String messageCd = "データなし";
 			String fillChar = "GetSeasonInfo";
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar);
-			return resultMap;
-		}
-		// スレッドプールを作成（例：同時に最大4スレッド）
-		ExecutorService executor = Executors.newFixedThreadPool(fileStatList.size());
-		// タスク送信
-		List<Future<ReadFileOutputDTO>> futureList = new ArrayList<>();
-		for (String file : fileStatList) {
-			Future<ReadFileOutputDTO> future = executor.submit(() -> this.readSeason.getFileBody(file));
-			futureList.add(future);
+			return null;
 		}
 
-		for (Future<ReadFileOutputDTO> future : futureList) {
-			try {
-				ReadFileOutputDTO dto = future.get();
-				List<CountryLeagueSeasonMasterEntity> entity = dto.getCountryLeagueSeasonList();
-				// null または 空チェック
-				if (entity == null || entity.isEmpty()) {
-					continue;
-				}
-				String file = entity.get(0).getFile();
-				resultMap
-						.computeIfAbsent(file, s -> new ArrayList<>())
-						.addAll(entity);
-			} catch (Exception e) {
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e);
-				this.manageLoggerComponent.createBusinessException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						"InterruptedException|ExecutionException: エラー",
-						e);
-			}
+		ReadFileOutputDTO readFileOutputDTO = this.readSeason.getFileBody(fileStatList);
+		List<CountryLeagueSeasonMasterEntity> entity = null;
+		try {
+			entity = readFileOutputDTO.getCountryLeagueSeasonList();
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e);
+			this.manageLoggerComponent.createBusinessException(
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					"InterruptedException|ExecutionException: エラー",
+					e);
 		}
 		//executor.shutdown();
 
@@ -135,12 +111,11 @@ public class GetSeasonInfo {
 		long durationMs = (endTime - startTime) / 1_000_000; // ミリ秒に変換
 
 		System.out.println("時間: " + durationMs);
-		return resultMap;
+		return entity;
 	}
 
 	/**
 	 * 読み取りinputDTOに設定する
-	 * @param csvNumber CSV番号
 	 * @return
 	 */
 	private FindBookInputDTO setBookInputDTO() {
@@ -156,8 +131,8 @@ public class GetSeasonInfo {
 		containsList[5] = "average_stats/";
 		findBookInputDTO.setContainsList(containsList);
 		findBookInputDTO.setCsvNumber("0");
-		findBookInputDTO.setPrefixFile(BookMakersCommonConst.FUTURE_);
-		findBookInputDTO.setSuffixFile(BookMakersCommonConst.CSV);
+		findBookInputDTO.setPrefixFile(BookMakersCommonConst.SEASON);
+		findBookInputDTO.setSuffixFile(BookMakersCommonConst.XLSX);
 		return findBookInputDTO;
 	}
 

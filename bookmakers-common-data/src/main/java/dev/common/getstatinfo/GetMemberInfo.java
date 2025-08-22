@@ -140,7 +140,6 @@ public class GetMemberInfo {
 
 	/**
 	 * 読み取りinputDTOに設定する
-	 * @param csvNumber CSV番号
 	 * @return
 	 */
 	private FindBookInputDTO setBookInputDTO() {

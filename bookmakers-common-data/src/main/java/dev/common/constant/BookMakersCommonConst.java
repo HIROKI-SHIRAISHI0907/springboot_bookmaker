@@ -46,6 +46,12 @@ public class BookMakersCommonConst {
 	/** エラーメッセージ: ファイル削除でエラーが発生しました。*/
 	public static final String ERR_MESSAGE_ERR_FILE_DELETES = "ファイル削除でエラーが発生しました。";
 
+	/** エラーコード: シートが存在しません。 */
+	public static final String ERR_CD_NO_SHEET_EXISTS = "1000000007";
+
+	/** エラーメッセージ: シートが存在しません。 */
+	public static final String ERR_MESSAGE_NO_SHEET_EXISTS = "シートが存在しません。";
+
 	/** 定数: 通知済 */
 	public static final String FIN_NOTIFICATION = "通知済";
 
@@ -123,6 +129,9 @@ public class BookMakersCommonConst {
 
 	/** future_ */
 	public static final String FUTURE_ = "future_";
+
+	/** season_data */
+	public static final String SEASON = "season_data";
 
 	/** .xlsx */
 	public static final String XLSX = ".xlsx";
