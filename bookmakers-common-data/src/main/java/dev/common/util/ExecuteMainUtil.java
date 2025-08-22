@@ -325,6 +325,10 @@ public class ExecuteMainUtil {
 			list.add(parts[0]);
 			list.add(parts[1]);
 			list.add(parts[2]);
+		} else {
+			list.add(feature_value);
+			list.add("");
+			list.add("");
 		}
 		//System.out.println(percentage + "," + value1 + "," + value2);
 		return list;
