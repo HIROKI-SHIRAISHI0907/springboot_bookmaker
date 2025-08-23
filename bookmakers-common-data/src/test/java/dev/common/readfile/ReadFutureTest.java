@@ -30,8 +30,8 @@ class ReadFutureTest {
         assertNotNull(result.getFutureList());
 
         // さらに具体的な検証
-        assertEquals("韓国: K リーグ 1 - ラウンド 23", result.getFutureList().get(0).getGameTeamCategory());
-        assertEquals("安養", result.getFutureList().get(0).getHomeTeamName());
-        assertEquals("大邱", result.getFutureList().get(0).getAwayTeamName());
+        assertEquals("ブルガリア: パルヴァ・リーガ - ラウンド 6", result.getFutureList().get(0).getGameTeamCategory());
+        assertEquals("スラヴィア・ソフィア", result.getFutureList().get(0).getHomeTeamName());
+        assertEquals("アルダ・クルジャリ", result.getFutureList().get(0).getAwayTeamName());
     }
 }
