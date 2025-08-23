@@ -37,10 +37,9 @@ public class CountryLeagueSeasonDBService {
 	/**
 	 * チェックメソッド
 	 * @param chkEntities
-	 * @param fillChar
 	 */
-	public List<CountryLeagueSeasonMasterEntity> selectInBatch(List<CountryLeagueSeasonMasterEntity> chkEntities,
-			String fillChar) {
+	public List<CountryLeagueSeasonMasterEntity> selectInBatch(List<CountryLeagueSeasonMasterEntity> chkEntities
+			) {
 		final String METHOD_NAME = "selectInBatch";
 		List<CountryLeagueSeasonMasterEntity> entities = new ArrayList<CountryLeagueSeasonMasterEntity>();
 		for (CountryLeagueSeasonMasterEntity entity : chkEntities) {
@@ -52,7 +51,7 @@ public class CountryLeagueSeasonDBService {
 			} catch (Exception e) {
 				String messageCd = "DB接続エラー";
 				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, fillChar);
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
 				throw e;
 			}
 		}
