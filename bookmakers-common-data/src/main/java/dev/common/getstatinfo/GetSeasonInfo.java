@@ -121,18 +121,7 @@ public class GetSeasonInfo {
 	private FindBookInputDTO setBookInputDTO() {
 		FindBookInputDTO findBookInputDTO = new FindBookInputDTO();
 		findBookInputDTO.setDataPath(PATH);
-		findBookInputDTO.setCopyFlg(false);
-		findBookInputDTO.setGetBookFlg(true);
-		String[] containsList = new String[6];
-		containsList[0] = "breakfile";
-		containsList[1] = "all.csv";
-		containsList[3] = "conditiondata/";
-		containsList[4] = "python_analytics/";
-		containsList[5] = "average_stats/";
-		findBookInputDTO.setContainsList(containsList);
-		findBookInputDTO.setCsvNumber("0");
-		findBookInputDTO.setPrefixFile(BookMakersCommonConst.SEASON);
-		findBookInputDTO.setSuffixFile(BookMakersCommonConst.XLSX);
+		findBookInputDTO.setTargetFile(BookMakersCommonConst.SEASON_XLSX);
 		return findBookInputDTO;
 	}
 

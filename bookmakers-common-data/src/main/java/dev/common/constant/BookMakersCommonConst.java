@@ -130,8 +130,8 @@ public class BookMakersCommonConst {
 	/** future_ */
 	public static final String FUTURE_ = "future_";
 
-	/** season_data */
-	public static final String SEASON = "season_data";
+	/** season_data.xlsx */
+	public static final String SEASON_XLSX = "season_data.xlsx";
 
 	/** .xlsx */
 	public static final String XLSX = ".xlsx";

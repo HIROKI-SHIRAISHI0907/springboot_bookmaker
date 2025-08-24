@@ -80,20 +80,27 @@ public class FindStat {
 
 		List<String> bookList = null;
 		// ファイルの存在確認
-		String logMethod = (inputDTO.isGetBookFlg()) ? "getFiles" : "getStatFiles";
+		String logMethod = null;
 		try {
-			if (inputDTO.isGetBookFlg()) {
-				bookList = getFiles(findPath, inputDTO.getTargetFile(), inputDTO.getPrefixFile(),
-						inputDTO.getSuffixFile(),
-						inputDTO.getContainsList(),
-						inputDTO.getCsvNumber(),
-						inputDTO.getCsvBackNumber());
+			if (inputDTO.getTargetFile() != null) {
+				logMethod = "getTargetFiles";
+				bookList = getTargetFiles(findPath, inputDTO.getTargetFile());
 			} else {
-				bookList = getStatFiles(findPath, inputDTO.getTargetFile(), inputDTO.getPrefixFile(),
-						inputDTO.getSuffixFile(),
-						inputDTO.getContainsList(),
-						inputDTO.getCsvNumber(),
-						inputDTO.getCsvBackNumber());
+				if (inputDTO.isGetBookFlg()) {
+					logMethod = "getFiles";
+					bookList = getFiles(findPath, inputDTO.getPrefixFile(),
+							inputDTO.getSuffixFile(),
+							inputDTO.getContainsList(),
+							inputDTO.getCsvNumber(),
+							inputDTO.getCsvBackNumber());
+				} else {
+					logMethod = "getStatFiles";
+					bookList = getStatFiles(findPath, inputDTO.getPrefixFile(),
+							inputDTO.getSuffixFile(),
+							inputDTO.getContainsList(),
+							inputDTO.getCsvNumber(),
+							inputDTO.getCsvBackNumber());
+				}
 			}
 		} catch (IOException e) {
 			readBookOutputDTO.setExceptionProject(PROJECT_NAME);
@@ -140,7 +147,6 @@ public class FindStat {
 	/**
 	 * パス内に存在するブックを検索する
 	 * @param path チェックするパス
-	 * @param targetFile 対象ファイル名
 	 * @param prefixFile 先頭情報
 	 * @param suffixFile 拡張子情報
 	 * @param containsList 含有情報
@@ -148,23 +154,18 @@ public class FindStat {
 	 * @param csvBackNumber CSV情報
 	 * @throws IOException IOException
 	 */
-	private static List<String> getFiles(String path, String targetFile, String prefixFile,
+	private static List<String> getFiles(String path, String prefixFile,
 			String suffixFile,
 			String[] containsList, String csvNumber, String csvBackNumber) throws IOException {
 		List<String> bookPathList = new ArrayList<>();
 		List<Path> bookPathPathList = new ArrayList<>();
 		List<String> bookPathSortList = new ArrayList<>();
-		Files.walk(Paths.get(path))
+		Files.list(Paths.get(path))
 				.filter(Files::isRegularFile) // CSVファイルのみ
 				.filter(pathStr -> pathStr.toString().endsWith(suffixFile) &&
 						pathStr.getFileName().toString().startsWith(prefixFile))
 				.forEach(bookPathPathList::add);
 		for (Path pathStr : bookPathPathList) {
-			if (targetFile != null && pathStr.toString().contains(targetFile)) {
-				bookPathSortList.add(pathStr.toString());
-				return bookPathSortList;
-			}
-
 			// パスが全て含まれていなかったらcontinue
 			boolean chkFlg = false;
 			for (String contains : containsList) {
@@ -210,13 +211,16 @@ public class FindStat {
 			String convString = path + prefixFile + pathStr + suffixFile;
 			bookPathList.add(convString);
 		}
+		if (bookPathList.isEmpty()) {
+			// 上位層に伝播する
+			throw new IOException();
+		}
 		return bookPathList;
 	}
 
 	/**
 	 * パス内に存在するブックを検索する
 	 * @param path チェックするパス
-	 * @param targetFile 対象ファイル名
 	 * @param prefixFile 先頭情報
 	 * @param suffixFile 拡張子情報
 	 * @param containsList 含有情報
@@ -224,7 +228,7 @@ public class FindStat {
 	 * @param csvBackNumber CSV情報
 	 * @throws IOException IOException
 	 */
-	private static List<String> getStatFiles(String path, String targetFile, String prefixFile,
+	private static List<String> getStatFiles(String path, String prefixFile,
 			String suffixFile,
 			String[] containsList, String csvNumber, String csvBackNumber) throws IOException {
 		List<String> bookPathList = new ArrayList<>();
@@ -235,11 +239,6 @@ public class FindStat {
 				.filter(pathStr -> pathStr.toString().endsWith(suffixFile))
 				.forEach(bookPathPathList::add);
 		for (Path pathStr : bookPathPathList) {
-			if (targetFile != null && pathStr.toString().contains(targetFile)) {
-				bookPathSortList.add(pathStr.toString());
-				return bookPathSortList;
-			}
-
 			// パスが全て含まれていなかったらcontinue
 			boolean chkFlg = false;
 			for (String contains : containsList) {
@@ -284,6 +283,32 @@ public class FindStat {
 			String convString = path + pathStr + suffixFile;
 			bookPathList.add(convString);
 		}
+		if (bookPathList.isEmpty()) {
+			// 上位層に伝播する
+			throw new IOException();
+		}
 		return bookPathList;
 	}
+
+	/**
+	 * パス内に存在するブックを検索する
+	 * @param targetFile 対象ファイル名
+	 * @throws IOException IOException
+	 */
+	private static List<String> getTargetFiles(String path, String targetFile) throws IOException {
+		List<String> bookPathList = new ArrayList<>();
+		List<Path> bookPathPathList = new ArrayList<>();
+		Files.list(Paths.get(path))
+				.filter(pathStr -> pathStr.toString().contains(targetFile))
+				.forEach(bookPathPathList::add);
+		for (Path pathStr : bookPathPathList) {
+			bookPathList.add(pathStr.toString());
+		}
+		if (bookPathList.isEmpty()) {
+			// 上位層に伝播する
+			throw new IOException();
+		}
+		return bookPathList;
+	}
+
 }
