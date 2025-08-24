@@ -83,6 +83,11 @@ public class CountryLeagueSeasonDBService {
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
 					// 重複は特に例外として出さない
 					continue;
+				} catch (Exception e) {
+					String messageCd = "システムエラー";
+					this.manageLoggerComponent.debugErrorLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+					return 9;
 				}
 			}
 		}

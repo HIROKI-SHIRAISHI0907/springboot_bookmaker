@@ -59,8 +59,6 @@ public class TeamMasterBatch implements BatchIF {
 			this.teamMemberMasterStat.teamMemberStat(getMemberMap);
 		} catch (Exception e) {
 			// エラー
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, e.getMessage(), e);
 			return BatchResultConst.BATCH_ERR;
 		}
 

@@ -79,6 +79,11 @@ public class TeamMemberDBService {
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
 					// 重複は特に例外として出さない
 					continue;
+				} catch (Exception e) {
+					String messageCd = "システムエラー";
+					this.manageLoggerComponent.debugErrorLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+					return 9;
 				}
 			}
 		}
@@ -106,7 +111,7 @@ public class TeamMemberDBService {
 			} catch (Exception e) {
 				String messageCd = "DB接続エラー";
 				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, fillChar);
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 				throw e;
 			}
 		}

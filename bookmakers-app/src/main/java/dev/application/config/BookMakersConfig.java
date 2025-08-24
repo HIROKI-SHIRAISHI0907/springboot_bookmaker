@@ -13,8 +13,10 @@ import org.springframework.context.annotation.Configuration;
 @ComponentScan(basePackages = {
 		"dev.application.constant",
 		"dev.application.common",
+		"dev.application.analyze",
 		"dev.common.getstatinfo",
 		"dev.common.findcsv",
+		"dev.common.server",
 		"dev.common.delete",
 		"dev.common.copy",
 		"dev.common.convertcsvandread",
