@@ -16,7 +16,8 @@ public interface CountryLeagueSeasonMasterRepository {
 			"INSERT INTO country_league_season_master (",
 			"id, country, league, start_season_date, end_season_date, path, upd_stamp,",
 			"register_id, register_time, update_id, update_time) VALUES (",
-			"#{id}, #{country}, #{league}, #{startSeasonDate}, #{endSeasonDate}, #{path}, #{updStamp}",
+			"#{id}, #{country}, #{league}, #{startSeasonDate}, "
+			+ "#{endSeasonDate}, #{path}, #{updStamp},",
 			"#{registerId}, #{registerTime}, #{updateId}, #{updateTime});"
 	})
 	int insert(CountryLeagueSeasonMasterEntity entity);
