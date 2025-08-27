@@ -72,7 +72,7 @@ public class ReadTeamMember {
 					mappingDto.setPosition(parts[4]);
 					mappingDto.setJersey(parts[5].replace("N/A", "").replace(".0", ""));
 					mappingDto.setScore(parts[6].replace(".0", ""));
-					mappingDto.setAge(parts[7]);
+					mappingDto.setAge(parts[7].replace(".0", ""));
 					mappingDto.setBirth(DateUtil.convertOnlyDD_MM_YYYY(parts[8]));
 					mappingDto.setMarketValue(parts[9].replace("N/A", ""));
 					mappingDto.setLoanBelong(parts[10]);

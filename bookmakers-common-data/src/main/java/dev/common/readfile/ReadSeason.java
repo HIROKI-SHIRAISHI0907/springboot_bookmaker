@@ -91,8 +91,10 @@ public class ReadSeason {
 					continue;
 
 				// 日付変換
-				String startConv = DateStatHelper.toIsoFromDayMonth(start, this.timeConfig.clock());
-				String endConv = DateStatHelper.toIsoFromDayMonth(end, this.timeConfig.clock());
+				DateStatHelper.SeasonIso season =
+	                    DateStatHelper.toSeasonIso(start, end, this.timeConfig.clock());
+	            String startConv = season.startIso;
+	            String endConv   = season.endIso;
 
 				CountryLeagueSeasonMasterEntity e = new CountryLeagueSeasonMasterEntity();
 				e.setCountry(country);
