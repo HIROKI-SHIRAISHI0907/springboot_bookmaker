@@ -132,7 +132,7 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 			exDto.setBelongList(exDto.getTeam());
 			// 得点数(暫定データ)を対戦相手,得点数(対戦相手-得点数をカンマ繋ぎ)に詰め替える
 			// TODO: 詰め替え対象フィールドを検討
-			//newDto.setVersusTeamScoreData(exDto.getScore());
+			exDto.setVersusTeamScoreData(exDto.getScore());
 			// ローンが設定されている場合は,あり
 			String deadline = (!"".equals(exDto.getLoanBelong())) ? "1" : "0";
 			exDto.setDeadline(deadline);
@@ -149,6 +149,8 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 	 * @return
 	 */
 	private TeamMemberMasterEntity updateData(TeamMemberMasterEntity exDto, TeamMemberMasterEntity oldDto) {
+		// 元チームを保存
+		String exTeam = oldDto.getTeam();
 		if (!oldDto.getMember().equals(exDto.getMember())) {
 			return null;
 		}
@@ -156,24 +158,46 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 		newDto.setId(oldDto.getId());
 		newDto.setCountry(oldDto.getCountry());
 		newDto.setLeague(oldDto.getLeague());
-		newDto.setTeam(oldDto.getTeam());
+		newDto.setTeam((oldDto.getTeam() == null || "".equals(oldDto.getTeam())
+				? exDto.getTeam()
+				: oldDto.getTeam()));
 		newDto.setMember(oldDto.getMember());
 		newDto.setScore((oldDto.getScore() == null || "".equals(oldDto.getScore())
 				? exDto.getScore()
-				: oldDto.getScore()));
-		newDto.setLoanBelong((oldDto.getLoanBelong() == null || "".equals(oldDto.getLoanBelong())
-				? exDto.getLoanBelong()
-				: oldDto.getLoanBelong()));
-		newDto.setJersey((oldDto.getJersey() == null || "".equals(oldDto.getJersey())
-				? exDto.getJersey()
-				: oldDto.getJersey()));
+				: String.valueOf(Integer.parseInt(exDto.getScore()) + Integer.parseInt(oldDto.getScore()))));
+		String nowLoanBelong = null;
+		// 所属元が空(初めてローンに出されるorローンに出されていない)
+		if (oldDto.getLoanBelong() == null || "".equals(oldDto.getLoanBelong())) {
+			nowLoanBelong = exDto.getLoanBelong();
+			// 引き続き別のローンを組まれる
+		} else {
+			nowLoanBelong = oldDto.getLoanBelong() + "," + exDto.getLoanBelong();
+		}
+		newDto.setLoanBelong(nowLoanBelong);
+		// 移籍リスト
+		newDto.setBelongList(mergeHistory(oldDto.getTeam(), exDto.getTeam()));
+		String nowJersey = null;
+			// 背番号が空(新入団選手)もしくは同じ背番号
+		if (oldDto.getJersey() == null || "".equals(oldDto.getJersey()) ||
+				(oldDto.getJersey().equals(exDto.getJersey()))) {
+			nowJersey = exDto.getJersey();
+			// 背番号変更
+		} else {
+			// 別チームに移籍後の初背番号
+			nowJersey = oldDto.getJersey() + "," + exDto.getJersey();
+			// 移籍した場合(1つ前の所属元チームの頭4文字を連結)
+			if (newDto.getBelongList().contains(",")) {
+				String atamaTeam = exTeam.substring(0, 4);
+				nowJersey += "(" + atamaTeam + ")";
+			}
+		}
+		newDto.setJersey(nowJersey);
 		newDto.setFacePicPath((oldDto.getFacePicPath() == null || "".equals(oldDto.getFacePicPath())
 				? exDto.getFacePicPath()
 				: oldDto.getFacePicPath()));
-		newDto.setBirth(oldDto.getBirth());
-		newDto.setAge((oldDto.getAge() == null || "".equals(oldDto.getAge())
-				? exDto.getAge()
-				: oldDto.getAge()));
+		newDto.setBirth(exDto.getBirth());
+		// 年齢は同じ年齢でないケースを含め,最新の年齢を設定(最新のデータの方が現在の日時に応じた年が設定されているため)
+		newDto.setAge(exDto.getAge());
 		newDto.setInjury((oldDto.getInjury() == null || "".equals(oldDto.getInjury())
 				? exDto.getInjury()
 				: oldDto.getInjury()));
@@ -181,15 +205,13 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 				!"".equals(exDto.getLoanBelong())) ? "1" : "0";
 		newDto.setDeadline(deadline);
 		// 普通は1度引退フラグが1になるとそれ以降は変わらない(現役復帰でない限り)
-		newDto.setRetireFlg((oldDto.getRetireFlg() == null || "".equals(oldDto.getRetireFlg())
-				? exDto.getRetireFlg()
-				: oldDto.getRetireFlg()));
 		if (newDto.getRetireFlg() == null || "".equals(newDto.getRetireFlg())) {
 			newDto.setRetireFlg("0");
+		} else {
+			newDto.setRetireFlg(exDto.getRetireFlg());
 		}
 		newDto.setDeadlineContractDate(mergeHistory(
 				oldDto.getDeadlineContractDate(), exDto.getDeadlineContractDate()));
-		newDto.setBelongList(mergeHistory(oldDto.getTeam(), exDto.getTeam()));
 		newDto.setHeight(mergeHistory(oldDto.getHeight(), exDto.getHeight()));
 		newDto.setWeight(mergeHistory(oldDto.getWeight(), exDto.getWeight()));
 		newDto.setPosition(mergeHistory(oldDto.getPosition(), exDto.getPosition()));

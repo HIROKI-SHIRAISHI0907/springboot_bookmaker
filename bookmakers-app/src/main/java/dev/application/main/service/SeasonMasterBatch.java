@@ -51,7 +51,7 @@ public class SeasonMasterBatch implements BatchIF {
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// 選手XLSXデータ情報を取得
+		// チームデータ情報を取得
 		List<CountryLeagueSeasonMasterEntity> getMemberList = this.getSeasonInfo.getData();
 		// BM_M029登録(Transactional)
 		try {
