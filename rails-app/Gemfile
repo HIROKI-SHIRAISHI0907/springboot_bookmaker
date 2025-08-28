@@ -97,4 +97,10 @@ group :test do
   # rspec
   gem 'rspec-rails'
   # 以下、コースで追加したgem ここまで
+
+  # bcrypt, redis, jwt, punditをinstall
+  gem 'bcrypt'
+  gem 'redis'
+  gem 'jwt'
+  gem 'pundit'
 end

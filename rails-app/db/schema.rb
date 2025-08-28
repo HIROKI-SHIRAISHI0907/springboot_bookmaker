@@ -10,7 +10,7 @@
 #
 # It's strongly recommended that you check this file into your version control system.
 
-ActiveRecord::Schema[7.0].define(version: 2025_08_10_124245) do
+ActiveRecord::Schema[7.0].define(version: 2025_08_27_154354) do
   create_table "comments", primary_key: "commentid", id: :string, force: :cascade do |t|
     t.string "postid", null: false
     t.string "userid", null: false
@@ -24,6 +24,14 @@ ActiveRecord::Schema[7.0].define(version: 2025_08_10_124245) do
     t.string "title", null: false
     t.string "body", null: false
     t.string "reviewer", null: false
+    t.datetime "created_at", null: false
+    t.datetime "updated_at", null: false
+  end
+
+  create_table "users", primary_key: "userid", id: :string, force: :cascade do |t|
+    t.string "password_digest", null: false
+    t.string "email", null: false
+    t.string "birthday"
     t.datetime "created_at", null: false
     t.datetime "updated_at", null: false
   end

@@ -1,0 +1,35 @@
+<div class='container mt-3 mb-5'>
+   <div class="d-flex justify-content-between align-items-center mb-5">
+      <h1 class="mb-0">ユーザー作成</h1>
+      <%= link_to "ログインへ", login_users_path, class: "btn btn-outline-secondary btn-sm" %>
+   </div>
+
+   <%= form_with model: @user, local: true do |f| %>
+      <div class='col-lg-8 mx-auto mb-5'>
+         <div class='row g-3'>
+            <div class="col-12">
+               <%= f.label :email, class: 'form-label border-start border-primary border-4 ps-1' %>
+               <%= f.text_field :email, size: 80, class: 'form-control' %>
+               <% f.object.errors.full_messages_for(:email).each do |err_message| %>
+               <div class='text-danger'>*<%= err_message %></div>
+               <% end %>
+            </div>
+
+            <div class="col-12">
+               <%= f.label :password, class: 'form-label border-start border-primary border-4 ps-1' %>
+               <%= f.text_field :password, size: 80, class: 'form-control' %>
+               <% f.object.errors.full_messages_for(:password).each do |err_message| %>
+               <div class='text-danger'>*<%= err_message %></div>
+               <% end %>
+            </div>
+         </div>
+      </div>
+
+      <div class='row g-3'>
+         <!-- ログインボタン -->
+         <div class="col-auto">
+            <%= f.button '新規作成', class: 'btn btn-primary' %>
+         </div>
+      </div>
+   <% end %>
+</div>

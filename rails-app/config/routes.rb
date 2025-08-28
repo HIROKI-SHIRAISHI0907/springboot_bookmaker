@@ -9,6 +9,9 @@ Rails.application.routes.draw do
   # posts POST   /posts(.:format)   posts#create
   # new_post GET    /posts/new(.:format)   posts#new
   resources :posts, only: %i[new create]
+  resources :users, only: %i[new create] do 
+    collection     { get :login }
+  end
 
   # 詳細・編集（postidがある画面）URLにpostidを仕込んでいく。deleteしたいときはdestroyと書く
   resources :posts, param: :postid, only: [:new, :create, :update, :destroy] do

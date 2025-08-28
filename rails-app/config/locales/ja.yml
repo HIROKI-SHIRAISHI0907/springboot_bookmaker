@@ -6,3 +6,6 @@ ja:
         title: タイトル
         body: 本文
         reviewer: 担当者
+      user:
+        email: E-mail
+        password: パスワード
