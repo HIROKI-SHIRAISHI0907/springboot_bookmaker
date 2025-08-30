@@ -1,32 +1,34 @@
+# app/controllers/users_controller.rb
 class UsersController < ApplicationController
-   def new  #routes.rbで設定した posts#newの箇所
-      @user = User.new 
-   end
+  skip_before_action :authenticate!, only: [:new, :create], raise: false
 
-   #ユーザー作成画面
-   def create #routes.rbで設定した users#createの箇所
+  def new
+    @user = User.new
+  end
+
+  def create
       @user = User.new(user_params)
-      # 登録したらGETで/users/loginへリダイレクト
       if @user.save
-         redirect_to login_users_path, notice: 'ユーザーを作成しました。', status: :see_other
+         issued = ::JsonWebToken.issue_for(@user)
+         token  = issued.is_a?(Hash) ? (issued[:token] || issued['token']) : issued
+
+         cookies[:jwt] = {
+            value:     token,
+            expires:   1.week.from_now,
+            httponly:  true,
+            secure:    Rails.env.production?,
+            same_site: :lax
+         }
+
+         redirect_to all_posts_path, notice: 'ユーザーを作成し、ログインしました。', status: :see_other
       else
          render :new, status: :unprocessable_entity
       end
    end
 
-   def login
-      @login = User.new
-   end
-
-   #ログインチェック
-   def loginChk
-      email = User.find_by!(email: params[:email])
-      redirect_to all_posts_path, notice: 'ユーザーを作成しました。', status: :see_other
-   end
-
    private
-
-   def user_params #受け取るべきパラメータのみ記載
-      params.require(:user).permit(:email, :password)
+   
+   def user_params
+      params.require(:user).permit(:email, :password, :password_confirmation)
    end
 end

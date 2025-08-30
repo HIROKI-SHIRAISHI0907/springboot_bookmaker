@@ -3,7 +3,7 @@
       <h1 class="mb-0">ログイン</h1>
    </div>
 
-   <%= form_with model: @login, local: true do |f| %>
+   <%= form_with model: @login, url: login_path, local: true do |f| %>
       <div class='col-lg-8 mx-auto mb-5'>
          <div class='row g-3'>
             <div class="col-12">

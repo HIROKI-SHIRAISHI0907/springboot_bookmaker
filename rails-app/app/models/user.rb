@@ -1,13 +1,10 @@
 class User < ApplicationRecord
-  # validate
-  validates :email,
-    format: { with: URI::MailTo::EMAIL_REGEXP },
-    presence: true,
-    uniqueness: { case_sensitive: false }
-  validates :password, presence: true, length: { maximum: 30 }
+  has_secure_password  # password / password_confirmation を受け付ける
 
-  # 安全なパスワードハッシュ機能
-  has_secure_password
+  validates :email,
+    presence: true,
+    uniqueness: { case_sensitive: false },
+    format: { with: URI::MailTo::EMAIL_REGEXP }
 
   # DBに登録する前でUSERXXXXの形式でuseridを設定
   self.primary_key = 'userid'
