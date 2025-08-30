@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m019_bm_m20;
+package dev.application.analyze.bm_m007_bm_m016;
 
 import java.util.List;
 import java.util.Map;
@@ -8,24 +8,23 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-import dev.application.analyze.bm_m019_bm_m020.MatchClassificationResultStat;
 import dev.common.entity.BookDataEntity;
 import dev.common.getstatinfo.GetStatInfo;
 
 /**
- * BM_M019_BM_M20統計分析ロジックテスト
+ * BM_M007_BM_M016統計分析ロジックテスト
  * @author shiraishitoshio
  *
  */
 @SpringBootTest
 @ActiveProfiles("test")
-public class MatchClassificationResultStatTest {
+public class TimeRangeFeatureStatTest {
 
 	@Autowired
 	private GetStatInfo getStatInfo;
 
 	@Autowired
-	private MatchClassificationResultStat matchClassificationResultStat;
+	private TimeRangeFeatureStat timeRangeFeatureStat;
 
 	/**
 	 * 処理速度実験
@@ -37,7 +36,7 @@ public class MatchClassificationResultStatTest {
 		String csvNumberAfter = "1";
 		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
 
-		this.matchClassificationResultStat.calcStat(entities);
+		this.timeRangeFeatureStat.calcStat(entities);
 	}
 
 }

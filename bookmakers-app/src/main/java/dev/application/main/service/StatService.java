@@ -8,6 +8,18 @@ import org.springframework.stereotype.Service;
 
 import dev.application.analyze.bm_m002.ConditionResultDataStat;
 import dev.application.analyze.bm_m003.TeamMonthlyScoreSummaryStat;
+import dev.application.analyze.bm_m004.TeamTimeSegmentShootingStat;
+import dev.application.analyze.bm_m005.NoGoalMatchStat;
+import dev.application.analyze.bm_m007_bm_m016.TimeRangeFeatureStat;
+import dev.application.analyze.bm_m017_bm_m018.LeagueScoreTimeBandStat;
+import dev.application.analyze.bm_m019_bm_m020.MatchClassificationResultStat;
+import dev.application.analyze.bm_m021.TeamMatchFinalStat;
+import dev.application.analyze.bm_m023.ScoreBasedFeatureStat;
+import dev.application.analyze.bm_m024.CalcCorrelationStat;
+import dev.application.analyze.bm_m025.CalcCorrelationRankingStat;
+import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureStat;
+import dev.application.analyze.bm_m027.AnalyzeRankingStat;
+import dev.application.analyze.bm_m029.CountryLeagueSeasonMasterStat;
 import dev.common.entity.BookDataEntity;
 import dev.common.getstatinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
@@ -44,6 +56,78 @@ public class StatService implements StatIF {
 	 */
 	@Autowired
 	private TeamMonthlyScoreSummaryStat teamMonthlyScoreSummaryStat;
+
+	/**
+	 * BM_M004統計分析ロジッククラス
+	 */
+	@Autowired
+	private TeamTimeSegmentShootingStat teamTimeSegmentShootingStat;
+
+	/**
+	 * BM_M005統計分析ロジッククラス
+	 */
+	@Autowired
+	private NoGoalMatchStat noGoalMatchStat;
+
+	/**
+	 * BM_M006統計分析ロジッククラス
+	 */
+	@Autowired
+	private CountryLeagueSeasonMasterStat countryLeagueSeasonMasterStat;
+
+	/**
+	 * BM_M007-BM_M016統計分析ロジッククラス
+	 */
+	@Autowired
+	private TimeRangeFeatureStat timeRangeFeatureStat;
+
+	/**
+	 * BM_M017-BM_M018統計分析ロジッククラス
+	 */
+	@Autowired
+	private LeagueScoreTimeBandStat leagueScoreTimeBandStat;
+
+	/**
+	 * BM_M019-BM_M020統計分析ロジッククラス
+	 */
+	@Autowired
+	private MatchClassificationResultStat matchClassificationResultStat;
+
+	/**
+	 * BM_M021統計分析ロジッククラス
+	 */
+	@Autowired
+	private TeamMatchFinalStat teamMatchFinalStat;
+
+	/**
+	 * BM_M023統計分析ロジッククラス
+	 */
+	@Autowired
+	private ScoreBasedFeatureStat scoreBasedFeatureStat;
+
+	/**
+	 * BM_M024統計分析ロジッククラス
+	 */
+	@Autowired
+	private CalcCorrelationStat calcCorrelationStat;
+
+	/**
+	 * BM_M025統計分析ロジッククラス
+	 */
+	@Autowired
+	private CalcCorrelationRankingStat calcCorrelationRankingStat;
+
+	/**
+	 * BM_M026統計分析ロジッククラス
+	 */
+	@Autowired
+	private EachTeamScoreBasedFeatureStat eachTeamScoreBasedFeatureStat;
+
+	/**
+	 * BM_M027統計分析ロジッククラス
+	 */
+	@Autowired
+	private AnalyzeRankingStat analyzeRankingStat;
 
 	/**
 	 * ログ管理クラス

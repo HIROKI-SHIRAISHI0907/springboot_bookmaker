@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m017_bm_m18;
+package dev.application.analyze.bm_m017_bm_m018;
 
 import java.util.List;
 import java.util.Map;
@@ -8,12 +8,11 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-import dev.application.analyze.bm_m017_bm_m018.LeagueScoreTimeBandStat;
 import dev.common.entity.BookDataEntity;
 import dev.common.getstatinfo.GetStatInfo;
 
 /**
- * BM_M017_BM_M18統計分析ロジックテスト
+ * BM_M017_BM_M018統計分析ロジックテスト
  * @author shiraishitoshio
  *
  */

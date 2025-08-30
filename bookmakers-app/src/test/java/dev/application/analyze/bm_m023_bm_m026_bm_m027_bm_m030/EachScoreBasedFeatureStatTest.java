@@ -90,4 +90,17 @@ class EachScoreBasedFeatureStatTest {
 		this.eachTeamScoreBasedFeatureStat.calcStat(entities);
 	}
 
+	/**
+	 * XX% (XX/XX)の形式を持つデータのマップかつ同一国,リーグデータ
+	 */
+	@Test
+	void test_calcStat_shouldInitUpdateData4() {
+		// バレンシアvsアトレティコ・マドリード
+		String csvNumber = "0";
+		String csvBackNumber = "450";
+		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvBackNumber);
+
+		this.eachTeamScoreBasedFeatureStat.calcStat(entities);
+	}
+
 }
