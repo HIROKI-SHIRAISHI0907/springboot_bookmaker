@@ -4,7 +4,7 @@
       <%= link_to "一覧", all_posts_path, class: "btn btn-outline-secondary" %>
       <!-- サインイン,サインアウトへ -->
       <% if logged_in? %>
-         <%= link_to "サインアウト", logout_path, data: { turbo_method: :delete }, class: "btn btn-outline-danger" %>
+         <%= button_to "サインアウト", logout_path, method: :delete, class: "btn btn-outline-danger" %>
       <% else %>
          <%= link_to "サインイン", login_path, class: "btn btn-outline-secondary" %>
       <% end %>

@@ -1,6 +1,7 @@
 class PostsController < ApplicationController
-   skip_before_action :authenticate!, only: %i[new all detail], raise: false
-   before_action :authenticate!, only: %i[create edit update destroy]
+   skip_before_action :authenticate!, only: %i[all detail], raise: false #/posts/newだけは認証スキップをしない
+   # それ以外はログイン必須（new も含まれる）
+   before_action :authenticate!, except: %i[all detail]
 
    def new
       @post = Post.new
@@ -17,9 +18,12 @@ class PostsController < ApplicationController
    end
 
    def all
-      @posts = Post.order(updated_at: :desc)
-      return render :new if defined?(@post) && @post&.invalid?
-      return render :new if defined?(@edit) && @edit&.invalid?
+      if logged_in?
+         @posts = Post.where(userid: current_user_id).order(updated_at: :desc)
+      else
+         # 未ログイン時は一覧を出さない
+         @posts = Post.none
+      end
    end
 
    def detail
@@ -56,7 +60,7 @@ class PostsController < ApplicationController
    end
 
    private
-   
+
    def post_params
       params.require(:post).permit(:name, :title, :body, :reviewer)
    end
