@@ -1,52 +1,34 @@
-# app/controllers/application_controller.rb
-require "pundit"
-
 class ApplicationController < ActionController::Base
-  include Pundit::Authorization
-  protect_from_forgery with: :null_session
+  before_action :set_current_user_id
 
-  # 現在全てのコントローラが当コントローラーを継承しているためクッキーにJWTがなければログインに強制遷移
-  before_action :authenticate!
+  helper_method :logged_in?, :current_user_id
 
-  rescue_from Pundit::NotAuthorizedError do
-    render json: { error: "Forbidden" }, status: :forbidden
-  end
+  def logged_in?      = @current_user_id.present?
+  def current_user_id = @current_user_id
 
   private
 
-  # JWTがあるか
-  def authenticate!
-    token = bearer_token
-    return handle_unauthenticated("Token missing") if token.blank?
+  def set_current_user_id
+    token = cookies.encrypted[:jwt] || cookies[:jwt] || session[:jwt] || request.headers['Authorization']
+    @current_user_id = nil
+    return if token.blank?
 
-    payload = ::JsonWebToken.verify!(token)  # => { "user_id", "exp" }
-
-    # ★ User.primary_key を使って探す（主キーが 'userid' なら USER0002 でヒット）
+    token = token.split.last if token.to_s.start_with?('Bearer ')
     begin
-      @current_user = User.find(payload[:user_id])   # ← primary_key を尊重して探す
-    rescue ActiveRecord::RecordNotFound
-      return handle_unauthenticated("User not found")
-    end
-  rescue ::JsonWebToken::Error => e
-    handle_unauthenticated(e.message)
-  end
+      payload, _ = JsonWebToken.decode(token)
+      uid = payload['sub'] || payload['user_id'] || payload['uid']
+      @current_user_id = (uid.is_a?(String) && uid.match?(/\A\d+\z/)) ? uid.to_i : uid
 
-  def handle_unauthenticated(message)
-    respond_to do |format|
-      format.html { redirect_to login_path, alert: "ログインしてください" }
-      format.json { render json: { error: message }, status: :unauthorized }
-      format.any  { render plain: message, status: :unauthorized }
+      # デバッグ（必要なら）
+      Rails.logger.debug "[JWT] ok uid=#{@current_user_id.inspect} path=#{request.path}"
+    rescue JWT::DecodeError, JWT::ExpiredSignature => e
+      Rails.logger.warn "[JWT] decode failed: #{e.class}: #{e.message} path=#{request.path}"
+      @current_user_id = nil
     end
   end
 
-  # CookieからJWTが登路されているか
-  def bearer_token
-    auth = request.headers["Authorization"]
-    return auth.split.last if auth&.start_with?("Bearer ")
-    cookies[:jwt]  # ← HTML遷移時はこれ
-  end
-
-  def current_user
-    @current_user
+  def authenticate!
+    return if logged_in?
+    redirect_to login_path, alert: 'サインインしてください。'
   end
 end

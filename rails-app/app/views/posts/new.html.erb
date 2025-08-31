@@ -3,7 +3,11 @@
       <h1 class="mb-0">掲示板作成</h1>
       <%= link_to "掲示板一覧", all_posts_path, class: "btn btn-outline-secondary btn-sm" %>
       <!-- サインイン,サインアウトへ -->
-      <%= link_to "サインイン", new_post_path, class: "btn btn-outline-secondary" %>
+      <% if logged_in? %>
+         <%= link_to "サインアウト", logout_path, data: { turbo_method: :delete }, class: "btn btn-outline-danger" %>
+      <% else %>
+         <%= link_to "サインイン", login_path, class: "btn btn-outline-secondary" %>
+      <% end %>
    </div>
 
    <%= render 'form', post: @post %>

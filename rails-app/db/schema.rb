@@ -20,6 +20,7 @@ ActiveRecord::Schema[7.0].define(version: 2025_08_27_154354) do
   end
 
   create_table "posts", primary_key: "postid", id: :string, force: :cascade do |t|
+    t.string "userid", null: false
     t.string "name", null: false
     t.string "title", null: false
     t.string "body", null: false

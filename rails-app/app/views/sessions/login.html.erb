@@ -1,6 +1,7 @@
 <div class='container mt-3 mb-5'>
    <div class="d-flex justify-content-between align-items-center mb-5">
       <h1 class="mb-0">ログイン</h1>
+      <%= link_to "ユーザー作成へ", new_user_path, class: "btn btn-outline-secondary btn-sm" %>
    </div>
 
    <%= form_with model: @login, url: login_path, local: true do |f| %>
