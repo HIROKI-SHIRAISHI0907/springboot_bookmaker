@@ -52,6 +52,12 @@ public class BookMakersCommonConst {
 	/** エラーメッセージ: シートが存在しません。 */
 	public static final String ERR_MESSAGE_NO_SHEET_EXISTS = "シートが存在しません。";
 
+	/** エラーコード: 異常データが検出されました。 */
+	public static final String ERR_CD_ABNORMALY_DATA = "1000000008";
+
+	/** エラーメッセージ: 異常データが検出されました。 */
+	public static final String ERR_MESSAGE_ABNORMALY_DATA = "異常データが検出されました。";
+
 	/** 定数: 通知済 */
 	public static final String FIN_NOTIFICATION = "通知済";
 

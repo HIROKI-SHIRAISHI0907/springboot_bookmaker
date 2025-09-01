@@ -16,7 +16,6 @@ import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.dto.ReadFileOutputDTO;
 import dev.common.util.DateUtil;
 
-
 /**
  * ファイル読み込みクラス
  * @author shiraishitoshio
@@ -51,6 +50,9 @@ public class ReadTeamMember {
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
+		String errCd = BookMakersCommonConst.NORMAL_CD;
+		String fillChar = "";
+
 		ReadFileOutputDTO readFileOutputDTO = new ReadFileOutputDTO();
 		File file = new File(fileFullPath);
 		List<TeamMemberMasterEntity> entiryList = new ArrayList<TeamMemberMasterEntity>();
@@ -73,20 +75,37 @@ public class ReadTeamMember {
 					mappingDto.setJersey(parts[5].replace("N/A", "").replace(".0", ""));
 					mappingDto.setScore(parts[6].replace(".0", ""));
 					mappingDto.setAge(parts[7].replace(".0", ""));
-					mappingDto.setBirth(DateUtil.convertOnlyDD_MM_YYYY(parts[8]));
+					try {
+						mappingDto.setBirth(DateUtil.convertOnlyDD_MM_YYYY(parts[8]));
+					} catch (Exception e) {
+						// 何もしないがエラーコード設定
+						errCd = BookMakersCommonConst.ERR_CD_ABNORMALY_DATA;
+						fillChar += "data: " + parts[8] + ", " + e + "|| ";
+					}
 					mappingDto.setMarketValue(parts[9].replace("N/A", ""));
 					mappingDto.setLoanBelong(parts[10]);
-					mappingDto.setDeadlineContractDate(DateUtil.convertOnlyDD_MM_YYYY(parts[11].replace("N/A", "")));
+					try {
+						mappingDto
+								.setDeadlineContractDate(DateUtil.convertOnlyDD_MM_YYYY(parts[11].replace("N/A", "")));
+					} catch (Exception e) {
+						// 一部のエラーについてはそのデータを除外して登録するがエラーコードは設定
+						errCd = BookMakersCommonConst.ERR_CD_ABNORMALY_DATA;
+						fillChar += "data: " + parts[8] + ", " + e + "|| ";
+					}
 					mappingDto.setFacePicPath(parts[12]);
 					mappingDto.setInjury(parts[13]);
 					mappingDto.setLatestInfoDate(parts[14]);
-					entiryList.add(mappingDto);
+					mappingDto = (BookMakersCommonConst.NORMAL_CD.equals(errCd)) ? mappingDto : null;
+					if (mappingDto != null) {
+						entiryList.add(mappingDto);
+					}
 				} else {
 					row++;
 				}
 			}
-			readFileOutputDTO.setResultCd(BookMakersCommonConst.NORMAL_CD);
+			readFileOutputDTO.setResultCd(errCd);
 			readFileOutputDTO.setMemberList(entiryList);
+			readFileOutputDTO.setErrMessage(fillChar);
 		} catch (Exception e) {
 			readFileOutputDTO.setExceptionProject(PROJECT_NAME);
 			readFileOutputDTO.setExceptionClass(CLASS_NAME);

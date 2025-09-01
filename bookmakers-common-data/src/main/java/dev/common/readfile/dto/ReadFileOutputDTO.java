@@ -5,6 +5,7 @@ import java.util.List;
 import dev.common.dto.AbstractResultErrDetailOutputDTO;
 import dev.common.entity.BookDataEntity;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
+import dev.common.entity.DataEntity;
 import dev.common.entity.FutureEntity;
 import dev.common.entity.TeamMemberMasterEntity;
 import lombok.Data;
@@ -23,6 +24,11 @@ public class ReadFileOutputDTO extends AbstractResultErrDetailOutputDTO {
 	 * 結果コード(終了コード)
 	 */
 	private String resultCd;
+
+	/**
+	 * 読み取り結果リスト
+	 */
+	private List<DataEntity> dataList;
 
 	/**
 	 * 読み取り結果リスト
