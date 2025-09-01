@@ -4,7 +4,7 @@ import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 
-import dev.common.entity.BookDataEntity;
+import dev.common.entity.DataEntity;
 
 @Mapper
 public interface BookDataRepository {
@@ -13,9 +13,9 @@ public interface BookDataRepository {
 			    INSERT INTO data (
 			        seq,
 			        condition_result_data_seq_id,
+			        data_category,
+			        times,
 			        home_rank,
-			        game_team_category,
-			        time,
 			        home_team_name,
 			        home_score,
 			        away_rank,
@@ -23,20 +23,20 @@ public interface BookDataRepository {
 			        away_score,
 			        home_exp,
 			        away_exp,
-			        home_ball_possesion,
-			        away_ball_possesion,
+			        home_donation,
+			        away_donation,
 			        home_shoot_all,
 			        away_shoot_all,
 			        home_shoot_in,
 			        away_shoot_in,
 			        home_shoot_out,
 			        away_shoot_out,
-			        home_shoot_blocked,
-			        away_shoot_blocked,
+			        home_block_shoot,
+			        away_block_shoot,
 			        home_big_chance,
 			        away_big_chance,
-			        home_corner_kick,
-			        away_corner_kick,
+			        home_corner,
+			        away_corner,
 			        home_box_shoot_in,
 			        away_box_shoot_in,
 			        home_box_shoot_out,
@@ -49,8 +49,8 @@ public interface BookDataRepository {
 			        away_keeper_save,
 			        home_free_kick,
 			        away_free_kick,
-			        home_off_side,
-			        away_off_side,
+			        home_offside,
+			        away_offside,
 			        home_foul,
 			        away_foul,
 			        home_yellow_card,
@@ -112,9 +112,9 @@ public interface BookDataRepository {
 			    ) VALUES (
 			        #{seq},
 			        #{conditionResultDataSeqId},
+			        #{dataCategory},
+			        #{times},
 			        #{homeRank},
-			        #{gameTeamCategory},
-			        #{time},
 			        #{homeTeamName},
 			        #{homeScore},
 			        #{awayRank},
@@ -122,20 +122,20 @@ public interface BookDataRepository {
 			        #{awayScore},
 			        #{homeExp},
 			        #{awayExp},
-			        #{homeBallPossesion},
-			        #{awayBallPossesion},
+			        #{homeDonation},
+			        #{awayDonation},
 			        #{homeShootAll},
 			        #{awayShootAll},
 			        #{homeShootIn},
 			        #{awayShootIn},
 			        #{homeShootOut},
 			        #{awayShootOut},
-			        #{homeShootBlocked},
-			        #{awayShootBlocked},
+			        #{homeBlockShoot},
+			        #{awayBlockShoot},
 			        #{homeBigChance},
 			        #{awayBigChance},
-			        #{homeCornerKick},
-			        #{awayCornerKick},
+			        #{homeCorner},
+			        #{awayCorner},
 			        #{homeBoxShootIn},
 			        #{awayBoxShootIn},
 			        #{homeBoxShootOut},
@@ -148,8 +148,8 @@ public interface BookDataRepository {
 			        #{awayKeeperSave},
 			        #{homeFreeKick},
 			        #{awayFreeKick},
-			        #{homeOffSide},
-			        #{awayOffSide},
+			        #{homeOffside},
+			        #{awayOffside},
 			        #{homeFoul},
 			        #{awayFoul},
 			        #{homeYellowCard},
@@ -205,15 +205,23 @@ public interface BookDataRepository {
 			        #{probablity},
 			        #{predictionScoreTime},
 			        #{registerId},
-			       #{registerTime},
-			       #{updateId},
-			       #{updateTime}
+			       	#{registerTime},
+			       	#{updateId},
+			       	#{updateTime}
 			    )
 			""")
-	int insert(BookDataEntity entity);
+	int insert(DataEntity entity);
 
 	@Select("""
-			        SELECT count(*) as cnt FROM data;
+			    SELECT
+			        COUNT(*)
+			    FROM
+			    	data
+			    WHERE
+			        data_category = #{dataCategory} AND
+			        times = #{times} AND
+			        home_team_name = #{homeTeamName} AND
+			        away_team_name = #{awayTeamName};
 			""")
-	int selectCount();
+	int findDataCount(DataEntity entity);
 }

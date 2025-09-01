@@ -10,6 +10,7 @@ import dev.application.analyze.bm_m002.ConditionResultDataStat;
 import dev.application.analyze.bm_m003.TeamMonthlyScoreSummaryStat;
 import dev.application.analyze.bm_m004.TeamTimeSegmentShootingStat;
 import dev.application.analyze.bm_m005.NoGoalMatchStat;
+import dev.application.analyze.bm_m006.CountryLeagueSummaryStat;
 import dev.application.analyze.bm_m007_bm_m016.TimeRangeFeatureStat;
 import dev.application.analyze.bm_m017_bm_m018.LeagueScoreTimeBandStat;
 import dev.application.analyze.bm_m019_bm_m020.MatchClassificationResultStat;
@@ -18,8 +19,6 @@ import dev.application.analyze.bm_m023.ScoreBasedFeatureStat;
 import dev.application.analyze.bm_m024.CalcCorrelationStat;
 import dev.application.analyze.bm_m025.CalcCorrelationRankingStat;
 import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureStat;
-import dev.application.analyze.bm_m027.AnalyzeRankingStat;
-import dev.application.analyze.bm_m029.CountryLeagueSeasonMasterStat;
 import dev.common.entity.BookDataEntity;
 import dev.common.getstatinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
@@ -73,7 +72,7 @@ public class StatService implements StatIF {
 	 * BM_M006統計分析ロジッククラス
 	 */
 	@Autowired
-	private CountryLeagueSeasonMasterStat countryLeagueSeasonMasterStat;
+	private CountryLeagueSummaryStat countryLeagueSummaryStat;
 
 	/**
 	 * BM_M007-BM_M016統計分析ロジッククラス
@@ -124,12 +123,6 @@ public class StatService implements StatIF {
 	private EachTeamScoreBasedFeatureStat eachTeamScoreBasedFeatureStat;
 
 	/**
-	 * BM_M027統計分析ロジッククラス
-	 */
-	@Autowired
-	private AnalyzeRankingStat analyzeRankingStat;
-
-	/**
 	 * ログ管理クラス
 	 */
 	@Autowired
@@ -138,6 +131,10 @@ public class StatService implements StatIF {
 	@Override
 	public int execute() throws Exception {
 		final String METHOD_NAME = "execute";
+
+		// 時間計測開始
+		long startTime = System.nanoTime();
+
 		// ログ出力
 		this.loggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
@@ -146,25 +143,32 @@ public class StatService implements StatIF {
 		String csvNumber = "";
 		String csvBackNumber = "";
 
-		// 時間計測開始
-		long startTime = System.nanoTime();
-
 		// 直近のCSVデータ情報を取得
 		Map<String, Map<String, List<BookDataEntity>>> getStatMap = this.getStatInfo.getData(csvNumber, csvBackNumber);
 
 		// 統計ロジック呼び出し(@Transactionl付き)(国,リーグ単位で並列)
 		this.conditionResultDataStat.calcStat(getStatMap);
 		this.teamMonthlyScoreSummaryStat.calcStat(getStatMap);
+		this.teamTimeSegmentShootingStat.calcStat(getStatMap);
+		this.countryLeagueSummaryStat.calcStat(getStatMap);
+		this.noGoalMatchStat.calcStat(getStatMap);
+		this.timeRangeFeatureStat.calcStat(getStatMap);
+		this.leagueScoreTimeBandStat.calcStat(getStatMap);
+		this.matchClassificationResultStat.calcStat(getStatMap);
+		this.teamMatchFinalStat.calcStat(getStatMap);
+		this.scoreBasedFeatureStat.calcStat(getStatMap);
+		this.calcCorrelationStat.calcStat(getStatMap);
+		this.calcCorrelationRankingStat.calcStat(getStatMap);
+
+		// endLog
+		this.loggerComponent.debugEndInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		// 時間計測終了
 		long endTime = System.nanoTime();
 		long durationMs = (endTime - startTime) / 1_000_000; // ミリ秒に変換
 
 		System.out.println("時間: " + durationMs);
-
-		// endLog
-		this.loggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		return 0;
 	}

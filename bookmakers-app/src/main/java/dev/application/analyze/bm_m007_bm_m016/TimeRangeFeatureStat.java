@@ -107,7 +107,8 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 				String prevAwayScore = "0";
 				for (BookDataEntity e : dataList) {
 					// ゴール取り消しはスキップ
-					if (BookMakersCommonConst.GOAL_DELETE.equals(e.getJudge())) continue;
+					if (BookMakersCommonConst.GOAL_DELETE.equals(e.getJudge()))
+						continue;
 
 					double convTime = ExecuteMainUtil.convertToMinutes(e.getTime());
 					String currentHomeScore = e.getHomeScore();
@@ -130,7 +131,6 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 							"1".equals(currentHomeScore) && "1".equals(currentAwayScore)) {
 						// 同一得点
 						setMap(filtered, country, league, matchKey + "-6", e, 1);
-						setMap(filtered, country, league, matchKey, e, 1);
 						setMap(filtered, country, league, matchKey, e, 6);
 					} else if (convTime <= 45 && currentHomeScore.compareTo(prevHomeScore) > 0 &&
 							"1".equals(currentHomeScore)) {
@@ -153,34 +153,40 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 			}
 		});
 
-		filtered.entrySet().parallelStream().forEach(matchEntry -> {
-			int tableSeq = matchEntry.getKey();
-			String tableName = TimeRangeFeatureCommonUtil.getTableMap(tableSeq);
-			Map<String, List<BookDataEntity>> entityMap = matchEntry.getValue();
+		// --- 1) メイン（seq=1 → within_data）を先に直列で ---
+		Map<String, List<BookDataEntity>> mainMap = filtered.get(1);
+		if (mainMap != null && !mainMap.isEmpty()) {
+			mainMap.forEach((k, list) -> mainInsert(k, list.get(0)));
+		}
 
-			entityMap.entrySet().parallelStream().forEach(matchSubEntry -> {
-				String teamKey = matchSubEntry.getKey();
-				BookDataEntity entity = matchSubEntry.getValue().get(0);
+		// --- 2) サブ（seq != 1）を順序固定で直列処理（7→8→…） ---
+		filtered.entrySet().stream()
+				.filter(e -> e.getKey() != 1)
+				.sorted(Map.Entry.comparingByKey())
+				.forEach(e -> {
+					final int subSeq = e.getKey(); // 外側と衝突しない別名
+					final String subTableName = TimeRangeFeatureCommonUtil.getTableMap(subSeq);
 
-				if (tableSeq == 1) {
-					mainInsert(teamKey, entity);
-				} else {
-					ConcurrentMap<String, Object> resultConcurrentMap = this.queueService.enqueueCommonReturn(teamKey,
-							entity, tableName);
-					Map<String, TeamRangeUpdateData> updateMap = (Map<String, TeamRangeUpdateData>) resultConcurrentMap
-							.get(TimeRangeFeatureCommonUtil.UPDATEMAP);
-					for (Map.Entry<String, TeamRangeUpdateData> upd : updateMap.entrySet()) {
-						commonUpdate(upd.getValue());
-					}
-					Map<String, TeamRangeRegisterData> registerMap = (Map<String, TeamRangeRegisterData>) resultConcurrentMap
-							.get(TimeRangeFeatureCommonUtil.REGISTERMAP);
-					for (Map.Entry<String, TeamRangeRegisterData> reg : registerMap.entrySet()) {
-						commonInsert(reg.getValue(), tableName);
-					}
+					e.getValue().forEach((k, list) -> {
+						BookDataEntity entity = list.get(0);
+						ConcurrentMap<String, Object> result = queueService.enqueueCommonReturn(k, entity,
+								subTableName);
+						if (result == null)
+							return;
 
-				}
-			});
-		});
+						Map<String, TeamRangeUpdateData> updateMap = (Map<String, TeamRangeUpdateData>) result
+								.get(TimeRangeFeatureCommonUtil.UPDATEMAP);
+						if (updateMap != null && !updateMap.isEmpty()) {
+							updateMap.values().forEach(this::commonUpdate);
+						}
+
+						Map<String, TeamRangeRegisterData> registerMap = (Map<String, TeamRangeRegisterData>) result
+								.get(TimeRangeFeatureCommonUtil.REGISTERMAP);
+						if (registerMap != null && !registerMap.isEmpty()) {
+							registerMap.values().forEach(v -> commonInsert(v, subTableName));
+						}
+					});
+				});
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
@@ -195,25 +201,28 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 	 */
 	public synchronized void mainInsert(String mapKey, BookDataEntity entity) {
 		final String METHOD_NAME = "mainInsert";
+		// 末尾連番を安全に取得（なければ即エラーにして早期検知）
+		int seq1Int = TimeRangeFeatureCommonUtil.extractTrailingSeq(mapKey)
+				.orElseThrow(() -> new IllegalArgumentException("mapKey 末尾に連番がありません: " + mapKey));
+		String seq1 = Integer.toString(seq1Int);
+
+		// 国/リーグ/チーム等の抽出は従来ロジックでOK（seq1 は上で確定）
 		TimeRangeFeatureOutputDTO dto = TimeRangeFeatureCommonUtil.splitTeamKey(mapKey);
 		String country = dto.getCountry();
 		String league = dto.getLeague();
 		String home = dto.getHome();
 		String away = dto.getAway();
-		String seq1 = dto.getSeq1(); // 連番ID
-		// ログ設定
-		String tableId = "登録テーブルID: (" + TimeRangeFeatureCommonUtil.getTableMap(Integer.parseInt(seq1)) + ")";
+
+		String tableId = "登録テーブルID: (" + TimeRangeFeatureCommonUtil.getTableMap(seq1Int) + ")";
 		String loggers = setLogger(country, league, home, away) + ", " + tableId;
 
-		TimeRangeFeatureEntity timeRangeFeatureEntity = this.bookDataToTimeRangeFeatureMapper.mapStruct(entity,
-				seq1);
+		TimeRangeFeatureEntity timeRangeFeatureEntity = this.bookDataToTimeRangeFeatureMapper.mapStruct(entity, seq1);
+
 		int result = this.timeRangeFeatureRepository.insert(timeRangeFeatureEntity);
-		if (result != 1) {
+		if (result != 1)
 			logAndThrow("新規登録エラー", METHOD_NAME, loggers);
-		}
-		String messageCd = "登録件数";
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, tableId);
+
+		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "登録件数", tableId);
 	}
 
 	/**
@@ -270,7 +279,7 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 	 * @param country 国
 	 * @param league リーグ
 	 * @param e エンティティ
-	 * @param keyCounter 連番キー
+	 * @param keyCounter 連番キー(<link>TimeRangeFeatureCommonUtil#TABLE_MAPのキー</link>)
 	 * @return
 	 */
 	private void setMap(

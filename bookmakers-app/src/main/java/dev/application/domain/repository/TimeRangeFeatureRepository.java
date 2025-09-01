@@ -10,7 +10,6 @@ public interface TimeRangeFeatureRepository {
 
     @Insert("""
         INSERT INTO within_data (
-            seq,
             time_range_feature_id,
             data_category,
             times,
@@ -105,7 +104,6 @@ public interface TimeRangeFeatureRepository {
     		probablity,
     		prediction_score_time
         ) VALUES (
-            #{seq},
             #{timeRangeFeatureId},
             #{dataCategory},
             #{times},
