@@ -3,6 +3,7 @@ package dev.common.entity;
 import java.io.Serializable;
 
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * output_通番.xlsxブックから読み込んだデータをマッピングさせるためのDTOクラス
@@ -10,7 +11,8 @@ import lombok.Data;
  *
  */
 @Data
-public class DataEntity implements Serializable {
+@EqualsAndHashCode(callSuper = false)
+public class DataEntity extends MetaEntity implements Serializable {
 
 	/** シリアライズ化 */
 	private static final long serialVersionUID = 1L;

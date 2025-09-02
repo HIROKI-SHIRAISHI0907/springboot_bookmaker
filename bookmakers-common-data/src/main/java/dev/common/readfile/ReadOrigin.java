@@ -34,8 +34,6 @@ public class ReadOrigin {
 	 * @return readFileOutputDTO
 	 */
 	public ReadFileOutputDTO getFileBody(String fileFullPath) {
-		//logger.info(" read file start : {} " , CLASS_NAME);
-
 		final String METHOD_NAME = "getFileBody";
 
 		ReadFileOutputDTO readFileOutputDTO = new ReadFileOutputDTO();
@@ -51,6 +49,7 @@ public class ReadOrigin {
 					// カンマ分割
 					String[] parts = text.split(",", -1);
 					DataEntity mappingDto = new DataEntity();
+					mappingDto.setFile(fileFullPath);
 					mappingDto.setHomeRank(parts[0]);
 					mappingDto.setDataCategory(parts[1]);
 					mappingDto.setTimes(parts[2]);

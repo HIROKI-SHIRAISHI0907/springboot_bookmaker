@@ -190,7 +190,8 @@ public class FindStat {
 		Collections.sort(bookPathSortList, Comparator.comparingInt(Integer::parseInt));
 		// フィルタしてソート（csvNumberより大きいものだけ）
 		List<String> filteredSortedList = null;
-		if (csvBackNumber != null) {
+		// 限定した範囲のCSVのみ取り入れる
+		if (csvNumber != null && csvBackNumber != null) {
 			filteredSortedList = bookPathSortList.stream()
 					.map(Integer::parseInt)
 					.filter(num -> num > Integer.parseInt(csvNumber) &&
@@ -198,10 +199,18 @@ public class FindStat {
 					.sorted()
 					.map(String::valueOf)
 					.collect(Collectors.toList());
-		} else {
+			// 特定のCSV番号以降のCSVのみ取り入れる
+		} else if (csvNumber != null && csvBackNumber == null) {
 			filteredSortedList = bookPathSortList.stream()
 					.map(Integer::parseInt)
 					.filter(num -> num > Integer.parseInt(csvNumber))
+					.sorted()
+					.map(String::valueOf)
+					.collect(Collectors.toList());
+			// CSV番号関係なく全て取り入れる(BM_M001用のデータなど)
+		} else if (csvNumber == null && csvBackNumber == null) {
+			filteredSortedList = bookPathSortList.stream()
+					.map(Integer::parseInt)
 					.sorted()
 					.map(String::valueOf)
 					.collect(Collectors.toList());
