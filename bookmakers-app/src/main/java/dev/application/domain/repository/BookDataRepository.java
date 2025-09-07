@@ -224,4 +224,6 @@ public interface BookDataRepository {
 			        away_team_name = #{awayTeamName};
 			""")
 	int findDataCount(DataEntity entity);
+
+
 }

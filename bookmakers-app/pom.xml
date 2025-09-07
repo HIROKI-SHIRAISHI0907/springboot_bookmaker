@@ -126,27 +126,6 @@
         </configuration>
       </plugin>
 
-      <!-- ✅（必要に応じて）dev.common の“ソース”を直接取り込む暫定策
-           ※ すでに com.example:bookmakers-common-data がローカルに install 済みなら
-              このプラグインは消してください。 -->
-      <plugin>
-        <groupId>org.codehaus.mojo</groupId>
-        <artifactId>build-helper-maven-plugin</artifactId>
-        <version>3.5.0</version>
-        <executions>
-          <execution>
-            <id>add-common-sources</id>
-            <phase>generate-sources</phase>
-            <goals><goal>add-source</goal></goals>
-            <configuration>
-              <sources>
-                <!-- dev.common.* の実ソース位置に合わせてパスを調整してください -->
-                <source>${project.basedir}/../bookmakers-common-data/src/main/java</source>
-              </sources>
-            </configuration>
-          </execution>
-        </executions>
-      </plugin>
     </plugins>
   </build>
 </project>

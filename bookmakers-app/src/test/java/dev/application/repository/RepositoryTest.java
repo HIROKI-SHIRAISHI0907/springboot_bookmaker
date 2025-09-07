@@ -44,7 +44,7 @@ import dev.application.domain.repository.TimeRangeFeatureAllLeagueRepository;
 import dev.application.domain.repository.TimeRangeFeatureRepository;
 import dev.application.domain.repository.TimeRangeFeatureScoredRepository;
 import dev.application.domain.repository.TimeRangeFeatureUpdateRepository;
-import dev.common.entity.BookDataEntity;
+import dev.common.entity.DataEntity;
 import dev.common.entity.FutureEntity;
 
 @SpringBootTest
@@ -129,14 +129,14 @@ class RepositoryTest {
 
 	@Test
 	void test1() {
-		BookDataEntity entity = new BookDataEntity();
+		DataEntity entity = new DataEntity();
 		entity.setSeq("1");
-		entity.setGameTeamCategory("Japan");
+		entity.setDataCategory("Japan");
 
 		int saved = bookDataRepository.insert(entity);
 		assertEquals(1, saved);
 
-		int cnt = bookDataRepository.selectCount();
+		int cnt = bookDataRepository.findDataCount(entity);
 		assertEquals(1, cnt);
 	}
 
