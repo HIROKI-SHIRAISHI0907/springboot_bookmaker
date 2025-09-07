@@ -1,4 +1,4 @@
-package dev.mng.repository;
+package dev.mng.domain.repository;
 
 import java.util.List;
 

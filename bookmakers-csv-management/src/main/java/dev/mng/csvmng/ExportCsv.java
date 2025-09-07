@@ -31,7 +31,7 @@ import dev.common.entity.DataEntity;
 import dev.common.filemng.FileMngWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.mng.config.PathConfig;
-import dev.mng.repository.BookCsvDataRepository;
+import dev.mng.domain.repository.BookCsvDataRepository;
 
 /**
  * StatデータCSV出力ロジック
@@ -51,15 +51,15 @@ public class ExportCsv {
 	/** クラス名 */
 	private static final String CLASS_NAME = ExportCsv.class.getSimpleName();
 
-	/** Configクラス */
-	@Autowired
-	private PathConfig config;
-
 	/** 連番組み合わせリスト（過去のグルーピングを保存） */
 	private static final String SEQ_LIST = "/Users/shiraishitoshio/bookmaker/seqList.txt";
 
 	/** 新規でCSV作成をするときのダミー文字列 */
 	private static final String CSV_NEW_PREFIX = "mk";
+
+	/** Configクラス */
+	@Autowired
+	private PathConfig config;
 
 	/** ReaderCurrentCsvInfoBeanクラス */
 	@Autowired
