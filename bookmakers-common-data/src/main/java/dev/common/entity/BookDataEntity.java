@@ -297,4 +297,7 @@ public class BookDataEntity implements Serializable {
 	/** スコア予想時間 */
 	private String predictionScoreTime;
 
+	/** ファイルパス */
+	private String filePath;
+
 }

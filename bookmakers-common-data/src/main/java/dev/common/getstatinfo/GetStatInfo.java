@@ -12,6 +12,7 @@ import java.util.concurrent.Future;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.find.dto.FindBookInputDTO;
@@ -37,10 +38,14 @@ public class GetStatInfo {
 	/** クラス名 */
 	private static final String CLASS_NAME = GetStatInfo.class.getSimpleName();
 
+	/** Configクラス */
+	@Autowired
+	private PathConfig config;
+
 	/**
-	 * CSV原本パス
+	 * パス
 	 */
-	private static final String PATH = "/Users/shiraishitoshio/bookmaker/csv/";
+	private String PATH;
 
 	/**
 	 * 統計データCsv読み取りクラス
@@ -65,12 +70,11 @@ public class GetStatInfo {
 	 */
 	public Map<String, Map<String, List<BookDataEntity>>> getData(String csvNumber, String csvBackNumber) {
 		final String METHOD_NAME = "getData";
+		// パス
+		PATH = config.getCsvFolder();
 
 		// 時間計測開始
 		long startTime = System.nanoTime();
-
-		//		DeleteFolderInFile deleteFolderInFile = new DeleteFolderInFile();
-		//		deleteFolderInFile.delete(COPY_PATH);
 
 		// 設定
 		FindBookInputDTO findBookInputDTO = setBookInputDTO(csvNumber, csvBackNumber);

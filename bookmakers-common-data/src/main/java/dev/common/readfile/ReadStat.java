@@ -157,6 +157,7 @@ public class ReadStat {
 					mappingDto.setAwayTeamStyle(parts[91]);
 					mappingDto.setProbablity(parts[92]);
 					mappingDto.setPredictionScoreTime(parts[93]);
+					mappingDto.setFilePath(fileFullPath);
 					entiryList.add(mappingDto);
 				} else {
 					row++;
