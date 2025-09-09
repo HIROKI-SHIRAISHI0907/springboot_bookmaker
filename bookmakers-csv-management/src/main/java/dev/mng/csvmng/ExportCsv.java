@@ -6,13 +6,15 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
-import java.util.Arrays;
+import java.util.Collection;
 import java.util.Collections;
-import java.util.HashMap;
+import java.util.Comparator;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
@@ -20,17 +22,16 @@ import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.bm_m097.CsvMngEntity;
 import dev.application.analyze.bm_m097.CsvMngInputDTO;
 import dev.application.analyze.bm_m097.SubInfo;
 import dev.application.domain.repository.CsvMngRepository;
+import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.DataEntity;
 import dev.common.filemng.FileMngWrapper;
 import dev.common.logger.ManageLoggerComponent;
-import dev.mng.config.PathConfig;
 import dev.mng.domain.repository.BookCsvDataRepository;
 
 /**
@@ -41,7 +42,7 @@ import dev.mng.domain.repository.BookCsvDataRepository;
  * - 生成は並列、書き込みは順序保証で直列
  */
 @Component
-@Transactional
+//@Transactional
 public class ExportCsv {
 
 	/** プロジェクト名 */
@@ -50,9 +51,6 @@ public class ExportCsv {
 
 	/** クラス名 */
 	private static final String CLASS_NAME = ExportCsv.class.getSimpleName();
-
-	/** 連番組み合わせリスト（過去のグルーピングを保存） */
-	private static final String SEQ_LIST = "/Users/shiraishitoshio/bookmaker/seqList.txt";
 
 	/** 新規でCSV作成をするときのダミー文字列 */
 	private static final String CSV_NEW_PREFIX = "mk";
@@ -84,6 +82,9 @@ public class ExportCsv {
 		final String METHOD_NAME = "execute";
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
+		// 連番組み合わせリスト（過去のグルーピングを保存）
+		final String SEQ_LIST = config.getCsvFolder() + "seqList.txt";
+
 		// パス
 		final Path CSV_FOLDER = Paths.get(config.getCsvFolder());
 
@@ -101,6 +102,7 @@ public class ExportCsv {
 			fileIO.write(SEQ_LIST, currentGroups.toString());
 			textGroups = Collections.emptyList();
 		} else {
+			// 1つ前のアプリケーション起動時に記入したseqList(作成されたCSV番号と同組み合わせとは限らない)
 			textGroups = fileIO.readSeqBuckets(SEQ_LIST);
 		}
 
@@ -109,8 +111,7 @@ public class ExportCsv {
 		if (firstRun) {
 			CsvBuildPlan plans = new CsvBuildPlan();
 			for (List<Integer> curr : currentGroups) {
-				Set<Integer> recreateKeysInt = convList(curr);
-				plans.onlyNew(CSV_NEW_PREFIX, recreateKeysInt);
+				plans.onlyNew(CSV_NEW_PREFIX, curr);
 			}
 			plan = plans;
 		} else {
@@ -128,8 +129,8 @@ public class ExportCsv {
 		// ここまでで作成するCSVグルーピングとものによっては再作成するCSVの番号が確定しているはず
 
 		// 4) 生成キューを作成（再作成→新規の順で、連番昇順に処理）
-		List<SimpleEntry<String, Set<Integer>>> ordered = new ArrayList<>();
-		for (Map.Entry<Integer, Set<Integer>> rt : plan.recreateByCsvNo.entrySet()) {
+		List<SimpleEntry<String, List<Integer>>> ordered = new ArrayList<>();
+		for (Map.Entry<Integer, List<Integer>> rt : plan.recreateByCsvNo.entrySet()) {
 			String path = CSV_FOLDER.resolve(rt.getKey() + BookMakersCommonConst.CSV).toString();
 			ordered.add(new SimpleEntry<>(path, rt.getValue()));
 		}
@@ -137,8 +138,8 @@ public class ExportCsv {
 		// 新規（Map<String, List<List<Integer>>> を二重ループ）csv番号を最大採番から連番でつける
 		int maxNumber = searchMaxCsvFileNumber(CSV_FOLDER.toString()) + 1;
 		int diff = 0;
-		for (Map.Entry<String, Set<Integer>> entry : plan.newTargets.entrySet()) {
-			Set<Integer> newList = entry.getValue();
+		for (Map.Entry<String, List<Integer>> entry : plan.newTargets.entrySet()) {
+			List<Integer> newList = entry.getValue();
 			if (newList == null || newList.isEmpty())
 				continue;
 
@@ -163,9 +164,9 @@ public class ExportCsv {
 			// ordered（<csvNo, group>）の順序で Future を作成
 			List<CompletableFuture<CsvArtifact>> futures = new ArrayList<>(
 					ordered.size());
-			for (SimpleEntry<String, Set<Integer>> e : ordered) {
+			for (SimpleEntry<String, List<Integer>> e : ordered) {
 				final String path = e.getKey();
-				final Set<Integer> group = e.getValue();
+				final List<Integer> group = e.getValue();
 				futures.add(CompletableFuture.supplyAsync(() -> buildCsvArtifact(path, group), pool));
 			}
 
@@ -226,17 +227,23 @@ public class ExportCsv {
 					|| !prevAway.equals(r.getAwayTeamName());
 
 			if (newGroup) {
-				if (!bucket.isEmpty())
+				if (!bucket.isEmpty()) {
+					bucket.sort(Comparator.naturalOrder()); // ★ ここで昇順ソート
 					result.add(bucket);
+				}
 				bucket = new ArrayList<>();
 				prevCat = r.getDataCategory();
 				prevHome = r.getHomeTeamName();
 				prevAway = r.getAwayTeamName();
 			}
-			bucket.add(r.getSeq());
+			// null 予防を入れるなら以下の if でガード
+			if (r.getSeq() != null) {
+				bucket.add(r.getSeq());
+			}
 		}
-		if (!bucket.isEmpty())
+		if (!bucket.isEmpty()) {
 			result.add(bucket);
+		}
 		return result;
 	}
 
@@ -256,85 +263,107 @@ public class ExportCsv {
 	 * その際、どの <CSV番号>.csv に載っていたかを保持（最小CSV番号を採用）。
 	 */
 	private CsvBuildPlan matchSeqCombPlan(List<List<Integer>> textSeqs, List<List<Integer>> dbSeqs) {
-		if (textSeqs == null)
-			textSeqs = Collections.emptyList();
-		if (dbSeqs == null)
-			dbSeqs = Collections.emptyList();
+		final String METHOD_NAME = "matchSeqCombPlan";
 
-		// 1) 完全一致なら早期終了
-		Set<String> textKeys = buildKeySet(textSeqs);
-		Set<String> dbKeys = buildKeySet(dbSeqs);
-		if (textKeys.equals(dbKeys))
+		textSeqs = (textSeqs != null) ? textSeqs : Collections.emptyList();
+		dbSeqs = (dbSeqs != null) ? dbSeqs : Collections.emptyList();
+
+		// 1) 完全一致なら早期終了（順不同で比較）
+		Set<String> textKeys = toKeySet(textSeqs);
+		Set<String> dbKeys = toKeySet(dbSeqs);
+		if (textKeys.equals(dbKeys) && textKeys.size() == dbKeys.size())
 			return null;
 
-		// 2) 既存CSV: csvNo -> Set<Integer>
-		Map<Integer, List<Integer>> csvInfoRaw = (bean != null ? bean.getCsvInfo() : null);
-		Map<Integer, Set<Integer>> csvNoToSet = new HashMap<>();
-		if (csvInfoRaw != null) {
-			for (Map.Entry<Integer, List<Integer>> e : csvInfoRaw.entrySet()) {
-				Integer csvNo = e.getKey();
-				List<Integer> list = e.getValue();
-				if (csvNo == null || list == null)
-					continue;
-				csvNoToSet.put(csvNo, new HashSet<>(list));
-			}
+		// 2) 組み合わせに入っていない通番を判定する。ただしdbKeysの方が少なければスキップ
+		List<String> onlyInDb = new ArrayList<>(dbKeys);
+		if (onlyInDb.size() > textKeys.size()) {
+			onlyInDb.removeAll(textKeys);
+			String messageCd = "追加通番件数";
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null,
+					onlyInDb.size() + "件");
 		}
+
+		// 2) 既存CSV(すでに作成されている対戦チーム-CSV番号キー,通番リスト)
+		Map<String, List<Integer>> csvInfoRow = (bean != null ? bean.getCsvInfo() : null);
 
 		CsvBuildPlan plan = new CsvBuildPlan();
-
-		// 3) DB側を分類
+		// 3) DB側の組み合わせと既存CSV側の組み合わせを比較し存在する通番リスト群に紐づくCSV番号を取得
+		int same = 0;
+		int contains = 0;
+		int news = 0;
 		for (List<Integer> comb : dbSeqs) {
-			// 正規化（順不同を無視）→ Set
-			Set<Integer> target = new HashSet<>();
-			if (comb != null)
-				for (Integer v : comb)
-					if (v != null)
-						target.add(v);
-			if (target.isEmpty())
-				continue;
-
-			// 完全一致（text側にあるキー）は除外済みなのでここでは不要でも良いが保険
-			List<List<Integer>> wrap = Collections.singletonList(comb);
-			if (textKeys.containsAll(buildKeySet(wrap)))
-				continue;
-
-			// 既存CSVとの関係を判定
 			Integer priorCsvNo = null;
-			boolean equalsSome = false;
-			boolean intersectsSome = false;
-
-			for (Map.Entry<Integer, Set<Integer>> e : csvNoToSet.entrySet()) {
-				Integer csvNo = e.getKey();
-				Set<Integer> existed = e.getValue();
-				if (existed == null || existed.isEmpty())
-					continue;
-
-				if (existed.equals(target)) {
-					equalsSome = true;
-					break; // 完全一致 → 何もしない
-				}
-				// 交差チェック
-				boolean disjoint = Collections.disjoint(existed, target);
-				if (!disjoint) {
-					intersectsSome = true;
-					// 複数ヒット時の決め方：最小csvNoを採用（要件に応じて変更可）
-					if (priorCsvNo == null || csvNo < priorCsvNo)
-						priorCsvNo = csvNo;
+			// 既存のCSVのCSV番号キーと組み合わせ通番
+			String flg = "";
+			for (Map.Entry<String, List<Integer>> e : csvInfoRow.entrySet()) {
+				String versus_csvNo = e.getKey();
+				List<Integer> existed = e.getValue();
+				// 通番組み合わせが含まれている場合は対象
+				flg = chkComb(comb, existed);
+				// 一致
+				if ("S".equals(flg)) {
+					same++;
+					break;
+					// 含まれている
+				} else if ("T".equals(flg)) {
+					priorCsvNo = Integer.parseInt(versus_csvNo.split("-")[0]);
+					contains++;
+					break;
 				}
 			}
 
-			if (equalsSome) {
-				// 既存CSVと中身が同じ → 作業不要
-				continue;
-			} else if (intersectsSome && priorCsvNo != null) {
-				// 再作成：どれかの既存CSVに一部でも含まれているが集合が異なる
-				plan.onlyRecreate(priorCsvNo, target);
-			} else {
-				// 新規
-				plan.onlyNew(CSV_NEW_PREFIX, target);
+			if ("F".equals(flg)) {
+				news++;
+			}
+
+			if (priorCsvNo != null) {
+				plan.onlyRecreate(priorCsvNo, comb); // 再作成
+			} else if ("F".equals(flg)) {
+				plan.onlyNew(CSV_NEW_PREFIX, comb); // 新規
 			}
 		}
+
+		this.manageLoggerComponent.debugInfoLog(
+                PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                String.format("同一: %d, 含有: %d, 新規: %d, 全体: %d",
+                		same, contains, news, dbSeqs.size())
+        );
 		return plan;
+	}
+
+	/** null/重複除去 → 昇順でキー化 */
+	private static String keyOfSorted(Collection<Integer> nums) {
+		if (nums == null || nums.isEmpty())
+			return "";
+		List<Integer> list = new ArrayList<>(nums.size());
+		for (Integer n : nums)
+			if (n != null)
+				list.add(n);
+		Collections.sort(list); // 昇順
+		StringBuilder sb = new StringBuilder();
+		for (int i = 0; i < list.size(); i++) {
+			if (i > 0)
+				sb.append(',');
+			sb.append(list.get(i));
+		}
+		return sb.toString();
+	}
+
+	/** groups を正規化して“昇順キー集合”にする */
+	private static Set<String> toKeySet(List<List<Integer>> groups) {
+		Set<String> res = new LinkedHashSet<>(); // 返却セットの見た目順を安定させたいなら TreeSet<> でも可
+		if (groups == null)
+			return res;
+		for (List<Integer> g : groups) {
+			if (g == null || g.isEmpty())
+				continue;
+			// 重複は消したい → distinct() か Set化してから keyOfSorted へ
+			String key = keyOfSorted(new HashSet<>(g));
+			if (!key.isEmpty())
+				res.add(key);
+		}
+		return res;
 	}
 
 	/**
@@ -351,40 +380,34 @@ public class ExportCsv {
 		return out;
 	}
 
-	/** text/db の各組み合わせを「順不同キー」にしてセット化（null/空は捨てる） */
-	private static Set<String> buildKeySet(List<List<Integer>> groups) {
-		Set<String> set = new HashSet<>();
-		for (List<Integer> comb : groups) {
-			String k = toComboKey(comb);
-			if (!k.isEmpty())
-				set.add(k);
+	/**
+	 * 通番リストが完全に含まれているかを調査
+	 * @param dbComb DB側の通番リスト
+	 * @param existedCsvComb 既存CSV側の通番リスト
+	 * @return S: 同一データ, T: 含まれる, F: 含まれていない
+	 */
+	private String chkComb(List<Integer> dbComb, List<Integer> existedCsvComb) {
+		String dbCombData = "";
+		for (Integer d : dbComb) {
+			if (dbCombData.length() > 0) {
+				dbCombData += "-";
+			}
+			dbCombData += d;
 		}
-		return set;
-	}
+		String existedCsvCombData = "";
+		for (Integer e : existedCsvComb) {
+			if (existedCsvCombData.length() > 0) {
+				existedCsvCombData += "-";
+			}
+			existedCsvCombData += e;
+		}
 
-	/** 順不同の正規化キー。null 除去→昇順ソート→"1,2,3"（全無効なら ""） */
-	private static String toComboKey(List<Integer> comb) {
-		if (comb == null || comb.isEmpty())
-			return "";
-		int n = 0;
-		for (Integer v : comb)
-			if (v != null)
-				n++;
-		if (n == 0)
-			return "";
-		int[] arr = new int[n];
-		int i = 0;
-		for (Integer v : comb)
-			if (v != null)
-				arr[i++] = v;
-		Arrays.sort(arr);
-		StringBuilder sb = new StringBuilder(arr.length * 6);
-		for (int j = 0; j < arr.length; j++) {
-			if (j > 0)
-				sb.append(',');
-			sb.append(arr[j]);
+		if (dbCombData.equals(existedCsvCombData)) {
+			return "S";
 		}
-		return sb.toString();
+
+		return (dbCombData.contains(existedCsvCombData)
+				|| existedCsvCombData.contains(dbCombData)) ? "T" : "F";
 	}
 
 	// ======== CSV 生成・書き込み ========
@@ -395,13 +418,13 @@ public class ExportCsv {
 	 * @param seqGroup
 	 * @return
 	 */
-	private CsvArtifact buildCsvArtifact(String path, Set<Integer> seqGroup) {
+	private CsvArtifact buildCsvArtifact(String path, List<Integer> seqGroup) {
 		final String METHOD_NAME = "buildCsvArtifact";
 		if (seqGroup == null || seqGroup.isEmpty())
 			return null;
 
 		List<Integer> ids = new ArrayList<>(seqGroup.size());
-		for (Integer n : new java.util.TreeSet<>(seqGroup)) { // 昇順
+		for (Integer n : new TreeSet<>(seqGroup)) { // 昇順
 			if (n != null)
 				ids.add(n);
 		}

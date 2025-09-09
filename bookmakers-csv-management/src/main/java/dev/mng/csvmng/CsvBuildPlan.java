@@ -1,17 +1,17 @@
 package dev.mng.csvmng;
 
+import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.TreeMap;
 
 /** 返却DTO */
 public class CsvBuildPlan {
 
 	/** 新規作成対象（テキストに無かった組み合わせ） */
-	Map<String, Set<Integer>> newTargets = new TreeMap<>();
+	Map<String, List<Integer>> newTargets = new TreeMap<>();
 
 	/** 再作成対象のマップ：<旧CSV番号, その番号に紐づく再作成グループ群> */
-	Map<Integer, Set<Integer>> recreateByCsvNo = new TreeMap<>();
+	Map<Integer, List<Integer>> recreateByCsvNo = new TreeMap<>();
 
 	/**
 	 * newメソッド
@@ -19,7 +19,7 @@ public class CsvBuildPlan {
 	 * @param groups
 	 * @return
 	 */
-	CsvBuildPlan onlyNew(String prefix, Set<Integer> groups) {
+	CsvBuildPlan onlyNew(String prefix, List<Integer> groups) {
 		if (groups == null || groups.isEmpty())
 			return this;
 
@@ -49,7 +49,7 @@ public class CsvBuildPlan {
 	 * @param groups
 	 * @return
 	 */
-	CsvBuildPlan onlyRecreate(Integer key, Set<Integer> groups) {
+	CsvBuildPlan onlyRecreate(Integer key, List<Integer> groups) {
 		if (groups == null || groups.isEmpty())
 			return this;
 		// 2) CSV番号キーを作成

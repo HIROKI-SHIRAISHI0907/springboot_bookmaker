@@ -44,7 +44,7 @@ public class StatSizeFinalizeMasterCsv implements CsvEntityIF {
 	 */
 	@Override
 	public void calcCsv(CsvCommonInputDTO input) {
-		final String METHOD_NAME = "calcStat";
+		final String METHOD_NAME = "calcCsv";
 		// ログ出力
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(

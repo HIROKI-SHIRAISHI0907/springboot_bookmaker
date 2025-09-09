@@ -8,10 +8,10 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.getstatinfo.GetStatInfo;
-import dev.mng.config.PathConfig;
 import jakarta.annotation.PostConstruct;
 
 /**
@@ -29,7 +29,7 @@ public class ReaderCurrentCsvInfoBean {
 	private GetStatInfo getStatInfo;
 
 	/** CSV通番情報 */
-	private Map<Integer, List<Integer>> csvInfo;
+	private Map<String, List<Integer>> csvInfo;
 
 	/**
 	 * 既存CSV情報読み取り
@@ -43,20 +43,25 @@ public class ReaderCurrentCsvInfoBean {
 		Map<String, Map<String, List<BookDataEntity>>> getData = this.getStatInfo.getData(
 				"0", null);
 
-		Map<Integer, List<Integer>> csvInfo = new HashMap<Integer, List<Integer>>();
+		Map<String, List<Integer>> csvInfo = new HashMap<String, List<Integer>>();
 		for (Map.Entry<String, Map<String, List<BookDataEntity>>> ite : getData.entrySet()) {
 			Map<String, List<BookDataEntity>> maps = ite.getValue();
 			List<Integer> list = new ArrayList<Integer>();
-			int i = 0;
 			String fullPath = null;
+			String versusData = null;
+			for (Map.Entry<String, List<BookDataEntity>> ites : maps.entrySet()) {
+				versusData = ites.getKey();
+				break;
+			}
 			for (List<BookDataEntity> entities : maps.values()) {
 				fullPath = entities.get(0).getFilePath();
-				list.add(Integer.parseInt(entities.get(i).getSeq()));
-				i++;
+				for (BookDataEntity subEntity : entities) {
+					list.add(Integer.parseInt(subEntity.getSeq()));
+				}
 			}
 			// CSV番号と通番情報を設定
-			csvInfo.put(Integer.parseInt(fullPath.replace(PATH, "").
-					replace(BookMakersCommonConst.CSV, "")), list);
+			csvInfo.put(versusData + "-" +
+					Integer.parseInt(fullPath.replace(PATH, "").replace(BookMakersCommonConst.CSV, "")), list);
 		}
 		this.csvInfo = csvInfo;
 	}
@@ -65,7 +70,7 @@ public class ReaderCurrentCsvInfoBean {
 	 * CSV情報を取得
 	 * @return
 	 */
-	public Map<Integer, List<Integer>> getCsvInfo() {
+	public Map<String, List<Integer>> getCsvInfo() {
 		return csvInfo;
 	}
 
