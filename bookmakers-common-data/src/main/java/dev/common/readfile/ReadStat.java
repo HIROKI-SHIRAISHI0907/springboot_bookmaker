@@ -175,6 +175,11 @@ public class ReadStat {
 			return readFileOutputDTO;
 		}
 
+		String messageCd = "";
+		String fillChar = "読み取りファイル名: " + fileFullPath;
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar);
+
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		this.manageLoggerComponent.clear();

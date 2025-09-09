@@ -154,9 +154,11 @@ public class FindStat {
 	 * @param csvBackNumber CSV情報
 	 * @throws IOException IOException
 	 */
-	private static List<String> getFiles(String path, String prefixFile,
+	private List<String> getFiles(String path, String prefixFile,
 			String suffixFile,
 			String[] containsList, String csvNumber, String csvBackNumber) throws IOException {
+		final String METHOD_NAME = "getFiles";
+
 		List<String> bookPathList = new ArrayList<>();
 		List<Path> bookPathPathList = new ArrayList<>();
 		List<String> bookPathSortList = new ArrayList<>();
@@ -221,8 +223,10 @@ public class FindStat {
 			bookPathList.add(convString);
 		}
 		if (bookPathList.isEmpty()) {
-			// 上位層に伝播する
-			throw new IOException();
+			// 単純にファイルがないだけであれば例外は出さない
+			String messageCd = "ファイルが存在しません。";
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
 		}
 		return bookPathList;
 	}
@@ -237,9 +241,11 @@ public class FindStat {
 	 * @param csvBackNumber CSV情報
 	 * @throws IOException IOException
 	 */
-	private static List<String> getStatFiles(String path, String prefixFile,
+	private List<String> getStatFiles(String path, String prefixFile,
 			String suffixFile,
 			String[] containsList, String csvNumber, String csvBackNumber) throws IOException {
+		final String METHOD_NAME = "getStatFiles";
+
 		List<String> bookPathList = new ArrayList<>();
 		List<Path> bookPathPathList = new ArrayList<>();
 		List<String> bookPathSortList = new ArrayList<>();
@@ -293,8 +299,10 @@ public class FindStat {
 			bookPathList.add(convString);
 		}
 		if (bookPathList.isEmpty()) {
-			// 上位層に伝播する
-			throw new IOException();
+			// 単純にファイルがないだけであれば例外は出さない
+			String messageCd = "ファイルが存在しません。";
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
 		}
 		return bookPathList;
 	}
@@ -304,7 +312,9 @@ public class FindStat {
 	 * @param targetFile 対象ファイル名
 	 * @throws IOException IOException
 	 */
-	private static List<String> getTargetFiles(String path, String targetFile) throws IOException {
+	private List<String> getTargetFiles(String path, String targetFile) throws IOException {
+		final String METHOD_NAME = "getTargetFiles";
+
 		List<String> bookPathList = new ArrayList<>();
 		List<Path> bookPathPathList = new ArrayList<>();
 		Files.list(Paths.get(path))
@@ -314,8 +324,10 @@ public class FindStat {
 			bookPathList.add(pathStr.toString());
 		}
 		if (bookPathList.isEmpty()) {
-			// 上位層に伝播する
-			throw new IOException();
+			// 単純にファイルがないだけであれば例外は出さない
+			String messageCd = "ファイルが存在しません。";
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
 		}
 		return bookPathList;
 	}

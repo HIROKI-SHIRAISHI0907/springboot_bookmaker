@@ -1,16 +1,21 @@
 package dev.common.getstatinfo;
 
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.DataEntity;
 import dev.common.find.dto.FindBookInputDTO;
@@ -35,10 +40,12 @@ public class GetOriginInfo {
 	/** クラス名 */
 	private static final String CLASS_NAME = GetOriginInfo.class.getSimpleName();
 
-	/**
-	 * CSV原本パス
-	 */
-	private static final String PATH = "/Users/shiraishitoshio/bookmaker/";
+	/** OUTPUT */
+	private static Pattern OUTPUT_Y;
+
+	/** Configクラス */
+	@Autowired
+	private PathConfig config;
 
 	/**
 	 * 統計データCsv読み取りクラス
@@ -63,6 +70,8 @@ public class GetOriginInfo {
 	 */
 	public Map<String, List<DataEntity>> getData() {
 		final String METHOD_NAME = "getData";
+
+		OUTPUT_Y = Pattern.compile(config.getOutputCsvFolder() + "output_(\\d+)\\.csv$");
 
 		// 時間計測開始
 		long startTime = System.nanoTime();
@@ -133,7 +142,8 @@ public class GetOriginInfo {
 
 		System.out.println("時間: " + durationMs);
 
-		return resultMap;
+		// output_yを昇順に。
+		return sortByCsvNumber(resultMap);
 	}
 
 	/**
@@ -142,7 +152,7 @@ public class GetOriginInfo {
 	 */
 	private FindBookInputDTO setBookInputDTO() {
 		FindBookInputDTO findBookInputDTO = new FindBookInputDTO();
-		findBookInputDTO.setDataPath(PATH);
+		findBookInputDTO.setDataPath(config.getOutputCsvFolder());
 		findBookInputDTO.setCopyFlg(false);
 		findBookInputDTO.setGetBookFlg(true);
 		String[] containsList = new String[6];
@@ -155,6 +165,40 @@ public class GetOriginInfo {
 		findBookInputDTO.setPrefixFile(BookMakersCommonConst.OUTPUT_);
 		findBookInputDTO.setSuffixFile(BookMakersCommonConst.CSV);
 		return findBookInputDTO;
+	}
+
+	/**
+	 * Map を y 昇順（小さい順）に整列し、順序保持の LinkedHashMap で返す
+	 * @param <V>
+	 * @param map
+	 * @return
+	 */
+	private static <V> Map<String, V> sortByCsvNumber(Map<String, V> map) {
+	    return map.entrySet().stream()
+	        .sorted(
+	            Comparator
+	                .comparingInt((Map.Entry<String, V> e) -> extractY(e.getKey()))
+	                .thenComparing(Map.Entry::getKey) // y が同じ時の安定化
+	        )
+	        .collect(Collectors.toMap(
+	            Map.Entry::getKey,
+	            Map.Entry::getValue,
+	            (a, b) -> a,
+	            LinkedHashMap::new
+	        ));
+	}
+
+	/**
+	 * パス "XXXX/XXXX/output_y.csv" の y を抜き出して数値で返す
+	 * @param path
+	 * @return
+	 */
+	private static int extractY(String path) {
+	    var normalized = path.replace('\\', '/'); // Windows対策
+	    var m = OUTPUT_Y.matcher(normalized);
+	    if (m.find()) return Integer.parseInt(m.group(1));
+	    // マッチしないものは末尾に回す
+	    return Integer.MAX_VALUE;
 	}
 
 }

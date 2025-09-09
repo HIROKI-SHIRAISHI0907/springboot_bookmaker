@@ -4,12 +4,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ExecutionException;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
-import java.util.concurrent.Future;
+import java.util.concurrent.CompletableFuture;
+import java.util.concurrent.Semaphore;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
 import dev.common.config.PathConfig;
@@ -59,6 +58,10 @@ public class GetStatInfo {
 	@Autowired
 	private ReadStat readStat;
 
+	/** CSV用のスレッドプール（CsvQueueConfigで定義） */
+	@Autowired
+	private ThreadPoolTaskExecutor csvTaskExecutor;
+
 	/**
 	 * ログ管理クラス
 	 */
@@ -102,18 +105,36 @@ public class GetStatInfo {
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar);
 			return resultMap;
 		}
-		// スレッドプールを作成（例：同時に最大4スレッド）
-		ExecutorService executor = Executors.newFixedThreadPool(fileStatList.size());
-		// タスク送信
-		List<Future<ReadFileOutputDTO>> futureList = new ArrayList<>();
+		// ★ 同時実行をハード制限（CsvQueueConfigの並列数に合わせる）
+		final int concurrency = 8; // または csvTaskExecutor.getMaxPoolSize()
+		final Semaphore gate = new Semaphore(concurrency);
+
+		List<CompletableFuture<ReadFileOutputDTO>> futures = new ArrayList<>(fileStatList.size());
 		for (String file : fileStatList) {
-			Future<ReadFileOutputDTO> future = executor.submit(() -> this.readStat.getFileBody(file));
-			futureList.add(future);
+			try {
+				// キューを溢れさせない（ここでブロックしてin-flight最大数を制限）
+				gate.acquire();
+			} catch (InterruptedException ie) {
+				Thread.currentThread().interrupt();
+				this.manageLoggerComponent.createBusinessException(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, "Semaphore acquire 中断", ie);
+				break;
+			}
+			CompletableFuture<ReadFileOutputDTO> cf = CompletableFuture
+					.supplyAsync(() -> this.readStat.getFileBody(file), csvTaskExecutor)
+					.whenComplete((r, t) -> gate.release());
+			futures.add(cf);
 		}
 
-		for (Future<ReadFileOutputDTO> future : futureList) {
+		for (CompletableFuture<ReadFileOutputDTO> cf : futures) {
 			try {
-				ReadFileOutputDTO dto = future.get();
+				ReadFileOutputDTO dto = cf.join(); // get()と違いchecked例外なし
+				if (dto == null) {
+					this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, null);
+					this.manageLoggerComponent.createBusinessException(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, "dto: nullエラー", null);
+					continue;
+				}
 				List<BookDataEntity> entity = dto.getReadHoldDataList();
 				if (entity == null) {
 					this.manageLoggerComponent.debugErrorLog(
@@ -155,18 +176,18 @@ public class GetStatInfo {
 						.computeIfAbsent(mapKey, k -> new HashMap<>())
 						.computeIfAbsent(teamKey, s -> new ArrayList<>())
 						.addAll(entity);
-			} catch (InterruptedException | ExecutionException e) {
+			} catch (RuntimeException e) {
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e);
 				this.manageLoggerComponent.createBusinessException(
 						PROJECT_NAME,
 						CLASS_NAME,
 						METHOD_NAME,
-						"InterruptedException|ExecutionException: エラー",
+						"非同期処理中にエラー",
 						e);
 			}
 		}
-		executor.shutdown();
+		// Spring管理のExecutorはアプリ終了時に停止するためshutdown不要
 
 		// 時間計測終了
 		long endTime = System.nanoTime();
