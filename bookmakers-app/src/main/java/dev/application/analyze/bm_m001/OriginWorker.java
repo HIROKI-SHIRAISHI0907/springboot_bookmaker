@@ -10,6 +10,11 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.common.entity.DataEntity;
 import dev.common.logger.ManageLoggerComponent;
 
+/**
+ * 起源データ動作クラス
+ * @author shiraishitoshio
+ *
+ */
 @Component
 public class OriginWorker {
 
