@@ -22,6 +22,7 @@ import dev.application.domain.repository.CalcCorrelationRankingRepository;
 import dev.application.domain.repository.CalcCorrelationRepository;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.util.ExecuteMainUtil;
 
 /**
  * BM_M025統計分析ロジック
@@ -69,7 +70,7 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 		// 全リーグ・国を走査
 		ConcurrentHashMap<String, CalcCorrelationRankingEntity> resultMap = new ConcurrentHashMap<>();
 		for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
-			String[] data_category = entry.getKey().split("-");
+			String[] data_category = ExecuteMainUtil.splitLeagueInfo(entry.getKey());
 			String country = data_category[0];
 			String league = data_category[1];
 

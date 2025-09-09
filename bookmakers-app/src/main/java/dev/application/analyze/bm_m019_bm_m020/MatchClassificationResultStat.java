@@ -98,8 +98,9 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 		Map<String, List<String>> mainMap = new ConcurrentHashMap<>();
 		entities.entrySet().parallelStream().forEach(entry -> {
 			String leagueKey = entry.getKey(); // 例: "Japan-J1"
-			String country = leagueKey.split("-")[0];
-			String league = leagueKey.split("-")[1];
+			String[] sp = ExecuteMainUtil.splitLeagueInfo(leagueKey);
+			String country = sp[0];
+			String league = sp[1];
 			// 初期化
 			init(country, league);
 			Map<String, List<BookDataEntity>> matchMap = entry.getValue();

@@ -57,7 +57,7 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		// 全リーグ・国を走査
 		for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
 			ConcurrentHashMap<String, SurfaceOverviewEntity> resultMap = new ConcurrentHashMap<>();
-			String[] data_category = entry.getKey().split("-");
+			String[] data_category = ExecuteMainUtil.splitLeagueInfo(entry.getKey());
 			String country = data_category[0];
 			String league = data_category[1];
 			Map<String, List<BookDataEntity>> entrySub = entry.getValue();

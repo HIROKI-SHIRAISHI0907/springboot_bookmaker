@@ -76,7 +76,7 @@ public class OriginDBService {
 						String messageCd = "新規登録エラー";
 						this.manageLoggerComponent.debugErrorLog(
 								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-						return 9;
+						return -99;
 					}
 				} catch (DuplicateKeyException e) {
 					String messageCd = "登録済みです";

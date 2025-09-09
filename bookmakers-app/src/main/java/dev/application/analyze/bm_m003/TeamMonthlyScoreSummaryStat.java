@@ -13,6 +13,7 @@ import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.TeamMonthlyScoreSummaryRepository;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.util.ExecuteMainUtil;
 
 /**
  * BM_M003統計分析ロジック
@@ -109,7 +110,7 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 		// 結果の登録/更新処理
 		for (Map.Entry<String, Map<String, Map<String, Integer>>> leagueEntry : goalCountMap.entrySet()) {
 			String countryLeague = leagueEntry.getKey(); // 例: "Japan-J1"
-			String[] split = countryLeague.split("-");
+			String[] split = ExecuteMainUtil.splitLeagueInfo(countryLeague);
 			String country = split[0];
 			String league = split[1];
 

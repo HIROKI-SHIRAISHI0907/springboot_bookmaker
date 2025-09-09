@@ -111,7 +111,7 @@ public class OriginStat implements OriginEntityIF {
 	                TaskResult result = tpl.execute(status -> {
 	                    try {
 	                        int r = originDBService.insertInBatch(insertEntities);
-	                        if (r == 9) throw new Exception("新規登録エラー");
+	                        if (r == -99) throw new Exception("新規登録エラー");
 	                        return TaskResult.ok(filePath);
 	                    } catch (Exception e) {
 	                        status.setRollbackOnly();

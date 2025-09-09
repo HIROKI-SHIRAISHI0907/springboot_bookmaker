@@ -65,7 +65,7 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
 		// 全リーグ・国を走査
 		ConcurrentHashMap<String, CalcCorrelationEntity> resultMap = new ConcurrentHashMap<>();
 		for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
-			String[] data_category = entry.getKey().split("-");
+			String[] data_category = ExecuteMainUtil.splitLeagueInfo(entry.getKey());
 			String country = data_category[0];
 			String league = data_category[1];
 

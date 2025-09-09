@@ -12,6 +12,7 @@ import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.CountryLeagueSummaryRepository;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.util.ExecuteMainUtil;
 
 /**
  * BM_M006統計分析ロジック
@@ -63,7 +64,7 @@ public class CountryLeagueSummaryStat implements AnalyzeEntityIF {
 		leagueCountMap.entrySet().parallelStream().forEach(entry -> {
 			String leagueEntry = entry.getKey();
 			int count = entry.getValue();
-			String[] split = leagueEntry.split("-");
+			String[] split = ExecuteMainUtil.splitLeagueInfo(leagueEntry);
 			String country = split[0];
 			String league = split[1];
 

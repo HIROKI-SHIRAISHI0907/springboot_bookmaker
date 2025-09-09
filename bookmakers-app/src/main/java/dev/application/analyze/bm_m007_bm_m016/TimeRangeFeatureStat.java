@@ -91,7 +91,7 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 		Map<Integer, Map<String, List<BookDataEntity>>> filtered = new ConcurrentHashMap<>();
 		entities.entrySet().parallelStream().forEach(entry -> {
 			String leagueKey = entry.getKey(); // 例: "Japan-J1"
-			String[] category = leagueKey.split("-");
+			String[] category = ExecuteMainUtil.splitLeagueInfo(leagueKey);
 			String country = category[0];
 			String league = category[1];
 			Map<String, List<BookDataEntity>> matchMap = entry.getValue();

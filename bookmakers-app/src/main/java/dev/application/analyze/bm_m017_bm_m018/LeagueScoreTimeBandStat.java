@@ -134,6 +134,8 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 		Map<String, Map<String, Integer>> countMap = new HashMap<>();
 		for (Map.Entry<String, Map<Integer, LeagueScoreMainData>> mapEntry : mainMap.entrySet()) {
 			String leagueKey = mapEntry.getKey();
+			String[] leagueCountrySp = ExecuteMainUtil.splitLeagueInfo(leagueKey);
+			leagueKey = leagueCountrySp[0] + "-" + leagueCountrySp[1];
 			Map<Integer, LeagueScoreMainData> matchMap = mapEntry.getValue();
 
 			// MAIN データを集約
