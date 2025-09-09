@@ -96,7 +96,7 @@ public class GetStatInfo {
 
 		// 読み込んだパスからデータ取得
 		List<String> fileStatList = findBookOutputDTO.getBookList();
-		// 結果構造：Map<"JPN-J1", Map<"HOME", List<BookDataEntity>>>
+		// 結果構造：Map<"JPN-J1", Map<"HOME"-"AWAY", List<BookDataEntity>>>
 		Map<String, Map<String, List<BookDataEntity>>> resultMap = new HashMap<>();
 		if (fileStatList.size() <= 0) {
 			String messageCd = "データなし";
@@ -169,7 +169,7 @@ public class GetStatInfo {
 					continue;
 				}
 
-				String mapKey = country + "-" + league;
+				String mapKey = entity.get(0).getGameTeamCategory();
 				String teamKey = home + "-" + away;
 				// データをマップに追加
 				resultMap
