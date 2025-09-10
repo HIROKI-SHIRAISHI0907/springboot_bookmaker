@@ -87,7 +87,7 @@ public class BookMakerLogger {
 	public static void info(String projectName, String className, String methodName, String messageCd,
 			String... fillChar) {
 		Logger logger = LoggerFactory.getLogger(className);
-		String msg = buildMessage(projectName, className, methodName, messageCd, fillChar);
+		String msg = buildMessage(projectName, className, methodName, messageCd, null, fillChar);
 		logger.info(msg);
 	}
 
@@ -102,7 +102,7 @@ public class BookMakerLogger {
 	public static void warn(String projectName, String className, String methodName, String messageCd,
 			String... fillChar) {
 		Logger logger = LoggerFactory.getLogger(className);
-		String msg = buildMessage(projectName, className, methodName, messageCd, fillChar);
+		String msg = buildMessage(projectName, className, methodName, messageCd, null, fillChar);
 		logger.warn(msg);
 	}
 
@@ -118,7 +118,7 @@ public class BookMakerLogger {
 	public static void error(String projectName, String className, String methodName, String errorCode, Exception e,
 			String... fillChar) {
 		Logger logger = LoggerFactory.getLogger(className);
-		String msg = buildMessage(projectName, className, methodName, "ERROR:" + errorCode, fillChar);
+		String msg = buildMessage(projectName, className, methodName, "ERROR:" + errorCode, e, fillChar);
 		logger.error(msg, e);
 	}
 
@@ -128,15 +128,19 @@ public class BookMakerLogger {
 	 * @param className クラス名
 	 * @param methodName メソッド名
 	 * @param messageCd メッセージコード
+	 * @param e 例外
 	 * @param fillChar 埋め字
 	 * @return
 	 */
 	private static String buildMessage(String projectName, String className, String methodName, String messageCd,
-			String... fillChar) {
+			Exception e, String... fillChar) {
 		StringBuilder sb = new StringBuilder();
 		sb.append("[").append(projectName).append("]");
 		sb.append("[").append(className).append("#").append(methodName).append("]");
 		sb.append("[").append(messageCd).append("]");
+		if (e != null && e.toString().length() > 0) {
+			sb.append(" - ").append(String.join(", ", e.toString()));
+		}
 		if (fillChar != null && fillChar.length > 0) {
 			sb.append(" - ").append(String.join(", ", fillChar));
 		}
