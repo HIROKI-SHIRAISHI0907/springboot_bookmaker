@@ -5,7 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-import dev.application.analyze.bm_m097.CsvMngInputDTO;
+import dev.mng.dto.CsvCommonInputDTO;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -17,7 +17,7 @@ public class ExportCsvTest {
     @Test
     void execute_shouldReturnZero_whenExecutionSuccessful() throws Exception {
         // Act
-        this.exportCsv.execute(new CsvMngInputDTO());
+        this.exportCsv.execute(new CsvCommonInputDTO());
     }
 
 }
