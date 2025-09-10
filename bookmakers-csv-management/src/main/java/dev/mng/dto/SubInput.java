@@ -10,6 +10,9 @@ import lombok.Data;
 @Data
 public class SubInput {
 
+	/** 選択肢No. */
+	private String optionNum;
+
 	/** 選択肢 */
 	private String options;
 

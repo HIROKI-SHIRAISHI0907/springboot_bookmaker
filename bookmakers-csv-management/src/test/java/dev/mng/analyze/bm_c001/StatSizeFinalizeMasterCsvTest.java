@@ -41,12 +41,25 @@ public class StatSizeFinalizeMasterCsvTest {
 
 		CsvCommonInputDTO csvCommonInputDTO = new CsvCommonInputDTO();
 		List<SubInput> list = new ArrayList<SubInput>();
-		for (int i = 0; i < 20; i++) {
-			SubInput subInput = new SubInput();
-			subInput.setOptions("OPTION-" + i);
-			subInput.setFlg("1");
-			list.add(subInput);
-		}
+		SubInput subInput = new SubInput();
+		subInput.setOptionNum("1");
+		subInput.setOptions("4-0");
+		subInput.setFlg("1");
+		list.add(subInput);
+		subInput = new SubInput();
+		subInput.setOptionNum("1");
+		subInput.setOptions("2-0");
+		subInput.setFlg("1");
+		list.add(subInput);
+		subInput = new SubInput();
+		subInput.setOptionNum("1");
+		subInput.setOptions("1-0");
+		subInput.setFlg("1");
+		subInput = new SubInput();
+		subInput.setOptionNum("1");
+		subInput.setOptions("0-0");
+		subInput.setFlg("1");
+		list.add(subInput);
 		csvCommonInputDTO.setSubList(list);
 		this.statSizeFinalizeMasterCsv.calcCsv(csvCommonInputDTO);
 	}

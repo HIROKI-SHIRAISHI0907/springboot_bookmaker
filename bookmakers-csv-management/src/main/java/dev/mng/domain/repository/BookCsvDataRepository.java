@@ -12,37 +12,61 @@ import dev.mng.csvmng.SeqWithKey;
 @Mapper
 public interface BookCsvDataRepository {
 
-	@Select("""
-			SELECT
-			  t.dataCategory,
-			  t.homeTeamName,
-			  t.awayTeamName,
-			  t.times,
-			  t.seq
-			FROM (
-			  SELECT
-			    d.data_category   AS dataCategory,
-			    d.home_team_name  AS homeTeamName,
-			    d.away_team_name  AS awayTeamName,
-			    d.times           AS times,
-			    MIN(d.seq)        AS seq
-			  FROM data d
-			  WHERE d.times IN ('終了済','ハーフタイム','第一ハーフ')
-			  GROUP BY d.data_category, d.home_team_name, d.away_team_name, d.times
+	@Select({
+			"SELECT",
+			"  t.dataCategory, t.homeTeamName, t.awayTeamName, t.times, t.seq",
+			"FROM (",
+			"  SELECT",
+			"    d.data_category  AS dataCategory,",
+			"    d.home_team_name AS homeTeamName,",
+			"    d.away_team_name AS awayTeamName,",
+			"    d.times          AS times,",
+			"    MIN(d.seq)       AS seq",
+			"  FROM data d",
+			"  WHERE d.times IN ('終了済','ハーフタイム','第一ハーフ')",
+			"    AND EXISTS (",
+			"      SELECT 1 FROM data x",
+			"       WHERE x.data_category  = d.data_category",
+			"         AND x.home_team_name = d.home_team_name",
+			"         AND x.away_team_name = d.away_team_name",
+			"         AND x.times IN ('ハーフタイム','第一ハーフ')",
+			"    )",
+			"    AND EXISTS (",
+			"      SELECT 1 FROM data y",
+			"       WHERE y.data_category  = d.data_category",
+			"         AND y.home_team_name = d.home_team_name",
+			"         AND y.away_team_name = d.away_team_name",
+			"         AND y.times = '終了済'",
+			"    )",
+			"  GROUP BY d.data_category, d.home_team_name, d.away_team_name, d.times",
 
-			  UNION ALL
+			"  UNION ALL",
 
-			  SELECT
-			    d.data_category   AS dataCategory,
-			    d.home_team_name  AS homeTeamName,
-			    d.away_team_name  AS awayTeamName,
-			    d.times           AS times,
-			    d.seq             AS seq
-			  FROM data d
-			  WHERE d.times NOT IN ('終了済','ハーフタイム','第一ハーフ')
-			) t
-			ORDER BY t.dataCategory, t.homeTeamName, t.awayTeamName, t.seq ASC
-			""")
+			"  SELECT",
+			"    d.data_category  AS dataCategory,",
+			"    d.home_team_name AS homeTeamName,",
+			"    d.away_team_name AS awayTeamName,",
+			"    d.times          AS times,",
+			"    d.seq            AS seq",
+			"  FROM data d",
+			"  WHERE d.times NOT IN ('終了済','ハーフタイム','第一ハーフ')",
+			"    AND EXISTS (",
+			"      SELECT 1 FROM data x",
+			"       WHERE x.data_category  = d.data_category",
+			"         AND x.home_team_name = d.home_team_name",
+			"         AND x.away_team_name = d.away_team_name",
+			"         AND x.times IN ('ハーフタイム','第一ハーフ')",
+			"    )",
+			"    AND EXISTS (",
+			"      SELECT 1 FROM data y",
+			"       WHERE y.data_category  = d.data_category",
+			"         AND y.home_team_name = d.home_team_name",
+			"         AND y.away_team_name = d.away_team_name",
+			"         AND y.times = '終了済'",
+			"    )",
+			") t",
+			"ORDER BY t.dataCategory, t.homeTeamName, t.awayTeamName, t.seq ASC"
+	})
 	List<SeqWithKey> findAllSeqsWithKey();
 
 	@Select({
@@ -149,6 +173,6 @@ public interface BookCsvDataRepository {
 			"  </foreach>",
 			"</script>"
 	})
-	List<DataEntity> findBySeq(@Param("seqList") List<Integer> seqList);
+	List<DataEntity> findByData(@Param("seqList") List<Integer> seqList);
 
 }

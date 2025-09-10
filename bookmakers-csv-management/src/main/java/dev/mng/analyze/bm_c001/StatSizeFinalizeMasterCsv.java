@@ -54,23 +54,45 @@ public class StatSizeFinalizeMasterCsv implements CsvEntityIF {
 		List<SubInput> list = input.getSubList();
 		for (SubInput sub : list) {
 			StatSizeFinalizeMasterCsvEntity entity = new StatSizeFinalizeMasterCsvEntity();
+			entity.setOptionNum(sub.getOptionNum());
 			entity.setOptions(sub.getOptions());
 			entity.setFlg(sub.getFlg());
-			int result = this.statSizeFinalizeMasterRepository.insert(entity);
-			if (result != 1) {
-				String messageCd = "新規登録エラー";
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						null);
+			List<StatSizeFinalizeMasterCsvEntity> data = this.statSizeFinalizeMasterRepository
+					.findData(sub.getOptionNum(), sub.getOptions());
+			if (!data.isEmpty()) {
+				entity.setId(data.get(0).getId());
+				int result = this.statSizeFinalizeMasterRepository.update(entity);
+				if (result != 1) {
+					String messageCd = "更新エラー";
+					this.manageLoggerComponent.debugErrorLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
+					this.manageLoggerComponent.createSystemException(
+							PROJECT_NAME,
+							CLASS_NAME,
+							METHOD_NAME,
+							messageCd,
+							null);
+				}
+				String messageCd = "更新件数";
+				this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, "BM_C001 更新件数: 1件");
+			} else {
+				int result = this.statSizeFinalizeMasterRepository.insert(entity);
+				if (result != 1) {
+					String messageCd = "新規登録エラー";
+					this.manageLoggerComponent.debugErrorLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
+					this.manageLoggerComponent.createSystemException(
+							PROJECT_NAME,
+							CLASS_NAME,
+							METHOD_NAME,
+							messageCd,
+							null);
+				}
+				String messageCd = "登録件数";
+				this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, "BM_C001 登録件数: 1件");
 			}
-			String messageCd = "登録件数";
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, "BM_C001 登録件数: 1件");
 		}
 
 		// endLog

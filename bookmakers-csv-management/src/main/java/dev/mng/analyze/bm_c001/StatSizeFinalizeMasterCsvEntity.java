@@ -16,6 +16,9 @@ public class StatSizeFinalizeMasterCsvEntity extends MetaEntity {
 	/** ID */
 	private String id;
 
+	/** 選択肢No. */
+	private String optionNum;
+
 	/** 選択肢 */
 	private String options;
 
