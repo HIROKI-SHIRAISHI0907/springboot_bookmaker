@@ -11,7 +11,7 @@ import dev.mng.csvmng.ExportCsv;
 import dev.mng.dto.CsvCommonInputDTO;
 
 /**
- * 未来統計用サービスクラス
+ * CSV管理用サービスクラス
  * @author shiraishitoshio
  *
  */

@@ -96,7 +96,7 @@ public class TargetLeagueStatusCsv {
 		String messageCd = "全体更新件数";
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null,
-				"BM_M097 対象件数: " + totalAffected + "件, 全体登録件数: "
+				"BC_C002 対象件数: " + totalAffected + "件, 全体登録件数: "
 						+ insertAffected + "件, 全体更新件数: " + updateAffected + "件, "
 						+ "全体失敗件数: " + noUpdateAffected + "件");
 	}
