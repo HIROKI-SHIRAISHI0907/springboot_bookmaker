@@ -1,5 +1,5 @@
 app:
-  csv-folder: /Users/shiraishitoshio/bookmaker/csv_tmp/
+  csv-folder: /Users/shiraishitoshio/bookmaker/csv/
   output-csv-folder: /Users/shiraishitoshio/bookmaker/
   
 spring:

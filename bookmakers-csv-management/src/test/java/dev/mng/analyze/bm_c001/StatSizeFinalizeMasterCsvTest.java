@@ -55,6 +55,7 @@ public class StatSizeFinalizeMasterCsvTest {
 		subInput.setOptionNum("1");
 		subInput.setOptions("1-0");
 		subInput.setFlg("1");
+		list.add(subInput);
 		subInput = new SubInput();
 		subInput.setOptionNum("1");
 		subInput.setOptions("0-0");
