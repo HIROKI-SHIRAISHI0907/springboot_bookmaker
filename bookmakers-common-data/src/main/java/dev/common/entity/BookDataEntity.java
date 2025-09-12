@@ -171,6 +171,12 @@ public class BookDataEntity implements Serializable {
 	/** アウェーパス数 */
 	private String awayPassCount;
 
+	/** ホームロングパス数 */
+	private String homeLongPassCount;
+
+	/** アウェーロングパス数 */
+	private String awayLongPassCount;
+
 	/** ホームファイナルサードパス数 */
 	private String homeFinalThirdPassCount;
 
@@ -195,6 +201,12 @@ public class BookDataEntity implements Serializable {
 	/** アウェークリア数 */
 	private String awayClearCount;
 
+	/** ホームデュエル勝利数 */
+	private String homeDuelCount;
+
+	/** アウェーデュエル勝利数 */
+	private String awayDuelCount;
+
 	/** ホームインターセプト数 */
 	private String homeInterceptCount;
 
@@ -208,7 +220,7 @@ public class BookDataEntity implements Serializable {
 	private String weather;
 
 	/** 気温 */
-	private String temparature;
+	private String temperature;
 
 	/** 湿度 */
 	private String humid;

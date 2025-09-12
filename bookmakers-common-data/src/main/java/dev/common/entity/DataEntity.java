@@ -176,6 +176,12 @@ public class DataEntity extends MetaEntity implements Serializable {
 	/** アウェーパス数 */
 	private String awayPassCount;
 
+	/** ホームロングパス数 */
+	private String homeLongPassCount;
+
+	/** アウェーロングパス数 */
+	private String awayLongPassCount;
+
 	/** ホームファイナルサードパス数 */
 	private String homeFinalThirdPassCount;
 
@@ -199,6 +205,12 @@ public class DataEntity extends MetaEntity implements Serializable {
 
 	/** アウェークリア数 */
 	private String awayClearCount;
+
+	/** ホームデュエル数 */
+	private String homeDuelCount;
+
+	/** アウェーデュエル数 */
+	private String awayDuelCount;
 
 	/** ホームインターセプト数 */
 	private String homeInterceptCount;
