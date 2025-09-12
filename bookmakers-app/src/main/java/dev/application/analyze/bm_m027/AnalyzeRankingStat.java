@@ -94,7 +94,7 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 					String sc = extractScoreFromOverallKey(e.getKey()); // country-league-score の3番目
 					if (sc == null)
 						continue;
-					byScoreOverall.computeIfAbsent(sc, k -> new java.util.ArrayList<>()).addAll(e.getValue());
+					byScoreOverall.computeIfAbsent(sc, k -> new ArrayList<>()).addAll(e.getValue());
 				}
 
 				// score ごとに並列実行
@@ -141,7 +141,7 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 					String sc = extractScoreFromEachTeamKey(e.getKey()); // country-league-score-team の3番目
 					if (sc == null)
 						continue;
-					byScoreEachTeam.computeIfAbsent(sc, k -> new java.util.ArrayList<>()).addAll(e.getValue());
+					byScoreEachTeam.computeIfAbsent(sc, k -> new ArrayList<>()).addAll(e.getValue());
 				}
 
 				List<CompletableFuture<List<EachTeamScoreBasedFeatureEntity>>> tasks = new ArrayList<>();

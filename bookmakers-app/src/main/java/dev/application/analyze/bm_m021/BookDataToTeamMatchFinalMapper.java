@@ -83,6 +83,12 @@ public interface BookDataToTeamMatchFinalMapper {
 			@Mapping(source = "finalOppoData.pass.ratio", target = "oppositePassCountSuccessRatio"),
 			@Mapping(source = "finalOppoData.pass.success", target = "oppositePassCountSuccessCount"),
 			@Mapping(source = "finalOppoData.pass.trys", target = "oppositePassCountTryCount"),
+			@Mapping(source = "finalData.longPass.ratio", target = "longPassCountSuccessRatio"),
+			@Mapping(source = "finalData.longPass.success", target = "longPassCountSuccessCount"),
+			@Mapping(source = "finalData.longPass.trys", target = "longPassCountTryCount"),
+			@Mapping(source = "finalOppoData.longPass.ratio", target = "oppositeLongPassCountSuccessRatio"),
+			@Mapping(source = "finalOppoData.longPass.success", target = "oppositeLongPassCountSuccessCount"),
+			@Mapping(source = "finalOppoData.longPass.trys", target = "oppositeLongPassCountTryCount"),
 			@Mapping(source = "finalData.finalThirdPass.ratio", target = "finalThirdPassCountSuccessRatio"),
 			@Mapping(source = "finalData.finalThirdPass.success", target = "finalThirdPassCountSuccessCount"),
 			@Mapping(source = "finalData.finalThirdPass.trys", target = "finalThirdPassCountTryCount"),
@@ -100,7 +106,13 @@ public interface BookDataToTeamMatchFinalMapper {
 			@Mapping(source = "finalData.tackle.trys", target = "tackleCountTryCount"),
 			@Mapping(source = "finalOppoData.tackle.ratio", target = "oppositeTackleCountSuccessRatio"),
 			@Mapping(source = "finalOppoData.tackle.success", target = "oppositeTackleCountSuccessCount"),
-			@Mapping(source = "finalOppoData.tackle.trys", target = "oppositeTackleCountTryCount")
+			@Mapping(source = "finalOppoData.tackle.trys", target = "oppositeTackleCountTryCount"),
+			// クリア
+			@Mapping(source = "book.homeClearCount", target = "clearCount"),
+			@Mapping(source = "book.awayClearCount", target = "oppositeClearCount"),
+			// インターセプト
+			@Mapping(source = "book.homeInterceptCount", target = "interceptCount"),
+			@Mapping(source = "book.awayInterceptCount", target = "oppositeInterceptCount"),
 	})
 	TeamMatchFinalStatsEntity mapHomeStruct(BookDataEntity book, FinalData finalData, FinalData finalOppoData,
 			String ha, String score, String result);
@@ -179,6 +191,12 @@ public interface BookDataToTeamMatchFinalMapper {
 			@Mapping(source = "finalOppoData.pass.ratio", target = "oppositePassCountSuccessRatio"),
 			@Mapping(source = "finalOppoData.pass.success", target = "oppositePassCountSuccessCount"),
 			@Mapping(source = "finalOppoData.pass.trys", target = "oppositePassCountTryCount"),
+			@Mapping(source = "finalData.longPass.ratio", target = "longPassCountSuccessRatio"),
+			@Mapping(source = "finalData.longPass.success", target = "longPassCountSuccessCount"),
+			@Mapping(source = "finalData.longPass.trys", target = "longPassCountTryCount"),
+			@Mapping(source = "finalOppoData.longPass.ratio", target = "oppositeLongPassCountSuccessRatio"),
+			@Mapping(source = "finalOppoData.longPass.success", target = "oppositeLongPassCountSuccessCount"),
+			@Mapping(source = "finalOppoData.longPass.trys", target = "oppositeLongPassCountTryCount"),
 			@Mapping(source = "finalData.finalThirdPass.ratio", target = "finalThirdPassCountSuccessRatio"),
 			@Mapping(source = "finalData.finalThirdPass.success", target = "finalThirdPassCountSuccessCount"),
 			@Mapping(source = "finalData.finalThirdPass.trys", target = "finalThirdPassCountTryCount"),
@@ -196,7 +214,13 @@ public interface BookDataToTeamMatchFinalMapper {
 			@Mapping(source = "finalData.tackle.trys", target = "tackleCountTryCount"),
 			@Mapping(source = "finalOppoData.tackle.ratio", target = "oppositeTackleCountSuccessRatio"),
 			@Mapping(source = "finalOppoData.tackle.success", target = "oppositeTackleCountSuccessCount"),
-			@Mapping(source = "finalOppoData.tackle.trys", target = "oppositeTackleCountTryCount")
+			@Mapping(source = "finalOppoData.tackle.trys", target = "oppositeTackleCountTryCount"),
+			// クリア
+			@Mapping(source = "book.awayClearCount", target = "clearCount"),
+			@Mapping(source = "book.homeClearCount", target = "oppositeClearCount"),
+			// インターセプト
+			@Mapping(source = "book.awayInterceptCount", target = "interceptCount"),
+			@Mapping(source = "book.homeInterceptCount", target = "oppositeInterceptCount"),
 	})
 	TeamMatchFinalStatsEntity mapAwayStruct(BookDataEntity book, FinalData finalData, FinalData finalOppoData,
 			String ha, String score, String result);

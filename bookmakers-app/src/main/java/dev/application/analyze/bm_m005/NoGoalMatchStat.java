@@ -1,5 +1,6 @@
 package dev.application.analyze.bm_m005;
 
+import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
@@ -125,7 +126,7 @@ public class NoGoalMatchStat implements AnalyzeEntityIF {
 							.filter(e -> !e.getValue().isEmpty())
 							.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));
 
-					return new java.util.AbstractMap.SimpleEntry<>(outerKey, filteredInnerMap);
+					return new SimpleEntry<>(outerKey, filteredInnerMap);
 				})
 				.filter(e -> !e.getValue().isEmpty())
 				.collect(Collectors.toMap(Map.Entry::getKey, Map.Entry::getValue));

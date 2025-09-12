@@ -52,16 +52,20 @@ public class StatMapping {
         mappings.add(new FieldMapping(39, ThresHoldEntity::getAwayBoxTouch));
         mappings.add(new FieldMapping(40, ThresHoldEntity::getHomePassCount)); //3分割
         mappings.add(new FieldMapping(41, ThresHoldEntity::getAwayPassCount)); //3分割
-        mappings.add(new FieldMapping(42, ThresHoldEntity::getHomeFinalThirdPassCount)); //3分割
-        mappings.add(new FieldMapping(43, ThresHoldEntity::getAwayFinalThirdPassCount)); //3分割
-        mappings.add(new FieldMapping(44, ThresHoldEntity::getHomeCrossCount)); //3分割
-        mappings.add(new FieldMapping(45, ThresHoldEntity::getAwayCrossCount)); //3分割
-        mappings.add(new FieldMapping(46, ThresHoldEntity::getHomeTackleCount)); //3分割
-        mappings.add(new FieldMapping(47, ThresHoldEntity::getAwayTackleCount)); //3分割
-        mappings.add(new FieldMapping(48, ThresHoldEntity::getHomeClearCount));
-        mappings.add(new FieldMapping(49, ThresHoldEntity::getAwayClearCount));
-        mappings.add(new FieldMapping(50, ThresHoldEntity::getHomeInterceptCount));
-        mappings.add(new FieldMapping(51, ThresHoldEntity::getAwayInterceptCount));
+        mappings.add(new FieldMapping(42, ThresHoldEntity::getHomeLongPassCount)); //3分割
+        mappings.add(new FieldMapping(43, ThresHoldEntity::getAwayLongPassCount)); //3分割
+        mappings.add(new FieldMapping(44, ThresHoldEntity::getHomeFinalThirdPassCount)); //3分割
+        mappings.add(new FieldMapping(45, ThresHoldEntity::getAwayFinalThirdPassCount)); //3分割
+        mappings.add(new FieldMapping(46, ThresHoldEntity::getHomeCrossCount)); //3分割
+        mappings.add(new FieldMapping(47, ThresHoldEntity::getAwayCrossCount)); //3分割
+        mappings.add(new FieldMapping(48, ThresHoldEntity::getHomeTackleCount)); //3分割
+        mappings.add(new FieldMapping(49, ThresHoldEntity::getAwayTackleCount)); //3分割
+        mappings.add(new FieldMapping(50, ThresHoldEntity::getHomeClearCount));
+        mappings.add(new FieldMapping(51, ThresHoldEntity::getAwayClearCount));
+        mappings.add(new FieldMapping(52, ThresHoldEntity::getHomeDuelCount));
+        mappings.add(new FieldMapping(53, ThresHoldEntity::getAwayDuelCount));
+        mappings.add(new FieldMapping(54, ThresHoldEntity::getHomeInterceptCount));
+        mappings.add(new FieldMapping(55, ThresHoldEntity::getAwayInterceptCount));
 
         return mappings;
     }

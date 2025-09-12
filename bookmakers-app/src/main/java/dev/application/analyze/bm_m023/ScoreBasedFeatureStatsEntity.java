@@ -162,6 +162,12 @@ public class ScoreBasedFeatureStatsEntity extends MetaEntity implements Serializ
 	/** アウェーパス数の統計情報 */
 	private String awayPassCountStat;
 
+	/** ホームロングパス数の統計情報 */
+	private String homeLongPassCountStat;
+
+	/** アウェーロングパス数の統計情報 */
+	private String awayLongPassCountStat;
+
 	/** ホームファイナルサードパス数の統計情報 */
 	private String homeFinalThirdPassCountStat;
 
@@ -185,6 +191,12 @@ public class ScoreBasedFeatureStatsEntity extends MetaEntity implements Serializ
 
 	/** アウェークリア数の統計情報 */
 	private String awayClearCountStat;
+
+	/** ホームデュエル数の統計情報 */
+	private String homeDuelCountStat;
+
+	/** アウェーデュエル数の統計情報 */
+	private String awayDuelCountStat;
 
 	/** ホームインターセプト数の統計情報 */
 	private String homeInterceptCountStat;

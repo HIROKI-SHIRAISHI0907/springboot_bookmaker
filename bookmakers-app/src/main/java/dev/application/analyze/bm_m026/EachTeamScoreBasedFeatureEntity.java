@@ -165,6 +165,12 @@ public class EachTeamScoreBasedFeatureEntity extends MetaEntity implements Seria
 	/** アウェーパス数の統計情報 */
 	private String awayPassCountStat;
 
+	/** ホームロングパス数の統計情報 */
+	private String homeLongPassCountStat;
+
+	/** アウェーロングパス数の統計情報 */
+	private String awayLongPassCountStat;
+
 	/** ホームファイナルサードパス数の統計情報 */
 	private String homeFinalThirdPassCountStat;
 
@@ -188,6 +194,12 @@ public class EachTeamScoreBasedFeatureEntity extends MetaEntity implements Seria
 
 	/** アウェークリア数の統計情報 */
 	private String awayClearCountStat;
+
+	/** ホームデュエル数の統計情報 */
+	private String homeDuelCountStat;
+
+	/** アウェーデュエル数の統計情報 */
+	private String awayDuelCountStat;
 
 	/** ホームインターセプト数の統計情報 */
 	private String homeInterceptCountStat;

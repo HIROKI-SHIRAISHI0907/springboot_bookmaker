@@ -127,6 +127,8 @@ public class BmM030StatEncryptionBean {
 		fieldMap.put("awayBoxTouchInfo", BookDataEntity::getAwayBoxTouch);
 		fieldMap.put("homePassCountInfoOnSuccessCount", BookDataEntity::getHomePassCount);
 		fieldMap.put("awayPassCountInfoOnSuccessCount", BookDataEntity::getAwayPassCount);
+		fieldMap.put("homeLongPassCountInfoOnSuccessCount", BookDataEntity::getHomeLongPassCount);
+		fieldMap.put("awayLongPassCountInfoOnSuccessCount", BookDataEntity::getAwayLongPassCount);
 		fieldMap.put("homeFinalThirdPassCountInfoOnSuccessCount", BookDataEntity::getHomeFinalThirdPassCount);
 		fieldMap.put("awayFinalThirdPassCountInfoOnSuccessCount", BookDataEntity::getAwayFinalThirdPassCount);
 		fieldMap.put("homeCrossCountInfoOnSuccessCount", BookDataEntity::getHomeCrossCount);
@@ -135,6 +137,8 @@ public class BmM030StatEncryptionBean {
 		fieldMap.put("awayTackleCountInfoOnSuccessCount", BookDataEntity::getAwayTackleCount);
 		fieldMap.put("homeClearCountInfo", BookDataEntity::getHomeClearCount);
 		fieldMap.put("awayClearCountInfo", BookDataEntity::getAwayClearCount);
+		fieldMap.put("homeDuelCountInfo", BookDataEntity::getHomeDuelCount);
+		fieldMap.put("awayDuelCountInfo", BookDataEntity::getAwayDuelCount);
 		fieldMap.put("homeInterceptCountInfo", BookDataEntity::getHomeInterceptCount);
 		fieldMap.put("awayInterceptCountInfo", BookDataEntity::getAwayInterceptCount);
 		FIELDMAP = Collections.unmodifiableMap(fieldMap);

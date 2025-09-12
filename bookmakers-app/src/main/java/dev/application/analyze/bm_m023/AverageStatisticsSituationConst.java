@@ -8,13 +8,13 @@ package dev.application.analyze.bm_m023;
 public class AverageStatisticsSituationConst {
 
 	/** 件数 */
-	public static final int COUNTER = 52;
+	public static final int COUNTER = 56;
 
 	/** 件数 */
-	public static final int SPLIT_COUNTER = 68;
+	public static final int SPLIT_COUNTER = 72;
 
 	/** 件数 */
-	public static final int STAT_ENCRYPTION_COUNTER = 68;
+	public static final int STAT_ENCRYPTION_COUNTER = 72;
 
 	/** 得点あり */
 	public static final String SCORE = "得点あり";

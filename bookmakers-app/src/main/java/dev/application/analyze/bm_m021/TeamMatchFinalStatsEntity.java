@@ -175,6 +175,24 @@ public class TeamMatchFinalStatsEntity extends MetaEntity {
 	/** 対戦相手パス数_試行数 */
 	private String oppositePassCountTryCount;
 
+	/** ロングパス数_成功率 */
+	private String longPassCountSuccessRatio;
+
+	/** ロングパス数_成功数 */
+	private String longPassCountSuccessCount;
+
+	/** ロングパス数_試行数 */
+	private String longPassCountTryCount;
+
+	/** 対戦相手ロングパス数_成功率 */
+	private String oppositeLongPassCountSuccessRatio;
+
+	/** 対戦相手ロングパス数_成功数 */
+	private String oppositeLongPassCountSuccessCount;
+
+	/** 対戦相手ロングパス数_試行数 */
+	private String oppositeLongPassCountTryCount;
+
 	/** ファイナルサードパス数_成功率 */
 	private String finalThirdPassCountSuccessRatio;
 
@@ -234,6 +252,12 @@ public class TeamMatchFinalStatsEntity extends MetaEntity {
 
 	/** 対戦相手クリア数 */
 	private String oppositeClearCount;
+
+	/** デュエル数 */
+	private String duelCount;
+
+	/** 対戦相手デュエル数 */
+	private String oppositeDuelCount;
 
 	/** インターセプト数 */
 	private String interceptCount;

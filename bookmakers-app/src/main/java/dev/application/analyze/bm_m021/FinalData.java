@@ -16,6 +16,9 @@ public class FinalData {
 	/** 3分割データ(パス) */
 	private RetentionData pass;
 
+	/** 3分割データ(ロングパス) */
+	private RetentionData longPass;
+
 	/** 3分割データ(ファイナルサードパス) */
 	private RetentionData finalThirdPass;
 

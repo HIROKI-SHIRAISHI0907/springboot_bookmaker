@@ -243,4 +243,16 @@ public class CalcCorrelationRankingEntity extends MetaEntity implements Serializ
 	/** ランキング68位 */
 	private String rank68th;
 
+	/** ランキング69位 */
+	private String rank69th;
+
+	/** ランキング70位 */
+	private String rank70th;
+
+	/** ランキング71位 */
+	private String rank71th;
+
+	/** ランキング72位 */
+	private String rank72th;
+
 }

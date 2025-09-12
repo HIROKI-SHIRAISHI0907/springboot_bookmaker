@@ -180,6 +180,24 @@ public class CalcCorrelationEntity extends MetaEntity implements Serializable {
 	/** アウェーパス数のプレースタイル試行数相関係数情報 */
 	private String awayPassCountInfoOnTryCount;
 
+	/** ホームロングパス数のプレースタイル成功率相関係数情報 */
+	private String homeLongPassCountInfoOnSuccessRatio;
+
+	/** ホームロングパス数のプレースタイル成功数相関係数情報 */
+	private String homeLongPassCountInfoOnSuccessCount;
+
+	/** ホームロングパス数のプレースタイル試行数相関係数情報 */
+	private String homeLongPassCountInfoOnTryCount;
+
+	/** アウェーロングパス数のプレースタイル成功率相関係数情報 */
+	private String awayLongPassCountInfoOnSuccessRatio;
+
+	/** アウェーロングパス数のプレースタイル成功数相関係数情報 */
+	private String awayLongPassCountInfoOnSuccessCount;
+
+	/** アウェーロングパス数のプレースタイル試行数相関係数情報 */
+	private String awayLongPassCountInfoOnTryCount;
+
 	/** ホームファイナルサードパス数のプレースタイル成功率相関係数情報 */
 	private String homeFinalThirdPassCountInfoOnSuccessRatio;
 
@@ -239,6 +257,12 @@ public class CalcCorrelationEntity extends MetaEntity implements Serializable {
 
 	/** アウェークリア数のプレースタイル相関係数情報 */
 	private String awayClearCountInfo;
+
+	/** ホームデュエル数のプレースタイル相関係数情報 */
+	private String homeDuelCountInfo;
+
+	/** アウェーデュエル数のプレースタイル相関係数情報 */
+	private String awayDuelCountInfo;
 
 	/** ホームインターセプト数のプレースタイル相関係数情報 */
 	private String homeInterceptCountInfo;

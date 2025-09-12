@@ -117,7 +117,8 @@ public abstract class StatFormatResolver {
 	 * @return
 	 */
 	protected String formatDecimal(String value) {
-		if (value == null || value.isEmpty()) return "0.00";
+		if (value == null || value.isEmpty())
+			return "0.00";
 		try {
 			double d = Double.parseDouble(value.replaceAll("'", ""));
 			return String.format("%.2f", d);
@@ -132,13 +133,14 @@ public abstract class StatFormatResolver {
 	 * @return
 	 */
 	protected Triple<String, String, String> splitPercentageWithFraction(String valueStr) {
-	    if (valueStr == null || !valueStr.contains("%") || !valueStr.contains("(")) return null;
-	    try {
-	        List<String> parts = ExecuteMainUtil.splitFlgGroup(valueStr);
-	        return Triple.of(parts.get(0), parts.get(1), parts.get(2));
-	    } catch (Exception e) {
-	        return null;
-	    }
+		if (valueStr == null || !valueStr.contains("%") || !valueStr.contains("("))
+			return null;
+		try {
+			List<String> parts = ExecuteMainUtil.splitFlgGroup(valueStr);
+			return Triple.of(parts.get(0), parts.get(1), parts.get(2));
+		} catch (Exception e) {
+			return null;
+		}
 	}
 
 	/**
@@ -147,13 +149,15 @@ public abstract class StatFormatResolver {
 	 * @return
 	 */
 	protected boolean isTriSplitFieldName(String fieldName) {
-	    if (fieldName == null) return false;
-	    String n = fieldName.toLowerCase();
-	    return n.contains("passcount")
-	        || n.contains("finalthirdpasscount")
-	        || n.contains("crosscount")
-	        || n.contains("tacklecount");
-	    // 必要に応じて追加
+		if (fieldName == null)
+			return false;
+		String n = fieldName.toLowerCase();
+		return n.contains("passcount")
+				|| n.contains("longPasscount")
+				|| n.contains("finalthirdpasscount")
+				|| n.contains("crosscount")
+				|| n.contains("tacklecount");
+		// 必要に応じて追加
 	}
 
 	/**
@@ -162,11 +166,13 @@ public abstract class StatFormatResolver {
 	 * @return
 	 */
 	protected Triple<String, String, String> split3Safe(String valueStr) {
-	    if (valueStr == null || valueStr.isBlank()) return Triple.of("", "", "");
-	    Triple<String,String,String> t = splitPercentageWithFraction(valueStr);
-	    if (t != null) return t;
-	    // "93%" のように%だけのケースも3要素で返す
-	    return Triple.of(valueStr.trim(), "", "");
+		if (valueStr == null || valueStr.isBlank())
+			return Triple.of("", "", "");
+		Triple<String, String, String> t = splitPercentageWithFraction(valueStr);
+		if (t != null)
+			return t;
+		// "93%" のように%だけのケースも3要素で返す
+		return Triple.of(valueStr.trim(), "", "");
 	}
 
 }

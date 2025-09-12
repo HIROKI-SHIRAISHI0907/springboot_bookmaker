@@ -168,6 +168,12 @@ public class StatEncryptionEntity extends MetaEntity implements Serializable {
 	/** アウェーパス数のプレースタイル成功数相関係数情報 */
 	private String awayPassCountInfoOnSuccessCount;
 
+	/** ホームロングパス数のプレースタイル成功数相関係数情報 */
+	private String homeLongPassCountInfoOnSuccessCount;
+
+	/** アウェーロングパス数のプレースタイル成功数相関係数情報 */
+	private String awayLongPassCountInfoOnSuccessCount;
+
 	/** ホームファイナルサードパス数のプレースタイル成功数相関係数情報 */
 	private String homeFinalThirdPassCountInfoOnSuccessCount;
 
@@ -191,6 +197,12 @@ public class StatEncryptionEntity extends MetaEntity implements Serializable {
 
 	/** アウェークリア数のプレースタイル相関係数情報 */
 	private String awayClearCountInfo;
+
+	/** ホームデュエル数のプレースタイル相関係数情報 */
+	private String homeDuelCountInfo;
+
+	/** アウェーデュエル数のプレースタイル相関係数情報 */
+	private String awayDuelCountInfo;
 
 	/** ホームインターセプト数のプレースタイル相関係数情報 */
 	private String homeInterceptCountInfo;
