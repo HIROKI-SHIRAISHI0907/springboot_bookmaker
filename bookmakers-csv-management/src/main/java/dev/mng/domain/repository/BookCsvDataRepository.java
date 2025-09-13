@@ -13,7 +13,7 @@ import dev.mng.csvmng.SeqWithKey;
 public interface BookCsvDataRepository {
 
 	@Select({
-			"SELECT",
+			"SELECT DISTINCT",
 			"  t.dataCategory, t.homeTeamName, t.awayTeamName, t.times, t.seq",
 			"FROM (",
 			"  SELECT",
@@ -42,7 +42,7 @@ public interface BookCsvDataRepository {
 
 			"  UNION ALL",
 
-			"  SELECT",
+			"  SELECT DISTINCT",
 			"    d.data_category  AS dataCategory,",
 			"    d.home_team_name AS homeTeamName,",
 			"    d.away_team_name AS awayTeamName,",
