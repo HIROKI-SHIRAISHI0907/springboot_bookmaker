@@ -469,15 +469,47 @@ public class ExecuteMainUtil {
 	 * @return
 	 */
 	public static String[] splitLeagueInfo(String text) {
-		if (text.contains(": ")) {
-			String[] mainParts = text.split(": ", 2);
-			if (mainParts.length == 2) {
-				String country = mainParts[0];
-				String league = mainParts[1].split(" - ")[0];
-				return new String[] { country, league };
-			}
-		}
-		return null;
+		if (text == null) return new String[]{ null, null, null };
+
+        // 記号の揺れを最小限正規化
+        String s = text.trim()
+                .replace('\uFF1A', ':')  // 全角コロン → :
+                .replace('\u2010', '-')  // Hyphen
+                .replace('\u2011', '-')  // Non-breaking hyphen
+                .replace('\u2013', '-')  // En dash
+                .replace('\u2014', '-')  // Em dash
+                .replace('\u2212', '-'); // Minus sign
+
+        int colon = s.indexOf(':');
+        if (colon < 0) return new String[]{ null, null, null };
+
+        String country = s.substring(0, colon).trim();
+        String right   = s.substring(colon + 1).trim();
+
+        // 右側の“最後の - ”でラウンド切り出し
+        int lastDash = right.lastIndexOf(" - ");
+        if (lastDash < 0) lastDash = right.lastIndexOf('-');
+
+        String leaguePart, round;
+        if (lastDash < 0) {
+            // ダッシュが無ければラウンド無し
+            leaguePart = right;
+            round = null;
+        } else {
+            boolean spaced = right.startsWith(" - ", lastDash);
+            leaguePart = right.substring(0, lastDash).trim();
+            round      = right.substring(lastDash + (spaced ? 3 : 1)).trim();
+            if (round.isEmpty()) round = null;
+        }
+
+        // サブリーグ（例: "- アペルトゥラ", "- クラウスーラ" 等）を最後のダッシュ単位で落とす
+        int subDash = leaguePart.lastIndexOf(" - ");
+        if (subDash < 0) subDash = leaguePart.lastIndexOf('-');
+        if (subDash > 0) {
+            leaguePart = leaguePart.substring(0, subDash).trim();
+        }
+
+        return new String[]{ country, leaguePart, round };
 	}
 
 	/**

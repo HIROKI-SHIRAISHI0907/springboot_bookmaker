@@ -97,6 +97,8 @@ public class FileMngWrapper {
 	    JP_HEADER_MAP.put("awayBoxTouch", "アウェーボックスタッチ");
 	    JP_HEADER_MAP.put("homePassCount", "ホームパス数");
 	    JP_HEADER_MAP.put("awayPassCount", "アウェーパス数");
+	    JP_HEADER_MAP.put("homeLongPassCount", "ホームロングパス数");
+	    JP_HEADER_MAP.put("awayLongPassCount", "アウェーロングパス数");
 	    JP_HEADER_MAP.put("homeFinalThirdPassCount", "ホームファイナルサードパス数");
 	    JP_HEADER_MAP.put("awayFinalThirdPassCount", "アウェーファイナルサードパス数");
 	    JP_HEADER_MAP.put("homeCrossCount", "ホームクロス数");
@@ -105,6 +107,8 @@ public class FileMngWrapper {
 	    JP_HEADER_MAP.put("awayTackleCount", "アウェータックル数");
 	    JP_HEADER_MAP.put("homeClearCount", "ホームクリア数");
 	    JP_HEADER_MAP.put("awayClearCount", "アウェークリア数");
+	    JP_HEADER_MAP.put("homeDuelCount", "ホームデュエル勝利数");
+	    JP_HEADER_MAP.put("awayDuelCount", "アウェーデュエル勝利数");
 	    JP_HEADER_MAP.put("homeInterceptCount", "ホームインターセプト数");
 	    JP_HEADER_MAP.put("awayInterceptCount", "アウェーインターセプト数");
 	    JP_HEADER_MAP.put("recordTime", "記録時間");
