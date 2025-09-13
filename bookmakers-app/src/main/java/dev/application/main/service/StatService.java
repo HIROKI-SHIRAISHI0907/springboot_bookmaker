@@ -140,8 +140,8 @@ public class StatService implements StatIF {
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		// シーケンスデータから取得(最大値情報取得)
-		String csvNumber = "";
-		String csvBackNumber = "";
+		String csvNumber = "0";
+		String csvBackNumber = "5";
 
 		// 直近のCSVデータ情報を取得
 		Map<String, Map<String, List<BookDataEntity>>> getStatMap = this.getStatInfo.getData(csvNumber, csvBackNumber);
@@ -152,13 +152,14 @@ public class StatService implements StatIF {
 		this.teamTimeSegmentShootingStat.calcStat(getStatMap);
 		this.countryLeagueSummaryStat.calcStat(getStatMap);
 		this.noGoalMatchStat.calcStat(getStatMap);
-		this.timeRangeFeatureStat.calcStat(getStatMap);
+		//this.timeRangeFeatureStat.calcStat(getStatMap);
 		this.leagueScoreTimeBandStat.calcStat(getStatMap);
 		this.matchClassificationResultStat.calcStat(getStatMap);
 		this.teamMatchFinalStat.calcStat(getStatMap);
 		this.scoreBasedFeatureStat.calcStat(getStatMap);
 		this.calcCorrelationStat.calcStat(getStatMap);
 		this.calcCorrelationRankingStat.calcStat(getStatMap);
+		this.eachTeamScoreBasedFeatureStat.calcStat(getStatMap);
 
 		// endLog
 		this.loggerComponent.debugEndInfoLog(

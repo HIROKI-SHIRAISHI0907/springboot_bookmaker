@@ -20,7 +20,9 @@ import dev.application.analyze.bm_m030.StatEncryptionEntity;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.ScoreBasedFeatureStatsRepository;
 import dev.application.domain.repository.StatEncryptionRepository;
+import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
+import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
@@ -59,6 +61,10 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	@Autowired
 	private StatEncryptionRepository statEncryptionRepository;
 
+	/** ログ管理ラッパー*/
+	@Autowired
+	private RootCauseWrapper rootCauseWrapper;
+
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
@@ -90,6 +96,9 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 					continue;
 				// decideBasedMain を呼び出して集計マップを取得
 				map = decideBasedMain(entityList, country, league, bmM30Map);
+				if (map == null) {
+					continue;
+				}
 				// 登録・更新
 				ExecutorService executor = Executors.newFixedThreadPool(map.size());
 				List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -122,14 +131,12 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			int result = this.statEncryptionRepository.insert(newEntrys);
 			if (result != 1) {
 				String messageCd = "新規登録エラー";
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						null);
+				this.rootCauseWrapper.throwUnexpectedRowCount(
+				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+				        messageCd,
+				        1, result,
+				        null
+				    );
 			}
 			String messageCd = "登録件数";
 			this.manageLoggerComponent.debugInfoLog(
@@ -153,6 +160,9 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	private ConcurrentHashMap<String, List<ScoreBasedFeatureStatsEntity>> decideBasedMain(List<BookDataEntity> entities,
 			String country, String league, ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map) {
 		BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
+		if (!BookMakersCommonConst.FIN.equals(returnMaxEntity.getTime())) {
+			return null;
+		}
 		String home = returnMaxEntity.getHomeTeamName();
 		String away = returnMaxEntity.getAwayTeamName();
 
@@ -448,14 +458,12 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		int result = this.scoreBasedFeatureStatsRepository.insert(entity);
 		if (result != 1) {
 			String messageCd = "新規登録エラー";
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-			this.manageLoggerComponent.createSystemException(
-					PROJECT_NAME,
-					CLASS_NAME,
-					METHOD_NAME,
-					messageCd,
-					null);
+			this.rootCauseWrapper.throwUnexpectedRowCount(
+			        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+			        messageCd,
+			        1, result,
+			        null
+			    );
 		}
 		String messageCd = "登録件数";
 		this.manageLoggerComponent.debugInfoLog(
@@ -476,14 +484,12 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		int result = this.scoreBasedFeatureStatsRepository.updateStatValues(entity);
 		if (result != 1) {
 			String messageCd = "更新エラー";
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-			this.manageLoggerComponent.createSystemException(
-					PROJECT_NAME,
-					CLASS_NAME,
-					METHOD_NAME,
-					messageCd,
-					null);
+			this.rootCauseWrapper.throwUnexpectedRowCount(
+			        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+			        messageCd,
+			        1, result,
+			        String.format("id=%s, count=%s, remarks=%s", entity.getId(), null, null)
+			    );
 		}
 		String messageCd = "登録件数";
 		this.manageLoggerComponent.debugInfoLog(

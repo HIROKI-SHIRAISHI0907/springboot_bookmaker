@@ -7,18 +7,19 @@ import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
 import java.util.Set;
 import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.MatchClassificationResultCountRepository;
 import dev.application.domain.repository.MatchClassificationResultRepository;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
+import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
@@ -28,7 +29,6 @@ import dev.common.util.ExecuteMainUtil;
  *
  */
 @Component
-@Transactional
 public class MatchClassificationResultStat implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */
@@ -52,6 +52,10 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 	/** MatchClassificationResultCountRepositoryレポジトリクラス */
 	@Autowired
 	private MatchClassificationResultCountRepository matchClassificationResultCountRepository;
+
+	/** ログ管理ラッパー*/
+	@Autowired
+	private RootCauseWrapper rootCauseWrapper;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -95,17 +99,27 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
+		// 初期データ登録
+		for (Map.Entry<String, Map<String, List<BookDataEntity>>> entiEntry : entities.entrySet()) {
+			String leagueKey = entiEntry.getKey();
+			String[] sp = ExecuteMainUtil.splitLeagueInfo(leagueKey);
+			String country = sp[0];
+			String league = sp[1];
+			init(country, league);
+		}
+
 		Map<String, List<String>> mainMap = new ConcurrentHashMap<>();
 		entities.entrySet().parallelStream().forEach(entry -> {
 			String leagueKey = entry.getKey(); // 例: "Japan-J1"
 			String[] sp = ExecuteMainUtil.splitLeagueInfo(leagueKey);
 			String country = sp[0];
 			String league = sp[1];
-			// 初期化
-			init(country, league);
 			Map<String, List<BookDataEntity>> matchMap = entry.getValue();
 			for (List<BookDataEntity> dataList : matchMap.values()) {
 				MatchClassificationResultOutputDTO dto = classification(dataList);
+				if (dto == null) {
+					continue;
+				}
 				List<MatchClassificationResultEntity> insertEntities = dto.getEntityList();
 				// BM_M019登録
 				saveResultData(insertEntities, country, league);
@@ -117,20 +131,23 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 
 		// データ更新
 		mainMap.entrySet().stream().forEach(entry -> {
-		    String leagueKey = entry.getKey(); // 例: "Japan-J1"
-		    String[] split = leagueKey.split("-");
-		    String country = split[0];
-		    String league = split[1];
-		    List<String> classificationModeList = entry.getValue();
-		    // 内側だけ並列で処理
-		    classificationModeList.parallelStream().forEach(classificationMode -> {
-		        MatchClassificationResultOutputDTO dto = getData(country, league, classificationMode);
-		        // 基本は全て更新の想定
-		        String id = dto.getId();
-		        String cnt = String.valueOf(Integer.parseInt(dto.getCnt()) + 1);
-		        String remarks = null;
-		        saveCntData(id, country, league, cnt, remarks);
-		    });
+			String leagueKey = entry.getKey(); // 例: "Japan-J1"
+			String[] sp = ExecuteMainUtil.splitLeagueInfo(leagueKey);
+			String country = sp[0];
+			String league = sp[1];
+			List<String> classificationModeList = entry.getValue();
+			// 内側だけ並列で処理
+			classificationModeList.parallelStream()
+					.filter(Objects::nonNull) // ← null を除外
+					.map(String::trim) // ← 前後空白を除く（" 13" 対策）
+					.filter(s -> !s.isEmpty()) // ← 空文字は捨てる
+					.forEach(classificationMode -> {
+						MatchClassificationResultOutputDTO dto = getData(country, league, classificationMode);
+						// 基本は全て更新の想定
+						String id = dto.getId();
+						String cnt = String.valueOf(Integer.parseInt(dto.getCnt()) + 1);
+						saveCntData(id, country, league, classificationMode, cnt);
+					});
 		});
 
 		// endLog
@@ -154,17 +171,21 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 			classifyResultDataDetailEntity.setLeague(league);
 			classifyResultDataDetailEntity.setCount("0");
 			classifyResultDataDetailEntity.setClassifyMode(String.valueOf(classify));
+			classifyResultDataDetailEntity.setRemarks(getRemarks(classify));
+			List<MatchClassificationResultCountEntity> data = this.matchClassificationResultCountRepository
+					.findData(country, league, String.valueOf(classify));
+			if (!data.isEmpty()) {
+				continue;
+			}
+
 			int result = this.matchClassificationResultCountRepository.insert(classifyResultDataDetailEntity);
 			if (result != 1) {
 				String messageCd = "新規登録エラー";
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
+				this.rootCauseWrapper.throwUnexpectedRowCount(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 						messageCd,
-						null);
+						1, result,
+						String.format("classifymode=%s", classify));
 			}
 		}
 		MatchClassificationResultCountEntity classifyResultDataDetailEntity = new MatchClassificationResultCountEntity();
@@ -172,22 +193,24 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 		classifyResultDataDetailEntity.setLeague(league);
 		classifyResultDataDetailEntity.setCount("0");
 		classifyResultDataDetailEntity.setClassifyMode("-1");
-		int result = this.matchClassificationResultCountRepository.insert(classifyResultDataDetailEntity);
-		if (result != 1) {
-			String messageCd = "新規登録エラー";
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-			this.manageLoggerComponent.createSystemException(
-					PROJECT_NAME,
-					CLASS_NAME,
-					METHOD_NAME,
-					messageCd,
-					null);
+		classifyResultDataDetailEntity.setRemarks(getRemarks(-1));
+		List<MatchClassificationResultCountEntity> data = this.matchClassificationResultCountRepository
+				.findData(country, league, "-1");
+		if (data.isEmpty()) {
+			int result = this.matchClassificationResultCountRepository.insert(classifyResultDataDetailEntity);
+			if (result != 1) {
+				String messageCd = "新規登録エラー";
+				this.rootCauseWrapper.throwUnexpectedRowCount(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						messageCd,
+						1, result,
+						"classifymode=-1");
+			}
+			String messageCd = "登録件数";
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M020 登録件数: "
+							+ SCORE_CLASSIFICATION_ALL_MAP.size() + "件");
 		}
-		String messageCd = "登録件数";
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M020 登録件数: "
-						+ SCORE_CLASSIFICATION_ALL_MAP.size() + "件");
 	}
 
 	/**
@@ -208,6 +231,7 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 			matchClassificationResultOutputDTO.setCnt(datas.get(0).getCount());
 		} else {
 			matchClassificationResultOutputDTO.setUpdFlg(false);
+			matchClassificationResultOutputDTO.setCnt("0");
 		}
 		return matchClassificationResultOutputDTO;
 	}
@@ -217,23 +241,20 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 	 * @param id ID
 	 * @param country 国
 	 * @param league リーグ
+	 * @param classify_mode 分類
 	 * @param count 件数
-	 * @param remarks 備考
 	 */
-	private synchronized void saveCntData(String id, String country, String league, String count, String remarks) {
-		final String METHOD_NAME = "init";
+	private synchronized void saveCntData(String id, String country, String league, String classify_mode, String count) {
+		final String METHOD_NAME = "saveCntData";
 		String fillChar = setLoggerFillChar(country, league);
-		int result = this.matchClassificationResultCountRepository.update(id, count, remarks);
+		int result = this.matchClassificationResultCountRepository.update(id, count);
 		if (result != 1) {
-			String messageCd = "新規登録エラー";
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-			this.manageLoggerComponent.createSystemException(
-					PROJECT_NAME,
-					CLASS_NAME,
-					METHOD_NAME,
+			String messageCd = "更新エラー";
+			this.rootCauseWrapper.throwUnexpectedRowCount(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					messageCd,
-					null);
+					1, result,
+					String.format("id=%s, classify_mode=%s count=%s", id, classify_mode, count));
 		}
 		String messageCd = "更新件数";
 		this.manageLoggerComponent.debugInfoLog(
@@ -252,13 +273,10 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 			int result = this.matchClassificationResultRepository.insert(entity);
 			if (result != 1) {
 				String messageCd = "新規登録エラー";
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
+				this.rootCauseWrapper.throwUnexpectedRowCount(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 						messageCd,
+						1, result,
 						null);
 			}
 		}
@@ -279,6 +297,9 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 		Set<Integer> classifyModeConditionList = new HashSet<>();
 		List<MatchClassificationResultEntity> insertEntities = new ArrayList<MatchClassificationResultEntity>();
 		BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(entityList);
+		if (!BookMakersCommonConst.FIN.equals(returnMaxEntity.getTime())) {
+			return null;
+		}
 		int maxHomeScore = Integer.parseInt(returnMaxEntity.getHomeScore());
 		int maxAwayScore = Integer.parseInt(returnMaxEntity.getAwayScore());
 
@@ -491,5 +512,14 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 		stringBuilder.append("国: " + country + ", ");
 		stringBuilder.append("リーグ: " + league);
 		return stringBuilder.toString();
+	}
+
+	/**
+	 * キーを取得
+	 * @param key
+	 * @return
+	 */
+	private String getRemarks(int key) {
+		return SCORE_CLASSIFICATION_ALL_MAP.get(key);
 	}
 }

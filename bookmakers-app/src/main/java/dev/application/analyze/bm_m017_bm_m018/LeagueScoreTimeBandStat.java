@@ -18,6 +18,7 @@ import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.LeagueScoreTimeBandStatsRepository;
 import dev.application.domain.repository.LeagueScoreTimeBandStatsSplitScoreRepository;
 import dev.common.entity.BookDataEntity;
+import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
@@ -53,6 +54,10 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 	/** LeagueScoreTimeBandStatsSplitScoreRepositoryレポジトリクラス */
 	@Autowired
 	private LeagueScoreTimeBandStatsSplitScoreRepository leagueScoreTimeBandStatsSplitScoreRepository;
+
+	/** ログ管理ラッパー*/
+	@Autowired
+	private RootCauseWrapper rootCauseWrapper;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -446,15 +451,12 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 					.insert(leagueScoreTimeBandStatsSplitScoreEntity);
 			if (result != 1) {
 				String messageCd = "新規登録エラー";
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						null);
-
+				this.rootCauseWrapper.throwUnexpectedRowCount(
+				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+				        messageCd,
+				        1, result,
+				        null
+				    );
 			}
 			String messageCd = "登録件数";
 			this.manageLoggerComponent.debugInfoLog(
@@ -488,14 +490,12 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 			int result = this.leagueScoreTimeBandStatsRepository.update(id, target, search);
 			if (result != 1) {
 				String messageCd = "更新エラー";
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						null);
+				this.rootCauseWrapper.throwUnexpectedRowCount(
+				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+				        messageCd,
+				        1, result,
+				        String.format("id=%s, count=%s, remarks=%s", id, null, null)
+				    );
 			}
 			String messageCd = "更新件数";
 			this.manageLoggerComponent.debugInfoLog(
@@ -505,14 +505,12 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 					.update(id, target, search);
 			if (result != 1) {
 				String messageCd = "更新エラー";
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						null);
+				this.rootCauseWrapper.throwUnexpectedRowCount(
+				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+				        messageCd,
+				        1, result,
+				        String.format("id=%s, count=%s, remarks=%s", id, null, null)
+				    );
 			}
 			String messageCd = "更新件数";
 			this.manageLoggerComponent.debugInfoLog(

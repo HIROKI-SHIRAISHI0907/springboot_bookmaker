@@ -12,6 +12,7 @@ import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.ConditionResultDataRepository;
 import dev.common.entity.BookDataEntity;
+import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
@@ -40,6 +41,10 @@ public class ConditionResultDataStat implements AnalyzeEntityIF {
 	/** ConditionResultDataRepositoryレポジトリクラス */
 	@Autowired
 	private ConditionResultDataRepository conditionResultDataRepository;
+
+	/** ログ管理ラッパー*/
+	@Autowired
+	private RootCauseWrapper rootCauseWrapper;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -102,7 +107,7 @@ public class ConditionResultDataStat implements AnalyzeEntityIF {
 
 		// 登録,更新
 		boolean updFlg = bean.getUpdFlg();
-		newData(updFlg, updConditionCountIntList, bean.getHash(), fillChar);
+		newData(updFlg, updConditionCountIntList, bean.getConditionKeyData(), bean.getHash(), fillChar);
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
@@ -152,10 +157,11 @@ public class ConditionResultDataStat implements AnalyzeEntityIF {
 	 * 登録,更新メソッド
 	 * @param updFlg 更新フラグ
 	 * @param updConditionCountIntList 更新件数
+	 * @param condition 条件分岐データ
 	 * @param hash ハッシュ
 	 * @param fillChar 埋め字
 	 */
-	private synchronized void newData(boolean updFlg, Integer[] updConditionCountIntList, String hash,
+	private synchronized void newData(boolean updFlg, Integer[] updConditionCountIntList, String condition, String hash,
 			String fillChar) {
 		final String METHOD_NAME = "newData";
 
@@ -172,13 +178,15 @@ public class ConditionResultDataStat implements AnalyzeEntityIF {
 		conditionResultDataEntity.setAlterTargetMailFail(String.valueOf(updConditionCountIntList[8]));
 		conditionResultDataEntity.setNoResultCount(String.valueOf(updConditionCountIntList[9]));
 		conditionResultDataEntity.setErrData(String.valueOf(updConditionCountIntList[10]));
+		conditionResultDataEntity.setConditionData(condition);
 		conditionResultDataEntity.setHash(hash);
 
 		String messageCd = "";
 		boolean errFlg = false;
+		int result = -1;
 		if (updFlg) {
 			messageCd = "更新";
-			int result = this.conditionResultDataRepository.update(conditionResultDataEntity);
+			result = this.conditionResultDataRepository.update(conditionResultDataEntity);
 			if (result != 1) {
 				errFlg = true;
 				messageCd = "更新エラー";
@@ -186,7 +194,7 @@ public class ConditionResultDataStat implements AnalyzeEntityIF {
 			fillChar += (", BM_M002 更新件数: 1件");
 		} else {
 			messageCd = "新規登録";
-			int result = this.conditionResultDataRepository.insert(conditionResultDataEntity);
+			result = this.conditionResultDataRepository.insert(conditionResultDataEntity);
 			if (result != 1) {
 				errFlg = true;
 				messageCd = "新規登録エラー";
@@ -195,14 +203,12 @@ public class ConditionResultDataStat implements AnalyzeEntityIF {
 		}
 
 		if (errFlg) {
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-			this.manageLoggerComponent.createSystemException(
-					PROJECT_NAME,
-					CLASS_NAME,
-					METHOD_NAME,
-					null,
-					null);
+			this.rootCauseWrapper.throwUnexpectedRowCount(
+			        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+			        messageCd,
+			        1, result,
+			        null
+			    );
 		}
 
 		// 途中ログ

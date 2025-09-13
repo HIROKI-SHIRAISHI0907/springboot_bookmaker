@@ -20,6 +20,7 @@ public interface ConditionResultDataRepository {
 	 */
 	@Insert("""
 			    INSERT INTO condition_result_data (
+			    	data_seq,
 			        mail_target_count,
 			        mail_anonymous_target_count,
 			        mail_target_success_count,
@@ -38,6 +39,7 @@ public interface ConditionResultDataRepository {
 			        update_id,
 			        update_time
 			    ) VALUES (
+			    	#{dataSeq},
 			        #{mailTargetCount},
 			        #{mailAnonymousTargetCount},
 			        #{mailTargetSuccessCount},
@@ -63,7 +65,7 @@ public interface ConditionResultDataRepository {
 	 * condition_result_data から取得する
 	 */
 	@Select("""
-			    SELECT mail_target_count,
+			    SELECT data_seq, mail_target_count,
 			        mail_anonymous_target_count,
 			        mail_target_success_count,
 			        mail_target_fail_count,

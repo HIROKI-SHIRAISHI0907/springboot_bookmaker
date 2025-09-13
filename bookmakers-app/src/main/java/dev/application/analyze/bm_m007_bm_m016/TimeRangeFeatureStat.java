@@ -17,6 +17,7 @@ import dev.application.domain.repository.TimeRangeFeatureRepository;
 import dev.application.domain.repository.TimeRangeFeatureScoredRepository;
 import dev.application.domain.repository.TimeRangeFeatureUpdateRepository;
 import dev.common.entity.BookDataEntity;
+import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
@@ -70,6 +71,10 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 	/** RegisterDataToTimeRangeFeatureScoredMapperクラス */
 	@Autowired
 	private RegisterDataToTimeRangeFeatureScoredMapper registerDataToTimeRangeFeatureScoredMapper;
+
+	/** ログ管理ラッパー*/
+	@Autowired
+	private RootCauseWrapper rootCauseWrapper;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -220,7 +225,7 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 
 		int result = this.timeRangeFeatureRepository.insert(timeRangeFeatureEntity);
 		if (result != 1)
-			logAndThrow("新規登録エラー", METHOD_NAME, loggers);
+			logAndThrow("新規登録エラー", METHOD_NAME, result, loggers);
 
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "登録件数", tableId);
 	}
@@ -240,14 +245,16 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 		if (table.endsWith("scored")) {
 			TimeRangeFeatureScoredEntity entity = this.registerDataToTimeRangeFeatureScoredMapper
 					.mapStruct(registerData);
-			if (this.timeRangeFeatureScoredRepository.insert(entity) != 1) {
-				logAndThrow("新規登録エラー", methodName, loggers);
+			int result = this.timeRangeFeatureScoredRepository.insert(entity);
+			if (result != 1) {
+				logAndThrow("新規登録エラー", methodName, result, loggers);
 			}
 		} else if (table.endsWith("all_league")) {
 			TimeRangeFeatureAllLeagueEntity entity = this.registerDataToTimeRangeFeatureAllLeagueMapper
 					.mapStruct(registerData);
-			if (this.timeRangeFeatureAllLeagueRepository.insert(entity) != 1) {
-				logAndThrow("新規登録エラー", methodName, loggers);
+			int result = this.timeRangeFeatureAllLeagueRepository.insert(entity);
+			if (result != 1) {
+				logAndThrow("新規登録エラー", methodName, result, loggers);
 			}
 		}
 		String messageCd = "登録件数";
@@ -261,12 +268,13 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 	 */
 	private synchronized void commonUpdate(TeamRangeUpdateData updateData) {
 		final String methodName = "commonUpdate";
-		if (this.timeRangeFeatureUpdateRepository.update(
+		int result = this.timeRangeFeatureUpdateRepository.update(
 				updateData.getId(),
 				updateData.getTarget(),
 				updateData.getSearch(),
-				updateData.getTable()) != 1) {
-			logAndThrow("更新エラー", methodName, "");
+				updateData.getTable());
+		if (result != 1) {
+			logAndThrow("更新エラー", methodName, result, "");
 		}
 		String messageCd = "更新件数";
 		this.manageLoggerComponent.debugInfoLog(
@@ -322,11 +330,16 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 	 * 例外共通メソッド
 	 * @param messageCd メッセージコード
 	 * @param methodName メソッド名
+	 * @param result 結果
 	 * @param loggers ログ
 	 */
-	private void logAndThrow(String messageCd, String methodName, String loggers) {
-		this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, methodName, messageCd, null, loggers);
-		this.manageLoggerComponent.createSystemException(PROJECT_NAME, CLASS_NAME, methodName, messageCd, null);
+	private void logAndThrow(String messageCd, String methodName, Integer result, String loggers) {
+		this.rootCauseWrapper.throwUnexpectedRowCount(
+		        PROJECT_NAME, CLASS_NAME, methodName,
+		        messageCd,
+		        1, result,
+		        loggers
+		    );
 	}
 
 }

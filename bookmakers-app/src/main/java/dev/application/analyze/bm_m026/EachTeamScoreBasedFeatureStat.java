@@ -24,7 +24,9 @@ import dev.application.analyze.bm_m030.StatEncryptionEntity;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.EachTeamScoreBasedFeatureStatsRepository;
 import dev.application.domain.repository.StatEncryptionRepository;
+import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
+import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
@@ -66,6 +68,10 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	@Autowired
 	private StatEncryptionRepository statEncryptionRepository;
 
+	/** ログ管理ラッパー*/
+	@Autowired
+	private RootCauseWrapper rootCauseWrapper;
+
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
@@ -97,6 +103,9 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 					continue;
 				// decideBasedMain を呼び出して集計マップを取得
 				resultMap = decideBasedMain(entityList, country, league, bmM30Map);
+				if (resultMap == null) {
+					continue;
+				}
 				// 登録・更新
 				ExecutorService executor = Executors.newFixedThreadPool(resultMap.size());
 				List<CompletableFuture<Void>> futures = new ArrayList<>();
@@ -128,15 +137,13 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				System.out.println("team, chkBody, upd: " + team + ", " + split[1]);
 				int result = this.statEncryptionRepository.updateEncValues(newEntrys);
 				if (result != 1) {
-					String messageCd = "更新エラー";
-					this.manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-					this.manageLoggerComponent.createSystemException(
-							PROJECT_NAME,
-							CLASS_NAME,
-							METHOD_NAME,
-							messageCd,
-							null);
+					String messageCd = "新規登録エラー";
+					this.rootCauseWrapper.throwUnexpectedRowCount(
+					        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					        messageCd,
+					        1, result,
+					        String.format("id=%s, count=%s, remarks=%s", entrys.getId(), null, null)
+					    );
 				}
 				String messageCd = "更新件数";
 				this.manageLoggerComponent.debugInfoLog(
@@ -146,14 +153,12 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				int result = this.statEncryptionRepository.insert(newEntrys);
 				if (result != 1) {
 					String messageCd = "新規登録エラー";
-					this.manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-					this.manageLoggerComponent.createSystemException(
-							PROJECT_NAME,
-							CLASS_NAME,
-							METHOD_NAME,
-							messageCd,
-							null);
+					this.rootCauseWrapper.throwUnexpectedRowCount(
+					        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					        messageCd,
+					        1, result,
+					        null
+					    );
 				}
 				String messageCd = "登録件数";
 				this.manageLoggerComponent.debugInfoLog(
@@ -179,7 +184,9 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			List<BookDataEntity> entities,
 			String country, String league, ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map) {
 		BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
-
+		if (!BookMakersCommonConst.FIN.equals(returnMaxEntity.getTime())) {
+			return null;
+		}
 		// situation決定
 		String situation = (Integer.parseInt(returnMaxEntity.getHomeScore()) == 0
 				&& Integer.parseInt(returnMaxEntity.getAwayScore()) == 0) ? AverageStatisticsSituationConst.NOSCORE

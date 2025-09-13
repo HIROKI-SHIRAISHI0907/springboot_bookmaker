@@ -55,11 +55,10 @@ public interface MatchClassificationResultCountRepository {
 	@Update("""
 			    UPDATE classify_result_data_detail
 			    SET
-			        count = #{count},
-			        remarks = #{remarks}
+			        count = #{count}
 			    WHERE
 			        id = #{id};
 			""")
-	int update(String id, String count, String remarks);
+	int update(String id, String count);
 
 }

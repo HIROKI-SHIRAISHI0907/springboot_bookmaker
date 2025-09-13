@@ -25,6 +25,7 @@ import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.EachTeamScoreBasedFeatureStatsRepository;
 import dev.application.domain.repository.ScoreBasedFeatureStatsRepository;
 import dev.common.entity.BookDataEntity;
+import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
@@ -60,6 +61,10 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 	/** EachTeamScoreBasedFeatureStatsRepositoryレポジトリクラス */
 	@Autowired
 	private EachTeamScoreBasedFeatureStatsRepository eachTeamScoreBasedFeatureStatsRepository;
+
+	/** ログ管理ラッパー*/
+	@Autowired
+	private RootCauseWrapper rootCauseWrapper;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -251,14 +256,12 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 		int result = this.scoreBasedFeatureStatsRepository.updateStatValues(entity);
 		if (result != 1) {
 			String messageCd = "更新エラー average_statistics_data";
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-			this.manageLoggerComponent.createSystemException(
-					PROJECT_NAME,
-					CLASS_NAME,
-					METHOD_NAME,
-					messageCd,
-					null);
+			this.rootCauseWrapper.throwUnexpectedRowCount(
+			        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+			        messageCd,
+			        1, result,
+			        String.format("id=%s, count=%s, remarks=%s", entity.getId(), null, null)
+			    );
 		}
 		String messageCd = "更新件数 average_statistics_data";
 		this.manageLoggerComponent.debugInfoLog(
@@ -279,14 +282,12 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 		int result = this.eachTeamScoreBasedFeatureStatsRepository.updateStatValues(entity);
 		if (result != 1) {
 			String messageCd = "更新エラー average_statistics_data_detail";
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-			this.manageLoggerComponent.createSystemException(
-					PROJECT_NAME,
-					CLASS_NAME,
-					METHOD_NAME,
-					messageCd,
-					null);
+			this.rootCauseWrapper.throwUnexpectedRowCount(
+			        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+			        messageCd,
+			        1, result,
+			        String.format("id=%s, count=%s, remarks=%s", entity.getId(), null, null)
+			    );
 		}
 		String messageCd = "更新件数 average_statistics_data_detail";
 		this.manageLoggerComponent.debugInfoLog(

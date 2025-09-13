@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.SurfaceOverviewRepository;
+import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
@@ -71,6 +72,9 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 					continue;
 
 				resultMap = basedMain(entityList, country, league, home, away, resultMap);
+				if (resultMap == null) {
+					continue;
+				}
 			}
 
 			if (!resultMap.isEmpty()) {
@@ -97,6 +101,9 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			String country, String league, String home, String away,
 			ConcurrentHashMap<String, SurfaceOverviewEntity> resultMap) {
 		BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
+		if (!BookMakersCommonConst.FIN.equals(returnMaxEntity.getTime())) {
+			return null;
+		}
 		BookDataEntity returnMiddleEntity = ExecuteMainUtil.getHalfEntities(entities);
 		BookDataEntity returnMinEntity = ExecuteMainUtil.getMinSeqEntities(entities);
 		List<String> scoreList = new ArrayList<String>();

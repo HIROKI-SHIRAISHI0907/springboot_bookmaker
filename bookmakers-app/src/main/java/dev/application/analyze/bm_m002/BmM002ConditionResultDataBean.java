@@ -52,6 +52,9 @@ public class BmM002ConditionResultDataBean {
 	/** 更新フラグ */
 	private boolean updFlg;
 
+	/** 条件分岐データ */
+	private String conditionData;
+
 	/** ハッシュ */
 	private String hash;
 
@@ -69,14 +72,17 @@ public class BmM002ConditionResultDataBean {
 			if (conditionData == null) {
 				throw new Exception("conditionData: null");
 			}
+			this.conditionData = conditionData;
 			hash = extractHash(conditionData);
 			if (hash == null) {
+				this.hash = "dummy";
 				this.conditionCountList = new String[] {
 				        "0","0","0","0","0","0","0","0","0","0","0"
 				    };
 				this.updFlg = false;
 			    return;
 			}
+			this.hash = hash;
 		} catch (Exception e) {
 			String fillChar = (e.getMessage() != null) ? e.getMessage() : null;
 			this.loggerComponent.debugErrorLog(
@@ -147,6 +153,14 @@ public class BmM002ConditionResultDataBean {
 			throw e;
 		}
 		return Base64.getEncoder().encodeToString(cipherBytes);
+	}
+
+	/**
+	 * 条件分岐データ
+	 * @return hash
+	 */
+	public String getConditionKeyData() {
+		return conditionData;
 	}
 
 	/**
