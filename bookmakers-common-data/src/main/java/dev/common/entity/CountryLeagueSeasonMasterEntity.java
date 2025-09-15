@@ -27,6 +27,9 @@ public class CountryLeagueSeasonMasterEntity extends MetaEntity {
 	/** シーズン終了 */
 	private String endSeasonDate;
 
+	/** ラウンド数 */
+	private String round;
+
 	/** パス */
 	private String path;
 
@@ -35,5 +38,8 @@ public class CountryLeagueSeasonMasterEntity extends MetaEntity {
 
 	/** 更新済みスタンプ */
 	private String updStamp;
+
+	/** 有効フラグ*/
+	private String validFlg;
 
 }

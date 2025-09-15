@@ -1,0 +1,15 @@
+app:
+  csv-folder: /Users/shiraishitoshio/bookmaker/csv/
+  output-csv-folder: /Users/shiraishitoshio/bookmaker/
+  
+spring:
+  datasource:
+    url: jdbc:mysql://localhost:3306/soccer_bm
+    username: root
+    password: sonic3717
+    driver-class-name: com.mysql.cj.jdbc.Driver
+  flyway:
+    enabled: false
+mybatis:
+  configuration:
+    map-underscore-to-camel-case: true

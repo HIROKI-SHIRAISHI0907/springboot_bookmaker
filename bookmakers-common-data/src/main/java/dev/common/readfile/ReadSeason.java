@@ -83,8 +83,9 @@ public class ReadSeason {
 				String league = cellString(row.getCell(1), formatter);
 				String start = cellString(row.getCell(2), formatter);
 				String end = cellString(row.getCell(3), formatter);
-				String path = cellString(row.getCell(4), formatter);
-				String icon = cellString(row.getCell(5), formatter);
+				String round = cellString(row.getCell(4), formatter);
+				String path = cellString(row.getCell(5), formatter);
+				String icon = cellString(row.getCell(6), formatter);
 
 				// 全部国,リーグが空ならスキップ
 				if (country.isEmpty() && league.isEmpty())
@@ -101,6 +102,7 @@ public class ReadSeason {
 				e.setLeague(league);
 				e.setStartSeasonDate(startConv);
 				e.setEndSeasonDate(endConv);
+				e.setRound(round);
 				e.setPath(path);
 				e.setIcon(icon);
 				entiryList.add(e);
