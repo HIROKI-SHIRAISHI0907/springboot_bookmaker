@@ -56,15 +56,15 @@ public class SurfaceOverviewStatTest {
 	@Test
 	void test_basedMain_setsExpectedFields_simpleAwayWin() throws Exception {
 		// Act
-//		String csvNumber = "1";
-//		String csvNumberAfter = "2";
-//		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
-//		this.surfaceOverviewStat.calcStat(entities);
-//
-//		csvNumber = "3";
-//		csvNumberAfter = "4";
-//		entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
-//		this.surfaceOverviewStat.calcStat(entities);
+		String csvNumber = "1";
+		String csvNumberAfter = "2";
+		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
+		this.surfaceOverviewStat.calcStat(entities);
+
+		csvNumber = "25";
+		csvNumberAfter = "26";
+		entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
+		this.surfaceOverviewStat.calcStat(entities);
 
 		String country = "アルゼンチン";
 		String league = "トルネオ・ベターノ";
@@ -109,7 +109,7 @@ public class SurfaceOverviewStatTest {
 
 		// venue 別
 		// ホームは 2-2 で引き分け
-		assertEquals("0", homeE.getHomeWinCount() == null ? "0" : homeE.getHomeWinCount());
+		assertEquals("0", homeE.getHomeWinCount());
 		assertEquals("0", homeE.getHomeLoseCount());
 		assertEquals("0", homeE.getAwayWinCount());
 		assertEquals("0", homeE.getAwayLoseCount());
@@ -125,10 +125,12 @@ public class SurfaceOverviewStatTest {
 		assertEquals("0", homeE.getHomeCleanSheet());
 		assertEquals("0", homeE.getFailToScoreGameCount()); // 0得点
 		assertEquals("1", homeE.getUnbeatenStreakCount()); // 敗戦でリセット
+		assertEquals("無敗継続中", homeE.getUnbeatenStreakDisp());
 		// アウェーチーム 1-2で敗北
 		assertEquals("0", awayE.getAwayCleanSheet()); // 相手(ホーム)が0得点
 		assertEquals("0", awayE.getFailToScoreGameCount());
 		assertEquals("0", awayE.getUnbeatenStreakCount()); // 敗戦したので0のまま
+		assertNull(awayE.getUnbeatenStreakDisp());
 
 		// 直近表示（このケースでは閾値未満なので null）
 		assertNull(homeE.getConsecutiveWinDisp());
@@ -139,7 +141,7 @@ public class SurfaceOverviewStatTest {
 		// 先制・逆転系（ホームチーム 先制されたが引き分けに持ち込んだ, アウェーチーム 先制された、逆転は発生せず）
 		assertEquals("0", homeE.getHomeFirstGoalCount());
 		assertEquals("0", awayE.getAwayFirstGoalCount());
-		//assertEquals("0", homeE.getHomeWinBehindCount()); // 終了済が2-2なので逆転勝利ではない
+		assertEquals("0", homeE.getHomeWinBehindCount()); // 終了済が2-2なので逆転勝利ではない
 		assertEquals("0", homeE.getHomeLoseBehindCount());
 		assertEquals("0", awayE.getAwayWinBehindCount());
 		assertEquals("0", awayE.getAwayLoseBehindCount());
@@ -147,11 +149,23 @@ public class SurfaceOverviewStatTest {
 		// 序盤/中盤/終盤カウントと表示
 		assertEquals("0", homeE.getFirstWeekGameWinCount());
 		assertEquals("0", homeE.getFirstWeekGameLostCount());
+		assertEquals("0", homeE.getMidWeekGameWinCount());
+		assertEquals("0", homeE.getMidWeekGameLostCount());
+		assertEquals("0", homeE.getLastWeekGameWinCount());
+		assertEquals("0", homeE.getLastWeekGameLostCount());
 		assertNull(homeE.getFirstWeekGameWinDisp()); // 引き分けなので表示なし
+		assertNull(homeE.getMidWeekGameWinDisp()); // 引き分けなので表示なし
+		assertNull(homeE.getLastWeekGameWinDisp()); // 引き分けなので表示なし
 
 		assertEquals("0", awayE.getFirstWeekGameWinCount());
-		assertEquals("1", awayE.getFirstWeekGameLostCount());
+		assertEquals("0", awayE.getFirstWeekGameLostCount());
+		assertEquals("0", awayE.getMidWeekGameWinCount());
+		assertEquals("0", awayE.getMidWeekGameLostCount());
+		assertEquals("0", awayE.getLastWeekGameWinCount());
+		assertEquals("1", awayE.getLastWeekGameLostCount());
 		assertNull(awayE.getFirstWeekGameWinDisp()); // 敗戦したので表示なし
+		assertNull(awayE.getMidWeekGameWinDisp()); // 敗戦したので表示なし
+		assertNull(awayE.getLastWeekGameWinDisp()); // 敗戦したので表示なし
 
 		// 逆境表示（いずれも閾値未達なので null）
 		assertNull(homeE.getHomeAdversityDisp());
