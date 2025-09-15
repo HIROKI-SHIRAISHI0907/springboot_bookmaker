@@ -161,6 +161,7 @@ public class ExportCsv {
 				}
 				// 異常データの判定（終了済の後にゴミデータが混入,通番通りだが時系列データになっていないなど）
 				result = this.helper.abnormalChk(result);
+				if (result.isEmpty()) continue;
 				ordered.add(new SimpleEntry<>(path, result));
 			}
 
@@ -194,6 +195,7 @@ public class ExportCsv {
 				}
 				// 異常データの判定（終了済の後にゴミデータが混入,通番通りだが時系列データになっていないなど）
 				result = this.helper.abnormalChk(result);
+				if (result.isEmpty()) continue;
 				ordered.add(new SimpleEntry<>(path, result));
 				diff++;
 			}
@@ -284,10 +286,11 @@ public class ExportCsv {
 		FileMngWrapper wrapper = new FileMngWrapper();
 		for (SimpleEntry<String, List<DataEntity>> e : ordered) {
 			String file = e.getKey().replace(this.config.getCsvFolder(), "");
+			String round = e.getValue().get(0).getDataCategory();
 			String homeTeams = e.getValue().get(0).getHomeTeamName();
 			String awayTeams = e.getValue().get(0).getAwayTeamName();
-			String key = file + ": " + homeTeams + "vs" + awayTeams;
-			wrapper.write(file, key);
+			String key = file + ": " + round + "-" + homeTeams + "vs" + awayTeams;
+			wrapper.write(DATA_TEAM_LIST_TXT, key);
 		}
 
 		endLog(METHOD_NAME, null, null);

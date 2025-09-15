@@ -3,6 +3,7 @@ package dev.mng.analyze.bm_c001;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Optional;
 import java.util.Set;
@@ -117,48 +118,88 @@ public class CsvArtifactHelper {
 		return Optional.empty();
 	}
 
+	// 共通の正規化関数を用意
+	private static String normalizeTimes(String times) {
+		if (times == null)
+			return null;
+		// 特殊トークンはそのまま使う
+		if (BookMakersCommonConst.FIN.equals(times)
+				|| BookMakersCommonConst.HALF_TIME.equals(times)
+				|| BookMakersCommonConst.FIRST_HALF_TIME.equals(times)) {
+			return times;
+		}
+		// 45+1' や 90+3' などを "451" / "903" のような数値文字列に正規化
+		return times.replace(":", "").replace("+", "").replace("'", "");
+	}
+
 	/**
 	 * 異常データの削除
 	 * 1. 同一時系列の削除
 	 * 2. 異常な時系列の削除
-	 * @param entityList
-	 * @return
 	 */
 	public List<DataEntity> abnormalChk(List<DataEntity> entityList) {
 		if (entityList == null)
 			return Collections.emptyList();
-		List<DataEntity> execptList = new ArrayList<DataEntity>();
-		Set<String> timesList = new HashSet<String>();
-		int befData = -1;
-		for (DataEntity dData : entityList) {
-			String times = dData.getTimes();
-			// 終了済が入ったらbreak(ゴミデータの混入を防ぐ)
-			if (timesList.contains(BookMakersCommonConst.FIN)) {
+
+		List<DataEntity> result = new ArrayList<>();
+		// 順序もわかりやすくしたいなら LinkedHashSet
+		Set<String> timesSet = new LinkedHashSet<>();
+
+		int prevMinute = -1; // 単調増加チェック用
+
+		for (DataEntity d : entityList) {
+			String raw = d.getTimes();
+
+			// すでに FT が入っていれば、それ以降はゴミとみなして打ち切り
+			if (timesSet.contains(BookMakersCommonConst.FIN))
 				break;
+
+			// 試合未実施／無効トークンはスキップ
+			if (BookMakersCommonConst.POSTPONED.equals(raw)
+					|| BookMakersCommonConst.SUPENDING_GAME.equals(raw)
+					|| BookMakersCommonConst.REST.equals(raw)
+					|| BookMakersCommonConst.WAITING_UPDATE.equals(raw)
+					|| BookMakersCommonConst.WAITING_UPDATE_KANJI.equals(raw)
+					|| BookMakersCommonConst.HOUR_DEAD.equals(raw)
+					|| BookMakersCommonConst.ABANDONED_MATCH.equals(raw)) {
+				continue;
 			}
 
-			// ハーフタイム,終了済は必須
-			if (BookMakersCommonConst.HALF_TIME.equals(times) ||
-					BookMakersCommonConst.FIRST_HALF_TIME.equals(times) ||
-					BookMakersCommonConst.FIN.equals(times)) {
-				timesList.add(times);
-			} else {
-				String timeStr = times.replace(":", "").replace("+", "").replace("'", "");
-				int timeData = Integer.parseInt(timeStr);
-				if (!timesList.contains(times) && befData < timeData) {
-					befData = timeData;
-					timesList.add(timeStr);
+			// 正規化
+			String norm = normalizeTimes(raw);
+
+			// HT / 1H / FT 等はそのまま採用
+			if (BookMakersCommonConst.HALF_TIME.equals(raw)
+					|| BookMakersCommonConst.FIRST_HALF_TIME.equals(raw)
+					|| BookMakersCommonConst.FIN.equals(raw)) {
+				timesSet.add(norm); // ← ここで norm は特殊トークンそのまま
+				continue;
+			}
+
+			// 分数（45+1' → "451" など）を数値化して単調増加チェック
+			try {
+				int minute = Integer.parseInt(norm);
+				// 重複＋逆行を排除（同一“時刻”の2重データや巻き戻りを除去）
+				if (!timesSet.contains(norm) && prevMinute < minute) {
+					prevMinute = minute;
+					timesSet.add(norm);
 				}
+			} catch (NumberFormatException ignore) {
+				// もし未知の文字列が来たら採用しない（保守的に）
 			}
 		}
 
-		// 異常データ取り除いた時系列データに合致するentityのみ取得
-		for (DataEntity dData : entityList) {
-			if (timesList.contains(dData.getTimes())) {
-				execptList.add(dData);
+		// ★ フィルタ側も“正規化したキー”で判定するのがポイント
+		// まだ拾っていない時刻の集合（true→初回、false→2回目以降）
+		Set<String> remaining = new HashSet<>(timesSet);
+		for (DataEntity d : entityList) {
+			String norm = normalizeTimes(d.getTimes());
+			// remaining.remove(norm) が true の時だけ追加（= 初めての時刻だけ通す）
+			if (remaining.remove(norm)) {
+				result.add(d);
 			}
 		}
-		return execptList;
+		return result;
 	}
 
 }
