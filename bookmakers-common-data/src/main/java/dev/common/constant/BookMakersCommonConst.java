@@ -73,6 +73,9 @@ public class BookMakersCommonConst {
 	/** 定数: 第一ハーフタイム */
 	public static final String FIRST_HALF_TIME = "第一ハーフ";
 
+	/** 定数: 休憩時間 */
+	public static final String REST = "休憩時間";
+
 	/** 定数: アワーデッド */
 	public static final String HOUR_DEAD = "アワーデッド";
 

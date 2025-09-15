@@ -51,6 +51,12 @@ public class BookDataEntity implements Serializable {
 	/** アウェー期待値 */
 	private String awayExp;
 
+	/** ホーム枠内ゴール期待値 */
+	private String homeInGoalExp;
+
+	/** アウェー枠内ゴール期待値 */
+	private String awayInGoalExp;
+
 	/** ホームポゼッション */
 	private String homeBallPossesion;
 
