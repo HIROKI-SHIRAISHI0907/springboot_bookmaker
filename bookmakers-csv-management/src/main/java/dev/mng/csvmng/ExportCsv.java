@@ -83,6 +83,9 @@ public class ExportCsv {
 		// 連番組み合わせリスト（過去のグルーピングを保存）
 		final String SEQ_LIST = config.getCsvFolder() + "seqList.txt";
 
+		// データチームリスト
+		final String DATA_TEAM_LIST_TXT = config.getCsvFolder() + "data_team_list.txt";
+
 		// パス
 		final Path CSV_FOLDER = Paths.get(config.getCsvFolder());
 
@@ -156,6 +159,8 @@ public class ExportCsv {
 				if (!this.helper.condition(result, csvArtifactResource)) {
 					continue;
 				}
+				// 異常データの判定（終了済の後にゴミデータが混入,通番通りだが時系列データになっていないなど）
+				result = this.helper.abnormalChk(result);
 				ordered.add(new SimpleEntry<>(path, result));
 			}
 
@@ -187,6 +192,8 @@ public class ExportCsv {
 				if (!this.helper.condition(result, csvArtifactResource)) {
 					continue;
 				}
+				// 異常データの判定（終了済の後にゴミデータが混入,通番通りだが時系列データになっていないなど）
+				result = this.helper.abnormalChk(result);
 				ordered.add(new SimpleEntry<>(path, result));
 				diff++;
 			}
@@ -272,6 +279,16 @@ public class ExportCsv {
 		// 9) 処理完了後、seqList.txt を最新状態で上書き（将来の差分計算基準）
 		if (!firstRun)
 			fileIO.write(SEQ_LIST, currentGroups.toString());
+
+		// 10) テキストデータに記入
+		FileMngWrapper wrapper = new FileMngWrapper();
+		for (SimpleEntry<String, List<DataEntity>> e : ordered) {
+			String file = e.getKey().replace(this.config.getCsvFolder(), "");
+			String homeTeams = e.getValue().get(0).getHomeTeamName();
+			String awayTeams = e.getValue().get(0).getAwayTeamName();
+			String key = file + ": " + homeTeams + "vs" + awayTeams;
+			wrapper.write(file, key);
+		}
 
 		endLog(METHOD_NAME, null, null);
 	}

@@ -1,11 +1,16 @@
 package dev.mng.analyze.bm_c001;
 
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.DataEntity;
 import dev.mng.csvmng.CsvArtifactResource;
 import dev.mng.domain.repository.StatSizeFinalizeMasterRepository;
@@ -53,7 +58,7 @@ public class CsvArtifactHelper {
 	}
 
 	/**
-	 * フラグ条件に当てはまるか精査する
+	 * フラグ条件当てはまるか, ,異常データを削除できるか精査する
 	 * @param result
 	 * @param csvArtifactResource
 	 * @return
@@ -110,6 +115,50 @@ public class CsvArtifactHelper {
 			}
 		}
 		return Optional.empty();
+	}
+
+	/**
+	 * 異常データの削除
+	 * 1. 同一時系列の削除
+	 * 2. 異常な時系列の削除
+	 * @param entityList
+	 * @return
+	 */
+	public List<DataEntity> abnormalChk(List<DataEntity> entityList) {
+		if (entityList == null)
+			return Collections.emptyList();
+		List<DataEntity> execptList = new ArrayList<DataEntity>();
+		Set<String> timesList = new HashSet<String>();
+		int befData = -1;
+		for (DataEntity dData : entityList) {
+			String times = dData.getTimes();
+			// 終了済が入ったらbreak(ゴミデータの混入を防ぐ)
+			if (timesList.contains(BookMakersCommonConst.FIN)) {
+				break;
+			}
+
+			// ハーフタイム,終了済は必須
+			if (BookMakersCommonConst.HALF_TIME.equals(times) ||
+					BookMakersCommonConst.FIRST_HALF_TIME.equals(times) ||
+					BookMakersCommonConst.FIN.equals(times)) {
+				timesList.add(times);
+			} else {
+				String timeStr = times.replace(":", "").replace("+", "").replace("'", "");
+				int timeData = Integer.parseInt(timeStr);
+				if (!timesList.contains(times) && befData < timeData) {
+					befData = timeData;
+					timesList.add(timeStr);
+				}
+			}
+		}
+
+		// 異常データ取り除いた時系列データに合致するentityのみ取得
+		for (DataEntity dData : entityList) {
+			if (timesList.contains(dData.getTimes())) {
+				execptList.add(dData);
+			}
+		}
+		return execptList;
 	}
 
 }
