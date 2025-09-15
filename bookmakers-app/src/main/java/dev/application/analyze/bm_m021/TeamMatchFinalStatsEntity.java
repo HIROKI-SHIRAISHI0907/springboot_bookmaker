@@ -43,6 +43,12 @@ public class TeamMatchFinalStatsEntity extends MetaEntity {
 	/** 対戦相手期待値 */
 	private String oppositeExp;
 
+	/** ホーム枠内ゴール期待値 */
+	private String inGoalExp;
+
+	/** 対戦相手枠内ゴール期待値 */
+	private String oppositeInGoalExp;
+
 	/** ポゼッション */
 	private String donation;
 

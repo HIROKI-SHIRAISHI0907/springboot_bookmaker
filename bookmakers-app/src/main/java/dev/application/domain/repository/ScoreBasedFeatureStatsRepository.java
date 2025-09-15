@@ -14,7 +14,7 @@ public interface ScoreBasedFeatureStatsRepository {
 
     @Insert({
         "INSERT INTO average_statistics_data (",
-        "id, situation, score, country, league, home_exp_stat, away_exp_stat, home_donation_stat, away_donation_stat,",
+        "id, situation, score, country, league, home_exp_stat, away_exp_stat, home_in_goal_exp_stat, away_in_goal_exp_stat, home_donation_stat, away_donation_stat,",
         "home_shoot_all_stat, away_shoot_all_stat, home_shoot_in_stat, away_shoot_in_stat, home_shoot_out_stat, away_shoot_out_stat,",
         "home_block_shoot_stat, away_block_shoot_stat, home_big_chance_stat, away_big_chance_stat, home_corner_stat, away_corner_stat,",
         "home_box_shoot_in_stat, away_box_shoot_in_stat, home_box_shoot_out_stat, away_box_shoot_out_stat, home_goal_post_stat, away_goal_post_stat,",
@@ -26,7 +26,7 @@ public interface ScoreBasedFeatureStatsRepository {
         "home_clear_count_stat, away_clear_count_stat, home_duel_count_stat, away_duel_count_stat, home_intercept_count_stat, away_intercept_count_stat,",
         "register_id, register_time, update_id, update_time",
         ") VALUES (",
-        "#{id}, #{situation}, #{score}, #{country}, #{league}, #{homeExpStat}, #{awayExpStat}, #{homeDonationStat}, #{awayDonationStat},",
+        "#{id}, #{situation}, #{score}, #{country}, #{league}, #{homeExpStat}, #{awayExpStat}, #{homeInGoalExpStat}, #{awayInGoalExpStat}, #{homeDonationStat}, #{awayDonationStat},",
         "#{homeShootAllStat}, #{awayShootAllStat}, #{homeShootInStat}, #{awayShootInStat}, #{homeShootOutStat}, #{awayShootOutStat},",
         "#{homeBlockShootStat}, #{awayBlockShootStat}, #{homeBigChanceStat}, #{awayBigChanceStat}, #{homeCornerStat}, #{awayCornerStat},",
         "#{homeBoxShootInStat}, #{awayBoxShootInStat}, #{homeBoxShootOutStat}, #{awayBoxShootOutStat}, #{homeGoalPostStat}, #{awayGoalPostStat},",
@@ -44,7 +44,7 @@ public interface ScoreBasedFeatureStatsRepository {
 
     @Select({
         "SELECT id,",
-        "home_exp_stat, away_exp_stat, home_donation_stat, away_donation_stat,",
+        "home_exp_stat, away_exp_stat, home_in_goal_exp_stat, away_in_goal_exp_stat, home_donation_stat, away_donation_stat,",
         "home_shoot_all_stat, away_shoot_all_stat, home_shoot_in_stat, away_shoot_in_stat,",
         "home_shoot_out_stat, away_shoot_out_stat, home_block_shoot_stat, away_block_shoot_stat,",
         "home_big_chance_stat, away_big_chance_stat, home_corner_stat, away_corner_stat,",
@@ -66,7 +66,7 @@ public interface ScoreBasedFeatureStatsRepository {
 
     @Select({
         "SELECT id, score, country, league,",
-        "home_exp_stat, away_exp_stat, home_donation_stat, away_donation_stat,",
+        "home_exp_stat, away_exp_stat, home_in_goal_exp_stat, away_in_goal_exp_stat, home_donation_stat, away_donation_stat,",
         "home_shoot_all_stat, away_shoot_all_stat, home_shoot_in_stat, away_shoot_in_stat,",
         "home_shoot_out_stat, away_shoot_out_stat, home_block_shoot_stat, away_block_shoot_stat,",
         "home_big_chance_stat, away_big_chance_stat, home_corner_stat, away_corner_stat,",
@@ -88,6 +88,8 @@ public interface ScoreBasedFeatureStatsRepository {
         "UPDATE average_statistics_data SET",
         "home_exp_stat = #{homeExpStat},",
         "away_exp_stat = #{awayExpStat},",
+        "home_in_goal_exp_stat = #{homeInGoalExpStat},",
+        "away_in_goal_exp_stat = #{awayInGoalExpStat},",
         "home_donation_stat = #{homeDonationStat},",
         "away_donation_stat = #{awayDonationStat},",
         "home_shoot_all_stat = #{homeShootAllStat},",

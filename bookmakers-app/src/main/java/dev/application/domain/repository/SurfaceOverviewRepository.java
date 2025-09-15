@@ -17,13 +17,13 @@ public interface SurfaceOverviewRepository {
 	@Lang(XMLLanguageDriver.class)
 	@Insert("""
 			<script>
-			INSERT INTO bm_m031_surface_overview (
+			INSERT INTO surface_overview (
 			  id, country, league, game_year, game_month, team,
 			  games, rank, win, lose, draw, winning_points,
 			  home_1st_half_score, home_2nd_half_score, home_sum_score,
-			  home_1st_half_score_ratio, home_2nd_half_score_ratio, home_cleen_sheet,
+			  home_1st_half_score_ratio, home_2nd_half_score_ratio, home_clean_sheet,
 			  away_1st_half_score, away_2nd_half_score, away_sum_score,
-			  away_1st_half_score_ratio, away_2nd_half_score_ratio, away_cleen_sheet,
+			  away_1st_half_score_ratio, away_2nd_half_score_ratio, away_clean_sheet,
 			  fail_to_score_game_count,
 			  consecutive_win_disp, consecutive_lose_disp,
 			  unbeaten_streak_count, unbeaten_streak_disp,
@@ -43,14 +43,15 @@ public interface SurfaceOverviewRepository {
 			  away_win_behind_2vs0_count, away_lose_behind_0vs2_count,
 			  away_win_behind_other_count, away_lose_behind_other_count,
 			  away_adversity_disp,
-			  promote_disp, descend_disp, first_win_disp, lose_streak_disp
+			  promote_disp, descend_disp, first_win_disp, lose_streak_disp,
+			  register_id, register_time, update_id, update_time
 			) VALUES (
 			  #{id}, #{country}, #{league}, #{gameYear}, #{gameMonth}, #{team},
 			  #{games}, #{rank}, #{win}, #{lose}, #{draw}, #{winningPoints},
 			  #{home1stHalfScore}, #{home2ndHalfScore}, #{homeSumScore},
-			  #{home1stHalfScoreRatio}, #{home2ndHalfScoreRatio}, #{homeCleenSheet},
+			  #{home1stHalfScoreRatio}, #{home2ndHalfScoreRatio}, #{homeCleanSheet},
 			  #{away1stHalfScore}, #{away2ndHalfScore}, #{awaySumScore},
-			  #{away1stHalfScoreRatio}, #{away2ndHalfScoreRatio}, #{awayCleenSheet},
+			  #{away1stHalfScoreRatio}, #{away2ndHalfScoreRatio}, #{awayCleanSheet},
 			  #{failToScoreGameCount},
 			  #{consecutiveWinDisp}, #{consecutiveLoseDisp},
 			  #{unbeatenStreakCount}, #{unbeatenStreakDisp},
@@ -70,7 +71,8 @@ public interface SurfaceOverviewRepository {
 			  #{awayWinBehind2vs0Count}, #{awayLoseBehind0vs2Count},
 			  #{awayWinBehindOtherCount}, #{awayLoseBehindOtherCount},
 			  #{awayAdversityDisp},
-			  #{promoteDisp}, #{descendDisp}, #{firstWinDisp}, #{loseStreakDisp}
+			  #{promoteDisp}, #{descendDisp}, #{firstWinDisp}, #{loseStreakDisp},
+			  #{registerId}, #{registerTime}, #{updateId}, #{updateTime}
 			)
 			</script>
 			""")
@@ -97,13 +99,13 @@ public interface SurfaceOverviewRepository {
 			  home_sum_score,
 			  home_1st_half_score_ratio,
 			  home_2nd_half_score_ratio,
-			  home_cleen_sheet,
+			  home_clean_sheet,
 			  away_1st_half_score,
 			  away_2nd_half_score,
 			  away_sum_score,
 			  away_1st_half_score_ratio,
 			  away_2nd_half_score_ratio,
-			  away_cleen_sheet,
+			  away_clean_sheet,
 			  fail_to_score_game_count,
 			  consecutive_win_disp,
 			  consecutive_lose_disp,
@@ -148,7 +150,7 @@ public interface SurfaceOverviewRepository {
 			  descend_disp,
 			  first_win_disp,
 			  lose_streak_disp
-			FROM bm_m031_surface_overview
+			FROM surface_overview
 			WHERE country = #{country}
 			  AND league  = #{league}
 			    AND team = #{team}
@@ -161,7 +163,7 @@ public interface SurfaceOverviewRepository {
 	@Lang(XMLLanguageDriver.class)
 	@Update("""
 			<script>
-			UPDATE bm_m031_surface_overview SET
+			UPDATE surface_overview SET
 			  upd = #{upd},
 			  country = #{country},
 			  league = #{league},
@@ -179,13 +181,13 @@ public interface SurfaceOverviewRepository {
 			  home_sum_score = #{homeSumScore},
 			  home_1st_half_score_ratio = #{home1stHalfScoreRatio},
 			  home_2nd_half_score_ratio = #{home2ndHalfScoreRatio},
-			  home_cleen_sheet = #{homeCleenSheet},
+			  home_clean_sheet = #{homeCleanSheet},
 			  away_1st_half_score = #{away1stHalfScore},
 			  away_2nd_half_score = #{away2ndHalfScore},
 			  away_sum_score = #{awaySumScore},
 			  away_1st_half_score_ratio = #{away1stHalfScoreRatio},
 			  away_2nd_half_score_ratio = #{away2ndHalfScoreRatio},
-			  away_cleen_sheet = #{awayCleenSheet},
+			  away_clean_sheet = #{awayCleanSheet},
 			  fail_to_score_game_count = #{failToScoreGameCount},
 			  consecutive_win_disp = #{consecutiveWinDisp},
 			  consecutive_lose_disp = #{consecutiveLoseDisp},

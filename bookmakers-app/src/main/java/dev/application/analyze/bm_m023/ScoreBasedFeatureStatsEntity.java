@@ -42,6 +42,12 @@ public class ScoreBasedFeatureStatsEntity extends MetaEntity implements Serializ
 	/** アウェー期待値の統計情報 */
 	private String awayExpStat;
 
+	/** ホーム枠内ゴール期待値の統計情報 */
+	private String homeInGoalExpStat;
+
+	/** アウェー枠内ゴール期待値の統計情報 */
+	private String awayInGoalExpStat;
+
 	/** ホームポゼッションの統計情報 */
 	private String homeDonationStat;
 

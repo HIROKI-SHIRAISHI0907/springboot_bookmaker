@@ -9,10 +9,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.application.analyze.bm_m029.BmM029CountryLeagueBean;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.SurfaceOverviewRepository;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
+import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
@@ -38,13 +40,24 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	/** クラススコープに以下を追加 */
 	private final ConcurrentHashMap<String, Object> lockMap = new ConcurrentHashMap<>();
 
+	/** BmM029CountryLeagueBeanレポジトリクラス */
+	@Autowired
+	private BmM029CountryLeagueBean bean;
+
 	/** SurfaceOverviewRepositoryレポジトリクラス */
 	@Autowired
 	private SurfaceOverviewRepository surfaceOverviewRepository;
 
+	/** ログ管理ラッパー*/
+	@Autowired
+	private RootCauseWrapper rootCauseWrapper;
+
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
+
+	/** ラウンドマップ */
+	private Map<String, Integer> roundMap;
 
 	/**
 	 * {@inheritDoc}
@@ -55,9 +68,11 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
+		roundMap = bean.getCountryLeagueRoundMap();
+
 		// 全リーグ・国を走査
+		ConcurrentHashMap<String, SurfaceOverviewEntity> resultMap = new ConcurrentHashMap<>();
 		for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
-			ConcurrentHashMap<String, SurfaceOverviewEntity> resultMap = new ConcurrentHashMap<>();
 			String[] data_category = ExecuteMainUtil.splitLeagueInfo(entry.getKey());
 			String country = data_category[0];
 			String league = data_category[1];
@@ -76,9 +91,17 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 					continue;
 				}
 			}
+		}
 
-			if (!resultMap.isEmpty()) {
-				//surfaceOverviewRepository.saveAll(resultMap.values());
+		for (Map.Entry<String, SurfaceOverviewEntity> data : resultMap.entrySet()) {
+			int result = this.surfaceOverviewRepository.insert(data.getValue());
+			if (result != 1) {
+				String messageCd = "新規登録エラー";
+				this.rootCauseWrapper.throwUnexpectedRowCount(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						messageCd,
+						1, result,
+						String.format("key=%s", data.getKey()));
 			}
 		}
 
@@ -116,7 +139,7 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		    }
 		}
 		// 試合年,月(2025-02-06 07:25:58などの形式から月を算出)
-		String gameTime = returnMaxEntity.getTime();
+		String gameTime = returnMaxEntity.getRecordTime();
 		String[] split = gameTime.split("-");
 		String gameYear = split[0];
 		String gameMonth = split[1].replaceFirst("^0", "");
@@ -145,6 +168,7 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			resultHomeEntity = setEachScoreCountData(returnMaxEntity, resultHomeEntity);
 			resultHomeEntity = setWinLoseDetailData(returnMaxEntity, scoreList, resultHomeEntity, home);
 			resultHomeEntity = firstWinAndConsecutiveLose(resultHomeEntity);
+			ensureNotNullCounters(resultHomeEntity);
 			resultMap.put(homeKey, resultHomeEntity);
 		}
 		String awayKey = String.join("|", country, league, away);
@@ -171,6 +195,7 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			resultAwayEntity = setEachScoreCountData(returnMaxEntity, resultAwayEntity);
 			resultAwayEntity = setWinLoseDetailData(returnMaxEntity, scoreList, resultAwayEntity, away);
 			resultAwayEntity = firstWinAndConsecutiveLose(resultAwayEntity);
+			ensureNotNullCounters(resultAwayEntity);
 			resultMap.put(awayKey, resultAwayEntity);
 		}
 
@@ -185,87 +210,54 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	 * @param league
 	 * @return
 	 */
+	// 1) games を更新後の値でセット
 	private SurfaceOverviewEntity setTeamMainData(BookDataEntity maxEntity,
-			SurfaceOverviewEntity resultEntity, String country, String league, String team) {
-		String homeTeam = maxEntity.getHomeTeamName();
-		String awayTeam = maxEntity.getAwayTeamName();
-		int homeScore = Integer.parseInt(maxEntity.getHomeScore());
-		int awayScore = Integer.parseInt(maxEntity.getAwayScore());
-		String winCount = resultEntity.getWin();
-		String loseCount = resultEntity.getLose();
-		String drawCount = resultEntity.getDraw();
-		// 前回勝ち負けデータ保存
-		String befWinCount = winCount;
-		String befLoseCount = loseCount;
-		// teamがホーム側
-		if (team.equals(homeTeam)) {
-			if (homeScore > awayScore) {
-				if (winCount == null || winCount.isBlank()) {
-					winCount = "1";
-				} else {
-					winCount = String.valueOf(Integer.parseInt(winCount) + 1);
-				}
-			} else if (homeScore < awayScore) {
-				if (loseCount == null || loseCount.isBlank()) {
-					loseCount = "1";
-				} else {
-					loseCount = String.valueOf(Integer.parseInt(loseCount) + 1);
-				}
-			} else if (homeScore == awayScore) {
-				if (drawCount == null || drawCount.isBlank()) {
-					drawCount = "1";
-				} else {
-					drawCount = String.valueOf(Integer.parseInt(drawCount) + 1);
-				}
-			}
-			// teamがアウェー側
-		} else if (team.equals(awayTeam)) {
-			if (homeScore < awayScore) {
-				if (winCount == null || winCount.isBlank()) {
-					winCount = "1";
-				} else {
-					winCount = String.valueOf(Integer.parseInt(winCount) + 1);
-				}
-			} else if (homeScore > awayScore) {
-				if (loseCount == null || loseCount.isBlank()) {
-					loseCount = "1";
-				} else {
-					loseCount = String.valueOf(Integer.parseInt(loseCount) + 1);
-				}
-			} else if (homeScore == awayScore) {
-				if (drawCount == null || drawCount.isBlank()) {
-					drawCount = "1";
-				} else {
-					drawCount = String.valueOf(Integer.parseInt(drawCount) + 1);
-				}
-			}
-		}
-		// 勝利
-		resultEntity.setWin(winCount);
-		// 敗北
-		resultEntity.setLose(loseCount);
-		// 引き分け
-		resultEntity.setDraw(drawCount);
-		// 勝ち点
-		resultEntity.setWinningPoints(String.valueOf(Integer.parseInt(winCount) * 3 +
-				Integer.parseInt(drawCount) * 1));
+	        SurfaceOverviewEntity resultEntity, String country, String league, String team) {
 
-		// 無敗記録数,表示(前回保存した勝敗記録から算出。負けが増えなければ継続扱い)
-		int befLose = Integer.parseInt(befLoseCount);
-		int lose = Integer.parseInt(loseCount);
-		int unbeaten = Integer.parseInt(resultEntity.getUnbeatenStreakCount());
-		String afUnbeaten = (befLose < lose) ? "0" : String.valueOf(unbeaten + 1);
-		String afUnbeatenDisp = (befLose < lose) ? null : SurfaceOverviewConst.CONSECTIVE_UNBEATEN;
-		resultEntity.setUnbeatenStreakCount(afUnbeaten);
-		resultEntity.setUnbeatenStreakDisp(afUnbeatenDisp);
-		// 勝ちが増えれば勝ちフラグ,負けが増えれば負けフラグ設定
-		int befWin = Integer.parseInt(befWinCount);
-		int win = Integer.parseInt(winCount);
-		boolean afWinFlg = (befWin < win) ? true : false;
-		resultEntity.setWinFlg(afWinFlg);
-		boolean afLoseFlg = (befLose < lose) ? true : false;
-		resultEntity.setLoseFlg(afLoseFlg);
-		return resultEntity;
+	    String homeTeam = maxEntity.getHomeTeamName();
+	    String awayTeam = maxEntity.getAwayTeamName();
+	    int homeScore = parseOrZero(maxEntity.getHomeScore());
+	    int awayScore = parseOrZero(maxEntity.getAwayScore());
+
+	    int winCount  = parseOrZero(resultEntity.getWin());
+	    int loseCount = parseOrZero(resultEntity.getLose());
+	    int drawCount = parseOrZero(resultEntity.getDraw());
+
+	    // 前回値（フラグ用）
+	    int befWinCount  = winCount;
+	    int befLoseCount = loseCount;
+
+	    // 勝敗更新
+	    if (team.equals(homeTeam)) {
+	        if (homeScore > awayScore)       winCount++;
+	        else if (homeScore < awayScore)  loseCount++;
+	        else                             drawCount++;
+	    } else if (team.equals(awayTeam)) {
+	        if (awayScore > homeScore)       winCount++;
+	        else if (awayScore < homeScore)  loseCount++;
+	        else                             drawCount++;
+	    }
+
+	    // ここで反映
+	    resultEntity.setWin(String.valueOf(winCount));
+	    resultEntity.setLose(String.valueOf(loseCount));
+	    resultEntity.setDraw(String.valueOf(drawCount));
+	    resultEntity.setWinningPoints(String.valueOf(winCount * 3 + drawCount));
+
+	    // ★ 更新後の合計試合数で上書き
+	    int games = winCount + loseCount + drawCount;
+	    resultEntity.setGames(String.valueOf(games));
+
+	    int unbeaten = parseOrZero(resultEntity.getUnbeatenStreakCount());
+	    boolean lostThisGame = (loseCount > befLoseCount);
+	    int afUnbeaten = lostThisGame ? 0 : (unbeaten + 1);
+	    resultEntity.setUnbeatenStreakCount(String.valueOf(afUnbeaten));
+	    resultEntity.setUnbeatenStreakDisp(lostThisGame ? null : SurfaceOverviewConst.CONSECTIVE_UNBEATEN);
+
+	    resultEntity.setWinFlg(winCount  > befWinCount);
+	    resultEntity.setLoseFlg(loseCount > befLoseCount);
+
+	    return resultEntity;
 	}
 
 	/**
@@ -277,143 +269,107 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	 * @return
 	 */
 	private SurfaceOverviewEntity setScoreData(BookDataEntity maxEntity, BookDataEntity middleEntity,
-			BookDataEntity minEntity, SurfaceOverviewEntity resultEntity, String team) {
-		String homeTeam = maxEntity.getHomeTeamName();
-		String awayTeam = maxEntity.getAwayTeamName();
-		String homeMinScore = minEntity.getHomeScore();
-		String homeMiddleScore = middleEntity.getHomeScore();
-		String homeMaxScore = maxEntity.getHomeScore();
-		String awayMinScore = minEntity.getAwayScore();
-		String awayMiddleScore = middleEntity.getAwayScore();
-		String awayMaxScore = maxEntity.getAwayScore();
-		String home1stHalfScore = resultEntity.getHome1stHalfScore();
-		String home2ndHalfScore = resultEntity.getHome2ndHalfScore();
-		String homeSumScore = resultEntity.getHomeSumScore();
-		String homeCleanSheet = resultEntity.getHomeCleanSheet();
-		String away1stHalfScore = resultEntity.getAway1stHalfScore();
-		String away2ndHalfScore = resultEntity.getAway2ndHalfScore();
-		String awaySumScore = resultEntity.getAwaySumScore();
-		String awayCleanSheet = resultEntity.getAwayCleanSheet();
-		String failToScore = resultEntity.getFailToScoreGameCount();
-		// 前回の無得点試合を保存
-		int befFailToScore = Integer.parseInt(failToScore);
-		// 前後半の得点差分
-		int home1stScoreDiff = Integer.parseInt(homeMiddleScore) -
-				Integer.parseInt(homeMinScore);
-		int home2ndScoreDiff = Integer.parseInt(homeMaxScore) -
-				Integer.parseInt(homeMiddleScore);
-		int away1stScoreDiff = Integer.parseInt(awayMiddleScore) -
-				Integer.parseInt(awayMinScore);
-		int away2ndScoreDiff = Integer.parseInt(awayMaxScore) -
-				Integer.parseInt(awayMiddleScore);
-		// teamがホーム側
-		if (team.equals(homeTeam)) {
-			home1stHalfScore = (home1stHalfScore == null || home1stHalfScore.isBlank())
-					? String.valueOf(home1stScoreDiff)
-					: String.valueOf(Integer.parseInt(home1stHalfScore) + home1stScoreDiff);
-			home2ndHalfScore = (home2ndHalfScore == null || home2ndHalfScore.isBlank())
-					? String.valueOf(home2ndScoreDiff)
-					: String.valueOf(Integer.parseInt(home2ndHalfScore) + home2ndScoreDiff);
-			homeSumScore = (homeSumScore == null || homeSumScore.isBlank())
-					? String.valueOf(home1stScoreDiff + home2ndScoreDiff)
-					: String.valueOf(Integer.parseInt(homeSumScore) + home1stScoreDiff + home2ndScoreDiff);
-			if ("0".equals(awayMaxScore)) {
-				homeCleanSheet = (homeCleanSheet == null || homeCleanSheet.isBlank()) ? "1"
-						: String.valueOf(Integer.parseInt(homeCleanSheet) + 1);
-			}
-			if ("0".equals(homeMaxScore)) {
-				failToScore = (failToScore == null || failToScore.isBlank()) ? "1"
-						: String.valueOf(Integer.parseInt(failToScore) + 1);
-			}
-			// teamがアウェー側
-		} else if (team.equals(awayTeam)) {
-			away1stHalfScore = (away1stHalfScore == null || away1stHalfScore.isBlank())
-					? String.valueOf(away1stScoreDiff)
-					: String.valueOf(Integer.parseInt(away1stHalfScore) + away1stScoreDiff);
-			away2ndHalfScore = (away2ndHalfScore == null || away2ndHalfScore.isBlank())
-					? String.valueOf(away2ndScoreDiff)
-					: String.valueOf(Integer.parseInt(away2ndHalfScore) + away2ndScoreDiff);
-			awaySumScore = (awaySumScore == null || awaySumScore.isBlank())
-					? String.valueOf(away1stScoreDiff + away2ndScoreDiff)
-					: String.valueOf(Integer.parseInt(awaySumScore) + away1stScoreDiff + away2ndScoreDiff);
-			if ("0".equals(homeMaxScore)) {
-				awayCleanSheet = (awayCleanSheet == null || awayCleanSheet.isBlank()) ? "1"
-						: String.valueOf(Integer.parseInt(awayCleanSheet) + 1);
-			}
-			if ("0".equals(awayMaxScore)) {
-				failToScore = (failToScore == null || failToScore.isBlank()) ? "1"
-						: String.valueOf(Integer.parseInt(failToScore) + 1);
-			}
-		}
+	        BookDataEntity minEntity, SurfaceOverviewEntity resultEntity, String team) {
 
-		// ホーム前半得点数
-		resultEntity.setHome1stHalfScore(home1stHalfScore);
-		// ホーム後半得点数
-		resultEntity.setHome2ndHalfScore(home2ndHalfScore);
-		// ホーム得点数
-		resultEntity.setHomeSumScore(homeSumScore);
-		// ホーム前半/後半得点割合（%表記）
-		int h1 = Integer.parseInt(home1stHalfScore);
-		int h2 = Integer.parseInt(home2ndHalfScore);
-		int hSum = Integer.parseInt(homeSumScore);
-		resultEntity.setHome1stHalfScoreRatio(toPercent(h1, hSum));
-		resultEntity.setHome2ndHalfScoreRatio(toPercent(h2, hSum));
-		// ホーム無失点数
-		resultEntity.setHomeCleanSheet(homeCleanSheet);
-		// アウェー前半得点数
-		resultEntity.setAway1stHalfScore(away1stHalfScore);
-		// アウェー後半得点数
-		resultEntity.setAway2ndHalfScore(away2ndHalfScore);
-		// アウェー得点数
-		resultEntity.setAwaySumScore(awaySumScore);
-		// アウェー前半/後半得点割合（%表記）
-		int a1 = Integer.parseInt(away1stHalfScore);
-		int a2 = Integer.parseInt(away2ndHalfScore);
-		int aSum = Integer.parseInt(awaySumScore);
-		resultEntity.setAway1stHalfScoreRatio(toPercent(a1, aSum));
-		resultEntity.setAway2ndHalfScoreRatio(toPercent(a2, aSum));
-		// アウェー無失点数
-		resultEntity.setAwayCleanSheet(awayCleanSheet);
-		// 無得点試合数
-		resultEntity.setFailToScoreGameCount(failToScore);
+	    String homeTeam = maxEntity.getHomeTeamName();
+	    String awayTeam = maxEntity.getAwayTeamName();
 
-		// 直近関係表示用
-		// winFlgで処理分岐
-		boolean winFlg = resultEntity.isWinFlg();
-		int win = Integer.parseInt(resultEntity.getWin());
-		resultEntity.setConsecutiveWinDisp(null);
-		if (winFlg && win >= 3) {
-			resultEntity.setConsecutiveWinDisp(win + SurfaceOverviewConst.CONSECTIVE_WIN);
-		}
-		boolean loseFlg = resultEntity.isLoseFlg();
-		int lose = Integer.parseInt(resultEntity.getLose());
-		resultEntity.setConsecutiveLoseDisp(null);
-		if (loseFlg && lose >= 3) {
-			resultEntity.setConsecutiveLoseDisp(lose + SurfaceOverviewConst.CONSECTIVE_LOSE);
-		}
+	    int homeMinScore    = parseOrZero(minEntity.getHomeScore());
+	    int homeMiddleScore = parseOrZero(middleEntity.getHomeScore());
+	    int homeMaxScore    = parseOrZero(maxEntity.getHomeScore());
+	    int awayMinScore    = parseOrZero(minEntity.getAwayScore());
+	    int awayMiddleScore = parseOrZero(middleEntity.getAwayScore());
+	    int awayMaxScore    = parseOrZero(maxEntity.getAwayScore());
 
-		// 得点継続数
-		String consecutiveScore = resultEntity.getConsecutiveScoreCount();
-		// 無得点試合数が増えなかった
-		if (Integer.parseInt(failToScore) == befFailToScore) {
-			resultEntity.setConsecutiveScoreCount((consecutiveScore == null || consecutiveScore.isBlank())
-					? "1"
-					: String.valueOf(Integer.parseInt(consecutiveScore) + 1));
-		} else {
-			resultEntity.setConsecutiveScoreCount("0");
-		}
+	    String home1stHalfScore = resultEntity.getHome1stHalfScore();
+	    String home2ndHalfScore = resultEntity.getHome2ndHalfScore();
+	    String homeSumScore     = resultEntity.getHomeSumScore();
+	    String homeCleanSheet   = resultEntity.getHomeCleanSheet();
+	    String away1stHalfScore = resultEntity.getAway1stHalfScore();
+	    String away2ndHalfScore = resultEntity.getAway2ndHalfScore();
+	    String awaySumScore     = resultEntity.getAwaySumScore();
+	    String awayCleanSheet   = resultEntity.getAwayCleanSheet();
+	    String failToScore      = resultEntity.getFailToScoreGameCount();
 
-		// 表示用
-		String befConsecutiveScore = resultEntity.getConsecutiveScoreCount();
-		resultEntity.setConsecutiveScoreCountDisp(null);
-		if (Integer.parseInt(befConsecutiveScore) >= 3) {
-			resultEntity.setConsecutiveScoreCountDisp(SurfaceOverviewConst.CONSECTIVE_SCORING);
-		}
-		return resultEntity;
+	    int befFailToScore = parseOrZero(failToScore);
+
+	    int home1stScoreDiff = homeMiddleScore - homeMinScore;
+	    int home2ndScoreDiff = homeMaxScore    - homeMiddleScore;
+	    int away1stScoreDiff = awayMiddleScore - awayMinScore;
+	    int away2ndScoreDiff = awayMaxScore    - awayMiddleScore;
+
+	    if (team.equals(homeTeam)) {
+	        home1stHalfScore = String.valueOf(parseOrZero(home1stHalfScore) + home1stScoreDiff);
+	        home2ndHalfScore = String.valueOf(parseOrZero(home2ndHalfScore) + home2ndScoreDiff);
+	        homeSumScore     = String.valueOf(parseOrZero(homeSumScore)     + home1stScoreDiff + home2ndScoreDiff);
+	        if (awayMaxScore == 0) homeCleanSheet = String.valueOf(parseOrZero(homeCleanSheet) + 1);
+	        if (homeMaxScore == 0) failToScore    = String.valueOf(parseOrZero(failToScore)    + 1);
+	    } else if (team.equals(awayTeam)) {
+	        away1stHalfScore = String.valueOf(parseOrZero(away1stHalfScore) + away1stScoreDiff);
+	        away2ndHalfScore = String.valueOf(parseOrZero(away2ndHalfScore) + away2ndScoreDiff);
+	        awaySumScore     = String.valueOf(parseOrZero(awaySumScore)     + away1stScoreDiff + away2ndScoreDiff);
+	        if (homeMaxScore == 0) awayCleanSheet = String.valueOf(parseOrZero(awayCleanSheet) + 1);
+	        if (awayMaxScore == 0) failToScore    = String.valueOf(parseOrZero(failToScore)    + 1);
+	    }
+
+	    // --- ここで未設定を 0 埋め（以降の parse で落ちない）---
+	    if (home1stHalfScore == null) home1stHalfScore = "0";
+	    if (home2ndHalfScore == null) home2ndHalfScore = "0";
+	    if (homeSumScore     == null) homeSumScore     = "0";
+	    if (away1stHalfScore == null) away1stHalfScore = "0";
+	    if (away2ndHalfScore == null) away2ndHalfScore = "0";
+	    if (awaySumScore     == null) awaySumScore     = "0";
+	    if (homeCleanSheet   == null) homeCleanSheet   = "0";
+	    if (awayCleanSheet   == null) awayCleanSheet   = "0";
+	    if (failToScore      == null) failToScore      = "0";
+
+	    // 反映
+	    resultEntity.setHome1stHalfScore(home1stHalfScore);
+	    resultEntity.setHome2ndHalfScore(home2ndHalfScore);
+	    resultEntity.setHomeSumScore(homeSumScore);
+	    resultEntity.setHome1stHalfScoreRatio(toPercent(parseOrZero(home1stHalfScore), parseOrZero(homeSumScore)));
+	    resultEntity.setHome2ndHalfScoreRatio(toPercent(parseOrZero(home2ndHalfScore), parseOrZero(homeSumScore)));
+	    resultEntity.setHomeCleanSheet(homeCleanSheet);
+
+	    resultEntity.setAway1stHalfScore(away1stHalfScore);
+	    resultEntity.setAway2ndHalfScore(away2ndHalfScore);
+	    resultEntity.setAwaySumScore(awaySumScore);
+	    resultEntity.setAway1stHalfScoreRatio(toPercent(parseOrZero(away1stHalfScore), parseOrZero(awaySumScore)));
+	    resultEntity.setAway2ndHalfScoreRatio(toPercent(parseOrZero(away2ndHalfScore), parseOrZero(awaySumScore)));
+	    resultEntity.setAwayCleanSheet(awayCleanSheet);
+
+	    resultEntity.setFailToScoreGameCount(failToScore);
+
+	    // 直近表示（合計勝敗ではなく「連勝/連敗数」で表現したいなら別カウンタに）
+	    resultEntity.setConsecutiveWinDisp(null);
+	    if (resultEntity.isWinFlg() && parseOrZero(resultEntity.getWin()) >= 3) {
+	        resultEntity.setConsecutiveWinDisp(resultEntity.getWin() + SurfaceOverviewConst.CONSECTIVE_WIN);
+	    }
+	    resultEntity.setConsecutiveLoseDisp(null);
+	    if (resultEntity.isLoseFlg() && parseOrZero(resultEntity.getLose()) >= 3) {
+	        resultEntity.setConsecutiveLoseDisp(resultEntity.getLose() + SurfaceOverviewConst.CONSECTIVE_LOSE);
+	    }
+
+	    // 得点継続
+	    int consec = parseOrZero(resultEntity.getConsecutiveScoreCount());
+	    if (parseOrZero(failToScore) == befFailToScore) {
+	        consec += 1;
+	    } else {
+	        consec = 0;
+	    }
+	    resultEntity.setConsecutiveScoreCount(String.valueOf(consec));
+	    resultEntity.setConsecutiveScoreCountDisp(consec >= 3 ? SurfaceOverviewConst.CONSECTIVE_SCORING : null);
+
+	    return resultEntity;
 	}
 
 	/**
 	 * 序盤,中盤,終盤スコアデータ(序盤勝利数〜終盤好調表示用)を設定する(teamが同一のものが来る場合はlockする)
+	 * シーズンの3分の1ずつ消費するごとに序盤,中盤,終盤を区切る
+	 * * 基準:
+	 *  - シーズン総ラウンド数を3等分し、消費試合数(games)に応じてフェーズ判定
+	 *  - 勝敗は本メソッド呼出し前に setTeamMainData で更新済みの winFlg / loseFlg を利用
+	 *  - 好調表示はフェーズ内勝率 >= 0.7 で付与（"序盤好調" / "中盤好調" / "終盤好調"）
 	 * @param maxEntity
 	 * @param resultEntity
 	 * @param team
@@ -421,8 +377,95 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	 */
 	private SurfaceOverviewEntity setEachScoreCountData(BookDataEntity maxEntity,
 			SurfaceOverviewEntity resultEntity) {
+		final String METHOD_NAME = "setEachScoreCountData";
 		// 序盤,中盤,終盤の範囲の切り分けは各国,リーグのラウンド数に応じて決定する
-		return resultEntity;
+		// --- 0埋め（NOT NULL対策） ---
+	    if (resultEntity.getFirstWeekGameWinCount() == null)  resultEntity.setFirstWeekGameWinCount("0");
+	    if (resultEntity.getFirstWeekGameLostCount() == null) resultEntity.setFirstWeekGameLostCount("0");
+	    if (resultEntity.getMidWeekGameWinCount() == null)    resultEntity.setMidWeekGameWinCount("0");
+	    if (resultEntity.getMidWeekGameLostCount() == null)   resultEntity.setMidWeekGameLostCount("0");
+	    if (resultEntity.getLastWeekGameWinCount() == null)   resultEntity.setLastWeekGameWinCount("0");
+	    if (resultEntity.getLastWeekGameLostCount() == null)  resultEntity.setLastWeekGameLostCount("0");
+
+	    // 国とリーグのキーを作成
+	    String key = resultEntity.getCountry() + ": " + resultEntity.getLeague();
+	    // フェーズ境界
+	    int seasonRounds = -99;
+	    if (roundMap.containsKey(key)) {
+	    	seasonRounds = roundMap.get(key);
+	    } else {
+	    	String messageCd = "roundMap未存在エラー";
+			this.rootCauseWrapper.throwUnexpectedRowCount(
+			        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+			        messageCd,
+			        -99, seasonRounds,
+			        String.format("err=%s", -99)
+			    );
+	    }
+	    final int firstEnd  = (int) Math.ceil(seasonRounds / 3.0);            // 序盤の最終ゲーム番号
+	    final int secondEnd = (int) Math.ceil(seasonRounds * 2.0 / 3.0);      // 中盤の最終ゲーム番号
+
+	    // 現在の消費試合数（win+lose+draw）※ setTeamMainData 内で更新済み
+	    final int g = parseOrZero(resultEntity.getGames());
+
+	    // 今回試合の結果（勝ち/負け/引分）
+	    final boolean won  = resultEntity.isWinFlg();
+	    final boolean lost = resultEntity.isLoseFlg();
+	    // 引分は won/lost のどちらでもない
+
+	    // 現在フェーズを判定（今回の試合を含む）
+	    Phase phase;
+	    if (g <= firstEnd)            phase = Phase.FIRST;
+	    else if (g <= secondEnd)      phase = Phase.MID;
+	    else                          phase = Phase.LAST;
+
+	    // --- フェーズ別 勝/敗 の累計を更新 ---
+	    int fW = parseOrZero(resultEntity.getFirstWeekGameWinCount());
+	    int fL = parseOrZero(resultEntity.getFirstWeekGameLostCount());
+	    int mW = parseOrZero(resultEntity.getMidWeekGameWinCount());
+	    int mL = parseOrZero(resultEntity.getMidWeekGameLostCount());
+	    int lW = parseOrZero(resultEntity.getLastWeekGameWinCount());
+	    int lL = parseOrZero(resultEntity.getLastWeekGameLostCount());
+
+	    switch (phase) {
+	        case FIRST:
+	            if (won)  fW++;
+	            else if (lost) fL++;
+	            break;
+	        case MID:
+	            if (won)  mW++;
+	            else if (lost) mL++;
+	            break;
+	        case LAST:
+	            if (won)  lW++;
+	            else if (lost) lL++;
+	            break;
+	    }
+
+	    // 反映（常に "0+"）
+	    resultEntity.setFirstWeekGameWinCount(String.valueOf(fW));
+	    resultEntity.setFirstWeekGameLostCount(String.valueOf(fL));
+	    resultEntity.setMidWeekGameWinCount(String.valueOf(mW));
+	    resultEntity.setMidWeekGameLostCount(String.valueOf(mL));
+	    resultEntity.setLastWeekGameWinCount(String.valueOf(lW));
+	    resultEntity.setLastWeekGameLostCount(String.valueOf(lL));
+
+	    // --- 勝率計算（フェーズ内の試合数 = そのフェーズに属する消費試合数）---
+	    int firstGames = clamp(g, 0, firstEnd);
+	    int midGames   = clamp(g - firstEnd, 0, Math.max(0, secondEnd - firstEnd));
+	    int lastGames  = Math.max(0, g - secondEnd);
+
+	    // 引分は「フェーズ内総試合数 - (勝 + 敗)」で内包される
+	    double firstWinRate = (firstGames > 0) ? (fW / (double) firstGames) : 0.0;
+	    double midWinRate   = (midGames   > 0) ? (mW / (double) midGames)   : 0.0;
+	    double lastWinRate  = (lastGames  > 0) ? (lW / (double) lastGames)  : 0.0;
+
+	    // 表示（勝率7割以上で付与。未達/試合なしは null）
+	    resultEntity.setFirstWeekGameWinDisp(firstWinRate >= 0.7 ? "序盤好調" : null);
+	    resultEntity.setMidWeekGameWinDisp(  midWinRate   >= 0.7 ? "中盤好調" : null);
+	    resultEntity.setLastWeekGameWinDisp( lastWinRate  >= 0.7 ? "終盤好調" : null);
+
+	    return resultEntity;
 	}
 
 	/**
@@ -821,6 +864,55 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	}
 
 	/**
+	 * 2) venue 別カラムなどを 0 で埋める（NOT NULL対策）
+	 * @param e
+	 */
+	private static void ensureNotNullCounters(SurfaceOverviewEntity e) {
+	    // home venue
+	    if (e.getHomeWinCount() == null) e.setHomeWinCount("0");
+	    if (e.getHomeLoseCount() == null) e.setHomeLoseCount("0");
+	    if (e.getHomeFirstGoalCount() == null) e.setHomeFirstGoalCount("0");
+	    if (e.getHomeWinBehindCount() == null) e.setHomeWinBehindCount("0");
+	    if (e.getHomeLoseBehindCount() == null) e.setHomeLoseBehindCount("0");
+	    if (e.getHomeWinBehind0vs1Count() == null) e.setHomeWinBehind0vs1Count("0");
+	    if (e.getHomeLoseBehind1vs0Count() == null) e.setHomeLoseBehind1vs0Count("0");
+	    if (e.getHomeWinBehind0vs2Count() == null) e.setHomeWinBehind0vs2Count("0");
+	    if (e.getHomeLoseBehind2vs0Count() == null) e.setHomeLoseBehind2vs0Count("0");
+	    if (e.getHomeWinBehindOtherCount() == null) e.setHomeWinBehindOtherCount("0");
+	    if (e.getHomeLoseBehindOtherCount() == null) e.setHomeLoseBehindOtherCount("0");
+
+	    // away venue
+	    if (e.getAwayWinCount() == null) e.setAwayWinCount("0");
+	    if (e.getAwayLoseCount() == null) e.setAwayLoseCount("0");
+	    if (e.getAwayFirstGoalCount() == null) e.setAwayFirstGoalCount("0");
+	    if (e.getAwayWinBehindCount() == null) e.setAwayWinBehindCount("0");
+	    if (e.getAwayLoseBehindCount() == null) e.setAwayLoseBehindCount("0");
+	    if (e.getAwayWinBehind1vs0Count() == null) e.setAwayWinBehind1vs0Count("0");
+	    if (e.getAwayLoseBehind0vs1Count() == null) e.setAwayLoseBehind0vs1Count("0");
+	    if (e.getAwayWinBehind2vs0Count() == null) e.setAwayWinBehind2vs0Count("0");
+	    if (e.getAwayLoseBehind0vs2Count() == null) e.setAwayLoseBehind0vs2Count("0");
+	    if (e.getAwayWinBehindOtherCount() == null) e.setAwayWinBehindOtherCount("0");
+	    if (e.getAwayLoseBehindOtherCount() == null) e.setAwayLoseBehindOtherCount("0");
+
+	    // 念のためコア数値も 0 埋め（DB制約対策）
+	    if (e.getWin() == null) e.setWin("0");
+	    if (e.getLose() == null) e.setLose("0");
+	    if (e.getDraw() == null) e.setDraw("0");
+	    if (e.getGames() == null) e.setGames("0");
+	    if (e.getWinningPoints() == null) e.setWinningPoints("0");
+	    if (e.getFailToScoreGameCount() == null) e.setFailToScoreGameCount("0");
+	    if (e.getUnbeatenStreakCount() == null) e.setUnbeatenStreakCount("0");
+	    if (e.getFirstWeekGameWinCount() == null) e.setFirstWeekGameWinCount("0");
+	    if (e.getFirstWeekGameLostCount() == null) e.setFirstWeekGameLostCount("0");
+	    if (e.getMidWeekGameWinCount() == null) e.setMidWeekGameWinCount("0");
+	    if (e.getMidWeekGameLostCount() == null) e.setMidWeekGameLostCount("0");
+	    if (e.getLastWeekGameWinCount() == null) e.setLastWeekGameWinCount("0");
+	    if (e.getLastWeekGameLostCount() == null) e.setLastWeekGameLostCount("0");
+	    if (e.getConsecutiveScoreCount() == null) e.setConsecutiveScoreCount("0");
+	}
+
+
+	/**
 	 *  null/空/非数を0に
 	 * @param s
 	 * @return
@@ -871,6 +963,13 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	    // long pct = Math.round((num * 100.0) / denom);
 	    // pct = Math.round(pct / 10.0) * 10; // 10%単位に丸め
 	    // return pct + "%";
+	}
+
+	/** 区間クランプ */
+	private static int clamp(int v, int min, int max) {
+	    if (v < min) return min;
+	    if (v > max) return max;
+	    return v;
 	}
 
 	/**

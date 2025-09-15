@@ -4,6 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
@@ -83,6 +84,11 @@ public class OriginDBService {
 					this.manageLoggerComponent.debugWarnLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
 					// 重複は特に例外として出さない
+					continue;
+				} catch (DataIntegrityViolationException e) {
+					String messageCd = "データの形式が合わないエラー";
+					this.manageLoggerComponent.debugErrorLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
 					continue;
 				}
 			}

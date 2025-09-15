@@ -1,10 +1,13 @@
 package dev.application.analyze.bm_m006;
 
+import java.text.Normalizer;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -47,41 +50,110 @@ public class CountryLeagueSummaryStat implements AnalyzeEntityIF {
 	private ManageLoggerComponent manageLoggerComponent;
 
 	/**
+	 * 既存マップ
+	 */
+    private final ConcurrentHashMap<String, Object> lockMap = new ConcurrentHashMap<>();
+
+	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) {
 		final String METHOD_NAME = "calcStat";
-		// ログ出力
-		this.manageLoggerComponent.init(EXEC_MODE, null);
-		this.manageLoggerComponent.debugStartInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+        this.manageLoggerComponent.init(EXEC_MODE, null);
+        this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// 結果の登録/更新処理
-		// 国-リーグごとの出現回数をカウント
-		Map<String, Integer> leagueCountMap = new HashMap<>();
-		for (Map.Entry<String, Map<String, List<BookDataEntity>>> countryEntry : entities.entrySet()) {
-			Map<String, List<BookDataEntity>> leagueMap = countryEntry.getValue();
-			leagueCountMap.merge(countryEntry.getKey(), leagueMap.size(), Integer::sum); // 件数合算
-		}
+        // 1) 正規化キーで集計 (country|league)
+        Map<String, Integer> leagueCountMap = new HashMap<>();
+        for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
+            String[] sp = ExecuteMainUtil.splitLeagueInfo(entry.getKey());
+            if (sp.length < 2) continue;
+            String country = normalizeKey(sp[0]);
+            String league  = normalizeKey(sp[1]);
+            String key = country + "|" + league;
+            int add = (entry.getValue() == null) ? 0 : entry.getValue().size();
+            leagueCountMap.merge(key, add, Integer::sum);
+        }
 
-		//  並列で処理
-		leagueCountMap.entrySet().parallelStream().forEach(entry -> {
-			String leagueEntry = entry.getKey();
-			int count = entry.getValue();
-			String[] split = ExecuteMainUtil.splitLeagueInfo(leagueEntry);
-			String country = split[0];
-			String league = split[1];
+        // 2) 並列OKだがキー単位で同期して保存（insert or update）
+        leagueCountMap.entrySet().parallelStream().forEach(e -> {
+            String[] sp = e.getKey().split("\\|", 2);
+            String country = sp[0];
+            String league  = sp[1];
+            int count = e.getValue();
 
-			// データ取得
-			CountryLeagueSummaryOutputDTO dto = getData(country, league);
-			String id = dto.getSeq();
-			boolean updFlg = dto.isUpdFlg();
-			// カウント加算
-			String cnt = String.valueOf(Integer.parseInt(dto.getCnt()) + count);
-			// 登録 or 更新
-			save(id, country, league, dto.getCnt(), cnt, updFlg);
-		});
+            Object lock = lockMap.computeIfAbsent(country + "-" + league , k -> new Object());
+            synchronized (lock) {
+                // 先に存在確認
+                CountryLeagueSummaryOutputDTO dto = getData(country, league);
+                String beforeCnt = dto.getCnt(); // 文字列
+                String toAdd     = String.valueOf(count);
+
+                // 保存（重複キーならフォールバック）
+                saveWithDuplicateFallback(dto.isUpdFlg(), dto.getSeq(), country, league, beforeCnt, toAdd);
+            }
+        });
+
+        this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+        this.manageLoggerComponent.clear();
+    }
+
+    /**
+     * DuplicateKey 時は再読込して update に切替（Repositoryは既存のまま）
+     * @param updFlg
+     * @param id
+     * @param country
+     * @param league
+     * @param befCnt
+     * @param addCnt
+     */
+    private void saveWithDuplicateFallback(boolean updFlg, String id,
+                                           String country, String league,
+                                           String befCnt, String addCnt) {
+        final String METHOD_NAME = "saveWithDuplicateFallback";
+        CountryLeagueSummaryEntity e = new CountryLeagueSummaryEntity();
+        e.setCountry(country);
+        e.setLeague(league);
+        e.setDataCount("0"); // 要件次第で加算するなら同様に扱う
+        try {
+            if (updFlg) {
+                // 既存あり: 上書きではなく加算
+                int newCnt = parseOrZero(befCnt) + parseOrZero(addCnt);
+                e.setId(id);
+                e.setCsvCount(String.valueOf(newCnt));
+                int result = this.countryLeagueSummaryRepository.update(e);
+                if (result != 1) {
+                    this.rootCauseWrapper.throwUnexpectedRowCount(
+                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, "更新エラー", 1, result,
+                        String.format("id=%s, country=%s, league=%s", id, country, league));
+                }
+            } else {
+                // 新規: まず insert を試す
+                e.setCsvCount(addCnt);
+                int result = this.countryLeagueSummaryRepository.insert(e);
+                if (result != 1) {
+                    this.rootCauseWrapper.throwUnexpectedRowCount(
+                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, "新規登録エラー", 1, result, null);
+                }
+            }
+        } catch (DuplicateKeyException dup) {
+            // 競合: 直近の値を再取得して加算更新
+            List<CountryLeagueSummaryEntity> rows =
+                this.countryLeagueSummaryRepository.findByCountryLeague(country, league);
+            if (!rows.isEmpty()) {
+                CountryLeagueSummaryEntity cur = rows.get(0);
+                int newCnt = parseOrZero(cur.getCsvCount()) + parseOrZero(addCnt);
+                CountryLeagueSummaryEntity u = new CountryLeagueSummaryEntity();
+                u.setId(cur.getId());
+                u.setCountry(country);
+                u.setLeague(league);
+                u.setDataCount(cur.getDataCount() == null ? "0" : cur.getDataCount());
+                u.setCsvCount(String.valueOf(newCnt));
+                this.countryLeagueSummaryRepository.update(u);
+            } else {
+                throw dup; // 理論上ここには来ないはず
+            }
+        }
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
@@ -111,59 +183,27 @@ public class CountryLeagueSummaryStat implements AnalyzeEntityIF {
 	}
 
 	/**
-	 * 登録
-	 * @param id ID
-	 * @param country 国
-	 * @param league リーグ
-	 * @param befCnt 前件数
-	 * @param cnt 件数
-	 * @param updFlg 更新フラグ
+	 * 0防止
+	 * @param s
+	 * @return
 	 */
-	private synchronized void save(String id, String country, String league, String befCnt,
-			String cnt, boolean updFlg) {
-		final String METHOD_NAME = "save";
+	private static int parseOrZero(String s) {
+        if (s == null || s.isBlank()) return 0;
+        try { return Integer.parseInt(s.trim()); } catch (NumberFormatException e) { return 0; }
+    }
 
-		CountryLeagueSummaryEntity countryLeagueSummaryEntity = new CountryLeagueSummaryEntity();
-		countryLeagueSummaryEntity.setCountry(country);
-		countryLeagueSummaryEntity.setLeague(league);
-		countryLeagueSummaryEntity.setDataCount("0");
-		if (updFlg) {
-			countryLeagueSummaryEntity.setId(id);
-			countryLeagueSummaryEntity.setCsvCount(cnt);
-			int result = this.countryLeagueSummaryRepository.update(countryLeagueSummaryEntity);
-			if (result != 1) {
-				String messageCd = "更新エラー";
-				this.rootCauseWrapper.throwUnexpectedRowCount(
-				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-				        messageCd,
-				        1, result,
-				        String.format("id=%s, count=%s, remarks=%s", id, null, null)
-				    );
-			}
-			String messageCd = "更新件数";
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-					"BM_M006 更新件数: (country, league)" + "(" + country + ", " + league + ") "
-					+ befCnt + "件→" + cnt + "件");
-		} else {
-			countryLeagueSummaryEntity.setCsvCount(cnt);
-			int result = this.countryLeagueSummaryRepository.insert(countryLeagueSummaryEntity);
-			if (result != 1) {
-				String messageCd = "新規登録エラー";
-				this.rootCauseWrapper.throwUnexpectedRowCount(
-				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-				        messageCd,
-				        1, result,
-				        null
-				    );
-			}
-			String messageCd = "登録件数";
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-					"BM_M006 登録件数: (country, league)" + "(" + country + ", " + league + ") "
-							+ "0件→" + cnt + "件");
-		}
-
-	}
+    /**
+     * 全角/半角/NBSP/連続空白などを正規化してキーぶれを抑止
+     * @param s
+     * @return
+     */
+    private static String normalizeKey(String s) {
+        if (s == null) return "";
+        String n = Normalizer.normalize(s, Normalizer.Form.NFKC);
+        n = n.replace('･','・').replace('·','・');
+        n = n.replace('\u00A0',' ').replace('\u3000',' ');
+        n = n.trim().replaceAll("\\s+", " ");
+        return n;
+    }
 
 }

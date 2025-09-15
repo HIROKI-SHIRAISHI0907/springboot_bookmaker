@@ -48,6 +48,12 @@ public class CalcCorrelationEntity extends MetaEntity implements Serializable {
 	/** アウェー期待値のプレースタイル相関係数情報 */
 	private String awayExpInfo;
 
+	/** ホーム枠内ゴール期待値のプレースタイル相関係数情報 */
+	private String homeInGoalExpInfo;
+
+	/** アウェー枠内ゴール期待値のプレースタイル相関係数情報 */
+	private String awayInGoalExpInfo;
+
 	/** ホームポゼッションのプレースタイル相関係数情報 */
 	private String homeDonationInfo;
 

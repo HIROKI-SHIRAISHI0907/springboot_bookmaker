@@ -20,7 +20,7 @@ public interface CalcCorrelationRankingRepository {
         " `rank_31th`,`rank_32th`,`rank_33th`,`rank_34th`,`rank_35th`,`rank_36th`,`rank_37th`,`rank_38th`,`rank_39th`,`rank_40th`,",
         " `rank_41th`,`rank_42th`,`rank_43th`,`rank_44th`,`rank_45th`,`rank_46th`,`rank_47th`,`rank_48th`,`rank_49th`,`rank_50th`,",
         " `rank_51th`,`rank_52th`,`rank_53th`,`rank_54th`,`rank_55th`,`rank_56th`,`rank_57th`,`rank_58th`,`rank_59th`,`rank_60th`,",
-        " `rank_61th`,`rank_62th`,`rank_63th`,`rank_64th`,`rank_65th`,`rank_66th`,`rank_67th`,`rank_68th`,",
+        " `rank_61th`,`rank_62th`,`rank_63th`,`rank_64th`,`rank_65th`,`rank_66th`,`rank_67th`,`rank_68th`,`rank_69th`,`rank_70th`,`rank_71th`,`rank_72th`",
         " `register_id`,`register_time`,`update_id`,`update_time`",
         ") VALUES (",
         " #{id},#{country},#{league},#{home},#{away},#{score},#{chkBody},",
@@ -30,7 +30,7 @@ public interface CalcCorrelationRankingRepository {
         " #{rank31st},#{rank32nd},#{rank33rd},#{rank34th},#{rank35th},#{rank36th},#{rank37th},#{rank38th},#{rank39th},#{rank40th},",
         " #{rank41st},#{rank42nd},#{rank43rd},#{rank44th},#{rank45th},#{rank46th},#{rank47th},#{rank48th},#{rank49th},#{rank50th},",
         " #{rank51st},#{rank52nd},#{rank53rd},#{rank54th},#{rank55th},#{rank56th},#{rank57th},#{rank58th},#{rank59th},#{rank60th},",
-        " #{rank61st},#{rank62nd},#{rank63rd},#{rank64th},#{rank65th},#{rank66th},#{rank67th},#{rank68th},",
+        " #{rank61st},#{rank62nd},#{rank63rd},#{rank64th},#{rank65th},#{rank66th},#{rank67th},#{rank68th},#{rank69th},#{rank70th},#{rank71th},#{rank72th}",
         " #{registerId},#{registerTime},#{updateId},#{updateTime}",
         ")"
     })
@@ -45,7 +45,7 @@ public interface CalcCorrelationRankingRepository {
         " `rank_31th`,`rank_32th`,`rank_33th`,`rank_34th`,`rank_35th`,`rank_36th`,`rank_37th`,`rank_38th`,`rank_39th`,`rank_40th`,",
         " `rank_41th`,`rank_42th`,`rank_43th`,`rank_44th`,`rank_45th`,`rank_46th`,`rank_47th`,`rank_48th`,`rank_49th`,`rank_50th`,",
         " `rank_51th`,`rank_52th`,`rank_53th`,`rank_54th`,`rank_55th`,`rank_56th`,`rank_57th`,`rank_58th`,`rank_59th`,`rank_60th`,",
-        " `rank_61th`,`rank_62th`,`rank_63th`,`rank_64th`,`rank_65th`,`rank_66th`,`rank_67th`,`rank_68th`,",
+        " `rank_61th`,`rank_62th`,`rank_63th`,`rank_64th`,`rank_65th`,`rank_66th`,`rank_67th`,`rank_68th`,`rank_69th`,`rank_70th`,`rank_71th`,`rank_72th`",
         " `register_id`,`register_time`,`update_id`,`update_time`",
         " FROM `correlation_ranking_data`",
         " WHERE `country` = #{country} AND `league` = #{league} AND `home` = #{home} AND `away` = #{away} AND `score` = #{score} AND `chkBody` = #{chkBody}"

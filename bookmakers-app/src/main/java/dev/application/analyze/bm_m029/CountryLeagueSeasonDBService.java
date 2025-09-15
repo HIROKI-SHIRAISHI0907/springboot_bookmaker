@@ -70,6 +70,8 @@ public class CountryLeagueSeasonDBService {
 			List<CountryLeagueSeasonMasterEntity> batch = insertEntities.subList(i, end);
 			for (CountryLeagueSeasonMasterEntity entity : batch) {
 				try {
+					// 有効フラグを埋める
+					entity.setValidFlg(ValidFlgConst.VALID_FLG_0);
 					int result = this.countryLeagueSeasonMasterRepository.insert(entity);
 					if (result != 1) {
 						String messageCd = "新規登録エラー";

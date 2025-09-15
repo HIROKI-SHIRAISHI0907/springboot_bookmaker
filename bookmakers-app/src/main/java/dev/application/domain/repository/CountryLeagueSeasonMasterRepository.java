@@ -14,10 +14,10 @@ public interface CountryLeagueSeasonMasterRepository {
 
 	@Insert({
 			"INSERT INTO country_league_season_master (",
-			"id, country, league, start_season_date, end_season_date, path, upd_stamp,",
+			"id, country, league, start_season_date, end_season_date, round, path, upd_stamp, valid_flg, ",
 			"register_id, register_time, update_id, update_time) VALUES (",
 			"#{id}, #{country}, #{league}, #{startSeasonDate}, "
-			+ "#{endSeasonDate}, #{path}, #{updStamp},",
+					+ "#{endSeasonDate}, #{round}, #{path}, #{updStamp}, #{validFlg}, ",
 			"#{registerId}, #{registerTime}, #{updateId}, #{updateTime});"
 	})
 	int insert(CountryLeagueSeasonMasterEntity entity);
@@ -33,12 +33,27 @@ public interface CountryLeagueSeasonMasterRepository {
 	})
 	int update(CountryLeagueSeasonMasterEntity entity);
 
+	@Update({
+			"UPDATE country_league_season_master SET",
+			"country = #{country},",
+			"league = #{league},",
+			"valid_flg = #{validFlg}",
+			" WHERE id = #{id}"
+	})
+	int updateFlg(CountryLeagueSeasonMasterEntity entity);
+
 	@Select({
 			"SELECT id, country, league, start_season_date, end_season_date, path, upd_stamp "
 					+ "FROM country_league_season_master ",
 			"WHERE country = #{country} AND league = #{league}"
 	})
 	List<CountryLeagueSeasonMasterEntity> findByCountryAndLeague(String country, String league);
+
+	@Select({
+			"SELECT country, league, round FROM country_league_season_master ",
+			"WHERE valid_flg = #{validFlg}"
+	})
+	List<CountryLeagueSeasonMasterEntity> findRoundValidFlg(String validFlg);
 
 	@Select("""
 			    SELECT
