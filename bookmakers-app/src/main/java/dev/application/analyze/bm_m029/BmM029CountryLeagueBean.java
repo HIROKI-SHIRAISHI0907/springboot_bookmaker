@@ -34,8 +34,6 @@ public class BmM029CountryLeagueBean {
 	/** イングランド／プレミアリーグ */
 	private static final String ENGLAND_PREMIER = "イングランド／プレミアリーグ";
 
-
-
 	/** CountryLeagueSeasonMasterRepositoryレポジトリクラス */
 	@Autowired
 	private CountryLeagueSeasonMasterRepository countryLeagueSeasonMasterRepository;

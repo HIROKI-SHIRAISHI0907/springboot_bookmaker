@@ -81,13 +81,12 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			Map<String, List<BookDataEntity>> entrySub = entry.getValue();
 			for (Map.Entry<String, List<BookDataEntity>> entitySub : entrySub.entrySet()) {
 				String[] teams = entitySub.getKey().split("-");
-				String home = teams[0];
-				String away = teams[1];
+				String home = teams[0].trim();
+				String away = teams[1].trim();
 				List<BookDataEntity> entityList = entitySub.getValue();
 				// null や空リストはスキップ
 				if (entityList == null || entityList.isEmpty())
 					continue;
-
 				resultMap = basedMain(entityList, country, league, home, away, resultMap);
 				if (resultMap == null) {
 					continue;
@@ -935,11 +934,24 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		boolean loseFlg = resultEntity.isLoseFlg();
 		resultEntity.setFirstWinDisp(null);
 		resultEntity.setLoseStreakDisp(null);
-		// 未勝利状態
-		if ("0".equals(win)) {
+		// 未勝利状態(ただし試合は実施済み)
+		if ("0".equals(win) && !"0".equals(games)) {
 			resultEntity.setFirstWinDisp(SurfaceOverviewConst.FIRST_WIN_MOTIVATION);
 		}
 		// 負け込み状態
+		// --- 連敗カウンタを更新 ---
+		int consecLose = parseOrZero(resultEntity.getConsecutiveLoseCount());
+		if (loseFlg) {
+			consecLose += 1;
+		} else {
+			consecLose = 0;
+		}
+		resultEntity.setConsecutiveLoseCount(String.valueOf(consecLose));
+
+		// --- 4連敗以上で「負け続き」表示 ---
+		if (consecLose >= 4) {
+			resultEntity.setLoseStreakDisp(SurfaceOverviewConst.LOSE_CONSECUTIVE);
+		}
 		return resultEntity;
 	}
 
@@ -1058,6 +1070,8 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			e.setLastWeekGameLostCount("0");
 		if (e.getConsecutiveScoreCount() == null)
 			e.setConsecutiveScoreCount("0");
+		if (e.getConsecutiveLoseCount() == null)
+			e.setConsecutiveLoseCount("0");
 	}
 
 	/**
@@ -1122,6 +1136,41 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			return max;
 		return v;
 	}
+
+	/**
+	 * SurfaceOverviewStat に追加（private static）
+	 * @param s
+	 * @return
+	 */
+	private static String normalizeTeam(String s) {
+		if (s == null) return null;
+		String t = s;
+
+		// 前後空白・改行・NBSP除去
+		t = t.replace('\u00A0', ' ').trim();
+
+		// 全角→半角（英数・記号の代表）: Java 標準だけで簡易に寄せる
+		// ここでは手作業で揺れやすい記号を統一
+		t = t
+			// 中点類を全て全角中点に統一
+			.replace('･', '・')     // 半角中点 -> 全角中点
+			.replace('·', '・')     // 中点(ラテン) -> 全角中点
+			// ハイフン類を半角ハイフンに統一
+			.replace('－', '-')     // 全角ハイフン
+			.replace('–', '-')      // en dash
+			.replace('—', '-')      // em dash
+			// コロン類
+			.replace('：', ':');
+
+		// 連続空白を単一空白へ
+		t = t.replaceAll("\\s+", " ");
+
+		// 前後の引用符等のノイズ除去（必要なら）
+		t = t.replaceAll("^[\"'“”‘’]+|[\"'“”‘’]+$", "");
+
+		return t;
+	}
+
 
 	/**
 	 * オブジェクトロック

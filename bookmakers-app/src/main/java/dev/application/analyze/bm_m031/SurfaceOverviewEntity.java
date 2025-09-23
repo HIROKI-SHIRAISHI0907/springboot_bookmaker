@@ -234,4 +234,7 @@ public class SurfaceOverviewEntity extends MetaEntity implements Serializable {
 	/** 負けが混んだ時表示用(4連敗以上のチームが対象「負け続き」) */
 	private String loseStreakDisp;
 
+	/** 連続敗北数(データとしてはフィールドのみ持つ) */
+	private String consecutiveLoseCount;
+
 }

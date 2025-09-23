@@ -37,7 +37,7 @@ public interface CountryLeagueSeasonMasterRepository {
 			"UPDATE country_league_season_master SET",
 			"country = #{country},",
 			"league = #{league},",
-			"valid_flg = #{validFlg}",
+			"disp_valid_flg = #{validFlg}",
 			" WHERE id = #{id}"
 	})
 	int updateFlg(CountryLeagueSeasonMasterEntity entity);
@@ -51,7 +51,7 @@ public interface CountryLeagueSeasonMasterRepository {
 
 	@Select({
 			"SELECT country, league, round FROM country_league_season_master ",
-			"WHERE valid_flg = #{validFlg}"
+			"WHERE disp_valid_flg = #{validFlg}"
 	})
 	List<CountryLeagueSeasonMasterEntity> findRoundValidFlg(String validFlg);
 
