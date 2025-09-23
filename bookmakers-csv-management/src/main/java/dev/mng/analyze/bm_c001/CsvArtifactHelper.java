@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.DataEntity;
+import dev.common.util.ExecuteMainUtil;
 import dev.mng.csvmng.CsvArtifactResource;
 import dev.mng.domain.repository.StatSizeFinalizeMasterRepository;
 
@@ -39,6 +40,8 @@ public class CsvArtifactHelper {
 		List<StatSizeFinalizeMasterCsvEntity> flgData = null;
 		CsvArtifactResource csvArtifactResource = new CsvArtifactResource();
 		try {
+			List<String> countryList = new ArrayList<String>();
+			List<String> leagueList = new ArrayList<String>();
 			flgData = this.statSizeFinalizeMasterRepository
 					.findFlgData(STAT_SIZE_FINALIZE_FLG_0);
 			for (StatSizeFinalizeMasterCsvEntity entity : flgData) {
@@ -48,6 +51,15 @@ public class CsvArtifactHelper {
 					String[] scores = entity.getOptions().split("-");
 					csvArtifactResource.setHomeScore(scores[0]);
 					csvArtifactResource.setAwayScore(scores[1]);
+					break;
+				}
+				// 国:リーグ名
+				case "2": {
+					String[] target = entity.getOptions().split(":");
+					countryList.add(target[0]);
+					leagueList.add(target[1]);
+					csvArtifactResource.setCountry(countryList);
+					csvArtifactResource.setLeague(leagueList);
 					break;
 				}
 				}
@@ -66,6 +78,8 @@ public class CsvArtifactHelper {
 	 */
 	public boolean condition(List<DataEntity> result, CsvArtifactResource csvArtifactResource) {
 		// 条件に当てはまればそのまま素通りする処理を入れる箇所
+		boolean option1stFlg = true;
+		boolean option2ndFlg = false;
 
 		// スコアに関する制限付きINPUTを精査
 		String hS = csvArtifactResource.getHomeScore();
@@ -77,10 +91,45 @@ public class CsvArtifactHelper {
 			// 完全一致で“含まれているか”をチェック
 			Optional<DataEntity> scoreHit = findFirstScoreExact(result, reqHome, reqAway);
 			if (!scoreHit.isPresent()) {
-				return false;
+				option1stFlg = false;
 			}
 		}
-		return true;
+
+		// 国リーグに関する制限付きINPUTを精査
+		List<String> country = csvArtifactResource.getCountry();
+		List<String> league = csvArtifactResource.getLeague();
+		if (country != null && !country.isEmpty() && league != null && !league.isEmpty()) {
+			// イタリア／セリエ A, セリエ B - プレーアウト, イングランド／プレミアリーグ
+			// エールディビジ - カンファレンスリーグ：プレーオフ, プリメーラ A - アペルトゥーラ：クアルドラングラル
+			// プリメーラ B - アペルトゥーラ：クアルドラングラル, スーペルリーガ - チャンピオンシップグループ
+			// リーグ・アン - 降格プレーオフ, ジュピラー･プロリーグ - カンファレンスリーグ・グループ
+			// リーガ 1 - アペルトゥラ, LFPB - スーパーファイナル, リーガ・ポルトガル - 降格戦
+			// K リーグ 1 - チャンピオンシップグループ, WEリーグカップ - プレーオフ
+			// などのリーグに付与されているものは付与分を削除
+			// dataCategory
+			String countryLeague = result.get(result.size() - 1).getDataCategory();
+			String[] split = ExecuteMainUtil.splitLeagueInfo(countryLeague);
+			String resultCountry = split[0].trim();
+			String resultLeague = split[1].trim();
+			for (int i = 0; i < country.size(); i++) {
+				String newLeague = league.get(i);
+				if (league.get(i).contains("-")) {
+					newLeague = newLeague.split("-")[0].trim();
+				} else if (league.get(i).contains("／")) {
+					newLeague = newLeague.split("／")[1].trim();
+				}
+				// 組み合わせが1つでも引っかかったらOK
+				if (country.get(i).equals(resultCountry) && newLeague.equals(resultLeague)) {
+					option2ndFlg = true;
+					break;
+				}
+			}
+		}
+
+		if (option1stFlg && option2ndFlg) {
+			return true;
+		}
+		return false;
 	}
 
 	/**

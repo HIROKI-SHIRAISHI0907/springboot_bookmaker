@@ -11,7 +11,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import dev.mng.csvmng.ExportCsv;
 import dev.mng.csvmng.ReaderCurrentCsvInfoBean;
-import dev.mng.dto.CsvCommonInputDTO;
+import dev.mng.dto.CsvTargetCommonInputDTO;
 import dev.mng.dto.SubInput;
 
 /**
@@ -39,7 +39,7 @@ public class StatSizeFinalizeMasterCsvTest {
 	void test_calcStat_shouldUpdateCorrectly_memory() {
 		// Act
 
-		CsvCommonInputDTO csvCommonInputDTO = new CsvCommonInputDTO();
+		CsvTargetCommonInputDTO csvCommonInputDTO = new CsvTargetCommonInputDTO();
 		List<SubInput> list = new ArrayList<SubInput>();
 		SubInput subInput = new SubInput();
 		subInput.setOptionNum("1");
@@ -60,6 +60,36 @@ public class StatSizeFinalizeMasterCsvTest {
 		subInput.setOptionNum("1");
 		subInput.setOptions("0-0");
 		subInput.setFlg("1");
+		list.add(subInput);
+		subInput = new SubInput();
+		subInput.setOptionNum("2");
+		subInput.setOptions("アルゼンチン:トルネオ・ベターノ");
+		subInput.setFlg("0");
+		list.add(subInput);
+		subInput = new SubInput();
+		subInput.setOptionNum("2");
+		subInput.setOptions("イタリア:イタリア／セリエ A");
+		subInput.setFlg("0");
+		list.add(subInput);
+		subInput = new SubInput();
+		subInput.setOptionNum("2");
+		subInput.setOptions("イングランド:イングランド／プレミアリーグ");
+		subInput.setFlg("0");
+		list.add(subInput);
+		subInput = new SubInput();
+		subInput.setOptionNum("2");
+		subInput.setOptions("ドイツ:ブンデスリーガ");
+		subInput.setFlg("0");
+		list.add(subInput);
+		subInput = new SubInput();
+		subInput.setOptionNum("2");
+		subInput.setOptions("ブラジル:セリエ A ベターノ");
+		subInput.setFlg("0");
+		list.add(subInput);
+		subInput = new SubInput();
+		subInput.setOptionNum("2");
+		subInput.setOptions("日本:J1 リーグ");
+		subInput.setFlg("0");
 		list.add(subInput);
 		csvCommonInputDTO.setSubList(list);
 		this.statSizeFinalizeMasterCsv.calcCsv(csvCommonInputDTO);

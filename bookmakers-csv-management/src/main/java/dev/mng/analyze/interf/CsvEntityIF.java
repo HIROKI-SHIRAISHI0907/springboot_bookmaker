@@ -1,6 +1,6 @@
 package dev.mng.analyze.interf;
 
-import dev.mng.dto.CsvCommonInputDTO;
+import dev.mng.dto.CsvTargetCommonInputDTO;
 
 /**
  * CSV用共通インターフェース
@@ -11,8 +11,8 @@ public interface CsvEntityIF {
 
 	/**
 	 * CSV用処理メソッド
-	 * @param CsvCommonInputDTO
+	 * @param CsvTargetCommonInputDTO
 	 */
-	public void calcCsv(CsvCommonInputDTO input);
+	public void calcCsv(CsvTargetCommonInputDTO input);
 
 }

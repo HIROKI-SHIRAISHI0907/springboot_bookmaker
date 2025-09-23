@@ -1,6 +1,6 @@
 package dev.mng.analyze.interf;
 
-import dev.mng.dto.CsvCommonInputDTO;
+import dev.mng.dto.CsvTargetCommonInputDTO;
 
 /**
  * 未来統計用サービスクラスIF
@@ -14,6 +14,6 @@ public interface CsvMngIF {
 	 * @return
 	 * @throws Exception
 	 */
-	public void execute(CsvCommonInputDTO input) throws Exception;
+	public void execute(CsvTargetCommonInputDTO input) throws Exception;
 
 }

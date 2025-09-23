@@ -8,7 +8,7 @@ import dev.common.logger.ManageLoggerComponent;
 import dev.mng.analyze.bm_c001.StatSizeFinalizeMasterCsv;
 import dev.mng.analyze.interf.CsvMngIF;
 import dev.mng.csvmng.ExportCsv;
-import dev.mng.dto.CsvCommonInputDTO;
+import dev.mng.dto.CsvTargetCommonInputDTO;
 
 /**
  * CSV管理用サービスクラス
@@ -47,7 +47,7 @@ public class CsvMngService implements CsvMngIF {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void execute(CsvCommonInputDTO input) throws Exception {
+	public void execute(CsvTargetCommonInputDTO input) throws Exception {
 		final String METHOD_NAME = "execute";
 
 		// ログ出力

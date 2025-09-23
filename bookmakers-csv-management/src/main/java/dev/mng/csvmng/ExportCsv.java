@@ -1,6 +1,7 @@
 package dev.mng.csvmng;
 
 import java.io.File;
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -18,6 +19,7 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -30,7 +32,7 @@ import dev.common.filemng.FileMngWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.mng.analyze.bm_c001.CsvArtifactHelper;
 import dev.mng.domain.repository.BookCsvDataRepository;
-import dev.mng.dto.CsvCommonInputDTO;
+import dev.mng.dto.CsvTargetCommonInputDTO;
 
 /**
  * StatデータCSV出力ロジック
@@ -75,8 +77,9 @@ public class ExportCsv {
 
 	/**
 	 * CSV作成処理
+	 * @throws IOException
 	 */
-	public void execute(CsvCommonInputDTO input) {
+	public void execute(CsvTargetCommonInputDTO input) throws IOException {
 		final String METHOD_NAME = "execute";
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
@@ -105,6 +108,8 @@ public class ExportCsv {
 		} else {
 			// 1つ前のアプリケーション起動時に記入したseqList(作成されたCSV番号と同組み合わせとは限らない)
 			textGroups = fileIO.readSeqBuckets(SEQ_LIST);
+			// csvが作成されていなければfirstRunをtrueに再変換
+			firstRun = (!anyFileMatch(CSV_FOLDER)) ? true : false;
 		}
 
 		// 既存CSV(すでに作成されている対戦チーム-CSV番号キー,通番リスト)
@@ -161,7 +166,8 @@ public class ExportCsv {
 				}
 				// 異常データの判定（終了済の後にゴミデータが混入,通番通りだが時系列データになっていないなど）
 				result = this.helper.abnormalChk(result);
-				if (result.isEmpty()) continue;
+				if (result.isEmpty())
+					continue;
 				ordered.add(new SimpleEntry<>(path, result));
 			}
 
@@ -195,7 +201,8 @@ public class ExportCsv {
 				}
 				// 異常データの判定（終了済の後にゴミデータが混入,通番通りだが時系列データになっていないなど）
 				result = this.helper.abnormalChk(result);
-				if (result.isEmpty()) continue;
+				if (result.isEmpty())
+					continue;
 				ordered.add(new SimpleEntry<>(path, result));
 				diff++;
 			}
@@ -339,6 +346,7 @@ public class ExportCsv {
 	 * 一致しない場合は、db を「再作成」/「新規」に分類し返す。
 	 * 「再作成」＝グループ内の通番のうち1つでも text で登場したら該当。
 	 * その際、どの旧CSV連番(<連番>.csv)に載っていたか（テキスト側グループの最小seq）を保持。
+	 * seqList.txtのみ存在する場合は作成する
 	 */
 	/**
 	 * text と db の“組み合わせ集合（順不同）”が完全一致なら null（早期終了）。
@@ -495,6 +503,22 @@ public class ExportCsv {
 			}
 		}
 		return false;
+	}
+
+	/**
+	 * CSV存在
+	 * @param CSV_FOLDER
+	 * @return
+	 * @throws IOException
+	 */
+	private boolean anyFileMatch(Path CSV_FOLDER) throws IOException {
+		try (Stream<Path> stream = Files.list(CSV_FOLDER)) { // 深さ1（再帰しない）
+			boolean hasCsv = stream
+					.filter(Files::isRegularFile)
+					.map(p -> p.getFileName().toString().toLowerCase())
+					.anyMatch(name -> name.endsWith(BookMakersCommonConst.CSV));
+			return hasCsv;
+		}
 	}
 
 	// ======== CSV 生成・書き込み ========

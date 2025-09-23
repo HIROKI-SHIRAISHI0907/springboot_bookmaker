@@ -5,12 +5,12 @@ import java.util.List;
 import lombok.Data;
 
 /**
- * サービス共通用DTO
+ * StatSizeFinalizeMasterCsvInputDTO
  * @author shiraishitoshio
  *
  */
 @Data
-public class CsvCommonInputDTO {
+public class CsvTargetCommonInputDTO {
 
 	/** リスト */
 	private List<SubInput> subList;

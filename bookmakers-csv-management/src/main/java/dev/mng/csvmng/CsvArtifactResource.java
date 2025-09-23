@@ -21,4 +21,10 @@ public class CsvArtifactResource {
 	/** 条件 */
 	private String awayScore;
 
+	/** 国 */
+	private List<String> country;
+
+	/** リーグ */
+	private List<String> league;
+
 }

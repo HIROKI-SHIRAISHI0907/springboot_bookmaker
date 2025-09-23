@@ -9,7 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.common.logger.ManageLoggerComponent;
 import dev.mng.analyze.interf.CsvEntityIF;
 import dev.mng.domain.repository.StatSizeFinalizeMasterRepository;
-import dev.mng.dto.CsvCommonInputDTO;
+import dev.mng.dto.CsvTargetCommonInputDTO;
 import dev.mng.dto.SubInput;
 
 /**
@@ -43,7 +43,7 @@ public class StatSizeFinalizeMasterCsv implements CsvEntityIF {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void calcCsv(CsvCommonInputDTO input) {
+	public void calcCsv(CsvTargetCommonInputDTO input) {
 		final String METHOD_NAME = "calcCsv";
 		// ログ出力
 		this.manageLoggerComponent.init(EXEC_MODE, null);
