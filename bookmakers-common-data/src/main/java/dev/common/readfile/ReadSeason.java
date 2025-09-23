@@ -88,8 +88,17 @@ public class ReadSeason {
 				String icon = cellString(row.getCell(6), formatter);
 
 				// 全部国,リーグが空ならスキップ
-				if (country.isEmpty() && league.isEmpty())
+				if (country.isBlank() && league.isBlank())
 					continue;
+
+				// シーズンん開始終了が空ならスキップ
+				if (start.isBlank() && end.isBlank())
+					continue;
+
+				// ラウンド数が空ならスキップ
+				if (round.isBlank()) {
+					continue;
+				}
 
 				// 日付変換
 				DateStatHelper.SeasonIso season =

@@ -320,4 +320,7 @@ public class DataEntity extends MetaEntity implements Serializable {
 	/** スコア予想時間 */
 	private String predictionScoreTime;
 
+	/** ファイル件数 */
+	private int fileCount;
+
 }

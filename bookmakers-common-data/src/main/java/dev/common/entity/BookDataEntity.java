@@ -318,4 +318,7 @@ public class BookDataEntity implements Serializable {
 	/** ファイルパス */
 	private String filePath;
 
+	/** ファイル件数 */
+	private int fileCount;
+
 }

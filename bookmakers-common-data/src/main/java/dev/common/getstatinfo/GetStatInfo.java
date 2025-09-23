@@ -42,7 +42,7 @@ public class GetStatInfo {
 	private PathConfig config;
 
 	/**
-	 * パス
+	 * パス(/Users/shiraishitoshio/bookmaker/csv/の予定)
 	 */
 	private String PATH;
 
