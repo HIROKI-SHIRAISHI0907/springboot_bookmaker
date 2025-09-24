@@ -92,6 +92,12 @@ public class StatSizeFinalizeMasterCsvTest {
 		subInput.setFlg("0");
 		list.add(subInput);
 		csvCommonInputDTO.setSubList(list);
+		subInput = new SubInput();
+		subInput.setOptionNum("2");
+		subInput.setOptions("日本:J3 リーグ");
+		subInput.setFlg("0");
+		list.add(subInput);
+		csvCommonInputDTO.setSubList(list);
 		this.statSizeFinalizeMasterCsv.calcCsv(csvCommonInputDTO);
 	}
 

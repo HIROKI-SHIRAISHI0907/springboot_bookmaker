@@ -161,7 +161,7 @@ public class ExportCsv {
 					this.manageLoggerComponent.createSystemException(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
 				}
-				if (!this.helper.condition(result, csvArtifactResource)) {
+				if (!this.helper.csvCondition(result, csvArtifactResource)) {
 					continue;
 				}
 				// 異常データの判定（終了済の後にゴミデータが混入,通番通りだが時系列データになっていないなど）
@@ -196,7 +196,7 @@ public class ExportCsv {
 					this.manageLoggerComponent.createSystemException(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
 				}
-				if (!this.helper.condition(result, csvArtifactResource)) {
+				if (!this.helper.csvCondition(result, csvArtifactResource)) {
 					continue;
 				}
 				// 異常データの判定（終了済の後にゴミデータが混入,通番通りだが時系列データになっていないなど）
@@ -251,6 +251,8 @@ public class ExportCsv {
 			}
 
 			int success = 0, failed = 0;
+			List<SimpleEntry<String, List<DataEntity>>> succeeded = new ArrayList<>();
+			List<SimpleEntry<String, List<DataEntity>>> failedEntries = new ArrayList<>();
 			// join も ordered と同じ順番で行う → 書き込み順序が連番昇順で保証される
 			for (int i = 0; i < futures.size(); i++) {
 				try {
@@ -265,9 +267,11 @@ public class ExportCsv {
 					}
 					writeCsvArtifact(art);
 					success++;
+					succeeded.add(ordered.get(i));
 					// エラーの場合は次のアプリケーション起動時に作成される想定
 				} catch (Exception ex) {
 					failed++;
+					failedEntries.add(ordered.get(i));
 					String messageCd = "CSV作成失敗";
 					this.manageLoggerComponent.debugErrorLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex);
@@ -283,22 +287,21 @@ public class ExportCsv {
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, "CSV作成結果", null,
 					"成功: " + success + "件, 失敗: " + failed + "件, 合計: " + (success + failed) + "件");
+
+			// 9) data_team_list.txt を “成功分を反映し、失敗には『作成失敗』を付加”して原子置換
+			try {
+			    upsertDataTeamList(Paths.get(DATA_TEAM_LIST_TXT), this.config.getCsvFolder(), succeeded, failedEntries);
+			} catch (IOException ex) {
+			    String messageCd = "data_team_list.txt 更新失敗";
+			    this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex);
+			    this.manageLoggerComponent.createSystemException(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex);
+			}
+
 		}
 
-		// 9) 処理完了後、seqList.txt を最新状態で上書き（将来の差分計算基準）
+		// 10) 処理完了後、seqList.txt を最新状態で上書き（将来の差分計算基準）
 		if (!firstRun)
 			fileIO.write(SEQ_LIST, currentGroups.toString());
-
-		// 10) テキストデータに記入
-		FileMngWrapper wrapper = new FileMngWrapper();
-		for (SimpleEntry<String, List<DataEntity>> e : ordered) {
-			String file = e.getKey().replace(this.config.getCsvFolder(), "");
-			String round = e.getValue().get(0).getDataCategory();
-			String homeTeams = e.getValue().get(0).getHomeTeamName();
-			String awayTeams = e.getValue().get(0).getAwayTeamName();
-			String key = file + ": " + round + "-" + homeTeams + "vs" + awayTeams;
-			wrapper.write(DATA_TEAM_LIST_TXT, key);
-		}
 
 		endLog(METHOD_NAME, null, null);
 	}
@@ -521,36 +524,6 @@ public class ExportCsv {
 		}
 	}
 
-	// ======== CSV 生成・書き込み ========
-
-	/**
-	 * 並列ステージ：CSVの中身を構築して返す（重い処理はここで）
-	 * @param path
-	 * @param seqGroup
-	 * @param csvArtifactResource
-	 * @return
-	 */
-	private CsvArtifact buildCsvArtifact(String path, List<DataEntity> result,
-			CsvArtifactResource csvArtifactResource) {
-		if (result == null || result.isEmpty())
-			return null;
-		return new CsvArtifact(path, result);
-	}
-
-	/** 直列ステージ：ファイルへ書き込み（上書き可・順序保証） */
-	private void writeCsvArtifact(CsvArtifact art) {
-		FileMngWrapper fw = new FileMngWrapper();
-		fw.csvWrite(art.getFilePath(), art.getContent());
-	}
-
-	/** ディレクトリ作成（存在すれば何もしない） */
-	private static void ensureDir(String dir) {
-		try {
-			Files.createDirectories(Paths.get(dir));
-		} catch (Exception ignore) {
-			/* no-op */ }
-	}
-
 	/**
 	 * 最大の数字を持つCSV番号を探す（現仕様では未使用。必要なら利用可能）
 	 */
@@ -582,6 +555,116 @@ public class ExportCsv {
 			return 0;
 		}
 		return maxFileNumber;
+	}
+
+	// ======== CSV 生成・書き込み ========
+
+	/**
+	 * 並列ステージ：CSVの中身を構築して返す（重い処理はここで）
+	 * @param path
+	 * @param seqGroup
+	 * @param csvArtifactResource
+	 * @return
+	 */
+	private CsvArtifact buildCsvArtifact(String path, List<DataEntity> result,
+			CsvArtifactResource csvArtifactResource) {
+		if (result == null || result.isEmpty())
+			return null;
+		return new CsvArtifact(path, result);
+	}
+
+	/** 直列ステージ：ファイルへ書き込み（上書き可・順序保証） */
+	private void writeCsvArtifact(CsvArtifact art) {
+		FileMngWrapper fw = new FileMngWrapper();
+		fw.csvWrite(art.getFilePath(), art.getContent());
+	}
+
+	/** ディレクトリ作成（存在すれば何もしない） */
+	private static void ensureDir(String dir) {
+		try {
+			Files.createDirectories(Paths.get(dir));
+		} catch (Exception ignore) {
+			/* no-op */ }
+	}
+
+	/**
+	 * data_team_list.txt を更新（原子置換）。
+	 * - 既存行は維持
+	 * - 成功した CSV は該当ファイル行を「<file>: <round>-<home>vs<away>」で上書き/追加
+	 * - 失敗した CSV は上記末尾に「 作成失敗」を付加して上書き/追加
+	 * - ファイル名の数値順（例: 12.csv -> 12）で整列
+	 */
+	private void upsertDataTeamList(
+	        Path out,
+	        String baseFolder,
+	        List<SimpleEntry<String, List<DataEntity>>> succeeded,
+	        List<SimpleEntry<String, List<DataEntity>>> failed) throws IOException {
+
+	    if (out.getParent() != null) Files.createDirectories(out.getParent());
+
+	    // 既存を読み取り（無ければ空）
+	    List<String> existing = Files.exists(out)
+	            ? Files.readAllLines(out, java.nio.charset.StandardCharsets.UTF_8)
+	            : new ArrayList<>();
+
+	    // 既存を map<file, line> に（キーは "123.csv" の部分）
+	    Map<String, String> byFile = existing.stream()
+	            .filter(s -> s != null && !s.isBlank())
+	            .map(String::trim)
+	            .collect(Collectors.toMap(
+	                    s -> s.split(":")[0].trim(),  // 例: "123.csv: ..."
+	                    s -> s,
+	                    (a, b) -> b));
+
+	    // 失敗行を反映（行末に「 作成失敗」を付与）
+	    if (failed != null) {
+	        for (SimpleEntry<String, List<DataEntity>> e : failed) {
+	            String file = e.getKey().replace(baseFolder, "");
+	            List<DataEntity> v = e.getValue();
+	            if (v == null || v.isEmpty()) continue;
+	            String round = v.get(0).getDataCategory();
+	            String homeTeams = v.get(0).getHomeTeamName();
+	            String awayTeams = v.get(0).getAwayTeamName();
+	            String line = file + ": " + round + "-" + homeTeams + "vs" + awayTeams + " 作成失敗";
+	            byFile.put(file, line);
+	        }
+	    }
+
+	    // 成功行を反映（成功が失敗より優先して上書きされるよう、最後に put）
+	    if (succeeded != null) {
+	        for (SimpleEntry<String, List<DataEntity>> e : succeeded) {
+	            String file = e.getKey().replace(baseFolder, "");
+	            List<DataEntity> v = e.getValue();
+	            if (v == null || v.isEmpty()) continue;
+	            String round = v.get(0).getDataCategory();
+	            String homeTeams = v.get(0).getHomeTeamName();
+	            String awayTeams = v.get(0).getAwayTeamName();
+	            String line = file + ": " + round + "-" + homeTeams + "vs" + awayTeams;
+	            byFile.put(file, line);
+	        }
+	    }
+
+	    // ファイル名の数値で並べ替え（"12.csv" → 12）
+	    Comparator<String> byNum = Comparator.comparingInt(s -> {
+	        String name = s.trim();
+	        int dot = name.indexOf('.');
+	        String num = (dot > 0 ? name.substring(0, dot) : name).replaceAll("\\D+", "");
+	        return num.isEmpty() ? Integer.MAX_VALUE : Integer.parseInt(num);
+	    });
+
+	    List<String> lines = byFile.entrySet().stream()
+	            .sorted(Map.Entry.comparingByKey(byNum))
+	            .map(Map.Entry::getValue)
+	            .collect(Collectors.toList());
+
+	    // 一時ファイルに書いてから原子置換（途中失敗でも旧ファイルが残る）
+	    Path tmp = out.resolveSibling(out.getFileName().toString() + ".tmp");
+	    Files.write(tmp, lines, java.nio.charset.StandardCharsets.UTF_8,
+	            java.nio.file.StandardOpenOption.CREATE,
+	            java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
+	    Files.move(tmp, out,
+	            java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+	            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 	}
 
 	/** 終了ログ */

@@ -11,7 +11,9 @@ import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import dev.application.analyze.bm_m000.BookToDataMapper;
 import dev.common.constant.BookMakersCommonConst;
+import dev.common.entity.BookDataEntity;
 import dev.common.entity.DataEntity;
 import dev.common.util.ExecuteMainUtil;
 import dev.mng.csvmng.CsvArtifactResource;
@@ -28,45 +30,86 @@ public class CsvArtifactHelper {
 	/** フラグ: 0 */
 	private static final String STAT_SIZE_FINALIZE_FLG_0 = "0";
 
+	/** BookToDataMapperクラス */
+	@Autowired
+	private BookToDataMapper mapper;
+
 	/** StatSizeFinalizeMasterRepositoryレポジトリクラス */
 	@Autowired
 	private StatSizeFinalizeMasterRepository statSizeFinalizeMasterRepository;
 
 	/**
-	 * 条件データを取得
+	 * フラグが0のものの条件データを取得
 	 * @return
 	 */
-	public CsvArtifactResource getData() {
+	public List<StatSizeFinalizeMasterCsvEntity> getMaster() {
 		List<StatSizeFinalizeMasterCsvEntity> flgData = null;
-		CsvArtifactResource csvArtifactResource = new CsvArtifactResource();
 		try {
-			List<String> countryList = new ArrayList<String>();
-			List<String> leagueList = new ArrayList<String>();
 			flgData = this.statSizeFinalizeMasterRepository
 					.findFlgData(STAT_SIZE_FINALIZE_FLG_0);
-			for (StatSizeFinalizeMasterCsvEntity entity : flgData) {
-				switch (entity.getOptionNum()) {
-				// 0-0, 1-0など
-				case "1": {
-					String[] scores = entity.getOptions().split("-");
-					csvArtifactResource.setHomeScore(scores[0]);
-					csvArtifactResource.setAwayScore(scores[1]);
-					break;
-				}
-				// 国:リーグ名
-				case "2": {
-					String[] target = entity.getOptions().split(":");
-					countryList.add(target[0]);
-					leagueList.add(target[1]);
-					csvArtifactResource.setCountry(countryList);
-					csvArtifactResource.setLeague(leagueList);
-					break;
-				}
-				}
-			}
 		} catch (Exception e) {
 			throw e;
 		}
+		return flgData;
+	}
+
+	/**
+	 * 条件データを設定するメインクラス
+	 * @return
+	 */
+	public CsvArtifactResource getData() {
+		List<StatSizeFinalizeMasterCsvEntity> flgData = getMaster();
+		CsvArtifactResource csvArtifactResource = new CsvArtifactResource();
+		csvArtifactResource = setOption1stNum(flgData, csvArtifactResource);
+		csvArtifactResource = setOption2ndNum(flgData, csvArtifactResource);
+		return csvArtifactResource;
+	}
+
+	/**
+	 * フラグが0に設定されている選択肢1情報を設定する
+	 * @param entities
+	 * @param csvArtifactResource
+	 * @return
+	 */
+	public CsvArtifactResource setOption1stNum(List<StatSizeFinalizeMasterCsvEntity> entities,
+			CsvArtifactResource csvArtifactResource) {
+		for (StatSizeFinalizeMasterCsvEntity entity : entities) {
+			switch (entity.getOptionNum()) {
+			// 0-0, 1-0など
+			case "1": {
+				String[] scores = entity.getOptions().split("-");
+				csvArtifactResource.setHomeScore(scores[0]);
+				csvArtifactResource.setAwayScore(scores[1]);
+				break;
+			}
+			}
+		}
+		return csvArtifactResource;
+	}
+
+	/**
+	 * フラグが0に設定されている選択肢2情報を設定する
+	 * @param entities
+	 * @param csvArtifactResource
+	 * @return
+	 */
+	public CsvArtifactResource setOption2ndNum(List<StatSizeFinalizeMasterCsvEntity> entities,
+			CsvArtifactResource csvArtifactResource) {
+		List<String> countryList = new ArrayList<String>();
+		List<String> leagueList = new ArrayList<String>();
+		for (StatSizeFinalizeMasterCsvEntity entity : entities) {
+			switch (entity.getOptionNum()) {
+			// 国リーグ
+			case "2": {
+				String[] target = entity.getOptions().split(":");
+				countryList.add(target[0]);
+				leagueList.add(target[1]);
+				break;
+			}
+			}
+		}
+		csvArtifactResource.setCountry(countryList);
+		csvArtifactResource.setLeague(leagueList);
 		return csvArtifactResource;
 	}
 
@@ -76,11 +119,38 @@ public class CsvArtifactHelper {
 	 * @param csvArtifactResource
 	 * @return
 	 */
-	public boolean condition(List<DataEntity> result, CsvArtifactResource csvArtifactResource) {
+	public boolean csvCondition(List<DataEntity> result, CsvArtifactResource csvArtifactResource) {
 		// 条件に当てはまればそのまま素通りする処理を入れる箇所
-		boolean option1stFlg = true;
-		boolean option2ndFlg = false;
+		boolean option1stFlg = restrict1st(result, csvArtifactResource);
+		boolean option2ndFlg = restrict2nd(result, csvArtifactResource);
+		if (option1stFlg && option2ndFlg) {
+			return true;
+		}
+		return false;
+	}
 
+	/**
+	 * 統計データ用の条件ラッパーメソッド
+	 * @param result
+	 * @param csvArtifactResource
+	 * @return
+	 */
+	public boolean statCondition(List<BookDataEntity> result) {
+		// フラグ0
+		List<StatSizeFinalizeMasterCsvEntity> flgData = getMaster();
+		// 選択肢2(国リーグに関する制限付きINPUTを精査)
+		CsvArtifactResource csvArtifactResource = setOption2ndNum(flgData, new CsvArtifactResource());
+		List<DataEntity> convEntity = this.mapper.toDataList(result);
+		return restrict2nd(convEntity, csvArtifactResource);
+	}
+
+	/**
+	 * スコアに関する制限付きINPUTを精査
+	 * @param result
+	 * @param csvArtifactResource
+	 * @return
+	 */
+	private boolean restrict1st(List<DataEntity> result, CsvArtifactResource csvArtifactResource) {
 		// スコアに関する制限付きINPUTを精査
 		String hS = csvArtifactResource.getHomeScore();
 		String aS = csvArtifactResource.getAwayScore();
@@ -91,10 +161,20 @@ public class CsvArtifactHelper {
 			// 完全一致で“含まれているか”をチェック
 			Optional<DataEntity> scoreHit = findFirstScoreExact(result, reqHome, reqAway);
 			if (!scoreHit.isPresent()) {
-				option1stFlg = false;
+				return false;
 			}
+			return true;
 		}
+		return true;
+	}
 
+	/**
+	 * 国リーグに関する制限付きINPUTを精査
+	 * @param result
+	 * @param csvArtifactResource
+	 * @return
+	 */
+	private boolean restrict2nd(List<DataEntity> result, CsvArtifactResource csvArtifactResource) {
 		// 国リーグに関する制限付きINPUTを精査
 		List<String> country = csvArtifactResource.getCountry();
 		List<String> league = csvArtifactResource.getLeague();
@@ -113,23 +193,21 @@ public class CsvArtifactHelper {
 			String resultLeague = split[1].trim();
 			for (int i = 0; i < country.size(); i++) {
 				String newLeague = league.get(i);
+				// スーペルリーガ - チャンピオンシップグループ
 				if (league.get(i).contains("-")) {
 					newLeague = newLeague.split("-")[0].trim();
+					// イタリア／セリエ Aなど
 				} else if (league.get(i).contains("／")) {
 					newLeague = newLeague.split("／")[1].trim();
 				}
 				// 組み合わせが1つでも引っかかったらOK
 				if (country.get(i).equals(resultCountry) && newLeague.equals(resultLeague)) {
-					option2ndFlg = true;
-					break;
+					return true;
 				}
 			}
+			return false;
 		}
-
-		if (option1stFlg && option2ndFlg) {
-			return true;
-		}
-		return false;
+		return true;
 	}
 
 	/**
