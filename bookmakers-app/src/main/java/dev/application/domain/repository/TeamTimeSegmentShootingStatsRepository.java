@@ -17,7 +17,7 @@ public interface TeamTimeSegmentShootingStatsRepository {
 	 * @return 登録件数（通常は1）
 	 */
 	@Insert("""
-			    INSERT INTO game_statistics_detail_data (
+			    INSERT INTO team_time_segment_shooting_stat (
 			    	id,
 			        data_category,
 			        team_name,

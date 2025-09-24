@@ -10,10 +10,10 @@ import dev.application.analyze.bm_m005.NoGoalMatchStatisticsEntity;
  * 対象テーブル: zero_score_data
  */
 @Mapper
-public interface NoGoalMatchStatisticsRepository {
+public interface NoGoalMatchStatsRepository {
 
 	@Insert("""
-			    INSERT INTO zero_score_data (
+			    INSERT INTO no_goal_match_stats (
 			    	seq,
 			        data_category,
 			        times,

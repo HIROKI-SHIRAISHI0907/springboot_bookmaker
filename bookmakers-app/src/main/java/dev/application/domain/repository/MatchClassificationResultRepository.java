@@ -9,7 +9,7 @@ import dev.application.analyze.bm_m019_bm_m020.MatchClassificationResultEntity;
 public interface MatchClassificationResultRepository {
 
 	@Insert("""
-			    INSERT INTO classify_result_data (
+			    INSERT INTO match_classification_result (
 			        id,
 			        classify_mode,
 			        data_category,

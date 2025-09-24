@@ -23,7 +23,7 @@ public interface TeamMonthlyScoreSummaryRepository {
     @Lang(XMLLanguageDriver.class)
     @Insert("""
         <script>
-        INSERT INTO team_statistics_data (
+        INSERT INTO team_monthly_score_summary (
           country,
           league,
           team_name,
@@ -97,7 +97,7 @@ public interface TeamMonthlyScoreSummaryRepository {
           oct_sum_score AS octoberScoreSumCount,
           nov_sum_score AS novemberScoreSumCount,
           dec_sum_score AS decemberScoreSumCount
-        FROM team_statistics_data
+        FROM team_monthly_score_summary
         WHERE
           country   = #{country}
           AND league    = #{league}
@@ -114,7 +114,7 @@ public interface TeamMonthlyScoreSummaryRepository {
     @Lang(XMLLanguageDriver.class)
     @Update("""
         <script>
-        UPDATE team_statistics_data
+        UPDATE team_monthly_score_summary
         SET
           jar_sum_score = #{januaryScoreSumCount},
           feb_sum_score = #{februaryScoreSumCount},

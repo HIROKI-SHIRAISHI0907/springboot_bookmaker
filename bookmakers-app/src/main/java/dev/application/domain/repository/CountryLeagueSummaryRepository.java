@@ -13,7 +13,7 @@ import dev.application.analyze.bm_m006.CountryLeagueSummaryEntity;
 public interface CountryLeagueSummaryRepository {
 
 	@Insert("""
-			    INSERT INTO type_of_country_league_data (
+			    INSERT INTO country_league_summary (
 			        country,
 			        league,
 			        data_count,
@@ -43,7 +43,7 @@ public interface CountryLeagueSummaryRepository {
 			        data_count,
 			        csv_count
 			    FROM
-			    	type_of_country_league_data
+			    	country_league_summary
 			    WHERE
 			        country = #{country} AND
 			        league = #{league};
@@ -51,7 +51,7 @@ public interface CountryLeagueSummaryRepository {
 	List<CountryLeagueSummaryEntity> findByCountryLeague(String country, String league);
 
 	@Update("""
-			    UPDATE type_of_country_league_data
+			    UPDATE country_league_summary
 			    SET
 			        country = #{country},
 			        league = #{league},

@@ -13,7 +13,7 @@ import dev.application.analyze.bm_m017_bm_m018.LeagueScoreTimeBandStatsSplitScor
 public interface LeagueScoreTimeBandStatsSplitScoreRepository {
 
 	@Insert("""
-			    INSERT INTO within_data_scored_counter_detail (
+			    INSERT INTO league_score_time_band_stats_split_score (
 			        id,
 			        country,
 			        league,
@@ -55,7 +55,7 @@ public interface LeagueScoreTimeBandStatsSplitScoreRepository {
 			        home_time_range_area,
 			        away_time_range_area
 			    FROM
-			    	within_data_scored_counter_detail
+			    	league_score_time_band_stats_split_score
 			    WHERE
 			        country = #{country} AND
 			        league = #{league} AND
@@ -68,7 +68,7 @@ public interface LeagueScoreTimeBandStatsSplitScoreRepository {
 			String homeScoreValue, String awayScoreValue, String homeTimeRange, String awayTimeRange);
 
 	@Update("""
-		    UPDATE within_data_scored_counter_detail
+		    UPDATE league_score_time_band_stats_split_score
 		    SET
 		        target = #{target},
 		        search = #{search}

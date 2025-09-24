@@ -35,7 +35,7 @@ import dev.application.domain.repository.LeagueScoreTimeBandStatsRepository;
 import dev.application.domain.repository.LeagueScoreTimeBandStatsSplitScoreRepository;
 import dev.application.domain.repository.MatchClassificationResultCountRepository;
 import dev.application.domain.repository.MatchClassificationResultRepository;
-import dev.application.domain.repository.NoGoalMatchStatisticsRepository;
+import dev.application.domain.repository.NoGoalMatchStatsRepository;
 import dev.application.domain.repository.ScoreBasedFeatureStatsRepository;
 import dev.application.domain.repository.TeamMatchFinalStatsRepository;
 import dev.application.domain.repository.TeamMonthlyScoreSummaryRepository;
@@ -69,7 +69,7 @@ class RepositoryTest {
 
 	/** BM_M005 */
 	@Autowired
-	private NoGoalMatchStatisticsRepository noGoalMatchStatisticsRepository;
+	private NoGoalMatchStatsRepository noGoalMatchStatisticsRepository;
 
 	/** BM_M006 */
 	@Autowired

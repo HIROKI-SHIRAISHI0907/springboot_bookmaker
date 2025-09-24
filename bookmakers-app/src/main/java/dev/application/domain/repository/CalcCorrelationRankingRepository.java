@@ -12,7 +12,7 @@ import dev.application.analyze.bm_m025.CalcCorrelationRankingEntity;
 public interface CalcCorrelationRankingRepository {
 
     @Insert({
-        "INSERT INTO `correlation_ranking_data` (",
+        "INSERT INTO `calc_correlation_ranking` (",
         " `id`,`country`,`league`,`home`,`away`,`score`,`chkBody`,",
         " `rank_1th`,`rank_2th`,`rank_3th`,`rank_4th`,`rank_5th`,`rank_6th`,`rank_7th`,`rank_8th`,`rank_9th`,`rank_10th`,",
         " `rank_11th`,`rank_12th`,`rank_13th`,`rank_14th`,`rank_15th`,`rank_16th`,`rank_17th`,`rank_18th`,`rank_19th`,`rank_20th`,",
@@ -47,7 +47,7 @@ public interface CalcCorrelationRankingRepository {
         " `rank_51th`,`rank_52th`,`rank_53th`,`rank_54th`,`rank_55th`,`rank_56th`,`rank_57th`,`rank_58th`,`rank_59th`,`rank_60th`,",
         " `rank_61th`,`rank_62th`,`rank_63th`,`rank_64th`,`rank_65th`,`rank_66th`,`rank_67th`,`rank_68th`,`rank_69th`,`rank_70th`,`rank_71th`,`rank_72th`",
         " `register_id`,`register_time`,`update_id`,`update_time`",
-        " FROM `correlation_ranking_data`",
+        " FROM `calc_correlation_ranking`",
         " WHERE `country` = #{country} AND `league` = #{league} AND `home` = #{home} AND `away` = #{away} AND `score` = #{score} AND `chkBody` = #{chkBody}"
     })
     List<CalcCorrelationRankingEntity> selectByData(String country, String league, String home

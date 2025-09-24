@@ -9,7 +9,7 @@ import dev.application.analyze.bm_m021.TeamMatchFinalStatsEntity;
 public interface TeamMatchFinalStatsRepository {
 
     @Insert("""
-        INSERT INTO average_feature_data (
+        INSERT INTO team_match_final_stats (
             team_name,
             versus_team_name,
             ha,

@@ -13,7 +13,7 @@ import dev.application.analyze.bm_m019_bm_m020.MatchClassificationResultCountEnt
 public interface MatchClassificationResultCountRepository {
 
 	@Insert("""
-			    INSERT INTO classify_result_data_detail (
+			    INSERT INTO match_classification_result_count (
 			        id,
 			        country,
 			        league,
@@ -44,7 +44,7 @@ public interface MatchClassificationResultCountRepository {
 			        id,
 			        count
 			    FROM
-			    	classify_result_data_detail
+			    	match_classification_result_count
 			    WHERE
 			        country = #{country} AND
 			        league = #{league} AND
@@ -53,7 +53,7 @@ public interface MatchClassificationResultCountRepository {
 	List<MatchClassificationResultCountEntity> findData(String country, String league, String classifyMode);
 
 	@Update("""
-			    UPDATE classify_result_data_detail
+			    UPDATE match_classification_result_count
 			    SET
 			        count = #{count}
 			    WHERE

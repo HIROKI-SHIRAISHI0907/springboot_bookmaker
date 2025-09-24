@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.interf.AnalyzeEntityIF;
-import dev.application.domain.repository.NoGoalMatchStatisticsRepository;
+import dev.application.domain.repository.NoGoalMatchStatsRepository;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
@@ -43,7 +43,7 @@ public class NoGoalMatchStat implements AnalyzeEntityIF {
 
 	/** NoGoalMatchStatisticsRepositoryレポジトリクラス */
 	@Autowired
-	private NoGoalMatchStatisticsRepository noGoalMatchStatisticsRepository;
+	private NoGoalMatchStatsRepository noGoalMatchStatisticsRepository;
 
 	/** ログ管理ラッパー*/
 	@Autowired

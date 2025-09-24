@@ -13,7 +13,7 @@ import dev.application.analyze.bm_m024.CalcCorrelationEntity;
 public interface CalcCorrelationRepository {
 
     @Insert({
-        "INSERT INTO correlation_data (",
+        "INSERT INTO calc_correlation (",
         "id, file, country, league, home, away, score, chk_body,",
         "home_exp_info, away_exp_info,",
         "home_in_goal_exp_info, away_in_goal_exp_info,",
@@ -154,7 +154,7 @@ public interface CalcCorrelationRepository {
         "away_clear_count_info,",
         "home_intercept_count_info,",
         "away_intercept_count_info",
-        " FROM correlation_data ",
+        " FROM calc_correlation ",
         " WHERE ",
         "country = #{country} AND"
         + " league = #{league} AND"
@@ -167,7 +167,7 @@ public interface CalcCorrelationRepository {
     		String away, String score, String chkBody);
 
     @Update({
-        "UPDATE correlation_data SET",
+        "UPDATE calc_correlation SET",
         "home_exp_info = #{homeExpInfo},",
         "away_exp_info = #{awayExpInfo},",
         "home_donation_info = #{homeDonationInfo},",

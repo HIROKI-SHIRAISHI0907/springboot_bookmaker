@@ -13,7 +13,7 @@ import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureEntity;
 public interface EachTeamScoreBasedFeatureStatsRepository {
 
     @Insert({
-        "INSERT INTO average_statistics_data_detail (",
+        "INSERT INTO each_team_score_based_feature_stats (",
         "id, situation, score, country, league, team, home_exp_stat, away_exp_stat, home_in_goal_exp_stat, away_in_goal_exp_stat, home_donation_stat, away_donation_stat,",
         "home_shoot_all_stat, away_shoot_all_stat, home_shoot_in_stat, away_shoot_in_stat, home_shoot_out_stat, away_shoot_out_stat,",
         "home_block_shoot_stat, away_block_shoot_stat, home_big_chance_stat, away_big_chance_stat, home_corner_stat, away_corner_stat,",
@@ -56,7 +56,7 @@ public interface EachTeamScoreBasedFeatureStatsRepository {
         "home_pass_count_stat, away_pass_count_stat, home_final_third_pass_count_stat, away_final_third_pass_count_stat,",
         "home_cross_count_stat, away_cross_count_stat, home_tackle_count_stat, away_tackle_count_stat,",
         "home_clear_count_stat, away_clear_count_stat, home_intercept_count_stat, away_intercept_count_stat",
-        "FROM average_statistics_data_detail ",
+        "FROM each_team_score_based_feature_stats ",
         "WHERE situation = #{situation} AND score = #{score} AND country = #{country} AND league = #{league} AND "
         + "team = #{team};"
     })
@@ -78,12 +78,12 @@ public interface EachTeamScoreBasedFeatureStatsRepository {
         "home_pass_count_stat, away_pass_count_stat, home_final_third_pass_count_stat, away_final_third_pass_count_stat,",
         "home_cross_count_stat, away_cross_count_stat, home_tackle_count_stat, away_tackle_count_stat,",
         "home_clear_count_stat, away_clear_count_stat, home_intercept_count_stat, away_intercept_count_stat",
-        "FROM average_statistics_data_detail;"
+        "FROM each_team_score_based_feature_stats;"
     })
     List<EachTeamScoreBasedFeatureEntity> findAllStatData();
 
     @Update({
-        "UPDATE average_statistics_data_detail SET",
+        "UPDATE each_team_score_based_feature_stats SET",
         "home_exp_stat = #{homeExpStat},",
         "away_exp_stat = #{awayExpStat},",
         "home_in_goal_exp_stat = #{homeInGoalExpStat},",

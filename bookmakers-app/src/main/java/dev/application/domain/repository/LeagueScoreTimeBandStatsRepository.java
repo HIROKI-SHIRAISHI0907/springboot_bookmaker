@@ -13,7 +13,7 @@ import dev.application.analyze.bm_m017_bm_m018.LeagueScoreTimeBandStatsEntity;
 public interface LeagueScoreTimeBandStatsRepository {
 
 	@Insert("""
-			    INSERT INTO within_data_scored_counter (
+			    INSERT INTO league_score_time_band_stats (
 			        id,
 			        country,
 			        league,
@@ -50,7 +50,7 @@ public interface LeagueScoreTimeBandStatsRepository {
 			        search,
 			        time_range_area
 			    FROM
-			    	within_data_scored_counter
+			    	league_score_time_band_stats
 			    WHERE
 			        country = #{country} AND
 			        league = #{league} AND
@@ -61,7 +61,7 @@ public interface LeagueScoreTimeBandStatsRepository {
 			String sumScoreValue, String timeRange);
 
 	@Update("""
-		    UPDATE within_data_scored_counter
+		    UPDATE league_score_time_band_stats
 		    SET
 		        target = #{target},
 		        search = #{search}

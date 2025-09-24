@@ -10,7 +10,7 @@ import dev.common.entity.FutureEntity;
 public interface FutureRepository {
 
 	@Insert("""
-			    INSERT INTO future (
+			    INSERT INTO future_master (
 			        seq,
 			        game_team_category,
 			        future_time,
@@ -66,7 +66,7 @@ public interface FutureRepository {
 			    SELECT
 			        COUNT(*)
 			    FROM
-			    	future
+			    	future_master
 			    WHERE
 			        game_team_category = #{gameTeamCategory} AND
 			        home_team_name = #{homeTeamName} AND
