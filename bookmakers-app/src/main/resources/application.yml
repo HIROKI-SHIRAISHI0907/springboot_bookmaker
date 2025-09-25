@@ -1,6 +1,7 @@
 app:
   csv-folder: /Users/shiraishitoshio/bookmaker/csv/
   output-csv-folder: /Users/shiraishitoshio/bookmaker/
+  team-csv-folder: /Users/shiraishitoshio/bookmaker/teams_by_league/
 
 spring:
   datasource:

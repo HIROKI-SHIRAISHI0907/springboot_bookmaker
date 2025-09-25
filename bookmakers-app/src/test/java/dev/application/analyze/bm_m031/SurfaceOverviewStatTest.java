@@ -10,7 +10,9 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import dev.application.common.SurfaceOverviewTestData;
 import dev.application.domain.repository.SurfaceOverviewRepository;
+import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.getstatinfo.GetStatInfo;
 
@@ -56,15 +58,15 @@ public class SurfaceOverviewStatTest {
 	@Test
 	void test_basedMain_setsExpectedFields_simpleAwayWin() throws Exception {
 		// Act
-//		String csvNumber = "1";
-//		String csvNumberAfter = "2";
-//		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
-//		this.surfaceOverviewStat.calcStat(entities);
-//
-//		csvNumber = "25";
-//		csvNumberAfter = "26";
-//		entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
-//		this.surfaceOverviewStat.calcStat(entities);
+		//		String csvNumber = "1";
+		//		String csvNumberAfter = "2";
+		//		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
+		//		this.surfaceOverviewStat.calcStat(entities);
+		//
+		//		csvNumber = "25";
+		//		csvNumberAfter = "26";
+		//		entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
+		//		this.surfaceOverviewStat.calcStat(entities);
 
 		String country = "アルゼンチン";
 		String league = "トルネオ・ベターノ";
@@ -254,5 +256,205 @@ public class SurfaceOverviewStatTest {
 		assertNull(awayE.getDescendDisp());
 		assertNull(awayE.getLoseStreakDisp());
 	}
+
+	/**
+	 * 連敗(横浜・F・マリノス)
+	 */
+	@Test
+	void test_calcStat_shouldCorrectly_concective() {
+		// Act
+		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
+				.addMatchSnapshots("日本", "J1 リーグ", "横浜・F・マリノス", "東京ヴェルディ",
+						new int[] { 0, 1 }, new int[] { 0, 1 }, new int[] { 0, 3 },
+						2, "2025-02-06 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN,
+						"cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+		entities = SurfaceOverviewTestData.builder().addMatchSnapshots("日本", "J1 リーグ", "横浜・F・マリノス", "名古屋グランパス",
+				new int[] { 1, 0 }, new int[] { 1, 1 }, new int[] { 1, 2 },
+				3, "2025-02-13 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN, "cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+		entities = SurfaceOverviewTestData.builder().addMatchSnapshots("日本", "J1 リーグ", "浦和レッズ", "横浜・F・マリノス",
+				new int[] { 0, 0 }, new int[] { 0, 0 }, new int[] { 4, 2 },
+				4, "2025-02-20 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN, "cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+		entities = SurfaceOverviewTestData.builder().addMatchSnapshots("日本", "J1 リーグ", "ガンバ大阪", "横浜・F・マリノス",
+				new int[] { 0, 0 }, new int[] { 1, 0 }, new int[] { 5, 1 },
+				5, "2025-02-27 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN, "cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+	}
+
+	/**
+	 * 連敗(ザスパクサツ群馬)
+	 */
+	@Test
+	void test_calcStat_shouldCorrectly_concective2() {
+		// Act
+		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
+				.addMatchSnapshots("日本", "J3 リーグ", "栃木シティ", "ザスパクサツ群馬",
+						new int[] { 2, 1 }, new int[] { 3, 1 }, new int[] { 5, 2 },
+						2, "2025-02-06 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN,
+						"cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+		entities = SurfaceOverviewTestData.builder().addMatchSnapshots("日本", "J3 リーグ", "ザスパクサツ群馬", "テゲバジャーロ宮崎",
+				new int[] { 1, 0 }, new int[] { 2, 1 }, new int[] { 2, 3 },
+				6, "2025-02-13 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN, "cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+		entities = SurfaceOverviewTestData.builder().addMatchSnapshots("日本", "J3 リーグ", "鹿児島ユナイテッドFC", "ザスパクサツ群馬",
+				new int[] { 0, 0 }, new int[] { 0, 0 }, new int[] { 1, 0 },
+				7, "2025-02-20 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN, "cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+		entities = SurfaceOverviewTestData.builder().addMatchSnapshots("日本", "J3 リーグ", "ザスパクサツ群馬", "SC相模原",
+				new int[] { 0, 0 }, new int[] { 0, 0 }, new int[] { 0, 2 },
+				8, "2025-02-27 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN, "cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+	}
+
+	/**
+	 * 連敗(ザスパクサツ群馬)
+	 */
+	@Test
+	void test_calcStat_shouldCorrectly_concective3() {
+		// Act
+		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
+				.addMatchSnapshots("日本", "J3 リーグ", "高知ユナイテッド", "ザスパクサツ群馬",
+						new int[] { 0, 1 }, new int[] { 0, 1 }, new int[] { 2, 1 },
+						2, "2025-03-06 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN,
+						"cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+		entities = SurfaceOverviewTestData.builder().addMatchSnapshots("日本", "J3 リーグ", "ザスパクサツ群馬", "FC大阪",
+				new int[] { 0, 0 }, new int[] { 0, 1 }, new int[] { 0, 4 },
+				6, "2025-03-13 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN, "cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+	}
+
+	/**
+	 * 連敗(ザスパクサツ群馬)
+	 */
+	@Test
+	void test_calcStat_shouldCorrectly_concective4() {
+		// Act
+		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
+				.addMatchSnapshots("日本", "J3 リーグ", "ギラヴァンツ北九州", "ザスパクサツ群馬",
+						new int[] { 1, 1 }, new int[] { 1, 1 }, new int[] { 3, 1 },
+						21, "2025-03-20 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN,
+						"cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+		entities = SurfaceOverviewTestData.builder().addMatchSnapshots("日本", "J3 リーグ", "ザスパクサツ群馬", "栃木SC",
+				new int[] { 0, 0 }, new int[] { 0, 1 }, new int[] { 0, 2 },
+				22, "2025-03-27 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN, "cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+	}
+
+	/**
+	 * 連敗(ザスパクサツ群馬)
+	 */
+	@Test
+	void test_calcStat_shouldCorrectly_concective5() {
+		// Act
+		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
+				.addMatchSnapshots("日本", "J3 リーグ", "奈良クラブ", "ザスパクサツ群馬",
+						new int[] { 0, 1 }, new int[] { 0, 1 }, new int[] { 2, 1 },
+						20, "2025-03-06 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN,
+						"cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+		entities = SurfaceOverviewTestData.builder().addMatchSnapshots("日本", "J3 リーグ", "ザスパクサツ群馬", "FC琉球",
+				new int[] { 0, 0 }, new int[] { 0, 1 }, new int[] { 0, 4 },
+				26, "2025-03-13 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN, "cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+	}
+
+	/**
+	 * 連敗(ザスパクサツ群馬)
+	 */
+	@Test
+	void test_calcStat_shouldCorrectly_concective6() {
+		// Act
+		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
+				.addMatchSnapshots("日本", "J3 リーグ", "カマタマーレ讃岐", "ザスパクサツ群馬",
+						new int[] { 2, 1 }, new int[] { 3, 1 }, new int[] { 5, 2 },
+						3, "2025-02-06 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN,
+						"cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+		entities = SurfaceOverviewTestData.builder().addMatchSnapshots("日本", "J3 リーグ", "ザスパクサツ群馬", "ツエーゲン金沢",
+				new int[] { 1, 0 }, new int[] { 2, 1 }, new int[] { 2, 3 },
+				4, "2025-02-13 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN, "cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+	}
+
+	/**
+	 * 連敗(ザスパクサツ群馬)
+	 */
+	@Test
+	void test_calcStat_shouldCorrectly_concective7() {
+		// Act
+		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
+				.addMatchSnapshots("日本", "J3 リーグ", "福島ユナイテッドFC", "ザスパクサツ群馬",
+						new int[] { 2, 1 }, new int[] { 3, 1 }, new int[] { 3, 2 },
+						5, "2025-02-06 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN,
+						"cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+	}
+
+	/**
+	 * 連敗(ザスパクサツ群馬)
+	 */
+	@Test
+	void test_calcStat_shouldCorrectly_concective8() {
+		// Act
+		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
+				.addMatchSnapshots("日本", "J3 リーグ", "AC長野パルセイロ", "ザスパクサツ群馬",
+						new int[] { 2, 1 }, new int[] { 3, 1 }, new int[] { 3, 2 },
+						9, "2025-03-11 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN,
+						"cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+		entities = SurfaceOverviewTestData.builder()
+				.addMatchSnapshots("日本", "J3 リーグ", "ザスパクサツ群馬", "鹿児島ユナイテッドFC",
+						new int[] { 2, 1 }, new int[] { 3, 1 }, new int[] { 3, 3 },
+						10, "2025-03-17 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN,
+						"cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+		entities = SurfaceOverviewTestData.builder()
+				.addMatchSnapshots("日本", "J3 リーグ", "松本山雅FC", "ザスパクサツ群馬",
+						new int[] { 0, 1 }, new int[] { 1, 1 }, new int[] { 2, 1 },
+						12, "2025-03-17 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN,
+						"cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+	}
+
+	/**
+	 * 連敗(ザスパクサツ群馬)
+	 */
+	@Test
+	void test_calcStat_shouldCorrectly_concective9() {
+		// Act
+		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
+				.addMatchSnapshots("日本", "J3 リーグ", "ザスパクサツ群馬", "ヴァンラーレ八戸",
+						new int[] { 0, 1 }, new int[] { 0, 1 }, new int[] { 0, 2 },
+						11, "2025-03-11 07:25:58", "23:48", BookMakersCommonConst.HALF_TIME, BookMakersCommonConst.FIN,
+						"cases/A.csv")
+				.build();
+		this.surfaceOverviewStat.calcStat(entities);
+	}
+
 
 }

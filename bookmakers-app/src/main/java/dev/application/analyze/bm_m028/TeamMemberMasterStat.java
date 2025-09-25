@@ -1,11 +1,11 @@
 package dev.application.analyze.bm_m028;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -34,6 +34,9 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M028_TEAM_MEMBER";
 
+	/** 監督 */
+	private static final String MANAGER = "監督";
+
 	/** beanクラス */
 	@Autowired
 	private BmM028TeamMemberMasterBean bean;
@@ -59,7 +62,9 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		// メンバーマップ
-		Map<String, TeamMemberMasterEntity> memberMap = bean.getMemberMap();
+		Map<String, TeamMemberMasterEntity> memberMap = this.bean.getMemberMap();
+		// チームマップ
+		Map<String, List<String>> teamMap = this.bean.getTeamMap();
 
 		List<String> insertPath = new ArrayList<String>();
 		// 今後の対戦カードを登録する
@@ -71,9 +76,18 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 			try {
 				List<TeamMemberMasterEntity> editedList = editData(map.getValue());
 				for (TeamMemberMasterEntity entity : editedList) {
+					// 国,リーグ,チームが一致するもののみ
+					String country = entity.getCountry();
+					String league = entity.getLeague();
+					String team = entity.getTeam();
+					String key = country + "-" + league;
+					List<String> teams = teamMap.get(key);
+					if (!teams.contains(team)) {
+						break;
+					}
 					String member = entity.getMember();
 					// 監督はskip
-					if ("監督".equals(entity.getPosition()))
+					if (MANAGER.equals(entity.getPosition()))
 						continue;
 					// insertとupdateで分ける
 					if (memberMap.containsKey(member)) {
@@ -104,15 +118,15 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 		}
 
 		// 途中で例外が起きなければ全てのファイルを削除する
-		for (String path : insertPath) {
-			try {
-				Files.deleteIfExists(Paths.get(path));
-			} catch (IOException e) {
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ファイル削除失敗", e, path);
-				// ここでは例外をthrowしないことで、DB登録は保持
-			}
-		}
+//		for (String path : insertPath) {
+//			try {
+//				Files.deleteIfExists(Paths.get(path));
+//			} catch (IOException e) {
+//				this.manageLoggerComponent.debugErrorLog(
+//						PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ファイル削除失敗", e, path);
+//				// ここでは例外をthrowしないことで、DB登録は保持
+//			}
+//		}
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
@@ -122,24 +136,54 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 
 	/**
 	 * 編集データメソッド
-	 * @param entity
-	 * @return
+	 *  - team(暫定)        → belongList へ詰め替え（重複は除外、カンマ連結）
+	 *  - score(暫定) + versusTeam(暫定) → versusTeamScoreData へ「対戦相手-得点」をカンマ連結
+	 *  - loanBelong が空でなければ deadline = "1"、なければ "0"
+	 *  - retireFlg は既定で "0"（※退団判定の仕様があればここで分岐）
 	 */
 	private List<TeamMemberMasterEntity> editData(List<TeamMemberMasterEntity> entities) {
-		List<TeamMemberMasterEntity> newDtoList = new ArrayList<TeamMemberMasterEntity>();
-		for (TeamMemberMasterEntity exDto : entities) {
-			// チーム(暫定データ)を所属チームリストに詰め替える
-			exDto.setBelongList(exDto.getTeam());
-			// 得点数(暫定データ)を対戦相手,得点数(対戦相手-得点数をカンマ繋ぎ)に詰め替える
-			// TODO: 詰め替え対象フィールドを検討
-			exDto.setVersusTeamScoreData(exDto.getScore());
-			// ローンが設定されている場合は,あり
-			String deadline = (!"".equals(exDto.getLoanBelong())) ? "1" : "0";
-			exDto.setDeadline(deadline);
-			exDto.setRetireFlg("0");
-			newDtoList.add(exDto);
+		List<TeamMemberMasterEntity> newDtoList = new ArrayList<>();
+		for (TeamMemberMasterEntity e : entities) {
+
+			// ----- belongList：team(暫定)を所属チームリストへ反映（重複除去・カンマ連結） -----
+			String team = nz(e.getTeam());
+			String belongList = nz(e.getBelongList());
+			if (!team.isEmpty()) {
+				// 既存 belongList に team が無ければ追加（カンマ区切り）
+				Set<String> set = new LinkedHashSet<>();
+				if (!belongList.isEmpty()) {
+					for (String s : belongList.split(",")) {
+						if (!s.isBlank())
+							set.add(s.trim());
+					}
+				}
+				set.add(team.trim());
+				belongList = String.join(",", set);
+				e.setBelongList(belongList);
+			} else {
+				// 入力 team が空でも null を避けて空文字で保持
+				e.setBelongList(belongList);
+			}
+
+			// ----- versusTeamScoreData：対戦相手-得点 をカンマ連結で作る -----
+			// 想定：versusTeam と score が 1:1、もしくはカンマ区切りで並行
+			e.setVersusTeamScoreData(nz(e.getVersusTeamScoreData())); // 何も無ければ現状維持/空
+
+			// ----- deadline：loanBelong が空でなければ "1" -----
+			String loanBelong = nz(e.getLoanBelong());
+			e.setDeadline(loanBelong.isEmpty() ? "0" : "1");
+
+			// ----- retireFlg：既定で "0"（※退団判定ルールがあればここに実装） -----
+			e.setRetireFlg("0");
+
+			newDtoList.add(e);
 		}
 		return newDtoList;
+	}
+
+	// ===== ユーティリティ =====
+	private static String nz(String s) {
+		return s == null ? "" : s;
 	}
 
 	/**
@@ -148,84 +192,134 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 	 * @param selectEntities
 	 * @return
 	 */
+	/**
+	 * 更新データメソッド(更新が必要なもの(memberが同一)が対象)
+	 */
 	private TeamMemberMasterEntity updateData(TeamMemberMasterEntity exDto, TeamMemberMasterEntity oldDto) {
-		// 元チームを保存
-		String exTeam = oldDto.getTeam();
-		if (!oldDto.getMember().equals(exDto.getMember())) {
-			return null;
-		}
-		TeamMemberMasterEntity newDto = new TeamMemberMasterEntity();
-		newDto.setId(oldDto.getId());
-		newDto.setCountry(oldDto.getCountry());
-		newDto.setLeague(oldDto.getLeague());
-		newDto.setTeam((oldDto.getTeam() == null || "".equals(oldDto.getTeam())
-				? exDto.getTeam()
-				: oldDto.getTeam()));
-		newDto.setMember(oldDto.getMember());
-		newDto.setScore((oldDto.getScore() == null || "".equals(oldDto.getScore())
-				? exDto.getScore()
-				: String.valueOf(Integer.parseInt(exDto.getScore()) + Integer.parseInt(oldDto.getScore()))));
-		String nowLoanBelong = null;
-		// 所属元が空(初めてローンに出されるorローンに出されていない)
-		if (oldDto.getLoanBelong() == null || "".equals(oldDto.getLoanBelong())) {
-			nowLoanBelong = exDto.getLoanBelong();
-			// 引き続き別のローンを組まれる
-		} else {
-			nowLoanBelong = oldDto.getLoanBelong() + "," + exDto.getLoanBelong();
-		}
-		newDto.setLoanBelong(nowLoanBelong);
-		// 移籍リスト
-		newDto.setBelongList(mergeHistory(oldDto.getTeam(), exDto.getTeam()));
-		String nowJersey = null;
-			// 背番号が空(新入団選手)もしくは同じ背番号
-		if (oldDto.getJersey() == null || "".equals(oldDto.getJersey()) ||
-				(oldDto.getJersey().equals(exDto.getJersey()))) {
-			nowJersey = exDto.getJersey();
-			// 背番号変更
-		} else {
-			// 別チームに移籍後の初背番号
-			nowJersey = oldDto.getJersey() + "," + exDto.getJersey();
-			// 移籍した場合(1つ前の所属元チームの頭4文字を連結)
-			if (newDto.getBelongList().contains(",")) {
-				String atamaTeam = exTeam.substring(0, 4);
-				nowJersey += "(" + atamaTeam + ")";
-			}
-		}
-		newDto.setJersey(nowJersey);
-		newDto.setFacePicPath((oldDto.getFacePicPath() == null || "".equals(oldDto.getFacePicPath())
-				? exDto.getFacePicPath()
-				: oldDto.getFacePicPath()));
-		newDto.setBirth(exDto.getBirth());
-		// 年齢は同じ年齢でないケースを含め,最新の年齢を設定(最新のデータの方が現在の日時に応じた年が設定されているため)
-		newDto.setAge(exDto.getAge());
-		newDto.setInjury((oldDto.getInjury() == null || "".equals(oldDto.getInjury())
-				? exDto.getInjury()
-				: oldDto.getInjury()));
-		String deadline = (exDto.getLoanBelong() != null &&
-				!"".equals(exDto.getLoanBelong())) ? "1" : "0";
-		newDto.setDeadline(deadline);
-		// 普通は1度引退フラグが1になるとそれ以降は変わらない(現役復帰でない限り)
-		if (newDto.getRetireFlg() == null || "".equals(newDto.getRetireFlg())) {
-			newDto.setRetireFlg("0");
-		} else {
-			newDto.setRetireFlg(exDto.getRetireFlg());
-		}
-		newDto.setDeadlineContractDate(mergeHistory(
-				oldDto.getDeadlineContractDate(), exDto.getDeadlineContractDate()));
-		newDto.setHeight(mergeHistory(oldDto.getHeight(), exDto.getHeight()));
-		newDto.setWeight(mergeHistory(oldDto.getWeight(), exDto.getWeight()));
-		newDto.setPosition(mergeHistory(oldDto.getPosition(), exDto.getPosition()));
-		newDto.setMarketValue(mergeHistory(oldDto.getMarketValue(), exDto.getMarketValue()));
-		newDto.setLatestInfoDate(exDto.getLatestInfoDate());
-		String updStr = (oldDto.getUpdStamp() == null || "".equals(oldDto.getUpdStamp()))
-				? "更新済み1" : oldDto.getUpdStamp();
-		// +1をして更新
-		if (!"更新済み1".equals(updStr)) {
-			String rem = updStr.replace("更新済み", "");
-			updStr = String.valueOf(Integer.parseInt(rem) + 1);
-		}
-		newDto.setUpdStamp(updStr);
-		return newDto;
+	    // member が異なるなら更新対象外
+	    if (oldDto == null || exDto == null || !Objects.equals(oldDto.getMember(), exDto.getMember())) {
+	        return null;
+	    }
+
+	    // 直前チーム（背番号注記用）
+	    final String prevTeam = oldDto.getTeam();
+
+	    TeamMemberMasterEntity newDto = new TeamMemberMasterEntity();
+	    newDto.setId(oldDto.getId());
+	    newDto.setCountry(oldDto.getCountry());
+	    newDto.setLeague(oldDto.getLeague());
+	    // team は既存が空なら新を採用、既存があれば維持
+	    newDto.setTeam(isBlank(oldDto.getTeam()) ? exDto.getTeam() : oldDto.getTeam());
+	    newDto.setMember(oldDto.getMember());
+
+	    // score は数値和（どちらか空ならある方）
+	    newDto.setScore(sumIntAsString(oldDto.getScore(), exDto.getScore()));
+
+	    // ローン所属は CSV 集合として結合（重複/空は除去）
+	    newDto.setLoanBelong(mergeCsvHistory(oldDto.getLoanBelong(), exDto.getLoanBelong()));
+
+	    // 所属履歴（集合的に保持）：old の belongList があればそれに ex の team を追加
+	    // なければ old の team と ex の team をマージ
+	    String belongBase = !isBlank(oldDto.getBelongList())
+	            ? oldDto.getBelongList()
+	            : mergeCsvHistory(oldDto.getTeam(), null);
+	    newDto.setBelongList(mergeCsvHistory(belongBase, exDto.getTeam()));
+
+	    // 背番号：変更時は注記(直前チームの先頭4文字)を付けつつ CSV マージ、同じなら維持
+	    String jerseyNow;
+	    String oldJ = trimToEmpty(oldDto.getJersey());
+	    String newJ = trimToEmpty(exDto.getJersey());
+	    if (isBlank(oldJ)) {
+	        jerseyNow = newJ; // 新入団など
+	    } else if (oldJ.equals(newJ) || isBlank(newJ)) {
+	        jerseyNow = oldJ; // 同じ/新が空なら維持
+	    } else {
+	        // 変更された → 注記を付ける（所属が増えている＝移籍を示唆）
+	        String noted = newJ;
+	        if (!isBlank(prevTeam) && newDto.getBelongList().contains(",")) {
+	            String head4 = prevTeam.length() >= 4 ? prevTeam.substring(0, 4) : prevTeam;
+	            noted = newJ + "(" + head4 + ")";
+	        }
+	        jerseyNow = mergeCsvHistory(oldJ, noted);
+	    }
+	    newDto.setJersey(jerseyNow);
+
+	    // 顔写真は既存優先（なければ新）
+	    newDto.setFacePicPath(isBlank(oldDto.getFacePicPath()) ? exDto.getFacePicPath() : oldDto.getFacePicPath());
+
+	    // 生年月日は最新（上書き）
+	    newDto.setBirth(exDto.getBirth());
+	    // 年齢は最新（上書き）
+	    newDto.setAge(exDto.getAge());
+	    // けが情報は新規優先（怪我したらそのデータ,治ったら更新データ）
+	    newDto.setInjury(exDto.getInjury());
+
+	    // ローン中フラグ（ex にローン所属があれば 1、なければ 0）
+	    newDto.setDeadline(!isBlank(exDto.getLoanBelong()) ? "1" : "0");
+
+	    // 引退フラグ：一度 1 なら継続、それ以外は ex を優先（空なら 0）
+	    String keepRetire = "1".equals(trimToEmpty(oldDto.getRetireFlg())) ? "1"
+	            : (isBlank(exDto.getRetireFlg()) ? "0" : exDto.getRetireFlg());
+	    newDto.setRetireFlg(keepRetire);
+
+	    // 履歴系は “→” で追記（末尾重複は抑止）
+	    newDto.setDeadlineContractDate(mergeHistory(oldDto.getDeadlineContractDate(), exDto.getDeadlineContractDate()));
+	    newDto.setHeight(mergeHistory(oldDto.getHeight(), exDto.getHeight()));
+	    newDto.setWeight(mergeHistory(oldDto.getWeight(), exDto.getWeight()));
+	    newDto.setPosition(mergeHistory(oldDto.getPosition(), exDto.getPosition()));
+	    newDto.setMarketValue(mergeHistory(oldDto.getMarketValue(), exDto.getMarketValue()));
+
+	    // 最終更新日（最新で上書き）
+	    newDto.setLatestInfoDate(exDto.getLatestInfoDate());
+
+	    // 更新スタンプ："更新済みN" として +1
+	    newDto.setUpdStamp(incrementUpdStamp(oldDto.getUpdStamp()));
+
+	    return newDto;
+	}
+
+	/* ===== ユーティリティ（クラス内 private でOK） ===== */
+
+	private static boolean isBlank(String s) {
+	    return s == null || s.isBlank();
+	}
+	private static String trimToEmpty(String s) {
+	    return s == null ? "" : s.trim();
+	}
+
+	/** 数値文字列の和を返す（どちらか空ならもう一方、両方空なら空） */
+	private static String sumIntAsString(String a, String b) {
+	    String aa = trimToEmpty(a), bb = trimToEmpty(b);
+	    if (aa.isEmpty() && bb.isEmpty()) return "";
+	    if (aa.isEmpty()) return bb;
+	    if (bb.isEmpty()) return aa;
+	    try {
+	        return Integer.toString(Integer.parseInt(aa) + Integer.parseInt(bb));
+	    } catch (NumberFormatException e) {
+	        // 数値でない場合は新優先で連結しない（ポリシー次第で調整）
+	        return bb;
+	    }
+	}
+
+	/** "更新済みN" を +1。空なら "更新済み1"。フォーマット異常は 1 に戻す。 */
+	private static String incrementUpdStamp(String old) {
+	    String v = trimToEmpty(old);
+	    if (v.isEmpty()) return "更新済み1";
+	    if (v.startsWith("更新済み")) {
+	        String nStr = v.substring("更新済み".length()).trim();
+	        try {
+	            int n = Integer.parseInt(nStr);
+	            return "更新済み" + (n + 1);
+	        } catch (NumberFormatException ignore) {
+	            return "更新済み1";
+	        }
+	    }
+	    return "更新済み1";
+	}
+
+	/** 値の履歴を連結（末尾が同じなら追加しない）。区切り文字は既定「→」。 */
+	private static String mergeHistory(String oldValue, String newValue) {
+	    return mergeHistory(oldValue, newValue, "→");
 	}
 
 	/**
@@ -234,22 +328,68 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 	 * @param newValue
 	 * @return
 	 */
-	private String mergeHistory(String oldValue, String newValue) {
-		if (newValue == null || newValue.isEmpty()) {
-			return oldValue != null ? oldValue : "";
-		}
-		if (oldValue == null || oldValue.isEmpty()) {
-			return newValue;
-		}
-		// ★ 追加: 同じ値が連結されないようにする
-		if (oldValue != null && (oldValue.endsWith("→" + newValue) || oldValue.equals(newValue))) {
-			return oldValue;
-		}
-		// すでに履歴が存在する場合は末尾に追記
-		if (oldValue.contains("→")) {
-			return oldValue + "→" + newValue;
-		}
-		return oldValue + "→" + newValue;
+	private static String mergeHistory(String oldValue, String newValue, String sep) {
+	    sep = (sep == null || sep.isEmpty()) ? "→" : sep;
+
+	    String oldV = oldValue == null ? "" : oldValue.trim();
+	    String newV = newValue == null ? "" : newValue.trim();
+
+	    // 追加なし条件
+	    if (newV.isEmpty()) return oldV;
+	    if (oldV.isEmpty()) return newV;
+
+	    // oldV が履歴なら最後の要素を取り出す
+	    String last = oldV;
+	    int idx = oldV.lastIndexOf(sep);
+	    if (idx >= 0) last = oldV.substring(idx + sep.length()).trim();
+
+	    // 末尾と同じなら付けない（完全一致のみ。必要なら大文字小文字無視も可）
+	    if (last.equals(newV)) return oldV;
+
+	    return oldV + sep + newV;
 	}
+
+	/** CSV（デリミタ: ","）の履歴をマージする（順序維持・重複除去・空要素除外） */
+	private static String mergeCsvHistory(String oldValue, String newValue) {
+	    // 正規化（null→"", 全角カンマ→半角）
+	    String oldNorm = normalizeCsv(oldValue);
+	    String newNorm = normalizeCsv(newValue);
+
+	    // どちらも空なら空
+	    if (oldNorm.isEmpty() && newNorm.isEmpty()) return "";
+	    // 片方だけならそれ
+	    if (oldNorm.isEmpty()) return newNorm;
+	    if (newNorm.isEmpty()) return oldNorm;
+
+	    // 順序維持しつつ重複排除
+	    LinkedHashSet<String> merged = new LinkedHashSet<>();
+
+	    // 既存→新規の順で追加
+	    for (String t : oldNorm.split(",")) {
+	        String s = t.trim();
+	        if (!s.isEmpty()) merged.add(s);
+	    }
+	    for (String t : newNorm.split(",")) {
+	        String s = t.trim();
+	        if (!s.isEmpty()) merged.add(s);
+	    }
+	    return String.join(",", merged);
+	}
+
+	/** CSV 文字列の軽い正規化（null→空、全角カンマ/読点→半角カンマ、前後空白除去） */
+	private static String normalizeCsv(String s) {
+	    if (s == null) return "";
+	    String x = s.trim();
+	    if (x.isEmpty()) return "";
+	    // 全角カンマ（，）/読点（、）を半角カンマに寄せる
+	    x = x.replace('，', ',').replace('、', ',');
+	    // 連続カンマを 1 個に潰す（",," → ","）
+	    x = x.replaceAll("\\s*,\\s*", ",").replaceAll(",{2,}", ",");
+	    // 先頭/末尾のカンマ除去
+	    if (x.startsWith(",")) x = x.substring(1);
+	    if (x.endsWith(",")) x = x.substring(0, x.length() - 1);
+	    return x.trim();
+	}
+
 
 }

@@ -237,4 +237,7 @@ public class SurfaceOverviewEntity extends MetaEntity implements Serializable {
 	/** 連続敗北数(データとしてはフィールドのみ持つ) */
 	private String consecutiveLoseCount;
 
+	/** ラウンド数保持 */
+	private String roundConc;
+
 }

@@ -115,6 +115,9 @@ public class TeamMemberDBService {
 				throw e;
 			}
 		}
+		String messageCd = "BM_M028 更新件数: " + chkEntities.size();
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
 		return 0;
 	}
 
