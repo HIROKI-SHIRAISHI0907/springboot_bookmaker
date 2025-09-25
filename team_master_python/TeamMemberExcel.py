@@ -1,12 +1,12 @@
 # -*- coding: utf-8 -*-
 """
-TeamMemberExcel_writer_queue.py
+TeamMemberExcel_writer_queue_seq_players.py
 - teams_by_league/*.xlsx を全読み
-- 6〜10チーム並列処理（TEAM_CONCURRENCY）
-- 各チームは PagePool(PLAYER_PER_TEAM) で選手詳細を並列取得
+- 4チーム並列（TEAM_CONCURRENCY=4）
+- 各チーム内の選手詳細取得は 1 スレッド（1 Page を使い回して逐次遷移）
 - page.goto の実同時数と発火間隔を制御（GLOBAL_NAV_CONCURRENCY / NAV_GAP_MS）
 - 不要リソース/広告/同意ドメインは遮断
-- Excel 書込は専用 Writer タスクに集約（バッファ追記＋デバウンス保存）
+- Excel 書込は専用 Writer タスクに集約（チーム単位で一括投入）
 """
 
 import os
@@ -33,16 +33,15 @@ OP_TIMEOUT = 5000
 NAV_TIMEOUT = 12000
 SEL_TIMEOUT = 20000
 
-# 並列度
-TEAM_CONCURRENCY       = 10     # 同時チーム
-PLAYER_PER_TEAM        = 1      # チーム内の同時タブ（詳細用 Page プール）
-GLOBAL_NAV_CONCURRENCY = 3      # 全体の同時 goto 上限
+# 並列度（要件）
+TEAM_CONCURRENCY       = 4      # 同時チーム（固定4）
+GLOBAL_NAV_CONCURRENCY = 4      # 全体同時 goto 上限（=チーム並列と同じ）
 NAV_GAP_MS             = 150    # goto の最小発火間隔
 
-# Writer の保存ポリシー（状況に合わせて調整）
-SAVE_INTERVAL_SEC      = 2.0    # これ秒ごとにバッファがあれば保存
-SAVE_EVERY_N_ROWS      = 80     # これ行以上たまったら即保存（50刻み回避のためやや大きめ）
-LOG_EVERY_ENQUEUE      = True   # True: チームごとにENQUEUEログを出す
+# Writer の保存ポリシー
+SAVE_INTERVAL_SEC      = 2.0    # これ秒ごとに未保存があれば保存
+SAVE_EVERY_N_ROWS      = 80     # これ行以上たまったら即保存
+LOG_EVERY_ENQUEUE      = True   # チームごとに ENQUEUE ログを出す
 
 # ブロックする外部ドメイン
 BLOCKED_HOST_KEYWORDS = [
@@ -137,7 +136,6 @@ async def make_context(browser):
         req = route.request
         rtype = req.resource_type
         url = req.url.lower()
-
         if rtype in {"image", "stylesheet", "font", "media", "beacon"}:
             return await route.abort()
         if any(k in url for k in BLOCKED_HOST_KEYWORDS):
@@ -165,35 +163,6 @@ async def safe_goto(page, url: str, selector_to_wait: Optional[str],
     return False
 
 # =========================
-# Page プール（チーム内）
-# =========================
-class PagePool:
-    def __init__(self, ctx, size: int):
-        self.ctx = ctx
-        self.sema = asyncio.Semaphore(size)
-        self.cache: List = []
-        self.lock = asyncio.Lock()
-
-    async def acquire(self):
-        await self.sema.acquire()
-        async with self.lock:
-            if self.cache:
-                return self.cache.pop()
-        return await self.ctx.new_page()
-
-    async def release(self, page):
-        async with self.lock:
-            self.cache.append(page)
-        self.sema.release()
-
-    async def close(self):
-        async with self.lock:
-            while self.cache:
-                p = self.cache.pop()
-                try:    await p.close()
-                except: pass
-
-# =========================
 # Excel Writer（専用タスク）
 # =========================
 class ExcelWriter:
@@ -202,7 +171,6 @@ class ExcelWriter:
     - 受け取り次第、現在開いているワークブックに append
     - 50行超えたら自動ローテーション
     - SAVE_INTERVAL_SEC ごと or SAVE_EVERY_N_ROWS ごとに保存
-    - 既存/実行中重複はメモリ集合（existing_keys / claimed_keys）で吸収
     """
     def __init__(self, base_dir: str, prefix: str, max_records: int):
         self.base_dir = base_dir
@@ -221,7 +189,6 @@ class ExcelWriter:
         existing = sorted(glob.glob(os.path.join(self.base_dir, f"{self.prefix}[0-9]*.xlsx")))
         if not existing:
             return 1
-        # 最大番号を拾う
         def num(p):
             m = re.search(rf"{re.escape(self.prefix)}(\d+)\.xlsx$", os.path.basename(p))
             return int(m.group(1)) if m else 0
@@ -230,7 +197,6 @@ class ExcelWriter:
 
     def _open_initial(self):
         start_seq = self._scan_next_seq()
-        # 既存ファイルの末尾に続きを書く（空きがあれば）
         for seq in range(start_seq, start_seq + 2):
             path = os.path.join(self.base_dir, f"{self.prefix}{seq}.xlsx")
             if os.path.exists(path):
@@ -241,7 +207,6 @@ class ExcelWriter:
                     self.wb, self.ws, self.seq = wb, ws, seq
                     self.rows_in_current = used
                     return
-        # 空きが無ければ新規を開く
         self._rotate_new(start_seq if not os.path.exists(os.path.join(self.base_dir, f"{self.prefix}{start_seq}.xlsx")) else start_seq + 1)
 
     def _rotate_new(self, seq_new: int):
@@ -262,30 +227,21 @@ class ExcelWriter:
         path = os.path.join(self.base_dir, f"{self.prefix}{self.seq}.xlsx")
         self.wb.save(path)
         self._dirty_since_last_save = 0
-        # 一応 flush ログ
-        # print(f"[WRITER] Saved: {os.path.basename(path)} ({self.rows_in_current} rows)")
 
     def enqueue_team_rows(self, rows: List[List[object]], label: str):
-        # すぐ返す（非同期書込）
         self.q.put_nowait((rows, label))
 
     async def run(self):
-        # 初期オープン
         self._open_initial()
-        last_save = asyncio.get_running_loop().time()
-
         while True:
-            timeout = SAVE_INTERVAL_SEC
             try:
-                rows, label = await asyncio.wait_for(self.q.get(), timeout=timeout)
+                rows, label = await asyncio.wait_for(self.q.get(), timeout=SAVE_INTERVAL_SEC)
             except asyncio.TimeoutError:
-                # 期限で保存
                 if self._dirty_since_last_save > 0:
                     self._save_now()
-                last_save = asyncio.get_running_loop().time()
                 continue
 
-            if rows is None:   # 終了シグナル
+            if rows is None:   # STOP
                 if self._dirty_since_last_save > 0:
                     self._save_now()
                 break
@@ -308,25 +264,23 @@ class ExcelWriter:
             if LOG_EVERY_ENQUEUE:
                 print(f"[WRITER] APPEND {label}: +{len(rows)} rows -> file #{self.seq} (cur={self.rows_in_current})")
 
-            # 閾値超えたら即保存
             if self._dirty_since_last_save >= SAVE_EVERY_N_ROWS:
                 self._save_now()
-                last_save = asyncio.get_running_loop().time()
 
     async def start(self):
         if self._task is None:
             self._task = asyncio.create_task(self.run())
 
     async def stop(self):
-        # 終了シグナル
         await self.q.put((None, "STOP"))
         if self._task:
             await self._task
 
 # =========================
-# スクレイピング本体
+# スクレイピング本体（チーム内は逐次）
 # =========================
-async def scrape_player_detail_with_page(page, full_url: str) -> Dict[str, str]:
+async def scrape_player_detail_on_same_page(page, full_url: str) -> Dict[str, str]:
+    """同じ Page を使い回して逐次遷移"""
     age = birth = mv = contract = loan = img = inj = "N/A"
     ok = await safe_goto(page, full_url, "div.playerInfoItem")
     if not ok:
@@ -336,9 +290,15 @@ async def scrape_player_detail_with_page(page, full_url: str) -> Dict[str, str]:
             "img_url": img, "injury_text": inj
         }
     try:
-        el = await page.query_selector('div[data-testid="wcl-assetContainerBoxed-XL"] img')
-        if el:
-            img = await el.get_attribute("src") or "N/A"
+        # preloadされた画像リンクの2番目
+        preloads = await page.query_selector_all('link[rel="preload"][as="image"]')
+        img = (await preloads[1].get_attribute("href")) if len(preloads) >= 2 else None
+        #print(f"img: {img}")
+
+        # ケガアイコンのtitle
+        inj_el = await page.query_selector('svg[data-testid="wcl-icon-incidents-injury"] > title')
+        inj = (await inj_el.text_content()).strip() if inj_el else ""
+        #print(f"inj: {inj}")
     except Exception:
         pass
 
@@ -368,17 +328,16 @@ async def scrape_player_detail_with_page(page, full_url: str) -> Dict[str, str]:
         "img_url": img, "injury_text": inj
     }
 
-async def process_team(ctx,
-                       existing_keys: Set[Tuple[str, str, str, str]],
-                       claimed_keys: Set[Tuple[str, str, str, str]],
-                       claim_lock: asyncio.Lock,
-                       team_sema: asyncio.Semaphore,
-                       writer: ExcelWriter,
-                       country: str, league: str, team: str, href: str):
-    """チーム1件（選手はPagePoolで並列）。完了後 Writer に一括投入。"""
+async def process_team_seq(ctx,
+                           existing_keys: Set[Tuple[str, str, str, str]],
+                           claimed_keys: Set[Tuple[str, str, str, str]],
+                           claim_lock: asyncio.Lock,
+                           team_sema: asyncio.Semaphore,
+                           writer: ExcelWriter,
+                           country: str, league: str, team: str, href: str):
+    """チーム1件（選手は単一Pageで逐次）。完了後 Writer に一括投入。"""
     async with team_sema:
         page = await ctx.new_page()
-        pool = PagePool(ctx, size=max(PLAYER_PER_TEAM, 1))
         try:
             team_url  = href if href.startswith("http") else f"https://flashscore.co.jp{href}"
             squad_url = team_url.rstrip("/") + "/squad/"
@@ -386,8 +345,10 @@ async def process_team(ctx,
             ok = await safe_goto(page, squad_url, "div.lineupTable.lineupTable--soccer")
             if not ok:
                 print(f"[{country}:{league}:{team}] スカッド取得失敗: goto failed")
+                await page.close()
                 return
 
+            # スカッド抽出
             players: List[Tuple[str, str, str, str, str]] = []
             tables = await page.query_selector_all("div.lineupTable.lineupTable--soccer")
             for t in tables or []:
@@ -410,28 +371,20 @@ async def process_team(ctx,
 
             if not players:
                 print(f"[{country}:{league}:{team}] 選手0件")
+                await page.close()
                 return
 
+            # 同じ page を使い回して逐次で詳細へ
             rows_to_write: List[List[object]] = []
-
-            # チーム内はフェアに小分け
-            BATCH = max(PLAYER_PER_TEAM * 4, 4)
-
-            async def handle(p):
-                position, jersey, name, href2, goals = p
+            for position, jersey, name, href2, goals in players:
                 key = (country, league, team, name)
-                # 既存/実行中重複
                 async with claim_lock:
                     if key in existing_keys or key in claimed_keys:
-                        return
+                        continue
                     claimed_keys.add(key)
 
                 purl = href2 if href2.startswith("http") else f"https://flashscore.co.jp{href2}"
-                tab = await pool.acquire()
-                try:
-                    detail = await scrape_player_detail_with_page(tab, purl)
-                finally:
-                    await pool.release(tab)
+                detail = await scrape_player_detail_on_same_page(page, purl)
 
                 rows_to_write.append([
                     country, league, team, name, position, jersey, goals,
@@ -441,10 +394,7 @@ async def process_team(ctx,
                     detail.get("injury_text","N/A"), datetime.datetime.now()
                 ])
 
-            for i in range(0, len(players), BATCH):
-                await asyncio.gather(*(handle(p) for p in players[i:i+BATCH]))
-
-            # チーム単位で一括投入（Writer が保存を制御）
+            # チーム単位で一括投入
             if rows_to_write:
                 if LOG_EVERY_ENQUEUE:
                     print(f"[ENQUEUE] {country} / {league} / {team}: {len(rows_to_write)} 件をWriterへ")
@@ -455,8 +405,6 @@ async def process_team(ctx,
         except Exception as e:
             print(f"[{country}:{league}:{team}] 処理中エラー: {e}")
         finally:
-            try:    await pool.close()
-            except: pass
             try:    await page.close()
             except: pass
 
@@ -467,7 +415,7 @@ async def main():
     ensure_dirs()
 
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"{now}  TeamMemberExcel: 開始（Writer/Queue 方式）")
+    print(f"{now}  TeamMemberExcel: 開始（4チーム並列・選手逐次）")
 
     existing_keys = load_existing_player_keys_from_excels()
     print(f"[INIT] 既取得キー: {len(existing_keys)} 件")
@@ -517,15 +465,35 @@ async def main():
         )
         ctx = await make_context(browser)
 
-        tasks = [
-            process_team(ctx, existing_keys, claimed_keys, claim_lock,
-                         team_sema, writer, country, league, team, href)
-            for (country, league, team, href) in uniq_rows
-        ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
-        for r in results:
-            if isinstance(r, Exception):
-                print(f"[WARN] タスク例外: {r}")
+        # 4 並列でチームを流す（同時に大量のタスクを投げず gather は控えめに）
+        # キュー方式で確実に 4 ワーカーに制限
+        team_q: asyncio.Queue = asyncio.Queue()
+        for it in uniq_rows:
+            team_q.put_nowait(it)
+        for _ in range(TEAM_CONCURRENCY):
+            team_q.put_nowait(None)
+
+        async def worker(wid: int):
+            while True:
+                item = await team_q.get()
+                if item is None:
+                    team_q.task_done()
+                    break
+                country, league, team, href = item
+                try:
+                    await process_team_seq(ctx, existing_keys, claimed_keys, claim_lock,
+                                           team_sema, writer, country, league, team, href)
+                finally:
+                    team_q.task_done()
+
+        workers = [asyncio.create_task(worker(i+1)) for i in range(TEAM_CONCURRENCY)]
+        await team_q.join()
+        for w in workers:
+            w.cancel()
+        try:
+            await asyncio.gather(*workers, return_exceptions=True)
+        except:
+            pass
 
         await ctx.close()
         await browser.close()
@@ -533,7 +501,7 @@ async def main():
     # ライター停止（残りを保存して終了）
     await writer.stop()
 
-    print("TeamMemberExcel: 完了（Writer/Queue 方式）")
+    print("TeamMemberExcel: 完了（4チーム並列・選手逐次）")
 
 if __name__ == "__main__":
     asyncio.run(main())
