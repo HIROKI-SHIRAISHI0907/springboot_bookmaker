@@ -1092,7 +1092,6 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	    return merged;
 	}
 
-
 	/**
 	 *  null/空/非数を0に
 	 * @param s
