@@ -3,7 +3,6 @@ package dev.mng.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import dev.application.main.service.FutureService;
 import dev.common.logger.ManageLoggerComponent;
 import dev.mng.analyze.bm_c001.StatSizeFinalizeMasterCsv;
 import dev.mng.analyze.interf.CsvMngIF;
@@ -19,11 +18,11 @@ import dev.mng.dto.CsvTargetCommonInputDTO;
 public class CsvMngService implements CsvMngIF {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = FutureService.class.getProtectionDomain()
+	private static final String PROJECT_NAME = CsvMngService.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = FutureService.class.getSimpleName();
+	private static final String CLASS_NAME = CsvMngService.class.getSimpleName();
 
 	/**
 	 * BM_C001統計分析ロジッククラス

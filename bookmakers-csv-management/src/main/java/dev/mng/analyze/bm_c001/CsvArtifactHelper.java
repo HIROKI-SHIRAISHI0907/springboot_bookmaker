@@ -11,9 +11,7 @@ import java.util.Set;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import dev.application.analyze.bm_m000.BookToDataMapper;
 import dev.common.constant.BookMakersCommonConst;
-import dev.common.entity.BookDataEntity;
 import dev.common.entity.DataEntity;
 import dev.common.util.ExecuteMainUtil;
 import dev.mng.csvmng.CsvArtifactResource;
@@ -29,10 +27,6 @@ public class CsvArtifactHelper {
 
 	/** フラグ: 0 */
 	private static final String STAT_SIZE_FINALIZE_FLG_0 = "0";
-
-	/** BookToDataMapperクラス */
-	@Autowired
-	private BookToDataMapper mapper;
 
 	/** StatSizeFinalizeMasterRepositoryレポジトリクラス */
 	@Autowired
@@ -135,13 +129,12 @@ public class CsvArtifactHelper {
 	 * @param csvArtifactResource
 	 * @return
 	 */
-	public boolean statCondition(List<BookDataEntity> result) {
+	public boolean statCondition(List<DataEntity> result) {
 		// フラグ0
 		List<StatSizeFinalizeMasterCsvEntity> flgData = getMaster();
 		// 選択肢2(国リーグに関する制限付きINPUTを精査)
 		CsvArtifactResource csvArtifactResource = setOption2ndNum(flgData, new CsvArtifactResource());
-		List<DataEntity> convEntity = this.mapper.toDataList(result);
-		return restrict2nd(convEntity, csvArtifactResource);
+		return restrict2nd(result, csvArtifactResource);
 	}
 
 	/**
