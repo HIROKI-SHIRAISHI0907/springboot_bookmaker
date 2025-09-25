@@ -5,13 +5,13 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.bm_m002.ConditionResultDataStat;
 import dev.application.analyze.bm_m003.TeamMonthlyScoreSummaryStat;
 import dev.application.analyze.bm_m004.TeamTimeSegmentShootingStat;
 import dev.application.analyze.bm_m005.NoGoalMatchStat;
 import dev.application.analyze.bm_m006.CountryLeagueSummaryStat;
-import dev.application.analyze.bm_m007_bm_m016.TimeRangeFeatureStat;
 import dev.application.analyze.bm_m017_bm_m018.LeagueScoreTimeBandStat;
 import dev.application.analyze.bm_m019_bm_m020.MatchClassificationResultStat;
 import dev.application.analyze.bm_m021.TeamMatchFinalStat;
@@ -19,9 +19,11 @@ import dev.application.analyze.bm_m023.ScoreBasedFeatureStat;
 import dev.application.analyze.bm_m024.CalcCorrelationStat;
 import dev.application.analyze.bm_m025.CalcCorrelationRankingStat;
 import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureStat;
+import dev.application.analyze.bm_m031.SurfaceOverviewStat;
 import dev.common.entity.BookDataEntity;
-import dev.common.getstatinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
+import dev.mng.analyze.bm_c001.CsvArtifactHelper;
+
 
 /**
  * 統計分析用サービスクラス
@@ -29,6 +31,7 @@ import dev.common.logger.ManageLoggerComponent;
  *
  */
 @Service
+@Transactional
 public class StatService implements StatIF {
 
 	/** プロジェクト名 */
@@ -37,12 +40,6 @@ public class StatService implements StatIF {
 
 	/** クラス名 */
 	private static final String CLASS_NAME = StatService.class.getSimpleName();
-
-	/**
-	 * 統計情報取得管理クラス
-	 */
-	@Autowired
-	private GetStatInfo getStatInfo;
 
 	/**
 	 * BM_M002統計分析ロジッククラス
@@ -77,8 +74,8 @@ public class StatService implements StatIF {
 	/**
 	 * BM_M007-BM_M016統計分析ロジッククラス
 	 */
-	@Autowired
-	private TimeRangeFeatureStat timeRangeFeatureStat;
+	//@Autowired
+	//private TimeRangeFeatureStat timeRangeFeatureStat;
 
 	/**
 	 * BM_M017-BM_M018統計分析ロジッククラス
@@ -123,13 +120,28 @@ public class StatService implements StatIF {
 	private EachTeamScoreBasedFeatureStat eachTeamScoreBasedFeatureStat;
 
 	/**
+	 * BM_M031統計分析ロジッククラス
+	 */
+	@Autowired
+	private SurfaceOverviewStat surfaceOverviewStat;
+
+	/**
+	 * CsvArtifactHelperクラス
+	 */
+	@Autowired
+	private CsvArtifactHelper CsvArtifactHelper;
+
+	/**
 	 * ログ管理クラス
 	 */
 	@Autowired
 	private ManageLoggerComponent loggerComponent;
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public int execute() throws Exception {
+	public int execute(Map<String, Map<String, List<BookDataEntity>>> stat) throws Exception {
 		final String METHOD_NAME = "execute";
 
 		// 時間計測開始
@@ -139,27 +151,21 @@ public class StatService implements StatIF {
 		this.loggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// シーケンスデータから取得(最大値情報取得)
-		String csvNumber = "0";
-		String csvBackNumber = "5";
-
-		// 直近のCSVデータ情報を取得
-		Map<String, Map<String, List<BookDataEntity>>> getStatMap = this.getStatInfo.getData(csvNumber, csvBackNumber);
-
 		// 統計ロジック呼び出し(@Transactionl付き)(国,リーグ単位で並列)
-		this.conditionResultDataStat.calcStat(getStatMap);
-		this.teamMonthlyScoreSummaryStat.calcStat(getStatMap);
-		this.teamTimeSegmentShootingStat.calcStat(getStatMap);
-		this.countryLeagueSummaryStat.calcStat(getStatMap);
-		this.noGoalMatchStat.calcStat(getStatMap);
-		//this.timeRangeFeatureStat.calcStat(getStatMap);
-		this.leagueScoreTimeBandStat.calcStat(getStatMap);
-		this.matchClassificationResultStat.calcStat(getStatMap);
-		this.teamMatchFinalStat.calcStat(getStatMap);
-		this.scoreBasedFeatureStat.calcStat(getStatMap);
-		this.calcCorrelationStat.calcStat(getStatMap);
-		this.calcCorrelationRankingStat.calcStat(getStatMap);
-		this.eachTeamScoreBasedFeatureStat.calcStat(getStatMap);
+		this.conditionResultDataStat.calcStat(stat);
+		this.teamMonthlyScoreSummaryStat.calcStat(stat);
+		this.teamTimeSegmentShootingStat.calcStat(stat);
+		this.countryLeagueSummaryStat.calcStat(stat);
+		this.noGoalMatchStat.calcStat(stat);
+		//this.timeRangeFeatureStat.calcStat(stat);
+		this.leagueScoreTimeBandStat.calcStat(stat);
+		this.matchClassificationResultStat.calcStat(stat);
+		this.teamMatchFinalStat.calcStat(stat);
+		this.scoreBasedFeatureStat.calcStat(stat);
+		this.calcCorrelationStat.calcStat(stat);
+		this.calcCorrelationRankingStat.calcStat(stat);
+		this.eachTeamScoreBasedFeatureStat.calcStat(stat);
+		this.surfaceOverviewStat.calcStat(stat);
 
 		// endLog
 		this.loggerComponent.debugEndInfoLog(
@@ -172,6 +178,10 @@ public class StatService implements StatIF {
 		System.out.println("時間: " + durationMs);
 
 		return 0;
+	}
+
+	private void setUpdateStat(Map<String, Map<String, List<BookDataEntity>>> stats) {
+		this.CsvArtifactHelper.statCondition(null);
 	}
 
 }

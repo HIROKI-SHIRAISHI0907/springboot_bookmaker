@@ -5,7 +5,6 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.TeamMatchFinalStatsRepository;
@@ -21,7 +20,6 @@ import dev.common.util.ExecuteMainUtil;
  *
  */
 @Component
-@Transactional
 public class TeamMatchFinalStat implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */

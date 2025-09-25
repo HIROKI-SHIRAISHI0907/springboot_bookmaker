@@ -8,7 +8,6 @@ import java.util.concurrent.ConcurrentMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
@@ -27,7 +26,6 @@ import dev.common.util.ExecuteMainUtil;
  *
  */
 @Component
-@Transactional
 public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */

@@ -12,7 +12,6 @@ import java.util.concurrent.Executors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.bm_m023.AverageStatisticsSituationConst;
 import dev.application.analyze.bm_m024.CalcCorrelationConst;
@@ -31,7 +30,6 @@ import dev.common.util.ExecuteMainUtil;
  *
  */
 @Component
-@Transactional
 public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */

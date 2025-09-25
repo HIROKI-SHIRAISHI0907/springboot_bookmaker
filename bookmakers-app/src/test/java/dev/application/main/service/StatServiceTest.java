@@ -15,7 +15,7 @@ class StatServiceTest {
     @Test
     void execute_shouldReturnZero_whenExecutionSuccessful() throws Exception {
         // Act
-        int result = statService.execute();
+        int result = statService.execute(null);
 
         // Assert
         assertEquals(0, result); // 戻り値が0であること

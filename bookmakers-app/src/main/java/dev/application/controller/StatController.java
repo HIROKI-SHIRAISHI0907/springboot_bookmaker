@@ -33,7 +33,7 @@ public class StatController {
 			StatRequestResource requestResource) throws Exception {
 
 		// 統計用データサービス
-		this.statService.execute();
+		//this.statService.execute();
 
 		StatResponseResource response = new StatResponseResource();
 		response.setReturnCd(null);

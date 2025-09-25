@@ -13,7 +13,6 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.bm_m023.AverageStatisticsSituationConst;
 import dev.application.analyze.bm_m023.BmM023M024M026InitBean;
@@ -36,7 +35,6 @@ import dev.common.util.ExecuteMainUtil;
  *
  */
 @Component
-@Transactional
 public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */

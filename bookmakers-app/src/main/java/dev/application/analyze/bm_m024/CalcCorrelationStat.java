@@ -13,7 +13,6 @@ import java.util.stream.Collectors;
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.bm_m023.AverageStatisticsSituationConst;
 import dev.application.analyze.bm_m023.StatFormatResolver;
@@ -31,7 +30,6 @@ import dev.common.util.ExecuteMainUtil;
  *
  */
 @Component
-@Transactional
 public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */

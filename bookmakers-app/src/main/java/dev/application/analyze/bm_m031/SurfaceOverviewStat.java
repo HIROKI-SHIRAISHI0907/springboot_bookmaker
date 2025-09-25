@@ -9,7 +9,6 @@ import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.bm_m029.BmM029CountryLeagueBean;
 import dev.application.analyze.interf.AnalyzeEntityIF;
@@ -26,7 +25,6 @@ import dev.common.util.ExecuteMainUtil;
  *
  */
 @Component
-@Transactional
 public class SurfaceOverviewStat implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */

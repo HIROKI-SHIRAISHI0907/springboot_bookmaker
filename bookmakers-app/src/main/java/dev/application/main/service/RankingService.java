@@ -5,32 +5,27 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.bm_m027.AnalyzeRankingStat;
 import dev.common.entity.BookDataEntity;
-import dev.common.getstatinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
- * 統計分析ランキング用サービスクラス
+ * 統計分析用サービスクラス
  * @author shiraishitoshio
  *
  */
 @Service
-public class AnalyzeRankingService implements StatIF {
+@Transactional
+public class RankingService implements StatIF {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = AnalyzeRankingService.class.getProtectionDomain()
+	private static final String PROJECT_NAME = RankingService.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = AnalyzeRankingService.class.getSimpleName();
-
-	/**
-	 * 統計情報取得管理クラス
-	 */
-	@Autowired
-	private GetStatInfo getStatInfo;
+	private static final String CLASS_NAME = RankingService.class.getSimpleName();
 
 	/**
 	 * BM_M027統計分析ロジッククラス
@@ -44,8 +39,11 @@ public class AnalyzeRankingService implements StatIF {
 	@Autowired
 	private ManageLoggerComponent loggerComponent;
 
+	/**
+	 * {@inheritDoc}
+	 */
 	@Override
-	public int execute() throws Exception {
+	public int execute(Map<String, Map<String, List<BookDataEntity>>> stat) throws Exception {
 		final String METHOD_NAME = "execute";
 
 		// 時間計測開始
@@ -55,15 +53,8 @@ public class AnalyzeRankingService implements StatIF {
 		this.loggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// シーケンスデータから取得(最大値情報取得)
-		String csvNumber = "";
-		String csvBackNumber = "";
-
-		// 直近のCSVデータ情報を取得
-		Map<String, Map<String, List<BookDataEntity>>> getStatMap = this.getStatInfo.getData(csvNumber, csvBackNumber);
-
 		// 統計ロジック呼び出し(@Transactionl付き)(国,リーグ単位で並列)
-		this.analyzeRankingStat.calcStat(getStatMap);
+		this.analyzeRankingStat.calcStat(stat);
 
 		// endLog
 		this.loggerComponent.debugEndInfoLog(
@@ -74,7 +65,6 @@ public class AnalyzeRankingService implements StatIF {
 		long durationMs = (endTime - startTime) / 1_000_000; // ミリ秒に変換
 
 		System.out.println("時間: " + durationMs);
-
 		return 0;
 	}
 

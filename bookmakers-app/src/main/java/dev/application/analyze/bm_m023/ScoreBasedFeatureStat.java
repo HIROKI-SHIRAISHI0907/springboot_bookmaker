@@ -13,7 +13,6 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.bm_m030.BmM030StatEncryptionBean;
 import dev.application.analyze.bm_m030.StatEncryptionEntity;
@@ -32,7 +31,6 @@ import dev.common.util.ExecuteMainUtil;
  *
  */
 @Component
-@Transactional
 public class ScoreBasedFeatureStat extends StatFormatResolver implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */

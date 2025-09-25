@@ -1,5 +1,10 @@
 package dev.application.main.service;
 
+import java.util.List;
+import java.util.Map;
+
+import dev.common.entity.BookDataEntity;
+
 /**
  * 統計分析用サービスクラスIF
  * @author shiraishitoshio
@@ -12,6 +17,6 @@ public interface StatIF {
 	 * @return
 	 * @throws Exception
 	 */
-	public int execute() throws Exception;
+	public int execute(Map<String, Map<String, List<BookDataEntity>>> stat) throws Exception;
 
 }

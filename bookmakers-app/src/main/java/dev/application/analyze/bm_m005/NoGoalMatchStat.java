@@ -9,7 +9,6 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.NoGoalMatchStatsRepository;
@@ -24,7 +23,6 @@ import dev.common.util.ExecuteMainUtil;
  *
  */
 @Component
-@Transactional
 public class NoGoalMatchStat implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */
