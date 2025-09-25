@@ -26,6 +26,12 @@ public class PathConfig {
 	private String outputCsvFolder;
 
 	/**
+	 * TEAMCSVフォルダ
+	 */
+	@Value("${app.team-csv-folder}")
+	private String teamCsvFolder;
+
+	/**
 	 * CSV作成パスを返す
 	 * @return
 	 */
@@ -39,6 +45,14 @@ public class PathConfig {
 	 */
 	public String getOutputCsvFolder() {
         return outputCsvFolder;
+    }
+
+	/**
+	 * CSV作成パスを返す
+	 * @return
+	 */
+	public String getTeamCsvFolder() {
+        return teamCsvFolder;
     }
 
 }

@@ -4,6 +4,7 @@ import java.util.List;
 
 import dev.common.dto.AbstractResultErrDetailOutputDTO;
 import dev.common.entity.BookDataEntity;
+import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.entity.DataEntity;
 import dev.common.entity.FutureEntity;
@@ -54,5 +55,10 @@ public class ReadFileOutputDTO extends AbstractResultErrDetailOutputDTO {
 	 * シーズンデータ結果リスト
 	 */
 	private List<CountryLeagueSeasonMasterEntity> countryLeagueSeasonList;
+
+	/**
+	 * マスタデータ結果リスト
+	 */
+	private List<CountryLeagueMasterEntity> countryLeagueMasterList;
 
 }
