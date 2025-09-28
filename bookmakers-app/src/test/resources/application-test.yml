@@ -5,12 +5,15 @@ app:
 
 spring:
   datasource:
-    url: jdbc:mysql://localhost:3306/soccer_bm
-    username: root
-    password: sonic3717
-    driver-class-name: com.mysql.cj.jdbc.Driver
+    url: jdbc:postgresql://localhost:54320/soccer_bm
+    username: postgres
+    password: sonic3717   
+    driver-class-name: org.postgresql.Driver
   flyway:
-    enabled: false
+    enabled: true
+    # 必要に応じて
+    # schemas: public
+    # baseline-on-migrate: true
 mybatis:
   configuration:
     map-underscore-to-camel-case: true

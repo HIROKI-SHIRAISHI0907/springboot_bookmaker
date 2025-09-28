@@ -22,7 +22,6 @@ import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureStat;
 import dev.application.analyze.bm_m031.SurfaceOverviewStat;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
-import dev.mng.analyze.bm_c001.CsvArtifactHelper;
 
 
 /**
@@ -126,12 +125,6 @@ public class StatService implements StatIF {
 	private SurfaceOverviewStat surfaceOverviewStat;
 
 	/**
-	 * CsvArtifactHelperクラス
-	 */
-	@Autowired
-	private CsvArtifactHelper CsvArtifactHelper;
-
-	/**
 	 * ログ管理クラス
 	 */
 	@Autowired
@@ -178,10 +171,6 @@ public class StatService implements StatIF {
 		System.out.println("時間: " + durationMs);
 
 		return 0;
-	}
-
-	private void setUpdateStat(Map<String, Map<String, List<BookDataEntity>>> stats) {
-		this.CsvArtifactHelper.statCondition(null);
 	}
 
 }
