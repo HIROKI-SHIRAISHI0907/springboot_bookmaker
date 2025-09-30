@@ -11,7 +11,6 @@ public interface FutureRepository {
 
 	@Insert("""
 			    INSERT INTO future_master (
-			        seq,
 			        game_team_category,
 			        future_time,
 			        home_rank,
@@ -35,7 +34,6 @@ public interface FutureRepository {
 			        update_id,
 			        update_time
 			    ) VALUES (
-			        #{seq},
 			        #{gameTeamCategory},
 			        #{futureTime},
 			        #{homeRank},
@@ -54,10 +52,7 @@ public interface FutureRepository {
 			        #{awayTeamAwayLost},
 			        #{gameLink},
 			        #{dataTime},
-			        #{registerId},
-			       #{registerTime},
-			       #{updateId},
-			       #{updateTime}
+			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz));
 			    )
 			""")
 	int insert(FutureEntity entity);

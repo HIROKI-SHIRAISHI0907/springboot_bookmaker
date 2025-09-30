@@ -14,7 +14,6 @@ public interface NoGoalMatchStatsRepository {
 
 	@Insert("""
 			    INSERT INTO no_goal_match_stats (
-			    	seq,
 			        data_category,
 			        times,
 			        home_rank,
@@ -112,7 +111,6 @@ public interface NoGoalMatchStatsRepository {
 			        update_id,
 			        update_time
 			    ) VALUES (
-			    	#{seq},
 			        #{dataCategory},
 			        #{times},
 			        #{homeRank},
@@ -205,11 +203,8 @@ public interface NoGoalMatchStatsRepository {
 			        #{awayTeamStyle},
 			        #{probablity},
 			        #{predictionScoreTime},
-			        #{registerId},
-			        #{registerTime},
-			        #{updateId},
-			        #{updateTime}
-			    )
+			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
+			    );
 			""")
 	int insert(NoGoalMatchStatisticsEntity entity);
 

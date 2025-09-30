@@ -11,7 +11,6 @@ public interface BookDataRepository {
 
 	@Insert("""
 			    INSERT INTO data (
-			        seq,
 			        condition_result_data_seq_id,
 			        data_category,
 			        times,
@@ -112,7 +111,6 @@ public interface BookDataRepository {
 			        update_id,
 			        update_time
 			    ) VALUES (
-			        #{seq},
 			        #{conditionResultDataSeqId},
 			        #{dataCategory},
 			        #{times},
@@ -208,10 +206,7 @@ public interface BookDataRepository {
 			        #{awayTeamStyle},
 			        #{probablity},
 			        #{predictionScoreTime},
-			        #{registerId},
-			       	#{registerTime},
-			       	#{updateId},
-			       	#{updateTime}
+			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz));
 			    )
 			""")
 	int insert(DataEntity entity);

@@ -10,7 +10,6 @@ public interface MatchClassificationResultRepository {
 
 	@Insert("""
 			    INSERT INTO match_classification_result (
-			        id,
 			        classify_mode,
 			        data_category,
 			        times,
@@ -111,7 +110,6 @@ public interface MatchClassificationResultRepository {
 			        update_id,
 			        update_time
 			    ) VALUES (
-			        #{id},
 			        #{classifyMode},
 			        #{dataCategory},
 			        #{times},
@@ -175,7 +173,7 @@ public interface MatchClassificationResultRepository {
 			        #{awayClearCount},
 			        #{homeInterceptCount},
 			        #{awayInterceptCount},
-			        #{recordTime},
+			        CAST(#{recordTime} AS timestamp),
 			        #{weather},
 			        #{temparature},
 			        #{humid},
@@ -207,11 +205,8 @@ public interface MatchClassificationResultRepository {
 			        #{awayTeamStyle},
 			        #{probablity},
 			        #{predictionScoreTime},
-			        #{registerId},
-			       #{registerTime},
-			       #{updateId},
-			       #{updateTime}
-			    )
+			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
+			    );
 			""")
 	int insert(MatchClassificationResultEntity entity);
 }

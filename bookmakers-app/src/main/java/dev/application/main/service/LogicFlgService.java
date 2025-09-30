@@ -81,11 +81,16 @@ public class LogicFlgService {
 		this.countryList = TableUtil.getCountryList();
 		this.categoryList = TableUtil.getCategoryList();
 
-		// 更新
-		for (ConditionData dto : stat) {
-			String country = dto.getCountry();
-			String league = dto.getLeague();
-			logicFlgUpdate(country, league, LOGIC_FLG_0);
+		// 更新(データが空の場合は制限をかけていないため全てフラグ0にする)
+		logicFlgAllUpdate(LOGIC_FLG_1);
+		if (!stat.isEmpty()) {
+			for (ConditionData dto : stat) {
+				String country = dto.getCountry();
+				String league = dto.getLeague();
+				logicFlgUpdate(country, league, LOGIC_FLG_0);
+			}
+		} else {
+			logicFlgAllUpdate(LOGIC_FLG_0);
 		}
 
 		// endLog
@@ -114,7 +119,7 @@ public class LogicFlgService {
 	 * 更新メソッド
 	 */
 	private synchronized void logicFlgUpdate(String country, String league, String flg) {
-		final String METHOD_NAME = "update";
+		final String METHOD_NAME = "logicFlgUpdate";
 		for (String table : this.countryList) {
 			String fillChar = setLoggerFillChar(
 					country,
@@ -149,6 +154,32 @@ public class LogicFlgService {
 						messageCd,
 						1, result,
 						String.format("country=%s, league=%s, table=%s", country, league, table));
+			}
+			String messageCd = "更新件数";
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "更新件数: 1件");
+		}
+	}
+
+	/**
+	 * 更新メソッド
+	 */
+	private synchronized void logicFlgAllUpdate(String flg) {
+		final String METHOD_NAME = "logicFlgAllUpdate";
+		for (String table : this.countryList) {
+			String fillChar = setLoggerFillChar(
+					"",
+					"",
+					table);
+			int result = this.logicFlgRepository.updateAllLogicFlg(
+					table, flg);
+			if (result != 1) {
+				String messageCd = "更新エラー";
+				this.rootCauseWrapper.throwUnexpectedRowCount(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						messageCd,
+						1, result,
+						String.format("table=%s", table));
 			}
 			String messageCd = "更新件数";
 			this.manageLoggerComponent.debugInfoLog(

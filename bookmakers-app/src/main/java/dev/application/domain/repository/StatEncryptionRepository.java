@@ -14,7 +14,7 @@ public interface StatEncryptionRepository {
 
 	 @Insert({
 	        "INSERT INTO stat_encryption (",
-	        "id, country, league, home, away, team, chk_body,",
+	        "country, league, home, away, team, chk_body,",
 	        "home_exp_info, away_exp_info,",
 	        "home_in_goal_exp_info, away_in_goal_exp_info,",
 	        "home_donation_info, away_donation_info,",
@@ -54,7 +54,7 @@ public interface StatEncryptionRepository {
 	        "away_intercept_count_info,",
 	        "register_id, register_time, update_id, update_time",
 	        ") VALUES (",
-	        "#{id}, #{country}, #{league}, #{home}, #{away}, #{team}, #{chkBody},",
+	        "#{country}, #{league}, #{home}, #{away}, #{team}, #{chkBody},",
 	        "#{homeExpInfo}, #{awayExpInfo},",
 	        "#{homeInGoalExpInfo}, #{awayInGoalExpInfo},",
 	        "#{homeDonationInfo}, #{awayDonationInfo},",
@@ -89,7 +89,7 @@ public interface StatEncryptionRepository {
 	        "#{homeClearCountInfo}, #{awayClearCountInfo},",
 	        "#{homeDuelCountInfo}, #{awayDuelCountInfo},",
 	        "#{homeInterceptCountInfo}, #{awayInterceptCountInfo},",
-	        "#{registerId}, #{registerTime}, #{updateId}, #{updateTime}",
+	        "#{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)",
 	        ")"
 	    })
 	    int insert(StatEncryptionEntity entity);

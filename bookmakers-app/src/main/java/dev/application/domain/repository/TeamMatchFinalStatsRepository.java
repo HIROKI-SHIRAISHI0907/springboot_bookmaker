@@ -112,7 +112,7 @@ public interface TeamMatchFinalStatsRepository {
             #{oppositeGameFinRank},
             #{exp},
             #{oppositeExp},
-            #{inGoalexp},
+            #{inGoalExp},
             #{oppositeInGoalExp},
             #{donation},
             #{oppositeDonation},
@@ -191,11 +191,8 @@ public interface TeamMatchFinalStatsRepository {
     		#{weather},
     		#{temperature},
     		#{humid},
-    		#{registerId},
-    		#{registerTime},
-    		#{updateId},
-    		#{updateTime}
-        )
+    		#{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
+        );
     """)
     int insert(TeamMatchFinalStatsEntity entity);
 }

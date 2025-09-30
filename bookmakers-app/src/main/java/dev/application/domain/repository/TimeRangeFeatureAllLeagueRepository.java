@@ -13,7 +13,6 @@ public interface TimeRangeFeatureAllLeagueRepository {
 
 	@Insert("""
 			    INSERT INTO #{tableName} (
-			        id,
 			        timeRange,
 			        feature,
 			        thresHold,
@@ -25,7 +24,6 @@ public interface TimeRangeFeatureAllLeagueRepository {
 			        update_id,
 			        update_time
 			    ) VALUES (
-			        #{id},
 			        #{country},
 			        #{league},
 			        #{timeRange},
@@ -34,10 +32,7 @@ public interface TimeRangeFeatureAllLeagueRepository {
 			        #{target},
 			        #{search},
 			        #{ratio},
-			        #{registerId},
-			        #{registerTime},
-			        #{updateId},
-			        #{updateTime}
+			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
 			    )
 			""")
 	int insert(TimeRangeFeatureAllLeagueEntity entity);

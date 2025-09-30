@@ -63,10 +63,7 @@ public interface TeamMonthlyScoreSummaryRepository {
           #{octoberScoreSumCount},
           #{novemberScoreSumCount},
           #{decemberScoreSumCount},
-          #{registerId},
-          #{registerTime},
-          #{updateId},
-          #{updateTime}
+          #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
         )
         </script>
         """)

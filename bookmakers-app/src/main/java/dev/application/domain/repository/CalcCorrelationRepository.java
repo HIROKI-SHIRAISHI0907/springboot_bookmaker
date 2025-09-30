@@ -14,7 +14,7 @@ public interface CalcCorrelationRepository {
 
     @Insert({
         "INSERT INTO calc_correlation (",
-        "id, file, country, league, home, away, score, chk_body,",
+        "file, country, league, home, away, score, chk_body,",
         "home_exp_info, away_exp_info,",
         "home_in_goal_exp_info, away_in_goal_exp_info,",
         "home_donation_info, away_donation_info,",
@@ -66,7 +66,7 @@ public interface CalcCorrelationRepository {
         "away_intercept_count_info,",
         "register_id, register_time, update_id, update_time",
         ") VALUES (",
-        "#{id}, #{file}, #{country}, #{league}, #{home}, #{away}, #{score}, #{chkBody},",
+        "#{file}, #{country}, #{league}, #{home}, #{away}, #{score}, #{chkBody},",
         "#{homeExpInfo}, #{awayExpInfo},",
         "#{homeInGoalExpInfo}, #{awayInGoalExpInfo},",
         "#{homeDonationInfo}, #{awayDonationInfo},",
@@ -98,8 +98,8 @@ public interface CalcCorrelationRepository {
         "#{awayTackleCountInfoOnSuccessRatio}, #{awayTackleCountInfoOnSuccessCount}, #{awayTackleCountInfoOnTryCount},",
         "#{homeClearCountInfo}, #{awayClearCountInfo},",
         "#{homeInterceptCountInfo}, #{awayInterceptCountInfo},",
-        "#{registerId}, #{registerTime}, #{updateId}, #{updateTime}",
-        ")"
+        "#{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)",
+        ");"
     })
     int insert(CalcCorrelationEntity entity);
 

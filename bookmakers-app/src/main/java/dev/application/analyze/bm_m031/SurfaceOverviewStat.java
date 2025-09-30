@@ -501,7 +501,7 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		// まずはカテゴリ文字列から直接「ラウンド N」を取る
 		Integer n = parseRoundFromGameTeamCategory(cat);
 		if (n != null) {
-			if (n > roundMax) {
+			if (roundMax != null && n > roundMax) {
 				String messageCd = "ラウンド番号が異常値";
 				this.rootCauseWrapper.throwUnexpectedRowCount(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME,

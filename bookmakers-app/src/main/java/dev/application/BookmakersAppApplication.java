@@ -7,7 +7,8 @@ import org.springframework.context.annotation.ComponentScan;
 @SpringBootApplication
 @ComponentScan(basePackages = {
 		"dev.application",
-		"dev.common" // ← これを追加
+		"dev.common", // ← これを追加
+		"dev.mng"
 })
 //@EnableScheduling
 public class BookmakersAppApplication {

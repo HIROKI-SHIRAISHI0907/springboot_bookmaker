@@ -27,10 +27,7 @@ public interface CountryLeagueSummaryRepository {
 			        #{league},
 			        #{dataCount},
 			        #{csvCount},
-			        #{registerId},
-			        #{registerTime},
-			        #{updateId},
-			        #{updateTime}
+			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
 			    )
 			""")
 	int insert(CountryLeagueSummaryEntity entity);

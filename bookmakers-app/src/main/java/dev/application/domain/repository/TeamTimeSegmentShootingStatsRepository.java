@@ -18,7 +18,6 @@ public interface TeamTimeSegmentShootingStatsRepository {
 	 */
 	@Insert("""
 			    INSERT INTO team_time_segment_shooting_stat (
-			    	id,
 			        data_category,
 			        team_name,
 			        away_team_name,
@@ -115,7 +114,6 @@ public interface TeamTimeSegmentShootingStatsRepository {
 			        update_id,
 			        update_time
 			    ) VALUES (
-			    	#{id},
 			        #{dataCategory},
 			        #{teamName},
 			        #{awayTeamName},
@@ -207,10 +205,7 @@ public interface TeamTimeSegmentShootingStatsRepository {
 			        #{team71to80MeanRedCardCount},
 			        #{team81to90MeanRedCardCount},
 			        #{teamAddiMeanRedCardCount},
-			        #{registerId},
-			        #{registerTime},
-			        #{updateId},
-			        #{updateTime}
+			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
 			    )
 			""")
 	int insert(TeamTimeSegmentShootingStatsEntity entity);

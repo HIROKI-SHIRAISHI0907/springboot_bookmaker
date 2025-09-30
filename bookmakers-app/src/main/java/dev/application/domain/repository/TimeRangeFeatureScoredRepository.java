@@ -13,7 +13,6 @@ public interface TimeRangeFeatureScoredRepository {
 
 	@Insert("""
 			    INSERT INTO #{tableName} (
-			        id,
 			        country,
 			        league,
 			        timeRange,
@@ -27,17 +26,13 @@ public interface TimeRangeFeatureScoredRepository {
 			        update_id,
 			        update_time
 			    ) VALUES (
-			        #{id},
 			        #{timeRange},
 			        #{feature},
 			        #{thresHold},
 			        #{target},
 			        #{search},
 			        #{ratio},
-			        #{registerId},
-			        #{registerTime},
-			        #{updateId},
-			        #{updateTime}
+			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
 			    )
 			""")
 	int insert(TimeRangeFeatureScoredEntity entity);

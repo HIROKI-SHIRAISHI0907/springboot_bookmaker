@@ -14,11 +14,11 @@ public interface CountryLeagueSeasonMasterRepository {
 
 	@Insert({
 			"INSERT INTO country_league_season_master (",
-			"id, country, league, start_season_date, end_season_date, round, path, upd_stamp, valid_flg, ",
+			"country, league, start_season_date, end_season_date, round, path, upd_stamp, valid_flg, ",
 			"register_id, register_time, update_id, update_time) VALUES (",
-			"#{id}, #{country}, #{league}, #{startSeasonDate}, "
+			"#{country}, #{league}, #{startSeasonDate}, "
 					+ "#{endSeasonDate}, #{round}, #{path}, #{updStamp}, #{validFlg}, ",
-			"#{registerId}, #{registerTime}, #{updateId}, #{updateTime});"
+			"#{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz));"
 	})
 	int insert(CountryLeagueSeasonMasterEntity entity);
 

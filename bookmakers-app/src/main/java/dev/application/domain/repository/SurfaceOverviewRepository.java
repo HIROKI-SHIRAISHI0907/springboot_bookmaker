@@ -18,7 +18,7 @@ public interface SurfaceOverviewRepository {
 	@Insert("""
 			<script>
 			INSERT INTO surface_overview (
-			  id, country, league, game_year, game_month, team,
+			  country, league, game_year, game_month, team,
 			  games, rank, win, lose, draw, winning_points,
 			  home_1st_half_score, home_2nd_half_score, home_sum_score,
 			  home_1st_half_score_ratio, home_2nd_half_score_ratio, home_clean_sheet,
@@ -46,7 +46,7 @@ public interface SurfaceOverviewRepository {
 			  promote_disp, descend_disp, first_win_disp, lose_streak_disp, round_conc,
 			  register_id, register_time, update_id, update_time
 			) VALUES (
-			  #{id}, #{country}, #{league}, #{gameYear}, #{gameMonth}, #{team},
+			  #{country}, #{league}, #{gameYear}, #{gameMonth}, #{team},
 			  #{games}, #{rank}, #{win}, #{lose}, #{draw}, #{winningPoints},
 			  #{home1stHalfScore}, #{home2ndHalfScore}, #{homeSumScore},
 			  #{home1stHalfScoreRatio}, #{home2ndHalfScoreRatio}, #{homeCleanSheet},
@@ -72,7 +72,7 @@ public interface SurfaceOverviewRepository {
 			  #{awayWinBehindOtherCount}, #{awayLoseBehindOtherCount},
 			  #{awayAdversityDisp},
 			  #{promoteDisp}, #{descendDisp}, #{firstWinDisp}, #{loseStreakDisp}, #{roundConc},
-			  #{registerId}, #{registerTime}, #{updateId}, #{updateTime}
+			  #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz));
 			)
 			</script>
 			""")
@@ -80,85 +80,85 @@ public interface SurfaceOverviewRepository {
 
 	@Lang(XMLLanguageDriver.class)
 	@Select("""
-			<script>
-			SELECT
-			  id,
-			  country,
-			  league,
-			  game_year,
-			  game_month,
-			  team,
-			  games,
-			  rank,
-			  win,
-			  lose,
-			  draw,
-			  winning_points,
-			  home_1st_half_score,
-			  home_2nd_half_score,
-			  home_sum_score,
-			  home_1st_half_score_ratio,
-			  home_2nd_half_score_ratio,
-			  home_clean_sheet,
-			  away_1st_half_score,
-			  away_2nd_half_score,
-			  away_sum_score,
-			  away_1st_half_score_ratio,
-			  away_2nd_half_score_ratio,
-			  away_clean_sheet,
-			  fail_to_score_game_count,
-			  consecutive_win_disp,
-			  consecutive_lose_disp,
-			  unbeaten_streak_count,
-			  unbeaten_streak_disp,
-			  consecutive_score_count,
-			  consecutive_score_count_disp,
-			  first_week_game_win_count,
-			  first_week_game_lost_count,
-			  first_week_game_win_disp,
-			  mid_week_game_win_count,
-			  mid_week_game_lost_count,
-			  mid_week_game_win_disp,
-			  last_week_game_win_count,
-			  last_week_game_lost_count,
-			  last_week_game_win_disp,
-			  home_win_count,
-			  home_lose_count,
-			  home_first_goal_count,
-			  home_win_behind_count,
-			  home_lose_behind_count,
-			  home_win_behind_0vs1_count,
-			  home_lose_behind_1vs0_count,
-			  home_win_behind_0vs2_count,
-			  home_lose_behind_2vs0_count,
-			  home_win_behind_other_count,
-			  home_lose_behind_other_count,
-			  home_adversity_disp,
-			  away_win_count,
-			  away_lose_count,
-			  away_first_goal_count,
-			  away_win_behind_count,
-			  away_lose_behind_count,
-			  away_win_behind_1vs0_count,
-			  away_lose_behind_0vs1_count,
-			  away_win_behind_2vs0_count,
-			  away_lose_behind_0vs2_count,
-			  away_win_behind_other_count,
-			  away_lose_behind_other_count,
-			  away_adversity_disp,
-			  promote_disp,
-			  descend_disp,
-			  first_win_disp,
-			  lose_streak_disp,
-			  round_conc
-			FROM surface_overview
-			WHERE country = #{country}
-			  AND league  = #{league}
-			    AND team = #{team}
-			    AND game_year = #{gameYear}
-			    AND game_month = #{gameMonth};
-			    </script>
-			""")
+						<script>
+						SELECT
+						  id,
+						  country,
+						  league,
+						  game_year,
+						  game_month,
+						  team,
+						  games,
+						  rank,
+						  win,
+						  lose,
+						  draw,
+						  winning_points,
+						  home_1st_half_score,
+						  home_2nd_half_score,
+						  home_sum_score,
+						  home_1st_half_score_ratio,
+						  home_2nd_half_score_ratio,
+						  home_clean_sheet,
+						  away_1st_half_score,
+						  away_2nd_half_score,
+						  away_sum_score,
+						  away_1st_half_score_ratio,
+						  away_2nd_half_score_ratio,
+						  away_clean_sheet,
+						  fail_to_score_game_count,
+						  consecutive_win_disp,
+						  consecutive_lose_disp,
+						  unbeaten_streak_count,
+						  unbeaten_streak_disp,
+						  consecutive_score_count,
+						  consecutive_score_count_disp,
+						  first_week_game_win_count,
+						  first_week_game_lost_count,
+						  first_week_game_win_disp,
+						  mid_week_game_win_count,
+						  mid_week_game_lost_count,
+						  mid_week_game_win_disp,
+						  last_week_game_win_count,
+						  last_week_game_lost_count,
+						  last_week_game_win_disp,
+						  home_win_count,
+						  home_lose_count,
+						  home_first_goal_count,
+						  home_win_behind_count,
+						  home_lose_behind_count,
+						  home_win_behind_0vs1_count,
+						  home_lose_behind_1vs0_count,
+						  home_win_behind_0vs2_count,
+						  home_lose_behind_2vs0_count,
+						  home_win_behind_other_count,
+						  home_lose_behind_other_count,
+						  home_adversity_disp,
+						  away_win_count,
+						  away_lose_count,
+						  away_first_goal_count,
+						  away_win_behind_count,
+						  away_lose_behind_count,
+						  away_win_behind_1vs0_count,
+						  away_lose_behind_0vs1_count,
+						  away_win_behind_2vs0_count,
+						  away_lose_behind_0vs2_count,
+						  away_win_behind_other_count,
+						  away_lose_behind_other_count,
+						  away_adversity_disp,
+						  promote_disp,
+						  descend_disp,
+						  first_win_disp,
+						  lose_streak_disp,
+						  round_conc
+						FROM surface_overview
+						WHERE country = #{country}
+						  AND league  = #{league}
+						    AND team = #{team}
+						    AND game_year  = #{gameYear}
+							AND game_month = #{gameMonth}
+						    </script>
+						""")
 	List<SurfaceOverviewEntity> select(String country, String league, String gameYear, String gameMonth, String team);
 
 	@Lang(XMLLanguageDriver.class)
@@ -233,7 +233,7 @@ public interface SurfaceOverviewRepository {
 			  first_win_disp = #{firstWinDisp},
 			  lose_streak_disp = #{loseStreakDisp},
 			  round_conc = #{roundConc}
-			WHERE id = #{id}
+			WHERE id = CAST(#{id} AS integer)
 			</script>
 			""")
 	int update(SurfaceOverviewEntity entity);
@@ -318,8 +318,8 @@ public interface SurfaceOverviewRepository {
 			  AND league  = #{league}
 			  AND team    = #{team}
 			ORDER BY
-			    CAST(game_year  AS UNSIGNED),
-			    CAST(game_month AS UNSIGNED)
+			    game_year,
+			    game_month
 			</script>
 			""")
 	List<SurfaceOverviewEntity> selectAllMonthsByTeam(String country, String league, String team);

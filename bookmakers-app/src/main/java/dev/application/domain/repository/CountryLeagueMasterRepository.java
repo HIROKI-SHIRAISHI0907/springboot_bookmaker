@@ -13,7 +13,6 @@ public interface CountryLeagueMasterRepository {
 
 	@Insert("""
 			    INSERT INTO country_league_master (
-			    	id,
 			        country,
 			        league,
 			        team,
@@ -23,15 +22,11 @@ public interface CountryLeagueMasterRepository {
 			        update_id,
 			        update_time
 			    ) VALUES (
-			    	#{id},
 			        #{country},
 			        #{league},
 			        #{team},
 			        #{link},
-			        #{registerId},
-			        #{registerTime},
-			        #{updateId},
-			        #{updateTime}
+			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz));
 			    )
 			""")
 	int insert(CountryLeagueMasterEntity entity);

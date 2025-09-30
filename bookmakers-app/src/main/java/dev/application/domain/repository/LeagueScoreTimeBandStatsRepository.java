@@ -14,7 +14,6 @@ public interface LeagueScoreTimeBandStatsRepository {
 
 	@Insert("""
 			    INSERT INTO league_score_time_band_stats (
-			        id,
 			        country,
 			        league,
 			        sum_score_value,
@@ -27,7 +26,6 @@ public interface LeagueScoreTimeBandStatsRepository {
 			        update_id,
 			        update_time
 			    ) VALUES (
-			        #{id},
 			        #{country},
 			        #{league},
 			        #{sumScoreValue},
@@ -35,11 +33,8 @@ public interface LeagueScoreTimeBandStatsRepository {
 			        #{target},
 			        #{search},
 			        #{ratio},
-			        #{registerId},
-			        #{registerTime},
-			        #{updateId},
-			        #{updateTime}
-			    )
+			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
+			    );
 			""")
 	int insert(LeagueScoreTimeBandStatsEntity entity);
 

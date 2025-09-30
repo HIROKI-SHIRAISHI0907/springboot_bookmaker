@@ -48,5 +48,15 @@ public interface LogicFlgRepository {
 	    @Param("league") String league,
 	    @Param("logicFlg") String logicFlg);
 
+	@Lang(XMLLanguageDriver.class)
+	@Update("""
+	  <script>
+	    UPDATE ${table}
+	    SET logic_flg = #{logicFlg}
+	  </script>
+	""")
+	int updateAllLogicFlg(
+	    @Param("table") String table,
+	    @Param("logicFlg") String logicFlg);
 
 }

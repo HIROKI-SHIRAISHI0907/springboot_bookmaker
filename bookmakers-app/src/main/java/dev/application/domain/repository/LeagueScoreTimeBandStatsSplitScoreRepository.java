@@ -14,7 +14,6 @@ public interface LeagueScoreTimeBandStatsSplitScoreRepository {
 
 	@Insert("""
 			    INSERT INTO league_score_time_band_stats_split_score (
-			        id,
 			        country,
 			        league,
 			        home_score_value,
@@ -29,7 +28,6 @@ public interface LeagueScoreTimeBandStatsSplitScoreRepository {
 			        update_id,
 			        update_time
 			    ) VALUES (
-			        #{id},
 			        #{country},
 			        #{league},
 			        #{homeScoreValue},
@@ -39,11 +37,8 @@ public interface LeagueScoreTimeBandStatsSplitScoreRepository {
 			        #{target},
 			        #{search},
 			        #{ratio},
-			        #{registerId},
-			        #{registerTime},
-			        #{updateId},
-			        #{updateTime}
-			    )
+			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
+			    );
 			""")
 	int insert(LeagueScoreTimeBandStatsSplitScoreEntity entity);
 

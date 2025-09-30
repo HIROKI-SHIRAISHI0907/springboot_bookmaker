@@ -197,10 +197,7 @@ public interface TimeRangeFeatureRepository {
             #{goalTime},
             #{goalTeamMember},
             #{judge},
-            #{homeTeamStyle},
-            #{awayTeamStyle},
-            #{probablity},
-            #{predictionScoreTime}
+            #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
         )
     """)
     int insert(TimeRangeFeatureEntity entity);

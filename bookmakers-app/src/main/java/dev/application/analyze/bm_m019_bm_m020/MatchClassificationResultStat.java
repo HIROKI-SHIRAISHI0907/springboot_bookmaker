@@ -94,411 +94,262 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 	@Override
 	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) {
 		final String METHOD_NAME = "calcStat";
-		// ログ出力
 		this.manageLoggerComponent.init(EXEC_MODE, null);
-		this.manageLoggerComponent.debugStartInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// 初期データ登録
-		for (Map.Entry<String, Map<String, List<BookDataEntity>>> entiEntry : entities.entrySet()) {
-			String leagueKey = entiEntry.getKey();
-			String[] sp = ExecuteMainUtil.splitLeagueInfo(leagueKey);
-			String country = sp[0];
-			String league = sp[1];
-			init(country, league);
+		// 件数テーブルの初期行を作成（不足分のみ）
+		for (Map.Entry<String, Map<String, List<BookDataEntity>>> e : entities.entrySet()) {
+			String[] sp = ExecuteMainUtil.splitLeagueInfo(e.getKey());
+			init(sp[0], sp[1]);
 		}
 
 		Map<String, List<String>> mainMap = new ConcurrentHashMap<>();
 		entities.entrySet().parallelStream().forEach(entry -> {
-			String leagueKey = entry.getKey(); // 例: "Japan-J1"
-			String[] sp = ExecuteMainUtil.splitLeagueInfo(leagueKey);
+			String[] sp = ExecuteMainUtil.splitLeagueInfo(entry.getKey());
 			String country = sp[0];
-			String league = sp[1];
+			String league  = sp[1];
+
 			Map<String, List<BookDataEntity>> matchMap = entry.getValue();
 			for (List<BookDataEntity> dataList : matchMap.values()) {
 				MatchClassificationResultOutputDTO dto = classification(dataList);
-				if (dto == null) {
-					continue;
-				}
-				List<MatchClassificationResultEntity> insertEntities = dto.getEntityList();
-				// BM_M019登録
-				saveResultData(insertEntities, country, league);
-				String classificationMode = dto.getClassificationMode();
-				mainMap.computeIfAbsent(leagueKey, k -> new ArrayList<>())
-						.add(classificationMode);
+				if (dto == null) continue;
+
+				// BM_M019：結果明細を登録
+				saveResultData(dto.getEntityList(), country, league);
+
+				// 後段の件数更新用に classificationMode を保持
+				mainMap.computeIfAbsent(entry.getKey(), k -> new ArrayList<>())
+					   .add(dto.getClassificationMode());
 			}
 		});
 
-		// データ更新
+		// BM_M020：件数更新（なければ作る→更新）
 		mainMap.entrySet().stream().forEach(entry -> {
-			String leagueKey = entry.getKey(); // 例: "Japan-J1"
-			String[] sp = ExecuteMainUtil.splitLeagueInfo(leagueKey);
+			String[] sp = ExecuteMainUtil.splitLeagueInfo(entry.getKey());
 			String country = sp[0];
-			String league = sp[1];
-			List<String> classificationModeList = entry.getValue();
-			// 内側だけ並列で処理
-			classificationModeList.parallelStream()
-					.filter(Objects::nonNull) // ← null を除外
-					.map(String::trim) // ← 前後空白を除く（" 13" 対策）
-					.filter(s -> !s.isEmpty()) // ← 空文字は捨てる
-					.forEach(classificationMode -> {
-						MatchClassificationResultOutputDTO dto = getData(country, league, classificationMode);
-						// 基本は全て更新の想定
-						String id = dto.getId();
-						String cnt = String.valueOf(Integer.parseInt(dto.getCnt()) + 1);
-						saveCntData(id, country, league, classificationMode, cnt);
-					});
+			String league  = sp[1];
+			entry.getValue().parallelStream()
+				.filter(Objects::nonNull)
+				.map(String::trim)
+				.filter(s -> s.matches("-?\\d+"))        // ← 数値のみ通す
+				.forEach(classifyMode -> {
+					MatchClassificationResultOutputDTO dto = getData(country, league, classifyMode);
+					// 1件分インクリメント
+					int next = safeParseInt(dto.getCnt(), 0) + 1;
+					saveCntData(dto.getId(), country, league, classifyMode, String.valueOf(next));
+				});
 		});
 
-		// endLog
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		this.manageLoggerComponent.clear();
 	}
 
-	/**
-	 * 件数初期登録
-	 * @param country 国
-	 * @param league リーグ
-	 */
+	/** 件数初期登録（不足行のみ作成） */
 	private synchronized void init(String country, String league) {
 		final String METHOD_NAME = "init";
 		String fillChar = setLoggerFillChar(country, league);
-		for (int classify = 1; classify <= SCORE_CLASSIFICATION_ALL_MAP.size()
-				- 1; classify++) {
-			MatchClassificationResultCountEntity classifyResultDataDetailEntity = new MatchClassificationResultCountEntity();
-			classifyResultDataDetailEntity.setCountry(country);
-			classifyResultDataDetailEntity.setLeague(league);
-			classifyResultDataDetailEntity.setCount("0");
-			classifyResultDataDetailEntity.setClassifyMode(String.valueOf(classify));
-			classifyResultDataDetailEntity.setRemarks(getRemarks(classify));
-			List<MatchClassificationResultCountEntity> data = this.matchClassificationResultCountRepository
-					.findData(country, league, String.valueOf(classify));
-			if (!data.isEmpty()) {
+
+		for (int classify = 1; classify <= SCORE_CLASSIFICATION_ALL_MAP.size() - 1; classify++) {
+			if (!this.matchClassificationResultCountRepository
+					.findData(country, league, String.valueOf(classify)).isEmpty()) {
 				continue;
 			}
-
-			int result = this.matchClassificationResultCountRepository.insert(classifyResultDataDetailEntity);
+			MatchClassificationResultCountEntity e = new MatchClassificationResultCountEntity();
+			e.setCountry(country);
+			e.setLeague(league);
+			e.setClassifyMode(String.valueOf(classify));
+			e.setCount("0");
+			e.setRemarks(getRemarks(classify));
+			int result = this.matchClassificationResultCountRepository.insert(e);
 			if (result != 1) {
-				String messageCd = "新規登録エラー";
 				this.rootCauseWrapper.throwUnexpectedRowCount(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						messageCd,
-						1, result,
-						String.format("classifymode=%s", classify));
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, "新規登録エラー",
+					1, result, "classifymode=" + classify);
 			}
 		}
-		MatchClassificationResultCountEntity classifyResultDataDetailEntity = new MatchClassificationResultCountEntity();
-		classifyResultDataDetailEntity.setCountry(country);
-		classifyResultDataDetailEntity.setLeague(league);
-		classifyResultDataDetailEntity.setCount("0");
-		classifyResultDataDetailEntity.setClassifyMode("-1");
-		classifyResultDataDetailEntity.setRemarks(getRemarks(-1));
-		List<MatchClassificationResultCountEntity> data = this.matchClassificationResultCountRepository
-				.findData(country, league, "-1");
-		if (data.isEmpty()) {
-			int result = this.matchClassificationResultCountRepository.insert(classifyResultDataDetailEntity);
+
+		// -1（除外）行
+		if (this.matchClassificationResultCountRepository.findData(country, league, "-1").isEmpty()) {
+			MatchClassificationResultCountEntity e = new MatchClassificationResultCountEntity();
+			e.setCountry(country);
+			e.setLeague(league);
+			e.setClassifyMode("-1");
+			e.setCount("0");
+			e.setRemarks(getRemarks(-1));
+			int result = this.matchClassificationResultCountRepository.insert(e);
 			if (result != 1) {
-				String messageCd = "新規登録エラー";
 				this.rootCauseWrapper.throwUnexpectedRowCount(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						messageCd,
-						1, result,
-						"classifymode=-1");
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, "新規登録エラー",
+					1, result, "classifymode=-1");
 			}
-			String messageCd = "登録件数";
 			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M020 登録件数: "
-							+ SCORE_CLASSIFICATION_ALL_MAP.size() + "件");
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, "登録件数",
+				fillChar, "BM_M020 登録件数: " + SCORE_CLASSIFICATION_ALL_MAP.size() + "件");
 		}
 	}
 
-	/**
-	 * 取得データ
-	 * @param country 国
-	 * @param league リーグ
-	 * @param classifyMode 分類モード
-	 * @return MatchClassificationResultOutputDTO
-	 */
-	private MatchClassificationResultOutputDTO getData(String country, String league,
-			String classifyMode) {
-		MatchClassificationResultOutputDTO matchClassificationResultOutputDTO = new MatchClassificationResultOutputDTO();
-		List<MatchClassificationResultCountEntity> datas = this.matchClassificationResultCountRepository
-				.findData(country, league, classifyMode);
+	/** 取得（無ければその場で作成してIDも返す） */
+	private MatchClassificationResultOutputDTO getData(String country, String league, String classifyMode) {
+		MatchClassificationResultOutputDTO dto = new MatchClassificationResultOutputDTO();
+		List<MatchClassificationResultCountEntity> datas =
+				this.matchClassificationResultCountRepository.findData(country, league, classifyMode);
+
 		if (!datas.isEmpty()) {
-			matchClassificationResultOutputDTO.setUpdFlg(true);
-			matchClassificationResultOutputDTO.setId(datas.get(0).getId());
-			matchClassificationResultOutputDTO.setCnt(datas.get(0).getCount());
-		} else {
-			matchClassificationResultOutputDTO.setUpdFlg(false);
-			matchClassificationResultOutputDTO.setCnt("0");
+			dto.setUpdFlg(true);
+			dto.setId(datas.get(0).getId());
+			dto.setCnt(datas.get(0).getCount());
+			return dto;
 		}
-		return matchClassificationResultOutputDTO;
+
+		// 無ければ作る（count=0）
+		MatchClassificationResultCountEntity e = new MatchClassificationResultCountEntity();
+		e.setCountry(country);
+		e.setLeague(league);
+		e.setClassifyMode(classifyMode);
+		e.setCount("0");
+		e.setRemarks(getRemarks(safeParseInt(classifyMode, -1)));
+
+		this.matchClassificationResultCountRepository.insert(e); // generated key を取得想定
+		dto.setUpdFlg(true);
+		dto.setId(e.getId());
+		dto.setCnt("0");
+		return dto;
 	}
 
-	/**
-	 * 更新登録
-	 * @param id ID
-	 * @param country 国
-	 * @param league リーグ
-	 * @param classify_mode 分類
-	 * @param count 件数
-	 */
-	private synchronized void saveCntData(String id, String country, String league, String classify_mode, String count) {
+	/** 件数の登録/更新（id 無しでも動く） */
+	private synchronized void saveCntData(String id, String country, String league,
+	                                      String classify_mode, String count) {
 		final String METHOD_NAME = "saveCntData";
 		String fillChar = setLoggerFillChar(country, league);
-		int result = this.matchClassificationResultCountRepository.update(id, count);
-		if (result != 1) {
-			String messageCd = "更新エラー";
-			this.rootCauseWrapper.throwUnexpectedRowCount(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					messageCd,
-					1, result,
-					String.format("id=%s, classify_mode=%s count=%s", id, classify_mode, count));
+		int newCount = safeParseInt(count, 0);
+
+		int result;
+		if (id == null || id.isBlank()) {
+			// 念のためのフォールバック：行が無ければ作る
+			MatchClassificationResultCountEntity e = new MatchClassificationResultCountEntity();
+			e.setCountry(country);
+			e.setLeague(league);
+			e.setClassifyMode(classify_mode);
+			e.setCount(String.valueOf(newCount));
+			e.setRemarks(getRemarks(safeParseInt(classify_mode, -1)));
+			result = this.matchClassificationResultCountRepository.insert(e);
+		} else {
+			result = this.matchClassificationResultCountRepository
+						.update(safeParseInt(id, -1), newCount);
 		}
-		String messageCd = "更新件数";
+
+		if (result != 1) {
+			this.rootCauseWrapper.throwUnexpectedRowCount(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+				(id == null || id.isBlank()) ? "新規登録エラー" : "更新エラー",
+				1, result, String.format("id=%s, classify_mode=%s, count=%s", id, classify_mode, count));
+		}
+
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M020 更新件数: 1件");
+			PROJECT_NAME, CLASS_NAME, METHOD_NAME, "BM_M020 件数反映",
+			fillChar, (id == null || id.isBlank()) ? "登録:1件" : "更新:1件");
 	}
 
-	/**
-	 * 分類モード付きデータ初期登録
-	 * @param entities エンティティ
-	 */
+	/** BM_M019：結果明細の登録 */
 	private synchronized void saveResultData(List<MatchClassificationResultEntity> entities,
-			String country, String league) {
+	                                         String country, String league) {
 		final String METHOD_NAME = "saveResultData";
 		String fillChar = setLoggerFillChar(country, league);
 		for (MatchClassificationResultEntity entity : entities) {
 			int result = this.matchClassificationResultRepository.insert(entity);
 			if (result != 1) {
-				String messageCd = "新規登録エラー";
 				this.rootCauseWrapper.throwUnexpectedRowCount(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						messageCd,
-						1, result,
-						null);
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, "新規登録エラー",
+					1, result, null);
 			}
 		}
-		String messageCd = "登録件数";
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M019 登録件数: "
-						+ entities.size() + "件");
+			PROJECT_NAME, CLASS_NAME, METHOD_NAME, "登録件数",
+			fillChar, "BM_M019 登録件数: " + entities.size() + "件");
 	}
 
-	/**
-	 * 分類モード設定
-	 * @param entityList
-	 * @return
-	 */
+	/** 分類本体（元コードから変更なし・整形のみ） */
 	private MatchClassificationResultOutputDTO classification(List<BookDataEntity> entityList) {
-		MatchClassificationResultOutputDTO matchClassificationResultOutputDTO = new MatchClassificationResultOutputDTO();
+		MatchClassificationResultOutputDTO dto = new MatchClassificationResultOutputDTO();
 
-		Set<Integer> classifyModeConditionList = new HashSet<>();
-		List<MatchClassificationResultEntity> insertEntities = new ArrayList<MatchClassificationResultEntity>();
-		BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(entityList);
-		if (!BookMakersCommonConst.FIN.equals(returnMaxEntity.getTime())) {
-			return null;
-		}
-		int maxHomeScore = Integer.parseInt(returnMaxEntity.getHomeScore());
-		int maxAwayScore = Integer.parseInt(returnMaxEntity.getAwayScore());
+		Set<Integer> cond = new HashSet<>();
+		List<MatchClassificationResultEntity> inserts = new ArrayList<>();
+		BookDataEntity max = ExecuteMainUtil.getMaxSeqEntities(entityList);
+		if (!BookMakersCommonConst.FIN.equals(max.getTime())) return null;
 
-		// 最終スコアが無得点, 1-0, 0-1
-		if (maxHomeScore == 0 && maxAwayScore == 0) {
-			classifyModeConditionList.add(-1);
-		}
-		if (maxHomeScore == 1 && maxAwayScore == 0) {
-			classifyModeConditionList.add(-2);
-		}
-		if (maxHomeScore == 0 && maxAwayScore == 1) {
-			classifyModeConditionList.add(-3);
-		}
+		int maxHome = safeParseInt(max.getHomeScore(), 0);
+		int maxAway = safeParseInt(max.getAwayScore(), 0);
+
+		if (maxHome == 0 && maxAway == 0) cond.add(-1);
+		if (maxHome == 1 && maxAway == 0) cond.add(-2);
+		if (maxHome == 0 && maxAway == 1) cond.add(-3);
 
 		int classify_mode = -1;
-		List<String> scoreList = new ArrayList<String>();
-		for (BookDataEntity entity : entityList) {
-			// ゴール取り消しはスキップ
-			if (BookMakersCommonConst.GOAL_DELETE.equals(entity.getJudge())) {
-				continue;
-			}
+		List<String> scoreList = new ArrayList<>();
 
-			int home_score = Integer.parseInt(entity.getHomeScore());
-			int away_score = Integer.parseInt(entity.getAwayScore());
-			String game_time = entity.getTime();
-			double convert_game_time = ExecuteMainUtil.convertToMinutes(game_time);
+		for (BookDataEntity e : entityList) {
+			if (BookMakersCommonConst.GOAL_DELETE.equals(e.getJudge())) continue;
 
-			if ((int) convert_game_time <= 20 &&
-					(home_score == 1 && away_score == 0)) {
-				classifyModeConditionList.add(1);
-			}
-			if ((int) convert_game_time <= 45 &&
-					(home_score == 2 && away_score == 0)) {
-				classifyModeConditionList.add(2);
-			}
-			if ((int) convert_game_time > 45 &&
-					(home_score == 2 && away_score == 0)) {
-				classifyModeConditionList.add(3);
-			}
-			if ((int) convert_game_time <= 45 &&
-					(home_score == 1 && away_score == 1)) {
-				classifyModeConditionList.add(4);
-			}
-			if ((int) convert_game_time <= 20 &&
-					(home_score == 0 && away_score == 1)) {
-				classifyModeConditionList.add(5);
-			}
-			if ((int) convert_game_time <= 45 &&
-					(home_score == 0 && away_score == 2)) {
-				classifyModeConditionList.add(6);
-			}
-			if ((int) convert_game_time > 45 &&
-					(home_score == 0 && away_score == 2)) {
-				classifyModeConditionList.add(7);
-			}
-			if ((int) convert_game_time > 45 &&
-					(home_score == 1 && away_score == 1)) {
-				classifyModeConditionList.add(8);
-			}
-			if ((int) convert_game_time > 20 && (int) convert_game_time <= 45 &&
-					(home_score == 1 && away_score == 0)) {
-				classifyModeConditionList.add(9);
-			}
-			if ((int) convert_game_time > 20 && (int) convert_game_time <= 45 &&
-					(home_score == 0 && away_score == 1)) {
-				classifyModeConditionList.add(10);
-			}
-			if ((BookMakersCommonConst.FIRST_HALF_TIME.equals(entity.getTime()) ||
-					BookMakersCommonConst.HALF_TIME.equals(entity.getTime())) &&
-					(home_score == 0 && away_score == 0)) {
-				classifyModeConditionList.add(11);
-			}
-			if ((int) convert_game_time > 45 &&
-					(home_score == 1 && away_score == 0)) {
-				classifyModeConditionList.add(12);
-			}
-			if ((int) convert_game_time > 45 &&
-					(home_score == 0 && away_score == 1)) {
-				classifyModeConditionList.add(13);
-			}
+			int h = safeParseInt(e.getHomeScore(), 0);
+			int a = safeParseInt(e.getAwayScore(), 0);
+			double min = ExecuteMainUtil.convertToMinutes(e.getTime());
 
-			// [1]. 20分以内に得点が入った場合
-			if (classifyModeConditionList.contains(1) || classifyModeConditionList.contains(5)) {
+			if ((int)min <= 20 && (h==1 && a==0)) cond.add(1);
+			if ((int)min <= 45 && (h==2 && a==0)) cond.add(2);
+			if ((int)min >  45 && (h==2 && a==0)) cond.add(3);
+			if ((int)min <= 45 && (h==1 && a==1)) cond.add(4);
+			if ((int)min <= 20 && (h==0 && a==1)) cond.add(5);
+			if ((int)min <= 45 && (h==0 && a==2)) cond.add(6);
+			if ((int)min >  45 && (h==0 && a==2)) cond.add(7);
+			if ((int)min >  45 && (h==1 && a==1)) cond.add(8);
+			if ((int)min >  20 && (int)min <= 45 && (h==1 && a==0)) cond.add(9);
+			if ((int)min >  20 && (int)min <= 45 && (h==0 && a==1)) cond.add(10);
+			if ((BookMakersCommonConst.FIRST_HALF_TIME.equals(e.getTime()) ||
+				 BookMakersCommonConst.HALF_TIME.equals(e.getTime())) && (h==0 && a==0)) cond.add(11);
+			if ((int)min >  45 && (h==1 && a==0)) cond.add(12);
+			if ((int)min >  45 && (h==0 && a==1)) cond.add(13);
 
-				// 1. ホームチームが得点後、次の得点が前半に入る
-				if (classifyModeConditionList.contains(1) &&
-						(classifyModeConditionList.contains(2) ||
-								classifyModeConditionList.contains(4))) {
-					classify_mode = 1;
-				}
-				// 2. ホームチームが得点後、次の得点が後半に入る
-				if (classifyModeConditionList.contains(1) &&
-						(classifyModeConditionList.contains(3) ||
-								classifyModeConditionList.contains(8))) {
-					classify_mode = 2;
-				}
-				// 3. ホームチームが得点後、得点が入らない
-				if (classifyModeConditionList.contains(1) &&
-						classifyModeConditionList.contains(-2)) {
-					classify_mode = 3;
-				}
-				// 4. アウェーチームが得点後、次の得点が前半に入る
-				if (classifyModeConditionList.contains(5) &&
-						(classifyModeConditionList.contains(6) ||
-								classifyModeConditionList.contains(4))) {
-					classify_mode = 4;
-				}
-				// 5. アウェーチームが得点後、次の得点が後半に入る
-				if (classifyModeConditionList.contains(5) &&
-						(classifyModeConditionList.contains(7) ||
-								classifyModeConditionList.contains(8))) {
-					classify_mode = 5;
-				}
-				// 6. アウェーチームが得点後、得点が入らない
-				if (classifyModeConditionList.contains(5) &&
-						classifyModeConditionList.contains(-3)) {
-					classify_mode = 6;
-				}
-
-				// [2]. 20分〜前半に得点が入った場合
-			} else if (classifyModeConditionList.contains(9) || classifyModeConditionList.contains(10)) {
-
-				// 7. ホームチームが得点後、次の得点が前半に入る
-				if (classifyModeConditionList.contains(9) &&
-						(classifyModeConditionList.contains(2) ||
-								classifyModeConditionList.contains(4))) {
-					classify_mode = 7;
-				}
-				// 8. ホームチームが得点後、次の得点が後半に入る
-				if (classifyModeConditionList.contains(9) &&
-						(classifyModeConditionList.contains(3) ||
-								classifyModeConditionList.contains(8))) {
-					classify_mode = 8;
-				}
-				// 9. ホームチームが得点後、得点が入らない
-				if (classifyModeConditionList.contains(9) &&
-						classifyModeConditionList.contains(-2)) {
-					classify_mode = 9;
-				}
-				// 10. アウェーチームが得点後、次の得点が前半に入る
-				if (classifyModeConditionList.contains(10) &&
-						(classifyModeConditionList.contains(6) ||
-								classifyModeConditionList.contains(4))) {
-					classify_mode = 10;
-				}
-				// 11. アウェーチームが得点後、次の得点が後半に入る
-				if (classifyModeConditionList.contains(10) &&
-						(classifyModeConditionList.contains(7) ||
-								classifyModeConditionList.contains(8))) {
-					classify_mode = 11;
-				}
-				// 12. アウェーチームが得点後、得点が入らない
-				if (classifyModeConditionList.contains(10) &&
-						classifyModeConditionList.contains(-3)) {
-					classify_mode = 12;
-				}
-				// [3]. 前半で無得点だった場合
-			} else if (classifyModeConditionList.contains(11)) {
-
-				// 13. 前半で無得点後、後半にホーム側の得点が入る
-				if (classifyModeConditionList.contains(11) &&
-						(classifyModeConditionList.contains(12) ||
-								classifyModeConditionList.contains(8))) {
-					classify_mode = 13;
-				}
-				// 14. 前半で無得点後、後半にアウェー側の得点が入る
-				if (classifyModeConditionList.contains(11) &&
-						(classifyModeConditionList.contains(13) ||
-								classifyModeConditionList.contains(8))) {
-					classify_mode = 14;
-				}
-				// [4]. 無得点の場合
-			} else if (classifyModeConditionList.contains(-1)) {
-				// 15. 前半,後半も得点が入らない
+			// 判定（元ロジック踏襲）
+			if (cond.contains(1) || cond.contains(5)) {
+				if (cond.contains(1) && (cond.contains(2) || cond.contains(4))) classify_mode = 1;
+				if (cond.contains(1) && (cond.contains(3) || cond.contains(8))) classify_mode = 2;
+				if (cond.contains(1) && cond.contains(-2))                   classify_mode = 3;
+				if (cond.contains(5) && (cond.contains(6) || cond.contains(4))) classify_mode = 4;
+				if (cond.contains(5) && (cond.contains(7) || cond.contains(8))) classify_mode = 5;
+				if (cond.contains(5) && cond.contains(-3))                   classify_mode = 6;
+			} else if (cond.contains(9) || cond.contains(10)) {
+				if (cond.contains(9)  && (cond.contains(2)  || cond.contains(4))) classify_mode = 7;
+				if (cond.contains(9)  && (cond.contains(3)  || cond.contains(8))) classify_mode = 8;
+				if (cond.contains(9)  && cond.contains(-2))                      classify_mode = 9;
+				if (cond.contains(10) && (cond.contains(6)  || cond.contains(4))) classify_mode = 10;
+				if (cond.contains(10) && (cond.contains(7)  || cond.contains(8))) classify_mode = 11;
+				if (cond.contains(10) && cond.contains(-3))                      classify_mode = 12;
+			} else if (cond.contains(11)) {
+				if (cond.contains(11) && (cond.contains(12) || cond.contains(8))) classify_mode = 13;
+				if (cond.contains(11) && (cond.contains(13) || cond.contains(8))) classify_mode = 14;
+			} else if (cond.contains(-1)) {
 				classify_mode = 15;
 			}
 
-			// ハーフタイム,スコアが変動するタイミングで登録する
-			if (BookMakersCommonConst.HALF_TIME.equals(entity.getTime()) ||
-					BookMakersCommonConst.FIRST_HALF_TIME.equals(entity.getTime())) {
-				insertEntities.add(this.bookDataToMatchClassificationResultMapper.mapStruct(
-						entity, String.valueOf(classify_mode)));
+			// 登録タイミング
+			if (BookMakersCommonConst.HALF_TIME.equals(e.getTime()) ||
+				BookMakersCommonConst.FIRST_HALF_TIME.equals(e.getTime())) {
+				inserts.add(this.bookDataToMatchClassificationResultMapper.mapStruct(e, String.valueOf(classify_mode)));
 			} else {
-				if (!scoreList.contains(entity.getHomeScore() + entity.getAwayScore())) {
-					insertEntities.add(this.bookDataToMatchClassificationResultMapper.mapStruct(
-							entity, String.valueOf(classify_mode)));
-					scoreList.add(entity.getHomeScore() + entity.getAwayScore());
+				String sig = e.getHomeScore() + ":" + e.getAwayScore();
+				if (!scoreList.contains(sig)) {
+					inserts.add(this.bookDataToMatchClassificationResultMapper.mapStruct(e, String.valueOf(classify_mode)));
+					scoreList.add(sig);
 				}
 			}
 		}
 
-		// 最新の分類モードを設定し直す(複数のclassify_modeがdtoに設定されるのを防ぐ)
-		for (MatchClassificationResultEntity entity : insertEntities) {
-			entity.setClassifyMode(String.valueOf(classify_mode));
+		for (MatchClassificationResultEntity e : inserts) {
+			e.setClassifyMode(String.valueOf(classify_mode));
 		}
-
-		matchClassificationResultOutputDTO.setClassificationMode(String.valueOf(classify_mode));
-		matchClassificationResultOutputDTO.setEntityList(insertEntities);
-		return matchClassificationResultOutputDTO;
+		dto.setClassificationMode(String.valueOf(classify_mode));
+		dto.setEntityList(inserts);
+		return dto;
 	}
 
 	/**
@@ -512,6 +363,16 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 		stringBuilder.append("国: " + country + ", ");
 		stringBuilder.append("リーグ: " + league);
 		return stringBuilder.toString();
+	}
+
+	/**
+	 *
+	 * @param s
+	 * @param def
+	 * @return
+	 */
+	private static int safeParseInt(String s, int def) {
+		try { return Integer.parseInt(s); } catch (Exception e) { return def; }
 	}
 
 	/**

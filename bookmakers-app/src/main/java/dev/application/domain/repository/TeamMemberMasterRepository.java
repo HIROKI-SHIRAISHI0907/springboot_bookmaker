@@ -14,13 +14,13 @@ public interface TeamMemberMasterRepository {
 
 	@Insert({
 	    "INSERT INTO team_member_master (",
-	    "id, country, league, team, score, loan_belong, jersey, member, face_pic_path, belong_list, height, weight, position, birth, age, market_value, injury,",
+	    "country, league, team, score, loan_belong, jersey, member, face_pic_path, belong_list, height, weight, position, birth, age, market_value, injury,",
 	    "versus_team_score_data, retire_flg, deadline, deadline_contract_date, latest_info_date, upd_stamp,",
 	    "register_id, register_time, update_id, update_time",
 	    ") VALUES (",
-	    "#{id}, #{country}, #{league}, #{team}, #{score}, #{loanBelong}, #{jersey}, #{member}, #{facePicPath}, #{belongList}, #{height}, #{weight}, #{position}, #{birth}, #{age}, #{marketValue}, #{injury},",
+	    "#{country}, #{league}, #{team}, #{score}, #{loanBelong}, #{jersey}, #{member}, #{facePicPath}, #{belongList}, #{height}, #{weight}, #{position}, #{birth}, #{age}, #{marketValue}, #{injury},",
 	    "#{versusTeamScoreData}, #{retireFlg}, #{deadline}, #{deadlineContractDate}, #{latestInfoDate}, #{updStamp},",
-	    "#{registerId}, #{registerTime}, #{updateId}, #{updateTime});"
+	    "#{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz));"
 	})
 	int insert(TeamMemberMasterEntity entity);
 
