@@ -14,10 +14,10 @@ public interface StatSizeFinalizeMasterRepository {
 
 	@Insert({
 			"INSERT INTO stat_size_finalize_master (",
-			"id, option_num, options, flg, register_id, register_time, update_id, update_time",
+			"option_num, options, flg, register_id, register_time, update_id, update_time",
 			") VALUES (",
-			"#{id}, #{optionNum}, #{options}, #{flg}, ",
-			"#{registerId}, #{registerTime}, #{updateId}, #{updateTime});"
+			"#{optionNum}, #{options}, #{flg}, ",
+			"#{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz));"
 	})
 	int insert(StatSizeFinalizeMasterCsvEntity entity);
 

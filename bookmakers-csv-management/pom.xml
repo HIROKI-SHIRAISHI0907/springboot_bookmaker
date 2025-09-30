@@ -29,6 +29,31 @@
 			<artifactId>spring-boot-starter</artifactId>
 		</dependency>
 
+		<!-- ✅ PostgreSQL JDBC ドライバ（必須 / scope なし or runtime） -->
+		<dependency>
+			<groupId>org.postgresql</groupId>
+			<artifactId>postgresql</artifactId>
+		</dependency>
+
+		<!-- Flyway 本体（入っていなければ明示） -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-core</artifactId>
+		</dependency>
+
+		<!-- ★PostgreSQL 用モジュール（これが無いと Unsupported Database で落ちる） -->
+		<dependency>
+			<groupId>org.flywaydb</groupId>
+			<artifactId>flyway-database-postgresql</artifactId>
+		</dependency>
+
+		<!-- ✅ MyBatis を使うなら（AutoConfigurationのために必須） -->
+		<dependency>
+			<groupId>org.mybatis.spring.boot</groupId>
+			<artifactId>mybatis-spring-boot-starter</artifactId>
+			<version>3.0.4</version>
+		</dependency>
+
 		<!-- 必要なら共通データ -->
 		<dependency>
 			<groupId>com.example</groupId>
