@@ -29,13 +29,14 @@ public interface FutureRepository {
 					away_team_away_lost,
 					game_link,
 					data_time,
+					start_flg,
 					register_id,
 			        register_time,
 			        update_id,
 			        update_time
 			    ) VALUES (
 			        #{gameTeamCategory},
-			        #{futureTime},
+			        CAST(#{futureTime} AS timestamptz),
 			        #{homeRank},
 			        #{awayRank},
 			        #{homeTeamName},
@@ -51,9 +52,10 @@ public interface FutureRepository {
 			        #{awayTeamAwayScore},
 			        #{awayTeamAwayLost},
 			        #{gameLink},
-			        #{dataTime},
-			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz));
-			    )
+			        CAST(#{dataTime} AS timestamptz),
+			        1,
+			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
+			    );
 			""")
 	int insert(FutureEntity entity);
 

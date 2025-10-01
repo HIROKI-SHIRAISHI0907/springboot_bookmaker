@@ -65,7 +65,7 @@ public class FutureDBService {
 	 */
 	public int insertInBatch(List<FutureEntity> insertEntities) {
 		final String METHOD_NAME = "insertInBatch";
-		final int BATCH_SIZE = 100;
+		final int BATCH_SIZE = 10;
 		for (int i = 0; i < insertEntities.size(); i += BATCH_SIZE) {
 			int end = Math.min(i + BATCH_SIZE, insertEntities.size());
 			List<FutureEntity> batch = insertEntities.subList(i, end);

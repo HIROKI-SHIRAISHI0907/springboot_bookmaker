@@ -174,7 +174,7 @@ public interface BookDataRepository {
 			        #{awayClearCount},
 			        #{homeInterceptCount},
 			        #{awayInterceptCount},
-			        #{recordTime},
+			        CAST(#{recordTime} AS timestamptz),
 			        #{weather},
 			        #{temparature},
 			        #{humid},
@@ -206,8 +206,8 @@ public interface BookDataRepository {
 			        #{awayTeamStyle},
 			        #{probablity},
 			        #{predictionScoreTime},
-			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz));
-			    )
+			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
+			    );
 			""")
 	int insert(DataEntity entity);
 

@@ -72,8 +72,8 @@ public interface SurfaceOverviewRepository {
 			  #{awayWinBehindOtherCount}, #{awayLoseBehindOtherCount},
 			  #{awayAdversityDisp},
 			  #{promoteDisp}, #{descendDisp}, #{firstWinDisp}, #{loseStreakDisp}, #{roundConc},
-			  #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz));
-			)
+			  #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
+			);
 			</script>
 			""")
 	int insert(SurfaceOverviewEntity entity);

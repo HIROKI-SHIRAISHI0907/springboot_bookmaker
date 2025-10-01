@@ -307,7 +307,7 @@ class RepositoryTest {
 				findData(country, league, "1");
 		assertFalse(list.isEmpty());
 
-		int savedUpd = matchClassificationResultCountRepository.update("1", "4");
+		int savedUpd = matchClassificationResultCountRepository.update(1, 4);
 		assertEquals(1, savedUpd);
 	}
 
@@ -336,7 +336,7 @@ class RepositoryTest {
 				findStatData("1-0", "得点あり", country, league);
 		assertFalse(list.isEmpty());
 
-		int savedUpd = matchClassificationResultCountRepository.update("1", "4");
+		int savedUpd = matchClassificationResultCountRepository.update(1, 4);
 		assertEquals(1, savedUpd);
 	}
 
