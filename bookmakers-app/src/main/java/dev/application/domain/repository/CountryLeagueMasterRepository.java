@@ -26,8 +26,8 @@ public interface CountryLeagueMasterRepository {
 			        #{league},
 			        #{team},
 			        #{link},
-			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz));
-			    )
+			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
+			    );
 			""")
 	int insert(CountryLeagueMasterEntity entity);
 

@@ -14,10 +14,10 @@ public interface CountryLeagueSeasonMasterRepository {
 
 	@Insert({
 			"INSERT INTO country_league_season_master (",
-			"country, league, start_season_date, end_season_date, round, path, upd_stamp, valid_flg, ",
+			"country, league, start_season_date, end_season_date, round, path, disp_valid_flg, ",
 			"register_id, register_time, update_id, update_time) VALUES (",
-			"#{country}, #{league}, #{startSeasonDate}, "
-					+ "#{endSeasonDate}, #{round}, #{path}, #{updStamp}, #{validFlg}, ",
+			"#{country}, #{league}, CAST(#{startSeasonDate} AS timestamptz), "
+					+ "CAST(#{endSeasonDate} AS timestamptz), #{round}, #{path}, #{validFlg}, ",
 			"#{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz));"
 	})
 	int insert(CountryLeagueSeasonMasterEntity entity);
@@ -26,9 +26,8 @@ public interface CountryLeagueSeasonMasterRepository {
 			"UPDATE country_league_season_master SET",
 			"country = #{country},",
 			"league = #{league},",
-			"start_season_date = #{startSeasonDate},",
-			"end_season_date = #{endSeasonDate},",
-			"upd_stamp = #{updStamp} ",
+			"start_season_date = CAST(#{startSeasonDate} AS timestamptz),",
+			"end_season_date = CAST(#{endSeasonDate} AS timestamptz) ",
 			"WHERE id = #{id}"
 	})
 	int update(CountryLeagueSeasonMasterEntity entity);
