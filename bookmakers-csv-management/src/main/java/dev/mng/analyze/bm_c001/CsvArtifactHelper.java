@@ -265,14 +265,14 @@ public class CsvArtifactHelper {
 		}
 
 		for (DataEntity e : series) {
-			String hs = e.getHomeScore();
-			String as = e.getAwayScore();
+			String hs = e.getHomeScore().trim();
+			String as = e.getAwayScore().trim();
 			if ((hs == null || "".equals(hs)) ||
 					(as == null || "".equals(as))) {
 				continue;
 			}
-			hs = hs.replace(".0", "");
-			as = as.replace(".0", "");
+			hs = hs.replace(".0", "").trim();
+			as = as.replace(".0", "").trim();
 			Integer h = Integer.parseInt(hs);
 			Integer a = Integer.parseInt(as);
 			boolean okH = (homeScore == null) || (h != null && h.equals(homeScore));

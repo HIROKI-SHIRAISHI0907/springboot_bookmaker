@@ -101,4 +101,23 @@ public class StatSizeFinalizeMasterCsvTest {
 		this.statSizeFinalizeMasterCsv.calcCsv(csvCommonInputDTO);
 	}
 
+	/**
+	 * 処理速度実験
+	 */
+	@Test
+	void test_calcStat_shouldUpdateCorrectly_memory2() {
+		// Act
+
+		CsvTargetCommonInputDTO csvCommonInputDTO = new CsvTargetCommonInputDTO();
+		List<SubInput> list = new ArrayList<SubInput>();
+		SubInput subInput = new SubInput();
+		subInput.setOptionNum("1");
+		subInput.setOptions("0-0");
+		subInput.setFlg("0");
+		list.add(subInput);
+		csvCommonInputDTO.setSubList(list);
+		this.statSizeFinalizeMasterCsv.calcCsv(csvCommonInputDTO);
+	}
+
+
 }

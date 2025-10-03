@@ -39,7 +39,7 @@ public interface StatSizeFinalizeMasterRepository {
 	@Update({
 			  "UPDATE stat_size_finalize_master ",
 			  "SET option_num = #{optionNum}, options = #{options}, flg = #{flg} ",
-			  "WHERE id = #{id};"
+			  "WHERE id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER);"
 	})
 	int update(StatSizeFinalizeMasterCsvEntity entity);
 
