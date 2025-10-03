@@ -55,7 +55,7 @@ public interface CountryLeagueSummaryRepository {
 			        data_count = #{dataCount},
 			        csv_count = #{csvCount}
 			    WHERE
-			        id = #{id};
+			        id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER);
 			""")
 	int update(CountryLeagueSummaryEntity entity);
 }

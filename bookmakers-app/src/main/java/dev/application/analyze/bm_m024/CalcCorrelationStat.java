@@ -391,14 +391,46 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
 	 * @return
 	 */
 	public double calculatePearsonCorrelation(double[] x, double[] y) {
-		final String METHOD_NAME = "calculatePearsonCorrelation";
-		if (x == null || y == null || x.length != y.length || x.length < 2) {
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					"ピアソン相関係数が導出できない", null);
-		}
-		PearsonsCorrelation pc = new PearsonsCorrelation();
-		return pc.correlation(x, y);
+	    // 不正/欠損/定数系列を除外した安全版
+	    if (x == null || y == null) return 0.0;
+
+	    // 同じ長さの「有限要素」だけに揃える
+	    int n = Math.min(x.length, y.length);
+	    List<Double> xs = new ArrayList<>(n);
+	    List<Double> ys = new ArrayList<>(n);
+	    for (int i = 0; i < n; i++) {
+	        double a = x[i], b = y[i];
+	        if (Double.isFinite(a) && Double.isFinite(b)) {
+	            xs.add(a); ys.add(b);
+	        }
+	    }
+	    if (xs.size() < 2) return 0.0;
+
+	    double[] xx = xs.stream().mapToDouble(Double::doubleValue).toArray();
+	    double[] yy = ys.stream().mapToDouble(Double::doubleValue).toArray();
+
+	    // 片方が定数（分散ゼロ）なら 0 を返す
+	    if (isConstant(xx) || isConstant(yy)) return 0.0;
+
+	    try {
+	        double r = new PearsonsCorrelation().correlation(xx, yy);
+	        return Double.isFinite(r) ? r : 0.0;
+	    } catch (Exception ignore) {
+	        return 0.0;
+	    }
+	}
+
+	/**
+	 * 定数かどうか
+	 * @param v
+	 * @return
+	 */
+	private boolean isConstant(double[] v) {
+	    double first = v[0];
+	    for (int i = 1; i < v.length; i++) {
+	        if (v[i] != first) return false;
+	    }
+	    return true;
 	}
 
 	/**

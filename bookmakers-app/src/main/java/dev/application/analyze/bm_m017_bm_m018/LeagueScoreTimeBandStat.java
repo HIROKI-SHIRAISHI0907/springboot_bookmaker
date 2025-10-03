@@ -86,8 +86,8 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 					if (BookMakersCommonConst.GOAL_DELETE.equals(e.getJudge()))
 						continue;
 					// その時間の得点を取得し,差分があった場合,現在のスコアをeachMapに保存する
-					int currentHomeScore = Integer.parseInt(e.getHomeScore());
-					int currentAwayScore = Integer.parseInt(e.getAwayScore());
+					int currentHomeScore = parseIntSafe(e.getHomeScore(), 0);
+					int currentAwayScore = parseIntSafe(e.getAwayScore(), 0);
 					int currentScore = currentHomeScore + currentAwayScore;
 					int diffHomeScore = currentHomeScore - prevHomeScore;
 					int diffAwayScore = currentAwayScore - prevAwayScore;
@@ -95,24 +95,28 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 					// ホーム側で差分がある場合
 					if (diffHomeScore > 0) {
 						String timeRange = ExecuteMainUtil.classifyMatchTime(e.getTime());
-						String mainHomeScore = String.valueOf(currentHomeScore);
-						String mainAwayScore = String.valueOf(currentAwayScore);
-						String target = "1";
-						String search = "1";
-						// homeのtimeRangeが対象設定値
-						setMainMap(mainMap, leagueKey, DETAIL, null,
-								null, mainHomeScore, mainAwayScore, timeRange, null, target, search);
+						if (timeRange != null && !timeRange.isBlank()) {
+							String mainHomeScore = String.valueOf(currentHomeScore);
+							String mainAwayScore = String.valueOf(currentAwayScore);
+							String target = "1";
+							String search = "1";
+							// homeのtimeRangeが対象設定値
+							setMainMap(mainMap, leagueKey, DETAIL, null,
+									null, mainHomeScore, mainAwayScore, timeRange, null, target, search);
+						}
 					}
 					// アウェー側で差分がある場合
 					if (diffAwayScore > 0) {
 						String timeRange = ExecuteMainUtil.classifyMatchTime(e.getTime());
-						String mainHomeScore = String.valueOf(currentHomeScore);
-						String mainAwayScore = String.valueOf(currentAwayScore);
-						String target = "1";
-						String search = "1";
-						// homeのtimeRangeが対象設定値
-						setMainMap(mainMap, leagueKey, DETAIL, null,
-								null, mainHomeScore, mainAwayScore, null, timeRange, target, search);
+						if (timeRange != null && !timeRange.isBlank()) {
+							String mainHomeScore = String.valueOf(currentHomeScore);
+							String mainAwayScore = String.valueOf(currentAwayScore);
+							String target = "1";
+							String search = "1";
+							// homeのtimeRangeが対象設定値
+							setMainMap(mainMap, leagueKey, DETAIL, null,
+									null, mainHomeScore, mainAwayScore, null, timeRange, target, search);
+						}
 					}
 					// 全体で差分がある場合
 					if (diffScore > 0) {
@@ -176,30 +180,31 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 					String mainKey = leagueKey + "-" + DETAIL;
 
 					// 時間帯を追記（ホーム）
-					if (timeHomeRange != null) {
+					if (timeHomeRange != null && !timeHomeRange.isBlank()) {
 						StringBuilder sbHome = timeRangeMap.computeIfAbsent(mainKey, k -> new HashMap<>())
 								.computeIfAbsent(homeScore + "-H", k -> new StringBuilder());
 						if (sbHome.length() > 0)
 							sbHome.append(",");
 						sbHome.append(timeHomeRange);
+
+						// 件数カウント（1エントリに対して1カウントでOK）
+						countMap
+								.computeIfAbsent(mainKey, k -> new HashMap<>())
+								.merge(homeScore + "-H", 1, Integer::sum);
 					}
 
 					// 時間帯を追記（アウェー）
-					if (timeAwayRange != null) {
+					if (timeAwayRange != null && !timeAwayRange.isBlank()) {
 						StringBuilder sbAway = timeRangeMap.computeIfAbsent(mainKey, k -> new HashMap<>())
 								.computeIfAbsent(awayScore + "-A", k -> new StringBuilder());
 						if (sbAway.length() > 0)
 							sbAway.append(",");
 						sbAway.append(timeAwayRange);
-					}
 
-					// 件数カウント（1エントリに対して1カウントでOK）
-					countMap
-							.computeIfAbsent(mainKey, k -> new HashMap<>())
-							.merge(homeScore + "-H", 1, Integer::sum);
-					countMap
-							.computeIfAbsent(mainKey, k -> new HashMap<>())
-							.merge(awayScore + "-A", 1, Integer::sum);
+						countMap
+								.computeIfAbsent(mainKey, k -> new HashMap<>())
+								.merge(awayScore + "-A", 1, Integer::sum);
+					}
 				}
 			}
 		}
@@ -450,11 +455,10 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 			if (result != 1) {
 				String messageCd = "新規登録エラー";
 				this.rootCauseWrapper.throwUnexpectedRowCount(
-				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-				        messageCd,
-				        1, result,
-				        null
-				    );
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						messageCd,
+						1, result,
+						null);
 			}
 			String messageCd = "登録件数";
 			this.manageLoggerComponent.debugInfoLog(
@@ -489,11 +493,10 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 			if (result != 1) {
 				String messageCd = "更新エラー";
 				this.rootCauseWrapper.throwUnexpectedRowCount(
-				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-				        messageCd,
-				        1, result,
-				        String.format("id=%s, count=%s, remarks=%s", id, null, null)
-				    );
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						messageCd,
+						1, result,
+						String.format("id=%s, count=%s, remarks=%s", id, null, null));
 			}
 			String messageCd = "更新件数";
 			this.manageLoggerComponent.debugInfoLog(
@@ -504,11 +507,10 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 			if (result != 1) {
 				String messageCd = "更新エラー";
 				this.rootCauseWrapper.throwUnexpectedRowCount(
-				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-				        messageCd,
-				        1, result,
-				        String.format("id=%s, count=%s, remarks=%s", id, null, null)
-				    );
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						messageCd,
+						1, result,
+						String.format("id=%s, count=%s, remarks=%s", id, null, null));
 			}
 			String messageCd = "更新件数";
 			this.manageLoggerComponent.debugInfoLog(
@@ -522,15 +524,68 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 	 * @return
 	 */
 	private synchronized String sortTimeRanges(String input) {
-		if (input == null || input.isEmpty())
-			return input;
+		if (input == null)
+			return null;
 
-		return Arrays.stream(input.split(","))
-				.sorted(Comparator.comparingInt(timeRange -> {
-					String[] parts = timeRange.split("〜");
-					return Integer.parseInt(parts[0].trim());
-				}))
+		// 正規化：全角数字や波ダッシュ差異を吸収
+		String normalized = java.text.Normalizer.normalize(input, java.text.Normalizer.Form.NFKC)
+				.replace('～', '〜') // 全角チルダ → 波ダッシュ
+				.replace('~', '〜') // 半角チルダ → 波ダッシュ
+				.replace('–', '-') // en dash
+				.replace('—', '-') // em dash
+				.replace('―', '-') // horizontal bar
+		;
+
+		// トークン化 → 空要素除去
+		List<String> tokens = Arrays.stream(normalized.split(","))
+				.map(s -> s == null ? "" : s.strip())
+				.filter(s -> !s.isEmpty())
+				.collect(Collectors.toList());
+
+		if (tokens.isEmpty())
+			return "";
+
+		// 先頭の数値を抽出（なければ +∞ 扱いで最後に回す）
+		Comparator<String> byStartMinute = Comparator.comparingInt(tok -> {
+			// 許容パターン例: "0〜15", "0-15", "0 〜 15", "  30〜45+"
+			String t = tok.replace('-', '〜'); // ハイフンも許容
+			int idx = t.indexOf('〜');
+			String left = idx >= 0 ? t.substring(0, idx) : t; // "0〜15" → "0"
+			left = left.strip();
+
+			// 先頭連続数字だけを拾う
+			java.util.regex.Matcher m = java.util.regex.Pattern.compile("^(\\d+)").matcher(left);
+			if (m.find()) {
+				try {
+					return Integer.parseInt(m.group(1));
+				} catch (NumberFormatException ignore) {
+					/* fall through */ }
+			}
+			return Integer.MAX_VALUE; // 数字が取れないものは後ろへ
+		});
+
+		return tokens.stream()
+				.sorted(byStartMinute)
 				.collect(Collectors.joining(","));
+	}
+
+	/**
+	 * 安全性のあるパース
+	 * @param s
+	 * @param def
+	 * @return
+	 */
+	static int parseIntSafe(String s, int def) {
+		if (s == null)
+			return def;
+		String t = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFKC).strip();
+		if (t.isEmpty() || !t.matches("-?\\d+"))
+			return def;
+		try {
+			return Integer.parseInt(t);
+		} catch (NumberFormatException e) {
+			return def;
+		}
 	}
 
 	/**

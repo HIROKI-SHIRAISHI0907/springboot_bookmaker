@@ -28,7 +28,7 @@ public interface CountryLeagueSeasonMasterRepository {
 			"league = #{league},",
 			"start_season_date = CAST(#{startSeasonDate} AS timestamptz),",
 			"end_season_date = CAST(#{endSeasonDate} AS timestamptz) ",
-			"WHERE id = #{id}"
+			"WHERE id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER);"
 	})
 	int update(CountryLeagueSeasonMasterEntity entity);
 
@@ -37,7 +37,7 @@ public interface CountryLeagueSeasonMasterRepository {
 			"country = #{country},",
 			"league = #{league},",
 			"disp_valid_flg = #{validFlg}",
-			" WHERE id = #{id}"
+			" WHERE id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER);"
 	})
 	int updateFlg(CountryLeagueSeasonMasterEntity entity);
 

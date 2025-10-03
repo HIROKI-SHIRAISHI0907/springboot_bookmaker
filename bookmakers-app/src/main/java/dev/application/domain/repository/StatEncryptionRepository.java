@@ -198,7 +198,7 @@ public interface StatEncryptionRepository {
 	        "away_duel_count_info = #{awayDuelCountInfo},",
 	        "home_intercept_count_info = #{homeInterceptCountInfo},",
 	        "away_intercept_count_info = #{awayInterceptCountInfo} ",
-	        "WHERE id = #{id}"
+	        "WHERE id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER)"
 	    })
 	    int updateEncValues(StatEncryptionEntity entity);
 

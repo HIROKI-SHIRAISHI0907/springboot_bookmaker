@@ -1,12 +1,14 @@
 package dev.application.analyze.bm_m023;
 
 import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.apache.commons.lang3.StringUtils;
 import org.apache.commons.lang3.tuple.Triple;
 
 import dev.common.entity.BookDataEntity;
-import dev.common.util.ExecuteMainUtil;
 
 /**
  * 統計データフォーマット関係リゾルバー
@@ -86,29 +88,44 @@ public abstract class StatFormatResolver {
 	 * @param valueStr
 	 * @return
 	 */
-	protected String parseStatValue(String valueStr) {
-		if (valueStr == null || valueStr.isBlank())
-			return null;
-		try {
-			if (valueStr.contains("%") && valueStr.contains("(")) {
-				// 形式: 65% (13/20)
-				List<String> list = ExecuteMainUtil.splitFlgGroup(valueStr);
-				if (list.size() >= 2 && !list.get(1).isBlank()) {
-					return String.valueOf(Double.parseDouble(list.get(1).trim())); // 分子（成功数）を優先
-				}
-			} else if (valueStr.contains("%")) {
-				// 形式: 65%
-				int idx = valueStr.indexOf('%');
-				String percent = valueStr.substring(0, idx).trim();
-				return String.valueOf(Double.parseDouble(percent));
-			} else {
-				// 通常の数値
-				return String.valueOf(Double.parseDouble(valueStr.trim()));
-			}
-		} catch (NumberFormatException e) {
-			return null;
-		}
-		return valueStr;
+	// StatFormatResolver.java
+	protected String parseStatValue(String raw) {
+	    if (raw == null) return null;
+	    String s = raw.trim();
+	    if (s.isEmpty()) return null;
+
+	    // 12.3% (3/8)  → 分子を返す "3"
+	    // 小数% も許容 / 空白任意
+	    java.util.regex.Matcher m = java.util.regex.Pattern
+	        .compile("^(?<pct>\\d+(?:\\.\\d+)?)%\\s*\\(\\s*(?<num>\\d+)\\s*/\\s*(?<den>\\d+)\\s*\\)\\s*$")
+	        .matcher(s);
+	    if (m.matches()) {
+	        return m.group("num");
+	    }
+
+	    // (3/8) → "3"
+	    m = java.util.regex.Pattern
+	        .compile("^\\(\\s*(?<num>\\d+)\\s*/\\s*(?<den>\\d+)\\s*\\)\\s*$")
+	        .matcher(s);
+	    if (m.matches()) {
+	        return m.group("num");
+	    }
+
+	    // 12.3% → "12.3"
+	    m = java.util.regex.Pattern
+	        .compile("^(?<pct>\\d+(?:\\.\\d+)?)%\\s*$")
+	        .matcher(s);
+	    if (m.matches()) {
+	        return m.group("pct");
+	    }
+
+	    // 純数値（整数/小数）
+	    if (s.matches("^[+-]?\\d+(?:\\.\\d+)?$")) {
+	        return s;
+	    }
+
+	    // それ以外は不正フォーマットとしてスキップ
+	    return null;
 	}
 
 	/**
@@ -133,14 +150,20 @@ public abstract class StatFormatResolver {
 	 * @return
 	 */
 	protected Triple<String, String, String> splitPercentageWithFraction(String valueStr) {
-		if (valueStr == null || !valueStr.contains("%") || !valueStr.contains("("))
-			return null;
-		try {
-			List<String> parts = ExecuteMainUtil.splitFlgGroup(valueStr);
-			return Triple.of(parts.get(0), parts.get(1), parts.get(2));
-		} catch (Exception e) {
-			return null;
-		}
+		if (StringUtils.isBlank(valueStr)) return null;
+
+	    // 12.3% (3/8) を厳密にパース（空白は可）
+	    final Pattern P = Pattern.compile(
+	        "^\\s*(?<pct>\\d+(?:\\.\\d+)?)%\\s*\\(\\s*(?<num>\\d+)\\s*/\\s*(?<den>\\d+)\\s*\\)\\s*$"
+	    );
+
+	    try {
+	        Matcher m = P.matcher(valueStr);
+	        if (!m.matches()) return null;
+	        return Triple.of(m.group("pct"), m.group("num"), m.group("den"));
+	    } catch (Exception ignore) {
+	        return null;
+	    }
 	}
 
 	/**

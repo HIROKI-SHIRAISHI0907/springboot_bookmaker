@@ -9,7 +9,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -24,9 +23,10 @@ import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
 /**
- * BM_M019_BM_M020統計分析ロジック
- * @author shiraishitoshio
- *
+ * BM_M019_BM_M020統計分析ロジック（恒久対応版）
+ * - 並列×DBを廃止
+ * - BM_M020 は UPSERT(+1) で原子的にカウント反映
+ * - BM_M019 はバルク挿入
  */
 @Component
 public class MatchClassificationResultStat implements AnalyzeEntityIF {
@@ -45,11 +45,11 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 	@Autowired
 	private BookDataToMatchClassificationResultMapper bookDataToMatchClassificationResultMapper;
 
-	/** MatchClassificationResultRepositoryレポジトリクラス */
+	/** MatchClassificationResultRepositoryレポジトリクラス（※insertBatch対応必須） */
 	@Autowired
 	private MatchClassificationResultRepository matchClassificationResultRepository;
 
-	/** MatchClassificationResultCountRepositoryレポジトリクラス */
+	/** MatchClassificationResultCountRepositoryレポジトリクラス（※upsertIncrementCount対応必須） */
 	@Autowired
 	private MatchClassificationResultCountRepository matchClassificationResultCountRepository;
 
@@ -67,20 +67,18 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 	public static final Map<Integer, String> SCORE_CLASSIFICATION_ALL_MAP;
 	static {
 		HashMap<Integer, String> SCORE_CLASSIFICATION_MAP = new LinkedHashMap<>();
-		SCORE_CLASSIFICATION_MAP.put(1, ClassifyScoreAIConst.HOME_SCORED_WITHIN_20_NEXT_SCORE_BEFORE_HALF);
-		SCORE_CLASSIFICATION_MAP.put(2, ClassifyScoreAIConst.HOME_SCORED_WITHIN_20_NEXT_SCORE_AFTER_HALF);
-		SCORE_CLASSIFICATION_MAP.put(3, ClassifyScoreAIConst.HOME_SCORED_WITHIN_20_NO_FURTHER_GOAL);
-		SCORE_CLASSIFICATION_MAP.put(4, ClassifyScoreAIConst.AWAY_SCORED_WITHIN_20_NEXT_SCORE_BEFORE_HALF);
-		SCORE_CLASSIFICATION_MAP.put(5, ClassifyScoreAIConst.AWAY_SCORED_WITHIN_20_NEXT_SCORE_AFTER_HALF);
-		SCORE_CLASSIFICATION_MAP.put(6, ClassifyScoreAIConst.AWAY_SCORED_WITHIN_20_NO_FURTHER_GOAL);
-		SCORE_CLASSIFICATION_MAP.put(7, ClassifyScoreAIConst.HOME_SCORED_BETWEEN_20_AND_45_NEXT_SCORE_BEFORE_HALF);
-		SCORE_CLASSIFICATION_MAP.put(8, ClassifyScoreAIConst.HOME_SCORED_BETWEEN_20_AND_45_NEXT_SCORE_AFTER_HALF);
-		SCORE_CLASSIFICATION_MAP.put(9, ClassifyScoreAIConst.HOME_SCORED_BETWEEN_20_AND_45_NO_FURTHER_GOAL);
+		SCORE_CLASSIFICATION_MAP.put(1,  ClassifyScoreAIConst.HOME_SCORED_WITHIN_20_NEXT_SCORE_BEFORE_HALF);
+		SCORE_CLASSIFICATION_MAP.put(2,  ClassifyScoreAIConst.HOME_SCORED_WITHIN_20_NEXT_SCORE_AFTER_HALF);
+		SCORE_CLASSIFICATION_MAP.put(3,  ClassifyScoreAIConst.HOME_SCORED_WITHIN_20_NO_FURTHER_GOAL);
+		SCORE_CLASSIFICATION_MAP.put(4,  ClassifyScoreAIConst.AWAY_SCORED_WITHIN_20_NEXT_SCORE_BEFORE_HALF);
+		SCORE_CLASSIFICATION_MAP.put(5,  ClassifyScoreAIConst.AWAY_SCORED_WITHIN_20_NEXT_SCORE_AFTER_HALF);
+		SCORE_CLASSIFICATION_MAP.put(6,  ClassifyScoreAIConst.AWAY_SCORED_WITHIN_20_NO_FURTHER_GOAL);
+		SCORE_CLASSIFICATION_MAP.put(7,  ClassifyScoreAIConst.HOME_SCORED_BETWEEN_20_AND_45_NEXT_SCORE_BEFORE_HALF);
+		SCORE_CLASSIFICATION_MAP.put(8,  ClassifyScoreAIConst.HOME_SCORED_BETWEEN_20_AND_45_NEXT_SCORE_AFTER_HALF);
+		SCORE_CLASSIFICATION_MAP.put(9,  ClassifyScoreAIConst.HOME_SCORED_BETWEEN_20_AND_45_NO_FURTHER_GOAL);
 		SCORE_CLASSIFICATION_MAP.put(10, ClassifyScoreAIConst.AWAY_SCORED_BETWEEN_20_AND_45_NEXT_SCORE_BEFORE_HALF);
-		SCORE_CLASSIFICATION_MAP.put(11,
-				ClassifyScoreAIConst.AWAY_SCORED_BETWEEN_20_AND_45_NEXT_SCORE_AFTER_HALF);
-		SCORE_CLASSIFICATION_MAP.put(12,
-				ClassifyScoreAIConst.AWAY_SCORED_BETWEEN_20_AND_45_NO_FURTHER_GOAL);
+		SCORE_CLASSIFICATION_MAP.put(11, ClassifyScoreAIConst.AWAY_SCORED_BETWEEN_20_AND_45_NEXT_SCORE_AFTER_HALF);
+		SCORE_CLASSIFICATION_MAP.put(12, ClassifyScoreAIConst.AWAY_SCORED_BETWEEN_20_AND_45_NO_FURTHER_GOAL);
 		SCORE_CLASSIFICATION_MAP.put(13, ClassifyScoreAIConst.NO_GOAL_FIRST_HALF_NEXT_HOME_SCORE);
 		SCORE_CLASSIFICATION_MAP.put(14, ClassifyScoreAIConst.NO_GOAL_FIRST_HALF_NEXT_AWAY_SCORE);
 		SCORE_CLASSIFICATION_MAP.put(15, ClassifyScoreAIConst.NO_GOAL);
@@ -88,64 +86,94 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 		SCORE_CLASSIFICATION_ALL_MAP = Collections.unmodifiableMap(SCORE_CLASSIFICATION_MAP);
 	}
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) {
 		final String METHOD_NAME = "calcStat";
 		this.manageLoggerComponent.init(EXEC_MODE, null);
-		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		try {
+			this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// 件数テーブルの初期行を作成（不足分のみ）
-		for (Map.Entry<String, Map<String, List<BookDataEntity>>> e : entities.entrySet()) {
-			String[] sp = ExecuteMainUtil.splitLeagueInfo(e.getKey());
-			init(sp[0], sp[1]);
-		}
-
-		Map<String, List<String>> mainMap = new ConcurrentHashMap<>();
-		entities.entrySet().parallelStream().forEach(entry -> {
-			String[] sp = ExecuteMainUtil.splitLeagueInfo(entry.getKey());
-			String country = sp[0];
-			String league  = sp[1];
-
-			Map<String, List<BookDataEntity>> matchMap = entry.getValue();
-			for (List<BookDataEntity> dataList : matchMap.values()) {
-				MatchClassificationResultOutputDTO dto = classification(dataList);
-				if (dto == null) continue;
-
-				// BM_M019：結果明細を登録
-				saveResultData(dto.getEntityList(), country, league);
-
-				// 後段の件数更新用に classificationMode を保持
-				mainMap.computeIfAbsent(entry.getKey(), k -> new ArrayList<>())
-					   .add(dto.getClassificationMode());
+			// 件数テーブルの初期行を作成（不足分のみ）※UPSERTで不要だが、全行を0で用意したい要件に合わせて維持
+			for (Map.Entry<String, Map<String, List<BookDataEntity>>> e : entities.entrySet()) {
+				String[] sp = ExecuteMainUtil.splitLeagueInfo(e.getKey());
+				init(sp[0], sp[1]);
 			}
-		});
 
-		// BM_M020：件数更新（なければ作る→更新）
-		mainMap.entrySet().stream().forEach(entry -> {
-			String[] sp = ExecuteMainUtil.splitLeagueInfo(entry.getKey());
-			String country = sp[0];
-			String league  = sp[1];
-			entry.getValue().parallelStream()
-				.filter(Objects::nonNull)
-				.map(String::trim)
-				.filter(s -> s.matches("-?\\d+"))        // ← 数値のみ通す
-				.forEach(classifyMode -> {
-					MatchClassificationResultOutputDTO dto = getData(country, league, classifyMode);
-					// 1件分インクリメント
-					int next = safeParseInt(dto.getCnt(), 0) + 1;
-					saveCntData(dto.getId(), country, league, classifyMode, String.valueOf(next));
-				});
-		});
+			// 後段の件数更新用（country+league → classificationMode のリスト）
+			Map<String, List<String>> mainMap = new HashMap<>();
 
-		this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		this.manageLoggerComponent.clear();
+			// BM_M019：明細作成→バルク挿入
+			entities.entrySet().stream().forEach(entry -> {
+				String[] sp = ExecuteMainUtil.splitLeagueInfo(entry.getKey());
+				String country = sp[0];
+				String league  = sp[1];
+
+				List<MatchClassificationResultEntity> bulk = new ArrayList<>();
+				Map<String, List<BookDataEntity>> matchMap = entry.getValue();
+
+				for (List<BookDataEntity> dataList : matchMap.values()) {
+					MatchClassificationResultOutputDTO dto = classification(dataList);
+					if (dto == null) continue;
+
+					// バルク用に溜める
+					bulk.addAll(dto.getEntityList());
+
+					// 後段の件数更新用に classificationMode を保持
+					mainMap.computeIfAbsent(entry.getKey(), k -> new ArrayList<>())
+						   .add(dto.getClassificationMode());
+				}
+
+				// バルク挿入（0件ならスキップ）
+				if (!bulk.isEmpty()) {
+					int result = this.matchClassificationResultRepository.insertBatch(bulk);
+					if (result != bulk.size()) {
+						this.rootCauseWrapper.throwUnexpectedRowCount(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, "バルク新規登録エラー",
+							bulk.size(), result, "country=" + country + ", league=" + league);
+					}
+					this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, "登録件数",
+						setLoggerFillChar(country, league),
+						"BM_M019 登録件数: " + bulk.size() + "件");
+				}
+			});
+
+			// BM_M020：件数反映（UPSERTで+1）
+			mainMap.entrySet().stream().forEach(entry -> {
+				String[] sp = ExecuteMainUtil.splitLeagueInfo(entry.getKey());
+				String country = sp[0];
+				String league  = sp[1];
+
+				entry.getValue().stream()
+					.filter(Objects::nonNull)
+					.map(String::trim)
+					.filter(s -> s.matches("-?\\d+")) // 数値のみ
+					.forEach(classifyMode -> {
+						MatchClassificationResultCountEntity e = new MatchClassificationResultCountEntity();
+						e.setCountry(country);
+						e.setLeague(league);
+						e.setClassifyMode(classifyMode);
+						e.setRemarks(getRemarks(safeParseInt(classifyMode, -1)));
+						int up = this.matchClassificationResultCountRepository.upsertIncrementCount(e);
+						if (up != 1) {
+							this.rootCauseWrapper.throwUnexpectedRowCount(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME, "件数反映エラー(UPSERT)",
+								1, up, String.format("country=%s, league=%s, classify=%s", country, league, classifyMode));
+						}
+						this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, "BM_M020 件数反映",
+							setLoggerFillChar(country, league), "反映:1件 (classify=" + classifyMode + ")");
+					});
+			});
+
+			this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		} finally {
+			this.manageLoggerComponent.clear();
+		}
 	}
 
 	/** 件数初期登録（不足行のみ作成） */
-	private synchronized void init(String country, String league) {
+	private void init(String country, String league) {
 		final String METHOD_NAME = "init";
 		String fillChar = setLoggerFillChar(country, league);
 
@@ -188,87 +216,7 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 		}
 	}
 
-	/** 取得（無ければその場で作成してIDも返す） */
-	private MatchClassificationResultOutputDTO getData(String country, String league, String classifyMode) {
-		MatchClassificationResultOutputDTO dto = new MatchClassificationResultOutputDTO();
-		List<MatchClassificationResultCountEntity> datas =
-				this.matchClassificationResultCountRepository.findData(country, league, classifyMode);
-
-		if (!datas.isEmpty()) {
-			dto.setUpdFlg(true);
-			dto.setId(datas.get(0).getId());
-			dto.setCnt(datas.get(0).getCount());
-			return dto;
-		}
-
-		// 無ければ作る（count=0）
-		MatchClassificationResultCountEntity e = new MatchClassificationResultCountEntity();
-		e.setCountry(country);
-		e.setLeague(league);
-		e.setClassifyMode(classifyMode);
-		e.setCount("0");
-		e.setRemarks(getRemarks(safeParseInt(classifyMode, -1)));
-
-		this.matchClassificationResultCountRepository.insert(e); // generated key を取得想定
-		dto.setUpdFlg(true);
-		dto.setId(e.getId());
-		dto.setCnt("0");
-		return dto;
-	}
-
-	/** 件数の登録/更新（id 無しでも動く） */
-	private synchronized void saveCntData(String id, String country, String league,
-	                                      String classify_mode, String count) {
-		final String METHOD_NAME = "saveCntData";
-		String fillChar = setLoggerFillChar(country, league);
-		int newCount = safeParseInt(count, 0);
-
-		int result;
-		if (id == null || id.isBlank()) {
-			// 念のためのフォールバック：行が無ければ作る
-			MatchClassificationResultCountEntity e = new MatchClassificationResultCountEntity();
-			e.setCountry(country);
-			e.setLeague(league);
-			e.setClassifyMode(classify_mode);
-			e.setCount(String.valueOf(newCount));
-			e.setRemarks(getRemarks(safeParseInt(classify_mode, -1)));
-			result = this.matchClassificationResultCountRepository.insert(e);
-		} else {
-			result = this.matchClassificationResultCountRepository
-						.update(safeParseInt(id, -1), newCount);
-		}
-
-		if (result != 1) {
-			this.rootCauseWrapper.throwUnexpectedRowCount(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-				(id == null || id.isBlank()) ? "新規登録エラー" : "更新エラー",
-				1, result, String.format("id=%s, classify_mode=%s, count=%s", id, classify_mode, count));
-		}
-
-		this.manageLoggerComponent.debugInfoLog(
-			PROJECT_NAME, CLASS_NAME, METHOD_NAME, "BM_M020 件数反映",
-			fillChar, (id == null || id.isBlank()) ? "登録:1件" : "更新:1件");
-	}
-
-	/** BM_M019：結果明細の登録 */
-	private synchronized void saveResultData(List<MatchClassificationResultEntity> entities,
-	                                         String country, String league) {
-		final String METHOD_NAME = "saveResultData";
-		String fillChar = setLoggerFillChar(country, league);
-		for (MatchClassificationResultEntity entity : entities) {
-			int result = this.matchClassificationResultRepository.insert(entity);
-			if (result != 1) {
-				this.rootCauseWrapper.throwUnexpectedRowCount(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, "新規登録エラー",
-					1, result, null);
-			}
-		}
-		this.manageLoggerComponent.debugInfoLog(
-			PROJECT_NAME, CLASS_NAME, METHOD_NAME, "登録件数",
-			fillChar, "BM_M019 登録件数: " + entities.size() + "件");
-	}
-
-	/** 分類本体（元コードから変更なし・整形のみ） */
+	/** 分類本体（ロジックは従来踏襲） */
 	private MatchClassificationResultOutputDTO classification(List<BookDataEntity> entityList) {
 		MatchClassificationResultOutputDTO dto = new MatchClassificationResultOutputDTO();
 
@@ -313,10 +261,10 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 			if (cond.contains(1) || cond.contains(5)) {
 				if (cond.contains(1) && (cond.contains(2) || cond.contains(4))) classify_mode = 1;
 				if (cond.contains(1) && (cond.contains(3) || cond.contains(8))) classify_mode = 2;
-				if (cond.contains(1) && cond.contains(-2))                   classify_mode = 3;
+				if (cond.contains(1) && cond.contains(-2))                      classify_mode = 3;
 				if (cond.contains(5) && (cond.contains(6) || cond.contains(4))) classify_mode = 4;
 				if (cond.contains(5) && (cond.contains(7) || cond.contains(8))) classify_mode = 5;
-				if (cond.contains(5) && cond.contains(-3))                   classify_mode = 6;
+				if (cond.contains(5) && cond.contains(-3))                      classify_mode = 6;
 			} else if (cond.contains(9) || cond.contains(10)) {
 				if (cond.contains(9)  && (cond.contains(2)  || cond.contains(4))) classify_mode = 7;
 				if (cond.contains(9)  && (cond.contains(3)  || cond.contains(8))) classify_mode = 8;
@@ -352,12 +300,7 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 		return dto;
 	}
 
-	/**
-	 * 埋め字設定
-	 * @param country
-	 * @param league
-	 * @return
-	 */
+	/** 埋め字設定 */
 	private String setLoggerFillChar(String country, String league) {
 		StringBuilder stringBuilder = new StringBuilder();
 		stringBuilder.append("国: " + country + ", ");
@@ -365,21 +308,11 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 		return stringBuilder.toString();
 	}
 
-	/**
-	 *
-	 * @param s
-	 * @param def
-	 * @return
-	 */
 	private static int safeParseInt(String s, int def) {
 		try { return Integer.parseInt(s); } catch (Exception e) { return def; }
 	}
 
-	/**
-	 * キーを取得
-	 * @param key
-	 * @return
-	 */
+	/** キー→備考 */
 	private String getRemarks(int key) {
 		return SCORE_CLASSIFICATION_ALL_MAP.get(key);
 	}

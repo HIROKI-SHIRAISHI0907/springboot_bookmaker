@@ -124,10 +124,8 @@ public interface TeamMonthlyScoreSummaryRepository {
           sep_sum_score = #{septemberScoreSumCount},
           oct_sum_score = #{octoberScoreSumCount},
           nov_sum_score = #{novemberScoreSumCount},
-          dec_sum_score = #{decemberScoreSumCount},
-          update_id     = #{updateId},
-          update_time   = #{updateTime}
-        WHERE seq = #{seq}
+          dec_sum_score = #{decemberScoreSumCount}
+        WHERE seq = CAST(#{seq,jdbcType=VARCHAR} AS INTEGER)
         </script>
         """)
     int update(TeamMonthlyScoreSummaryEntity entity);

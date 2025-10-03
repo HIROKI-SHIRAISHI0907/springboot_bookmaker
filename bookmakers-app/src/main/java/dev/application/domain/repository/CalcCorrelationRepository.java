@@ -236,7 +236,7 @@ public interface CalcCorrelationRepository {
         "away_clear_count_info = #{awayClearCountInfo},",
         "home_intercept_count_info = #{homeInterceptCountInfo},",
         "away_intercept_count_info = #{awayInterceptCountInfo} ",
-        "WHERE id = #{id};"
+        "WHERE id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER);"
     })
     int updateStatValues(CalcCorrelationEntity entity);
 

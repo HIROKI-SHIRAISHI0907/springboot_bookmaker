@@ -61,7 +61,7 @@ public interface LeagueScoreTimeBandStatsRepository {
 		        target = #{target},
 		        search = #{search}
 		    WHERE
-		        id = #{id};
+		        id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER)
 		""")
 	int update(String id, String target, String search);
 }

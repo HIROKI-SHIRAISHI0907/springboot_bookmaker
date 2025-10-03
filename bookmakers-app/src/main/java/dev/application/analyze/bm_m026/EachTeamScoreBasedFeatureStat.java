@@ -91,9 +91,15 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 		// 全リーグ・国を走査
 		for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
 			ConcurrentHashMap<String, List<EachTeamScoreBasedFeatureEntity>> resultMap = new ConcurrentHashMap<>();
-			String[] data_category = ExecuteMainUtil.splitLeagueInfo(entry.getKey());
-			String country = data_category[0];
-			String league = data_category[1];
+			String[] data = safeLeague(entry.getKey());
+			String country = data[0];
+			String league  = data[1];
+			// どちらかが空なら、このグループはスキップ（ログだけ残す）
+			if (country.isBlank() || league.isBlank()) {
+			    manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, "calcStat",
+			        "skip: invalid league key", null, "key=" + entry.getKey());
+			    continue;
+			}
 			Map<String, List<BookDataEntity>> entrySub = entry.getValue();
 			for (List<BookDataEntity> entityList : entrySub.values()) {
 				// null や空リストはスキップ
@@ -127,6 +133,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 		// 保存マップ登録
 		for (Map.Entry<String, StatEncryptionEntity> entry : bmM30Map.entrySet()) {
 			String[] split = entry.getKey().split("-");
+			System.out.println("split: " + split);
 			String team = split[0];
 			StatEncryptionEntity entrys = entry.getValue();
 			entrys.setTeam(team);
@@ -682,12 +689,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						e);
 			}
 		}
 		return minList;
@@ -726,12 +727,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						e);
 			}
 		}
 		return minList;
@@ -779,12 +774,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						e);
 			}
 		}
 		return maxList;
@@ -823,12 +812,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						e);
 			}
 		}
 		return maxList;
@@ -884,8 +867,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
 			}
 		}
 		return aveList;
@@ -925,12 +906,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						e);
 			}
 		}
 		return aveList;
@@ -988,8 +963,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
 			}
 		}
 		return sigmaList;
@@ -1044,12 +1017,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			String messageCd = "リフレクションエラー";
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-			this.manageLoggerComponent.createSystemException(
-					PROJECT_NAME,
-					CLASS_NAME,
-					METHOD_NAME,
-					messageCd,
-					e);
 		}
 		return sigmaList;
 	}
@@ -1127,12 +1094,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						e);
 			}
 		}
 		// n/(n-1)(n-2)との積をとる
@@ -1224,12 +1185,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						e);
 			}
 		}
 		// (n(n+1))/(n-1)(n-2)(n-3)との積をとり,3(n-1)^2 / (n-2)(n-3)を引く
@@ -1615,5 +1570,28 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 		scoreBasedFeatureOutputDTO.setSigma(skewOrKurtSumSigma);
 		return scoreBasedFeatureOutputDTO;
 	}
+
+	/** 区切り文字で 2 分割（必ず長さ2を返す: [left, right]）。区切りが無ければ right は空文字。 */
+	private static String[] split2(String s, String sep) {
+	    if (s == null) return new String[] { "", "" };
+	    int i = s.indexOf(sep);
+	    if (i < 0) return new String[] { s, "" };
+	    return new String[] { s.substring(0, i), s.substring(i + sep.length()) };
+	}
+
+	/** 「国,リーグ」を安全に分割（null/形式不正でも長さ2を返す） */
+	private static String[] safeLeague(String key) {
+	    // 既存の ExecuteMainUtil.splitLeagueInfo を使うなら例外時フォールバック
+	    try {
+	        String[] a = ExecuteMainUtil.splitLeagueInfo(key);
+	        if (a != null && a.length >= 2) return new String[] { a[0], a[1] };
+	        if (a != null && a.length == 1) return new String[] { a[0], "" };
+	        return new String[] { "", "" };
+	    } catch (Exception ignore) {
+	        // 想定フォーマット「国,リーグ」でのフォールバック
+	        return split2(key, ",");
+	    }
+	}
+
 
 }

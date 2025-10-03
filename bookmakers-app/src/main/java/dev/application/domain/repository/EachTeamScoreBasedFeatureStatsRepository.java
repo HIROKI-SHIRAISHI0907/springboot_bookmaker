@@ -138,7 +138,7 @@ public interface EachTeamScoreBasedFeatureStatsRepository {
         "away_clear_count_stat = #{awayClearCountStat},",
         "home_intercept_count_stat = #{homeInterceptCountStat},",
         "away_intercept_count_stat = #{awayInterceptCountStat} ",
-        "WHERE id = CAST(#{id} AS integer);"
+        "WHERE id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER);"
     })
     int updateStatValues(EachTeamScoreBasedFeatureEntity entity);
 }

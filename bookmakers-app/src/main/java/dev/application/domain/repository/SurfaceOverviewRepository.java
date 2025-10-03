@@ -233,7 +233,7 @@ public interface SurfaceOverviewRepository {
 			  first_win_disp = #{firstWinDisp},
 			  lose_streak_disp = #{loseStreakDisp},
 			  round_conc = #{roundConc}
-			WHERE id = CAST(#{id} AS integer)
+			WHERE id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER)
 			</script>
 			""")
 	int update(SurfaceOverviewEntity entity);

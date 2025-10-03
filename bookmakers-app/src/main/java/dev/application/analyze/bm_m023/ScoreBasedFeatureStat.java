@@ -600,12 +600,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						e);
 			}
 		}
 		return minList;
@@ -640,12 +634,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						e);
 			}
 		}
 		return minList;
@@ -689,12 +677,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						e);
 			}
 		}
 		return maxList;
@@ -729,12 +711,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						e);
 			}
 		}
 		return maxList;
@@ -786,8 +762,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
 			}
 		}
 		return aveList;
@@ -823,12 +797,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						e);
 			}
 		}
 		return aveList;
@@ -881,8 +849,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
 			}
 		}
 		return sigmaList;
@@ -932,12 +898,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			String messageCd = "リフレクションエラー";
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-			this.manageLoggerComponent.createSystemException(
-					PROJECT_NAME,
-					CLASS_NAME,
-					METHOD_NAME,
-					messageCd,
-					e);
 		}
 		return sigmaList;
 	}
@@ -1013,12 +973,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						e);
 			}
 		}
 		// n/(n-1)(n-2)との積をとる
@@ -1102,12 +1056,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				String messageCd = "リフレクションエラー";
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						e);
 			}
 		}
 		// (n(n+1))/(n-1)(n-2)(n-3)との積をとり,3(n-1)^2 / (n-2)(n-3)を引く

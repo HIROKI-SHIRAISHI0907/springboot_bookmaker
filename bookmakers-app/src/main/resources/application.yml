@@ -17,6 +17,7 @@ spring:
     # schemas: public
     # baseline-on-migrate: true
 mybatis:
+  type-handlers-package: dev.application.mybatis
   configuration:
     map-underscore-to-camel-case: true
 

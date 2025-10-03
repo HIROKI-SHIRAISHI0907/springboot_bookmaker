@@ -56,7 +56,7 @@ public interface TeamMemberMasterRepository {
 	    "deadline_contract_date = #{deadlineContractDate},",
 	    "latest_info_date = #{latestInfoDate},",
 	    "upd_stamp = #{updStamp} ",
-	    "WHERE id = #{id};"
+	    "WHERE id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER);"
 	})
 	int update(TeamMemberMasterEntity entity);
 

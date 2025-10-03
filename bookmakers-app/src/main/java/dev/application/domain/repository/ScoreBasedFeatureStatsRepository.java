@@ -144,7 +144,7 @@ public interface ScoreBasedFeatureStatsRepository {
         "away_duel_count_stat = #{awayDuelCountStat},",
         "home_intercept_count_stat = #{homeInterceptCountStat},",
         "away_intercept_count_stat = #{awayInterceptCountStat} ",
-        "WHERE id = CAST(#{id} AS integer)"
+        "WHERE id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER)"
     })
     int updateStatValues(ScoreBasedFeatureStatsEntity entity);
 }

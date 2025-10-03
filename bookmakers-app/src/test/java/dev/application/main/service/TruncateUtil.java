@@ -16,9 +16,9 @@ public class TruncateUtil {
 
 	private static Map<Integer, String> createTableMap() {
 	    Map<Integer, String> m = new LinkedHashMap<>();
-	    m.put(1,  "within_data_scored_counter");
-	    m.put(2,  "within_data_scored_counter_detail");
-	    m.put(3,  "zero_score_data");
+	    m.put(1,  "league_score_time_band_stats");
+	    m.put(2,  "league_score_time_band_stats_split_score");
+	    m.put(3,  "no_goal_match_stats");
 	    m.put(4,  "within_data_20minutes_away_all_league");
 	    m.put(5,  "within_data_20minutes_away_scored");
 	    m.put(6,  "within_data_20minutes_same_scored");
@@ -26,24 +26,19 @@ public class TruncateUtil {
 	    m.put(8,  "within_data_45minutes_home_scored");
 	    m.put(9,  "within_data_45minutes_away_all_league");
 	    m.put(10, "within_data_45minutes_away_scored");
-	    m.put(11, "average_feature_data");
-	    m.put(12, "average_statistics_data");
-	    m.put(13, "average_statistics_data_detail");
-	    m.put(14, "classify_result_data");
-	    m.put(15, "classify_result_data_detail");
-	    m.put(16, "collect_range_score");
-	    m.put(17, "collect_scoring_standard_data");
-	    m.put(18, "condition_result_data");
-	    m.put(19, "correlation_data");
-	    m.put(20, "correlation_ranking_data");
-	    m.put(21, "game_statistics_detail_data");
-	    m.put(22, "scoring_playstyle_past_data");
-	    m.put(23, "stat_encryption");
-	    m.put(24, "surface_overview");
-	    m.put(25, "type_of_country_league_data");
-	    m.put(26, "within_data");
-	    m.put(27, "within_data_20minutes_home_all_league");
-	    m.put(28, "within_data_20minutes_home_scored");
+	    m.put(11, "match_classification_result");
+	    m.put(12, "match_classification_result_count");
+	    m.put(13, "score_based_feature_stats");
+	    m.put(14, "team_monthly_score_summary");
+	    m.put(15, "team_time_segment_shooting_stat");
+	    m.put(16, "condition_result_data");
+	    m.put(17, "calc_correlation");
+	    m.put(18, "calc_correlation_ranking");
+	    m.put(19, "stat_encryption");
+	    m.put(20, "surface_overview");
+	    m.put(21, "country_league_summary");
+	    m.put(22, "within_data");
+	    m.put(23, "each_team_score_based_feature_stats");
 	    return Collections.unmodifiableMap(m);
 	}
 
