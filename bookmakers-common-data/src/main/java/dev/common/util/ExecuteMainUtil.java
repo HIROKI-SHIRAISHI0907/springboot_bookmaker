@@ -10,8 +10,6 @@ import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.BusinessException;
 
-
-
 /**
  * データ整理共通クラス
  * @author shiraishitoshio
@@ -310,28 +308,27 @@ public class ExecuteMainUtil {
 	 * 以下の特徴量の値を分割する
 	 * @param feature_value
 	 */
-	public static List<String> splitFlgGroup(String feature_value) {
-		List<String> list = new ArrayList<>();
-		if (feature_value == null || "".equals(feature_value)) {
-			list.add("");
-			list.add("");
-			list.add("");
-			return list;
+	public static String[] splitFlgGroup(String feature_value) {
+		if (feature_value == null)
+			return new String[] { "", "", "" };
+		String t = feature_value.trim();
+		try {
+			if (feature_value.contains("(")) {
+				// 数値部分を抽出 (括弧内の部分)
+				String[] parts = feature_value.replace("(", "").replace(")", "").replace("/", " ").split(" ");
+				if (parts == null)
+					return new String[] { "", "", "" };
+				if (parts.length >= 3)
+					return parts;
+				String[] padded = new String[] { "", "", "" };
+				System.arraycopy(parts, 0, padded, 0, parts.length);
+				return padded;
+			}
+			//System.out.println(percentage + "," + value1 + "," + value2);
+		} catch (Exception e) {
+			return new String[] { "", "", "" };
 		}
-
-		if (feature_value.contains("(")) {
-			// 数値部分を抽出 (括弧内の部分)
-			String[] parts = feature_value.replace("(", "").replace(")", "").replace("/", " ").split(" ");
-			list.add(parts[0]);
-			list.add(parts[1]);
-			list.add(parts[2]);
-		} else {
-			list.add(feature_value);
-			list.add("");
-			list.add("");
-		}
-		//System.out.println(percentage + "," + value1 + "," + value2);
-		return list;
+		return new String[] { "", "", "" };
 	}
 
 	/**
@@ -469,47 +466,52 @@ public class ExecuteMainUtil {
 	 * @return
 	 */
 	public static String[] splitLeagueInfo(String text) {
-		if (text == null) return new String[]{ null, null, null };
+		if (text == null)
+			return new String[] { null, null, null };
 
-        // 記号の揺れを最小限正規化
-        String s = text.trim()
-                .replace('\uFF1A', ':')  // 全角コロン → :
-                .replace('\u2010', '-')  // Hyphen
-                .replace('\u2011', '-')  // Non-breaking hyphen
-                .replace('\u2013', '-')  // En dash
-                .replace('\u2014', '-')  // Em dash
-                .replace('\u2212', '-'); // Minus sign
+		// 記号の揺れを最小限正規化
+		String s = text.trim()
+				.replace('\uFF1A', ':') // 全角コロン → :
+				.replace('\u2010', '-') // Hyphen
+				.replace('\u2011', '-') // Non-breaking hyphen
+				.replace('\u2013', '-') // En dash
+				.replace('\u2014', '-') // Em dash
+				.replace('\u2212', '-'); // Minus sign
 
-        int colon = s.indexOf(':');
-        if (colon < 0) return new String[]{ null, null, null };
+		int colon = s.indexOf(':');
+		if (colon < 0)
+			return new String[] { null, null, null };
 
-        String country = s.substring(0, colon).trim();
-        String right   = s.substring(colon + 1).trim();
+		String country = s.substring(0, colon).trim();
+		String right = s.substring(colon + 1).trim();
 
-        // 右側の“最後の - ”でラウンド切り出し
-        int lastDash = right.lastIndexOf(" - ");
-        if (lastDash < 0) lastDash = right.lastIndexOf('-');
+		// 右側の“最後の - ”でラウンド切り出し
+		int lastDash = right.lastIndexOf(" - ");
+		if (lastDash < 0)
+			lastDash = right.lastIndexOf('-');
 
-        String leaguePart, round;
-        if (lastDash < 0) {
-            // ダッシュが無ければラウンド無し
-            leaguePart = right;
-            round = null;
-        } else {
-            boolean spaced = right.startsWith(" - ", lastDash);
-            leaguePart = right.substring(0, lastDash).trim();
-            round      = right.substring(lastDash + (spaced ? 3 : 1)).trim();
-            if (round.isEmpty()) round = null;
-        }
+		String leaguePart, round;
+		if (lastDash < 0) {
+			// ダッシュが無ければラウンド無し
+			leaguePart = right;
+			round = null;
+		} else {
+			boolean spaced = right.startsWith(" - ", lastDash);
+			leaguePart = right.substring(0, lastDash).trim();
+			round = right.substring(lastDash + (spaced ? 3 : 1)).trim();
+			if (round.isEmpty())
+				round = null;
+		}
 
-        // サブリーグ（例: "- アペルトゥラ", "- クラウスーラ" 等）を最後のダッシュ単位で落とす
-        int subDash = leaguePart.lastIndexOf(" - ");
-        if (subDash < 0) subDash = leaguePart.lastIndexOf('-');
-        if (subDash > 0) {
-            leaguePart = leaguePart.substring(0, subDash).trim();
-        }
+		// サブリーグ（例: "- アペルトゥラ", "- クラウスーラ" 等）を最後のダッシュ単位で落とす
+		int subDash = leaguePart.lastIndexOf(" - ");
+		if (subDash < 0)
+			subDash = leaguePart.lastIndexOf('-');
+		if (subDash > 0) {
+			leaguePart = leaguePart.substring(0, subDash).trim();
+		}
 
-        return new String[]{ country, leaguePart, round };
+		return new String[] { country, leaguePart, round };
 	}
 
 	/**

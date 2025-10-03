@@ -36,9 +36,6 @@ public class CountryLeagueSeasonMasterEntity extends MetaEntity {
 	/** アイコン */
 	private String icon;
 
-	/** 更新済みスタンプ */
-	private String updStamp;
-
 	/** 有効フラグ*/
 	private String validFlg;
 

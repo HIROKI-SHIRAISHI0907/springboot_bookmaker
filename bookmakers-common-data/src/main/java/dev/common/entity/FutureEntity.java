@@ -74,6 +74,9 @@ public class FutureEntity extends MetaEntity implements Serializable{
 	/** 試合リンク文字列 */
 	private String gameLink;
 
+	/** 試合開始済みフラグ */
+	private String startFlg;
+
 	/** データ取得時間 */
 	private String dataTime;
 
