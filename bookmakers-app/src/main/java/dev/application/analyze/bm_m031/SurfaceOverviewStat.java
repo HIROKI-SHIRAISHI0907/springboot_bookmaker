@@ -411,79 +411,91 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	 * 勝敗判定は setTeamMainData 後の winFlg / loseFlg を利用。
 	 */
 	private SurfaceOverviewEntity setEachScoreCountData(
-	        Integer roundNo,
-	        SurfaceOverviewEntity resultEntity,
-	        String country,
-	        String league) {
+			Integer roundNo,
+			SurfaceOverviewEntity resultEntity,
+			String country,
+			String league) {
 
-	    // ラウンド不明ならフェーズ更新はスキップ（誤加算防止）
-	    if (roundNo == null) {
-	        return resultEntity;
-	    }
+		// ラウンド不明ならフェーズ更新はスキップ（誤加算防止）
+		if (roundNo == null) {
+			return resultEntity;
+		}
 
-	    // 0埋め
-	    if (resultEntity.getFirstWeekGameWinCount() == null)  resultEntity.setFirstWeekGameWinCount("0");
-	    if (resultEntity.getFirstWeekGameLostCount() == null) resultEntity.setFirstWeekGameLostCount("0");
-	    if (resultEntity.getMidWeekGameWinCount() == null)    resultEntity.setMidWeekGameWinCount("0");
-	    if (resultEntity.getMidWeekGameLostCount() == null)   resultEntity.setMidWeekGameLostCount("0");
-	    if (resultEntity.getLastWeekGameWinCount() == null)   resultEntity.setLastWeekGameWinCount("0");
-	    if (resultEntity.getLastWeekGameLostCount() == null)  resultEntity.setLastWeekGameLostCount("0");
+		// 0埋め
+		if (resultEntity.getFirstWeekGameWinCount() == null)
+			resultEntity.setFirstWeekGameWinCount("0");
+		if (resultEntity.getFirstWeekGameLostCount() == null)
+			resultEntity.setFirstWeekGameLostCount("0");
+		if (resultEntity.getMidWeekGameWinCount() == null)
+			resultEntity.setMidWeekGameWinCount("0");
+		if (resultEntity.getMidWeekGameLostCount() == null)
+			resultEntity.setMidWeekGameLostCount("0");
+		if (resultEntity.getLastWeekGameWinCount() == null)
+			resultEntity.setLastWeekGameWinCount("0");
+		if (resultEntity.getLastWeekGameLostCount() == null)
+			resultEntity.setLastWeekGameLostCount("0");
 
-	    // シーズン総ラウンド数を取得
-	    final String key = country + ": " + league;
-	    Integer seasonRoundsObj = roundMap.get(key);
-	    if (seasonRoundsObj == null) {
-	        // 既存の想定に合わせ、ここは異常として扱う
-	        final String METHOD_NAME = "setEachScoreCountData";
-	        String messageCd = "roundMap未存在エラー";
-	        this.rootCauseWrapper.throwUnexpectedRowCount(
-	                PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-	                messageCd, -99, -99,
-	                String.format("country=%s, league=%s", country, league));
-	    }
-	    final int seasonRounds = seasonRoundsObj;
+		// シーズン総ラウンド数を取得
+		final String key = country + ": " + league;
+		Integer seasonRoundsObj = getRound(roundMap, key);
+		if (seasonRoundsObj == null) {
+			// 既存の想定に合わせ、ここは異常として扱う
+			final String METHOD_NAME = "setEachScoreCountData";
+			String messageCd = "roundMap未存在エラー";
+			this.rootCauseWrapper.throwUnexpectedRowCount(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					messageCd, -99, -99,
+					String.format("country=%s, league=%s", country, league));
+		}
+		final int seasonRounds = seasonRoundsObj;
 
-	    // フェーズ境界（厳密 roundNo 判定のみ）
-	    final int firstEnd  = (int)Math.ceil(seasonRounds / 3.0);           // ~ firstEnd
-	    final int secondEnd = (int)Math.ceil(seasonRounds * 2.0 / 3.0);     // firstEnd+1 ~ secondEnd
-	    // final: secondEnd+1 ~
+		// フェーズ境界（厳密 roundNo 判定のみ）
+		final int firstEnd = (int) Math.ceil(seasonRounds / 3.0); // ~ firstEnd
+		final int secondEnd = (int) Math.ceil(seasonRounds * 2.0 / 3.0); // firstEnd+1 ~ secondEnd
+		// final: secondEnd+1 ~
 
-	    // 勝敗フラグ
-	    final boolean won  = resultEntity.isWinFlg();
-	    final boolean lost = resultEntity.isLoseFlg();
+		// 勝敗フラグ
+		final boolean won = resultEntity.isWinFlg();
+		final boolean lost = resultEntity.isLoseFlg();
 
-	    int fW = parseOrZero(resultEntity.getFirstWeekGameWinCount());
-	    int fL = parseOrZero(resultEntity.getFirstWeekGameLostCount());
-	    int mW = parseOrZero(resultEntity.getMidWeekGameWinCount());
-	    int mL = parseOrZero(resultEntity.getMidWeekGameLostCount());
-	    int lW = parseOrZero(resultEntity.getLastWeekGameWinCount());
-	    int lL = parseOrZero(resultEntity.getLastWeekGameLostCount());
+		int fW = parseOrZero(resultEntity.getFirstWeekGameWinCount());
+		int fL = parseOrZero(resultEntity.getFirstWeekGameLostCount());
+		int mW = parseOrZero(resultEntity.getMidWeekGameWinCount());
+		int mL = parseOrZero(resultEntity.getMidWeekGameLostCount());
+		int lW = parseOrZero(resultEntity.getLastWeekGameWinCount());
+		int lL = parseOrZero(resultEntity.getLastWeekGameLostCount());
 
-	    if (roundNo <= firstEnd) {
-	        if (won)      fW++;
-	        else if (lost) fL++;
-	    } else if (roundNo <= secondEnd) {
-	        if (won)      mW++;
-	        else if (lost) mL++;
-	    } else {
-	        if (won)      lW++;
-	        else if (lost) lL++;
-	    }
+		if (roundNo <= firstEnd) {
+			if (won)
+				fW++;
+			else if (lost)
+				fL++;
+		} else if (roundNo <= secondEnd) {
+			if (won)
+				mW++;
+			else if (lost)
+				mL++;
+		} else {
+			if (won)
+				lW++;
+			else if (lost)
+				lL++;
+		}
 
-	    // 反映（カウントのみ）
-	    resultEntity.setFirstWeekGameWinCount(String.valueOf(fW));
-	    resultEntity.setFirstWeekGameLostCount(String.valueOf(fL));
-	    resultEntity.setMidWeekGameWinCount(String.valueOf(mW));
-	    resultEntity.setMidWeekGameLostCount(String.valueOf(mL));
-	    resultEntity.setLastWeekGameWinCount(String.valueOf(lW));
-	    resultEntity.setLastWeekGameLostCount(String.valueOf(lL));
+		// 反映（カウントのみ）
+		resultEntity.setFirstWeekGameWinCount(String.valueOf(fW));
+		resultEntity.setFirstWeekGameLostCount(String.valueOf(fL));
+		resultEntity.setMidWeekGameWinCount(String.valueOf(mW));
+		resultEntity.setMidWeekGameLostCount(String.valueOf(mL));
+		resultEntity.setLastWeekGameWinCount(String.valueOf(lW));
+		resultEntity.setLastWeekGameLostCount(String.valueOf(lL));
 
-	    // 好調表示は“累積カウント / そのフェーズで消化した試合数”で出す必要がありますが、
-	    // ここでは表示の更新は行いません（誤判定防止のため）。
-	    // 表示を更新する場合は、別途「そのフェーズで実際に何試合消化したか」を roundNo ベースで管理してください。
-	    // （例：各フェーズの消化試合数を別カラムで持つか、勝敗カウントの合計を分母にする）
+		// 好調表示は“累積カウント / そのフェーズで消化した試合数”で出す必要がありますが、
+		// ここでは表示の更新は行いません（誤判定防止のため）。
+		// 表示を更新する場合は、別途「そのフェーズで実際に何試合消化したか」を roundNo ベースで管理してください。
+		// （例：各フェーズの消化試合数を別カラムで持つか、勝敗カウントの合計を分母にする）
 
-	    return resultEntity;
+		return resultEntity;
 	}
 
 	/**
@@ -911,48 +923,56 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	 * その行の roundConc を更新 → その行だけで streak を再計算します
 	 */
 	private SurfaceOverviewEntity firstWinAndConsecutiveLose(
-	        SurfaceOverviewEntity e, String teamKey, Integer roundNo) {
+			SurfaceOverviewEntity e, String teamKey, Integer roundNo) {
 
-	    e.setFirstWinDisp(null);
-	    if ("0".equals(e.getWin()) && !"0".equals(e.getGames())) {
-	        e.setFirstWinDisp(SurfaceOverviewConst.FIRST_WIN_MOTIVATION);
-	    }
-	    if (roundNo == null) return e;
+		e.setFirstWinDisp(null);
+		if ("0".equals(e.getWin()) && !"0".equals(e.getGames())) {
+			e.setFirstWinDisp(SurfaceOverviewConst.FIRST_WIN_MOTIVATION);
+		}
+		if (roundNo == null)
+			return e;
 
-	    final boolean winThis  = e.isWinFlg();
-	    final boolean loseThis = e.isLoseFlg();
+		final boolean winThis = e.isWinFlg();
+		final boolean loseThis = e.isLoseFlg();
 
-	    // ★ ここを差し替え：全行マージ済みヒストリをロード
-	    RoundHistory hist = loadMergedRoundHistory(e.getCountry(), e.getLeague(), e.getTeam());
+		// ★ ここを差し替え：全行マージ済みヒストリをロード
+		RoundHistory hist = loadMergedRoundHistory(e.getCountry(), e.getLeague(), e.getTeam());
 
-	    // 今回ラウンドで上書き
-	    hist.all.add(roundNo);
-	    hist.win.remove(roundNo);
-	    hist.lose.remove(roundNo);
-	    if (winThis) hist.win.add(roundNo);
-	    else if (loseThis) hist.lose.add(roundNo);
+		// 今回ラウンドで上書き
+		hist.all.add(roundNo);
+		hist.win.remove(roundNo);
+		hist.lose.remove(roundNo);
+		if (winThis)
+			hist.win.add(roundNo);
+		else if (loseThis)
+			hist.lose.add(roundNo);
 
-	    Integer end = hist.all.isEmpty() ? null : hist.all.last();
+		Integer end = hist.all.isEmpty() ? null : hist.all.last();
 
-	    int loseStreak = 0;
-	    int winStreak  = 0;
-	    if (end != null) {
-	        if (hist.lose.contains(end)) loseStreak = countConsecutiveEndingAt(hist.lose, end);
-	        if (hist.win.contains(end))  winStreak  = countConsecutiveEndingAt(hist.win,  end);
-	    }
+		int loseStreak = 0;
+		int winStreak = 0;
+		if (end != null) {
+			if (hist.lose.contains(end))
+				loseStreak = countConsecutiveEndingAt(hist.lose, end);
+			if (hist.win.contains(end))
+				winStreak = countConsecutiveEndingAt(hist.win, end);
+		}
 
-	    e.setConsecutiveLoseCount(String.valueOf(loseStreak));
-	    e.setConsecutiveLoseDisp(loseStreak >= REQ_FOR_CONSEC_LOSE_DISP
-	            ? (loseStreak + SurfaceOverviewConst.CONSECTIVE_LOSE) : null);
-	    e.setLoseStreakDisp(loseStreak >= REQ_ROUNDS_FOR_LOSE_STREAK
-	            ? SurfaceOverviewConst.LOSE_CONSECUTIVE : null);
+		e.setConsecutiveLoseCount(String.valueOf(loseStreak));
+		e.setConsecutiveLoseDisp(loseStreak >= REQ_FOR_CONSEC_LOSE_DISP
+				? (loseStreak + SurfaceOverviewConst.CONSECTIVE_LOSE)
+				: null);
+		e.setLoseStreakDisp(loseStreak >= REQ_ROUNDS_FOR_LOSE_STREAK
+				? SurfaceOverviewConst.LOSE_CONSECUTIVE
+				: null);
 
-	    e.setConsecutiveWinDisp(winStreak >= REQ_FOR_CONSEC_WIN_DISP
-	            ? (winStreak + SurfaceOverviewConst.CONSECTIVE_WIN) : null);
+		e.setConsecutiveWinDisp(winStreak >= REQ_FOR_CONSEC_WIN_DISP
+				? (winStreak + SurfaceOverviewConst.CONSECTIVE_WIN)
+				: null);
 
-	    // ★ マージ＋今回反映した結果を、**この行の roundConc にも保存**
-	    e.setRoundConc(toRoundConc(hist));
-	    return e;
+		// ★ マージ＋今回反映した結果を、**この行の roundConc にも保存**
+		e.setRoundConc(toRoundConc(hist));
+		return e;
 	}
 
 	/**
@@ -1076,18 +1096,18 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 
 	/** 同一チーム（country, league, team）の全行から roundConc をマージ */
 	private RoundHistory loadMergedRoundHistory(String country, String league, String team) {
-	    RoundHistory merged = new RoundHistory();
-	    // ★ Repository に用意して下さい（同じシーズン範囲で絞るのが理想）
-	    // 例: 全年/月の当該チームの行を取得
-	    List<SurfaceOverviewEntity> rows = surfaceOverviewRepository.selectAllMonthsByTeam(country, league, team);
+		RoundHistory merged = new RoundHistory();
+		// ★ Repository に用意して下さい（同じシーズン範囲で絞るのが理想）
+		// 例: 全年/月の当該チームの行を取得
+		List<SurfaceOverviewEntity> rows = surfaceOverviewRepository.selectAllMonthsByTeam(country, league, team);
 
-	    for (SurfaceOverviewEntity row : rows) {
-	        RoundHistory h = parseRoundConc(row.getRoundConc());
-	        merged.all.addAll(h.all);
-	        merged.win.addAll(h.win);
-	        merged.lose.addAll(h.lose);
-	    }
-	    return merged;
+		for (SurfaceOverviewEntity row : rows) {
+			RoundHistory h = parseRoundConc(row.getRoundConc());
+			merged.all.addAll(h.all);
+			merged.win.addAll(h.win);
+			merged.lose.addAll(h.lose);
+		}
+		return merged;
 	}
 
 	/**
@@ -1178,35 +1198,43 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 
 	// --- RoundHistory と roundConc 変換ヘルパ ---
 	private static final class RoundHistory {
-	    final java.util.TreeSet<Integer> all  = new java.util.TreeSet<>();
-	    final java.util.TreeSet<Integer> win  = new java.util.TreeSet<>();
-	    final java.util.TreeSet<Integer> lose = new java.util.TreeSet<>();
+		final java.util.TreeSet<Integer> all = new java.util.TreeSet<>();
+		final java.util.TreeSet<Integer> win = new java.util.TreeSet<>();
+		final java.util.TreeSet<Integer> lose = new java.util.TreeSet<>();
 	}
 
 	private static RoundHistory parseRoundConc(String s) {
-	    RoundHistory h = new RoundHistory();
-	    if (s == null || s.isBlank()) return h;
-	    String[] parts = s.split("\\|");
-	    for (String part : parts) {
-	        String[] kv = part.split("=", 2);
-	        if (kv.length != 2) continue;
-	        String k = kv[0].trim();
-	        String v = kv[1].trim();
-	        if (!v.isEmpty()) {
-	            for (String t : v.split(",")) {
-	                t = t.trim();
-	                if (t.matches("\\d+")) {
-	                    int n = Integer.parseInt(t);
-	                    switch (k) {
-	                        case "A": h.all.add(n);  break;
-	                        case "W": h.win.add(n);  break;
-	                        case "L": h.lose.add(n); break;
-	                    }
-	                }
-	            }
-	        }
-	    }
-	    return h;
+		RoundHistory h = new RoundHistory();
+		if (s == null || s.isBlank())
+			return h;
+		String[] parts = s.split("\\|");
+		for (String part : parts) {
+			String[] kv = part.split("=", 2);
+			if (kv.length != 2)
+				continue;
+			String k = kv[0].trim();
+			String v = kv[1].trim();
+			if (!v.isEmpty()) {
+				for (String t : v.split(",")) {
+					t = t.trim();
+					if (t.matches("\\d+")) {
+						int n = Integer.parseInt(t);
+						switch (k) {
+						case "A":
+							h.all.add(n);
+							break;
+						case "W":
+							h.win.add(n);
+							break;
+						case "L":
+							h.lose.add(n);
+							break;
+						}
+					}
+				}
+			}
+		}
+		return h;
 	}
 
 	/**
@@ -1215,22 +1243,37 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	 * @return
 	 */
 	private static String toRoundConc(RoundHistory h) {
-	    String A = h.all.stream().map(String::valueOf).reduce((x,y)->x+","+y).orElse("");
-	    String W = h.win.stream().map(String::valueOf).reduce((x,y)->x+","+y).orElse("");
-	    String L = h.lose.stream().map(String::valueOf).reduce((x,y)->x+","+y).orElse("");
-	    return "A=" + A + "|W=" + W + "|L=" + L;
+		String A = h.all.stream().map(String::valueOf).reduce((x, y) -> x + "," + y).orElse("");
+		String W = h.win.stream().map(String::valueOf).reduce((x, y) -> x + "," + y).orElse("");
+		String L = h.lose.stream().map(String::valueOf).reduce((x, y) -> x + "," + y).orElse("");
+		return "A=" + A + "|W=" + W + "|L=" + L;
 	}
 
 	// 末尾が end の連番本数（... end-2, end-1, end）
 	private static int countConsecutiveEndingAt(java.util.NavigableSet<Integer> set, int end) {
-	    if (set.isEmpty()) return 0;
-	    int cnt = 0;
-	    int r = end;
-	    while (r >= 0 && set.contains(r)) {
-	        cnt++;
-	        r--;
-	    }
-	    return cnt;
+		if (set.isEmpty())
+			return 0;
+		int cnt = 0;
+		int r = end;
+		while (r >= 0 && set.contains(r)) {
+			cnt++;
+			r--;
+		}
+		return cnt;
+	}
+
+	/**
+	 * ラウンド総数を取得
+	 * @param roundMap
+	 * @param key
+	 * @return
+	 */
+	private static Integer getRound(Map<String, Integer> roundMap, String key) {
+		for (Map.Entry<String, Integer> d : roundMap.entrySet()) {
+			System.out.println(d.getKey() + ", " + d.getValue());
+		}
+		Integer seasonRoundsObj = roundMap.get(key);
+		return seasonRoundsObj;
 	}
 
 	/**

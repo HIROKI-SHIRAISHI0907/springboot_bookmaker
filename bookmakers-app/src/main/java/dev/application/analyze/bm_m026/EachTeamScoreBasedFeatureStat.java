@@ -139,7 +139,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			entrys.setTeam(team);
 			StatEncryptionEntity newEntrys = encryption(entrys);
 			if (newEntrys.isUpdFlg()) {
-				System.out.println("team, chkBody, upd: " + team + ", " + split[1]);
+				System.out.println("team, chkBody, upd: " + team + ", " + newEntrys.isUpdFlg());
 				int result = this.statEncryptionRepository.updateEncValues(newEntrys);
 				if (result != 1) {
 					String messageCd = "新規登録エラー";
@@ -154,7 +154,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				this.manageLoggerComponent.debugInfoLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, "BM_M030 更新件数: 1件");
 			} else {
-				System.out.println("team, chkBody, reg: " + team + ", " + split[1]);
+				System.out.println("team, chkBody, reg: " + team);
 				int result = this.statEncryptionRepository.insert(newEntrys);
 				if (result != 1) {
 					String messageCd = "新規登録エラー";
