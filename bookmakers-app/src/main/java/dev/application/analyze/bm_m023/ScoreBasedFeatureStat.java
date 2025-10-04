@@ -580,6 +580,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
 			try {
 				String currentValue = (String) field.get(filter);
+				fillChar += " , 値: " + currentValue;
 				if (currentValue == null || currentValue.isBlank())
 					continue;
 
@@ -657,6 +658,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
 			try {
 				String currentValue = (String) field.get(filter);
+				fillChar += " , 値: " + currentValue;
 				if (currentValue == null || currentValue.isBlank())
 					continue;
 
@@ -734,6 +736,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
 			try {
 				String currentValue = (String) field.get(filter);
+				fillChar += " , 値: " + currentValue;
 				if (currentValue == null || currentValue.isBlank())
 					continue;
 
@@ -821,6 +824,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
 			try {
 				String currentValue = (String) field.get(filter);
+				fillChar += " , 値: " + currentValue;
 				String avgStr = avgList[idx];
 				// スキップ条件：空 or null or X% (X/X) 形式
 				if (currentValue == null || currentValue.isBlank()) {
@@ -930,7 +934,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			fillChar = "フィールド名: " + field.getName();
 			try {
 				String currentValue = (String) field.get(entity);
-
+				fillChar += " , 値: " + currentValue;
 				if (currentValue == null || currentValue.isBlank() || isPercentAndFractionFormat(currentValue))
 					continue;
 
@@ -1014,6 +1018,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			fillChar = "フィールド名: " + field.getName();
 			try {
 				String currentValue = (String) field.get(entity);
+				fillChar += " , 値: " + currentValue;
 				if (currentValue == null || currentValue.isBlank() || isPercentAndFractionFormat(currentValue))
 					continue;
 

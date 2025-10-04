@@ -133,7 +133,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 		// 保存マップ登録
 		for (Map.Entry<String, StatEncryptionEntity> entry : bmM30Map.entrySet()) {
 			String[] split = entry.getKey().split("-");
-			System.out.println("split: " + split);
 			String team = split[0];
 			StatEncryptionEntity entrys = entry.getValue();
 			entrys.setTeam(team);
@@ -265,8 +264,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			List<BookDataEntity> entities, String connectScore, String situation, String flg,
 			String country, String league, String team, String ha,
 			ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map) {
-		System.err.println("connectScore: " + connectScore + ", situation: " + situation
-				+ ", flg: " + flg + ", team: " + team + ", ha: " + ha);
 		// team名-EACH_SCOREorALL_DATA / FIRST_DATA / SECOND_DATA-HorA
 		String lockKey = team + "_" + flg + "_" + ha + "_" + (connectScore != null ? connectScore : "ALL")
 				+ "_" + situation;
@@ -345,16 +342,12 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				entityToUse = mergeStatEncryptionEntity(exist, addPart, ha);
 				entityToUse.setId(exist.getId());
 				entityToUse.setUpdFlg(true);
-				System.out.println("country, league, team, id, chkFinalBody: " + country + ", " + league
-						+ ", " + team + ", " + exist.getId() + ", " + chkFinalBody + ", upd");
 				bmM30Map.put(containsKey, entityToUse);
 			} else {
 				// 新規Entity（insert対象）
 				entityToUse = buildBmM30Form(filteredFinalList, country, league, ha,
 						chkFinalBody, fieldMap);
 				entityToUse.setId(null);
-				System.out.println("country, league, team, chkFinalBody: " + country + ", " + league
-						+ ", " + team + ", " + chkFinalBody + ", reg");
 				String insertKey = team + "-" + chkFinalBody;
 				bmM30Map.put(insertKey, entityToUse);
 			}
@@ -669,6 +662,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
 			try {
 				String currentValue = (String) field.get(filter);
+				fillChar += " , 値: " + currentValue;
 				if (currentValue == null || currentValue.isBlank())
 					continue;
 
@@ -754,6 +748,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
 			try {
 				String currentValue = (String) field.get(filter);
+				fillChar += " , 値: " + currentValue;
 				if (currentValue == null || currentValue.isBlank())
 					continue;
 
@@ -839,6 +834,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
 			try {
 				String currentValue = (String) field.get(filter);
+				fillChar += " , 値: " + currentValue;
 				if (currentValue == null || currentValue.isBlank())
 					continue;
 
@@ -935,6 +931,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
 			try {
 				String currentValue = (String) field.get(filter);
+				fillChar += " , 値: " + currentValue;
 				String avgStr = avgList[idx];
 				// スキップ条件：空 or null or X% (X/X) 形式
 				if (currentValue == null || currentValue.isBlank() || isPercentAndFractionFormat(currentValue)) {
@@ -1052,6 +1049,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			fillChar = "フィールド名: " + field.getName();
 			try {
 				String currentValue = (String) field.get(entity);
+				fillChar += " , 値: " + currentValue;
 				if (currentValue == null || currentValue.isBlank() || isPercentAndFractionFormat(currentValue))
 					continue;
 
@@ -1143,6 +1141,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			fillChar = "フィールド名: " + field.getName();
 			try {
 				String currentValue = (String) field.get(entity);
+				fillChar += " , 値: " + currentValue;
 				if (currentValue == null || currentValue.isBlank() || isPercentAndFractionFormat(currentValue))
 					continue;
 
@@ -1380,7 +1379,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			}
 		}
 		// setterでセット
-		System.out.println("country, league, chkBody: " + country + "," + league + "," + chkBody);
 		result.setCountry(country);
 		result.setLeague(league);
 		result.setChkBody(chkBody);

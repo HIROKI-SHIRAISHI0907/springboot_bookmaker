@@ -300,7 +300,14 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
 		}
 
 		// スレッドセーフな格納
-		String mapKey = flg + "_" + chkBody;
+		String mapKey = String.join("|",
+		        country,
+		        league,
+		        home,
+		        away,
+		        flg,
+		        chkBody
+		);
 		insertMap.put(mapKey, entity);
 	}
 

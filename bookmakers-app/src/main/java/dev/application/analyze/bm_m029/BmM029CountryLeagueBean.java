@@ -93,8 +93,10 @@ public class BmM029CountryLeagueBean {
 	 * @return
 	 */
 	private String getRegexLeague(String league) {
-		if (ITALY_SERIEA.equals(league) || ENGLAND_PREMIER.equals(league)) {
+		if (ITALY_SERIEA.equals(league)) {
 			return "セリエA";
+		} else if (ENGLAND_PREMIER.equals(league)) {
+			return "プレミアリーグ";
 		} else if (league.contains("-")) {
 			String[] sp = league.split("-");
 			return sp[0];

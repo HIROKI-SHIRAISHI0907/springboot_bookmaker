@@ -1269,9 +1269,6 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	 * @return
 	 */
 	private static Integer getRound(Map<String, Integer> roundMap, String key) {
-		for (Map.Entry<String, Integer> d : roundMap.entrySet()) {
-			System.out.println(d.getKey() + ", " + d.getValue());
-		}
 		Integer seasonRoundsObj = roundMap.get(key);
 		return seasonRoundsObj;
 	}

@@ -6,9 +6,7 @@ import org.apache.ibatis.annotations.Update;
 @Mapper
 public interface TruncateRepository {
 
-	@Update({
-        "Truncate table ${table};"
-    })
+	@Update("TRUNCATE TABLE ${table} RESTART IDENTITY CASCADE;")
 	void truncate(String table);
 
 }

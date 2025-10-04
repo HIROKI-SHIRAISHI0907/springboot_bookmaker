@@ -288,7 +288,7 @@ class RepositoryTest {
 	void test14() {
 		MatchClassificationResultEntity entity = new MatchClassificationResultEntity();
 
-		int saved = matchClassificationResultRepository.insert(entity);
+		int saved = matchClassificationResultRepository.insertBatch(null);
 		assertEquals(1, saved);
 	}
 
