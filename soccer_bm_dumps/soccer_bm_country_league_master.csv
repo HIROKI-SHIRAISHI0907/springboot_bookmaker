@@ -1,0 +1,761 @@
+id,country,league,team,link,register_id,register_time,update_id,update_time
+1,ポルトガル,リーガ・ポルトガル,スポルティング,/team/sporting-lisbon/tljXuHBC/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+2,ポルトガル,リーガ・ポルトガル,FCポルト,/team/fc-porto/S2NmScGp/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+3,ポルトガル,リーガ・ポルトガル,モレイレンセ,/team/moreirense/8d9NGt9H/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+4,ポルトガル,リーガ・ポルトガル,ブラガ,/team/braga/dpUer7ht/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+5,ポルトガル,リーガ・ポルトガル,ファマリカン,/team/famalicao/ABBgitC3/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+6,ポルトガル,リーガ・ポルトガル,ベンフィカ,/team/benfica/zBkyuyRI/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+7,ポルトガル,リーガ・ポルトガル,ジル・ヴィセンテ,/team/gil-vicente/CS0fFFd8/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+8,ポルトガル,リーガ・ポルトガル,アロウカ,/team/arouca/fJqfm7CG/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+9,ポルトガル,リーガ・ポルトガル,ｳﾞｨﾄｰﾘｱ･ｷﾞﾏﾗﾝｲｽ,/team/guimaraes/pQYVZyD2/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+10,ポルトガル,リーガ・ポルトガル,カーザ・ピア,/team/casa-pia/QFHt9Zgs/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+11,ポルトガル,リーガ・ポルトガル,リオ・アヴェ,/team/rio-ave/jPzXLi4l/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+12,ポルトガル,リーガ・ポルトガル,エストレラ,/team/estrela-da-amadora/hrYABE5k/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+13,ポルトガル,リーガ・ポルトガル,エストリル,/team/estoril/htoKuYZl/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+14,ポルトガル,リーガ・ポルトガル,AFS,/team/afs/IZPeUwtM/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+15,ポルトガル,リーガ・ポルトガル,ナシオナル,/team/nacional/4ETLrR7n/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+16,ポルトガル,リーガ・ポルトガル,サンタ・クララ,/team/santa-clara/YmQyLBJf/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+17,ポルトガル,リーガ・ポルトガル,アルヴェルカ,/team/fc-alverca/roaMksQg/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+18,ポルトガル,リーガ・ポルトガル,トンデラ,/team/tondela/nFFgCnVo/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+19,オーストラリア,A リーグ・メン,オークランドFC,/team/auckland-fc/2J7jacL6/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+20,オーストラリア,A リーグ・メン,メルボルン・シティ,/team/melbourne-city/OKfoGJBe/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+21,オーストラリア,A リーグ・メン,ｳｪｽﾀﾝ･ﾕﾅｲﾃｯﾄﾞ,/team/western-united/j1EBZq33/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+22,オーストラリア,A リーグ・メン,WSワンダラーズ,/team/western-sydney-wanderers/l00pXxBN/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+23,オーストラリア,A リーグ・メン,ﾒﾙﾎﾞﾙﾝ･ﾋﾞｸﾄﾘｰ,/team/melbourne-victory/Qql6CzOP/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+24,オーストラリア,A リーグ・メン,ｱﾃﾞﾚｰﾄﾞ･ﾕﾅｲﾃｯﾄﾞ,/team/adelaide-utd/4AZ2ueHm/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+25,オーストラリア,A リーグ・メン,シドニーFC,/team/sydney-fc/6JsBlXVI/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+26,オーストラリア,A リーグ・メン,マッカーサーFC,/team/macarthur-fc/bL3ChiWQ/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+27,オーストラリア,A リーグ・メン,ﾆｭｰｶｯｽﾙ･ｼﾞｪｯﾂ,/team/newcastle-jets/EaZ5xZo0/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+28,オーストラリア,A リーグ・メン,ｾﾝﾄﾗﾙｺｰｽﾄ･ﾏﾘﾅｰｽﾞ,/team/central-coast-mariners-fc/Wzp1wFWg/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+29,オーストラリア,A リーグ・メン,ｳｪﾘﾝﾄﾝ･ﾌｪﾆｯｸｽ,/team/wellington-phoenix/Ctp2DG8J/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+30,オーストラリア,A リーグ・メン,ブリスベン・ロアー,/team/brisbane-roar/SSr7kDGC/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+31,オーストラリア,A リーグ・メン,パース・グローリー,/team/perth-glory/hjY9yg16/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+32,イタリア,セリエ A,ナポリ,/team/napoli/69Dxbc61/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+33,イタリア,セリエ A,ユヴェントス,/team/juventus/C06aJvIB/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+34,イタリア,セリエ A,コモ,/team/como/ttyLthOA/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+35,イタリア,セリエ A,クレモネーゼ,/team/cremonese/KUzfp5N3/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+36,イタリア,セリエ A,ASローマ,/team/associazione-sportiva-roma/zVqqL0ma/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+37,イタリア,セリエ A,ピサ,/team/pisa/roasMsOT/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+38,イタリア,セリエ A,フィオレンティーナ,/team/fiorentina/Q3A3IbXH/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+39,イタリア,セリエ A,アタランタ,/team/atalanta/8C9JjMXu/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+40,イタリア,セリエ A,カリアリ,/team/cagliari/SCGVmKHb/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+41,イタリア,セリエ A,レッチェ,/team/lecce/G8lYsMgU/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+42,イタリア,セリエ A,ジェノア,/team/genoa/d0PJxeie/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+43,イタリア,セリエ A,ウディネーゼ,/team/udinese/rXw8YKDE/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+44,イタリア,セリエ A,インテル,/team/inter/Iw7eKK25/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+45,イタリア,セリエ A,トリノ,/team/torino/MZFZnvX4/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+46,イタリア,セリエ A,エラス・ヴェローナ,/team/verona/rJVAIaHo/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+47,イタリア,セリエ A,ACミラン,/team/ac-milan/8Sa8HInO/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+48,イタリア,セリエ A,ボローニャ,/team/bologna/0M9xNN8N/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+49,イタリア,セリエ A,サッスオーロ,/team/sassuolo/QDdvI0zl/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+50,イタリア,セリエ A,ラツィオ,/team/lazio/URcSl02h/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+51,イタリア,セリエ A,パルマ,/team/parma/6DxlaxHN/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+52,日本,J1 リーグ,京都サンガ,/team/kyoto/fZS33RAH/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+53,日本,J1 リーグ,鹿島アントラーズ,/team/kashima/4nNKlKo9/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+54,日本,J1 リーグ,町田ゼルビア,/team/machida-zelvia/CUSC1dab/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+55,日本,J1 リーグ,柏レイソル,/team/kashiwa/hEbtKvnM/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+56,日本,J1 リーグ,ヴィッセル神戸,/team/kobe/698tGI9q/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+57,日本,J1 リーグ,サンフレッチェ広島,/team/hiroshima/fX7MRdvd/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+58,日本,J1 リーグ,浦和レッズ,/team/urawa/C8IHSxPk/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+59,日本,J1 リーグ,川崎フロンターレ,/team/kawasaki-frontale/bF5XL0H9/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+60,日本,J1 リーグ,ファジアーノ岡山,/team/okayama/vDpqgnYn/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+61,日本,J1 リーグ,セレッソ大阪,/team/c-osaka/rJJl6Vtt/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+62,日本,J1 リーグ,アビスパ福岡,/team/avispa-fukuoka/SdMQZTB5/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+63,日本,J1 リーグ,ガンバ大阪,/team/g-osaka/zLQAGOBK/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+64,日本,J1 リーグ,清水エスパルス,/team/shimizu/vPgupwAd/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+65,日本,J1 リーグ,東京ヴェルディ,/team/verdy/ppNYGTQb/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+66,日本,J1 リーグ,FC東京,/team/fc-tokyo/8zCQQGg2/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+67,日本,J1 リーグ,名古屋グランパス,/team/nagoya/6BeXoaup/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+68,日本,J1 リーグ,横浜F・マリノス,/team/yokohama-m/4h6TMt23/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+69,日本,J1 リーグ,湘南ベルマーレ,/team/shonan/SIV5o8tI/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+70,日本,J1 リーグ,横浜FC,/team/yokohama/OlLWoSeO/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+71,日本,J1 リーグ,アルビレックス新潟,/team/albirex-niigata/CAwa47eB/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+72,日本,J1 リーグ,インテル・マイアミCF,/team/inter-miami/0AheRyBg/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+73,日本,J1 リーグ,ドジャース（大谷 翔平),/team/los-angeles-dodgers/nwPDBpVc/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+74,日本,J1 リーグ,レイカーズ,/team/los-angeles-lakers/ngegZ8bg/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+75,韓国,K リーグ 1,全北,/team/jeonbuk/x0hNfcgA/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+76,韓国,K リーグ 1,金泉尚武,/team/gimcheon-sangmu/IaoBca9i/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+77,韓国,K リーグ 1,浦項,/team/pohang/KIIIipI5/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+78,韓国,K リーグ 1,大田,/team/daejeon/2NTiQXjI/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+79,韓国,K リーグ 1,ソウル,/team/seoul/8tzeYeHp/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+80,韓国,K リーグ 1,光州FC,/team/gwangju-fc/8SWdrMTR/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+81,韓国,K リーグ 1,江原,/team/gangwon/A144gewT/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+82,韓国,K リーグ 1,蔚山HD,/team/ulsan-hyundai/EVEwgyOM/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+83,韓国,K リーグ 1,水原FC,/team/suwon-fc/6sXCYRPI/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+84,韓国,K リーグ 1,済州SK,/team/jeju-sk/vFZJewv4/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+85,韓国,K リーグ 1,安養,/team/anyang/QRK4aI4P/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+86,韓国,K リーグ 1,大邱,/team/daegu/SrMQkOnI/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+87,スペイン,ラ・リーガ,ビジャレアル,/team/villarreal/lUatW5jE/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+88,スペイン,ラ・リーガ,バルセロナ,/team/barcelona/SKbpVP5K/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+89,スペイン,ラ・リーガ,レアル・マドリード,/team/real-madrid/W8mj7MDD/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+90,スペイン,ラ・リーガ,エスパニョール,/team/espanyol/QFfPdh1J/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+91,スペイン,ラ・リーガ,ベティス,/team/betis/vJbTeCGP/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+92,スペイン,ラ・リーガ,ﾗｰｼﾞｮ･ﾊﾞｼﾞｪｶｰﾉ,/team/rayo-vallecano/8bcjFy6O/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+93,スペイン,ラ・リーガ,ヘタフェ,/team/getafe/dboeiWOt/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+94,スペイン,ラ・リーガ,A・ビルバオ,/team/ath-bilbao/IP5zl0cJ/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+95,スペイン,ラ・リーガ,アラベス,/team/alaves/hxt57t2q/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+96,スペイン,ラ・リーガ,オサスナ,/team/osasuna/ETdxjU8a/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+97,スペイン,ラ・リーガ,レアル・ソシエダ,/team/real-sociedad/jNvak2f3/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+98,スペイン,ラ・リーガ,エルチェ,/team/elche/4jl02tPF/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+99,スペイン,ラ・リーガ,A・マドリード,/team/atl-madrid/jaarqpLQ/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+100,スペイン,ラ・リーガ,バレンシア,/team/valencia/CQeaytrD/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+101,スペイン,ラ・リーガ,セルタ,/team/celta-vigo/8pvUZFhf/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+102,スペイン,ラ・リーガ,マジョルカ,/team/mallorca/4jDQxrbf/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+103,スペイン,ラ・リーガ,セビージャ,/team/sevilla/h8oAv4Ts/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+104,スペイン,ラ・リーガ,レバンテ,/team/levante/G8FL0ShI/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+105,スペイン,ラ・リーガ,レアル・オビエド,/team/r-oviedo/SzYzw34K/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+106,スペイン,ラ・リーガ,ジローナ,/team/girona/nNNpcUSL/,bm_user,2025-10-01 13:51:36+09,bm_user,2025-10-01 13:51:36+09
+107,イングランド,プレミアリーグ,アーセナル,/team/arsenal/hA1Zm19f/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+108,イングランド,プレミアリーグ,トッテナム,/team/tottenham/UDg08Ohm/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+109,イングランド,プレミアリーグ,チェルシー,/team/chelsea/4fGZN2oK/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+110,イングランド,プレミアリーグ,ノッティンガム,/team/nottingham/UsushcZr/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+111,イングランド,プレミアリーグ,リヴァプール,/team/liverpool/lId4TMwf/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+112,イングランド,プレミアリーグ,マンチェスター・C,/team/manchester-city/Wtn9Stg0/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+113,イングランド,プレミアリーグ,サンダーランド,/team/sunderland/WSzc94ws/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+114,イングランド,プレミアリーグ,エヴァートン,/team/everton/KluSTr9s/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+115,イングランド,プレミアリーグ,ボーンマス,/team/bournemouth/OtpNdwrc/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+116,イングランド,プレミアリーグ,バーンリー,/team/burnley/z3dmTMMO/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+117,イングランド,プレミアリーグ,ブレントフォード,/team/brentford/xYe7DwID/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+118,イングランド,プレミアリーグ,リーズ,/team/leeds/tUxUbLR2/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+119,イングランド,プレミアリーグ,フラム,/team/fulham/69ZiU2Om/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+120,イングランド,プレミアリーグ,クリスタル・パレス,/team/crystal-palace/AovF1Mia/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+121,イングランド,プレミアリーグ,ニューカッスル,/team/newcastle-utd/p6ahwuwJ/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+122,イングランド,プレミアリーグ,マンチェスター・U,/team/manchester-united/ppjDR086/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+123,イングランド,プレミアリーグ,アストン・ヴィラ,/team/aston-villa/W00wmLO0/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+124,イングランド,プレミアリーグ,ブライトン,/team/brighton/2XrRecc3/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+125,イングランド,プレミアリーグ,ウルヴス,/team/wolves/j3Azpf5d/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+126,イングランド,プレミアリーグ,ウェストハム,/team/west-ham/Cxq57r8g/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+127,イングランド,プレミアリーグ,インテル・マイアミCF,/team/inter-miami/0AheRyBg/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+128,イングランド,プレミアリーグ,ドジャース（大谷 翔平),/team/los-angeles-dodgers/nwPDBpVc/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+129,イングランド,プレミアリーグ,レイカーズ,/team/los-angeles-lakers/ngegZ8bg/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+130,ブラジル,セリエ B,ゴイアス,/team/goias/hfAZyE0t/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+131,ブラジル,セリエ B,コリチーバ,/team/coritiba/KGO4pUqO/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+132,ブラジル,セリエ B,シャペコエンセ,/team/chapecoense-sc/jcQV3XP6/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+133,ブラジル,セリエ B,クリシューマ,/team/criciuma/48b7cubd/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+134,ブラジル,セリエ B,ノヴォリゾンチーノ,/team/novorizontino/4lOgZPQl/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+135,ブラジル,セリエ B,レモ,/team/remo/2i0B6Zul/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+136,ブラジル,セリエ B,ヴィラ・ノヴァFC,/team/vila-nova-fc/Y3E1Lrj3/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+137,ブラジル,セリエ B,クイアバ,/team/cuiaba/zVvjqDOo/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+138,ブラジル,セリエ B,アヴァイ,/team/avai/rPzY7fWt/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+139,ブラジル,セリエ B,CRB,/team/crb/QHa3bLrj/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+140,ブラジル,セリエ B,オペラリオ,/team/operario/CW8Nm1GL/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+141,ブラジル,セリエ B,アトレチコPR,/team/athletico-pr/UoAxb1Tq/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+142,ブラジル,セリエ B,フェロヴィアリア,/team/ferroviaria/pAPVj72I/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+143,ブラジル,セリエ B,アトレチコGO,/team/atletico-go/8M0mP8nt/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+144,ブラジル,セリエ B,アスレチック・クラブ,/team/athletic-club/INXlw5Bp/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+145,ブラジル,セリエ B,ヴォルタ・レドンダ,/team/volta-redonda/zs0bUylR/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+146,ブラジル,セリエ B,アメリカMG,/team/america-mg/xUT0Bp8o/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+147,ブラジル,セリエ B,ボタフォゴSP,/team/botafogo-sp/2yRUzy5N/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+148,ブラジル,セリエ B,パイサンドゥPA,/team/paysandu-pa/URQ9q4vA/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+149,ブラジル,セリエ B,アマゾナス,/team/amazonas/zk9LAfeq/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+150,ブラジル,セリエ B,インテル・マイアミCF,/team/inter-miami/0AheRyBg/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+151,ブラジル,セリエ B,ドジャース（大谷 翔平),/team/los-angeles-dodgers/nwPDBpVc/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+152,ブラジル,セリエ B,レイカーズ,/team/los-angeles-lakers/ngegZ8bg/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+153,カメルーン,エリート 1,コロンブ,/team/colombe/27xPRZxk/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+154,カメルーン,エリート 1,パンテール,/team/panthere/MPLYHPAs/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+155,カメルーン,エリート 1,ガゼル,/team/gazelle/vLt173Om/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+156,カメルーン,エリート 1,コトンスポール,/team/cotonsport/IB1gnyvJ/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+157,カメルーン,エリート 1,ステッド・レナルド,/team/stade-renard/G87EIVIl/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+158,カメルーン,エリート 1,ﾋﾞｸﾄﾘｱ･ﾕﾅｲﾃｯﾄﾞ,/team/victoria-united/rczUOCZn/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+159,カメルーン,エリート 1,キャノン・ヤウンデ,/team/canon-yaounde/48ckmHOC/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+160,カメルーン,エリート 1,バメンダ,/team/bamenda/tto1EEn8/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+161,カメルーン,エリート 1,ﾌｰｳﾞ･ｱｽﾞｰﾙ･ｴﾘｰﾄ,/team/fauve-azur-elite/xbAIWGw5/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+162,カメルーン,エリート 1,ディナモ・ドゥアラ,/team/dynamo-douala/xzuSCh18/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+163,カメルーン,エリート 1,フォルトゥナ・ムフー,/team/as-fortuna-mfou/0dGuEAp0/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+164,カメルーン,エリート 1,エーグル・ムンゴ,/team/aigle-moungo/Ctkhc1eF/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+165,カメルーン,エリート 1,バンブトFC,/team/bamboutos-fc/ERjLSiWD/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+166,カメルーン,エリート 1,リ・ザストル,/team/les-astres/p69GrIhO/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+167,カメルーン,エリート 1,ユニオン・ドゥアラ,/team/union-douala/jTsPWvKd/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+168,カメルーン,エリート 1,ヤング・スポーツ,/team/young-sports/GMBWxkqT/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+169,イングランド,EFL リーグ 1,カーディフ,/team/cardiff/hO8wh6aP/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+170,イングランド,EFL リーグ 1,ハダースフィールド,/team/huddersfield/xxxpBZl2/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+171,イングランド,EFL リーグ 1,スティヴネイジ,/team/stevenage/ANwyQM2M/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+172,イングランド,EFL リーグ 1,ﾌﾞﾗｯﾄﾞﾌｫｰﾄﾞ･ｼﾃｨ,/team/bradford/bsc3EJ27/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+173,イングランド,EFL リーグ 1,ストックポート,/team/stockport/IX6WjNvr/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+174,イングランド,EFL リーグ 1,バーンズリー,/team/barnsley/UNGEKMx6/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+175,イングランド,EFL リーグ 1,リンカーン・シティ,/team/lincoln-city/hrHTRs5B/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+176,イングランド,EFL リーグ 1,ドンカスター,/team/doncaster/hlzYDy5q/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+177,イングランド,EFL リーグ 1,マンスフィールド,/team/mansfield/t6G9wMZN/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+178,イングランド,EFL リーグ 1,AFC ウィンブルドン,/team/afc-wimbledon/4KREuF43/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+179,イングランド,EFL リーグ 1,ルートン・タウン,/team/luton/SlybbadF/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+180,イングランド,EFL リーグ 1,ウィガン,/team/wigan/MgHlK2Na/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+181,イングランド,EFL リーグ 1,レイトン・オリエント,/team/leyton-orient/KKyYcus9/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+182,イングランド,EFL リーグ 1,エクセター,/team/exeter/ve14a3l4/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+183,イングランド,EFL リーグ 1,ボルトン,/team/bolton/Or1bBrWD/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+184,イングランド,EFL リーグ 1,バートン,/team/burton/nwCtJaJT/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+185,イングランド,EFL リーグ 1,ロザラム,/team/rotherham/KMfM7P4b/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+186,イングランド,EFL リーグ 1,ノーサンプトン,/team/northampton/l4P6dwRR/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+187,イングランド,EFL リーグ 1,プリマス,/team/plymouth/WpGM6ELj/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+188,イングランド,EFL リーグ 1,ブラックプール,/team/blackpool/8EFIJthC/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+189,イングランド,EFL リーグ 1,ウィコム,/team/wycombe/hl2V5JIl/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+190,イングランド,EFL リーグ 1,ポート・ヴェイル,/team/port-vale/U3lM3y4e/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+191,イングランド,EFL リーグ 1,レディングFC,/team/reading/EmlVDpVP/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+192,イングランド,EFL リーグ 1,ピーターバラ,/team/peterborough/tWeI85kh/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+193,イングランド,EFL リーグ 1,インテル・マイアミCF,/team/inter-miami/0AheRyBg/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+194,イングランド,EFL リーグ 1,ドジャース（大谷 翔平),/team/los-angeles-dodgers/nwPDBpVc/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+195,イングランド,EFL リーグ 1,レイカーズ,/team/los-angeles-lakers/ngegZ8bg/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+196,エストニア,メスタリリーガ,レバディア,/team/levadia/zNmMkSLj/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+197,エストニア,メスタリリーガ,フローラ・タリン,/team/flora/zLFV5ykn/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+198,エストニア,メスタリリーガ,パイデ,/team/paide-linnameeskond/CAjWlFop/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+199,エストニア,メスタリリーガ,ナルヴァ,/team/narva/CpFLgaVe/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+200,エストニア,メスタリリーガ,カリュ,/team/kalju/6sqJGMx9/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+201,エストニア,メスタリリーガ,ﾊﾟﾙﾇ･ﾘﾅﾒｰｽｺﾝﾄﾞ,/team/parnu-jk-vaprus/zRHz0529/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+202,エストニア,メスタリリーガ,タルトゥJKタメカ,/team/tammeka-tartu/SdXRE07L/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+203,エストニア,メスタリリーガ,ハリュ JK ラーグリ,/team/harju-jk-laagri/GS9F0Cw6/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+204,エストニア,メスタリリーガ,クレサーレ,/team/kuressaare/xAe6hQ2a/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+205,エストニア,メスタリリーガ,タリナ・カレフ,/team/tallinna-kalev/jyEPhJp2/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+206,セルビア,スーペルリーガ,パルチザン,/team/partizan/8OLvlKz0/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+207,セルビア,スーペルリーガ,ヴォイヴォディナ,/team/vojvodina/8pVJab5C/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+208,セルビア,スーペルリーガ,ﾂﾙｳﾞｪﾅ･ｽﾞｳﾞｪｽﾞﾀﾞ,/team/crvena-zvezda/ncRzHK14/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+209,セルビア,スーペルリーガ,ジェレズニチャル,/team/zeleznicar-pancevo/jmmBWFML/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+210,セルビア,スーペルリーガ,チュカリチュキ,/team/cukaricki/tEBfcZh3/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+211,セルビア,スーペルリーガ,ノヴィ・パザル,/team/novi-pazar/KfRtJ260/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+212,セルビア,スーペルリーガ,TSC,/team/tsc-backa-topola/CtblNHpa/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+213,セルビア,スーペルリーガ,OFK ベオグラード,/team/ofk-beograd/Imdxh57l/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+214,セルビア,スーペルリーガ,IMT,/team/imt-novi-beograd/CIgZyXPE/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+215,セルビア,スーペルリーガ,ムラドスト・ルチャニ,/team/mladost-lucani/ER92eDNF/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+216,セルビア,スーペルリーガ,ラドニチュキ・ニシュ,/team/radnicki-nis/boQpIML6/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+217,セルビア,スーペルリーガ,ｽﾊﾟﾙﾀｸ･ｽﾎﾞﾃｨﾂｧ,/team/spartak-subotica/b7fHYa2g/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+218,セルビア,スーペルリーガ,ﾗﾄﾞﾆｸ･ｽﾙﾄﾞｩﾘﾂｧ,/team/radnik-surdulica/001CSxc0/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+219,セルビア,スーペルリーガ,ナプレダク,/team/napredak/8WNhuohr/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+220,セルビア,スーペルリーガ,ラドニチュキ 1923,/team/radnicki-1923/IXb191IM/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+221,セルビア,スーペルリーガ,ヤヴォル,/team/javor/00NeCQbK/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+222,ブラジル,セリエ A ベターノ,CRフラメンゴ,/team/flamengo-rj/WjxY29qB/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+223,ブラジル,セリエ A ベターノ,クルゼイロ,/team/cruzeiro/0SwtclaU/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+224,ブラジル,セリエ A ベターノ,パルメイラス,/team/palmeiras/hMn9FTbH/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+225,ブラジル,セリエ A ベターノ,バイーア,/team/bahia/UeD7XtzM/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+226,ブラジル,セリエ A ベターノ,ボタフォゴRJ,/team/botafogo-rj/jXzWoWa5/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+227,ブラジル,セリエ A ベターノ,ミラソウ,/team/mirassol/pQ8ryEe7/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+228,ブラジル,セリエ A ベターノ,サンパウロ,/team/sao-paulo/QgP0oAUH/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+229,ブラジル,セリエ A ベターノ,ブラガンチーノ,/team/bragantino/jwKvKhGa/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+230,ブラジル,セリエ A ベターノ,フルミネンセ,/team/fluminense/EV9L3kU4/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+231,ブラジル,セリエ A ベターノ,セアラー,/team/ceara/p0JrJCV5/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+232,ブラジル,セリエ A ベターノ,コリンチャンス,/team/corinthians/QBGfQbSe/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+233,ブラジル,セリエ A ベターノ,アトレチコ・ミネイロ,/team/atletico-mg/hGLC5Bah/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+234,ブラジル,セリエ A ベターノ,インテルナシオナル,/team/internacional/tSCiHj0I/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+235,ブラジル,セリエ A ベターノ,グレミオ,/team/gremio/E1EFmhVh/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+236,ブラジル,セリエ A ベターノ,サントス,/team/santos/n3QdnjFB/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+237,ブラジル,セリエ A ベターノ,ヴァスコ・ダ・ガマ,/team/vasco/2RABlYFn/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+238,ブラジル,セリエ A ベターノ,ヴィトーリア,/team/vitoria/8bSbHipn/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+239,ブラジル,セリエ A ベターノ,ジュベントゥージ,/team/esporte-clube-juventude/GS36K259/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+240,ブラジル,セリエ A ベターノ,フォルタレーザ,/team/fortaleza/42FbPIs2/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+241,ブラジル,セリエ A ベターノ,スポルチ・レシフェ,/team/sport-recife/KIBeGAFO/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+242,ブラジル,セリエ A ベターノ,インテル・マイアミCF,/team/inter-miami/0AheRyBg/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+243,ブラジル,セリエ A ベターノ,ドジャース（大谷 翔平),/team/los-angeles-dodgers/nwPDBpVc/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+244,ブラジル,セリエ A ベターノ,レイカーズ,/team/los-angeles-lakers/ngegZ8bg/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+245,イングランド,EFL チャンピオンシップ,ストーク・シティ,/team/stoke-city/hSUajdSS/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+246,イングランド,EFL チャンピオンシップ,ミドルズブラ,/team/middlesbrough/6F0lvLNC/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+247,イングランド,EFL チャンピオンシップ,コヴェントリー,/team/coventry/GOvB22xg/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+248,イングランド,EFL チャンピオンシップ,ウェスト・ブロム,/team/west-brom/CCBWpzjj/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+249,イングランド,EFL チャンピオンシップ,バーミンガム,/team/birmingham/SWk4muv7/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+250,イングランド,EFL チャンピオンシップ,プレストン,/team/preston/x8IDVcbi/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+251,イングランド,EFL チャンピオンシップ,レスター・シティ,/team/leicester/KrrdAMyI/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+252,イングランド,EFL チャンピオンシップ,ミルウォール,/team/millwall/6uz2cJBL/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+253,イングランド,EFL チャンピオンシップ,ブリストル・シティ,/team/bristol-city/MahqU27I/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+254,イングランド,EFL チャンピオンシップ,サウサンプトン,/team/southampton/WdKOwxDM/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+255,イングランド,EFL チャンピオンシップ,ポーツマス,/team/portsmouth/zckREQFJ/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+256,イングランド,EFL チャンピオンシップ,ワトフォード,/team/watford/UmMRoGzp/,bm_user,2025-10-01 13:51:37+09,bm_user,2025-10-01 13:51:37+09
+257,イングランド,EFL チャンピオンシップ,スウォンジー,/team/swansea/K6xezbY7/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+258,イングランド,EFL チャンピオンシップ,チャールトン,/team/charlton/fXf5mQ7t/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+259,イングランド,EFL チャンピオンシップ,ハル・シティ,/team/hull-city/S66R0t75/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+260,イングランド,EFL チャンピオンシップ,ブラックバーン,/team/blackburn/6Nl8nagD/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+261,イングランド,EFL チャンピオンシップ,ノリッジ,/team/norwich/Qo6off6p/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+262,イングランド,EFL チャンピオンシップ,イプスウィッチ,/team/ipswich/thqhB2MB/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+263,イングランド,EFL チャンピオンシップ,レクサム,/team/wrexham/IgO7K1ZA/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+264,イングランド,EFL チャンピオンシップ,ダービー,/team/derby/Iug0YO0Q/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+265,イングランド,EFL チャンピオンシップ,ｼｪﾌｨｰﾙﾄﾞ・ｳｪﾝｽﾞﾃﾞｨ,/team/sheffield-wed/llcCvIcG/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+266,イングランド,EFL チャンピオンシップ,QPR,/team/qpr/lrMHUHDc/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+267,イングランド,EFL チャンピオンシップ,オックスフォード,/team/oxford-utd/vgOBT43c/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+268,イングランド,EFL チャンピオンシップ,シェフィールド・U,/team/sheffield-utd/MeKPSerA/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+269,イングランド,EFL チャンピオンシップ,インテル・マイアミCF,/team/inter-miami/0AheRyBg/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+270,イングランド,EFL チャンピオンシップ,ドジャース（大谷 翔平),/team/los-angeles-dodgers/nwPDBpVc/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+271,イングランド,EFL チャンピオンシップ,レイカーズ,/team/los-angeles-lakers/ngegZ8bg/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+272,ブルガリア,パルヴァ・リーガ,ルドゴレツ,/team/ludogorets/GrLjfV3M/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+273,ブルガリア,パルヴァ・リーガ,レフスキ・ソフィア,/team/levski/E5OOzgs4/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+274,ブルガリア,パルヴァ・リーガ,CSKA 1948 ソフィア,/team/cska-1948-sofia/fgaHZGUb/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+275,ブルガリア,パルヴァ・リーガ,チェルノ・モレ,/team/cherno-more/EeRUF2go/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+276,ブルガリア,パルヴァ・リーガ,ﾛｺﾓﾃｨﾌ･ﾌﾟﾛｳﾞﾃﾞｨﾌ,/team/lok-plovdiv/zFPKyZRc/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+277,ブルガリア,パルヴァ・リーガ,ﾛｺﾓﾃｨﾌ･ｿﾌｨｱ,/team/lok-sofia/xp9SXWBG/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+278,ブルガリア,パルヴァ・リーガ,ボテフ・ヴラツァ,/team/botev-vratsa/revfhoot/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+279,ブルガリア,パルヴァ・リーガ,ドブルジャ,/team/dobrudzha/0CpyYs0O/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+280,ブルガリア,パルヴァ・リーガ,アルダ・クルジャリ,/team/arda/G4CP0a82/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+281,ブルガリア,パルヴァ・リーガ,ベロエ,/team/beroe/4MyeM4GH/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+282,ブルガリア,パルヴァ・リーガ,モンタナ,/team/montana/KlnUda9s/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+283,ブルガリア,パルヴァ・リーガ,スパルタク,/team/spartak/zof0uk4j/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+284,ブルガリア,パルヴァ・リーガ,ボテフ・プロヴディフ,/team/botev-plovdiv/xzz3KroU/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+285,ブルガリア,パルヴァ・リーガ,CSKA ソフィア,/team/cska-sofia/0xFNNECi/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+286,ブルガリア,パルヴァ・リーガ,ｾﾌﾟﾃﾑｳﾞﾘ･ｿﾌｨｱ,/team/septemvri-sofia/8nkL4WbD/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+287,ブルガリア,パルヴァ・リーガ,スラヴィア・ソフィア,/team/slavia-sofia/UopPSUlp/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+288,ブルガリア,パルヴァ・リーガ,インテル・マイアミCF,/team/inter-miami/0AheRyBg/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+289,ブルガリア,パルヴァ・リーガ,ドジャース（大谷 翔平),/team/los-angeles-dodgers/nwPDBpVc/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+290,ブルガリア,パルヴァ・リーガ,レイカーズ,/team/los-angeles-lakers/ngegZ8bg/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+291,日本,WEリーグ,浦和レッズ W,/team/urawa/Opt8O1bI/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+292,日本,WEリーグ,INAC神戸レオネッサ W,/team/inac-kobe-leonesa/CKfaNnKs/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+293,日本,WEリーグ,アルビレックス新潟 W,/team/albirex-niigata/WvTfrqEn/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+294,日本,WEリーグ,セレッソ大阪 W,/team/c-osaka/QVUz6GzN/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+295,日本,WEリーグ,ｼﾞｪﾌﾕﾅｲﾃｯﾄﾞ市原・千葉 W,/team/jef-united/pKYUsPbt/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+296,日本,WEリーグ,サンフレッチェ広島 W,/team/hiroshima/UPml0M85/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+297,日本,WEリーグ,AC長野パルセイロ W,/team/ac-parceiro-nagano/46e2P3RO/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+298,日本,WEリーグ,日テレ・ベレーザ W,/team/beleza/rBn3n5jP/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+299,日本,WEリーグ,大宮アルディージャ W,/team/omiya-ardija/pxnx3OOn/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+300,日本,WEリーグ,ASエルフェン埼玉 W,/team/saitama/AFqGusb5/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+301,日本,WEリーグ,ﾏｲﾅﾋﾞ仙台ﾚﾃﾞｨｰｽ W,/team/mynavi-sendai/Yufh7cU6/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+302,日本,WEリーグ,ノジマステラ W,/team/nojima-stella/fapzQWho/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+303,トルコ,スュペル・リグ,ガラタサライ,/team/galatasaray/riaqqurF/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+304,トルコ,スュペル・リグ,トラブゾンスポル,/team/trabzonspor/MmsYDc03/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+305,トルコ,スュペル・リグ,ギョズテペ,/team/goztepe/0MJlDkrA/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+306,トルコ,スュペル・リグ,コンヤスポル,/team/konyaspor/YazuCbCE/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+307,トルコ,スュペル・リグ,サムスンスポル,/team/samsunspor/pSc6z7bf/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+308,トルコ,スュペル・リグ,アンタルヤスポル,/team/antalyaspor/GAtxDHF9/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+309,トルコ,スュペル・リグ,フェネルバフチェ,/team/fenerbahce/MsbmracL/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+310,トルコ,スュペル・リグ,ベシクタシュ,/team/besiktas/IDmErJCR/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+311,トルコ,スュペル・リグ,ガズィアンテプ,/team/gaziantep/ITkIKZ7q/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+312,トルコ,スュペル・リグ,バシャクシェヒル,/team/basaksehir/YqP5NmC1/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+313,トルコ,スュペル・リグ,アランヤスポル,/team/alanyaspor/IcN8oPcJ/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+314,トルコ,スュペル・リグ,リゼスポル,/team/rizespor/EFRnJdkr/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+315,トルコ,スュペル・リグ,カイセリスポル,/team/kayserispor/8pwUEwoc/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+316,トルコ,スュペル・リグ,カスムパシャ,/team/kasimpasa/dOlaIG4l/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+317,トルコ,スュペル・リグ,ゲンチレルビルリイ,/team/genclerbirligi/GOPqBIRK/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+318,トルコ,スュペル・リグ,エユプスポル,/team/eyupspor/276zKCgt/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+319,トルコ,スュペル・リグ,コジャエリスポル,/team/kocaelispor/hfvQIzKf/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+320,トルコ,スュペル・リグ,カラギュムリュク,/team/f-karagumruk/Cv7CWW8n/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+321,エチオピア,プレミアリーグ,ｴﾁｵﾋﾟｱﾝ･ｲﾝｼｭｱﾗﾝｽ,/team/ethiopian-insurance/27bLOvM3/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+322,エチオピア,プレミアリーグ,エチオピア・ブンナ,/team/ethiopia-bunna/2yAFxbj3/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+323,エチオピア,プレミアリーグ,バハルダール・ケネマ,/team/bahir-dar-kenema/zqa9ZINp/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+324,エチオピア,プレミアリーグ,アワッサ,/team/hawassa/YeJ5rtW6/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+325,エチオピア,プレミアリーグ,シダマ・ブンナ,/team/sidama-bunna/hMfHFzqj/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+326,エチオピア,プレミアリーグ,ウォライタ・ディチャ,/team/welayta-dicha/6PbLEfbd/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+327,エチオピア,プレミアリーグ,アルバ・メンケ,/team/arba-menche/Ac5CGGTq/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+328,エチオピア,プレミアリーグ,ハディヤ・ホッサナ,/team/hadiya-hossana/hOiG83Vs/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+329,エチオピア,プレミアリーグ,セイント・ジョージ,/team/st-georges/lMtfAfk0/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+330,エチオピア,プレミアリーグ,メカル,/team/mechal-sc/fF7FZEzp/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+331,エチオピア,プレミアリーグ,ｴﾁｵﾋﾟｱ･ﾆｸﾞﾄﾞ･ﾊﾞﾝｸ,/team/ethiopia-nigd-bank/vFEtMx6M/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+332,エチオピア,プレミアリーグ,ｴﾁｵ･ｴﾚｸﾄﾘｯｸ,/team/ethio-electric-s-c/vsvcjXbp/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+333,エチオピア,プレミアリーグ,ディレ・ダワ,/team/dire-dawa/ppDypUPj/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+334,エチオピア,プレミアリーグ,ファジル・ケネマ,/team/fasil-kenema/rBwuCq38/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+335,エチオピア,プレミアリーグ,ﾒｹﾚ70･ｴﾝﾃﾞﾙﾀFC,/team/mekelle-70-enderta-fc/00ZuwKHc/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+336,エチオピア,プレミアリーグ,アダマ・シティ,/team/adama-city/CrNQ8wjF/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+337,エチオピア,プレミアリーグ,ｼﾚ･ｲﾝﾀﾞｾﾗｼｰ,/team/shire-endaselassie/h4Bab20o/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+338,エチオピア,プレミアリーグ,ｳｪﾙﾜﾛ･ｱﾃﾞｨｸﾞﾗｯﾄ,/team/welwalo-adigrat/EPlozI1G/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+339,エチオピア,プレミアリーグ,ウェルカイト・ケネマ,/team/wolkite-kenema/G20lDqNQ/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+340,中国,中国スーパーリーグ,上海申花,/team/shanghai-shenhua/r5AIrq5q/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+341,中国,中国スーパーリーグ,上海海港,/team/shanghai-port/O88o93rn/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+342,中国,中国スーパーリーグ,成都蓉城,/team/chengdu-rongcheng/ILi3oBgH/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+343,中国,中国スーパーリーグ,北京国安,/team/beijing-guoan/WSLjVBLN/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+344,中国,中国スーパーリーグ,山東泰山,/team/shandong-taishan/27dl0BzH/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+345,中国,中国スーパーリーグ,浙江職業,/team/zhejiang-professional/ncsQGOBL/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+346,中国,中国スーパーリーグ,天津津門虎,/team/tianjin-jinmen-tiger/tCx1gsk2/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+347,中国,中国スーパーリーグ,雲南玉昆,/team/yunnan-yukun/EJp81K5A/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+348,中国,中国スーパーリーグ,大連英博,/team/dalian-yingbo/zDctmLjH/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+349,中国,中国スーパーリーグ,青島西海岸,/team/qingdao-west-coast/0QkqH4Gf/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+350,中国,中国スーパーリーグ,河南嵩山龍門,/team/henan-songshan-longmen/Ywy81Djb/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+351,中国,中国スーパーリーグ,武漢三鎮,/team/wuhan-three-towns/SfLUTe08/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+352,中国,中国スーパーリーグ,梅州客家,/team/meizhou-hakka/r7NA6VcD/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+353,中国,中国スーパーリーグ,深圳新鵬城,/team/shenzhen-xinpengcheng/08kX8Xr0/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+354,中国,中国スーパーリーグ,青島中能,/team/qingdao-hainiu/KbZy1iLA/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+355,中国,中国スーパーリーグ,長春亜泰,/team/changchun-yatai/jZX9VVzU/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+356,アルゼンチン,トルネオ・ベターノ,バラカス・セントラル,/team/barracas-central/hW08cP6J/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+357,アルゼンチン,トルネオ・ベターノ,ウラカン,/team/huracan/xd3lGq3F/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+358,アルゼンチン,トルネオ・ベターノ,ボカ・ジュニアーズ,/team/boca-juniors/hMrWAFH0/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+359,アルゼンチン,トルネオ・ベターノ,ｳﾆｵﾝ･ﾃﾞ･ｻﾝﾀﾌｪ,/team/union-de-santa-fe/lr2YMkTK/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+360,アルゼンチン,トルネオ・ベターノ,ﾃﾞﾌｪﾝｻ･ｲ･ﾌｽﾃｨｼｱ,/team/defensa-y-justicia/Gdfv0Zsh/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+361,アルゼンチン,トルネオ・ベターノ,ｴｽﾄｩﾃﾞｨｱﾝﾃｽ･ﾃﾞ･ﾗ･ﾌﾟﾗﾀ,/team/estudiantes-l-p/p2SkCHXs/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+362,アルゼンチン,トルネオ・ベターノ,CAベルグラーノ,/team/ca-belgrano-de-cordoba/Amzaty2s/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+363,アルゼンチン,トルネオ・ベターノ,ｱﾙﾍﾝﾃｨﾉｽ･ｼﾞｭﾆｱｰｽﾞ,/team/argentinos-jrs/QuxS0ahA/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+364,アルゼンチン,トルネオ・ベターノ,ティグレ,/team/tigre/nkwO1uw4/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+365,アルゼンチン,トルネオ・ベターノ,ｾﾝﾄﾗﾙ･ｺﾙﾄﾞﾊﾞ,/team/central-cordoba-santiago-del-estero/0dHZReql/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+366,アルゼンチン,トルネオ・ベターノ,バンフィエルド,/team/banfield/GIb40wNM/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+367,アルゼンチン,トルネオ・ベターノ,ﾆｭｰｳｪﾙｽﾞ･ｵｰﾙﾄﾞﾎﾞｰｲｽﾞ,/team/newells-old-boys/6gMiRHVj/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+368,アルゼンチン,トルネオ・ベターノ,ｲﾝﾃﾞﾍﾟﾝﾃﾞｨｴﾝﾃ･ﾘﾊﾞﾀﾞﾋﾞｱ,/team/ind-rivadavia/Eg51aDC4/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+369,アルゼンチン,トルネオ・ベターノ,ラシン・クラブ,/team/racing-club/OhapHPm9/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+370,アルゼンチン,トルネオ・ベターノ,アルドシビ,/team/aldosivi/Eu4qrEcB/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+371,アルゼンチン,トルネオ・ベターノ,リーベル・プレート,/team/river-plate/EVqSBe2f/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+372,アルゼンチン,トルネオ・ベターノ,サン・ロレンソ,/team/san-lorenzo/ju1xJoJd/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+373,アルゼンチン,トルネオ・ベターノ,ロサリオ・セントラル,/team/rosario-central/4QmJ2LNc/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+374,アルゼンチン,トルネオ・ベターノ,ｱﾄﾚﾃｨｺ･ﾄｩｸﾏﾝ,/team/atl-tucuman/KpqpxWko/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+375,アルゼンチン,トルネオ・ベターノ,CAラヌース,/team/lanus/Y9yh1J7G/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+376,アルゼンチン,トルネオ・ベターノ,ﾍﾞﾚｽ･ｻﾙｽﾌｨｴﾙﾄﾞ,/team/velez-sarsfield/UsCR8gFd/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+377,アルゼンチン,トルネオ・ベターノ,ｻﾝ･ﾏﾙﾃｨﾝ･ﾃﾞ･ｻﾝ･ﾌｱﾝ,/team/san-martin-s-j/dUDJAFpp/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+378,アルゼンチン,トルネオ・ベターノ,CDリエストラ,/team/deportivo-riestra/2iZ4q0z6/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+379,アルゼンチン,トルネオ・ベターノ,ﾋﾑﾅｼｱ･ﾗ･ﾌﾟﾗﾀ,/team/gimnasia-l-p/jiDN9Zaj/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+380,アルゼンチン,トルネオ・ベターノ,CAサルミエント,/team/sarmiento-junin/KQ6kGfyc/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+381,アルゼンチン,トルネオ・ベターノ,プラテンセ,/team/platense/80MMdBdN/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+382,アルゼンチン,トルネオ・ベターノ,タジェレス,/team/talleres-cordoba/bkDdeAvA/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+383,アルゼンチン,トルネオ・ベターノ,ｲﾝｽﾃｨﾄｩｰﾄ･ｺﾙﾄﾞﾊﾞ,/team/instituto/8G45bXRA/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+384,アルゼンチン,トルネオ・ベターノ,ゴドイ・クルス,/team/godoy-cruz/tUAxIm6l/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+385,アルゼンチン,トルネオ・ベターノ,ｲﾝﾃﾞﾍﾟﾝﾃﾞｨｴﾝﾃ,/team/independiente/UVatI5Y2/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+386,アルゼンチン,トルネオ・ベターノ,インテル・マイアミCF,/team/inter-miami/0AheRyBg/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+387,アルゼンチン,トルネオ・ベターノ,ドジャース（大谷 翔平),/team/los-angeles-dodgers/nwPDBpVc/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+388,アルゼンチン,トルネオ・ベターノ,レイカーズ,/team/los-angeles-lakers/ngegZ8bg/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+389,スコットランド,プレミアシップ,セルティック,/team/celtic/QFKRRD8M/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+390,スコットランド,プレミアシップ,ハーツ,/team/hearts/0rGrwwNc/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+391,スコットランド,プレミアシップ,ハイバーニアン,/team/hibernian/f5Fnxcx4/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+392,スコットランド,プレミアシップ,リヴィングストン,/team/livingston/MoYV5dic/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+393,スコットランド,プレミアシップ,キルマーノック,/team/kilmarnock/jX8ezy7G/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+394,スコットランド,プレミアシップ,マザーウェル,/team/motherwell/YuW7ZfMM/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+395,スコットランド,プレミアシップ,レンジャーズ,/team/rangers/8vAWQXNS/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+396,スコットランド,プレミアシップ,ダンディーFC,/team/dundee-fc/hjIyrgaj/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+397,スコットランド,プレミアシップ,セント・ミレン,/team/st-mirren/tAVXZEyT/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+398,スコットランド,プレミアシップ,ﾀﾞﾝﾃﾞｨｰ･ﾕﾅｲﾃｯﾄﾞ,/team/dundee-utd/8QEB2FFp/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+399,スコットランド,プレミアシップ,フォルカーク,/team/falkirk/nHDF1ZUj/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+400,スコットランド,プレミアシップ,アバディーン,/team/aberdeen/AmdbMiWq/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+401,日本,J3 リーグ,ヴァンラーレ八戸,/team/vanraure/hKLJFla1/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+402,日本,J3 リーグ,FC大阪,/team/fc-osaka/E3uzKMdT/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+403,日本,J3 リーグ,栃木シティ,/team/tochigi-city/4MvNs2n5/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+404,日本,J3 リーグ,鹿児島ﾕﾅｲﾃｯﾄﾞFC,/team/kagoshima-united/8jbnAT1B/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+405,日本,J3 リーグ,テゲバジャーロ宮崎,/team/tegevajaro-miyazaki/2DLKhMtU/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+406,日本,J3 リーグ,奈良クラブ,/team/nara-club/6s0AMsBf/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+407,日本,J3 リーグ,ギラヴァンツ北九州,/team/giravanz-kitakyushu/00Cp2KYP/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+408,日本,J3 リーグ,ガイナーレ鳥取,/team/gainare-tottori/G6Tk4M6t/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+409,日本,J3 リーグ,栃木SC,/team/tochigi/rcqppiCl/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+410,日本,J3 リーグ,松本山雅FC,/team/matsumoto-yamaga/0lMXpXdr/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+411,日本,J3 リーグ,高知ユナイテッド,/team/kochi-united/A13oDV39/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+412,日本,J3 リーグ,福島ユナイテッドFC,/team/fukushima-united/KSReC3sk/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+413,日本,J3 リーグ,SC相模原,/team/sc-sagamihara/nXumKCoo/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+414,日本,J3 リーグ,ツエーゲン金沢,/team/kanazawa/KY7LrA6d/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+415,日本,J3 リーグ,FC琉球,/team/ryukyu/tM115Db3/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+416,日本,J3 リーグ,ザスパクサツ群馬,/team/thespakusatsu-gunma/UFZb6lCI/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+417,日本,J3 リーグ,AC長野パルセイロ,/team/nagano-parceiro/4UgFVol8/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+418,日本,J3 リーグ,カマタマーレ讃岐,/team/kamatamare-sanuki/S6HnxZqN/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+419,日本,J3 リーグ,FC岐阜,/team/gifu/QRxJwWRn/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+420,日本,J3 リーグ,アスルクラロ沼津,/team/azul-claro-numazu/K8znKTMa/,bm_user,2025-10-01 13:51:38+09,bm_user,2025-10-01 13:51:38+09
+421,日本,J3 リーグ,インテル・マイアミCF,/team/inter-miami/0AheRyBg/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+422,日本,J3 リーグ,ドジャース（大谷 翔平),/team/los-angeles-dodgers/nwPDBpVc/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+423,日本,J3 リーグ,レイカーズ,/team/los-angeles-lakers/ngegZ8bg/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+424,ウガンダ,プレミアリーグ,バイパーズ,/team/vipers/naKVehgj/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+425,ウガンダ,プレミアリーグ,NEC FC,/team/nec-fc/vXYNKJKR/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+426,ウガンダ,プレミアリーグ,BIDCO ブル,/team/bul/612q3z1G/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+427,ウガンダ,プレミアリーグ,ウガンダ・レベニュー,/team/uganda-revenue/IPUH0qvc/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+428,ウガンダ,プレミアリーグ,カンパラ・シティ,/team/kampala-city/fwjo7kpb/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+429,ウガンダ,プレミアリーグ,ヴィラ,/team/villa/ALztxK6e/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+430,ウガンダ,プレミアリーグ,キタラ,/team/kitara/W0aMZOUR/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+431,ウガンダ,プレミアリーグ,マル―ンズ,/team/maroons/hj8xMlGq/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+432,ウガンダ,プレミアリーグ,エクスプレス,/team/express-fc/dM8vDNti/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+433,ウガンダ,プレミアリーグ,UPDF,/team/updf-fc/CCz5vQDb/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+434,ウガンダ,プレミアリーグ,ポリス,/team/police/O6V1NhPB/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+435,ウガンダ,プレミアリーグ,ムバララ・シティ,/team/mbarara-city/lba9cS49/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+436,ウガンダ,プレミアリーグ,ルガジ,/team/lugazi/ziQnnPsF/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+437,ウガンダ,プレミアリーグ,ブライト・スターズ,/team/bright-stars/xScu4GoA/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+438,ウガンダ,プレミアリーグ,ワキソ・ジャイアンツ,/team/wakiso-giants/nTeERdMj/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+439,ウガンダ,プレミアリーグ,ムバレ・ヒーローズ,/team/mbale-heroes/SQMvloD2/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+440,ウガンダ,プレミアリーグ,Entebbe,/team/entebbe/6PQQJeoc/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+441,ウガンダ,プレミアリーグ,カルバリー,/team/calvary/SzQhQsLe/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+442,ウガンダ,プレミアリーグ,ブヒンバ,/team/buhimba/neJtB1pJ/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+443,ウガンダ,プレミアリーグ,Entebbe UPPC,/team/entebbe-uppc/UPwapTb8/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+444,タンザニア,プレミアリーグ,ヤング・アフリカンズ,/team/young-africans/dMbOiRbT/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+445,タンザニア,プレミアリーグ,シンバ,/team/simba/C2SQy01d/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+446,タンザニア,プレミアリーグ,アザム,/team/azam/SrpJwYn3/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+447,タンザニア,プレミアリーグ,ｼﾝｼﾞﾀﾞ･ﾌﾞﾗｯｸｽﾀｰｽﾞ,/team/singida-black-stars/jTBgEvMq/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+448,タンザニア,プレミアリーグ,タボラ・ユナイテッド,/team/tabora-united-fc/QBZZQ08f/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+449,タンザニア,プレミアリーグ,JKT タンザニア,/team/jkt-tanzania/tWnWFCSs/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+450,タンザニア,プレミアリーグ,マシュジャー,/team/mashujaa/hQ372V8j/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+451,タンザニア,プレミアリーグ,コースタル・ユニオン,/team/coastal-union/8vCT7K7l/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+452,タンザニア,プレミアリーグ,ナムンゴ,/team/namungo/rq101FoU/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+453,タンザニア,プレミアリーグ,キノンドーニMC,/team/kinondoni-mc/OfxyFWsl/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+454,タンザニア,プレミアリーグ,パンバ,/team/pamba/8SZxN2bT/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+455,タンザニア,プレミアリーグ,ドドマ・ジジ,/team/dodoma-jiji/YeeY7sb7/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+456,タンザニア,プレミアリーグ,ﾀﾝｻﾞﾆｱ･ﾌﾟﾘｽﾞﾝｽﾞ,/team/tanzania-prisons/bT4t5Ii7/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+457,タンザニア,プレミアリーグ,ファウンテン・ゲート,/team/fountain-gate/UZbifa45/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+458,タンザニア,プレミアリーグ,カゲラ・シュガー,/team/kagera-sugar/thAy6bx1/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+459,タンザニア,プレミアリーグ,ケンゴールド,/team/kengold/bgq0PlQp/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+460,タンザニア,プレミアリーグ,ムティブワ・シュガー,/team/mtibwa-sugar/YumRyCHF/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+461,タンザニア,プレミアリーグ,ムベヤ・シティ,/team/mbeya-city/6o8pEMUK/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+462,オランダ,エールディビジ,ナイメヘン,/team/nijmegen/nRluRF0T/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+463,オランダ,エールディビジ,PSV,/team/psv/M9UEHJWi/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+464,オランダ,エールディビジ,アヤックス,/team/ajax/8UOvIwnb/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+465,オランダ,エールディビジ,フェイエノールト,/team/feyenoord/8zjySeoN/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+466,オランダ,エールディビジ,ズヴォレ,/team/zwolle/r1L5w2EB/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+467,オランダ,エールディビジ,ユトレヒト,/team/utrecht/p6QXMgOj/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+468,オランダ,エールディビジ,ｽﾊﾟﾙﾀ･ﾛｯﾃﾙﾀﾞﾑ,/team/sparta-rotterdam/KK4FaFV3/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+469,オランダ,エールディビジ,AZアルクマール,/team/az-alkmaar/2RxOow1i/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+470,オランダ,エールディビジ,フォレンダム,/team/fc-volendam/6VbkuOqa/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+471,オランダ,エールディビジ,トゥウェンテ,/team/twente/dhOKTHGA/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+472,オランダ,エールディビジ,フローニンゲン,/team/groningen/MBUGcjb9/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+473,オランダ,エールディビジ,ブレダ,/team/breda/nLNrHc14/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+474,オランダ,エールディビジ,GAイーグルス,/team/g-a-eagles/hG8POBb8/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+475,オランダ,エールディビジ,シッタート,/team/sittard/YH8HX5iP/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+476,オランダ,エールディビジ,ヘーレンフェーン,/team/heerenveen/EDjXSyWG/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+477,オランダ,エールディビジ,テルスター,/team/telstar/Aw0qTPat/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+478,オランダ,エールディビジ,エクセルシオール,/team/excelsior/nNlLsRUr/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+479,オランダ,エールディビジ,ヘラクレス,/team/heracles/bB3JbZpA/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+480,オランダ,エールディビジ,インテル・マイアミCF,/team/inter-miami/0AheRyBg/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+481,オランダ,エールディビジ,ドジャース（大谷 翔平),/team/los-angeles-dodgers/nwPDBpVc/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+482,オランダ,エールディビジ,レイカーズ,/team/los-angeles-lakers/ngegZ8bg/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+483,ウクライナ,プレミアリーグ,ディナモ・キエフ,/team/dynamo-kiev/nNpqXMwH/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+484,ウクライナ,プレミアリーグ,ｼｬﾌﾀｰﾙ･ﾄﾞﾈﾂｸ,/team/shakhtar/4ENWX2OA/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+485,ウクライナ,プレミアリーグ,LNZ チェルカースィ,/team/lnz-cherkasy/2m6zvQp5/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+486,ウクライナ,プレミアリーグ,ｺﾛｽ･ｺｳﾞｧﾘﾌｶ,/team/kolos-kovalivka/OfzUZGy6/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+487,ウクライナ,プレミアリーグ,オボロン・キエフ,/team/obolon/bN0dYbAh/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+488,ウクライナ,プレミアリーグ,クドリフカ,/team/kudrivka/nmVantfF/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+489,ウクライナ,プレミアリーグ,クリフバス,/team/kryvbas/2gUHsxs4/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+490,ウクライナ,プレミアリーグ,メタリスト 1925,/team/fc-metalist-1925-kharkiv/W0X2VHyL/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+491,ウクライナ,プレミアリーグ,ゾリャ,/team/zorya/j9Wy32w4/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+492,ウクライナ,プレミアリーグ,ジトーミル,/team/zhytomyr/f3sGNX3j/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+493,ウクライナ,プレミアリーグ,SCポルタヴァ,/team/sc-poltava/reGwCBEC/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+494,ウクライナ,プレミアリーグ,ルフ・リヴィウ,/team/rukh-lviv/pQAxlRVL/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+495,ウクライナ,プレミアリーグ,カルパティ・リヴィウ,/team/karpaty-lviv/tCBNq3le/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+496,ウクライナ,プレミアリーグ,ヴェレス・リウネ,/team/veres-rivne/Aahkn5KI/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+497,ウクライナ,プレミアリーグ,エピツェントル,/team/epitsentr/fsn6KO1s/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+498,ウクライナ,プレミアリーグ,オレクサンドリーヤ,/team/oleksandriya/nHJnN4vh/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+499,ウクライナ,プレミアリーグ,ディナモ・キーウ,/team/dynamo-kiev/nNpqXMwH/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+500,ケニア,プレミアリーグ,ソファパカ,/team/sofapaka/xU9afFkD/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+501,ケニア,プレミアリーグ,マザレ・ユナイテッド,/team/mathare-united/lzS777jQ/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+502,ケニア,プレミアリーグ,ウリンジ・スターズ,/team/ulinzi-stars/KzxaGb9r/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+503,ケニア,プレミアリーグ,タスカー,/team/tusker/b9c0Ziqo/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+504,ケニア,プレミアリーグ,ゴア・マヒア,/team/mahia/GU9jbyMo/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+505,ケニア,プレミアリーグ,レオパーズ,/team/leopards/GWtFfl5B/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+506,ケニア,プレミアリーグ,KCB,/team/kcb/YJdDMY7P/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+507,ケニア,プレミアリーグ,ポスタ・レンジャーズ,/team/rangers/WfxlGWpg/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+508,ケニア,プレミアリーグ,バンダリ,/team/bandari/AuYxVndl/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+509,ケニア,プレミアリーグ,ビドコ・ユナイテッド,/team/bidco-united/0zjHr0CN/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+510,ケニア,プレミアリーグ,ｶｶﾒｶﾞ･ﾎｰﾑﾎﾞｰｲｽﾞ,/team/kakamega-homeboyz-fc/OfdPtDuK/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+511,ケニア,プレミアリーグ,ｶﾘｵﾊﾞﾝｷﾞ･ｼｬｰｸｽ,/team/kariobangi-sharks/EkWjHR8e/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+512,ケニア,プレミアリーグ,ポリスFC,/team/police-fc/AX15Kdd9/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+513,ケニア,プレミアリーグ,シャバナ,/team/shabana/YXH9gwV9/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+514,ケニア,プレミアリーグ,APS ボメット,/team/aps-bomet/KScUSuRF/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+515,ケニア,プレミアリーグ,ムランガ,/team/murang-a/xxIkEOUS/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+516,ケニア,プレミアリーグ,マラ・スーガル,/team/mara-sugar/UBYgXJJb/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+517,ケニア,プレミアリーグ,ﾅｲﾛﾋﾞ･ﾕﾅｲﾃｯﾄﾞ,/team/nairobi-united/6m8PWkft/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+518,チュニジア,チュニジア･プロリーグ,ザルジス,/team/zarzis/0AqfZLXt/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+519,チュニジア,チュニジア･プロリーグ,メトラウイ,/team/metlaoui/tIVvg8yF/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+520,チュニジア,チュニジア･プロリーグ,JSオムラネ,/team/jeunesse-sportive/84XWfU62/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+521,チュニジア,チュニジア･プロリーグ,クラブ・アフリカーン,/team/club-africain/C2lt6Igm/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+522,チュニジア,チュニジア･プロリーグ,ｴｽﾍﾟﾗﾝｽ･ﾁｭﾆｽ,/team/esperance-tunis/bVINpDMl/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+523,チュニジア,チュニジア･プロリーグ,モナスティル,/team/monastir/zixQ6fq8/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+524,チュニジア,チュニジア･プロリーグ,ｽﾀｯﾄﾞ･ﾁｭﾆｼﾞｱﾝ,/team/stade-tunisien/IVPZsB67/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+525,チュニジア,チュニジア･プロリーグ,ガベス,/team/gabes/UNMR8gOn/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+526,チュニジア,チュニジア･プロリーグ,ベンガーダン,/team/ben-guerdane/4MWKcfBn/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+527,チュニジア,チュニジア･プロリーグ,ASマルサ,/team/as-marsa/GfH6hHa2/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+528,チュニジア,チュニジア･プロリーグ,JSケルアン,/team/js-kairouan/rVdSw2PP/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+529,チュニジア,チュニジア･プロリーグ,CAビゼルティン,/team/bizertin/foGAiyF8/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+530,チュニジア,チュニジア･プロリーグ,スファクシアン,/team/sfaxien/2BJIkFqL/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+531,チュニジア,チュニジア･プロリーグ,ソリマン,/team/soliman/n5jl3GmP/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+532,チュニジア,チュニジア･プロリーグ,エトワール・サヘル,/team/etoile-sahel/QyX50QIH/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+533,チュニジア,チュニジア･プロリーグ,オリンピック・ベジャ,/team/olympique-beja/Kp7Wrii1/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+534,ドイツ,ブンデスリーガ,バイエルン,/team/bayern-munich/nVp0wiqd/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+535,ドイツ,ブンデスリーガ,フランクフルト,/team/eintracht-frankfurt/8vndvXTk/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+536,ドイツ,ブンデスリーガ,ヴォルフスブルク,/team/wolfsburg/nwkTahLL/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+537,ドイツ,ブンデスリーガ,FCアウクスブルク,/team/augsburg/fTVNku3I/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+538,ドイツ,ブンデスリーガ,ウニオン・ベルリン,/team/union-berlin/pzHW4oaE/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+539,ドイツ,ブンデスリーガ,ホッフェンハイム,/team/hoffenheim/hQAtP9Sl/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+540,ドイツ,ブンデスリーガ,FCケルン,/team/koln/WG9pOTse/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+541,ドイツ,ブンデスリーガ,ドルトムント,/team/dortmund/nP1i5US1/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+542,ドイツ,ブンデスリーガ,ザンクトパウリ,/team/st-pauli/ILyJuN3g/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+543,ドイツ,ブンデスリーガ,ハンブルガーSV,/team/hamburger/v9k3aY5F/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+544,ドイツ,ブンデスリーガ,ボルシアMG,/team/b-monchengladbach/88HSzjDr/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+545,ドイツ,ブンデスリーガ,レバークーゼン,/team/bayer-leverkusen/4jcj2zMd/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+546,ドイツ,ブンデスリーガ,シュトゥットガルト,/team/vfb-stuttgart/nJQmYp1B/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+547,ドイツ,ブンデスリーガ,マインツ,/team/mainz/EuakNmc1/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+548,ドイツ,ブンデスリーガ,フライブルク,/team/freiburg/fiEQZ7C7/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+549,ドイツ,ブンデスリーガ,ハイデンハイム,/team/heidenheim/KWixEVWi/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+550,ドイツ,ブンデスリーガ,ブレーメン,/team/werder-bremen/Ig1f1fy3/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+551,ドイツ,ブンデスリーガ,RBライプツィヒ,/team/rb-leipzig/KbS1suSm/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+552,ドイツ,ブンデスリーガ,インテル・マイアミCF,/team/inter-miami/0AheRyBg/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+553,ドイツ,ブンデスリーガ,ドジャース（大谷 翔平),/team/los-angeles-dodgers/nwPDBpVc/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+554,ドイツ,ブンデスリーガ,レイカーズ,/team/los-angeles-lakers/ngegZ8bg/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+555,ベルギー,ジュピラー･プロリーグ,シント＝トロイデン,/team/st-truiden/d2EjBxMM/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+556,ベルギー,ジュピラー･プロリーグ,ユニオン,/team/royale-union-sg/407h8Ird/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+557,ベルギー,ジュピラー･プロリーグ,アンデルレヒト,/team/anderlecht/vslqAKNo/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+558,ベルギー,ジュピラー･プロリーグ,クラブ・ブルッヘ,/team/club-brugge/rgTHIK74/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+559,ベルギー,ジュピラー･プロリーグ,アントワープ,/team/antwerp/rVpPxw8H/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+560,ベルギー,ジュピラー･プロリーグ,KVメヘレン,/team/kv-mechelen/ULVIb27i/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+561,ベルギー,ジュピラー･プロリーグ,サークル・ブルッヘ,/team/cercle-brugge/IXnm9vwh/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+562,ベルギー,ジュピラー･プロリーグ,ｽﾀﾝﾀﾞｰﾙ･ﾘｴｰｼﾞｭ,/team/st-liege/vsnvCI6G/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+563,ベルギー,ジュピラー･プロリーグ,ヘンク,/team/genk/r3jWUIiN/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+564,ベルギー,ジュピラー･プロリーグ,ヘント,/team/gent/MgkzUx7T/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+565,ベルギー,ジュピラー･プロリーグ,ルヴィエロワーズ,/team/raal-la-louviere/K0H6jm7P/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+566,ベルギー,ジュピラー･プロリーグ,ワレヘム,/team/waregem/jPDfAdyT/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+567,ベルギー,ジュピラー･プロリーグ,ルーヴェン,/team/leuven/dYlTycNN/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+568,ベルギー,ジュピラー･プロリーグ,ウェステルロー,/team/westerlo/hYaM5Gqp/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+569,ベルギー,ジュピラー･プロリーグ,シャルルロワ,/team/charleroi/WIPDJ0hb/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+570,ベルギー,ジュピラー･プロリーグ,デンデル,/team/dender/xGSLHvNA/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+571,ベルギー,ジュピラー･プロリーグ,インテル・マイアミCF,/team/inter-miami/0AheRyBg/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+572,ベルギー,ジュピラー･プロリーグ,ドジャース（大谷 翔平),/team/los-angeles-dodgers/nwPDBpVc/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+573,ベルギー,ジュピラー･プロリーグ,レイカーズ,/team/los-angeles-lakers/ngegZ8bg/,bm_user,2025-10-01 13:51:39+09,bm_user,2025-10-01 13:51:39+09
+574,コスタリカ,リーガ FPD,リベリア,/team/liberia/jgPa69ID/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+575,コスタリカ,リーガ FPD,サプリサ,/team/saprissa/AXxf8wUg/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+576,コスタリカ,リーガ FPD,エレディアーノ,/team/herediano/C2Qe7k37/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+577,コスタリカ,リーガ FPD,セレドン,/team/zeledon/Ict26Hb6/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+578,コスタリカ,リーガ FPD,カルタヒネス,/team/cartagines/4YQV6Vm1/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+579,コスタリカ,リーガ FPD,アラフエレンセ,/team/alajuelense/GhSOAX3r/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+580,コスタリカ,リーガ FPD,サン・カルロス,/team/san-carlos/69HdDuiQ/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+581,コスタリカ,リーガ FPD,グアダルーペ,/team/guadalupe/UNs8Witt/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+582,コスタリカ,リーガ FPD,プンタレナスFC,/team/puntarenas-fc/bqElF1MD/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+583,コスタリカ,リーガ FPD,ｽﾎﾟﾙﾃｨﾝｸﾞ･ｻﾝ･ﾎｾ,/team/sporting-san-jose/xfnmMoFp/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+584,メキシコ,リーガ MX,モンテレイ,/team/monterrey/Ya23C2Zs/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+585,メキシコ,リーガ MX,クラブ・アメリカ,/team/club-america/vyrswtJm/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+586,メキシコ,リーガ MX,クルス・アスル,/team/cruz-azul/G8PFBMll/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+587,メキシコ,リーガ MX,パチューカ,/team/pachuca/QT16qrtK/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+588,メキシコ,リーガ MX,ティグレス UNAL,/team/u-a-n-l-tigres/Iy4albIC/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+589,メキシコ,リーガ MX,トルーカ,/team/toluca/8hiBr2eQ/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+590,メキシコ,リーガ MX,クラブ・ティフアナ,/team/club-tijuana/nuNVeQkr/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+591,メキシコ,リーガ MX,フアレス,/team/juarez/2wZp8NAh/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+592,メキシコ,リーガ MX,クラブレオン,/team/club-leon/l0iuHPBQ/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+593,メキシコ,リーガ MX,サントス・ラグナ,/team/santos-laguna/EBPEFrRQ/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+594,メキシコ,リーガ MX,ｱﾄﾚﾃｨｺ･ｻﾝﾙｲｽ,/team/atletico-san-luis/OYSN90J0/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+595,メキシコ,リーガ MX,マサトランFC,/team/mazatlan-fc/AXl5ehGE/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+596,メキシコ,リーガ MX,UNAM プーマス,/team/u-n-a-m-pumas/UB73mIXI/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+597,メキシコ,リーガ MX,ネカクサ,/team/necaxa/nw32pOQD/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+598,メキシコ,リーガ MX,アトラス,/team/atlas/AVOJAt4f/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+599,メキシコ,リーガ MX,ﾁｰﾊﾞｽ･ｸﾞｱﾀﾞﾗﾊﾗ,/team/guadalajara-chivas/Y5TaMKY6/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+600,メキシコ,リーガ MX,ケレタロ,/team/queretaro/fqJAznPc/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+601,メキシコ,リーガ MX,プエブラ,/team/puebla/pO5ijKm0/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+602,日本,J2 リーグ,水戸ホーリーホック,/team/mito/GliRsh4P/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+603,日本,J2 リーグ,ｼﾞｪﾌﾕﾅｲﾃｯﾄﾞ市原・千葉,/team/chiba/zNLhJb1S/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+604,日本,J2 リーグ,V・ファーレン長崎,/team/v-varen-nagasaki/hl74HAcF/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+605,日本,J2 リーグ,大宮アルディージャ,/team/omiya-ardija/OErJ0IVR/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+606,日本,J2 リーグ,徳島ヴォルティス,/team/tokushima/IcwgwCCt/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+607,日本,J2 リーグ,ベガルタ仙台,/team/vegalta-sendai/lSW1nlRB/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+608,日本,J2 リーグ,ジュビロ磐田,/team/iwata/QeOGk0W2/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+609,日本,J2 リーグ,FC今治,/team/imabari/0fQDWIvJ/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+610,日本,J2 リーグ,サガン鳥栖,/team/tosu/nsRRyAda/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+611,日本,J2 リーグ,ヴァンフォーレ甲府,/team/kofu/4IyNxjsg/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+612,日本,J2 リーグ,北海道ｺﾝｻﾄﾞｰﾚ札幌,/team/sapporo/Ak9yLKWF/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+613,日本,J2 リーグ,いわきFC,/team/iwaki/Mi3WmBrD/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+614,日本,J2 リーグ,藤枝MYFC,/team/fujieda-myfc/jFPWWTQn/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+615,日本,J2 リーグ,ブラウブリッツ秋田,/team/blaublitz/fwDHgzFc/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+616,日本,J2 リーグ,モンテディオ山形,/team/montedio-yamagata/2uKzonBU/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+617,日本,J2 リーグ,大分トリニータ,/team/oita-trinita/Q17PNMnc/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+618,日本,J2 リーグ,ロアッソ熊本,/team/kumamoto/ARlzJ8RO/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+619,日本,J2 リーグ,カターレ富山,/team/toyama/tdPByjKs/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+620,日本,J2 リーグ,レノファ山口FC,/team/renofa-yamaguchi/f1DPrs5c/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+621,日本,J2 リーグ,愛媛FC,/team/ehime/dMNh5kdn/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+622,日本,J2 リーグ,インテル・マイアミCF,/team/inter-miami/0AheRyBg/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+623,日本,J2 リーグ,ドジャース（大谷 翔平),/team/los-angeles-dodgers/nwPDBpVc/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+624,日本,J2 リーグ,レイカーズ,/team/los-angeles-lakers/ngegZ8bg/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+625,エクアドル,リーガ・プロ,ｲﾝﾃﾞﾍﾟﾝﾃﾞｨｴﾝﾃ･ﾃﾞﾙ･ﾊﾞｼﾞｪ,/team/independiente-del-valle/YFwXD2sh/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+626,エクアドル,リーガ・プロ,バルセロナSC,/team/barcelona-sc/pCMG6CNp/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+627,エクアドル,リーガ・プロ,LDU キト,/team/ldu-quito/xIqORMgg/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+628,エクアドル,リーガ・プロ,ﾃﾞﾎﾟﾙﾃｨｰﾎﾞ･ｸｴﾝｶ,/team/dep-cuenca/KQ6zRt9a/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+629,エクアドル,リーガ・プロ,リベルタ,/team/libertad/vB5IpIzn/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+630,エクアドル,リーガ・プロ,ｳﾆﾍﾞﾙｼﾀﾞ･ｶﾄﾘｶ,/team/u-catolica/pG8RWOGP/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+631,エクアドル,リーガ・プロ,アウカス,/team/aucas/nJRc8sLh/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+632,エクアドル,リーガ・プロ,オレンセ,/team/orense/4MwdGZV3/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+633,エクアドル,リーガ・プロ,エメレク,/team/emelec/8namOvgI/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+634,エクアドル,リーガ・プロ,エル・ナシオナル,/team/el-nacional/tnfcR2vm/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+635,エクアドル,リーガ・プロ,マカラ,/team/macara/QN9rPKwC/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+636,エクアドル,リーガ・プロ,デルフィン,/team/delfin/b1b1P14P/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+637,エクアドル,リーガ・プロ,マンタ,/team/manta/YwE6vHLt/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+638,エクアドル,リーガ・プロ,ﾃｸﾆｺ･ｳﾆﾍﾞﾙｼﾀﾘｵ,/team/tecnico-u/Em6vQ0O5/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+639,エクアドル,リーガ・プロ,ビノティント,/team/vinotinto/vy3P17u4/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+640,エクアドル,リーガ・プロ,ムシュク・ルナ,/team/mushuc-runa/bioR64Gg/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+641,エクアドル,リーガ・プロ,インテル・マイアミCF,/team/inter-miami/0AheRyBg/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+642,エクアドル,リーガ・プロ,ドジャース（大谷 翔平),/team/los-angeles-dodgers/nwPDBpVc/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+643,エクアドル,リーガ・プロ,レイカーズ,/team/los-angeles-lakers/ngegZ8bg/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+644,ペルー,リーガ 1,ｽﾎﾟﾙﾃｨﾝｸﾞ･ｸﾘｽﾀﾙ,/team/sporting-cristal/rVwaK9XN/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+645,ペルー,リーガ 1,クスコ,/team/cusco/zDuHd68m/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+646,ペルー,リーガ 1,ｳﾆﾍﾞﾙｼﾀﾘｵ･ﾃﾞﾎﾟﾙﾃｽ,/team/universitario-de-deportes/xhw3JTnU/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+647,ペルー,リーガ 1,ﾃﾞﾎﾟﾙﾃｨｰﾎﾞ･ｶﾞﾙｼﾗｰｿ,/team/deportivo-garcilaso/pQ8DJXPR/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+648,ペルー,リーガ 1,アリアンサ・リマ,/team/a-lima/tSWpiWmI/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+649,ペルー,リーガ 1,スポルト・ワンカヨ,/team/sport-huancayo/hEX4iScl/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+650,ペルー,リーガ 1,FBC メルガール,/team/fbc-melgar/IZO9NXIh/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+651,ペルー,リーガ 1,ロス・チャンカス,/team/los-chankas/hfMxvE6a/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+652,ペルー,リーガ 1,シエンシアーノ,/team/cienciano/82OXAD3n/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+653,ペルー,リーガ 1,ｱﾘｱﾝﾂｧ･ｳﾆﾍﾞﾙｼﾀﾞｯﾄﾞ,/team/alianza-huanuco/8U4wZEmf/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+654,ペルー,リーガ 1,フアン・パブロⅡ,/team/juan-pablo-ii/bXJtZt18/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+655,ペルー,リーガ 1,ADタルマ,/team/ad-tarma/EsfgJz9N/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+656,ペルー,リーガ 1,ｱﾘｱﾝｻ･ｱﾄﾚﾃｨｺ,/team/alianza-atl/GlLFjAIU/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+657,ペルー,リーガ 1,ビナシオナル,/team/binacional/lAu3Dhr0/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+658,ペルー,リーガ 1,ｺﾒﾙｼｱﾝﾃｽ･ｳﾆﾄﾞｽ,/team/comerciantes-unidos/ABEwYY2S/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+659,ペルー,リーガ 1,グラウ,/team/atletico-grau/6o4srhvP/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+660,ペルー,リーガ 1,アヤクーチョ,/team/ayacucho/A5Ahh8rr/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+661,ペルー,リーガ 1,スポルト・ボーイズ,/team/sport-boys/URZfLkIH/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+662,ペルー,リーガ 1,カハマルカ,/team/cajamarca/6cko2SpQ/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+663,ペルー,リーガ 1,インテル・マイアミCF,/team/inter-miami/0AheRyBg/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+664,ペルー,リーガ 1,ドジャース（大谷 翔平),/team/los-angeles-dodgers/nwPDBpVc/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+665,ペルー,リーガ 1,レイカーズ,/team/los-angeles-lakers/ngegZ8bg/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+666,フランス,リーグ・アン,リヨン,/team/lyon/2akflumR/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+667,フランス,リーグ・アン,トゥールーズ,/team/toulouse/MLmY2yB1/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+668,フランス,リーグ・アン,PSG,/team/paris-sg/CjhkPw0k/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+669,フランス,リーグ・アン,ストラスブール,/team/strasbourg/nP6UzIU1/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+670,フランス,リーグ・アン,リール,/team/lille/pfDZL71o/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+671,フランス,リーグ・アン,ロリアン,/team/lorient/jgNAYRGi/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+672,フランス,リーグ・アン,マルセイユ,/team/marseille/SblU3Hee/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+673,フランス,リーグ・アン,モナコ,/team/monaco/2PIvr8o4/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+674,フランス,リーグ・アン,ニース,/team/nice/YagoQJpq/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+675,フランス,リーグ・アン,RCランス,/team/lens/IBmris38/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+676,フランス,リーグ・アン,アンジェ,/team/angers/SAlF91iL/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+677,フランス,リーグ・アン,オセール,/team/auxerre/MTLr36WA/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+678,フランス,リーグ・アン,レンヌ,/team/rennes/d2nnj1IE/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+679,フランス,リーグ・アン,ブレスト,/team/brest/Cr4VGaUl/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+680,フランス,リーグ・アン,ナント,/team/nantes/veuetnGG/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+681,フランス,リーグ・アン,ル・アーヴル,/team/le-havre/CIEe04GT/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+682,フランス,リーグ・アン,パリFC,/team/paris-fc/0OEHEprs/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+683,フランス,リーグ・アン,メス,/team/metz/4v0yqlWc/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+684,ジャマイカ,プレミアリーグ,ウォーターハウス,/team/waterhouse/jL5z86u6/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+685,ジャマイカ,プレミアリーグ,トレジャー・ビーチ,/team/treasure-beach/ETwdWBmB/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+686,ジャマイカ,プレミアリーグ,チャペルトン,/team/chapelton/AZJexZFC/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+687,ジャマイカ,プレミアリーグ,モンテゴ・ベイ,/team/montego-bay/pSsPYXRh/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+688,ジャマイカ,プレミアリーグ,マウント・プレザント,/team/mount-pleasant/lrJ7nxoC/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+689,ジャマイカ,プレミアリーグ,ハーバー・ビュー,/team/harbour-view/tnfra3K8/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+690,ジャマイカ,プレミアリーグ,キャバリエ,/team/cavalier/UuOW3jq1/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+691,ジャマイカ,プレミアリーグ,ポートモア,/team/portmore/pfDrVtbe/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+692,ジャマイカ,プレミアリーグ,ｱｰﾈｯﾄ･ｶﾞｰﾃﾞﾝｽﾞ,/team/arnett-gardens/AHBD4DSI/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+693,ジャマイカ,プレミアリーグ,ダンベホルデン,/team/fc-dunbeholden/ULAHJbS6/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+694,ジャマイカ,プレミアリーグ,ﾚｰｼﾝｸﾞ･ﾕﾅｲﾃｯﾄﾞ,/team/racing-united/MHizSXtf/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+695,ジャマイカ,プレミアリーグ,チボリ,/team/tivoli/EZUb42dG/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+696,ジャマイカ,プレミアリーグ,モリネス,/team/molynes-united/EqamFmnd/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+697,ジャマイカ,プレミアリーグ,Spanish Town Police,/team/spanish-town-police/dr6zkmMh/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+698,ジャマイカ,プレミアリーグ,インテル・マイアミCF,/team/inter-miami/0AheRyBg/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+699,ジャマイカ,プレミアリーグ,ドジャース（大谷 翔平),/team/los-angeles-dodgers/nwPDBpVc/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+700,ジャマイカ,プレミアリーグ,レイカーズ,/team/los-angeles-lakers/ngegZ8bg/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+701,ジャマイカ,プレミアリーグ,ｽﾊﾟﾆｯｼｭ･ﾀｳﾝ･ﾎﾟﾘｽ,/team/spanish-town-police/dr6zkmMh/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+702,コロンビア,プリメーラ A,ジュニオール,/team/junior/ptqMix37/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+703,コロンビア,プリメーラ A,ｲﾝﾃﾞﾍﾟﾝﾃﾞｨｴﾝﾃ･ﾒﾃﾞｼﾞﾝ,/team/ind-medellin/p2ADRKlk/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+704,コロンビア,プリメーラ A,デポルテス・トリマ,/team/deportes-tolima/bLphhbYf/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+705,コロンビア,プリメーラ A,フォルタレサ,/team/fortaleza-c-e-i-f/8YJQcU38/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+706,コロンビア,プリメーラ A,ジャネロス,/team/llaneros/KzwFLhIU/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+707,コロンビア,プリメーラ A,A・ナシオナル,/team/atl-nacional/C23omttL/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+708,コロンビア,プリメーラ A,ﾃﾞﾎﾟﾙﾃｨｰﾎﾞ･ﾍﾟﾚｲﾗ,/team/dep-pereira/CYojC8yK/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+709,コロンビア,プリメーラ A,サンタフェ,/team/santa-fe/6HbMPbJ1/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+710,コロンビア,プリメーラ A,ブカラマンガ,/team/bucaramanga/I1DMa0eR/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+711,コロンビア,プリメーラ A,エンビガド,/team/envigado/xtFGm2B8/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+712,コロンビア,プリメーラ A,デポルティーボ・カリ,/team/dep-cali/GWDKnMQE/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+713,コロンビア,プリメーラ A,ラ・エキダ,/team/la-equidad/KK2QOIY7/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+714,コロンビア,プリメーラ A,ペトロレラ,/team/alianza/GfFNymsk/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+715,コロンビア,プリメーラ A,ウニオン・マグダレナ,/team/union-magdalena/tpLItk4L/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+716,コロンビア,プリメーラ A,アギラス,/team/aguilas-doradas/Ma0BXUXe/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+717,コロンビア,プリメーラ A,チコ,/team/chico/ULWUFrRR/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+718,コロンビア,プリメーラ A,ﾃﾞﾎﾟﾙﾃｨｰﾎﾞ･ﾊﾟｽﾄ,/team/dep-pasto/GdemgvJl/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+719,コロンビア,プリメーラ A,アメリカ・デ・カリ,/team/america-de-cali/Oh9HQv4e/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+720,コロンビア,プリメーラ A,ミジョナリオス,/team/millonarios/OWsQjdID/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+721,コロンビア,プリメーラ A,オンセ・カルダス,/team/once-caldas/bVsnDlMD/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+722,コロンビア,プリメーラ A,インテル・マイアミCF,/team/inter-miami/0AheRyBg/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+723,コロンビア,プリメーラ A,ドジャース（大谷 翔平),/team/los-angeles-dodgers/nwPDBpVc/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+724,コロンビア,プリメーラ A,レイカーズ,/team/los-angeles-lakers/ngegZ8bg/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+725,イタリア,セリエ B,チェゼーナ,/team/cesena/xddf1qfh/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+726,イタリア,セリエ B,エンポリ,/team/empoli/0ESCnI1H/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+727,イタリア,セリエ B,フロジノーネ,/team/frosinone/pfo9H1Wp/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+728,イタリア,セリエ B,カッラレーゼ,/team/carrarese/hG4fg4z3/,bm_user,2025-10-01 13:51:40+09,bm_user,2025-10-01 13:51:40+09
+729,イタリア,セリエ B,ヴェネツィアFC,/team/unione-venezia/MkPmVv50/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+730,イタリア,セリエ B,パレルモ,/team/palermo/n38Nktmn/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+731,イタリア,セリエ B,モンツァ,/team/monza/4YSMlwj7/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+732,イタリア,セリエ B,ユーヴェ・スタビア,/team/juve-stabia/hKSfjtsQ/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+733,イタリア,セリエ B,ズュートティロール,/team/sudtirol/W02MZDnp/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+734,イタリア,セリエ B,カタンザーロ,/team/catanzaro/GnizyMB7/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+735,イタリア,セリエ B,エンテッラ,/team/entella/hUuJfYbb/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+736,イタリア,セリエ B,モデナ,/team/modena/MBn63swN/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+737,イタリア,セリエ B,サンプドリア,/team/sampdoria/nJbCGx2U/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+738,イタリア,セリエ B,バーリ,/team/bari/xIkUr2vO/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+739,イタリア,セリエ B,レッジャーナ,/team/reggiana/6ulJbMCe/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+740,イタリア,セリエ B,マントヴァ,/team/mantova/z7WK5Pwb/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+741,イタリア,セリエ B,パドヴァ,/team/padova/2gUwEtrE/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+742,イタリア,セリエ B,ペスカーラ,/team/pescara/WW0i6v4C/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+743,イタリア,セリエ B,アヴェッリーノ,/team/avellino/A332L1f5/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+744,イタリア,セリエ B,スペツィア,/team/spezia/re6VD39b/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+745,ボリビア,LFPB,ザ・ストロンゲスト,/team/the-strongest/Wfi42xS2/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+746,ボリビア,LFPB,ｵｰﾙｳｪｲｽﾞ･ﾚﾃﾞｨ,/team/always-ready/tryqNMHF/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+747,ボリビア,LFPB,ボリバル,/team/bolivar/WImzpcSF/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+748,ボリビア,LFPB,ブルーミング,/team/blooming/hSlWpwD9/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+749,ボリビア,LFPB,GVサン・ホセ,/team/gv-san-jose/Ch7Q7a9K/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+750,ボリビア,LFPB,グアビラ,/team/guabira/vmm0pHsM/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+751,ボリビア,LFPB,SAブロ・ブロ,/team/san-antonio-bulo-bulo/AoMZyUBM/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+752,ボリビア,LFPB,インデペンディエンテ,/team/independiente/8AXozsR8/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+753,ボリビア,LFPB,ナシオナル・ポトシ,/team/nacional-potosi/hUyau0Vc/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+754,ボリビア,LFPB,レアル・オルロ,/team/real-oruro/KG3q1tio/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+755,ボリビア,LFPB,ｳﾆﾍﾞﾙｼﾀﾘｵ･ﾃﾞ･ﾋﾞﾝﾄ,/team/club-universitario-de-vinto/Crksl26f/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+756,ボリビア,LFPB,トモヤポ,/team/tomayapo/SlIKwGVI/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+757,ボリビア,LFPB,ｵﾘｴﾝﾃ･ﾍﾟﾄﾛﾚﾛ,/team/oriente-petrolero/Sxmuue5q/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+758,ボリビア,LFPB,ｱｶﾃﾞﾐｱ･ﾃﾞﾙ･ﾊﾞﾛﾝﾋﾟｴ,/team/academia-del-balompie/Oh2AVRlj/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+759,ボリビア,LFPB,ウィルステルマン,/team/jorge-wilstermann/48kC0GdF/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
+760,ボリビア,LFPB,アウロラ,/team/aurora/A3aRoJc3/,bm_user,2025-10-01 13:51:41+09,bm_user,2025-10-01 13:51:41+09
