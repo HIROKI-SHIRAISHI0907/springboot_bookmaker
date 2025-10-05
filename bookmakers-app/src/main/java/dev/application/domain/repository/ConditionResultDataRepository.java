@@ -9,95 +9,95 @@ import org.apache.ibatis.annotations.Update;
 
 import dev.application.analyze.bm_m002.ConditionResultDataEntity;
 
-/**
- * condition_result_data テーブルに集計結果を登録するためのRepository
- */
 @Mapper
 public interface ConditionResultDataRepository {
 
-	/**
-	 * 集計結果を condition_result_data に登録する
-	 */
-	@Insert("""
-			INSERT INTO condition_result_data (
-			    mail_target_count,
-			    mail_anonymous_target_count,
-			    mail_target_success_count,
-			    mail_target_fail_count,
-			    ex_mail_target_to_no_result_count,
-			    ex_no_fin_data_to_no_result_count,
-			    goal_delete,
-			    alter_target_mail_anonymous,
-			    alter_target_mail_fail,
-			    no_result_count,
-			    err_data,
-			    condition_data,
-			    hash,
-			    register_id,
-			    register_time,
-			    update_id,
-			    update_time
-			) VALUES (
-			    #{mailTargetCount},
-			    #{mailAnonymousTargetCount},
-			    #{mailTargetSuccessCount},
-			    #{mailTargetFailCount},
-			    #{exMailTargetToNoResultCount},
-			    #{exNoFinDataToNoResultCount},
-			    #{goalDelete},
-			    #{alterTargetMailAnonymous},
-			    #{alterTargetMailFail},
-			    #{noResultCount},
-			    #{errData},
-			    convert_to(#{conditionData}, 'UTF8'),   -- String -> bytea
-			    #{hash},
-			    #{registerId},
-			    CAST(#{registerTime} AS timestamptz),
-			    #{updateId},
-			    CAST(#{updateTime}  AS timestamptz)
-			);
-			""")
-	int insert(ConditionResultDataEntity entity);
+    // 1) 取得（hashで1件想定）
+    @Select("""
+        SELECT
+          data_seq,
+          mail_target_count,
+          mail_anonymous_target_count,
+          mail_target_success_count,
+          mail_target_fail_count,
+          ex_mail_target_to_no_result_count,
+          ex_no_fin_data_to_no_result_count,
+          goal_delete,
+          alter_target_mail_anonymous,
+          alter_target_mail_fail,
+          no_result_count,
+          err_data,
+          condition_data,
+          hash
+        FROM public.condition_result_data
+        WHERE hash = #{hash}
+        """)
+    List<ConditionResultDataEntity> findByHash(String hash);
 
-	/**
-	 * condition_result_data から取得する
-	 */
-	@Select("""
-			    SELECT data_seq, mail_target_count,
-			        mail_anonymous_target_count,
-			        mail_target_success_count,
-			        mail_target_fail_count,
-			        ex_mail_target_to_no_result_count,
-			        ex_no_fin_data_to_no_result_count,
-			        goal_delete,
-			        alter_target_mail_anonymous,
-			        alter_target_mail_fail,
-			        no_result_count,
-			        err_data,
-			        hash
-			    FROM condition_result_data
-			    WHERE hash = #{hash};
-			""")
-	List<ConditionResultDataEntity> findByHash(String hash);
+    // 2) 新規登録（UPSERT: hash 衝突時は更新）
+    @Insert("""
+        INSERT INTO condition_result_data (
+          mail_target_count,
+          mail_anonymous_target_count,
+          mail_target_success_count,
+          mail_target_fail_count,
+          ex_mail_target_to_no_result_count,
+          ex_no_fin_data_to_no_result_count,
+          goal_delete,
+          alter_target_mail_anonymous,
+          alter_target_mail_fail,
+          no_result_count,
+          err_data,
+          condition_data,
+          hash
+        ) VALUES (
+          #{mailTargetCount},
+          #{mailAnonymousTargetCount},
+          #{mailTargetSuccessCount},
+          #{mailTargetFailCount},
+          #{exMailTargetToNoResultCount},
+          #{exNoFinDataToNoResultCount},
+          #{goalDelete},
+          #{alterTargetMailAnonymous},
+          #{alterTargetMailFail},
+          #{noResultCount},
+          #{errData},
+          #{conditionData},
+          #{hash}
+        )
+        ON CONFLICT (hash) DO UPDATE SET
+          mail_target_count = EXCLUDED.mail_target_count,
+          mail_anonymous_target_count = EXCLUDED.mail_anonymous_target_count,
+          mail_target_success_count = EXCLUDED.mail_target_success_count,
+          mail_target_fail_count = EXCLUDED.mail_target_fail_count,
+          ex_mail_target_to_no_result_count = EXCLUDED.ex_mail_target_to_no_result_count,
+          ex_no_fin_data_to_no_result_count = EXCLUDED.ex_no_fin_data_to_no_result_count,
+          goal_delete = EXCLUDED.goal_delete,
+          alter_target_mail_anonymous = EXCLUDED.alter_target_mail_anonymous,
+          alter_target_mail_fail = EXCLUDED.alter_target_mail_fail,
+          no_result_count = EXCLUDED.no_result_count,
+          err_data = EXCLUDED.err_data,
+          condition_data = EXCLUDED.condition_data
+        """)
+    int insert(ConditionResultDataEntity e);
 
-	/**
-	 * 集計結果を condition_result_data に対して更新する
-	 */
-	@Update("""
-			    UPDATE condition_result_data
-			    SET
-			        mail_target_count = #{mailTargetCount},
-			        mail_anonymous_target_count = #{mailAnonymousTargetCount},
-			        mail_target_success_count = #{mailTargetSuccessCount},
-			        mail_target_fail_count = #{mailTargetFailCount},
-			        ex_mail_target_to_no_result_count = #{mailTargetFailToNoResultCount},
-			        ex_no_fin_data_to_no_result_count = #{mailFinDataToNoResultCount},
-			        goal_delete = #{goalDelate},
-			        alter_target_mail_anonymous = #{alterTargetMailAnonymous},
-			        alter_target_mail_fail = #{alterTargetMailFail},
-			        no_result_count = #{noResultCount},
-			        err_data = #{errData},
-			    WHERE hash = #{hash}
-			""")
-	int update(ConditionResultDataEntity entity);
+    // 3) 明示 UPDATE（必要なら）
+    @Update("""
+        UPDATE condition_result_data
+        SET
+          mail_target_count = #{mailTargetCount},
+          mail_anonymous_target_count = #{mailAnonymousTargetCount},
+          mail_target_success_count = #{mailTargetSuccessCount},
+          mail_target_fail_count = #{mailTargetFailCount},
+          ex_mail_target_to_no_result_count = #{exMailTargetToNoResultCount},
+          ex_no_fin_data_to_no_result_count = #{exNoFinDataToNoResultCount},
+          goal_delete = #{goalDelete},
+          alter_target_mail_anonymous = #{alterTargetMailAnonymous},
+          alter_target_mail_fail = #{alterTargetMailFail},
+          no_result_count = #{noResultCount},
+          err_data = #{errData},
+          condition_data = convert_to(#{conditionData}, 'UTF8')
+        WHERE hash = #{hash}
+        """)
+    int update(ConditionResultDataEntity e);
 }

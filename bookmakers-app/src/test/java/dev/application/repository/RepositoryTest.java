@@ -30,7 +30,7 @@ import dev.application.domain.repository.CalcCorrelationRepository;
 import dev.application.domain.repository.ConditionResultDataRepository;
 import dev.application.domain.repository.CountryLeagueSummaryRepository;
 import dev.application.domain.repository.EachTeamScoreBasedFeatureStatsRepository;
-import dev.application.domain.repository.FutureRepository;
+import dev.application.domain.repository.FutureMasterRepository;
 import dev.application.domain.repository.LeagueScoreTimeBandStatsRepository;
 import dev.application.domain.repository.LeagueScoreTimeBandStatsSplitScoreRepository;
 import dev.application.domain.repository.MatchClassificationResultCountRepository;
@@ -125,7 +125,7 @@ class RepositoryTest {
 
 	/** BM_M022 */
 	@Autowired
-	private FutureRepository futureRepository;
+	private FutureMasterRepository futureRepository;
 
 	@Test
 	void test1() {

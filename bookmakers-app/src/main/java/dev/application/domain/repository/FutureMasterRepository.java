@@ -1,13 +1,17 @@
 package dev.application.domain.repository;
 
+import java.util.List;
+
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import dev.common.entity.FutureEntity;
 
 @Mapper
-public interface FutureRepository {
+public interface FutureMasterRepository {
 
 	@Insert("""
 			    INSERT INTO future_master (
@@ -70,5 +74,41 @@ public interface FutureRepository {
 			        away_team_name = #{awayTeamName};
 			""")
 	int findDataCount(FutureEntity entity);
+
+	@Update("""
+			    UPDATE
+			        future_master
+			    SET
+			    	start_flg = #{startFlg}
+			    WHERE
+			        seq = CAST(#{seq,jdbcType=VARCHAR} AS INTEGER);
+			""")
+	int updateStartFlg(String seq, String startFlg);
+
+	@Select("""
+			    SELECT
+			        seq
+			    FROM
+			    	future_master
+			    WHERE
+			        home_team_name = #{homeTeamName} AND
+			        away_team_name = #{awayTeamName};
+			""")
+	List<FutureEntity> findOnlyTeam(FutureEntity entity);
+
+	@Update("""
+			UPDATE future_master
+			SET start_flg = #{startFlg}
+			WHERE future_time < now()
+			""")
+	int updateFutureTimeFlg(@Param("startFlg") String startFlg);
+
+	@Select("""
+			    SELECT
+			        COUNT(*)
+			    FROM
+			    	future_master;
+			""")
+	int findAll();
 
 }
