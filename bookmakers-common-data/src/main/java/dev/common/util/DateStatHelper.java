@@ -6,6 +6,11 @@ import java.time.YearMonth;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+/**
+ * 日付管理ヘルパー
+ * @author shiraishitoshio
+ *
+ */
 public final class DateStatHelper {
 
     private DateStatHelper() {}
