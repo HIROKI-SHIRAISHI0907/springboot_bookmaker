@@ -1,5 +1,8 @@
 package dev.application.analyze.bm_m028;
 
+import java.io.IOException;
+import java.nio.file.Files;
+import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -118,15 +121,15 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 		}
 
 		// 途中で例外が起きなければ全てのファイルを削除する
-//		for (String path : insertPath) {
-//			try {
-//				Files.deleteIfExists(Paths.get(path));
-//			} catch (IOException e) {
-//				this.manageLoggerComponent.debugErrorLog(
-//						PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ファイル削除失敗", e, path);
-//				// ここでは例外をthrowしないことで、DB登録は保持
-//			}
-//		}
+		for (String path : insertPath) {
+			try {
+				Files.deleteIfExists(Paths.get(path));
+			} catch (IOException e) {
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ファイル削除失敗", e, path);
+				// ここでは例外をthrowしないことで、DB登録は保持
+			}
+		}
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
