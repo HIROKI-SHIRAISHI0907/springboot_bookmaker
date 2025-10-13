@@ -44,10 +44,21 @@ public class ReadOrigin {
 			String text;
 			int row = 0;
 			while ((text = br.readLine()) != null) {
+				// 空行・空白行をスキップ
+			    if (text.trim().isEmpty()) {
+			        continue;
+			    }
+
 				// ヘッダーは読み込まない
 				if (row > 0) {
 					// カンマ分割
 					String[] parts = text.split(",", -1);
+
+					// parts.lengthチェック（列欠損対策）
+			        if (parts.length < 97) {
+			            continue; // 想定より短い行もスキップ
+			        }
+
 					DataEntity mappingDto = new DataEntity();
 					mappingDto.setFile(fileFullPath);
 					mappingDto.setHomeRank(parts[0]);
@@ -128,25 +139,31 @@ public class ReadOrigin {
 					mappingDto.setStudium(parts[75]);
 					mappingDto.setCapacity(parts[76]);
 					mappingDto.setAudience(parts[77]);
-					mappingDto.setHomeMaxGettingScorer(parts[78]);
-					mappingDto.setAwayMaxGettingScorer(parts[79]);
-					mappingDto.setHomeMaxGettingScorerGameSituation(parts[80]);
-					mappingDto.setAwayMaxGettingScorerGameSituation(parts[81]);
-					mappingDto.setHomeTeamHomeScore(parts[82]);
-					mappingDto.setHomeTeamHomeLost(parts[83]);
-					mappingDto.setAwayTeamHomeScore(parts[84]);
-					mappingDto.setAwayTeamHomeLost(parts[85]);
-					mappingDto.setHomeTeamAwayScore(parts[86]);
-					mappingDto.setHomeTeamAwayLost(parts[87]);
-					mappingDto.setAwayTeamAwayScore(parts[88]);
-					mappingDto.setAwayTeamAwayLost(parts[89]);
-					mappingDto.setNoticeFlg(parts[90]);
-					mappingDto.setGoalTime(parts[91]);
-					mappingDto.setGoalTeamMember(parts[92]);
-					mappingDto.setHomeTeamStyle(parts[93]);
-					mappingDto.setAwayTeamStyle(parts[94]);
-					mappingDto.setProbablity(parts[95]);
-					mappingDto.setPredictionScoreTime(parts[96]);
+					mappingDto.setLocation(parts[78]);
+					mappingDto.setHomeMaxGettingScorer(parts[79]);
+					mappingDto.setAwayMaxGettingScorer(parts[80]);
+					mappingDto.setHomeMaxGettingScorerGameSituation(parts[81]);
+					mappingDto.setAwayMaxGettingScorerGameSituation(parts[82]);
+					mappingDto.setHomeTeamHomeScore(parts[83]);
+					mappingDto.setHomeTeamHomeLost(parts[84]);
+					mappingDto.setAwayTeamHomeScore(parts[85]);
+					mappingDto.setAwayTeamHomeLost(parts[86]);
+					mappingDto.setHomeTeamAwayScore(parts[87]);
+					mappingDto.setHomeTeamAwayLost(parts[88]);
+					mappingDto.setAwayTeamAwayScore(parts[89]);
+					mappingDto.setAwayTeamAwayLost(parts[90]);
+					mappingDto.setNoticeFlg(parts[91]);
+					mappingDto.setGameLink(parts[92]);
+					mappingDto.setGoalTime(parts[93]);
+					mappingDto.setGoalTeamMember(parts[94]);
+					mappingDto.setJudge(parts[95]);
+					mappingDto.setHomeTeamStyle(parts[96]);
+					mappingDto.setAwayTeamStyle(parts[97]);
+					mappingDto.setProbablity(parts[98]);
+					mappingDto.setPredictionScoreTime(parts[99]);
+					mappingDto.setGameId(parts[100]);
+					mappingDto.setMatchId(normalizeMatchId(parts[101].trim()));
+					mappingDto.setTimeSortSeconds(Integer.parseInt(parts[102].trim()));
 					entiryList.add(mappingDto);
 				} else {
 					row++;
@@ -165,4 +182,22 @@ public class ReadOrigin {
 
 		return readFileOutputDTO;
 	}
+
+	/**
+	 * matchidの正規化
+	 * @param raw
+	 * @return
+	 */
+	private static String normalizeMatchId(String raw) {
+	    if (raw == null) return null;
+	    // ?mid=XXXX を最優先で拾う
+	    var m1 = java.util.regex.Pattern.compile("[?&#]mid=([A-Za-z0-9]+)").matcher(raw);
+	    if (m1.find()) return m1.group(1);
+	    // /match/{mid}/ …形式
+	    var m2 = java.util.regex.Pattern.compile("/match/([A-Za-z0-9]{6,20})(?:/|$)").matcher(raw);
+	    if (m2.find()) return m2.group(1);
+	    // それ以外はそのまま
+	    return raw.trim();
+	}
+
 }

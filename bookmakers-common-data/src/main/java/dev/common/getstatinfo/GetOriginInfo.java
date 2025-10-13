@@ -103,7 +103,7 @@ public class GetOriginInfo {
 			return resultMap;
 		}
 		// スレッドプールを作成（例：同時に最大4スレッド）
-		ExecutorService executor = Executors.newFixedThreadPool(fileStatList.size());
+		ExecutorService executor = Executors.newFixedThreadPool(4);
 		// タスク送信
 		List<Future<ReadFileOutputDTO>> originList = new ArrayList<>();
 		for (String file : fileStatList) {
@@ -142,6 +142,16 @@ public class GetOriginInfo {
 
 		System.out.println("時間: " + durationMs);
 
+		// ファイルごとの List<DataEntity> を安定ソート（時刻→ゴール時間文字列→末尾タイブレーク）
+		for (var e : resultMap.entrySet()) {
+			List<DataEntity> lst = e.getValue();
+			lst.sort(Comparator
+					.comparing(DataEntity::getMatchId, Comparator.nullsLast(String::compareTo))
+					.thenComparing(DataEntity::getTimeSortSeconds, Comparator.nullsLast(Integer::compare))
+					.thenComparing(d -> safeString(d.getGoalTime())) // "90+2'"など文字比較の安定化
+					.thenComparingInt(Object::hashCode) // 完全同値のタイブレーク
+			);
+		}
 		// output_yを昇順に。
 		return sortByCsvNumber(resultMap);
 	}
@@ -174,18 +184,17 @@ public class GetOriginInfo {
 	 * @return
 	 */
 	private static <V> Map<String, V> sortByCsvNumber(Map<String, V> map) {
-	    return map.entrySet().stream()
-	        .sorted(
-	            Comparator
-	                .comparingInt((Map.Entry<String, V> e) -> extractY(e.getKey()))
-	                .thenComparing(Map.Entry::getKey) // y が同じ時の安定化
-	        )
-	        .collect(Collectors.toMap(
-	            Map.Entry::getKey,
-	            Map.Entry::getValue,
-	            (a, b) -> a,
-	            LinkedHashMap::new
-	        ));
+		return map.entrySet().stream()
+				.sorted(
+						Comparator
+								.comparingInt((Map.Entry<String, V> e) -> extractY(e.getKey()))
+								.thenComparing(Map.Entry::getKey) // y が同じ時の安定化
+				)
+				.collect(Collectors.toMap(
+						Map.Entry::getKey,
+						Map.Entry::getValue,
+						(a, b) -> a,
+						LinkedHashMap::new));
 	}
 
 	/**
@@ -194,11 +203,15 @@ public class GetOriginInfo {
 	 * @return
 	 */
 	private static int extractY(String path) {
-	    var normalized = path.replace('\\', '/'); // Windows対策
-	    var m = OUTPUT_Y.matcher(normalized);
-	    if (m.find()) return Integer.parseInt(m.group(1));
-	    // マッチしないものは末尾に回す
-	    return Integer.MAX_VALUE;
+		var normalized = path.replace('\\', '/'); // Windows対策
+		var m = OUTPUT_Y.matcher(normalized);
+		if (m.find())
+			return Integer.parseInt(m.group(1));
+		// マッチしないものは末尾に回す
+		return Integer.MAX_VALUE;
 	}
+
+	/** 安定ソート */
+	private static String safeString(String s) { return s == null ? "" : s; }
 
 }

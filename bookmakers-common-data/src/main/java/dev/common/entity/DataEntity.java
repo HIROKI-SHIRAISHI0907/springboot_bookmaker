@@ -260,6 +260,9 @@ public class DataEntity extends MetaEntity implements Serializable {
 	/** 観客数 */
 	private String audience;
 
+	/** 開催場所 */
+	private String location;
+
 	/** ホームチーム最大得点者 */
 	private String homeMaxGettingScorer;
 
@@ -299,6 +302,9 @@ public class DataEntity extends MetaEntity implements Serializable {
 	/** 通知フラグ */
 	private String noticeFlg;
 
+	/** 試合リンク */
+	private String gameLink;
+
 	/** ゴール時間 */
 	private String goalTime;
 
@@ -319,6 +325,15 @@ public class DataEntity extends MetaEntity implements Serializable {
 
 	/** スコア予想時間 */
 	private String predictionScoreTime;
+
+	/** 試合ID */
+	private String gameId;
+
+	/** マッチID */
+	private String matchId;
+
+	/** タイムソート */
+	private Integer timeSortSeconds; // 並び用の秒（終了=大きめ）
 
 	/** ファイル件数 */
 	private int fileCount;
