@@ -111,7 +111,9 @@ public interface BookDataRepository {
             register_id,
             register_time,
             update_id,
-            update_time
+            update_time,
+            match_id,
+    		time_sort_seconds
         ) VALUES (
             #{conditionResultDataSeqId},
             #{dataCategory},
@@ -176,7 +178,7 @@ public interface BookDataRepository {
             #{awayClearCount},
             #{homeInterceptCount},
             #{awayInterceptCount},
-            CAST(#{recordTime} AS timestamptz),
+            CAST(NULLIF(#{recordTime}, '') AS timestamptz),
             #{weather},
             #{temparature},
             #{humid},
@@ -211,7 +213,9 @@ public interface BookDataRepository {
             #{registerId},
             CAST(#{registerTime} AS timestamptz),
             #{updateId},
-            CAST(#{updateTime} AS timestamptz)
+            CAST(#{updateTime} AS timestamptz),
+            #{matchId},
+    		#{timeSortSeconds}
         )
         RETURNING seq
         """)
@@ -225,6 +229,7 @@ public interface BookDataRepository {
           AND times = #{times}
           AND home_team_name = #{homeTeamName}
           AND away_team_name = #{awayTeamName}
+          AND match_id        = #{matchId}
         """)
     int findDataCount(DataEntity entity);
 }
