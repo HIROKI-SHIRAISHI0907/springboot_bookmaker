@@ -17,6 +17,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import dev.common.entity.DataEntity;
 import dev.common.logger.ManageLoggerComponent;
@@ -26,6 +27,7 @@ import dev.common.logger.ManageLoggerComponent;
  * @author shiraishitoshio
  *
  */
+@Component
 public class FileMngWrapper {
 
 	/** プロジェクト名 */
@@ -160,8 +162,41 @@ public class FileMngWrapper {
 		} catch (IOException e) {
 			String messageCd = "ファイル記入エラー";
 			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
 		}
+	}
+
+	/**
+	 * ファイル記入メソッド（ヘッダー対応）
+	 * @param filename 出力ファイル名
+	 * @param header   ヘッダー文字列（nullの場合はヘッダーなし）
+	 * @param body     書き込む内容
+	 */
+	public void write(String filename, String header, String body) {
+	    final String METHOD_NAME = "write";
+	    File file = new File(filename);
+
+	    boolean isNewFile = !file.exists(); // 新規作成か確認
+
+	    try (FileOutputStream fileOutputStream = new FileOutputStream(file, true);
+	         BufferedWriter bufferedWriter = new BufferedWriter(
+	                 new OutputStreamWriter(fileOutputStream, StandardCharsets.UTF_8))) {
+
+	        // 新規ファイルでヘッダー指定がある場合はヘッダーを書き込む
+	        if (isNewFile && header != null && !header.isEmpty()) {
+	            bufferedWriter.write(header);
+	            bufferedWriter.newLine();
+	        }
+
+	        // 本文の書き込み
+	        bufferedWriter.write(body);
+	        bufferedWriter.newLine();
+
+	    } catch (IOException e) {
+	        String messageCd = "ファイル記入エラー";
+	        this.manageLoggerComponent.debugErrorLog(
+	                PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+	    }
 	}
 
 	/**
