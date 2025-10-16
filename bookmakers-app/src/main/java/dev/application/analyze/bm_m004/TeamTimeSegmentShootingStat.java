@@ -69,6 +69,8 @@ public class TeamTimeSegmentShootingStat implements AnalyzeEntityIF {
 
 				// BookDataEntityを走査し時間帯ごとの値を加算
 				for (BookDataEntity data : bookList) {
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, data.getFilePath());
 					String timeZone = getTimeZone(data.getTime()); // 0-10, 11-20 など
 					timeSegmentMap.putIfAbsent(timeZone, new TimeSegmentAggregator());
 					TimeSegmentAggregator aggr = timeSegmentMap.get(timeZone);

@@ -82,6 +82,8 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 				int prevHomeScore = 0;
 				int prevAwayScore = 0;
 				for (BookDataEntity e : dataList) {
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e.getFilePath());
 					// ゴール取り消しはスキップ
 					if (BookMakersCommonConst.GOAL_DELETE.equals(e.getJudge()))
 						continue;

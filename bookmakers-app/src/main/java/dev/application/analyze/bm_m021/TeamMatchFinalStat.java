@@ -63,6 +63,8 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 			Map<String, List<BookDataEntity>> matchMap = entry.getValue();
 			for (List<BookDataEntity> dataList : matchMap.values()) {
 				BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(dataList);
+				this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, returnMaxEntity.getFilePath());
 				if (!finDataExistsChk(returnMaxEntity))
 					continue;
 				// 支配率,3分割データについて設定

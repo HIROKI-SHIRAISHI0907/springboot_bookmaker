@@ -88,6 +88,8 @@ public class ConditionResultDataStat implements AnalyzeEntityIF {
 		for (Map<String, List<BookDataEntity>> innerMap : entities.values()) {
 			for (List<BookDataEntity> list : innerMap.values()) {
 				for (BookDataEntity entity : list) {
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, entity.getFilePath());
 					String judge = entity.getJudge();
 
 					if (judge != null) {

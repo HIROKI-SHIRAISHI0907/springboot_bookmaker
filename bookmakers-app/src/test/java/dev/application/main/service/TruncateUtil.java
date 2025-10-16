@@ -39,6 +39,8 @@ public class TruncateUtil {
 	    m.put(21, "country_league_summary");
 	    m.put(22, "within_data");
 	    m.put(23, "each_team_score_based_feature_stats");
+	    m.put(24, "score_based_feature_stats_history");
+	    m.put(25, "each_team_score_based_feature_stats_history");
 	    return Collections.unmodifiableMap(m);
 	}
 

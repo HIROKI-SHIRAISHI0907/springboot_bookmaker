@@ -138,7 +138,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			entrys.setTeam(team);
 			StatEncryptionEntity newEntrys = encryption(entrys);
 			if (newEntrys.isUpdFlg()) {
-				System.out.println("team, chkBody, upd: " + team + ", " + newEntrys.isUpdFlg());
+				//System.out.println("team, chkBody, upd: " + team + ", " + newEntrys.isUpdFlg());
 				int result = this.statEncryptionRepository.updateEncValues(newEntrys);
 				if (result != 1) {
 					String messageCd = "新規登録エラー";
@@ -153,7 +153,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				this.manageLoggerComponent.debugInfoLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, "BM_M030 更新件数: 1件");
 			} else {
-				System.out.println("team, chkBody, reg: " + team);
+				//System.out.println("team, chkBody, reg: " + team);
 				int result = this.statEncryptionRepository.insert(newEntrys);
 				if (result != 1) {
 					String messageCd = "新規登録エラー";
@@ -188,6 +188,8 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			List<BookDataEntity> entities,
 			String country, String league, ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map) {
 		BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, null, null, returnMaxEntity.getFilePath());
 		if (!BookMakersCommonConst.FIN.equals(returnMaxEntity.getTime())) {
 			return null;
 		}
@@ -1071,7 +1073,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				String skewSigma = (cnt == 1) ? ""
 						: String.valueOf(
 								Math.sqrt(Double.parseDouble(skewSumSigma) / (cnt - 1)));
-				System.out.println("skewAve, skewSigma, cnt: " + skewAve + ", " + skewSigma + ", " + cnt);
+				//System.out.println("skewAve, skewSigma, cnt: " + skewAve + ", " + skewSigma + ", " + cnt);
 				// 導出できなければskip
 				if ("".equals(skewAve) || "".equals(skewSigma))
 					continue;
@@ -1084,8 +1086,8 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 					skewness[idx] += Math.pow((Double.parseDouble(currentSkewnessNumeric)
 							- Double.parseDouble(skewAve)) / Double.parseDouble(skewSigma), 3);
 				}
-				System.out.println("setSkewness, fillChar: " + fillChar + ", currentValue: " + currentValue
-						+ ", skewness[idx]: " + skewness[idx]);
+				//System.out.println("setSkewness, fillChar: " + fillChar + ", currentValue: " + currentValue
+				//		+ ", skewness[idx]: " + skewness[idx]);
 				// 件数カウント
 				cntList[idx] = cnt;
 			} catch (Exception e) {
@@ -1104,8 +1106,8 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			double skew = skewness[i];
 			double result = (cnt / ((cnt - 1.0) * (cnt - 2.0))) * skew;
 			skewnessList[i] = String.format("%.3f", result);
-			System.out
-					.println("setSkewness/division, skewness[idx]: " + skew + ", cnt: " + cnt + ", result: " + result);
+			//System.out
+			//		.println("setSkewness/division, skewness[idx]: " + skew + ", cnt: " + cnt + ", result: " + result);
 		}
 		return skewnessList;
 	}
@@ -1176,8 +1178,8 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 							- Double.parseDouble(kurtAve)), 4) / Math.pow(
 									Double.parseDouble(kurtSigma), 4));
 				}
-				System.out.println("setKurtosis, fillChar: " + fillChar + ", currentValue: " + currentValue
-						+ ", kurtosis[idx]: " + kurtosis[idx]);
+				//System.out.println("setKurtosis, fillChar: " + fillChar + ", currentValue: " + currentValue
+				//		+ ", kurtosis[idx]: " + kurtosis[idx]);
 				// 件数カウント
 				cntList[idx] = cnt;
 			} catch (Exception e) {
@@ -1203,8 +1205,8 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				result = Double.NaN; // cnt==0 や std==0 など
 			}
 			kurtosisList[i] = String.format("%.3f", result);
-			System.out
-					.println("setKurtosis/division, kurtosis[idx]: " + kurt + ", cnt: " + cnt + ", result: " + result);
+			//System.out
+			//		.println("setKurtosis/division, kurtosis[idx]: " + kurt + ", cnt: " + cnt + ", result: " + result);
 		}
 		return kurtosisList;
 	}

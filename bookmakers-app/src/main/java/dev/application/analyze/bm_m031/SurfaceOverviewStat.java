@@ -142,6 +142,8 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			String country, String league, String home, String away,
 			ConcurrentHashMap<String, SurfaceOverviewEntity> resultMap) {
 		BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, null, null, returnMaxEntity.getFilePath());
 		if (!BookMakersCommonConst.FIN.equals(returnMaxEntity.getTime())) {
 			return null;
 		}

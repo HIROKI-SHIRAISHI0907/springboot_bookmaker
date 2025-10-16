@@ -16,6 +16,7 @@ import dev.application.analyze.bm_m017_bm_m018.LeagueScoreTimeBandStat;
 import dev.application.analyze.bm_m019_bm_m020.MatchClassificationResultStat;
 import dev.application.analyze.bm_m021.TeamMatchFinalStat;
 import dev.application.analyze.bm_m023.ScoreBasedFeatureStat;
+import dev.application.analyze.bm_m023C_bm_m026C.MetricDeltaStat;
 import dev.application.analyze.bm_m024.CalcCorrelationStat;
 import dev.application.analyze.bm_m025.CalcCorrelationRankingStat;
 import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureStat;
@@ -39,6 +40,12 @@ public class StatService implements StatIF {
 
 	/** クラス名 */
 	private static final String CLASS_NAME = StatService.class.getSimpleName();
+
+	/**
+	 * BM_M023C_BM_M26C統計分析ロジッククラス
+	 */
+	@Autowired
+	private MetricDeltaStat metricDeltaStat;
 
 	/**
 	 * BM_M002統計分析ロジッククラス
@@ -143,6 +150,9 @@ public class StatService implements StatIF {
 		// ログ出力
 		this.loggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+
+		// 履歴ロジック呼び出し
+		this.metricDeltaStat.calcStat(stat);
 
 		// 統計ロジック呼び出し(@Transactionl付き)(国,リーグ単位で並列)
 		this.conditionResultDataStat.calcStat(stat);

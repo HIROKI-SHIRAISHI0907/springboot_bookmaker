@@ -76,14 +76,11 @@ public interface FutureMasterRepository {
 	int findDataCount(FutureEntity entity);
 
 	@Update("""
-			    UPDATE
-			        future_master
-			    SET
-			    	start_flg = #{startFlg}
-			    WHERE
-			        seq = CAST(#{seq,jdbcType=VARCHAR} AS INTEGER);
+			  UPDATE future_master
+			  SET start_flg = #{startFlg}
+			  WHERE seq = CAST(#{seq} AS INTEGER)
 			""")
-	int updateStartFlg(String seq, String startFlg);
+	int updateStartFlg(@Param("seq") String seq, @Param("startFlg") String startFlg);
 
 	@Select("""
 			    SELECT

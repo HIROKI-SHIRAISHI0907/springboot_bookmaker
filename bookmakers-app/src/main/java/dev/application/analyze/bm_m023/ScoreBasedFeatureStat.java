@@ -158,6 +158,8 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	private ConcurrentHashMap<String, List<ScoreBasedFeatureStatsEntity>> decideBasedMain(List<BookDataEntity> entities,
 			String country, String league, ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map) {
 		BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, null, null, returnMaxEntity.getFilePath());
 		if (!BookMakersCommonConst.FIN.equals(returnMaxEntity.getTime())) {
 			return null;
 		}
@@ -956,7 +958,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				String skewSigma = (cnt == 1) ? ""
 						: String.valueOf(
 								Math.sqrt(Double.parseDouble(skewSumSigma) / (cnt - 1)));
-				System.out.println("skewAve, skewSigma, cnt: " + skewAve + ", " + skewSigma + ", " + cnt);
+				//System.out.println("skewAve, skewSigma, cnt: " + skewAve + ", " + skewSigma + ", " + cnt);
 				// 導出できなければskip
 				if ("".equals(skewAve) || "".equals(skewSigma))
 					continue;
@@ -969,8 +971,8 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 					skewness[idx] += Math.pow((Double.parseDouble(currentSkewnessNumeric)
 							- Double.parseDouble(skewAve)) / Double.parseDouble(skewSigma), 3);
 				}
-				System.out.println("setSkewness, fillChar: " + fillChar + ", currentValue: " + currentValue
-						+ ", skewness[idx]: " + skewness[idx]);
+				//System.out.println("setSkewness, fillChar: " + fillChar + ", currentValue: " + currentValue
+				//		+ ", skewness[idx]: " + skewness[idx]);
 				// 件数カウント
 				cntList[idx] = cnt;
 			} catch (Exception e) {
@@ -985,8 +987,8 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			double skew = skewness[i];
 			double result = (cnt / ((cnt - 1.0) * (cnt - 2.0))) * skew;
 			skewnessList[i] = String.format("%.3f", result);
-			System.out
-					.println("setSkewness/division, skewness[idx]: " + skew + ", cnt: " + cnt + ", result: " + result);
+			//System.out
+			//		.println("setSkewness/division, skewness[idx]: " + skew + ", cnt: " + cnt + ", result: " + result);
 		}
 		return skewnessList;
 	}
@@ -1053,8 +1055,8 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 							- Double.parseDouble(kurtAve)), 4) / Math.pow(
 									Double.parseDouble(kurtSigma), 4));
 				}
-				System.out.println("setKurtosis, fillChar: " + fillChar + ", currentValue: " + currentValue
-						+ ", kurtosis[idx]: " + kurtosis[idx]);
+				//System.out.println("setKurtosis, fillChar: " + fillChar + ", currentValue: " + currentValue
+				//		+ ", kurtosis[idx]: " + kurtosis[idx]);
 				// 件数カウント
 				cntList[idx] = cnt;
 			} catch (Exception e) {
@@ -1080,8 +1082,8 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				result = Double.NaN; // cnt==0 や std==0 など
 			}
 			kurtosisList[i] = String.format("%.3f", result);
-			System.out
-					.println("setKurtosis/division, kurtosis[idx]: " + kurt + ", cnt: " + cnt + ", result: " + result);
+			//System.out
+			//		.println("setKurtosis/division, kurtosis[idx]: " + kurt + ", cnt: " + cnt + ", result: " + result);
 		}
 		return kurtosisList;
 	}
@@ -1244,7 +1246,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			}
 		}
 		// setterでセット
-		System.out.println("country, league, chkBody: " + country + "," + league + "," + chkBody);
+		//System.out.println("country, league, chkBody: " + country + "," + league + "," + chkBody);
 		result.setCountry(country);
 		result.setLeague(league);
 		result.setChkBody(chkBody);

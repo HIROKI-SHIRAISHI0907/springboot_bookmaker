@@ -69,6 +69,8 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 				int prevHomeScore = 0;
 				int prevAwayScore = 0;
 				for (BookDataEntity entity : entityList) {
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, entity.getFilePath());
 					String recordTime = entity.getRecordTime();
 					if (recordTime == null || recordTime.length() < 7)
 						continue;

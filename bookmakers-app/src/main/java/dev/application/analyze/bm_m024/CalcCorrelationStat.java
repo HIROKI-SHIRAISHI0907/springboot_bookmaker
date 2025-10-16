@@ -116,6 +116,8 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
 	 */
 	private ConcurrentHashMap<String, CalcCorrelationEntity> decideBasedMain(List<BookDataEntity> entities,
 			String country, String league, String home, String away) {
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, null, null, entities.get(0).getFilePath());
 		// 各種flg
 		List<String> flgs = List.of(
 				AverageStatisticsSituationConst.ALL_DATA,
