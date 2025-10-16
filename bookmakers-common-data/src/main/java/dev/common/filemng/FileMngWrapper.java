@@ -58,6 +58,8 @@ public class FileMngWrapper {
 		JP_HEADER_MAP.put("awayScore", "アウェースコア");
 		JP_HEADER_MAP.put("homeExp", "ホーム期待値");
 		JP_HEADER_MAP.put("awayExp", "アウェー期待値");
+		JP_HEADER_MAP.put("homeInGoalExp", "ホーム枠内期待値");
+		JP_HEADER_MAP.put("awayInGoalExp", "アウェー枠内期待値");
 		JP_HEADER_MAP.put("homeDonation", "ホームポゼッション");
 		JP_HEADER_MAP.put("awayDonation", "アウェーポゼッション");
 		JP_HEADER_MAP.put("homeShootAll", "ホームシュート数");
@@ -124,6 +126,7 @@ public class FileMngWrapper {
 		JP_HEADER_MAP.put("studium", "スタジアム");
 		JP_HEADER_MAP.put("capacity", "収容人数");
 		JP_HEADER_MAP.put("audience", "観客数");
+		JP_HEADER_MAP.put("location", "開催場所");
 		JP_HEADER_MAP.put("homeMaxGettingScorer", "ホームチーム最大得点者");
 		JP_HEADER_MAP.put("awayMaxGettingScorer", "アウェーチーム最大得点者");
 		JP_HEADER_MAP.put("homeMaxGettingScorerGameSituation", "ホームチーム最大得点者出場状況");
@@ -137,6 +140,7 @@ public class FileMngWrapper {
 		JP_HEADER_MAP.put("awayTeamAwayScore", "アウェーチームアウェー得点数");
 		JP_HEADER_MAP.put("awayTeamAwayLost", "アウェーチームアウェー失点数");
 		JP_HEADER_MAP.put("noticeFlg", "通知フラグ");
+		JP_HEADER_MAP.put("gameLink", "試合リンク");
 		JP_HEADER_MAP.put("goalTime", "ゴール時間");
 		JP_HEADER_MAP.put("goalTeamMember", "ゴール選手名");
 		JP_HEADER_MAP.put("judge", "判定結果");
@@ -144,6 +148,10 @@ public class FileMngWrapper {
 		JP_HEADER_MAP.put("awayTeamStyle", "アウェーチームスタイル");
 		JP_HEADER_MAP.put("probablity", "確率");
 		JP_HEADER_MAP.put("predictionScoreTime", "スコア予想時間");
+		JP_HEADER_MAP.put("gameId", "試合ID");
+		JP_HEADER_MAP.put("matchId", "マッチID");
+		JP_HEADER_MAP.put("timeSortSeconds", "時間ソート秒");
+		JP_HEADER_MAP.put("fileCount", "ファイル件数");
 	}
 
 	/**
