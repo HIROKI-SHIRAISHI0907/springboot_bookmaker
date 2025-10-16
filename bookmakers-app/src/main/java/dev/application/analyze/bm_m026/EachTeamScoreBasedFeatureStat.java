@@ -111,7 +111,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 					continue;
 				}
 				// 登録・更新
-				ExecutorService executor = Executors.newFixedThreadPool(resultMap.size());
+				ExecutorService executor = Executors.newFixedThreadPool(Math.max(1, resultMap.size()));
 				List<CompletableFuture<Void>> futures = new ArrayList<>();
 				for (Map.Entry<String, List<EachTeamScoreBasedFeatureEntity>> entrys : resultMap.entrySet()) {
 					CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
@@ -482,8 +482,8 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				entity = setOtherEntity(connectScore, situation, country, league, team, updFlg, id, entity);
 			}
 			// スレッドセーフな格納
-			insertMap.computeIfAbsent(flg, k -> new ArrayList<EachTeamScoreBasedFeatureEntity>())
-					.add(entity);
+			insertMap.computeIfAbsent(flg, k -> new java.util.concurrent.CopyOnWriteArrayList<EachTeamScoreBasedFeatureEntity>())
+			         .add(entity);
 		}
 	}
 
