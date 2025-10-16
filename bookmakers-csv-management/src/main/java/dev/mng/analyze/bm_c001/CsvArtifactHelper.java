@@ -265,8 +265,8 @@ public class CsvArtifactHelper {
 		}
 
 		for (DataEntity e : series) {
-			String hs = e.getHomeScore().trim();
-			String as = e.getAwayScore().trim();
+			String hs = e.getHomeScore();
+			String as = e.getAwayScore();
 			if ((hs == null || "".equals(hs)) ||
 					(as == null || "".equals(as))) {
 				continue;

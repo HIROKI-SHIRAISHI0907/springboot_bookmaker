@@ -168,6 +168,7 @@ public class ExportCsv {
 				result = this.helper.abnormalChk(result);
 				if (result.isEmpty())
 					continue;
+				backfillScores(result);
 				ordered.add(new SimpleEntry<>(path, result));
 			}
 
@@ -203,6 +204,7 @@ public class ExportCsv {
 				result = this.helper.abnormalChk(result);
 				if (result.isEmpty())
 					continue;
+				backfillScores(result);
 				ordered.add(new SimpleEntry<>(path, result));
 				diff++;
 			}
@@ -666,6 +668,35 @@ public class ExportCsv {
 	            java.nio.file.StandardCopyOption.ATOMIC_MOVE,
 	            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 	}
+
+	/** 空のスコアを直前レコードの値で補完（グループ内で前方参照） */
+	private static void backfillScores(List<DataEntity> list) {
+	    if (list == null || list.isEmpty()) return;
+
+	    // 念のため seq 昇順に整える（seq は String のため数値化）
+	    list.sort(Comparator.comparingInt(d -> {
+	        try { return Integer.parseInt(Objects.toString(d.getSeq(), "0")); }
+	        catch (NumberFormatException e) { return Integer.MAX_VALUE; }
+	    }));
+
+	    String lastHome = null;
+	    String lastAway = null;
+	    for (DataEntity d : list) {
+	        // 先に前回値を反映
+	        if (isBlank(d.getHomeScore()) && lastHome != null) d.setHomeScore(lastHome);
+	        if (isBlank(d.getAwayScore()) && lastAway != null) d.setAwayScore(lastAway);
+
+	        // 現在値を次レコードのために保持（この時点で null/blank でなければ更新）
+	        if (!isBlank(d.getHomeScore())) lastHome = d.getHomeScore();
+	        if (!isBlank(d.getAwayScore())) lastAway = d.getAwayScore();
+	    }
+	}
+
+	/** null/空白を判定 */
+	private static boolean isBlank(String s) {
+	    return s == null || s.trim().isEmpty();
+	}
+
 
 	/** 終了ログ */
 	private void endLog(String method, String messageCd, String fillChar) {
