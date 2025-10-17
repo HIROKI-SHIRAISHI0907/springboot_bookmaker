@@ -443,11 +443,9 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		if (seasonRoundsObj == null) {
 			// 既存の想定に合わせ、ここは異常として扱う
 			final String METHOD_NAME = "setEachScoreCountData";
-			String messageCd = "roundMap未存在エラー";
-			this.rootCauseWrapper.throwUnexpectedRowCount(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					messageCd, -99, -99,
-					String.format("country=%s, league=%s", country, league));
+			String messageCd = "roundMap未存在のためskip";
+			this.manageLoggerComponent.debugWarnLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, key);
+			return resultEntity;
 		}
 		final int seasonRounds = seasonRoundsObj;
 
@@ -517,11 +515,8 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		if (n != null) {
 			if (roundMax != null && n > roundMax) {
 				String messageCd = "ラウンド番号が異常値";
-				this.rootCauseWrapper.throwUnexpectedRowCount(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						messageCd, -99, -99,
-						String.format("roundMax=%s, targetRound=%s, gameDataCategory=%s, csv=%s",
-								roundMax, n, maxEntity.getGameTeamCategory(), maxEntity.getFilePath()));
+				this.manageLoggerComponent.debugWarnLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, String.format("roundMax=%s, targetRound=%s, gameDataCategory=%s, csv=%s",
+						roundMax, n, maxEntity.getGameTeamCategory(), maxEntity.getFilePath()));
 			}
 			return n;
 		}
@@ -538,11 +533,8 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			int v = Integer.parseInt(digits);
 			if (v > roundMax) {
 				String messageCd = "ラウンド番号が異常値";
-				this.rootCauseWrapper.throwUnexpectedRowCount(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						messageCd, -99, -99,
-						String.format("roundMax=%s, targetRound=%s, gameDataCategory=%s, csv=%s",
-								roundMax, v, maxEntity.getGameTeamCategory(), maxEntity.getFilePath()));
+				this.manageLoggerComponent.debugWarnLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, String.format("roundMax=%s, targetRound=%s, gameDataCategory=%s, csv=%s",
+						roundMax, n, maxEntity.getGameTeamCategory(), maxEntity.getFilePath()));
 			}
 			return v;
 		}
