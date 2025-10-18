@@ -41,7 +41,7 @@ public class SurfaceOverviewStatTest {
 	void test_calcStat_shouldCorrectly_memory() {
 		// Act
 		String csvNumber = "0";
-		String csvNumberAfter = "5";
+		String csvNumberAfter = null;
 		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
 
 		this.surfaceOverviewStat.calcStat(entities);
