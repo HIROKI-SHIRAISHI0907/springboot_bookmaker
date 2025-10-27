@@ -6,11 +6,14 @@ from urllib.parse import urlsplit, urlunsplit
 import datetime, os
 import pandas as pd
 from typing import Optional, List
+import pickle
 
 BOT_WALL_PAT = re.compile(r"(Just a moment|Access Denied|verify you are human|チェック|確認)", re.I)
 STAT_CONTAINER = "div.section"
 
 SAVE_DIR = "/Users/shiraishitoshio/bookmaker/outputs"
+
+SEQMAP_PATH = os.path.join(SAVE_DIR, "seqmap.pkl")
 
 # ====== グローバル変数 ======
 SEQMAP = {}  # 試合IDごとの連番管理用
@@ -83,6 +86,16 @@ def log(msg: str):
         print(msg)
 
 # ================= ユーティリティ =================
+
+def load_seqmap():
+    global SEQMAP
+    if os.path.exists(SEQMAP_PATH):
+        with open(SEQMAP_PATH, "rb") as f:
+            SEQMAP = pickle.load(f)
+
+def save_seqmap():
+    with open(SEQMAP_PATH, "wb") as f:
+        pickle.dump(SEQMAP, f)
 
 def text_clean(s: str) -> str:
     return re.sub(r"\s+", " ", (s or "")).strip()
@@ -420,7 +433,7 @@ def save_to_excel(match_results, output_dir="."):
 
 def main():
     global SEQMAP
-    results = []  # 全試合結果のリスト
+    load_seqmap()
 
     with sync_playwright() as p:
         browser = p.chromium.launch(headless=True, slow_mo=70)
@@ -481,29 +494,38 @@ def main():
             print(f"⚠️ ライブタブ切替で例外: {e}")
 
         # =========================
-        # 🔹 閉じている大会/リーグを展開
+        # 🔹 閉じているリーグ（accordionButton）をすべて開く
         # =========================
         try:
-            # ページ上の「折りたたみ展開ボタン」を全部押す
-            # （ライブタブ内に限らず存在するが、押しても問題なし）
-            expanders = page.locator("div.event__expander")
-            n_closed = expanders.count()
-            if n_closed > 0:
-                print(f"📂 閉じている試合グループを {n_closed} 件開きます...")
-                for i in range(n_closed):
-                    try:
-                        ex = expanders.nth(i)
-                        ex.scroll_into_view_if_needed(timeout=1000)
-                        ex.click(timeout=1000)
-                        time.sleep(0.25)
-                    except Exception as e:
-                        print(f"⚠️ セクション展開失敗: {e}")
-                # 展開反映のため少し待つ
-                time.sleep(0.8)
+            buttons = page.locator("button[data-testid='wcl-accordionButton']")
+            n_btn = buttons.count()
+            opened = 0
+            print(f"📂 折りたたみボタン検出: {n_btn} 件")
+
+            for i in range(n_btn):
+                btn = buttons.nth(i)
+                aria = btn.get_attribute("aria-label") or ""
+                # 「非表示」が含まれている = 既に開いている（スキップ）
+                if "非表示" in aria:
+                    continue
+
+                # 「試合表示選択」など → 閉じているので開く
+                try:
+                    btn.scroll_into_view_if_needed(timeout=1000)
+                    btn.click(timeout=1500)
+                    opened += 1
+                    time.sleep(0.3)
+                except Exception as e:
+                    print(f"⚠️ ボタンクリック失敗 {i}: {e}")
+
+            if opened:
+                print(f"✅ {opened} 件のリーグを展開しました。")
+                time.sleep(1.0)  # 展開反映待機
             else:
-                print("✅ 閉じている試合グループはありません。")
+                print("✅ すべてのリーグは既に展開済み。")
         except Exception as e:
-            print(f"⚠️ 展開処理例外: {e}")
+            print(f"⚠️ 折りたたみ展開処理で例外: {e}")
+
 
         # =========================
         # 🔹 ライブ行のみからURL抽出（安全）
@@ -512,7 +534,20 @@ def main():
             "div.event__match.event__match--live a.eventRowLink[href*='/match/'][href*='?mid=']",
             "els => els.map(e => e.href)"
         ) or []
-        links = list(dict.fromkeys(links))  # 重複除去
+        
+        # URL抽出後の重複除去をより厳密にする
+        processed_mids = set()
+        unique_links = []
+        for link in links:
+            mid = extract_mid(link)
+            if not mid or mid in processed_mids:
+                print(f"⏭️ 既処理試合: {mid}")
+                continue
+            processed_mids.add(mid)
+            unique_links.append(link)
+            links = unique_links
+            print(f"🎯 重複除去後ライブ試合:{len(links)}件")
+
         print(f"🎯 ライブ試合 検出:{len(links)}件")
 
 
@@ -563,6 +598,43 @@ def main():
                         return [""]
 
                 game_category = get_meta("国") + ": " + get_meta("リーグ")
+
+                #🔹 試合メタ情報・順位情報
+
+                # ==========================================
+                # ✅ 対象リーグフィルタリング処理を追加
+                # ==========================================
+                contains_list = [
+                    "ケニア: プレミアリーグ","コロンビア: プリメーラ A","タンザニア: プレミアリーグ","イングランド: プレミアリーグ",
+                    "イングランド: EFL チャンピオンシップ","イングランド: EFL リーグ 1","エチオピア: プレミアリーグ","コスタリカ: リーガ FPD",
+                    "ジャマイカ: プレミアリーグ","スペイン: ラ・リーガ","ブラジル: セリエ A ベターノ","ブラジル: セリエ B","ドイツ: ブンデスリーガ",
+                    "韓国: K リーグ 1","中国: 中国スーパーリーグ","日本: J1 リーグ","日本: J2 リーグ","日本: J3 リーグ","インドネシア: スーパーリーグ",
+                    "オーストラリア: A リーグ・メン","チュニジア: チュニジア･プロリーグ","ウガンダ: プレミアリーグ","メキシコ: リーガ MX",
+                    "フランス: リーグ・アン","スコットランド: プレミアシップ","オランダ: エールディビジ","アルゼンチン: トルネオ・ベターノ",
+                    "イタリア: セリエ A","イタリア: セリエ B","ポルトガル: リーガ・ポルトガル","トルコ: スュペル・リグ","セルビア: スーペルリーガ",
+                    "日本: WEリーグ","ボリビア: LFPB","ブルガリア: パルヴァ・リーガ","カメルーン: エリート 1","ペルー: リーガ 1",
+                    "エストニア: メスタリリーガ","ウクライナ: プレミアリーグ","ベルギー: ジュピラー･プロリーグ","エクアドル: リーガ・プロ",
+                    "日本: YBC ルヴァンカップ","日本: 天皇杯"
+                ]
+                under_list  = ["U17","U18","U19","U20","U21","U22","U23","U24","U25"]
+                gender_list = ["女子"]
+                exp_list    = ["ポルトガル: リーガ・ポルトガル 2","イングランド: プレミアリーグ 2","イングランド: プレミアリーグ U18"]
+
+                # 判定処理
+                # ✅1: contains_list に完全一致するものだけ対象
+                if not any(c in game_category for c in contains_list):
+                    print(f"⏭️ スキップ対象: {game_category}（リスト外）")
+                    gp_page.close()
+                    continue
+
+                # ✅2: 年代（Uxx）・女子・例外リーグを含む場合はスキップ
+                if any(x in game_category for x in under_list) or any(x in game_category for x in gender_list) or any(x in game_category for x in exp_list):
+                    print(f"🚫 除外対象: {game_category}")
+                    gp_page.close()
+                    continue
+
+                print(f"✅ 処理対象リーグ: {game_category}")
+
                 live = get_meta("試合時間")
                 get_record = get_meta("取得時刻")
                 home_rank = get_ranks("home_rank")
@@ -693,13 +765,14 @@ def main():
 
 
                 put("試合ID","", mid, "")
-                put("通番","", last_seq, "")
+                put("通番","", seq, "")
                 put("ソート用秒","", tkey, "")
             
                 # 今回1行の埋まり具合
                 debug_filled_columns(d)
                 # ✅ ここで即Excelに1行追記
                 append_row_to_excel(d, SAVE_DIR)
+                
             except Exception as e:
                 print("⚠️ 取得エラー:", e)
             finally:
@@ -707,6 +780,8 @@ def main():
                 except: pass
 
         browser.close()
+
+    save_seqmap()
 
 def get_match_meta(pg):
     """試合ページの国・リーグ・試合ステータス・詳細情報を抽出"""
@@ -1195,24 +1270,18 @@ def _create_new_workbook(path: Path):
         df.to_excel(w, index=False, sheet_name=SHEET_NAME)
 
 def append_row_to_excel(row_dict: dict, output_dir: str, max_rows_per_file: int = MAX_ROWS_PER_FILE):
-    """
-    1行を現在の連番ファイルに追記。上限に達したら次連番を新規作成。
-    """
-    # 今使うファイル
+    output_dir = Path(output_dir)
+    output_dir.mkdir(parents=True, exist_ok=True)
+    
     cur = _current_file_path(output_dir)
-    # 無ければ新規作成
     if not cur.exists():
-        # 既存の最大連番+1で作る
-        cur = Path(output_dir) / f"{FILE_PREFIX}{_next_serial(output_dir)}{FILE_SUFFIX}"
         _create_new_workbook(cur)
 
     # 上限チェック
-    current_rows = _data_rows_in(cur)
-    if current_rows >= max_rows_per_file:
-        # 次の連番ファイルを新規作成
-        cur = Path(output_dir) / f"{FILE_PREFIX}{_next_serial(output_dir)}{FILE_SUFFIX}"
+    if _data_rows_in(cur) >= max_rows_per_file:
+        cur = output_dir / f"{FILE_PREFIX}{_next_serial(output_dir)}{FILE_SUFFIX}"
         _create_new_workbook(cur)
-        current_rows = 0  # 新規なので0
+        current_rows = 0
 
     # 追記用データフレーム（列順はHEADERに合わせる）
     df = pd.DataFrame([row_dict])
