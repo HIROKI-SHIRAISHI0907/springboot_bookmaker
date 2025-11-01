@@ -101,7 +101,6 @@ public interface TeamMatchFinalStatsRepository {
     		weather,
     		temperature,
     		humid,
-    		logic_flg
     		register_id,
     		register_time,
     		update_id,
@@ -195,7 +194,6 @@ public interface TeamMatchFinalStatsRepository {
     		#{weather},
     		#{temperature},
     		#{humid},
-    		#{logicFlg},
     		#{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
         );
     """)

@@ -56,7 +56,7 @@ public interface SurfaceOverviewRepository {
 			  #{home1stHalfScoreRatio}, #{home2ndHalfScoreRatio}, #{homeCleanSheet},
 			  #{away1stHalfScore}, #{away2ndHalfScore}, #{awaySumScore},
 			  #{away1stHalfScoreRatio}, #{away2ndHalfScoreRatio}, #{awayCleanSheet},
-			  #{home1stHalfLost}, #{home2ndHalfLost},
+			  #{home1stHalfLost}, #{home2ndHalfLost}, #{homeSumLost},
 			  #{home1stHalfLostRatio}, #{home2ndHalfLostRatio},
 			  #{away1stHalfLost}, #{away2ndHalfLost}, #{awaySumLost},
 			  #{away1stHalfLostRatio}, #{away2ndHalfLostRatio},
