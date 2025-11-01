@@ -147,15 +147,89 @@ def get_home_away_names(pg):
         return "", ""
 
 def get_scores(pg):
+    """
+    スコアを安定取得。
+    優先順:
+      1) 固定ヘッダーの可視スコア
+      2) 詳細スコアの live ラッパー
+      3) 詳細スコアの汎用ラッパー
+      4) テキスト全体からの最終フォールバック
+    """
+    def _clean(s: str) -> str:
+        return re.sub(r"\s+", "", (s or "").replace("\u00A0", " ")).strip()
+
+    def _from_container(el):
+        # 1) span 群から divider を除外し、数字だけを抽出
+        try:
+            spans = el.locator("span")
+            n = spans.count()
+            vals = []
+            for i in range(n):
+                sp = spans.nth(i)
+                cls = (sp.get_attribute("class") or "")
+                if "divider" in cls:  # detailScore__divider / fixedScore__divider など
+                    continue
+                txt = _clean(sp.text_content() or "")
+                if re.fullmatch(r"\d+", txt):
+                    vals.append(txt)
+            if len(vals) >= 2:
+                return vals[0], vals[-1]
+        except:
+            pass
+
+        # 2) コンテナのテキストを正規化して "d - d" を拾う（ハイフン揺れ対応）
+        try:
+            t = _clean(el.inner_text() or "")
+            # 例: 1-0 / 1 – 0 / 1—0 など
+            m = re.search(r"(\d+)\s*[\-\u2212\u2012\u2013\u2014\u2015]\s*(\d+)", t)
+            if m:
+                return m.group(1), m.group(2)
+        except:
+            pass
+        return "", ""
+
+    # 1) 固定ヘッダー（表示されている方だけ）
     try:
-        fx = pg.locator(".fixedHeaderDuel:not(.fixedHeaderDuel--isHidden) .fixedScore")
-        nums = fx.locator("span:not(.fixedScore__divider)") if fx.count() else pg.locator(".detailScore__wrapper span:not(.detailScore__divider)")
-        if nums.count() >= 2:
-            hs = text_clean(nums.nth(0).text_content() or "")
-            aw = text_clean(nums.nth(1).text_content() or "")
-            return hs, aw
+        fx = pg.locator(".fixedHeaderDuel:not(.fixedHeaderDuel--isHidden) .fixedScore").first
+        if fx and fx.count():
+            h, a = _from_container(fx)
+            if h and a:
+                return h, a
     except:
         pass
+
+    # 2) ライブ用の詳細スコア
+    try:
+        live = pg.locator("div.detailScore__wrapper.detailScore__live").first
+        if live and live.count():
+            h, a = _from_container(live)
+            if h and a:
+                return h, a
+    except:
+        pass
+
+    # 3) 汎用の詳細スコア（ライブクラスが無いケース）
+    try:
+        wrap = pg.locator("div.detailScore__wrapper").first
+        if wrap and wrap.count():
+            h, a = _from_container(wrap)
+            if h and a:
+                return h, a
+    except:
+        pass
+
+    # 4) 最終フォールバック：ページ全体の主要スコア候補
+    try:
+        # data-testid でまとめて取れるレイアウトも存在（「1–0」丸ごと）
+        tnodes = pg.locator("[data-testid='wcl-score']").all()
+        for el in tnodes:
+            t = (el.text_content() or "").replace("\u00A0", " ")
+            m = re.search(r"(\d+)\s*[\-\u2212\u2012\u2013\u2014\u2015]\s*(\d+)", t)
+            if m:
+                return m.group(1).strip(), m.group(2).strip()
+    except:
+        pass
+
     return "", ""
 
 # ============== 統計タブ：遷移と待機 =============
@@ -576,8 +650,16 @@ def main():
                 print(f"📊 統計データ取得完了 ({len(stats_pairs)}項目)" if stats_pairs else "⚠️ 統計データなし")
 
                 # 🔹 試合メタ情報・順位情報
-                meta = get_match_meta(gp_page)
+                meta  = get_match_meta(gp_page)
                 ranks = get_match_standings(gp_page, home, away)
+
+                def get_meta(key: str) -> str:
+                    v = meta.get(key, "")
+                    return v if isinstance(v, str) else ""
+
+                def get_rank_value(key: str):
+                    v = ranks.get(key, None) if isinstance(ranks, dict) else None
+                    return v if (v is None or isinstance(v, (int, float))) else None
 
                 # 🔹 スタッツ抽出補完
                 def get_stat(sec, key):
@@ -585,19 +667,10 @@ def main():
                         return stats_pairs.get(sec, {}).get(key, ["", ""])
                     except:
                         return ["", ""]
-                # 🔹 メタデータ抽出補完
-                def get_meta(sec):
-                    try:
-                        return meta.get(sec, {})
-                    except:
-                        return [""]
-                def get_ranks(sec):
-                    try:
-                        return ranks.get(sec, {})
-                    except:
-                        return [""]
 
-                game_category = get_meta("国") + ": " + get_meta("リーグ")
+                country = get_meta("国")
+                league  = get_meta("リーグ")
+                game_category = f"{country}: {league}" if country or league else ""
 
                 #🔹 試合メタ情報・順位情報
 
@@ -637,8 +710,8 @@ def main():
 
                 live = get_meta("試合時間")
                 get_record = get_meta("取得時刻")
-                home_rank = get_ranks("home_rank")
-                away_rank = get_ranks("away_rank")
+                home_rank = get_rank_value("home_rank")
+                away_rank = get_rank_value("away_rank")
                 shot_exp_home, shot_exp_away = get_stat("主なスタッツ", "ゴール期待値（xG）")
                 ball_pos_home, ball_pos_away = get_stat("主なスタッツ", "ボール支配率")
                 shoot_home, shoot_away = get_stat("主なスタッツ", "シュート数")
@@ -669,7 +742,7 @@ def main():
                 clear_home, clear_away = get_stat("ディフェンス", "クリアリング")
                 intercept_home, intercept_away = get_stat("ディフェンス", "インターセプト")
                 keeper_save_home, keeper_save_away = get_stat("ゴールキーパー", "キーパーセーブ")
-                get_link = get_ranks("url")
+                get_link = ranks.get("url", "") if isinstance(ranks, dict) else ""
                 referee = get_meta("レフェリー")
                 studium = get_meta("開催地")
                 capacity = get_meta("収容人数")
@@ -848,15 +921,9 @@ def get_match_meta(pg):
     # 🔹 試合時間（ライブ・終了など）
     # -------------------------
     try:
-        st = pg.locator("div.detailScore__status div.eventAndAddedTime span.eventTime")
-        if st.count():
-            meta["試合時間"] = text_clean(st.first.text_content())
-        else:
-            lt = pg.locator("[data-testid='wcl-time']").first
-            if lt.count():
-                meta["試合時間"] = text_clean(lt.text_content())
+        meta["試合時間"] = get_match_time_text(pg)
     except:
-        pass
+        meta["試合時間"] = ""
 
     meta["取得時刻"] = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
@@ -1055,6 +1122,81 @@ def get_match_standings(pg, home_name: str, away_name: str):
         "away_rank": away["rank"] if away else None,
         "away_pts": away["pts"] if away else None,
     }
+
+def get_match_time_text(pg) -> str:
+    """
+    ライブ経過(例: 88:03) も 終了表示(終了/終了済/試合終了/FT) も拾う。
+    可視要素優先、十分に待機、複数候補を順にチェック。
+    """
+    # 1) 最初にステータスコンテナの可視化を待つ（どれかが出ればOK）
+    candidates_any = [
+        "div.detailScore__status",                              # 詳細スコアのステータス枠
+        ".fixedHeaderDuel:not(.fixedHeaderDuel--isHidden)",     # 可視の固定ヘッダー
+        "[data-testid='wcl-time']"                              # 時刻/終了テキスト（複数箇所に出る）
+    ]
+    found = False
+    for sel in candidates_any:
+        try:
+            pg.wait_for_selector(f"{sel} >> visible=true", timeout=5000)
+            found = True
+            break
+        except:
+            pass
+    # 2) 明示的に「終了系」テキストを探す（可視のみ）
+    end_sels = [
+        # 例: <span class="fixedHeaderDuel__detailStatus">試合終了</span>
+        ".fixedHeaderDuel:not(.fixedHeaderDuel--isHidden) .fixedHeaderDuel__detailStatus",
+        "div.detailScore__status .fixedHeaderDuel__detailStatus",
+        # 例: data-testid="wcl-time" に「終了」等が入ることも多い
+        "[data-testid='wcl-time']"
+    ]
+    for s in end_sels:
+        try:
+            el = pg.locator(f"{s} >> visible=true").first
+            if el.count():
+                txt = (el.text_content() or "").strip().replace("\u00A0", " ")
+                if re.search(r"(終了|試合終了|FT)", txt, re.I):
+                    return txt
+        except:
+            pass
+
+    # 3) ライブ経過「mm:ss / 90+3 / 45'」など（可視の eventTime）
+    live_sels = [
+        "div.detailScore__status .eventAndAddedTime .eventTime",
+        ".fixedHeaderDuel:not(.fixedHeaderDuel--isHidden) .eventAndAddedTime .eventTime",
+        "[data-testid='wcl-time']"  # ここに 88' などが入るケースも
+    ]
+    for s in live_sels:
+        try:
+            el = pg.locator(f"{s} >> visible=true").first
+            if el.count():
+                txt = (el.text_content() or "").strip().replace("\u00A0", " ")
+                # 88:03 / 90+3 / 45' / 45+2' などを許容
+                if re.search(r"^\d{1,3}(:\d{2})?$", txt) or re.search(r"^\d{1,3}(\+\d{1,2})?('|’)?$", txt):
+                    return txt
+        except:
+            pass
+
+    # 4) ダメ押し：可視の detail status をそのまま返す（「前半」「後半」だけでも）
+    for s in end_sels:
+        try:
+            el = pg.locator(f"{s} >> visible=true").first
+            if el.count():
+                txt = (el.text_content() or "").strip().replace("\u00A0", " ")
+                if txt:
+                    return txt
+        except:
+            pass
+
+    # 5) 最後のフォールバック（不可視も含めて拾ってみる）
+    try:
+        el = pg.locator("[data-testid='wcl-time']").first
+        if el.count():
+            return (el.text_content() or "").strip()
+    except:
+        pass
+
+    return ""
 
 def get_match_teams_ranks(pg, home_name: str, away_name: str):
     """
