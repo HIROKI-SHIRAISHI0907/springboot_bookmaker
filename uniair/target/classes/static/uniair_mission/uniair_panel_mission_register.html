@@ -1,0 +1,45 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="utf-8">
+	<title>テスト</title>
+	<style>
+        .bodys {
+            padding: 0.25em 0.5em;/*上下 左右の余白*/
+  			color: #494949;/*文字色*/
+  			background: transparent;/*背景透明に*/
+  			border-left: solid 5px #7db4e6;/*左線*/
+        }
+
+        .uniair_panel_mission_csv {
+        	padding: 0.5em 1em;
+    		margin: 2em 0;
+    		font-weight: bold;
+    		color: #6091d3;/*文字色*/
+    		background: #FFF;
+    		border: solid 3px #6091d3;/*線*/
+    		border-radius: 10px;/*角の丸み*/
+        }
+
+        .error {
+        	color: red;/*文字色*/
+        }
+	</style>
+</head>
+<body>
+	<h1 class="bodys">ユニエアパネルミッション登録画面</h1>
+	<form action = "/project_uniair/uniair_panel_mission_confirm" method = "GET">
+		<div class="uniair_panel_mission_csv">
+			<div th:if="${rbRe.message ne null}">
+    			<p th:text="${rbRe.message}" class="error"></p>
+			</div>
+			<div>
+				<p>登録CSV:   <input type="file" name="filename"></p>
+			</div>
+			<p><input type="submit" value="確認する"></p>
+		</div>
+	</form>
+</body>
+</html>
+
+

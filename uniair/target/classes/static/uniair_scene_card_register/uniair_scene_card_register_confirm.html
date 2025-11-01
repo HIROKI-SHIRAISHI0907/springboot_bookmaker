@@ -1,0 +1,39 @@
+<!DOCTYPE html>
+<html xmlns:th="http://www.thymeleaf.org">
+<head>
+	<meta charset="utf-8">
+	<title>テスト確認</title>
+	<style>
+        .bodys {
+            padding: 0.25em 0.5em;/*上下 左右の余白*/
+  			color: #494949;/*文字色*/
+  			background: transparent;/*背景透明に*/
+  			border-left: solid 5px #7db4e6;/*左線*/
+        }
+
+        .uniair_scene_card_register_confirm_csv {
+        	padding: 0.5em 1em;
+    		margin: 2em 0;
+    		font-weight: bold;
+    		color: #6091d3;/*文字色*/
+    		background: #FFF;
+    		border: solid 3px #6091d3;/*線*/
+    		border-radius: 10px;/*角の丸み*/
+        }
+	</style>
+</head>
+<body>
+	<h1 class="bodys">シーンカード登録確認画面</h1>
+	<form action = "/project_uniair/uniair_scene_card_complete" method = "GET">
+		<div class="uniair_scene_card_register_confirm_csv">
+			<div>
+				<p th:text="${file}"/>
+				<p th:text="${datetime}"></p>
+			</div>
+			<p><input type="submit" value="登録する"></p>
+		</div>
+	</form>
+</body>
+</html>
+
+

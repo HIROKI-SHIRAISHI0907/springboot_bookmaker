@@ -1,0 +1,9 @@
+# src/main/resources/application.yml
+server:
+  port: 8080
+
+security:
+  jwt:
+    issuer: bookmakers-web
+    secret: "change-this-to-very-long-random-string-please"
+    expires-in: 3600   # 秒（1時間）
