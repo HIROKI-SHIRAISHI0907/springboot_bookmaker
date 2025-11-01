@@ -1,6 +1,0 @@
-Manifest-Version: 1.0
-Build-Jdk-Spec: 11
-Implementation-Title: bookmakers-csv-mng
-Implementation-Version: bookmakers-common-0.0.1-SNAPSHOT
-Created-By: Maven Integration for Eclipse
-
