@@ -684,13 +684,14 @@ def main():
                     return ""
 
                 def put(hkey, akey, hval, aval, overwrite=False):
-                    # overwrite=False のときは、すでに値が入っていれば上書きしない
+                    # hkey への書き込み
                     if overwrite or not str(d.get(hkey, "")).strip():
-                        d[hkey] = hval or ""
-                        print(f"{hkey} : {hval}")
-                    if overwrite or not str(d.get(akey, "")).strip():
-                        d[akey] = aval or ""
-                        print(f"{akey} : {aval}")
+                        d[hkey] = hval if hval is not None else ""
+
+                    # akey が空の場合は何もしない（空キーを作らない）
+                    if akey:
+                        if overwrite or not str(d.get(akey, "")).strip():
+                            d[akey] = aval if aval is not None else ""
 
                 # 🔹 HEADER構造体生成
                 d = {col: "" for col in HEADER}
@@ -1272,32 +1273,32 @@ def _create_new_workbook(path: Path):
 def append_row_to_excel(row_dict: dict, output_dir: str, max_rows_per_file: int = MAX_ROWS_PER_FILE):
     output_dir = Path(output_dir)
     output_dir.mkdir(parents=True, exist_ok=True)
-    
+
     cur = _current_file_path(output_dir)
     if not cur.exists():
         _create_new_workbook(cur)
 
-    # 上限チェック
-    if _data_rows_in(cur) >= max_rows_per_file:
+    # ここで必ず現在のデータ行数を取得しておく
+    current_rows = _data_rows_in(cur)
+
+    # 上限チェック（※上限超なら新規ファイルを作り、current_rows を 0 にリセット）
+    if current_rows >= max_rows_per_file:
         cur = output_dir / f"{FILE_PREFIX}{_next_serial(output_dir)}{FILE_SUFFIX}"
         _create_new_workbook(cur)
         current_rows = 0
 
-    # 追記用データフレーム（列順はHEADERに合わせる）
+    # 追記用DFをHEADER順に整形
     df = pd.DataFrame([row_dict])
     for col in HEADER:
         if col not in df.columns:
             df[col] = ""
     df = df[HEADER]
 
-    # 追記
-    # startrow = 既存の最終行（ヘッダ1行あるので、startrow=既存総行）に書く、header=False
     with pd.ExcelWriter(cur, engine="openpyxl", mode="a", if_sheet_exists="overlay") as w:
-        # 既存の最終行を取得（上でcurrent_rows=データ行数なので、ヘッダ1行を足す）
-        startrow = current_rows + 1
+        startrow = current_rows + 1  # ヘッダ1行あり
         df.to_excel(w, index=False, header=False, sheet_name=SHEET_NAME, startrow=startrow)
 
-    print(f"💾 追記完了: {cur.name} （データ行 {current_rows+1} → {current_rows+1} 件目を追加）")
+    print(f"💾 追記完了: {cur.name} （データ行 {current_rows} → {current_rows+1} 件目を追加）")
 
 if __name__ == "__main__":
     main()
