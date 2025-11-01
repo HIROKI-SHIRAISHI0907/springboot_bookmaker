@@ -24,6 +24,10 @@ public interface SurfaceOverviewRepository {
 			  home_1st_half_score_ratio, home_2nd_half_score_ratio, home_clean_sheet,
 			  away_1st_half_score, away_2nd_half_score, away_sum_score,
 			  away_1st_half_score_ratio, away_2nd_half_score_ratio, away_clean_sheet,
+			  home_1st_half_lost, home_2nd_half_lost, home_sum_lost,
+			  home_1st_half_lost_ratio, home_2nd_half_lost_ratio,
+			  away_1st_half_lost, away_2nd_half_lost, away_sum_lost,
+			  away_1st_half_lost_ratio, away_2nd_half_lost_ratio,
 			  fail_to_score_game_count,
 			  consecutive_win_disp, consecutive_lose_disp,
 			  unbeaten_streak_count, unbeaten_streak_disp,
@@ -52,6 +56,10 @@ public interface SurfaceOverviewRepository {
 			  #{home1stHalfScoreRatio}, #{home2ndHalfScoreRatio}, #{homeCleanSheet},
 			  #{away1stHalfScore}, #{away2ndHalfScore}, #{awaySumScore},
 			  #{away1stHalfScoreRatio}, #{away2ndHalfScoreRatio}, #{awayCleanSheet},
+			  #{home1stHalfLost}, #{home2ndHalfLost},
+			  #{home1stHalfLostRatio}, #{home2ndHalfLostRatio},
+			  #{away1stHalfLost}, #{away2ndHalfLost}, #{awaySumLost},
+			  #{away1stHalfLostRatio}, #{away2ndHalfLostRatio},
 			  #{failToScoreGameCount},
 			  #{consecutiveWinDisp}, #{consecutiveLoseDisp},
 			  #{unbeatenStreakCount}, #{unbeatenStreakDisp},
@@ -106,6 +114,16 @@ public interface SurfaceOverviewRepository {
 						  away_1st_half_score_ratio,
 						  away_2nd_half_score_ratio,
 						  away_clean_sheet,
+						  home_1st_half_lost,
+						  home_2nd_half_lost,
+						  home_sum_lost,
+			  			  home_1st_half_lost_ratio,
+			  			  home_2nd_half_lost_ratio,
+			  			  away_1st_half_lost,
+			  			  away_2nd_half_lost,
+			  			  away_sum_lost,
+			              away_1st_half_lost_ratio,
+			              away_2nd_half_lost_ratio,
 						  fail_to_score_game_count,
 						  consecutive_win_disp,
 						  consecutive_lose_disp,
@@ -188,6 +206,15 @@ public interface SurfaceOverviewRepository {
 			  away_1st_half_score_ratio = #{away1stHalfScoreRatio},
 			  away_2nd_half_score_ratio = #{away2ndHalfScoreRatio},
 			  away_clean_sheet = #{awayCleanSheet},
+			  home_1st_half_lost = #{home1stHalfLost},
+			  home_2nd_half_lost = #{home2ndHalfLost},
+			  home_1st_half_lost_ratio = #{home1stHalfLostRatio},
+			  home_2nd_half_lost_ratio = #{home2ndHalfLostRatio},
+			  away_1st_half_lost = #{away1stHalfLost},
+			  away_2nd_half_lost = #{away2ndHalfLost},
+			  away_sum_lost = #{awaySumLost},
+			  away_1st_half_lost_ratio = #{away1stHalfLostRatio},
+			  away_2nd_half_lost_ratio = #{away2ndHalfLostRatio},
 			  fail_to_score_game_count = #{failToScoreGameCount},
 			  consecutive_win_disp = #{consecutiveWinDisp},
 			  consecutive_lose_disp = #{consecutiveLoseDisp},
@@ -323,5 +350,11 @@ public interface SurfaceOverviewRepository {
 			</script>
 			""")
 	List<SurfaceOverviewEntity> selectAllMonthsByTeam(String country, String league, String team);
+
+	@Select("""
+			SELECT *
+			FROM surface_overview
+			""")
+	List<SurfaceOverviewEntity> getData();
 
 }

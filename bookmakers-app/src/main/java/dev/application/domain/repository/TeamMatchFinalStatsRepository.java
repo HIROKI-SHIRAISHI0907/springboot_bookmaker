@@ -1,7 +1,10 @@
 package dev.application.domain.repository;
 
+import java.util.List;
+
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
 
 import dev.application.analyze.bm_m021.TeamMatchFinalStatsEntity;
 
@@ -98,6 +101,7 @@ public interface TeamMatchFinalStatsRepository {
     		weather,
     		temperature,
     		humid,
+    		logic_flg
     		register_id,
     		register_time,
     		update_id,
@@ -191,8 +195,15 @@ public interface TeamMatchFinalStatsRepository {
     		#{weather},
     		#{temperature},
     		#{humid},
+    		#{logicFlg},
     		#{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
         );
     """)
     int insert(TeamMatchFinalStatsEntity entity);
+
+    @Select("""
+			SELECT *
+			FROM team_match_final_stats
+			""")
+	List<TeamMatchFinalStatsEntity> getData();
 }

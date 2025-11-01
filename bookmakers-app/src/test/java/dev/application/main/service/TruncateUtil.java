@@ -41,6 +41,12 @@ public class TruncateUtil {
 	    m.put(23, "each_team_score_based_feature_stats");
 	    m.put(24, "score_based_feature_stats_history");
 	    m.put(25, "each_team_score_based_feature_stats_history");
+	    m.put(26, "data");
+	    m.put(27, "stat_size_finalize_master");
+	    m.put(28, "country_league_master");
+	    m.put(29, "country_league_season_master");
+	    m.put(30, "team_member_master");
+	    m.put(31, "future_master");
 	    return Collections.unmodifiableMap(m);
 	}
 

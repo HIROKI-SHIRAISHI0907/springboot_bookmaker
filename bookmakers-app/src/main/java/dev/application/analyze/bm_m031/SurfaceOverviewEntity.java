@@ -102,6 +102,36 @@ public class SurfaceOverviewEntity extends MetaEntity implements Serializable {
 	/** アウェー無失点 */
 	private String awayCleanSheet;
 
+	/** ホーム前半失点数 */
+	private String home1stHalfLost;
+
+	/** ホーム後半失点数 */
+	private String home2ndHalfLost;
+
+	/** ホーム失点数 */
+	private String homeSumLost;
+
+	/** ホーム前半失点割合 */
+	private String home1stHalfLostRatio;
+
+	/** ホーム後半失点割合 */
+	private String home2ndHalfLostRatio;
+
+	/** アウェー前半失点数 */
+	private String away1stHalfLost;
+
+	/** アウェー後半失点数 */
+	private String away2ndHalfLost;
+
+	/** アウェー失点数 */
+	private String awaySumLost;
+
+	/** アウェー前半失点割合 */
+	private String away1stHalfLostRatio;
+
+	/** アウェー後半失点割合 */
+	private String away2ndHalfLostRatio;
+
 	/** 無得点試合数 */
 	private String failToScoreGameCount;
 
