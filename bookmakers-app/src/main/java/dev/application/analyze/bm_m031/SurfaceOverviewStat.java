@@ -294,88 +294,132 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	}
 
 	/**
-	 * スコア系（前半/後半/合計、クリーンシート、得点継続）を更新。
+	 * スコア系（前半/後半/合計、クリーンシート、得点継続）＋ 失点系（前半/後半/合計、割合）を更新。
 	 */
 	private SurfaceOverviewEntity setScoreData(BookDataEntity maxEntity, BookDataEntity middleEntity,
-			BookDataEntity minEntity, SurfaceOverviewEntity resultEntity, String team) {
+	        BookDataEntity minEntity, SurfaceOverviewEntity resultEntity, String team) {
 
-		String homeTeam = maxEntity.getHomeTeamName();
-		String awayTeam = maxEntity.getAwayTeamName();
+	    String homeTeam = maxEntity.getHomeTeamName();
+	    String awayTeam = maxEntity.getAwayTeamName();
 
-		int homeMin    = parseOrZero(minEntity.getHomeScore());
-		int homeMid    = parseOrZero(middleEntity.getHomeScore());
-		int homeMax    = parseOrZero(maxEntity.getHomeScore());
-		int awayMin    = parseOrZero(minEntity.getAwayScore());
-		int awayMid    = parseOrZero(middleEntity.getAwayScore());
-		int awayMax    = parseOrZero(maxEntity.getAwayScore());
+	    int homeMin = parseOrZero(minEntity.getHomeScore());
+	    int homeMid = parseOrZero(middleEntity.getHomeScore());
+	    int homeMax = parseOrZero(maxEntity.getHomeScore());
+	    int awayMin = parseOrZero(minEntity.getAwayScore());
+	    int awayMid = parseOrZero(middleEntity.getAwayScore());
+	    int awayMax = parseOrZero(maxEntity.getAwayScore());
 
-		String h1 = resultEntity.getHome1stHalfScore();
-		String h2 = resultEntity.getHome2ndHalfScore();
-		String hs = resultEntity.getHomeSumScore();
-		String hc = resultEntity.getHomeCleanSheet();
+	    // 得点（既存）
+	    String h1 = resultEntity.getHome1stHalfScore();
+	    String h2 = resultEntity.getHome2ndHalfScore();
+	    String hs = resultEntity.getHomeSumScore();
+	    String hc = resultEntity.getHomeCleanSheet();
 
-		String a1 = resultEntity.getAway1stHalfScore();
-		String a2 = resultEntity.getAway2ndHalfScore();
-		String as = resultEntity.getAwaySumScore();
-		String ac = resultEntity.getAwayCleanSheet();
+	    String a1 = resultEntity.getAway1stHalfScore();
+	    String a2 = resultEntity.getAway2ndHalfScore();
+	    String as = resultEntity.getAwaySumScore();
+	    String ac = resultEntity.getAwayCleanSheet();
 
-		String fts = resultEntity.getFailToScoreGameCount();
-		int befFts = parseOrZero(fts);
+	    String fts = resultEntity.getFailToScoreGameCount();
+	    int befFts = parseOrZero(fts);
 
-		int dh1 = homeMid - homeMin;
-		int dh2 = homeMax - homeMid;
-		int da1 = awayMid - awayMin;
-		int da2 = awayMax - awayMid;
+	    // 追加：失点
+	    String hl1 = resultEntity.getHome1stHalfLost();
+	    String hl2 = resultEntity.getHome2ndHalfLost();
+	    String hls = resultEntity.getHomeSumLost();
 
-		if (team.equals(homeTeam)) {
-			h1 = String.valueOf(parseOrZero(h1) + dh1);
-			h2 = String.valueOf(parseOrZero(h2) + dh2);
-			hs = String.valueOf(parseOrZero(hs) + dh1 + dh2);
-			if (awayMax == 0) hc = String.valueOf(parseOrZero(hc) + 1);
-			if (homeMax == 0) fts = String.valueOf(parseOrZero(fts) + 1);
-		} else if (team.equals(awayTeam)) {
-			a1 = String.valueOf(parseOrZero(a1) + da1);
-			a2 = String.valueOf(parseOrZero(a2) + da2);
-			as = String.valueOf(parseOrZero(as) + da1 + da2);
-			if (homeMax == 0) ac = String.valueOf(parseOrZero(ac) + 1);
-			if (awayMax == 0) fts = String.valueOf(parseOrZero(fts) + 1);
-		}
+	    String al1 = resultEntity.getAway1stHalfLost();
+	    String al2 = resultEntity.getAway2ndHalfLost();
+	    String als = resultEntity.getAwaySumLost();
 
-		// 0埋め
-		if (h1 == null) h1 = "0";
-		if (h2 == null) h2 = "0";
-		if (hs == null) hs = "0";
-		if (a1 == null) a1 = "0";
-		if (a2 == null) a2 = "0";
-		if (as == null) as = "0";
-		if (hc == null) hc = "0";
-		if (ac == null) ac = "0";
-		if (fts == null) fts = "0";
+	    // 前後半の増分
+	    int dh1 = homeMid - homeMin; // ホーム得点（前半増分）
+	    int dh2 = homeMax - homeMid; // ホーム得点（後半増分）
+	    int da1 = awayMid - awayMin; // アウェー得点（前半増分）
+	    int da2 = awayMax - awayMid; // アウェー得点（後半増分）
 
-		// 反映
-		resultEntity.setHome1stHalfScore(h1);
-		resultEntity.setHome2ndHalfScore(h2);
-		resultEntity.setHomeSumScore(hs);
-		resultEntity.setHome1stHalfScoreRatio(toPercent(parseOrZero(h1), parseOrZero(hs)));
-		resultEntity.setHome2ndHalfScoreRatio(toPercent(parseOrZero(h2), parseOrZero(hs)));
-		resultEntity.setHomeCleanSheet(hc);
+	    if (team.equals(homeTeam)) {
+	        // 得点
+	        h1 = String.valueOf(parseOrZero(h1) + dh1);
+	        h2 = String.valueOf(parseOrZero(h2) + dh2);
+	        hs = String.valueOf(parseOrZero(hs) + dh1 + dh2);
+	        if (awayMax == 0) hc = String.valueOf(parseOrZero(hc) + 1);
+	        if (homeMax == 0) fts = String.valueOf(parseOrZero(fts) + 1);
 
-		resultEntity.setAway1stHalfScore(a1);
-		resultEntity.setAway2ndHalfScore(a2);
-		resultEntity.setAwaySumScore(as);
-		resultEntity.setAway1stHalfScoreRatio(toPercent(parseOrZero(a1), parseOrZero(as)));
-		resultEntity.setAway2ndHalfScoreRatio(toPercent(parseOrZero(a2), parseOrZero(as)));
-		resultEntity.setAwayCleanSheet(ac);
+	        // 失点（ホームの失点＝アウェー得点の増分）
+	        hl1 = String.valueOf(parseOrZero(hl1) + da1);
+	        hl2 = String.valueOf(parseOrZero(hl2) + da2);
+	        hls = String.valueOf(parseOrZero(hls) + da1 + da2);
 
-		resultEntity.setFailToScoreGameCount(fts);
+	    } else if (team.equals(awayTeam)) {
+	        // 得点
+	        a1 = String.valueOf(parseOrZero(a1) + da1);
+	        a2 = String.valueOf(parseOrZero(a2) + da2);
+	        as = String.valueOf(parseOrZero(as) + da1 + da2);
+	        if (homeMax == 0) ac = String.valueOf(parseOrZero(ac) + 1);
+	        if (awayMax == 0) fts = String.valueOf(parseOrZero(fts) + 1);
 
-		// 得点継続（無得点が増えていなければ＋1）
-		int consec = parseOrZero(resultEntity.getConsecutiveScoreCount());
-		consec = (parseOrZero(fts) == befFts) ? (consec + 1) : 0;
-		resultEntity.setConsecutiveScoreCount(String.valueOf(consec));
-		resultEntity.setConsecutiveScoreCountDisp(consec >= 3 ? SurfaceOverviewConst.CONSECTIVE_SCORING : null);
+	        // 失点（アウェーの失点＝ホーム得点の増分）
+	        al1 = String.valueOf(parseOrZero(al1) + dh1);
+	        al2 = String.valueOf(parseOrZero(al2) + dh2);
+	        als = String.valueOf(parseOrZero(als) + dh1 + dh2);
+	    }
 
-		return resultEntity;
+	    // 0埋め（nullセーフ）
+	    if (h1 == null) h1 = "0";
+	    if (h2 == null) h2 = "0";
+	    if (hs == null) hs = "0";
+	    if (a1 == null) a1 = "0";
+	    if (a2 == null) a2 = "0";
+	    if (as == null) as = "0";
+	    if (hc == null) hc = "0";
+	    if (ac == null) ac = "0";
+	    if (fts == null) fts = "0";
+
+	    if (hl1 == null) hl1 = "0";
+	    if (hl2 == null) hl2 = "0";
+	    if (hls == null) hls = "0";
+	    if (al1 == null) al1 = "0";
+	    if (al2 == null) al2 = "0";
+	    if (als == null) als = "0";
+
+	    // 反映：得点
+	    resultEntity.setHome1stHalfScore(h1);
+	    resultEntity.setHome2ndHalfScore(h2);
+	    resultEntity.setHomeSumScore(hs);
+	    resultEntity.setHome1stHalfScoreRatio(toPercent(parseOrZero(h1), parseOrZero(hs)));
+	    resultEntity.setHome2ndHalfScoreRatio(toPercent(parseOrZero(h2), parseOrZero(hs)));
+	    resultEntity.setHomeCleanSheet(hc);
+
+	    resultEntity.setAway1stHalfScore(a1);
+	    resultEntity.setAway2ndHalfScore(a2);
+	    resultEntity.setAwaySumScore(as);
+	    resultEntity.setAway1stHalfScoreRatio(toPercent(parseOrZero(a1), parseOrZero(as)));
+	    resultEntity.setAway2ndHalfScoreRatio(toPercent(parseOrZero(a2), parseOrZero(as)));
+	    resultEntity.setAwayCleanSheet(ac);
+
+	    resultEntity.setFailToScoreGameCount(fts);
+
+	    // 反映：失点
+	    resultEntity.setHome1stHalfLost(hl1);
+	    resultEntity.setHome2ndHalfLost(hl2);
+	    resultEntity.setHomeSumLost(hls);
+	    resultEntity.setHome1stHalfLostRatio(toPercent(parseOrZero(hl1), parseOrZero(hls)));
+	    resultEntity.setHome2ndHalfLostRatio(toPercent(parseOrZero(hl2), parseOrZero(hls)));
+
+	    resultEntity.setAway1stHalfLost(al1);
+	    resultEntity.setAway2ndHalfLost(al2);
+	    resultEntity.setAwaySumLost(als);
+	    resultEntity.setAway1stHalfLostRatio(toPercent(parseOrZero(al1), parseOrZero(als)));
+	    resultEntity.setAway2ndHalfLostRatio(toPercent(parseOrZero(al2), parseOrZero(als)));
+
+	    // 得点継続（無得点が増えていなければ＋1）
+	    int consec = parseOrZero(resultEntity.getConsecutiveScoreCount());
+	    consec = (parseOrZero(fts) == befFts) ? (consec + 1) : 0;
+	    resultEntity.setConsecutiveScoreCount(String.valueOf(consec));
+	    resultEntity.setConsecutiveScoreCountDisp(consec >= 3 ? SurfaceOverviewConst.CONSECTIVE_SCORING : null);
+
+	    return resultEntity;
 	}
 
 	/**

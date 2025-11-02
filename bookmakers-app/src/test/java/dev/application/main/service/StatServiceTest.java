@@ -29,7 +29,7 @@ class StatServiceTest {
 	void execute_shouldReturnZero_whenExecutionSuccessful() throws Exception {
 		// シーケンスデータから取得(最大値情報取得)
 		String csvNumber = "0";
-		String csvBackNumber = "20";
+		String csvBackNumber = null;
 
 		// 直近のCSVデータ情報を取得
 		Map<String, Map<String, List<BookDataEntity>>> getStatMap = this.getStatInfo.getData(csvNumber, csvBackNumber);
