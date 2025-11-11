@@ -22,6 +22,9 @@ public class ExecuteMainUtil {
 	 */
 	private static final Integer FEATURE_SIZE_INTEGER = 4;
 
+	/** ラウンドパターン */
+	private static final Pattern ROUND_PATTERN = Pattern.compile("ラウンド\\s*(\\d+)");
+
 	/**
 	 * 分割リスト
 	 */
@@ -311,7 +314,6 @@ public class ExecuteMainUtil {
 	public static String[] splitFlgGroup(String feature_value) {
 		if (feature_value == null)
 			return new String[] { "", "", "" };
-		String t = feature_value.trim();
 		try {
 			if (feature_value.contains("(")) {
 				// 数値部分を抽出 (括弧内の部分)
@@ -577,6 +579,21 @@ public class ExecuteMainUtil {
 			}
 		}
 		return returnEntity;
+	}
+
+	/**
+	 * ラウンドの数字のみ取得する
+	 * @param data
+	 * @return
+	 */
+	public static Integer extractRoundNumbers(String data) {
+		Matcher matcher = ROUND_PATTERN.matcher(data);
+		if (matcher.find()) {
+			int roundNumber = Integer.parseInt(matcher.group(1));
+			return roundNumber;
+		}
+		// エラーの場合
+		return -99;
 	}
 
 }

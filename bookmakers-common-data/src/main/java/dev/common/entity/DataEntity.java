@@ -335,6 +335,9 @@ public class DataEntity extends MetaEntity implements Serializable {
 	/** タイムソート */
 	private Integer timeSortSeconds; // 並び用の秒（終了=大きめ）
 
+	/** 手動フラグ */
+	private String addManualFlg;
+
 	/** ファイル件数 */
 	private int fileCount;
 
