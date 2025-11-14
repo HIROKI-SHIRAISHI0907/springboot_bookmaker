@@ -2,6 +2,8 @@ package dev.application.domain.repository;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import dev.application.analyze.bm_m033.RankHistoryEntity;
 
@@ -13,7 +15,7 @@ import dev.application.analyze.bm_m033.RankHistoryEntity;
 public interface RankHistoryStatRepository {
 
 	@Insert("""
-			    INSERT INTO no_goal_match_stats (
+			    INSERT INTO rank_history (
 			        country,
 			        league,
 			        match,
@@ -33,5 +35,28 @@ public interface RankHistoryStatRepository {
 			    );
 			""")
 	int insert(RankHistoryEntity entity);
+
+	@Update("""
+		    UPDATE rank_history
+		    SET
+		    	rank = #{rank}
+		    WHERE
+		        country = #{country} AND
+		        league = #{league} AND
+		        match = #{match} AND
+		        team = #{team};
+		""")
+	int update(RankHistoryEntity entity);
+
+	@Select("""
+		    SELECT COUNT(*)
+		    FROM rank_history
+		    WHERE
+		        country = #{country} AND
+		        league = #{league} AND
+		        match = #{match} AND
+		        team = #{team};
+		""")
+	int select(RankHistoryEntity entity);
 
 }
