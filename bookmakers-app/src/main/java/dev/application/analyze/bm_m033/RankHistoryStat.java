@@ -207,7 +207,9 @@ public class RankHistoryStat implements AnalyzeEntityIF {
                                                 PROJECT_NAME, CLASS_NAME, METHOD_NAME,
                                                 messageCd,
                                                 1, result,
-                                                null);
+                                                String.join(",", countryLeague.get(0), countryLeague.get(1),
+                                                		pointDTO.getTeam()), String.valueOf(match),
+                                                String.valueOf(pointDTO.getRank()));
                                     }
                                     String messageCd = "順位後付け更新件数";
                                     this.manageLoggerComponent.debugInfoLog(
@@ -221,7 +223,9 @@ public class RankHistoryStat implements AnalyzeEntityIF {
                                                 PROJECT_NAME, CLASS_NAME, METHOD_NAME,
                                                 messageCd,
                                                 1, result,
-                                                null);
+                                                String.join(",", countryLeague.get(0), countryLeague.get(1),
+                                                		pointDTO.getTeam()), String.valueOf(match),
+                                                String.valueOf(pointDTO.getRank()));
                                     }
                                     String messageCd = "順位後付け登録件数";
                                     this.manageLoggerComponent.debugInfoLog(
