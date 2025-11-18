@@ -40,19 +40,16 @@ public class SurfaceOverviewEntity extends MetaEntity implements Serializable {
 	private String league;
 
 	/** 試合年(X年) */
-	private String gameYear;
+	private Integer gameYear;
 
 	/** 試合月(X月) */
-	private String gameMonth;
+	private Integer gameMonth;
 
 	/** チーム */
 	private String team;
 
 	/** 消費試合数 */
 	private String games;
-
-	/** 順位 */
-	private String rank;
 
 	/** 勝利 */
 	private String win;

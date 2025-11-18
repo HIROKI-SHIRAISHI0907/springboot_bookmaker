@@ -19,7 +19,7 @@ public interface SurfaceOverviewRepository {
 			<script>
 			INSERT INTO surface_overview (
 			  country, league, game_year, game_month, team,
-			  games, rank, win, lose, draw, winning_points,
+			  games, win, lose, draw, winning_points,
 			  home_1st_half_score, home_2nd_half_score, home_sum_score,
 			  home_1st_half_score_ratio, home_2nd_half_score_ratio, home_clean_sheet,
 			  away_1st_half_score, away_2nd_half_score, away_sum_score,
@@ -51,7 +51,7 @@ public interface SurfaceOverviewRepository {
 			  register_id, register_time, update_id, update_time
 			) VALUES (
 			  #{country}, #{league}, #{gameYear}, #{gameMonth}, #{team},
-			  #{games}, #{rank}, #{win}, #{lose}, #{draw}, #{winningPoints},
+			  #{games}, #{win}, #{lose}, #{draw}, #{winningPoints},
 			  #{home1stHalfScore}, #{home2ndHalfScore}, #{homeSumScore},
 			  #{home1stHalfScoreRatio}, #{home2ndHalfScoreRatio}, #{homeCleanSheet},
 			  #{away1stHalfScore}, #{away2ndHalfScore}, #{awaySumScore},
@@ -97,7 +97,6 @@ public interface SurfaceOverviewRepository {
 						  game_month,
 						  team,
 						  games,
-						  rank,
 						  win,
 						  lose,
 						  draw,
@@ -173,8 +172,8 @@ public interface SurfaceOverviewRepository {
 						WHERE country = #{country}
 						  AND league  = #{league}
 						    AND team = #{team}
-						    AND game_year  = #{gameYear}
-							AND game_month = #{gameMonth}
+						    AND game_year = CAST(#{gameYear} AS integer)
+							AND game_month = CAST(#{gameMonth} AS integer)
 						    </script>
 						""")
 	List<SurfaceOverviewEntity> select(String country, String league, String gameYear, String gameMonth, String team);
@@ -189,7 +188,6 @@ public interface SurfaceOverviewRepository {
 			  game_month = #{gameMonth},
 			  team = #{team},
 			  games = #{games},
-			  rank = #{rank},
 			  win = #{win},
 			  lose = #{lose},
 			  draw = #{draw},
@@ -276,7 +274,6 @@ public interface SurfaceOverviewRepository {
 			    game_month,
 			    team,
 			    games,
-			    rank,
 			    win,
 			    lose,
 			    draw,

@@ -192,8 +192,8 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			// 必須メタ
 			row.setCountry(country);
 			row.setLeague(league);
-			row.setGameYear(gameYear);
-			row.setGameMonth(gameMonth);
+			row.setGameYear(Integer.parseInt(gameYear));
+			row.setGameMonth(Integer.parseInt(gameMonth));
 			row.setTeam(home);
 
 			// 累積
@@ -216,8 +216,8 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 
 			row.setCountry(country);
 			row.setLeague(league);
-			row.setGameYear(gameYear);
-			row.setGameMonth(gameMonth);
+			row.setGameYear(Integer.parseInt(gameYear));
+			row.setGameMonth(Integer.parseInt(gameMonth));
 			row.setTeam(away);
 
 			row = setTeamMainData(last, row, country, league, away);

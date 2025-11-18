@@ -21,6 +21,7 @@ import dev.application.analyze.bm_m024.CalcCorrelationStat;
 import dev.application.analyze.bm_m025.CalcCorrelationRankingStat;
 import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureStat;
 import dev.application.analyze.bm_m031.SurfaceOverviewStat;
+import dev.application.analyze.bm_m033.RankHistoryStat;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
 
@@ -132,6 +133,12 @@ public class StatService implements StatIF {
 	private SurfaceOverviewStat surfaceOverviewStat;
 
 	/**
+	 * BM_M033統計分析ロジッククラス
+	 */
+	@Autowired
+	private RankHistoryStat rankHistoryStat;
+
+	/**
 	 * ログ管理クラス
 	 */
 	@Autowired
@@ -169,6 +176,7 @@ public class StatService implements StatIF {
 		this.calcCorrelationRankingStat.calcStat(stat);
 		this.eachTeamScoreBasedFeatureStat.calcStat(stat);
 		this.surfaceOverviewStat.calcStat(stat);
+		this.rankHistoryStat.calcStat(stat);
 
 		// endLog
 		this.loggerComponent.debugEndInfoLog(

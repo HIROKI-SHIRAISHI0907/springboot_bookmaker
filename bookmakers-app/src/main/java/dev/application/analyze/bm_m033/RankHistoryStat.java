@@ -102,7 +102,7 @@ public class RankHistoryStat implements AnalyzeEntityIF {
                     String homeRankStr = entity.getHomeRank();
                     if (homeRankStr != null && !homeRankStr.isBlank()) {
                         RankHistoryEntity rankHistoryEntity = new RankHistoryEntity();
-                        homeRank = Integer.parseInt(homeRankStr.replace(".0", ""));
+                        homeRank = Integer.parseInt(homeRankStr.replace(".0", "").replace(".", ""));
                         rankHistoryEntity.setCountry(countryLeague.get(0));
                         rankHistoryEntity.setLeague(countryLeague.get(1));
                         rankHistoryEntity.setTeam(entity.getHomeTeamName());
@@ -144,7 +144,7 @@ public class RankHistoryStat implements AnalyzeEntityIF {
                     String awayRankStr = entity.getAwayRank();
                     if (awayRankStr != null && !awayRankStr.isBlank()) {
                         RankHistoryEntity rankHistoryEntity2 = new RankHistoryEntity();
-                        awayRank = Integer.parseInt(awayRankStr.replace(".0", ""));
+                        awayRank = Integer.parseInt(awayRankStr.replace(".0", "").replace(".", ""));
                         rankHistoryEntity2.setCountry(countryLeague.get(0));
                         rankHistoryEntity2.setLeague(countryLeague.get(1));
                         rankHistoryEntity2.setTeam(entity.getAwayTeamName());

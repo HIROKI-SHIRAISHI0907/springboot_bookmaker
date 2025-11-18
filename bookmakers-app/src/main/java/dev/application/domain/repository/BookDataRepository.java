@@ -257,7 +257,9 @@ public interface BookDataRepository {
 			      AND (
 			            #{match} IS NULL
 			         OR #{match} = ''
-			         OR game_team_category LIKE CONCAT('%ラウンド ', #{match}, '%')
+			         -- ★ ラウンド番号 <= match までを対象にする
+			         OR substring(data_category from 'ラウンド ([0-9]+)')::integer
+			            <= CAST(#{match} AS integer)
 			      )
 			    UNION
 			    SELECT away_team_name AS team
@@ -268,7 +270,8 @@ public interface BookDataRepository {
 			      AND (
 			            #{match} IS NULL
 			         OR #{match} = ''
-			         OR game_team_category LIKE CONCAT('%ラウンド ', #{match}, '%')
+			         OR substring(data_category from 'ラウンド ([0-9]+)')::integer
+			            <= CAST(#{match} AS integer)
 			      )
 			),
 			team_stats AS (
@@ -278,14 +281,22 @@ public interface BookDataRepository {
 			            CASE
 			                WHEN d.home_team_name = t.team THEN
 			                    CASE
-			                        WHEN COALESCE(d.home_score, 0) > COALESCE(d.away_score, 0) THEN 3
-			                        WHEN COALESCE(d.home_score, 0) = COALESCE(d.away_score, 0) THEN 1
+			                        WHEN COALESCE(NULLIF(d.home_score, '')::integer, 0)
+			                             > COALESCE(NULLIF(d.away_score, '')::integer, 0)
+			                             THEN 3
+			                        WHEN COALESCE(NULLIF(d.home_score, '')::integer, 0)
+			                             = COALESCE(NULLIF(d.away_score, '')::integer, 0)
+			                             THEN 1
 			                        ELSE 0
 			                    END
 			                WHEN d.away_team_name = t.team THEN
 			                    CASE
-			                        WHEN COALESCE(d.away_score, 0) > COALESCE(d.home_score, 0) THEN 3
-			                        WHEN COALESCE(d.away_score, 0) = COALESCE(d.home_score, 0) THEN 1
+			                        WHEN COALESCE(NULLIF(d.away_score, '')::integer, 0)
+			                             > COALESCE(NULLIF(d.home_score, '')::integer, 0)
+			                             THEN 3
+			                        WHEN COALESCE(NULLIF(d.away_score, '')::integer, 0)
+			                             = COALESCE(NULLIF(d.home_score, '')::integer, 0)
+			                             THEN 1
 			                        ELSE 0
 			                    END
 			                ELSE 0
@@ -293,15 +304,19 @@ public interface BookDataRepository {
 			        ) AS points,
 			        SUM(
 			            CASE
-			                WHEN d.home_team_name = t.team THEN COALESCE(d.home_score, 0)
-			                WHEN d.away_team_name = t.team THEN COALESCE(d.away_score, 0)
+			                WHEN d.home_team_name = t.team
+			                    THEN COALESCE(NULLIF(d.home_score, '')::integer, 0)
+			                WHEN d.away_team_name = t.team
+			                    THEN COALESCE(NULLIF(d.away_score, '')::integer, 0)
 			                ELSE 0
 			            END
 			        ) AS gf,
 			        SUM(
 			            CASE
-			                WHEN d.home_team_name = t.team THEN COALESCE(d.away_score, 0)
-			                WHEN d.away_team_name = t.team THEN COALESCE(d.home_score, 0)
+			                WHEN d.home_team_name = t.team
+			                    THEN COALESCE(NULLIF(d.away_score, '')::integer, 0)
+			                WHEN d.away_team_name = t.team
+			                    THEN COALESCE(NULLIF(d.home_score, '')::integer, 0)
 			                ELSE 0
 			            END
 			        ) AS ga,
@@ -320,7 +335,9 @@ public interface BookDataRepository {
 			     AND (
 			            #{match} IS NULL
 			         OR #{match} = ''
-			         OR d.game_team_category LIKE CONCAT('%ラウンド ', #{match}, '%')
+			         -- ★ JOIN 側も同じく「match まで」の条件にする
+			         OR substring(d.data_category from 'ラウンド ([0-9]+)')::integer
+			            <= CAST(#{match} AS integer)
 			        )
 			    GROUP BY t.team
 			)
