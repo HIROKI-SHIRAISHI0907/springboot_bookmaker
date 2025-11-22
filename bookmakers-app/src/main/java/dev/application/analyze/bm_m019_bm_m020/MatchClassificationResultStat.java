@@ -14,8 +14,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.application.analyze.interf.AnalyzeEntityIF;
-import dev.application.domain.repository.MatchClassificationResultCountRepository;
-import dev.application.domain.repository.MatchClassificationResultRepository;
+import dev.application.domain.repository.bm.MatchClassificationResultCountRepository;
+import dev.application.domain.repository.bm.MatchClassificationResultRepository;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;

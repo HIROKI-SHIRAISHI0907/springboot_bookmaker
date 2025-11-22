@@ -20,7 +20,7 @@ import dev.application.analyze.bm_m023.AverageStatisticsSituationConst;
 import dev.application.analyze.bm_m023.StatFormatResolver;
 import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
-import dev.application.domain.repository.CalcCorrelationRepository;
+import dev.application.domain.repository.bm.CalcCorrelationRepository;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;

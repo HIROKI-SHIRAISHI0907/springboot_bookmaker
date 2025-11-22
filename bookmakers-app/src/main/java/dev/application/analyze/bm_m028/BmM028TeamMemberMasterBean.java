@@ -8,7 +8,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import dev.application.domain.repository.CountryLeagueMasterRepository;
+import dev.application.domain.repository.master.CountryLeagueMasterRepository;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.logger.ManageLoggerComponent;

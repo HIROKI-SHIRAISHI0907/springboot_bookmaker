@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 
 import dev.application.analyze.bm_m029.BmM029CountryLeagueBean;
 import dev.application.analyze.interf.AnalyzeEntityIF;
-import dev.application.domain.repository.SurfaceOverviewRepository;
+import dev.application.domain.repository.bm.SurfaceOverviewRepository;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;

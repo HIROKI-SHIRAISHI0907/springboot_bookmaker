@@ -8,7 +8,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
-import dev.application.domain.repository.BookDataRepository;
+import dev.application.domain.repository.bm.BookDataRepository;
 import dev.common.entity.DataEntity;
 import dev.common.logger.ManageLoggerComponent;
 

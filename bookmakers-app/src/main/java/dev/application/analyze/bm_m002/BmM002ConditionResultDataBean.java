@@ -9,7 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import dev.application.domain.repository.ConditionResultDataRepository;
+import dev.application.domain.repository.bm.ConditionResultDataRepository;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.ReadStat;
 import jakarta.annotation.PostConstruct;

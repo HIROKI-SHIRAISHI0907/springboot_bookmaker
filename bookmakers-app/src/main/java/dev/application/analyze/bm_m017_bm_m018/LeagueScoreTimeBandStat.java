@@ -14,8 +14,8 @@ import org.springframework.stereotype.Component;
 
 import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
-import dev.application.domain.repository.LeagueScoreTimeBandStatsRepository;
-import dev.application.domain.repository.LeagueScoreTimeBandStatsSplitScoreRepository;
+import dev.application.domain.repository.bm.LeagueScoreTimeBandStatsRepository;
+import dev.application.domain.repository.bm.LeagueScoreTimeBandStatsSplitScoreRepository;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;

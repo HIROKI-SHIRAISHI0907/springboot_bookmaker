@@ -1,4 +1,4 @@
-package dev.application.domain.repository;
+package dev.application.domain.repository.bm;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;

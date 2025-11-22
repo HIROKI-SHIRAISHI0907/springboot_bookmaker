@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
-import dev.application.domain.repository.FutureMasterRepository;
+import dev.application.domain.repository.master.FutureMasterRepository;
 import dev.common.entity.FutureEntity;
 import dev.common.logger.ManageLoggerComponent;
 

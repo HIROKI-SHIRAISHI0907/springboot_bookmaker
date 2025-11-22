@@ -11,10 +11,10 @@ import org.springframework.stereotype.Component;
 
 import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
-import dev.application.domain.repository.TimeRangeFeatureAllLeagueRepository;
-import dev.application.domain.repository.TimeRangeFeatureRepository;
-import dev.application.domain.repository.TimeRangeFeatureScoredRepository;
-import dev.application.domain.repository.TimeRangeFeatureUpdateRepository;
+import dev.application.domain.repository.bm.TimeRangeFeatureAllLeagueRepository;
+import dev.application.domain.repository.bm.TimeRangeFeatureRepository;
+import dev.application.domain.repository.bm.TimeRangeFeatureScoredRepository;
+import dev.application.domain.repository.bm.TimeRangeFeatureUpdateRepository;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;

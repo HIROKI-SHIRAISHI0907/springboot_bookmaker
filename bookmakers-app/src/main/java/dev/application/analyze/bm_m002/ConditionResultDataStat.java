@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
-import dev.application.domain.repository.ConditionResultDataRepository;
+import dev.application.domain.repository.bm.ConditionResultDataRepository;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;

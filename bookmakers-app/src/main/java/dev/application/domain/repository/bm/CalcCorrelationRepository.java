@@ -1,4 +1,4 @@
-package dev.application.domain.repository;
+package dev.application.domain.repository.bm;
 
 import java.util.List;
 

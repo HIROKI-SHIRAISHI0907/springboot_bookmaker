@@ -10,7 +10,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import dev.application.analyze.bm_m030.StatEncryptionEntity;
-import dev.application.domain.repository.StatEncryptionRepository;
+import dev.application.domain.repository.bm.StatEncryptionRepository;
 import dev.application.enc.CommonEncHelper;
 
 /**

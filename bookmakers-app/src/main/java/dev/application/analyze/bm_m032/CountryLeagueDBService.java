@@ -8,7 +8,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.application.domain.repository.CountryLeagueMasterRepository;
+import dev.application.domain.repository.master.CountryLeagueMasterRepository;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 

@@ -8,9 +8,9 @@ import org.springframework.stereotype.Component;
 
 import dev.application.analyze.bm_m021.TeamMatchFinalStatsEntity;
 import dev.application.analyze.bm_m031.SurfaceOverviewEntity;
-import dev.application.domain.repository.BookDataRepository;
-import dev.application.domain.repository.SurfaceOverviewRepository;
-import dev.application.domain.repository.TeamMatchFinalStatsRepository;
+import dev.application.domain.repository.bm.BookDataRepository;
+import dev.application.domain.repository.bm.SurfaceOverviewRepository;
+import dev.application.domain.repository.bm.TeamMatchFinalStatsRepository;
 import dev.common.entity.DataEntity;
 import dev.common.filemng.FileMngWrapper;
 

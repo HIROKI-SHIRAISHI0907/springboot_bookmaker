@@ -15,8 +15,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.annotation.Scheduled;
 import org.springframework.stereotype.Component;
 
-import dev.application.domain.repository.TimeRangeFeatureAllLeagueRepository;
-import dev.application.domain.repository.TimeRangeFeatureScoredRepository;
+import dev.application.domain.repository.bm.TimeRangeFeatureAllLeagueRepository;
+import dev.application.domain.repository.bm.TimeRangeFeatureScoredRepository;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;

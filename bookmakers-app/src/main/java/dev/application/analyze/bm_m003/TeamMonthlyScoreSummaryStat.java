@@ -9,7 +9,7 @@ import org.springframework.stereotype.Component;
 
 import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
-import dev.application.domain.repository.TeamMonthlyScoreSummaryRepository;
+import dev.application.domain.repository.bm.TeamMonthlyScoreSummaryRepository;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;

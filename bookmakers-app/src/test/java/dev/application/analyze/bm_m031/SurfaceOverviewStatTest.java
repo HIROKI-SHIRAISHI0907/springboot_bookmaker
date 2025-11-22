@@ -11,7 +11,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import dev.application.common.SurfaceOverviewTestData;
-import dev.application.domain.repository.SurfaceOverviewRepository;
+import dev.application.domain.repository.bm.SurfaceOverviewRepository;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.getstatinfo.GetStatInfo;

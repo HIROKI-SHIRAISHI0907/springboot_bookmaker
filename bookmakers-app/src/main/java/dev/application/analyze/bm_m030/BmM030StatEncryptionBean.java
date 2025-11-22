@@ -23,7 +23,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import dev.application.domain.repository.StatEncryptionRepository;
+import dev.application.domain.repository.bm.StatEncryptionRepository;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
 import jakarta.annotation.PostConstruct;

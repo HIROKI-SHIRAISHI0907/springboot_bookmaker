@@ -9,8 +9,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.application.analyze.interf.AnalyzeEntityIF;
-import dev.application.domain.repository.BookDataRepository;
-import dev.application.domain.repository.RankHistoryStatRepository;
+import dev.application.domain.repository.bm.BookDataRepository;
+import dev.application.domain.repository.bm.RankHistoryStatRepository;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;

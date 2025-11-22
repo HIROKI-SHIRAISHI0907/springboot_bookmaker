@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
-import dev.application.domain.repository.CountryLeagueSeasonMasterRepository;
+import dev.application.domain.repository.master.CountryLeagueSeasonMasterRepository;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 

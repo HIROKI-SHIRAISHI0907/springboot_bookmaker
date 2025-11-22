@@ -11,8 +11,8 @@ import org.springframework.stereotype.Component;
 
 import dev.application.analyze.bm_m023.ScoreBasedFeatureStatsEntity;
 import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureEntity;
-import dev.application.domain.repository.EachTeamScoreBasedFeatureStatsRepository;
-import dev.application.domain.repository.ScoreBasedFeatureStatsRepository;
+import dev.application.domain.repository.bm.EachTeamScoreBasedFeatureStatsRepository;
+import dev.application.domain.repository.bm.ScoreBasedFeatureStatsRepository;
 import dev.common.logger.ManageLoggerComponent;
 import jakarta.annotation.PostConstruct;
 
