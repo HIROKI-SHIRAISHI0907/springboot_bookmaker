@@ -5,17 +5,23 @@ app:
 
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:54320/soccer_bm
-    username: postgres
-    password: sonic3717   
-    driver-class-name: org.postgresql.Driver
+    bm:
+      url: jdbc:postgresql://localhost:54320/soccer_bm
+      username: postgres
+      password: sonic3717
+      driver-class-name: org.postgresql.Driver
+
+    master:
+      url: jdbc:postgresql://localhost:54320/soccer_bm_master
+      username: postgres
+      password: sonic3717
+      driver-class-name: org.postgresql.Driver
+
   flyway:
     enabled: true
-    baseline-on-migrate: true   # ← これが肝
-    baseline-version: 0         # 初回導入なら 0 推奨（V1__... から実行される）
-    # 必要に応じて
-    # schemas: public
-    # baseline-on-migrate: true
+    baseline-on-migrate: true
+    baseline-version: 0
+
 mybatis:
   type-handlers-package: dev.application.mybatis
   configuration:

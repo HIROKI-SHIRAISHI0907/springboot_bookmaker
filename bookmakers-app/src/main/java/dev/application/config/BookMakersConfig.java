@@ -6,11 +6,20 @@ import java.util.concurrent.ThreadFactory;
 import java.util.concurrent.ThreadPoolExecutor;
 import java.util.concurrent.TimeUnit;
 
+import javax.sql.DataSource;
+
+import org.apache.ibatis.session.SqlSessionFactory;
+import org.mybatis.spring.SqlSessionFactoryBean;
+import org.mybatis.spring.SqlSessionTemplate;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Primary;
+import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 
 /**
  * アプリ共通設定。
@@ -87,5 +96,69 @@ public class BookMakersConfig {
         );
         exec.allowCoreThreadTimeOut(true);
         return exec;
+    }
+
+ // ===== メインDB (soccer_bm) =====
+    @Primary
+    @Bean(name = "bmDataSource")
+    @ConfigurationProperties(prefix = "spring.datasource.bm")
+    public DataSource bmDataSource() {
+        return DataSourceBuilder.create().build();
+    }
+
+    // ===== マスターDB (soccer_bm_master) =====
+    @Bean(name = "masterDataSource")
+    @ConfigurationProperties(prefix = "spring.datasource.master")
+    public DataSource masterDataSource() {
+        return DataSourceBuilder.create().build();
+    }
+
+    // ===== SqlSessionFactory (bm) =====
+    @Primary
+    @Bean(name = "bmSqlSessionFactory")
+    public SqlSessionFactory bmSqlSessionFactory(
+            @Qualifier("bmDataSource") DataSource dataSource) throws Exception {
+        SqlSessionFactoryBean factory = new SqlSessionFactoryBean();
+        factory.setDataSource(dataSource);
+        return factory.getObject();
+    }
+
+    // ===== SqlSessionFactory (master) =====
+    @Bean(name = "masterSqlSessionFactory")
+    public SqlSessionFactory masterSqlSessionFactory(
+            @Qualifier("masterDataSource") DataSource dataSource) throws Exception {
+        SqlSessionFactoryBean factory = new SqlSessionFactoryBean();
+        factory.setDataSource(dataSource);
+        return factory.getObject();
+    }
+
+    // ===== TransactionManager (bm) =====
+    @Primary
+    @Bean(name = "bmTxManager")
+    public DataSourceTransactionManager bmTxManager(
+            @Qualifier("bmDataSource") DataSource dataSource) {
+        return new DataSourceTransactionManager(dataSource);
+    }
+
+    // ===== TransactionManager (master) =====
+    @Bean(name = "masterTxManager")
+    public DataSourceTransactionManager masterTxManager(
+            @Qualifier("masterDataSource") DataSource dataSource) {
+        return new DataSourceTransactionManager(dataSource);
+    }
+
+    // ===== SqlSessionTemplate (bm) =====
+    @Primary
+    @Bean(name = "bmSqlSessionTemplate")
+    public SqlSessionTemplate bmSqlSessionTemplate(
+            @Qualifier("bmSqlSessionFactory") SqlSessionFactory factory) {
+        return new SqlSessionTemplate(factory);
+    }
+
+    // ===== SqlSessionTemplate (master) =====
+    @Bean(name = "masterSqlSessionTemplate")
+    public SqlSessionTemplate masterSqlSessionTemplate(
+            @Qualifier("masterSqlSessionFactory") SqlSessionFactory factory) {
+        return new SqlSessionTemplate(factory);
     }
 }
