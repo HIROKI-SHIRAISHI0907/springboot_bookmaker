@@ -93,7 +93,7 @@ public class RankHistoryStat implements AnalyzeEntityIF {
                             .getCountryLeagueByRegex(category);
                     if (countryLeague.isEmpty()) {
                     	String messageCd = "国リーグ情報警告";
-                    	this.manageLoggerComponent.debugInfoLog(
+                    	this.manageLoggerComponent.debugWarnLog(
                                 PROJECT_NAME, "ExecuteMainUtil", "getCountryLeagueByRegex", messageCd, null,
                                 "分割失敗(" + category + ")");
                     	continue;
