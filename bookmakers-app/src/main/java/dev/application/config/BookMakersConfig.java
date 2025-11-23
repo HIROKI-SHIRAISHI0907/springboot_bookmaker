@@ -12,6 +12,7 @@ import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.mybatis.spring.annotation.MapperScan;
+import org.mybatis.spring.annotation.MapperScans;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.boot.jdbc.DataSourceBuilder;
@@ -42,10 +43,18 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
         "dev.common.readfile",
         "dev.common.logger"
 })
-@MapperScan(
-        basePackages = "dev.application.domain.repository",
-        annotationClass = org.apache.ibatis.annotations.Mapper.class
-)
+@MapperScans({
+        @MapperScan(
+                basePackages = "dev.application.domain.repository.bm",
+                annotationClass = org.apache.ibatis.annotations.Mapper.class,
+                sqlSessionTemplateRef = "bmSqlSessionTemplate"
+        ),
+        @MapperScan(
+                basePackages = "dev.application.domain.repository.master",
+                annotationClass = org.apache.ibatis.annotations.Mapper.class,
+                sqlSessionTemplateRef = "masterSqlSessionTemplate"
+        )
+})
 public class BookMakersConfig {
 
     /**

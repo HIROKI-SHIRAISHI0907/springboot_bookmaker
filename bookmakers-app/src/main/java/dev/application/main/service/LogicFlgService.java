@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.common.util.TableUtil;
-import dev.application.domain.repository.LogicFlgRepository;
+import dev.application.domain.repository.bm.LogicFlgRepository;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.mng.analyze.bm_c001.CsvArtifactHelper;

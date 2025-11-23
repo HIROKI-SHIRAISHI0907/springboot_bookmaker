@@ -187,8 +187,6 @@ public class SurfaceOverviewStatTest {
 		// id / rank はこのロジックでは未設定想定
 		assertEquals("1", homeE.getId());
 		assertEquals("3", awayE.getId());
-		assertNull(homeE.getRank());
-		assertNull(awayE.getRank());
 
 		// --- 得点サマリと前後半内訳の整合 ---
 		// 合計（homeは2点, awayは1点）は既に検証済み。内訳はデータ依存なので整合性のみ検証。

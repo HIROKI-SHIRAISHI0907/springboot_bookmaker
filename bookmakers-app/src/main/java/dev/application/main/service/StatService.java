@@ -32,7 +32,7 @@ import dev.common.logger.ManageLoggerComponent;
  *
  */
 @Service
-@Transactional
+@Transactional("bmTxManager")
 public class StatService implements StatIF {
 
 	/** プロジェクト名 */
@@ -161,7 +161,7 @@ public class StatService implements StatIF {
 		// 履歴ロジック呼び出し
 		this.metricDeltaStat.calcStat(stat);
 
-		// 統計ロジック呼び出し(@Transactionl付き)(国,リーグ単位で並列)
+		// 統計ロジック呼び出し(国,リーグ単位で並列)
 		this.conditionResultDataStat.calcStat(stat);
 		this.teamMonthlyScoreSummaryStat.calcStat(stat);
 		this.teamTimeSegmentShootingStat.calcStat(stat);

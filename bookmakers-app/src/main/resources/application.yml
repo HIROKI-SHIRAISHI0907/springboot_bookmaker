@@ -6,13 +6,13 @@ app:
 spring:
   datasource:
     bm:
-      url: jdbc:postgresql://localhost:54320/soccer_bm
+      jdbc-url: jdbc:postgresql://localhost:54320/soccer_bm   # ★ここを url → jdbc-url に変更
       username: postgres
       password: sonic3717
       driver-class-name: org.postgresql.Driver
 
     master:
-      url: jdbc:postgresql://localhost:54320/soccer_bm_master
+      jdbc-url: jdbc:postgresql://localhost:54320/soccer_bm_master  # こちらも同様に
       username: postgres
       password: sonic3717
       driver-class-name: org.postgresql.Driver
@@ -21,6 +21,15 @@ spring:
     enabled: true
     baseline-on-migrate: true
     baseline-version: 0
+
+    # ★ ここを追加：Flyway はこの接続で migrate する
+    url: jdbc:postgresql://localhost:54320/soccer_bm
+    user: postgres
+    password: sonic3717
+    driver-class-name: org.postgresql.Driver
+    # 「soccer_bm」が DB 名の話ならこれでOK。
+    # もし DB 内の schema 名も分けているなら ↓ も追加
+    # schemas: soccer_bm
 
 mybatis:
   type-handlers-package: dev.application.mybatis

@@ -91,6 +91,13 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 
                     List<String> countryLeague = ExecuteMainUtil
                             .getCountryLeagueByRegex(category);
+                    if (countryLeague.isEmpty()) {
+                    	String messageCd = "国リーグ情報警告";
+                    	this.manageLoggerComponent.debugInfoLog(
+                                PROJECT_NAME, "ExecuteMainUtil", "getCountryLeagueByRegex", messageCd, null,
+                                "分割失敗(" + category + ")");
+                    	continue;
+                    }
 
                     // 試合ごとに homeRank / awayRank をリセット
                     int homeRank = -1;
@@ -108,6 +115,7 @@ public class RankHistoryStat implements AnalyzeEntityIF {
                         rankHistoryEntity.setTeam(entity.getHomeTeamName());
                         rankHistoryEntity.setMatch(match);
                         rankHistoryEntity.setRank(homeRank);
+                        String key = countryLeague.get(0) + ": " + countryLeague.get(1) + ": " + entity.getHomeTeamName();
 
                         if (this.rankHistoryStatRepository.select(rankHistoryEntity) > 0) {
                             int result = this.rankHistoryStatRepository.update(rankHistoryEntity);
@@ -117,7 +125,7 @@ public class RankHistoryStat implements AnalyzeEntityIF {
                                         PROJECT_NAME, CLASS_NAME, METHOD_NAME,
                                         messageCd,
                                         1, result,
-                                        null);
+                                        key);
                             }
                             String messageCd = "ホーム更新件数";
                             this.manageLoggerComponent.debugInfoLog(
@@ -131,12 +139,12 @@ public class RankHistoryStat implements AnalyzeEntityIF {
                                         PROJECT_NAME, CLASS_NAME, METHOD_NAME,
                                         messageCd,
                                         1, result,
-                                        null);
+                                        key);
                             }
                             String messageCd = "ホーム登録件数";
                             this.manageLoggerComponent.debugInfoLog(
                                     PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null,
-                                    "BM_M033 登録件数: 1件");
+                                    "BM_M033 登録件数: 1件(" + key + ")");
                         }
                     }
 
@@ -150,6 +158,7 @@ public class RankHistoryStat implements AnalyzeEntityIF {
                         rankHistoryEntity2.setTeam(entity.getAwayTeamName());
                         rankHistoryEntity2.setMatch(match);
                         rankHistoryEntity2.setRank(awayRank);
+                        String key = countryLeague.get(0) + ": " + countryLeague.get(1) + ": " + entity.getAwayTeamName();
 
                         if (this.rankHistoryStatRepository.select(rankHistoryEntity2) > 0) {
                             int result = this.rankHistoryStatRepository.update(rankHistoryEntity2);
@@ -159,12 +168,12 @@ public class RankHistoryStat implements AnalyzeEntityIF {
                                         PROJECT_NAME, CLASS_NAME, METHOD_NAME,
                                         messageCd,
                                         1, result,
-                                        null);
+                                        key);
                             }
                             String messageCd = "アウェー更新件数";
                             this.manageLoggerComponent.debugInfoLog(
                                     PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null,
-                                    "BM_M033 更新件数: 1件");
+                                    "BM_M033 更新件数: 1件(" + key + ")");
                         } else {
                             int result = this.rankHistoryStatRepository.insert(rankHistoryEntity2);
                             if (result != 1) {
@@ -173,12 +182,12 @@ public class RankHistoryStat implements AnalyzeEntityIF {
                                         PROJECT_NAME, CLASS_NAME, METHOD_NAME,
                                         messageCd,
                                         1, result,
-                                        null);
+                                        key);
                             }
                             String messageCd = "アウェー登録件数";
                             this.manageLoggerComponent.debugInfoLog(
                                     PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null,
-                                    "BM_M033 登録件数: 1件");
+                                    "BM_M033 登録件数: 1件(" + key + ")");
                         }
                     }
 
@@ -198,6 +207,7 @@ public class RankHistoryStat implements AnalyzeEntityIF {
                                 rankHistoryEntity.setTeam(pointDTO.getTeam());
                                 rankHistoryEntity.setMatch(match);
                                 rankHistoryEntity.setRank(pointDTO.getRank());
+                                String key = countryLeague.get(0) + ": " + countryLeague.get(1) + ": " + pointDTO.getTeam();
 
                                 if (this.rankHistoryStatRepository.select(rankHistoryEntity) > 0) {
                                     int result = this.rankHistoryStatRepository.update(rankHistoryEntity);
@@ -214,7 +224,7 @@ public class RankHistoryStat implements AnalyzeEntityIF {
                                     String messageCd = "順位後付け更新件数";
                                     this.manageLoggerComponent.debugInfoLog(
                                             PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null,
-                                            "BM_M033 更新件数: 1件");
+                                            "BM_M033 更新件数: 1件(" + key + ")");
                                 } else {
                                     int result = this.rankHistoryStatRepository.insert(rankHistoryEntity);
                                     if (result != 1) {
@@ -230,7 +240,7 @@ public class RankHistoryStat implements AnalyzeEntityIF {
                                     String messageCd = "順位後付け登録件数";
                                     this.manageLoggerComponent.debugInfoLog(
                                             PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null,
-                                            "BM_M033 登録件数: 1件");
+                                            "BM_M033 登録件数: 1件(" + key + ")");
                                 }
                             }
                         } catch (Exception e) {
