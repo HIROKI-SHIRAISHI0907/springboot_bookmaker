@@ -8,7 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.common.logger.ManageLoggerComponent;
 import dev.mng.analyze.interf.CsvEntityIF;
-import dev.mng.domain.repository.StatSizeFinalizeMasterRepository;
+import dev.mng.domain.repository.user.StatSizeFinalizeMasterRepository;
 import dev.mng.dto.CsvTargetCommonInputDTO;
 import dev.mng.dto.SubInput;
 

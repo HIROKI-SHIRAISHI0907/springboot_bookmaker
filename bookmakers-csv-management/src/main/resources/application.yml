@@ -2,20 +2,27 @@ app:
   csv-folder: /Users/shiraishitoshio/bookmaker/csv/
   output-csv-folder: /Users/shiraishitoshio/bookmaker/outputs/
   team-csv-folder: /Users/shiraishitoshio/bookmaker/teams_by_league/
-  
+
 spring:
   datasource:
-    url: jdbc:postgresql://localhost:54320/soccer_bm
-    username: postgres
-    password: sonic3717   
-    driver-class-name: org.postgresql.Driver
+    user:  # ★ stat_size_finalize_master 用（DB: soccer_bm_user）
+      url: jdbc:postgresql://localhost:54320/soccer_bm_user
+      username: postgres
+      password: sonic3717
+      driver-class-name: org.postgresql.Driver
+
+    data:  # ★ data テーブル用（DB: soccer_bm）
+      url: jdbc:postgresql://localhost:54320/soccer_bm
+      username: postgres
+      password: sonic3717
+      driver-class-name: org.postgresql.Driver
+
   flyway:
     enabled: true
-    baseline-on-migrate: true   # ← これが肝
-    baseline-version: 0         # 初回導入なら 0 推奨（V1__... から実行される）
-    # 必要に応じて
-    # schemas: public
-    # baseline-on-migrate: true
-mybatis:
-  configuration:
-    map-underscore-to-camel-case: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    # 単一FlywayだけだとどちらかのDBしかマイグレできないので、
+    # 本気で分けるなら flyway-user / flyway-data みたいに個別設定か、
+    # Java Config で Flyway を2つ定義する。
+    # まずは「テストでは手動でテーブル作っておく」でもOK。
+    # ここでは一旦コメントにとどめておきます。

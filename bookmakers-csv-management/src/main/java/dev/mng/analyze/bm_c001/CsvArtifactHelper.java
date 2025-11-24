@@ -15,7 +15,7 @@ import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.DataEntity;
 import dev.common.util.ExecuteMainUtil;
 import dev.mng.csvmng.CsvArtifactResource;
-import dev.mng.domain.repository.StatSizeFinalizeMasterRepository;
+import dev.mng.domain.repository.user.StatSizeFinalizeMasterRepository;
 import dev.mng.dto.ConditionData;
 import dev.mng.dto.StatConditionDTO;
 

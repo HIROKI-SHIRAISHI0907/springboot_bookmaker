@@ -31,7 +31,7 @@ import dev.common.entity.DataEntity;
 import dev.common.filemng.FileMngWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.mng.analyze.bm_c001.CsvArtifactHelper;
-import dev.mng.domain.repository.BookCsvDataRepository;
+import dev.mng.domain.repository.data.BookCsvDataRepository;
 import dev.mng.dto.CsvTargetCommonInputDTO;
 
 /**
