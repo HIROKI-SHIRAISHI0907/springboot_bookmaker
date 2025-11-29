@@ -67,8 +67,6 @@ public class OverviewsRepository {
             o.game_year::int  AS year,
             o.game_month::int AS month,
 
-            MIN(NULLIF(BTRIM(o.rank), '')::int) AS rank,
-
             SUM(COALESCE(NULLIF(BTRIM(o.winning_points), '')::int, 0)) AS winning_points,
             SUM(COALESCE(NULLIF(BTRIM(o.games), '' )::int, 0)) AS games_raw,
             SUM(COALESCE(NULLIF(BTRIM(o.win),   '' )::int, 0)) AS wins,
@@ -103,7 +101,7 @@ public class OverviewsRepository {
           GROUP BY o.game_year, o.game_month
         )
         SELECT
-          year, month, rank,
+          year, month,
           winning_points,
           CASE WHEN SUM(games_raw) OVER () IS NULL OR games_raw = 0
             THEN (wins + draws + loses)
@@ -132,7 +130,6 @@ public class OverviewsRepository {
             dto.setYm(year + "-" + String.format("%02d", month));
             dto.setLabel(String.format("%02d月", month));
 
-            dto.setRank(rs.getObject("rank") == null ? null : rs.getInt("rank"));
             dto.setWinningPoints(rs.getInt("winning_points"));
             dto.setGames(rs.getInt("games"));
             dto.setWin(rs.getInt("wins"));
@@ -165,7 +162,7 @@ public class OverviewsRepository {
             m.home_team,
             m.away_team,
             m.link
-          FROM public.future_matches m
+          FROM public.future_master m
           WHERE m.seq = :seq
             AND m.country = :country
             AND m.league  = :league
@@ -218,7 +215,6 @@ public class OverviewsRepository {
             SUM(COALESCE(NULLIF(BTRIM(draw),  '' )::int, 0)) AS draw,
             SUM(COALESCE(NULLIF(BTRIM(lose),  '' )::int, 0)) AS lose,
             SUM(COALESCE(NULLIF(BTRIM(winning_points), '' )::int, 0)) AS winning_points,
-            MIN(NULLIF(BTRIM(rank), '' )::int) AS rank,
             MAX(consecutive_win_disp) AS consecutive_win_disp,
             MAX(consecutive_lose_disp) AS consecutive_lose_disp,
             MAX(unbeaten_streak_disp) AS unbeaten_streak_disp,
@@ -260,7 +256,6 @@ public class OverviewsRepository {
                     s.setDraw((Integer) rs.getObject("draw"));
                     s.setLose((Integer) rs.getObject("lose"));
                     s.setWinningPoints((Integer) rs.getObject("winning_points"));
-                    s.setRank((Integer) rs.getObject("rank"));
 
                     s.setConsecutiveWinDisp(rs.getString("consecutive_win_disp"));
                     s.setConsecutiveLoseDisp(rs.getString("consecutive_lose_disp"));

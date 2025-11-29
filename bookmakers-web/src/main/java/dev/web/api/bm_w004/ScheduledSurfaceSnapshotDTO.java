@@ -22,9 +22,6 @@ public class ScheduledSurfaceSnapshotDTO {
 	/** 試合月（集計対象の最新月） */
 	private Integer gameMonth;
 
-	/** 順位（必要に応じて利用。集計の性質上 null の場合あり） */
-	private Integer rank;
-
 	/** 総試合数 */
 	private Integer games;
 

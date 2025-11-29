@@ -1,10 +1,10 @@
 // src/main/java/dev/web/repository/GamesRepository.java
 package dev.web.repository;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -77,146 +77,128 @@ public class GamesRepository {
 
         String likeCond = country + ": " + league + "%";
 
-        String sql = """
-        WITH
-        team_norm AS (
-          SELECT lower(
-                   btrim(
-                     regexp_replace(
-                       translate(TRIM(:teamName), CHR(12288) || CHR(160), '  '),
-                       '\\s+', ' ', 'g'
-                     )
-                   )
-                 ) AS key
-        ),
-        base AS (
-          SELECT
-            f.seq::text AS seq,
-            f.game_team_category,
-            f.future_time,
-            f.home_team_name,
-            f.away_team_name,
-            NULLIF(TRIM(f.game_link), '') AS game_link,
-            CASE
-              WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
-              ELSE ((regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)'))[2])::int
-            END AS round_no,
-            lower(btrim(regexp_replace(translate(TRIM(f.home_team_name), CHR(12288) || CHR(160), '  '), '\\s+',' ','g'))) AS home_key,
-            lower(btrim(regexp_replace(translate(TRIM(f.away_team_name), CHR(12288) || CHR(160), '  '), '\\s+',' ','g'))) AS away_key
-          FROM future_master f
-          WHERE f.game_team_category LIKE :likeCond
-            AND f.start_flg = '0'
-        ),
-        base_keyed AS (
-          SELECT
-            b.*,
-            CASE WHEN b.home_key <= b.away_key
-                 THEN b.home_key || '|' || b.away_key
-                 ELSE b.away_key || '|' || b.home_key
-            END AS pair_key
-          FROM base b
-        ),
-        base_for_team AS (
-          SELECT bk.*
-          FROM base_keyed bk
-          CROSS JOIN team_norm t
-          WHERE bk.home_key = t.key OR bk.away_key = t.key
-        ),
-        data_norm AS (
-          SELECT
-            d.seq::bigint AS seq_big,
-            lower(btrim(regexp_replace(translate(TRIM(d.home_team_name), CHR(12288) || CHR(160), '  '), '\\s+',' ','g'))) AS home_key,
-            lower(btrim(regexp_replace(translate(TRIM(d.away_team_name), CHR(12288) || CHR(160), '  '), '\\s+',' ','g'))) AS away_key,
-            NULLIF(TRIM(d.times), '') AS times,
-            NULLIF(TRIM(d.home_score), '')::int AS home_score,
-            NULLIF(TRIM(d.away_score), '')::int AS away_score
-          FROM public.data d
-          WHERE d.home_team_name IS NOT NULL
-            AND d.away_team_name IS NOT NULL
-            AND d.data_category LIKE :likeCond
-            AND (d.record_time AT TIME ZONE 'Asia/Tokyo')::date = (now() AT TIME ZONE 'Asia/Tokyo')::date
-        ),
-        data_keyed AS (
-          SELECT
-            dn.*,
-            CASE WHEN dn.home_key <= dn.away_key
-                 THEN dn.home_key || '|' || dn.away_key
-                 ELSE dn.away_key || '|' || dn.home_key
-            END AS pair_key
-          FROM data_norm dn
-        ),
-        latest_any AS (
-          SELECT pair_key, MAX(seq_big) AS seq_any
-          FROM data_keyed
-          GROUP BY pair_key
-        ),
-        latest_fin AS (
-          SELECT pair_key, MAX(seq_big) AS seq_fin
-          FROM data_keyed
-          WHERE times ILIKE '%終了%'
-          GROUP BY pair_key
-        ),
-        chosen AS (
-          SELECT
-            la.pair_key,
-            COALESCE(lf.seq_fin, la.seq_any) AS chosen_seq,
-            (lf.seq_fin IS NOT NULL)         AS is_finished
-          FROM latest_any la
-          LEFT JOIN latest_fin lf ON lf.pair_key = la.pair_key
-        ),
-        chosen_rows AS (
-          SELECT
-            dk.pair_key,
-            c.chosen_seq,
-            c.is_finished,
-            dk.times,
-            dk.home_score,
-            dk.away_score
-          FROM chosen c
-          JOIN data_keyed dk
-            ON dk.pair_key = c.pair_key
-           AND dk.seq_big  = c.chosen_seq
-        )
-        SELECT
-          bft.seq,
-          bft.game_team_category,
-          bft.future_time,
-          bft.home_team_name,
-          bft.away_team_name,
-          bft.game_link,
-          bft.round_no,
-          cr.chosen_seq::text AS latest_seq,
-          cr.times            AS latest_times,
-          cr.home_score       AS home_score,
-          cr.away_score       AS away_score,
-          CASE WHEN cr.is_finished THEN 'FINISHED' ELSE 'LIVE' END AS status
-        FROM base_for_team bft
-        JOIN chosen_rows cr ON cr.pair_key = bft.pair_key
-        ORDER BY bft.round_no NULLS LAST, bft.future_time ASC
-        """;
+        // =========================
+        // Step 1: future_master から対象チームの試合一覧を取得（master DB）
+        // =========================
+        String futureSql = """
+            SELECT
+              f.seq::text                AS seq,
+              f.game_team_category       AS game_team_category,
+              f.future_time              AS future_time,
+              f.home_team_name           AS home_team_name,
+              f.away_team_name           AS away_team_name,
+              NULLIF(TRIM(f.game_link), '') AS game_link,
+              CASE
+                WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
+                ELSE ((regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)'))[2])::int
+              END AS round_no
+            FROM future_master f
+            WHERE f.game_team_category LIKE :likeCond
+              AND f.start_flg = '0'
+              AND (f.home_team_name = :teamName OR f.away_team_name = :teamName)
+            ORDER BY round_no NULLS LAST, f.future_time ASC
+            """;
 
-        MapSqlParameterSource params = new MapSqlParameterSource()
+        MapSqlParameterSource futureParams = new MapSqlParameterSource()
                 .addValue("likeCond", likeCond)
                 .addValue("teamName", teamJa);
 
-        RowMapper<GameMatchDTO> rowMapper = (rs, rowNum) -> {
-            GameMatchDTO dto = new GameMatchDTO();
-            dto.setSeq(Long.parseLong(rs.getString("seq")));
-            dto.setGameTeamCategory(rs.getString("game_team_category"));
-            dto.setFutureTime(rs.getString("future_time"));
-            dto.setHomeTeam(rs.getString("home_team_name"));
-            dto.setAwayTeam(rs.getString("away_team_name"));
-            dto.setLink(rs.getString("game_link"));
-            dto.setRoundNo((Integer) rs.getObject("round_no"));
-            dto.setLatestTimes(rs.getString("latest_times"));
-            String latestSeqStr = rs.getString("latest_seq");
-            dto.setLatestSeq(latestSeqStr == null ? null : Long.parseLong(latestSeqStr));
-            dto.setHomeScore((Integer) rs.getObject("home_score"));
-            dto.setAwayScore((Integer) rs.getObject("away_score"));
-            dto.setStatus(rs.getString("status"));
-            return dto;
-        };
+        List<GameMatchDTO> baseGames = masterJdbcTemplate.query(
+                futureSql,
+                futureParams,
+                (rs, rowNum) -> {
+                    GameMatchDTO dto = new GameMatchDTO();
+                    dto.setSeq(Long.parseLong(rs.getString("seq")));
+                    dto.setGameTeamCategory(rs.getString("game_team_category"));
+                    dto.setFutureTime(rs.getString("future_time"));
+                    dto.setHomeTeam(rs.getString("home_team_name"));
+                    dto.setAwayTeam(rs.getString("away_team_name"));
+                    dto.setLink(rs.getString("game_link"));
+                    dto.setRoundNo((Integer) rs.getObject("round_no"));
+                    // スコア関連はこの後 Step2 で埋める
+                    return dto;
+                }
+        );
 
-        return bmJdbcTemplate.query(sql, params, rowMapper);
+        if (baseGames.isEmpty()) {
+            return baseGames;
+        }
+
+        // =========================
+        // Step 2: data から各試合の最新スコアを取得（bm DB）
+        // =========================
+        String latestDataSql = """
+            SELECT
+              d.seq::bigint AS seq_big,
+              d.times,
+              NULLIF(TRIM(d.home_score), '')::int AS home_score,
+              NULLIF(TRIM(d.away_score), '')::int AS away_score
+            FROM public.data d
+            WHERE d.data_category LIKE :likeCond
+              AND d.home_team_name = :homeTeam
+              AND d.away_team_name = :awayTeam
+              AND (d.record_time AT TIME ZONE 'Asia/Tokyo')::date =
+                  (now() AT TIME ZONE 'Asia/Tokyo')::date
+            ORDER BY d.seq::bigint DESC
+            LIMIT 1
+            """;
+
+        List<GameMatchDTO> result = new ArrayList<>();
+
+        for (GameMatchDTO base : baseGames) {
+
+            MapSqlParameterSource dataParams = new MapSqlParameterSource()
+                    .addValue("likeCond", likeCond)
+                    .addValue("homeTeam", base.getHomeTeam())
+                    .addValue("awayTeam", base.getAwayTeam());
+
+            masterFillLatestScore(base, latestDataSql, dataParams);
+
+            result.add(base);
+        }
+
+        return result;
+    }
+
+    /**
+     * bm DB (data テーブル) から最新スコアを取って GameMatchDTO に埋めるヘルパー
+     */
+    private void masterFillLatestScore(
+            GameMatchDTO dto,
+            String latestDataSql,
+            MapSqlParameterSource params
+    ) {
+        bmJdbcTemplate.query(
+                latestDataSql,
+                params,
+                rs -> {
+                    if (!rs.next()) {
+                        // スコアなし → status も null にしておく
+                        dto.setStatus(null);
+                        dto.setLatestSeq(null);
+                        dto.setLatestTimes(null);
+                        dto.setHomeScore(null);
+                        dto.setAwayScore(null);
+                        return;
+                    }
+
+                    long latestSeq = rs.getLong("seq_big");
+                    String times = rs.getString("times");
+                    Integer homeScore = (Integer) rs.getObject("home_score");
+                    Integer awayScore = (Integer) rs.getObject("away_score");
+
+                    dto.setLatestSeq(latestSeq);
+                    dto.setLatestTimes(times);
+                    dto.setHomeScore(homeScore);
+                    dto.setAwayScore(awayScore);
+
+                    // times に「終了」が含まれていたら FINISHED、それ以外は LIVE として判定
+                    if (times != null && times.contains("終了")) {
+                        dto.setStatus("FINISHED");
+                    } else {
+                        dto.setStatus("LIVE");
+                    }
+                }
+        );
     }
 }

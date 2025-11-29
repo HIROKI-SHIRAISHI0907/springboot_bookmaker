@@ -22,9 +22,6 @@ public class OverviewResponseDTO {
 	/** 月 */
 	private int month;
 
-	/** 順位 */
-	private Integer rank;
-
 	/** 勝ち点 */
 	private int winningPoints;
 

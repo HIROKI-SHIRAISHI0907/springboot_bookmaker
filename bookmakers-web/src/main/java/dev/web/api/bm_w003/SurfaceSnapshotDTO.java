@@ -28,9 +28,6 @@ public class SurfaceSnapshotDTO {
 	/** 勝ち点 */
 	private Integer winningPoints;
 
-	/** 順位 */
-	private Integer rank;
-
 	/** その他表示用 */
 	private String consecutiveWinDisp;
 	private String consecutiveLoseDisp;
