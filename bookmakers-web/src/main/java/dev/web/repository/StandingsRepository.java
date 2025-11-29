@@ -70,15 +70,8 @@ public class StandingsRepository {
               SELECT
                 b.*,
                 (b.win + b.draw + b.lose) AS game,
-                (b.goals_for - b.goals_against) AS goal_diff,
-                c.link
+                (b.goals_for - b.goals_against) AS goal_diff
               FROM base b
-              LEFT JOIN (
-                SELECT team, MIN(NULLIF(TRIM(link), '')) AS link
-                FROM country_league_master
-                WHERE country = :country AND league = :league
-                GROUP BY team
-              ) c ON c.team = b.team
             ),
             ranked AS (
               SELECT
@@ -91,7 +84,6 @@ public class StandingsRepository {
             SELECT
               r.position,
               r.team AS team_name,
-              COALESCE(split_part(NULLIF(r.link,''), '/', 3), '') AS team_english,
               r.game,
               r.win,
               r.draw,
