@@ -20,7 +20,7 @@ import dev.web.repository.StandingsRepository;
  * リーグ順位表API コントローラー.
  *
  * エンドポイント:
- *   GET /api/standings/{country}/{league}
+ *   GET /api/{country}/{league}/standings
  *
  * フロント側:
  *   fetchLeagueStanding(countryRaw, leagueRaw)

@@ -6,12 +6,14 @@ import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.web.api.bm_w001.FuturesResponseDTO;
+import lombok.RequiredArgsConstructor;
 
 /**
  * FuturesRepositoryクラス
@@ -19,13 +21,11 @@ import dev.web.api.bm_w001.FuturesResponseDTO;
  *
  */
 @Repository
+@RequiredArgsConstructor
 public class FuturesRepository {
 
-    private final NamedParameterJdbcTemplate namedJdbcTemplate;
-
-    public FuturesRepository(NamedParameterJdbcTemplate namedJdbcTemplate) {
-        this.namedJdbcTemplate = namedJdbcTemplate;
-    }
+	@Qualifier("masterJdbcTemplate")
+    private final NamedParameterJdbcTemplate masterJdbcTemplate;
 
     // --------------------------------------------------------
     // 一覧: GET /api/:country/:league/:team/future（チーム取得）
@@ -45,7 +45,7 @@ public class FuturesRepository {
                 .addValue("league", league)
                 .addValue("link", "/team/" + teamSlug + "/%");
 
-        List<String> results = namedJdbcTemplate.query(
+        List<String> results = masterJdbcTemplate.query(
                 sql,
                 params,
                 (rs, rowNum) -> rs.getString("team")
@@ -113,6 +113,6 @@ public class FuturesRepository {
             return m;
         };
 
-        return namedJdbcTemplate.query(sql, params, rowMapper);
+        return masterJdbcTemplate.query(sql, params, rowMapper);
     }
 }

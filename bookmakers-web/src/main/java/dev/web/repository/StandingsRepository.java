@@ -1,13 +1,15 @@
 package dev.web.repository;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
-import org.springframework.jdbc.core.RowMapper;
-import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.web.api.bm_w006.StandingRowDTO;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 順位表取得用リポジトリ.
@@ -23,13 +25,14 @@ import dev.web.api.bm_w006.StandingRowDTO;
  * @author shiraishitoshio
  */
 @Repository
+@RequiredArgsConstructor
 public class StandingsRepository {
 
-    private final NamedParameterJdbcTemplate namedJdbcTemplate;
+	@Qualifier("bmJdbcTemplate")
+    private final NamedParameterJdbcTemplate bmJdbcTemplate;
 
-    public StandingsRepository(NamedParameterJdbcTemplate namedJdbcTemplate) {
-        this.namedJdbcTemplate = namedJdbcTemplate;
-    }
+    @Qualifier("masterJdbcTemplate")
+    private final NamedParameterJdbcTemplate masterJdbcTemplate;
 
     /**
      * 国・リーグを指定して順位表を取得する。
@@ -40,7 +43,7 @@ public class StandingsRepository {
      */
     public List<StandingRowDTO> findStandings(String country, String league) {
 
-        String sql = """
+        String baseSql = """
             WITH base AS (
               SELECT
                 o.team,
@@ -99,24 +102,62 @@ public class StandingsRepository {
             ORDER BY r.points DESC, r.goal_diff DESC
             """;
 
-        MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("country", country)
-                .addValue("league", league);
+        Map<String, Object> params = Map.of(
+                "country", country,
+                "league", league
+        );
 
-        RowMapper<StandingRowDTO> rowMapper = (rs, rowNum) -> {
-            StandingRowDTO dto = new StandingRowDTO();
-            dto.setPosition(rs.getInt("position"));
-            dto.setTeamName(rs.getString("team_name"));
-            dto.setTeamEnglish(rs.getString("team_english") == null ? "" : rs.getString("team_english"));
-            dto.setGame(rs.getInt("game"));
-            dto.setWin(rs.getInt("win"));
-            dto.setDraw(rs.getInt("draw"));
-            dto.setLose(rs.getInt("lose"));
-            dto.setWinningPoints(rs.getInt("points"));
-            dto.setGoalDiff(rs.getInt("goal_diff"));
-            return dto;
-        };
+        List<StandingRowDTO> rows = bmJdbcTemplate.query(
+                baseSql,
+                params,
+                (rs, rowNum) -> {
+                	StandingRowDTO row = new StandingRowDTO();
+                    row.setPosition(rs.getInt("position"));
+                    row.setTeamName(rs.getString("team_name"));
+                    row.setGame(rs.getInt("game"));
+                    row.setWin(rs.getInt("win"));
+                    row.setDraw(rs.getInt("draw"));
+                    row.setLose(rs.getInt("lose"));
+                    row.setWinningPoints(rs.getInt("points"));
+                    row.setGoalDiff(rs.getInt("goal_diff"));
+                    return row;
+                }
+        );
 
-        return namedJdbcTemplate.query(sql, params, rowMapper);
+        // ② master 側（country_league_master）から link を取得
+        String masterSql = """
+          SELECT team, MIN(NULLIF(TRIM(link), '')) AS link
+          FROM country_league_master
+          WHERE country = :country AND league = :league
+          GROUP BY team
+        """;
+
+        Map<String, String> linkMap = masterJdbcTemplate.query(
+                masterSql,
+                params,
+                rs -> {
+                    Map<String, String> m = new HashMap<>();
+                    while (rs.next()) {
+                        m.put(rs.getString("team"), rs.getString("link"));
+                    }
+                    return m;
+                }
+        );
+
+        // ③ Java で merge ＆ teamEnglish をセット
+        for (StandingRowDTO row : rows) {
+            String link = linkMap.getOrDefault(row.getTeamName(), "");
+            String teamEnglish = "";
+            if (link != null && !link.isBlank()) {
+                // 例: "/team/premier-league/arsenal/" → 3番目のパス要素を取り出すなど
+                String[] parts = link.split("/");
+                if (parts.length >= 4) {
+                    teamEnglish = parts[3]; // 実際の link 形式に合わせて調整
+                }
+            }
+            row.setTeamEnglish(teamEnglish);
+        }
+
+        return rows;
     }
 }

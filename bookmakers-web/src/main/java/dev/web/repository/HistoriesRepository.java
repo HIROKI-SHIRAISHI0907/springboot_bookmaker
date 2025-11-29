@@ -6,6 +6,7 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Repository;
 
 import dev.web.api.bm_w002.HistoryDetailResponseDTO;
 import dev.web.api.bm_w002.HistoryResponseDTO;
+import lombok.RequiredArgsConstructor;
 
 /**
  * HistoriesRepositoryクラス
@@ -20,13 +22,14 @@ import dev.web.api.bm_w002.HistoryResponseDTO;
  *
  */
 @Repository
+@RequiredArgsConstructor
 public class HistoriesRepository {
 
-	private final NamedParameterJdbcTemplate namedJdbcTemplate;
+	@Qualifier("bmJdbcTemplate")
+    private final NamedParameterJdbcTemplate bmJdbcTemplate;
 
-    public HistoriesRepository(NamedParameterJdbcTemplate namedJdbcTemplate) {
-        this.namedJdbcTemplate = namedJdbcTemplate;
-    }
+    @Qualifier("masterJdbcTemplate")
+    private final NamedParameterJdbcTemplate masterJdbcTemplate;
 
     // --------------------------------------------------------
     // 一覧: GET /api/:country/:league/:team/history（チーム取得）
@@ -46,7 +49,7 @@ public class HistoriesRepository {
                 .addValue("league", league)
                 .addValue("link", "/team/" + teamSlug + "/%");
 
-        List<String> results = namedJdbcTemplate.query(
+        List<String> results = masterJdbcTemplate.query(
                 sql,
                 params,
                 (rs, rowNum) -> rs.getString("team")
@@ -139,7 +142,7 @@ public class HistoriesRepository {
             return m;
         };
 
-        return namedJdbcTemplate.query(sql, params, rowMapper);
+        return bmJdbcTemplate.query(sql, params, rowMapper);
     }
 
     // --------------------------------------------------------
@@ -299,7 +302,7 @@ public class HistoriesRepository {
                 .addValue("likeCond", likeCond);
 
         List<HistoryDetailResponseDTO> list =
-                namedJdbcTemplate.query(sql, params, rowMapper);
+        		bmJdbcTemplate.query(sql, params, rowMapper);
 
         if (list.isEmpty()) {
             return Optional.empty();

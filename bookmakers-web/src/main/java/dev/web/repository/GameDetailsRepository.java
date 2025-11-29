@@ -6,12 +6,14 @@ import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.web.api.bm_w005.GameDetailDTO;
+import lombok.RequiredArgsConstructor;
 
 /**
  * GameDetailRepositoryクラス
@@ -24,13 +26,11 @@ import dev.web.api.bm_w005.GameDetailDTO;
  * @author shiraishitoshio
  */
 @Repository
+@RequiredArgsConstructor
 public class GameDetailsRepository {
 
-    private final NamedParameterJdbcTemplate namedJdbcTemplate;
-
-    public GameDetailsRepository(NamedParameterJdbcTemplate namedJdbcTemplate) {
-        this.namedJdbcTemplate = namedJdbcTemplate;
-    }
+	@Qualifier("bmJdbcTemplate")
+    private final NamedParameterJdbcTemplate bmJdbcTemplate;
 
     /**
      * 試合詳細を取得（LIVE / FINISHED 問わず）
@@ -196,7 +196,7 @@ public class GameDetailsRepository {
                 .addValue("seq", seq)
                 .addValue("likeCond", likeCond);
 
-        List<GameDetailDTO> list = namedJdbcTemplate.query(sql, params, rowMapper);
+        List<GameDetailDTO> list = bmJdbcTemplate.query(sql, params, rowMapper);
         if (list.isEmpty()) {
             return Optional.empty();
         }

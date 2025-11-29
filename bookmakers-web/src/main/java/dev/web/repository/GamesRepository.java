@@ -3,12 +3,14 @@ package dev.web.repository;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.web.api.bm_w005.GameMatchDTO;
+import lombok.RequiredArgsConstructor;
 
 /**
  * GamesRepositoryクラス
@@ -22,13 +24,14 @@ import dev.web.api.bm_w005.GameMatchDTO;
  * @author shiraishitoshio
  */
 @Repository
+@RequiredArgsConstructor
 public class GamesRepository {
 
-    private final NamedParameterJdbcTemplate namedJdbcTemplate;
+	@Qualifier("bmJdbcTemplate")
+    private final NamedParameterJdbcTemplate bmJdbcTemplate;
 
-    public GamesRepository(NamedParameterJdbcTemplate namedJdbcTemplate) {
-        this.namedJdbcTemplate = namedJdbcTemplate;
-    }
+    @Qualifier("masterJdbcTemplate")
+    private final NamedParameterJdbcTemplate masterJdbcTemplate;
 
     /**
      * スラッグ → 日本語チーム名 の解決
@@ -53,7 +56,7 @@ public class GamesRepository {
                 .addValue("league", league)
                 .addValue("link", "/team/" + teamSlug + "/%");
 
-        List<String> results = namedJdbcTemplate.query(
+        List<String> results = masterJdbcTemplate.query(
                 sql,
                 params,
                 (rs, rowNum) -> rs.getString("team")
@@ -214,6 +217,6 @@ public class GamesRepository {
             return dto;
         };
 
-        return namedJdbcTemplate.query(sql, params, rowMapper);
+        return bmJdbcTemplate.query(sql, params, rowMapper);
     }
 }

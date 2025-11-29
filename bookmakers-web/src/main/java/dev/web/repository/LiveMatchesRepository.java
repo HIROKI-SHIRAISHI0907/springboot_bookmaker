@@ -6,6 +6,7 @@ import java.sql.Timestamp;
 import java.time.ZoneOffset;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -13,6 +14,7 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 import dev.web.api.bm_w007.LiveMatchDTO;
+import lombok.RequiredArgsConstructor;
 
 /**
  * 現在開催中の試合（LIVE）取得 Repository
@@ -21,13 +23,11 @@ import dev.web.api.bm_w007.LiveMatchDTO;
  * @author shiraishitoshio
  */
 @Repository
+@RequiredArgsConstructor
 public class LiveMatchesRepository {
 
-	private final NamedParameterJdbcTemplate jdbcTemplate;
-
-	public LiveMatchesRepository(NamedParameterJdbcTemplate jdbcTemplate) {
-		this.jdbcTemplate = jdbcTemplate;
-	}
+	@Qualifier("bmJdbcTemplate")
+    private final NamedParameterJdbcTemplate bmJdbcTemplate;
 
 	/**
 	 * LIVE 試合一覧を取得。
@@ -48,7 +48,7 @@ public class LiveMatchesRepository {
 		MapSqlParameterSource params = new MapSqlParameterSource()
 				.addValue("pattern", like);
 
-		return jdbcTemplate.query(SQL, params, ROW_MAPPER);
+		return bmJdbcTemplate.query(SQL, params, ROW_MAPPER);
 	}
 
 	// ========= RowMapper =========

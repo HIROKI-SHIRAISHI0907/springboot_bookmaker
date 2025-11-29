@@ -2,11 +2,13 @@ package dev.web.repository;
 
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.web.api.bm_w004.ScheduledSurfaceSnapshotDTO;
+import lombok.RequiredArgsConstructor;
 
 /**
  * ScheduledOverviewsRepositoryクラス
@@ -17,13 +19,11 @@ import dev.web.api.bm_w004.ScheduledSurfaceSnapshotDTO;
  * @author shiraishitoshio
  */
 @Repository
+@RequiredArgsConstructor
 public class ScheduledOverviewsRepository {
 
-    private final NamedParameterJdbcTemplate namedJdbcTemplate;
-
-    public ScheduledOverviewsRepository(NamedParameterJdbcTemplate namedJdbcTemplate) {
-        this.namedJdbcTemplate = namedJdbcTemplate;
-    }
+	@Qualifier("bmJdbcTemplate")
+    private final NamedParameterJdbcTemplate bmJdbcTemplate;
 
     /**
      * 指定されたチーム・役割（home / away）について、
@@ -169,7 +169,7 @@ public class ScheduledOverviewsRepository {
                 .addValue("team", teamName)
                 .addValue("role", role);
 
-        List<ScheduledSurfaceSnapshotDTO> list = namedJdbcTemplate.query(
+        List<ScheduledSurfaceSnapshotDTO> list = bmJdbcTemplate.query(
                 sql,
                 params,
                 (rs, rowNum) -> {

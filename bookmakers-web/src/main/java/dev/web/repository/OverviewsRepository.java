@@ -3,6 +3,7 @@ package dev.web.repository;
 import java.util.List;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -11,6 +12,7 @@ import org.springframework.stereotype.Repository;
 import dev.web.api.bm_w003.OverviewResponseDTO;
 import dev.web.api.bm_w003.ScheduleMatchDTO;
 import dev.web.api.bm_w003.SurfaceSnapshotDTO;
+import lombok.RequiredArgsConstructor;
 
 /**
  * OverviewsRepositoryクラス
@@ -18,13 +20,14 @@ import dev.web.api.bm_w003.SurfaceSnapshotDTO;
  *
  */
 @Repository
+@RequiredArgsConstructor
 public class OverviewsRepository {
 
-    private final NamedParameterJdbcTemplate namedJdbcTemplate;
+	@Qualifier("bmJdbcTemplate")
+    private final NamedParameterJdbcTemplate bmJdbcTemplate;
 
-    public OverviewsRepository(NamedParameterJdbcTemplate namedJdbcTemplate) {
-        this.namedJdbcTemplate = namedJdbcTemplate;
-    }
+	@Qualifier("masterJdbcTemplate")
+    private final NamedParameterJdbcTemplate masterJdbcTemplate;
 
     // --------------------------------------------------------
     // 取得: GET /api/:country/:league/:team/overview（月ごとのデータ）
@@ -44,7 +47,7 @@ public class OverviewsRepository {
                 .addValue("league", league)
                 .addValue("slug", teamSlug);
 
-        List<String> results = namedJdbcTemplate.query(
+        List<String> results = masterJdbcTemplate.query(
                 sql,
                 params,
                 (rs, rowNum) -> rs.getString("team")
@@ -145,7 +148,7 @@ public class OverviewsRepository {
             return dto;
         };
 
-        return namedJdbcTemplate.query(sql, params, rowMapper);
+        return bmJdbcTemplate.query(sql, params, rowMapper);
     }
 
     // --------------------------------------------------------
@@ -174,7 +177,7 @@ public class OverviewsRepository {
                 .addValue("country", country)
                 .addValue("league", league);
 
-        List<ScheduleMatchDTO> list = namedJdbcTemplate.query(
+        List<ScheduleMatchDTO> list = masterJdbcTemplate.query(
                 sql,
                 params,
                 (rs, rowNum) -> {
@@ -246,7 +249,7 @@ public class OverviewsRepository {
                 .addValue("homeTeam", homeTeam)
                 .addValue("awayTeam", awayTeam);
 
-        List<SurfaceSnapshotDTO> raw = namedJdbcTemplate.query(
+        List<SurfaceSnapshotDTO> raw = bmJdbcTemplate.query(
                 sql,
                 params,
                 (rs, rowNum) -> {

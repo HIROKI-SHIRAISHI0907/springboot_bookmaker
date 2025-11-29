@@ -1,9 +1,36 @@
-# src/main/resources/application.yml
 server:
   port: 8080
+
+spring:
+  datasource:
+    bm:
+      url: jdbc:postgresql://localhost:54320/soccer_bm
+      username: postgres
+      password: sonic3717
+      driver-class-name: org.postgresql.Driver
+
+    master:
+      url: jdbc:postgresql://localhost:54320/soccer_bm_master
+      username: postgres
+      password: sonic3717
+      driver-class-name: org.postgresql.Driver
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    url: jdbc:postgresql://localhost:54320/soccer_bm
+    user: postgres
+    password: sonic3717
+    driver-class-name: org.postgresql.Driver
+
+mybatis:
+  type-handlers-package: dev.application.mybatis
+  configuration:
+    map-underscore-to-camel-case: true
 
 security:
   jwt:
     issuer: bookmakers-web
     secret: "change-this-to-very-long-random-string-please"
-    expires-in: 3600   # 秒（1時間）
+    expires-in: 3600
