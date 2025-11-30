@@ -268,7 +268,7 @@ public class ExecuteMainUtil {
 			list.add(league);
 			return list;
 		} else {
-			throw new BusinessException(null, null, null, data_category + ": マッチする部分が見つかりませんでした。");
+			return new ArrayList<>();
 		}
 	}
 

@@ -67,12 +67,12 @@ public class ReadStat {
 					mappingDto.setConditionResultDataSeqId(parts[1]);
 					mappingDto.setGameTeamCategory(parts[2]);
 					mappingDto.setTime(parts[3]);
-					mappingDto.setHomeRank(parts[4]);
+					mappingDto.setHomeRank(parts[4].replace(".0", ""));
 					mappingDto.setHomeTeamName(parts[5]);
-					mappingDto.setHomeScore(parts[6]);
-					mappingDto.setAwayRank(parts[7]);
+					mappingDto.setHomeScore(parts[6].replace(".0", ""));
+					mappingDto.setAwayRank(parts[7].replace(".0", ""));
 					mappingDto.setAwayTeamName(parts[8]);
-					mappingDto.setAwayScore(parts[9]);
+					mappingDto.setAwayScore(parts[9].replace(".0", ""));
 					mappingDto.setHomeExp(parts[10]);
 					mappingDto.setAwayExp(parts[11]);
 					mappingDto.setHomeInGoalExp(parts[12]);
