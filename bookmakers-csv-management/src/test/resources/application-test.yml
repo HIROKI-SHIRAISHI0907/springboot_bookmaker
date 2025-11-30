@@ -26,3 +26,8 @@ spring:
     # Java Config で Flyway を2つ定義する。
     # まずは「テストでは手動でテーブル作っておく」でもOK。
     # ここでは一旦コメントにとどめておきます。
+
+mybatis:
+  type-handlers-package: dev.application.mybatis
+  configuration:
+    map-underscore-to-camel-case: true

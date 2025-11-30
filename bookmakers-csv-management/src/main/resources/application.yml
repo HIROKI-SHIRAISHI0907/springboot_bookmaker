@@ -11,7 +11,7 @@ spring:
       password: sonic3717
       driver-class-name: org.postgresql.Driver
 
-    data:  # ★ data テーブル用（DB: soccer_bm）
+    datas:  # ★ data テーブル用（DB: soccer_bm）
       url: jdbc:postgresql://localhost:54320/soccer_bm
       username: postgres
       password: sonic3717
@@ -26,3 +26,8 @@ spring:
     # Java Config で Flyway を2つ定義する。
     # まずは「テストでは手動でテーブル作っておく」でもOK。
     # ここでは一旦コメントにとどめておきます。
+    
+mybatis:
+  type-handlers-package: dev.application.mybatis
+  configuration:
+    map-underscore-to-camel-case: true

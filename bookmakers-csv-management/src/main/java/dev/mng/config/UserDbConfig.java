@@ -44,10 +44,16 @@ public class UserDbConfig {
     ) throws Exception {
         SqlSessionFactoryBean factoryBean = new SqlSessionFactoryBean();
         factoryBean.setDataSource(dataSource);
-        // Mapper XML のパスを指定したい場合はここでセット
-        // factoryBean.setMapperLocations(
-        //    new PathMatchingResourcePatternResolver().getResources("classpath*:mybatis/user/*.xml")
-        // );
+
+        // ★ ここで MyBatis の設定を直付け
+        org.apache.ibatis.session.Configuration config =
+                new org.apache.ibatis.session.Configuration();
+        config.setMapUnderscoreToCamelCase(true);  // ← これ！
+        factoryBean.setConfiguration(config);
+
+        // ★ type-handlers-package も使いたいなら
+        // factoryBean.setTypeHandlersPackage("dev.application.mybatis");
+
         return factoryBean.getObject();
     }
 
