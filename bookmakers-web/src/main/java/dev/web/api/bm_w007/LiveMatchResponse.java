@@ -12,7 +12,7 @@ import lombok.Data;
  * @author shiraishitoshio
  */
 @Data
-public class LiveMatchDTO {
+public class LiveMatchResponse {
 
     /** seq（public.data.seq） */
     private long seq;

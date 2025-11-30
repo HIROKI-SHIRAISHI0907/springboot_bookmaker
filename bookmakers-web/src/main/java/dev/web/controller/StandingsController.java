@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.web.api.bm_w006.LeagueStandingDTO;
+import dev.web.api.bm_w006.LeagueStandingResponse;
 import dev.web.api.bm_w006.StandingRowDTO;
 import dev.web.repository.StandingsRepository;
 
@@ -62,7 +62,7 @@ public class StandingsController {
         try {
             List<StandingRowDTO> rows = standingsRepository.findStandings(country, league);
 
-            LeagueStandingDTO body = new LeagueStandingDTO(rows);
+            LeagueStandingResponse body = new LeagueStandingResponse(rows);
             // season / updatedAt は現状設定なし（null）
             body.setSeason(null);
             body.setUpdatedAt(null);

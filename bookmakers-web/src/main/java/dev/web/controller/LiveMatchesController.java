@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.web.api.bm_w007.LiveMatchDTO;
+import dev.web.api.bm_w007.LiveMatchResponse;
 import dev.web.repository.LiveMatchesRepository;
 
 /**
@@ -63,7 +63,7 @@ public class LiveMatchesController {
                 league  = null;
             }
 
-            List<LiveMatchDTO> list = liveMatchesRepository.findLiveMatches(country, league);
+            List<LiveMatchResponse> list = liveMatchesRepository.findLiveMatches(country, league);
             return ResponseEntity.ok(list);
 
         } catch (Exception e) {

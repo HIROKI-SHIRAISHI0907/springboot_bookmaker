@@ -22,7 +22,7 @@ import lombok.Data;
  * @author shiraishitoshio
  */
 @Data
-public class LeagueStandingDTO {
+public class LeagueStandingResponse {
 
     /** シーズン名（例: "2024-2025"。現状は null 固定） */
     private String season;
@@ -34,7 +34,7 @@ public class LeagueStandingDTO {
     @JsonProperty("rows")
     private List<StandingRowDTO> rows;
 
-    public LeagueStandingDTO(List<StandingRowDTO> rows) {
+    public LeagueStandingResponse(List<StandingRowDTO> rows) {
         this.rows = rows;
     }
 }
