@@ -5,6 +5,35 @@ import re
 import datetime
 from typing import List, Dict, Optional
 
+# ============== 取得条件 ====================
+
+HEADER_SCHEDULED = [
+    "試合国及びカテゴリ", "試合予定時間", "ホーム順位", "アウェー順位", "ホームチーム", "アウェーチーム",
+    "ホームチーム最大得点取得者", "アウェーチーム最大得点取得者",
+    "ホームチームホーム得点", "ホームチームホーム失点", "アウェーチームホーム得点", "アウェーチームホーム失点",
+    "ホームチームアウェー得点", "ホームチームアウェー失点",
+    "アウェーチームアウェー得点", "アウェーチームアウェー失点", "試合リンク文字列", "データ取得時間"
+]
+
+# ==========================================
+# ✅ 対象リーグフィルタリング用リスト
+# ==========================================
+CONTAINS_LIST = [
+    "ケニア: プレミアリーグ", "コロンビア: プリメーラ A", "タンザニア: プレミアリーグ", "イングランド: プレミアリーグ",
+    "イングランド: EFL チャンピオンシップ", "イングランド: EFL リーグ 1", "エチオピア: プレミアリーグ", "コスタリカ: リーガ FPD",
+    "ジャマイカ: プレミアリーグ", "スペイン: ラ・リーガ", "ブラジル: セリエ A ベターノ", "ブラジル: セリエ B", "ドイツ: ブンデスリーガ",
+    "韓国: K リーグ 1", "中国: 中国スーパーリーグ", "日本: J1 リーグ", "日本: J2 リーグ", "日本: J3 リーグ", "インドネシア: スーパーリーグ",
+    "オーストラリア: A リーグ・メン", "チュニジア: チュニジア･プロリーグ", "ウガンダ: プレミアリーグ", "メキシコ: リーガ MX",
+    "フランス: リーグ・アン", "スコットランド: プレミアシップ", "オランダ: エールディビジ", "アルゼンチン: トルネオ・ベターノ",
+    "イタリア: セリエ A", "イタリア: セリエ B", "ポルトガル: リーガ・ポルトガル", "トルコ: スュペル・リグ", "セルビア: スーペルリーガ",
+    "日本: WEリーグ", "ボリビア: LFPB", "ブルガリア: パルヴァ・リーガ", "カメルーン: エリート 1", "ペルー: リーガ 1",
+    "エストニア: メスタリリーガ", "ウクライナ: プレミアリーグ", "ベルギー: ジュピラー･プロリーグ", "エクアドル: リーガ・プロ",
+    "日本: YBC ルヴァンカップ", "日本: 天皇杯"
+]
+UNDER_LIST  = ["U17", "U18", "U19", "U20", "U21", "U22", "U23", "U24", "U25"]
+GENDER_LIST = ["女子"]
+EXP_LIST    = ["ポルトガル: リーガ・ポルトガル 2", "イングランド: プレミアリーグ 2", "イングランド: プレミアリーグ U18"]
+
 # ============== 共通ユーティリティ ==============
 
 VERBOSE = True
@@ -30,16 +59,6 @@ def extract_mid(s: str) -> Optional[str]:
         return m.group(1)
     return None
 
-# ============== 今回の HEADER ==============
-
-HEADER_SCHEDULED = [
-    "試合国及びカテゴリ","試合予定時間","ホーム順位","アウェー順位","ホームチーム","アウェーチーム",
-    "ホームチーム最大得点取得者","アウェーチーム最大得点取得者",
-    "ホームチームホーム得点","ホームチームホーム失点","アウェーチームホーム得点","アウェーチームホーム失点",
-    "ホームチームアウェー得点","ホームチームアウェー失点",
-    "アウェーチームアウェー得点","アウェーチームアウェー失点","試合リンク文字列","データ取得時間"
-]
-
 # ============== Flashscore「開催予定」ナビ ==============
 
 def goto_football_top(page):
@@ -54,7 +73,7 @@ def goto_football_top(page):
     except:
         pass
 
-    # サッカーが選ばれていない場合に備えて「サッカー」クリック（だいたい不要だけど保険）
+    # サッカーが選ばれていない場合に備えて「サッカー」クリック（保険）
     try:
         soccer_btn = page.locator("a,button").filter(has_text="サッカー").first
         if soccer_btn and soccer_btn.count():
@@ -65,12 +84,10 @@ def goto_football_top(page):
 
     # 「開催予定」タブをクリック
     try:
-        # data-analytics-alias='scheduled' が最優先
         tab = page.locator("div.filters__tab[data-analytics-alias='scheduled']").first
         if tab and tab.count():
             tab.click(timeout=4000)
         else:
-            # テキストフォールバック
             tab = page.locator("div.filters__tab").filter(
                 has_text=re.compile(r"(開催予定)")
             ).first
@@ -93,17 +110,10 @@ def expand_all_collapsed_leagues(page):
     """
     print("📂 折りたたみリーグ（非表示）を展開します...")
 
-    # 「リーグ全試合 表示」ボタン = 今は非表示なので押すと表示になる
-    # ※ 完全一致にすること！！ "*='表示'" は「非表示」にもマッチしてしまう
     btn_selector = (
         "button[data-testid='wcl-accordionButton']"
         "[aria-label='リーグ全試合 表示']"
     )
-    # 予備で svg のテストIDを使う書き方（必要なら差し替え）
-    # btn_selector = (
-    #     "button[data-testid='wcl-accordionButton']"
-    #     ":has(svg[data-testid='wcl-icon-action-navigation-arrow-down'])"
-    # )
 
     max_loops = 200  # 念のため安全弁
 
@@ -130,51 +140,11 @@ def expand_all_collapsed_leagues(page):
             print(f"   ⚠️ ボタンクリック失敗: {e}")
             break
 
-        # 非同期展開待ち
         page.wait_for_timeout(200)
 
     print("   ⚠️ ループ上限に達しました。まだ非表示リーグが残っている可能性があります。")
 
-def _get_match_row_category(row):
-    """
-    1つの試合行から「試合国及びカテゴリ」（国: リーグ）を推定。
-    DOM構造が変わる可能性があるので、必要に応じて微調整してください。
-    """
-    # 祖先のグループからヘッダテキストを取得するイメージ
-    try:
-        header = row.locator(
-            "xpath=ancestor::div[contains(@class,'event__group')]//div[contains(@class,'event__title')]"
-        ).first
-        if not header.count():
-            return ""
-
-        country = ""
-        league = ""
-
-        try:
-            country = text_clean(
-                header.locator(".event__title--country").first.text_content() or ""
-            )
-        except:
-            pass
-
-        try:
-            league = text_clean(
-                header.locator(".event__title--type").first.text_content() or ""
-            )
-        except:
-            pass
-
-        if not country and not league:
-            # ヘッダの素テキストを fallback にする
-            txt = text_clean(header.text_content() or "")
-            return txt
-
-        if country and league:
-            return f"{country}: {league}"
-        return country or league
-    except:
-        return ""
+# ============== 試合行の基本情報取得 ==============
 
 def _get_match_row_teams_and_time(row):
     """
@@ -234,9 +204,6 @@ def _get_match_row_teams_and_time(row):
             pass
 
     # パターン③: 新UI 明示的セレクタ
-    #   <div class="wcl-participant_bctDY event__homeParticipant" ...>
-    #       <span class="wcl-name_jjfMf" data-testid="wcl-scores-simple-text-01">...</span>
-    #   </div>
     if not home or not away:
         try:
             h = row.locator(
@@ -257,7 +224,7 @@ def _get_match_row_teams_and_time(row):
         except Exception:
             pass
 
-    # パターン④: 新UI さらにゆるく、全 participant から先頭/末尾
+    # パターン④: 新UI ゆるめ
     if not home or not away:
         try:
             ps = row.locator(
@@ -273,7 +240,7 @@ def _get_match_row_teams_and_time(row):
         except Exception:
             pass
 
-    # パターン⑤: 最後の最後に <img alt="チーム名"> を使う（保険）
+    # パターン⑤: <img alt="チーム名">
     if not home or not away:
         try:
             imgs = row.locator("[data-testid='wcl-matchRow-participant'] img[data-testid='wcl-participantLogo']")
@@ -288,7 +255,6 @@ def _get_match_row_teams_and_time(row):
         except Exception:
             pass
 
-    # デバッグ用ログ（必要なら）
     if not home or not away:
         try:
             snippet = (row.inner_text() or "").strip().replace("\n", " ")[:200]
@@ -304,7 +270,6 @@ def _get_match_row_link(row) -> str:
         a = row.locator("a.eventRowLink[href*='/match/'][href*='?mid=']").first
         if a and a.count():
             href = a.get_attribute("href") or ""
-            # 相対パスの可能性があれば補完
             if href.startswith("http"):
                 return href
             return "https://www.flashscore.co.jp" + href
@@ -312,24 +277,23 @@ def _get_match_row_link(row) -> str:
         pass
     return ""
 
+# ============== 開催予定タブから基本情報だけ集める ==============
+
 def collect_scheduled_matches_on_current_day(page) -> List[Dict[str, str]]:
     """
     現在表示中の日付（開催予定タブ）から試合情報を収集。
-    ここでは HEADER_SCHEDULED のカラムをすべて作るが、順位・得点系は空欄のまま。
+    ここでは「時間・ホーム・アウェー・リンク」だけを集め、
+    国リーグ＆順位は後で試合ページから埋める。
     """
-    # 「開催予定」タブ上で、念のためニュースなどではなく event__match を待つ
     try:
         page.wait_for_selector("div.event__match", timeout=12000)
     except:
         log("⚠️ event__match が見つからないまま続行")
 
-    # リーグを展開
     expand_all_collapsed_leagues(page)
 
-    # 試合行取得: scheduled 用のクラスがあればそれを優先
     rows = page.locator("div.event__match.event__match--scheduled")
     if rows.count() == 0:
-        # フォールバック: すべての試合行
         rows = page.locator("div.event__match")
     n = rows.count()
     log(f"🎯 開催予定試合 行数: {n}")
@@ -344,8 +308,8 @@ def collect_scheduled_matches_on_current_day(page) -> List[Dict[str, str]]:
         try:
             ktime, home, away = _get_match_row_teams_and_time(row)
             link = _get_match_row_link(row)
-            cat  = _get_match_row_category(row)
-            log(f"row:  {ktime}, {home}, {away}, {link}, {cat}")
+
+            log(f"row:  {ktime}, {home}, {away}, {link}")
 
             mid = extract_mid(link)
             if mid and mid in seen_mids:
@@ -355,22 +319,16 @@ def collect_scheduled_matches_on_current_day(page) -> List[Dict[str, str]]:
                 seen_mids.add(mid)
 
             d = {k: "" for k in HEADER_SCHEDULED}
-            d["試合国及びカテゴリ"] = cat
-            d["試合予定時間"] = ktime
-            d["ホームチーム"] = home
-            d["アウェーチーム"] = away
-            d["試合リンク文字列"] = link
-            d["データ取得時間"] = now_str
-
-            # 以下の項目は「具体的な処理（どこから取るか）を後で詰める」前提で空欄のまま
-            #   ホーム順位 / アウェー順位
-            #   最大得点取得者
-            #   ホーム/アウェー 得点・失点（ホーム戦/アウェー戦）
-            # → ここで別途、試合詳細/チーム情報/順位表等から埋める処理を後で追加予定
+            d["試合国及びカテゴリ"] = ""  # ← 後で埋める
+            d["試合予定時間"]       = ktime
+            d["ホームチーム"]       = home
+            d["アウェーチーム"]     = away
+            d["試合リンク文字列"]   = link
+            d["データ取得時間"]     = now_str
 
             results.append(d)
 
-            log(f"   [{i+1}/{n}] {cat} | {ktime} | {home} vs {away} | mid={mid}")
+            log(f"   [{i+1}/{n}] | {ktime} | {home} vs {away} | mid={mid}")
         except Exception as e:
             log(f"   ⚠️ 行{i}でエラー: {e}")
             continue
@@ -390,7 +348,6 @@ def click_next_day(page) -> bool:
             return False
         btn.click(timeout=3000)
         log("➡️ 『翌日』ボタンをクリックしました")
-        # 非同期で内容が差し替わるので少し待機
         time.sleep(1.0)
         try:
             page.wait_for_load_state("networkidle", timeout=8000)
@@ -401,30 +358,22 @@ def click_next_day(page) -> bool:
         log(f"⚠️ 翌日ボタンクリック失敗: {e}")
         return False
 
-# ============== 順位表 ==============
+# ============== 順位表 & 国リーグ取得 ==============
 
 def build_standings_url_from_match_url(match_url: str) -> str:
     """
     試合ページURLを順位表タブのURLに変換する。
-    例:
-      /match/soccer/buhimba-.../police-.../?mid=xxx
-      → /match/soccer/buhimba-.../police-.../standings/?mid=xxx
     """
     if not match_url:
         return ""
     if "/standings/" in match_url:
         return match_url
-    # "/?mid=" の直前に "/standings" を差し込む
     return re.sub(r"/(\?mid=)", r"/standings/\1", match_url, count=1)
-
-# ============== 順位表からホーム、アウェーチームの順位取得 ==============
 
 def get_team_ranks_from_standings_table(page, home_name: str, away_name: str):
     """
     すでに「順位表」タブ（オーバーオール）が表示されている page から、
     ホーム＆アウェーチームの順位（rank）を取得する。
-
-    戻り値: (home_rank, away_rank)  ※見つからなければ "" のまま
     """
     home_name_norm = text_clean(home_name)
     away_name_norm = text_clean(away_name)
@@ -432,7 +381,6 @@ def get_team_ranks_from_standings_table(page, home_name: str, away_name: str):
     home_rank = ""
     away_rank = ""
 
-    # テーブル本体の行
     rows = page.locator("div.ui-table__body > div.ui-table__row")
     n_rows = rows.count()
 
@@ -448,7 +396,6 @@ def get_team_ranks_from_standings_table(page, home_name: str, away_name: str):
             if not rank_elem.count():
                 continue
             rank_text = text_clean(rank_elem.text_content() or "")
-            # "4." みたいな表記を "4" に正規化
             rank_text = rank_text.rstrip(".").strip()
 
             if not home_rank and team_name == home_name_norm:
@@ -463,135 +410,29 @@ def get_team_ranks_from_standings_table(page, home_name: str, away_name: str):
 
     return home_rank, away_rank
 
-# ============== 1試合分の国リーグ,順位を取得する関数 ==============
-
-def fetch_ranks_for_match(page, match_url: str, home_name: str, away_name: str):
-    """
-    試合URLから順位表タブに飛び、
-      - ホーム順位
-      - アウェー順位
-      - 国名
-      - リーグ名（ラウンド付き）
-    を取得する。
-
-    戻り値: (home_rank, away_rank, country, league)
-    """
-    if not match_url:
-        return "", "", "", ""
-
-    standings_url = build_standings_url_from_match_url(match_url)
-
-    try:
-        log(f"   📊 順位表取得: {standings_url}")
-        page.goto(standings_url, timeout=25000, wait_until="domcontentloaded")
-
-        # 念のため「順位表」タブが開いているかチェックして、開いていなければクリック
-        try:
-            standings_tab = page.locator(
-                "a[data-analytics-alias='stats-detail'] button, "
-                "a[href*='/standings/'] button"
-            ).first
-            if standings_tab and standings_tab.count():
-                # data-selected="true" じゃなければクリック
-                selected = standings_tab.get_attribute("data-selected")
-                if selected != "true":
-                    standings_tab.click(timeout=3000)
-                    page.wait_for_timeout(500)
-        except:
-            pass
-        
-        # 上部の国＆リーグ名を取得
-        country, league = get_country_and_league_from_match_page(page)
-
-        # テーブルが描画されるのを待つ
-        page.wait_for_selector("div.ui-table__body div.ui-table__row", timeout=12000)
-
-        # テーブルからランク抽出
-        home_rank, away_rank = get_team_ranks_from_standings_table(page, home_name, away_name)
-        log(f"      → rank: home={home_rank}, away={away_rank}, country={country}, league={league}")
-        return home_rank, away_rank, country, league
-
-    except Exception as e:
-        log(f"   ⚠️ 順位表取得失敗: {e}")
-        return "", "", "", ""
-
-# ============== 全試合に対して順位を埋める ==============
-
-def fill_ranks_for_matches(ctx, matches: List[Dict[str, str]]):
-    """
-    すでに「開催予定」で収集した試合リストに対して、
-    各試合ページの順位表から
-      - ホーム順位
-      - アウェー順位
-      - 試合国及びカテゴリ（国: リーグ）
-    を埋める。
-    """
-    if not matches:
-        return
-
-    page = ctx.new_page()  # 順位表専用タブ
-
-    for idx, m in enumerate(matches):
-        url = m.get("試合リンク文字列") or ""
-        home = m.get("ホームチーム") or ""
-        away = m.get("アウェーチーム") or ""
-
-        if not url or not home or not away:
-            continue
-
-        log(f"=== 順位取得 {idx+1}/{len(matches)} ===")
-        home_rank, away_rank, country, league = fetch_ranks_for_match(page, url, home, away)
-
-        if home_rank:
-            m["ホーム順位"] = home_rank
-        if away_rank:
-            m["アウェー順位"] = away_rank
-
-        # 国＋リーグが取れたら「試合国及びカテゴリ」を上書き
-        if country or league:
-            if country and league:
-                cat = f"{country}: {league}"
-            else:
-                cat = country or league
-            m["試合国及びカテゴリ"] = cat
-
-    page.close()
-
-# ============== 国リーグ名を取得 ==============
-
 def get_country_and_league_from_match_page(page):
     """
     試合ページ（サマリー / 順位表タブ）のパンくずから
     - 国名
     - リーグ名（＋ラウンド）
     を取得する。
-
-    例（パンくず）:
-      サッカー > イングランド > プレミアリーグ - ラウンド 14
     """
     country = ""
     league = ""
 
     try:
-        # 念のためパンくずが描画されるのを軽く待つ
         try:
             page.wait_for_selector(
                 "nav[data-testid='wcl-breadcrumbs'] span[data-testid='wcl-scores-overline-03']",
                 timeout=3000
             )
         except Exception:
-            # 待機失敗しても続行（あとで count=0 なら分かる）
             pass
 
         spans = page.locator(
             "nav[data-testid='wcl-breadcrumbs'] span[data-testid='wcl-scores-overline-03']"
         )
         count = spans.count()
-
-        # デバッグ用：何が取れているか確認したい時に有効化
-        # print(f"[DEBUG] breadcrumb span count={count}")
-        # for i in range(count):
-        #     print(f"[DEBUG] span[{i}] = {text_clean(spans.nth(i).text_content() or '')}")
 
         if count == 0:
             return "", ""
@@ -606,8 +447,6 @@ def get_country_and_league_from_match_page(page):
         #   0: サッカー
         #   1: イングランド（国）
         #   2: プレミアリーグ - ラウンド 14（リーグ）
-        #
-        # まず「サッカー」が先頭にあればスキップする
         start_idx = 0
         if texts and texts[0] == "サッカー":
             start_idx = 1
@@ -618,10 +457,120 @@ def get_country_and_league_from_match_page(page):
             league = texts[start_idx + 1]
 
     except Exception:
-        # 何かあっても country, league は "" のまま返す
         pass
 
     return country, league
+
+def fetch_ranks_for_match(page, match_url: str, home_name: str, away_name: str):
+    """
+    試合URLから順位表タブに飛び、
+      - ホーム順位
+      - アウェー順位
+      - 国名
+      - リーグ名（ラウンド付き）
+    を取得する。
+    """
+    if not match_url:
+        return "", "", "", ""
+
+    standings_url = build_standings_url_from_match_url(match_url)
+
+    try:
+        log(f"   📊 順位表取得: {standings_url}")
+        page.goto(standings_url, timeout=25000, wait_until="domcontentloaded")
+
+        try:
+            standings_tab = page.locator(
+                "a[data-analytics-alias='stats-detail'] button, "
+                "a[href*='/standings/'] button"
+            ).first
+            if standings_tab and standings_tab.count():
+                selected = standings_tab.get_attribute("data-selected")
+                if selected != "true":
+                    standings_tab.click(timeout=3000)
+                    page.wait_for_timeout(500)
+        except:
+            pass
+
+        country, league = get_country_and_league_from_match_page(page)
+
+        page.wait_for_selector("div.ui-table__body div.ui-table__row", timeout=12000)
+
+        home_rank, away_rank = get_team_ranks_from_standings_table(page, home_name, away_name)
+        log(f"      → rank: home={home_rank}, away={away_rank}, country={country}, league={league}")
+        return home_rank, away_rank, country, league
+
+    except Exception as e:
+        log(f"   ⚠️ 順位表取得失敗: {e}")
+        return "", "", "", ""
+
+# ============== 全試合に対して 国リーグ & 順位 & フィルタ ==============
+
+def fill_ranks_for_matches(ctx, matches: List[Dict[str, str]]):
+    """
+    「開催予定」で収集した試合リストに対して、
+    各試合ページの順位表から
+      - ホーム順位
+      - アウェー順位
+      - 試合国及びカテゴリ（国: リーグ）
+    を埋め、かつ対象リーグだけ残す。
+    """
+    if not matches:
+        return
+
+    page = ctx.new_page()
+
+    filtered: List[Dict[str, str]] = []
+
+    for idx, m in enumerate(matches):
+        url  = m.get("試合リンク文字列") or ""
+        home = m.get("ホームチーム") or ""
+        away = m.get("アウェーチーム") or ""
+
+        if not url or not home or not away:
+            log(f"⏭️ URL/チーム名不足のためスキップ: {home} vs {away}")
+            continue
+
+        log(f"=== 順位取得 {idx+1}/{len(matches)} ===")
+        home_rank, away_rank, country, league = fetch_ranks_for_match(page, url, home, away)
+
+        # 国＋リーグからカテゴリ文字列を組み立て
+        game_category = ""
+        if country and league:
+            game_category = f"{country}: {league}"
+        elif country or league:
+            game_category = country or league
+
+        if not game_category:
+            log("⏭️ スキップ対象: （カテゴリ取得失敗）")
+            continue
+
+        # 1) CONTAINS_LIST に含まれるリーグだけ対象
+        if not any(c in game_category for c in CONTAINS_LIST):
+            log(f"⏭️ スキップ対象: {game_category}（リスト外）")
+            continue
+
+        # 2) 年代（Uxx）・女子・例外リーグを含む場合はスキップ
+        if (any(x in game_category for x in UNDER_LIST) or
+            any(x in game_category for x in GENDER_LIST) or
+            any(x in game_category for x in EXP_LIST)):
+            log(f"🚫 除外対象: {game_category}")
+            continue
+
+        # ここまで来た試合だけを採用
+        if home_rank:
+            m["ホーム順位"] = home_rank
+        if away_rank:
+            m["アウェー順位"] = away_rank
+        m["試合国及びカテゴリ"] = game_category
+
+        filtered.append(m)
+        log(f"✅ 対象試合: {game_category} | {home} vs {away}")
+
+    page.close()
+
+    # 元のリストを書き換え
+    matches[:] = filtered
 
 # ============== メイン入口 ==============
 
@@ -648,7 +597,7 @@ def fetch_scheduled_matches(days) -> List[Dict[str, str]]:
 
         goto_football_top(page)
 
-        # ① 開催予定タブから全試合を集める
+        # ① 開催予定タブから全試合を集める（カテゴリはまだ空）
         for day_idx in range(days):
             if day_idx > 0:
                 ok = click_next_day(page)
@@ -659,11 +608,11 @@ def fetch_scheduled_matches(days) -> List[Dict[str, str]]:
             day_results = collect_scheduled_matches_on_current_day(page)
             all_results.extend(day_results)
 
-        # もう開催予定タブのページは不要なので閉じてもOK
         page.close()
 
         # ② 各試合ページの「順位表」から
-        #    ホーム順位 / アウェー順位 / 国＆リーグを埋める
+        #    ホーム順位 / アウェー順位 / 国＆リーグを埋めつつ、
+        #    対象リーグだけにフィルタ
         fill_ranks_for_matches(ctx, all_results)
 
         browser.close()
@@ -672,10 +621,8 @@ def fetch_scheduled_matches(days) -> List[Dict[str, str]]:
     return all_results
 
 if __name__ == "__main__":
-    # テスト実行例
     matches = fetch_scheduled_matches(days=3)
     print(f"総件数: {len(matches)}")
     if matches:
-        # 先頭1件だけサンプル表示
         from pprint import pprint
         pprint(matches[0])
