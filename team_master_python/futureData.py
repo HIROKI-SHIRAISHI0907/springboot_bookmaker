@@ -1,9 +1,16 @@
 # -*- coding: utf-8 -*-
 from playwright.sync_api import sync_playwright
 import time
-import re
+import re, os
 import datetime
 from typing import List, Dict, Optional
+import pandas as pd
+from pathlib import Path
+try:
+    import openpyxl
+except ImportError:
+    raise RuntimeError("openpyxl が必要です。`pip install openpyxl` を実行してください。")
+
 
 # ============== 取得条件 ====================
 
@@ -14,6 +21,126 @@ HEADER_SCHEDULED = [
     "ホームチームアウェー得点", "ホームチームアウェー失点",
     "アウェーチームアウェー得点", "アウェーチームアウェー失点", "試合リンク文字列", "データ取得時間"
 ]
+
+# ===== Excel 出力関連 =====
+# bmData.py と同様の outputs ディレクトリを想定
+SAVE_DIR_SCHEDULED = "/Users/shiraishitoshio/bookmaker/future"
+
+# ===== Excel 逐次書き込み（開催予定） =====
+# 1ファイルあたりの最大データ行数（ヘッダ除く）
+MAX_ROWS_PER_FILE_SCHEDULED = 10      # bmData.py と同じ値。必要なら後で増やしてください。
+SHEET_NAME_SCHEDULED = "Sheet1"
+FILE_PREFIX_SCHEDULED = "future_"
+FILE_SUFFIX_SCHEDULED = ".xlsx"
+
+def _existing_serials_scheduled(output_dir: str) -> List[int]:
+    p = Path(output_dir)
+    nums = []
+    for f in p.glob(f"{FILE_PREFIX_SCHEDULED}*{FILE_SUFFIX_SCHEDULED}"):
+        m = re.match(rf"^{re.escape(FILE_PREFIX_SCHEDULED)}(\d+){re.escape(FILE_SUFFIX_SCHEDULED)}$", f.name)
+        if m:
+            nums.append(int(m.group(1)))
+    return sorted(nums)
+
+def _next_serial_scheduled(output_dir: str) -> int:
+    """既存の最大連番+1 を返す"""
+    nums = _existing_serials_scheduled(output_dir)
+    return (max(nums) + 1) if nums else 1
+
+def _current_file_path_scheduled(output_dir: str) -> Path:
+    """今使うべき future_*.xlsx のパスを返す。無ければ新規（連番）。"""
+    p = Path(output_dir)
+    nums = _existing_serials_scheduled(output_dir)
+    if not nums:
+        return p / f"{FILE_PREFIX_SCHEDULED}{_next_serial_scheduled(output_dir)}{FILE_SUFFIX_SCHEDULED}"
+    # 直近のファイル（最大連番）
+    return p / f"{FILE_PREFIX_SCHEDULED}{max(nums)}{FILE_SUFFIX_SCHEDULED}"
+
+def _data_rows_in_scheduled(path: Path) -> int:
+    """既存Excelのデータ行数（ヘッダ除く）を返す。無ければ0。"""
+    if not path.exists():
+        return 0
+    wb = openpyxl.load_workbook(path, read_only=True, data_only=True)
+    ws = wb[SHEET_NAME_SCHEDULED] if SHEET_NAME_SCHEDULED in wb.sheetnames else wb.active
+    total = ws.max_row or 0
+    wb.close()
+    return max(0, total - 1)  # ヘッダ1行を除外
+
+def _create_new_workbook_scheduled(path: Path):
+    """HEADER_SCHEDULED 付きで新規 future_*.xlsx を作成"""
+    df = pd.DataFrame(columns=HEADER_SCHEDULED)
+    path.parent.mkdir(parents=True, exist_ok=True)
+    with pd.ExcelWriter(path, engine="openpyxl") as w:
+        df.to_excel(w, index=False, sheet_name=SHEET_NAME_SCHEDULED)
+
+def append_scheduled_row_to_excel(
+    row_dict: Dict[str, str],
+    output_dir: str = SAVE_DIR_SCHEDULED,
+    max_rows_per_file: int = MAX_ROWS_PER_FILE_SCHEDULED
+):
+    """
+    1 試合分の辞書 row_dict を
+    - future_N.xlsx の末尾に追記
+    - N ファイルごと（max_rows_per_file 行ごと）に新しい future_(N+1).xlsx を作る
+    という形で保存する。
+    """
+    output_dir_path = Path(output_dir)
+    output_dir_path.mkdir(parents=True, exist_ok=True)
+
+    cur = _current_file_path_scheduled(output_dir_path)
+    if not cur.exists():
+        _create_new_workbook_scheduled(cur)
+
+    # 現在のデータ行数（ヘッダ除く）
+    current_rows = _data_rows_in_scheduled(cur)
+
+    # 上限を超えたら次のファイルを作成
+    if current_rows >= max_rows_per_file:
+        cur = output_dir_path / f"{FILE_PREFIX_SCHEDULED}{_next_serial_scheduled(output_dir)}{FILE_SUFFIX_SCHEDULED}"
+        _create_new_workbook_scheduled(cur)
+        current_rows = 0
+
+    # 追記用 DF を HEADER_SCHEDULED 順に整形
+    df = pd.DataFrame([row_dict])
+    for col in HEADER_SCHEDULED:
+        if col not in df.columns:
+            df[col] = ""
+    df = df[HEADER_SCHEDULED]
+
+    with pd.ExcelWriter(cur, engine="openpyxl", mode="a", if_sheet_exists="overlay") as w:
+        startrow = current_rows + 1  # ヘッダ1行あり
+        df.to_excel(w, index=False, header=False, sheet_name=SHEET_NAME_SCHEDULED, startrow=startrow)
+
+    print(f"💾 [FUTURE] 追記完了: {cur.name} （データ行 {current_rows} → {current_rows+1} 件目を追加）")
+
+def save_scheduled_to_excel(match_results: List[Dict[str, str]], output_dir: str = SAVE_DIR_SCHEDULED):
+    """
+    開催予定データ（match_results）を Excel に保存する。
+    bmData.py の append_row_to_excel と同じ考え方で、
+    future_N.xlsx に逐次追記し、一定件数で次のファイルにローテーションする。
+    """
+    if not match_results:
+        log("✋ Excel に書き込む開催予定データがありません（match_results が空）")
+        return
+
+    os.makedirs(output_dir, exist_ok=True)
+
+    # 列ごとの非空件数をざっくりログ（まとめて）
+    try:
+        df_tmp = pd.DataFrame(match_results)
+        for col in HEADER_SCHEDULED:
+            if col not in df_tmp.columns:
+                df_tmp[col] = ""
+        df_tmp = df_tmp[HEADER_SCHEDULED]
+
+        non_empty_counts = df_tmp.apply(lambda s: s.astype(str).str.strip().ne("").sum())
+        log("📄 [EXCEL-SCHEDULED] 列ごとの非空件数（上位10列）:")
+        top10 = non_empty_counts.sort_values(ascending=False).head(10)
+        for col, cnt in top10.items():
+            log(f"   - {col}: {cnt}")
+        log(f"📄 [EXCEL-SCHEDULED] 総行数(今回追加分): {len(df_tmp)} / 総列数: {len(df_tmp.columns)}")
+    except Exception as e:
+        log(f"⚠️ [EXCEL-SCHEDULED] 非空件数計算で例外: {e}")
 
 # ==========================================
 # ✅ 対象リーグフィルタリング用リスト
@@ -564,6 +691,9 @@ def fill_ranks_for_matches(ctx, matches: List[Dict[str, str]]):
             m["アウェー順位"] = away_rank
         m["試合国及びカテゴリ"] = game_category
 
+        # 🔹 ここで即 Excel に1行追記
+        append_scheduled_row_to_excel(m, output_dir=SAVE_DIR_SCHEDULED)
+
         filtered.append(m)
         log(f"✅ 対象試合: {game_category} | {home} vs {away}")
 
@@ -623,6 +753,10 @@ def fetch_scheduled_matches(days) -> List[Dict[str, str]]:
 if __name__ == "__main__":
     matches = fetch_scheduled_matches(days=3)
     print(f"総件数: {len(matches)}")
+
+    # 🔹 Excel に保存
+    save_scheduled_to_excel(matches, output_dir=SAVE_DIR_SCHEDULED)
+
     if matches:
         from pprint import pprint
         pprint(matches[0])
