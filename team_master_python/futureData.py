@@ -6,6 +6,8 @@ import datetime
 from typing import List, Dict, Optional
 import pandas as pd
 from pathlib import Path
+import glob
+import sys
 try:
     import openpyxl
 except ImportError:
@@ -790,12 +792,86 @@ def fetch_scheduled_matches(days) -> List[Dict[str, str]]:
     log(f"🎉 総取得件数: {len(all_results)}")
     return all_results
 
+# ==========================================
+# ✅ future_*.xlsx → future_*.csv 変換
+# ==========================================
+
+def get_existing_future_xlsx_seqs(base_dir: str = SAVE_DIR_SCHEDULED) -> List[int]:
+    """
+    future_*.xlsx の通番一覧を昇順で返す。
+    例: future_1.xlsx, future_3.xlsx → [1, 3]
+    """
+    pattern = os.path.join(base_dir, "future_*.xlsx")
+    xlsx_files = glob.glob(pattern)
+    seqs: List[int] = []
+
+    for path in xlsx_files:
+        basename = os.path.basename(path)
+        if not basename.startswith("future_") or not basename.endswith(".xlsx"):
+            continue
+        try:
+            num = int(basename.replace("future_", "").replace(".xlsx", ""))
+            seqs.append(num)
+        except ValueError:
+            continue
+
+    if not seqs:
+        print("変換対象の future_*.xlsx ファイルが見つかりません。")
+        return []
+
+    print("対象Excelファイル数:", len(seqs))
+    return sorted(seqs)
+
+
+def excel_to_csv(excel_file: str, csv_file: str):
+    """
+    1つの Excel (future_N.xlsx) を CSV (future_N.csv) に変換し、
+    変換に成功したら元の Excel を削除する。
+    """
+    try:
+        df = pd.read_excel(excel_file)
+        df.to_csv(csv_file, index=False)
+        print(f"✅ Excel -> CSV 変換完了: {os.path.basename(excel_file)} → {os.path.basename(csv_file)}")
+        os.remove(excel_file)
+        print(f"🗑 元Excel削除: {os.path.basename(excel_file)}")
+    except Exception as e:
+        print(f"⚠️ Excel -> CSV変換失敗: {excel_file} ({e})")
+
+
+def convert_all_future_excels_to_csv(base_dir: str = SAVE_DIR_SCHEDULED):
+    """
+    base_dir 配下の future_*.xlsx をすべて future_*.csv に変換する。
+    すでに同名の future_N.csv がある場合はスキップ。
+    """
+    seq_list_all = get_existing_future_xlsx_seqs(base_dir)
+    if not seq_list_all:
+        return
+
+    for seq in seq_list_all:
+        xlsx_name = f"future_{seq}.xlsx"
+        csv_name  = f"future_{seq}.csv"
+        xlsx_path = os.path.join(base_dir, xlsx_name)
+        csv_path  = os.path.join(base_dir, csv_name)
+
+        if not os.path.exists(xlsx_path):
+            continue
+
+        # 既に同じ番号のCSVがある場合は念のためスキップ
+        if os.path.exists(csv_path):
+            print(f"⏭️ 既にCSVが存在するためスキップ: {csv_name}")
+            continue
+
+        excel_to_csv(xlsx_path, csv_path)
+
 if __name__ == "__main__":
     matches = fetch_scheduled_matches(days=7)
     print(f"総件数: {len(matches)}")
 
     # 🔹 Excel に保存
     save_scheduled_to_excel(matches, output_dir=SAVE_DIR_SCHEDULED)
+
+    # 🔹 保存された future_*.xlsx を CSV に変換
+    convert_all_future_excels_to_csv(base_dir=SAVE_DIR_SCHEDULED)
 
     if matches:
         from pprint import pprint
