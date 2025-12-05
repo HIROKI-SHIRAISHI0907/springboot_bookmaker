@@ -404,6 +404,35 @@ def _get_match_row_link(row) -> str:
         pass
     return ""
 
+# ============== 日付 ==============
+
+def get_current_match_date(page) -> Optional[datetime.date]:
+    """
+    Flashscore トップの日付ボタン（例: '05/12 金'）から
+    datetime.date を作って返す。
+    ボタンが取れなかったりパースできなければ None を返す。
+    """
+    try:
+        btn = page.locator("button[data-testid='wcl-dayPickerButton']").first
+        if not btn or not btn.count():
+            return None
+
+        txt = text_clean(btn.inner_text() or "")
+        # 例: "05/12 金" → day=05, month=12
+        m = re.search(r"(\d{2})/(\d{2})", txt)
+        if not m:
+            return None
+
+        day = int(m.group(1))
+        month = int(m.group(2))
+
+        # 年はとりあえず今年を採用（年またぎは簡易対応）
+        year = datetime.datetime.now().year
+        return datetime.date(year, month, day)
+
+    except Exception:
+        return None
+
 # ============== 開催予定タブから基本情報だけ集める ==============
 
 def collect_scheduled_matches_on_current_day(page) -> List[Dict[str, str]]:
@@ -418,6 +447,9 @@ def collect_scheduled_matches_on_current_day(page) -> List[Dict[str, str]]:
         log("⚠️ event__match が見つからないまま続行")
 
     expand_all_collapsed_leagues(page)
+
+    # 日付取得
+    match_date = get_current_match_date(page)
 
     rows = page.locator("div.event__match.event__match--scheduled")
     if rows.count() == 0:
@@ -436,7 +468,14 @@ def collect_scheduled_matches_on_current_day(page) -> List[Dict[str, str]]:
             ktime, home, away = _get_match_row_teams_and_time(row)
             link = _get_match_row_link(row)
 
-            log(f"row:  {ktime}, {home}, {away}, {link}")
+            # 🔹 日付＋時間の文字列を作成
+            if match_date and ktime:
+                # 例: "2025-12-05 04:00"
+                match_dt_str = f"{match_date.strftime('%Y-%m-%d')} {ktime}"
+            else:
+                match_dt_str = ktime  # フォールバック
+
+            log(f"row:  {match_dt_str}, {home}, {away}, {link}")
 
             mid = extract_mid(link)
             if mid and mid in seen_mids:
@@ -447,7 +486,7 @@ def collect_scheduled_matches_on_current_day(page) -> List[Dict[str, str]]:
 
             d = {k: "" for k in HEADER_SCHEDULED}
             d["試合国及びカテゴリ"] = ""  # ← 後で埋める
-            d["試合予定時間"]       = ktime
+            d["試合予定時間"]       = match_dt_str
             d["ホームチーム"]       = home
             d["アウェーチーム"]     = away
             d["試合リンク文字列"]   = link
@@ -702,6 +741,7 @@ def fill_ranks_for_matches(ctx, matches: List[Dict[str, str]]):
     # 元のリストを書き換え
     matches[:] = filtered
 
+
 # ============== メイン入口 ==============
 
 def fetch_scheduled_matches(days) -> List[Dict[str, str]]:
@@ -751,7 +791,7 @@ def fetch_scheduled_matches(days) -> List[Dict[str, str]]:
     return all_results
 
 if __name__ == "__main__":
-    matches = fetch_scheduled_matches(days=3)
+    matches = fetch_scheduled_matches(days=7)
     print(f"総件数: {len(matches)}")
 
     # 🔹 Excel に保存
