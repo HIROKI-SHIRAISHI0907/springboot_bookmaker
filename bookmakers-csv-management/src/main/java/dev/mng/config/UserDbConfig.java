@@ -11,11 +11,8 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
-import org.springframework.context.annotation.Primary;
 
 @Configuration
-// ★ この DB を使う Mapper のパッケージを指定
-//   例: StatSizeFinalizeMasterRepository などを dev.mng.domain.repository.user 配下に移動しておく
 @MapperScan(
     basePackages = "dev.mng.domain.repository.user",
     sqlSessionFactoryRef = "userSqlSessionFactory"
@@ -23,14 +20,12 @@ import org.springframework.context.annotation.Primary;
 public class UserDbConfig {
 
     @Bean
-    @Primary
     @ConfigurationProperties("spring.datasource.user")
     public DataSourceProperties userDataSourceProperties() {
         return new DataSourceProperties();
     }
 
     @Bean(name = "userDataSource")
-    @Primary
     public DataSource userDataSource() {
         return userDataSourceProperties()
                 .initializeDataSourceBuilder()
@@ -38,27 +33,21 @@ public class UserDbConfig {
     }
 
     @Bean(name = "userSqlSessionFactory")
-    @Primary
     public SqlSessionFactory userSqlSessionFactory(
             @Qualifier("userDataSource") DataSource dataSource
     ) throws Exception {
         SqlSessionFactoryBean factoryBean = new SqlSessionFactoryBean();
         factoryBean.setDataSource(dataSource);
 
-        // ★ ここで MyBatis の設定を直付け
         org.apache.ibatis.session.Configuration config =
                 new org.apache.ibatis.session.Configuration();
-        config.setMapUnderscoreToCamelCase(true);  // ← これ！
+        config.setMapUnderscoreToCamelCase(true);
         factoryBean.setConfiguration(config);
-
-        // ★ type-handlers-package も使いたいなら
-        // factoryBean.setTypeHandlersPackage("dev.application.mybatis");
 
         return factoryBean.getObject();
     }
 
     @Bean(name = "userSqlSessionTemplate")
-    @Primary
     public SqlSessionTemplate userSqlSessionTemplate(
             @Qualifier("userSqlSessionFactory") SqlSessionFactory sqlSessionFactory
     ) {
