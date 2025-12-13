@@ -11,6 +11,7 @@ import org.springframework.context.annotation.ComponentScan;
 	@ComponentScan(basePackages = {
 	    "dev.application",
 	    "dev.common",
+	    "dev.mng"
 	})
 //@EnableScheduling
 public class BookmakersAppApplication {
