@@ -1,16 +1,14 @@
 package dev.common.config;
 
-import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.beans.factory.annotation.Value;
-import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
 
+/**
+ * パス設定Config
+ * @author shiraishitoshio
+ *
+ */
 @Configuration
-@ComponentScan("dev.common")
-@MapperScan(
-		basePackages = "dev.mng.domain.repository",
-		annotationClass = org.apache.ibatis.annotations.Mapper.class // MyBatisの@Mapper限定
-)
 public class PathConfig {
 
 	/**

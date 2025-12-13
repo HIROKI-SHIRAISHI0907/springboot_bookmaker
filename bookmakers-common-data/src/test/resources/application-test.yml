@@ -4,16 +4,13 @@ app:
   team-csv-folder: /Users/shiraishitoshio/bookmaker/teams_by_league/
   
 spring:
-  datasource:
-    url: jdbc:postgresql://localhost:54320/soccer_bm
-    username: postgres
-    password: sonic3717   
-    driver-class-name: org.postgresql.Driver
   flyway:
     enabled: true
-    # 必要に応じて
-    # schemas: public
-    # baseline-on-migrate: true
+    datasource:
+      url: jdbc:postgresql://localhost:54320/soccer_bm
+      username: postgres
+      password: sonic3717
+      driver-class-name: org.postgresql.Driver
 mybatis:
   configuration:
     map-underscore-to-camel-case: true

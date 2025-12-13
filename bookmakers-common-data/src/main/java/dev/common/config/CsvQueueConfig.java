@@ -1,6 +1,5 @@
-package dev.mng.config;
+package dev.common.config;
 
-import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -11,9 +10,6 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
  *
  */
 @Configuration
-//★ この DB を使う Mapper のパッケージを指定
-//例: StatSizeFinalizeMasterRepository などを dev.mng.domain.repository.user 配下に移動しておく
-@MapperScan(basePackages = "dev.mng.domain.repository.user", sqlSessionFactoryRef = "userSqlSessionFactory")
 public class CsvQueueConfig {
 
 	// @Configuration
