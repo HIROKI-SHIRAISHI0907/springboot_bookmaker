@@ -1,15 +1,17 @@
 package dev.application;
 
+import org.mybatis.spring.boot.autoconfigure.MybatisAutoConfiguration;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 import org.springframework.context.annotation.ComponentScan;
 
-@SpringBootApplication
-@ComponentScan(basePackages = {
-		"dev.application",
-		"dev.common", // ← これを追加
-		"dev.mng"
-})
+@SpringBootApplication(
+	    exclude = MybatisAutoConfiguration.class
+	)
+	@ComponentScan(basePackages = {
+	    "dev.application",
+	    "dev.common",
+	})
 //@EnableScheduling
 public class BookmakersAppApplication {
 

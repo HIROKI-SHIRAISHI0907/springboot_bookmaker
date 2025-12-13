@@ -25,9 +25,6 @@ public class OutputData {
 	/** ファイル名 */
 	private static final String FILE = "/Users/shiraishitoshio/dumps/soccer_bm_dumps/soccer_bm_data.csv";
 
-	/** ファイル名 */
-	private static final String FILE4 = "/Users/shiraishitoshio/dumps/soccer_bm_data2.csv";
-
 	/** BookDataRepository */
 	@Autowired
 	private BookDataRepository bookDataRepository;
@@ -213,38 +210,6 @@ public class OutputData {
 			mngWrapper.write(FILE3, header3.toString(), body.toString());
 			System.out.println("filerecord: " + data3 + " / " + result3.size());
 			data3++;
-		}
-
-		// 結果構造：Map<"JPN-J1", Map<"HOME", List<DataEntity>>>
-		List<String> reads = mngWrapper.read(FILE);
-		int seq = 1;
-		boolean headerFlg = false;
-		String headers = "";
-		for (String datas : reads) {
-			String[] parts = datas.split(",", -1);
-			if (!headerFlg) {
-				headers = datas;
-				headerFlg = true;
-				continue;
-			}
-
-			String newData = "";
-			int chk = 0;
-			for (String part : parts) {
-				if (chk == 0) {
-					chk++;
-					newData += seq;
-					continue;
-				}
-				if (newData.length() > 0)
-					newData += ",";
-				newData += part;
-				chk++;
-			}
-			// File
-			mngWrapper.write(FILE4, headers, newData);
-			System.out.println("filerecord: " + seq + " / " + reads.size());
-			seq++;
 		}
 	}
 
