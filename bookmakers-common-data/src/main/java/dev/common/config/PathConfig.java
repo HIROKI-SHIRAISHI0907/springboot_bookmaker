@@ -12,6 +12,12 @@ import org.springframework.context.annotation.Configuration;
 public class PathConfig {
 
 	/**
+	 * JSONフォルダ
+	 */
+	@Value("${app.b001-json-folder}")
+	private String b001JsonFolder;
+
+	/**
 	 * CSVフォルダ
 	 */
 	@Value("${app.csv-folder}")
@@ -28,6 +34,14 @@ public class PathConfig {
 	 */
 	@Value("${app.team-csv-folder}")
 	private String teamCsvFolder;
+
+	/**
+	 * JSONフォルダ作成パスを返す
+	 * @return
+	 */
+	public String getB001JsonFolder() {
+        return b001JsonFolder;
+    }
 
 	/**
 	 * CSV作成パスを返す
