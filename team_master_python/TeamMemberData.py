@@ -8,7 +8,8 @@ TeamMemberExcel_writer_queue.py
 - 不要リソース/広告/同意ドメインは遮断
 - Excel 書込は専用 Writer タスクに集約（バッファ追記＋デバウンス保存）
 """
-
+import json
+from pathlib import Path
 import os
 import re
 import glob
@@ -25,6 +26,7 @@ from playwright.async_api import async_playwright
 # =========================
 BASE_DIR = "/Users/shiraishitoshio/bookmaker"
 TEAMS_BY_LEAGUE_DIR = os.path.join(BASE_DIR, "teams_by_league")
+B001_JSON_PATH = "/Users/shiraishitoshio/bookmaker/json/b001/b001_country_league.json"
 
 EXCEL_BASE_PREFIX = "team_member_"
 EXCEL_MAX_RECORDS = 50
@@ -502,6 +504,48 @@ async def process_team(ctx,
             try:    await page.close()
             except: pass
 
+def extract_countries(json_path: str) -> list[str]:
+    """
+    JSONから country を広めに抽出して返す（ユニーク＆ソート）
+    """
+    p = Path(json_path)
+    if not p.exists():
+        return []
+
+    data = json.loads(p.read_text(encoding="utf-8"))
+    countries: set[str] = set()
+
+    def norm(s) -> str:
+        return str(s).strip()
+
+    def walk(obj):
+        if isinstance(obj, dict):
+            for k in ("items", "country_league", "data", "results"):
+                if k in obj:
+                    walk(obj[k])
+
+            if "country" in obj:
+                c = norm(obj["country"])
+                if c:
+                    countries.add(c)
+
+            # country -> leagues のマップ形式も拾う
+            for ck, cv in obj.items():
+                if isinstance(cv, list):
+                    c = norm(ck)
+                    if c:
+                        countries.add(c)
+                    walk(cv)
+                else:
+                    walk(cv)
+
+        elif isinstance(obj, list):
+            for x in obj:
+                walk(x)
+
+    walk(data)
+    return sorted(countries)
+
 # =========================
 # エントリポイント
 # =========================
@@ -534,6 +578,24 @@ async def main():
             uniq_rows.append(row)
 
     print(f"[PLAN] 処理チーム数（重複除去後）: {len(uniq_rows)}")
+
+    # =========================
+    # JSONがある場合は country で絞る（なければ全件）
+    # =========================
+    allowed_countries: set[str] | None = None
+    countries = extract_countries(B001_JSON_PATH)
+
+    if countries:
+        allowed_countries = set(countries)
+        before = len(uniq_rows)
+        uniq_rows = [r for r in uniq_rows if r[0] in allowed_countries]  # r[0] = country
+        print(f"[FILTER] JSONあり: country {len(allowed_countries)}件 / チーム {before} -> {len(uniq_rows)}")
+    else:
+        print("[FILTER] JSONなし/空: 絞り込みなし（全チーム対象）")
+
+    if not uniq_rows:
+        print("[EXIT] フィルタ後の対象チームが0件のため終了します")
+        return
 
     # ライター起動
     writer = ExcelWriter(BASE_DIR, EXCEL_BASE_PREFIX, EXCEL_MAX_RECORDS)

@@ -54,22 +54,28 @@ def get_colmap(ws):
     return {name: idx + 1 for idx, name in enumerate(header)}
 
 
-def yield_targets(ws):
+def yield_targets(ws, allowed_countries: set[str] | None = None):
     """
-    「シーズン開始」と「シーズン終了」のどちらかが空の行だけを対象にする。
-    両方とも埋まっている行はスキップする。
+    - シーズン開始/終了のどちらかが空の行だけ対象
+    - allowed_countries が指定されていれば、国がその集合に含まれる行だけ対象
     """
     col = get_colmap(ws)
     max_row = ws.max_row if ws.max_row else 1
+
     for r in range(2, max_row + 1):
-        path  = (ws.cell(row=r, column=col["パス"]).value or "").strip()
+        path = (ws.cell(row=r, column=col["パス"]).value or "").strip()
         if not path:
             continue
+
+        # ★ JSONがある場合の country フィルタ
+        if allowed_countries is not None:
+            country = (ws.cell(row=r, column=col["国"]).value or "").strip()
+            if not country or country not in allowed_countries:
+                continue
 
         start = ws.cell(row=r, column=col["シーズン開始"]).value
         end   = ws.cell(row=r, column=col["シーズン終了"]).value
 
-        # 両方埋まっていたらスキップ
         if (start not in (None, "")) and (end not in (None, "")):
             continue
 
@@ -275,21 +281,32 @@ async def main():
     wb, ws = open_or_init_season_book(SEASON_XLSX)
     col = get_colmap(ws)
 
+    # ✅ スクレイピング前に JSON 有無で対象 country を決める
+    allowed_countries: set[str] | None = None
+    countries = extract_countries(B001_JSON_PATH)
+
+    if countries:  # JSONあり & country抽出できた
+        allowed_countries = set(countries)
+        print(f"[FILTER] JSONあり: country {len(allowed_countries)}件で絞り込み")
+    else:          # JSONなし or 抽出できない
+        allowed_countries = None
+        print("[FILTER] JSONなし/空: 絞り込みなし（全件対象）")
+
+    updated_rows = 0
+
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
         context = await browser.new_context()
         page = await context.new_page()
 
-        updated_rows = 0
-        for row, path in yield_targets(ws):
-            # フルURLに整形
+        # ✅ スクレイピング（JSONがある場合は国一致行だけ回る）
+        for row, path in yield_targets(ws, allowed_countries=allowed_countries):
             full_url = f"{BASE_URL}{path}fixtures/"
-
             print(f"[更新対象] row={row} -> {full_url}")
 
             icon_url, start_ddmm, end_ddmm = await fetch_icon_and_progress_ddmm(page, full_url)
 
-            # 空セルだけ埋める（上書きしない）
+            # ✅ エクセルに記入（空セルだけ）
             if (not ws.cell(row=row, column=col["シーズン開始"]).value) and start_ddmm:
                 ws.cell(row=row, column=col["シーズン開始"], value=start_ddmm)
             if (not ws.cell(row=row, column=col["シーズン終了"]).value) and end_ddmm:
@@ -298,23 +315,19 @@ async def main():
                 ws.cell(row=row, column=col[ICON_HEADER], value=icon_url)
 
             updated_rows += 1
-            await page.wait_for_timeout(200)  # 負荷軽減
-
-        wb.save(SEASON_XLSX)
-
-        # ✅ XLSX をまとめて CSV に変換
-        csv_path = xlsx_to_csv(SEASON_XLSX, sheet_name="season")
-        print(f"CSV出力: {csv_path}")
+            await page.wait_for_timeout(200)
 
         await context.close()
         await browser.close()
 
-    # ✅ bm001_country_league.json があれば country×league を抽出
-    pairs = extract_countries(B001_JSON_PATH)
-    print_pairs(pairs)
+    # ✅ Excel保存（スクレイピング後）
+    wb.save(SEASON_XLSX)
+
+    # ✅ 最後に CSV 変換
+    csv_path = xlsx_to_csv(SEASON_XLSX, sheet_name="season")
+    print(f"CSV出力: {csv_path}")
 
     print(f"更新行数: {updated_rows}")
-
 
 if __name__ == "__main__":
     asyncio.run(main())

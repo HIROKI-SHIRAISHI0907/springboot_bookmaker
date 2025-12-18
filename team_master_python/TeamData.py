@@ -9,6 +9,8 @@ Flashscore: 国×リーグ -> チームExcel(SEED 専用)
 - standings のテーブルから「チーム名 / チームリンク(/team/...)」を抽出
 - 国×リーグごとに teams_by_league/<国>__<リーグ>.xlsx へ保存（追記・重複除外）
 """
+import json
+from pathlib import Path
 import glob
 import pandas as pd
 import os
@@ -29,6 +31,8 @@ os.makedirs(BASE_DIR, exist_ok=True)
 
 TEAMS_BY_LEAGUE_DIR = os.path.join(BASE_DIR, "teams_by_league")
 os.makedirs(TEAMS_BY_LEAGUE_DIR, exist_ok=True)
+
+B001_JSON_PATH = "/Users/shiraishitoshio/bookmaker/json/b001/b001_country_league.json"
 
 # タイムアウト(ms)
 OP_TIMEOUT = 5000
@@ -401,7 +405,7 @@ async def scrape_league_to_teams(ctx, country: str, league: str, href: str, comp
 # =========================
 # 国×リーグの抽出
 # =========================
-async def collect_target_leagues(page) -> List[Tuple[str,str,str,Optional[str]]]:
+async def collect_target_leagues(page, allowed_countries: Optional[Set[str]] = None) -> List[Tuple[str,str,str,Optional[str]]]:
     """
     返り値: List[(country, league_name, href('/soccer/.../'), comp_id or None)]
     """
@@ -416,6 +420,10 @@ async def collect_target_leagues(page) -> List[Tuple[str,str,str,Optional[str]]]
     for b in blocks:
         cspan = await b.query_selector("span.lmc__elementName")
         country = (await cspan.inner_text()).strip() if cspan else ""
+
+        if allowed_countries is not None and country not in allowed_countries:
+            continue
+
         if country not in TARGETS:
             continue
 
@@ -488,37 +496,42 @@ async def fully_render_standings(page, max_cycles: int = 40, pause_ms: int = 150
             pass
         await asyncio.sleep(pause_ms/1000)
 
+def extract_countries(json_path: str) -> list[str]:
+    p = Path(json_path)
+    if not p.exists():
+        return []
 
-# =========================
-# 実行
-# =========================
-async def main():
-    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
-    print(f"{now}  データ取得対象の時間です。（SEED）")
+    data = json.loads(p.read_text(encoding="utf-8"))
+    countries: set[str] = set()
 
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(headless=True, args=["--disable-gpu"])
+    def norm(s) -> str:
+        return str(s).strip()
 
-        # メニュー（CSS許可）で対象リーグ列挙
-        menu_ctx = await make_context(browser, block_css=False)
-        menu_page = await menu_ctx.new_page()
-        leagues = await collect_target_leagues(menu_page)
-        await menu_page.close(); await menu_ctx.close()
-        print(f"対象リーグ数: {len(leagues)}")
+    def walk(obj):
+        if isinstance(obj, dict):
+            for k in ("items", "country_league", "data", "results"):
+                if k in obj:
+                    walk(obj[k])
 
-        # 各リーグ → チーム抽出 → Excel 追記
-        work_ctx = await make_context(browser, block_css=True)
-        for (country, league, href, comp_id) in leagues:
-            teams = await scrape_league_to_teams(work_ctx, country, league, href, comp_id)
-            if teams:
-                write_teams_excel(country, league, teams)
-            else:
-                print(f"[WARN] {country}:{league} チーム取得ゼロ")
-        await work_ctx.close()
+            if "country" in obj:
+                c = norm(obj["country"])
+                if c:
+                    countries.add(c)
 
-        await browser.close()
+            # country -> leagues のマップ形式も拾う
+            for ck, cv in obj.items():
+                if isinstance(cv, list):
+                    c = norm(ck)
+                    if c:
+                        countries.add(c)
+                    walk(cv)
 
-    convert_team_member_xlsx_to_csv(BASE_DIR, limit=50)
+        elif isinstance(obj, list):
+            for x in obj:
+                walk(x)
+
+    walk(data)
+    return sorted(countries)
 
 # =========================
 # team_member_*.xlsx -> team_member_*.csv（最後に実行）
@@ -588,6 +601,45 @@ def convert_team_member_xlsx_to_csv(base_dir: str, limit: int = 50) -> None:
         done += 1
         print(f"{done}/{len(xlsx_paths)}番目")
 
+# =========================
+# 実行
+# =========================
+async def main():
+    now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+    print(f"{now}  データ取得対象の時間です。（SEED）")
+
+    # ✅ JSONがあれば country セットを作る（無ければ None）
+    allowed_countries: Optional[Set[str]] = None
+    countries = extract_countries(B001_JSON_PATH)
+    if countries:
+        allowed_countries = set(countries)
+        print(f"[FILTER] JSONあり: country {len(allowed_countries)}件で絞り込み")
+    else:
+        print("[FILTER] JSONなし/空: 絞り込みなし（全件対象）")
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(headless=True, args=["--disable-gpu"])
+
+        # メニュー（CSS許可）で対象リーグ列挙
+        menu_ctx = await make_context(browser, block_css=False)
+        menu_page = await menu_ctx.new_page()
+        leagues = await collect_target_leagues(menu_page, allowed_countries=allowed_countries)
+        await menu_page.close(); await menu_ctx.close()
+        print(f"対象リーグ数: {len(leagues)}")
+
+        # 各リーグ → チーム抽出 → Excel 追記
+        work_ctx = await make_context(browser, block_css=True)
+        for (country, league, href, comp_id) in leagues:
+            teams = await scrape_league_to_teams(work_ctx, country, league, href, comp_id)
+            if teams:
+                write_teams_excel(country, league, teams)
+            else:
+                print(f"[WARN] {country}:{league} チーム取得ゼロ")
+        await work_ctx.close()
+
+        await browser.close()
+
+    convert_team_member_xlsx_to_csv(BASE_DIR, limit=50)
 
 if __name__ == "__main__":
     asyncio.run(main())
