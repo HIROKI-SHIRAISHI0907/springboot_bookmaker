@@ -26,36 +26,38 @@ from playwright.async_api import async_playwright
 # =========================
 # 設定
 # =========================
-BASE_DIR = "/Users/shiraishitoshio/bookmaker"
-os.makedirs(BASE_DIR, exist_ok=True)
+EXCEL_HEADER = "teamData_"
+BASE_OUTPUT_URL = "/Users/shiraishitoshio/bookmaker"
+# 対象（国: リーグ）
+B001_JSON_PATH = str(Path(BASE_OUTPUT_URL) / "json/b001/b001_country_league.json")
+os.makedirs(BASE_OUTPUT_URL, exist_ok=True)
 
-TEAMS_BY_LEAGUE_DIR = os.path.join(BASE_DIR, "teams_by_league")
+TEAMS_BY_LEAGUE_DIR = os.path.join(BASE_OUTPUT_URL, "teams_by_league")
 os.makedirs(TEAMS_BY_LEAGUE_DIR, exist_ok=True)
 
-B001_JSON_PATH = "/Users/shiraishitoshio/bookmaker/json/b001/b001_country_league.json"
 
 # タイムアウト(ms)
 OP_TIMEOUT = 5000
 NAV_TIMEOUT = 10000
 SEL_TIMEOUT = 20000
 
-# 対象（国: リーグ）
+
+
 CONTAINS_LIST = [
-    "ケニア: プレミアリーグ","コロンビア: プリメーラ A","タンザニア: プレミアリーグ",
-    "イングランド: プレミアリーグ","イングランド: EFL チャンピオンシップ","イングランド: EFL リーグ 1",
-    "エチオピア: プレミアリーグ","コスタリカ: リーガ FPD","ジャマイカ: プレミアリーグ",
-    "スペイン: ラ・リーガ","ブラジル: セリエ A ベターノ","ブラジル: セリエ B",
-    "ドイツ: ブンデスリーガ","韓国: K リーグ 1","中国: 中国スーパーリーグ",
-    "日本: J1 リーグ","日本: J2 リーグ","日本: J3 リーグ","日本: WEリーグ",
-    "インドネシア: リーガ 1","オーストラリア: A リーグ・メン","チュニジア: チュニジア･プロリーグ",
-    "ウガンダ: プレミアリーグ","メキシコ: リーガ MX","フランス: リーグ・アン","スコットランド: プレミアシップ",
-    "オランダ: エールディビジ","アルゼンチン: トルネオ・ベターノ","イタリア: セリエ A","イタリア: セリエ B",
-    "ポルトガル: リーガ・ポルトガル","トルコ: スュペル・リグ","セルビア: スーペルリーガ",
-    "ボリビア: LFPB","ブルガリア: パルヴァ・リーガ","カメルーン: エリート 1","ペルー: リーガ 1",
-    "エストニア: メスタリリーガ","ウクライナ: プレミアリーグ","ベルギー: ジュピラー･プロリーグ","エクアドル: リーガ・プロ",
+    "ケニア: プレミアリーグ", "コロンビア: プリメーラ A", "タンザニア: プレミアリーグ", "イングランド: プレミアリーグ",
+    "イングランド: EFL チャンピオンシップ", "イングランド: EFL リーグ 1", "エチオピア: プレミアリーグ", "コスタリカ: リーガ FPD",
+    "ジャマイカ: プレミアリーグ", "スペイン: ラ・リーガ", "ブラジル: セリエ A ベターノ", "ブラジル: セリエ B", "ドイツ: ブンデスリーガ",
+    "韓国: K リーグ 1", "中国: 中国スーパーリーグ", "日本: J1 リーグ", "日本: J2 リーグ", "日本: J3 リーグ", "インドネシア: スーパーリーグ",
+    "オーストラリア: A リーグ・メン", "チュニジア: チュニジア･プロリーグ", "ウガンダ: プレミアリーグ", "メキシコ: リーガ MX",
+    "フランス: リーグ・アン", "スコットランド: プレミアシップ", "オランダ: エールディビジ", "アルゼンチン: トルネオ・ベターノ",
+    "イタリア: セリエ A", "イタリア: セリエ B", "ポルトガル: リーガ・ポルトガル", "トルコ: スュペル・リグ", "セルビア: スーペルリーガ",
+    "日本: WEリーグ", "ボリビア: LFPB", "ブルガリア: パルヴァ・リーガ", "カメルーン: エリート 1", "ペルー: リーガ 1",
+    "エストニア: メスタリリーガ", "ウクライナ: プレミアリーグ", "ベルギー: ジュピラー･プロリーグ", "エクアドル: リーガ・プロ",
+    "日本: YBC ルヴァンカップ", "日本: 天皇杯"
 ]
-GENDER_EXCLUDE = ["女子"]
-EXP_EXCLUDE = ["ポルトガル: リーガ・ポルトガル 2","イングランド: プレミアリーグ 2","イングランド: プレミアリーグ U18"]
+UNDER_LIST  = ["U17", "U18", "U19", "U20", "U21", "U22", "U23", "U24", "U25"]
+GENDER_LIST = ["女子"]
+EXP_LIST    = ["ポルトガル: リーガ・ポルトガル 2", "イングランド: プレミアリーグ 2", "イングランド: プレミアリーグ U18"]
 
 # 国→{リーグ名,...} へ変換
 TARGETS: Dict[str, Set[str]] = {}
@@ -72,7 +74,8 @@ def sanitize_filename(name: str) -> str:
     return s
 
 def teams_excel_path(country: str, league: str) -> str:
-    return os.path.join(TEAMS_BY_LEAGUE_DIR, f"{sanitize_filename(country)}__{sanitize_filename(league)}.xlsx")
+    filename = f"{EXCEL_HEADER}{sanitize_filename(country)}__{sanitize_filename(league)}.xlsx"
+    return os.path.join(TEAMS_BY_LEAGUE_DIR, filename)
 
 def ensure_header(ws, headers: List[str]):
     if ws.max_row == 0 or str(ws["A1"].value or "") != headers[0]:
@@ -424,7 +427,8 @@ async def collect_target_leagues(page, allowed_countries: Optional[Set[str]] = N
         if allowed_countries is not None and country not in allowed_countries:
             continue
 
-        if country not in TARGETS:
+        # ★TARGETSがある時だけ国フィルタ
+        if TARGETS is not None and country not in TARGETS:
             continue
 
         links = await b.query_selector_all("span.lmc__template a.lmc__templateHref") \
@@ -432,17 +436,23 @@ async def collect_target_leagues(page, allowed_countries: Optional[Set[str]] = N
 
         for a in links:
             league_name = (await a.inner_text()).strip()
-            if league_name not in TARGETS.get(country, set()):
-                continue
+
+            # ★TARGETSがある時だけリーグフィルタ
+            if TARGETS is not None:
+                if league_name not in TARGETS.get(country, set()):
+                    continue
+
             key = f"{country}: {league_name}"
-            if any(key.endswith(x) for x in EXP_EXCLUDE) or any(g in key for g in GENDER_EXCLUDE):
+
+            # ここは「全件運用でも除外したい」なら残す（女子/U系など）
+            if any(key.endswith(x) for x in EXP_LIST) or any(g in key for g in GENDER_LIST):
                 continue
 
             href = await a.get_attribute("href")
             if not href:
                 continue
 
-            # compId を隣接の pin から推定（data-label-key など）
+            # comp_id 推定はそのまま
             comp_id: Optional[str] = None
             try:
                 parent = await a.evaluate_handle("el => el.parentElement")
@@ -534,9 +544,9 @@ def extract_countries(json_path: str) -> list[str]:
     return sorted(countries)
 
 # =========================
-# team_member_*.xlsx -> team_member_*.csv（最後に実行）
+# teamData_*.xlsx -> teamData_*.csv（最後に実行）
 # =========================
-TEAM_MEMBER_PREFIX = "team_member_"
+TEAM_MEMBER_PREFIX = EXCEL_HEADER
 
 def get_team_member_xlsx_paths(base_dir: str) -> list[str]:
     return sorted(glob.glob(os.path.join(base_dir, f"{TEAM_MEMBER_PREFIX}*.xlsx")))
@@ -550,7 +560,7 @@ def next_team_member_csv_seq(base_dir: str) -> int:
     return max_seq + 1
 
 def validate_team_member_xlsx(excel_file: str) -> bool:
-    required_cols = {"国", "リーグ", "所属チーム", "選手名", "ポジション"}
+    required_cols = {"国", "リーグ", "チーム", "チームリンク"}
     try:
         df = pd.read_excel(excel_file)
     except Exception:
@@ -577,11 +587,37 @@ def excel_to_csv_and_delete(excel_file: str, csv_file: str) -> bool:
     except Exception as e:
         print(f"[ERROR] Excel->CSV失敗: {excel_file} ({e})")
         return False
+    
+def extract_countries_and_leagues(json_path: str) -> tuple[list[str], list[tuple[str, str]]]:
+    p = Path(json_path).expanduser()
+    if not p.exists():
+        return [], []
+
+    data = json.loads(p.read_text(encoding="utf-8"))
+    pairs: list[tuple[str, str]] = []
+
+    if isinstance(data, dict):
+        for c, v in data.items():
+            country = str(c).strip()
+            if not country:
+                continue
+            if isinstance(v, list):
+                for lv in v:
+                    league = str(lv).strip()
+                    if league:
+                        pairs.append((country, league))
+            else:
+                league = str(v).strip()
+                if league:
+                    pairs.append((country, league))
+
+    countries = sorted({c for c, _ in pairs})
+    return countries, pairs
 
 def convert_team_member_xlsx_to_csv(base_dir: str, limit: int = 50) -> None:
     xlsx_paths = get_team_member_xlsx_paths(base_dir)
     if not xlsx_paths:
-        print("変換対象の team_member_*.xlsx がありません。")
+        print("変換対象の teamData_*.xlsx がありません。")
         return
 
     done = 0
@@ -601,33 +637,102 @@ def convert_team_member_xlsx_to_csv(base_dir: str, limit: int = 50) -> None:
         done += 1
         print(f"{done}/{len(xlsx_paths)}番目")
 
+def extract_country_leagues_map(json_path: str) -> Dict[str, Set[str]]:
+    """
+    JSON が
+      {"日本": ["J1 リーグ", "J2 リーグ"], "メキシコ": ["リーガ MX"]}
+    みたいな想定で、国→リーグ集合にする。
+    それ以外の構造でも "country"/"league" キーがあれば拾う保険付き。
+    """
+    p = Path(json_path)
+    if not p.exists():
+        return {}
+
+    data = json.loads(p.read_text(encoding="utf-8"))
+
+    out: Dict[str, Set[str]] = {}
+
+    def norm(s) -> str:
+        return re.sub(r"\s+", " ", str(s or "")).strip()
+
+    def add(country: str, league: str):
+        c = norm(country)
+        l = norm(league)
+        if c and l:
+            out.setdefault(c, set()).add(l)
+
+    def walk(obj):
+        if isinstance(obj, dict):
+            # 1) country -> [league,...] 形式
+            for k, v in obj.items():
+                if isinstance(v, list) and all(isinstance(x, (str, int, float)) for x in v):
+                    for lv in v:
+                        add(k, lv)
+
+            # 2) {"country": "...", "league": "..."} 形式（ネストでも拾う）
+            if "country" in obj and "league" in obj:
+                add(obj.get("country"), obj.get("league"))
+
+            # よくあるネストキーも辿る
+            for kk in ("items", "data", "results", "country_league"):
+                if kk in obj:
+                    walk(obj[kk])
+
+            # その他も全部辿る
+            for v in obj.values():
+                if isinstance(v, (dict, list)):
+                    walk(v)
+
+        elif isinstance(obj, list):
+            for x in obj:
+                walk(x)
+
+    walk(data)
+    return out
+
 # =========================
 # 実行
 # =========================
 async def main():
+    global TARGETS  # ★これを関数の最初に1回だけ
+
     now = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
     print(f"{now}  データ取得対象の時間です。（SEED）")
 
-    # ✅ JSONがあれば country セットを作る（無ければ None）
-    allowed_countries: Optional[Set[str]] = None
-    countries = extract_countries(B001_JSON_PATH)
-    if countries:
-        allowed_countries = set(countries)
-        print(f"[FILTER] JSONあり: country {len(allowed_countries)}件で絞り込み")
+    # --- JSON を読む（あれば country+league 指定、なければ “全件”） ---
+    countries, country_league_pairs = extract_countries_and_leagues(B001_JSON_PATH)
+    json_has_pairs = bool(country_league_pairs)
+
+    if json_has_pairs:
+        # JSON指定だけ回す（国→リーグ集合）
+        json_targets: Dict[str, Set[str]] = {}
+        for c, l in country_league_pairs:
+            c2 = re.sub(r"\s+", " ", str(c or "")).strip()
+            l2 = re.sub(r"\s+", " ", str(l or "")).strip()
+            if c2 and l2:
+                json_targets.setdefault(c2, set()).add(l2)
+
+        TARGETS = json_targets
+        allowed_countries: Optional[Set[str]] = set(TARGETS.keys())
+
+        print(f"[FILTER] JSONあり: countries={len(allowed_countries)} pairs={sum(len(v) for v in TARGETS.values())}")
+        print("[TARGETS]", {k: sorted(list(v)) for k, v in TARGETS.items()})
     else:
-        print("[FILTER] JSONなし/空: 絞り込みなし（全件対象）")
+        # JSONが無い/空なら「全部回す」
+        TARGETS = None
+        allowed_countries = None
+        print("[FILTER] JSONなし/空: 全件（全リーグ）運用")
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=["--disable-gpu"])
 
-        # メニュー（CSS許可）で対象リーグ列挙
         menu_ctx = await make_context(browser, block_css=False)
         menu_page = await menu_ctx.new_page()
         leagues = await collect_target_leagues(menu_page, allowed_countries=allowed_countries)
-        await menu_page.close(); await menu_ctx.close()
+        await menu_page.close()
+        await menu_ctx.close()
         print(f"対象リーグ数: {len(leagues)}")
 
-        # 各リーグ → チーム抽出 → Excel 追記
         work_ctx = await make_context(browser, block_css=True)
         for (country, league, href, comp_id) in leagues:
             teams = await scrape_league_to_teams(work_ctx, country, league, href, comp_id)
@@ -639,7 +744,8 @@ async def main():
 
         await browser.close()
 
-    convert_team_member_xlsx_to_csv(BASE_DIR, limit=50)
+    EXCEL_URL = f"{TEAMS_BY_LEAGUE_DIR}" 
+    convert_team_member_xlsx_to_csv(EXCEL_URL, limit=50)
 
 if __name__ == "__main__":
     asyncio.run(main())
