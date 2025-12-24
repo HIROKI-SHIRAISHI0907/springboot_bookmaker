@@ -1,333 +1,751 @@
 import os
 import re
 import asyncio
-from typing import Tuple
 import csv
 import json
 from pathlib import Path
-
+from typing import List, Tuple, Set, Any
 from openpyxl import Workbook, load_workbook
 from playwright.async_api import async_playwright, TimeoutError as PwTimeoutError
 
-SEASON_XLSX = "season_data.xlsx"
-BASE_URL = "https://www.flashscore.co.jp"
-ICON_HEADER = "リーグアイコン"  # アイコンURLを書き込む列名
-B001_JSON_PATH = "/Users/shiraishitoshio/bookmaker/json/b001/b001_country_league.json"
 
+BASE_OUTPUT_URL = "/Users/shiraishitoshio/bookmaker"
+
+# ✅ パス修正（スラッシュ忘れ防止）
+SEASON_XLSX = str(Path(BASE_OUTPUT_URL) / "season_data.xlsx")
+
+BASE_URL = "https://www.flashscore.co.jp"
+SEASON_YEAR_HEADER = "シーズン年"
+ICON_HEADER = "リーグアイコン"
+B001_JSON_PATH = str(Path(BASE_OUTPUT_URL) / "json/b001/b001_country_league.json")
+
+CONTAINS_LIST = [
+    "ケニア: プレミアリーグ", "コロンビア: プリメーラ A", "タンザニア: プレミアリーグ", "イングランド: プレミアリーグ",
+    "イングランド: EFL チャンピオンシップ", "イングランド: EFL リーグ 1", "エチオピア: プレミアリーグ", "コスタリカ: リーガ FPD",
+    "ジャマイカ: プレミアリーグ", "スペイン: ラ・リーガ", "ブラジル: セリエ A ベターノ", "ブラジル: セリエ B", "ドイツ: ブンデスリーガ",
+    "韓国: K リーグ 1", "中国: 中国スーパーリーグ", "日本: J1 リーグ", "日本: J2 リーグ", "日本: J3 リーグ", "インドネシア: スーパーリーグ",
+    "オーストラリア: A リーグ・メン", "チュニジア: チュニジア･プロリーグ", "ウガンダ: プレミアリーグ", "メキシコ: リーガ MX",
+    "フランス: リーグ・アン", "スコットランド: プレミアシップ", "オランダ: エールディビジ", "アルゼンチン: トルネオ・ベターノ",
+    "イタリア: セリエ A", "イタリア: セリエ B", "ポルトガル: リーガ・ポルトガル", "トルコ: スュペル・リグ", "セルビア: スーペルリーガ",
+    "日本: WEリーグ", "ボリビア: LFPB", "ブルガリア: パルヴァ・リーガ", "カメルーン: エリート 1", "ペルー: リーガ 1",
+    "エストニア: メスタリリーガ", "ウクライナ: プレミアリーグ", "ベルギー: ジュピラー･プロリーグ", "エクアドル: リーガ・プロ",
+    "日本: YBC ルヴァンカップ", "日本: 天皇杯"
+]
+UNDER_LIST  = ["U17", "U18", "U19", "U20", "U21", "U22", "U23", "U24", "U25"]
+GENDER_LIST = ["女子"]
+EXP_LIST    = ["ポルトガル: リーガ・ポルトガル 2", "イングランド: プレミアリーグ 2", "イングランド: プレミアリーグ U18"]
 
 # --- Excel ユーティリティ ---
 def open_or_init_season_book(file_path: str = SEASON_XLSX):
-    """
-    season_data.xlsx を開く。無ければ作成し、ヘッダー:
-    国, リーグ, シーズン開始, シーズン終了, パス, リーグアイコン
-    """
     if not os.path.exists(file_path):
         wb = Workbook()
         ws = wb.active
         ws.title = "season"
-        ws.append(["国", "リーグ", "シーズン開始", "シーズン終了", "パス", ICON_HEADER])
+        ws.append(["国", "リーグ", SEASON_YEAR_HEADER, "シーズン開始", "シーズン終了", "パス", ICON_HEADER])
         wb.save(file_path)
         return wb, ws
 
     wb = load_workbook(file_path)
-    ws = wb.active
+    ws = wb["season"] if "season" in wb.sheetnames else wb.active
 
     header = [c.value for c in ws[1]]
-    expected = ["国", "リーグ", "シーズン開始", "シーズン終了", "パス"]
-    if not header or header[:5] != expected:
-        # 不正な場合は作り直し（既存内容は破棄）
+    expected = ["国", "リーグ", SEASON_YEAR_HEADER, "シーズン開始", "シーズン終了", "パス"]
+    if not header or header[:6] != expected:
         ws.delete_rows(1, ws.max_row if ws.max_row else 1)
-        ws.append(["国", "リーグ", "シーズン開始", "シーズン終了", "パス", ICON_HEADER])
+        ws.append(["国", "リーグ", SEASON_YEAR_HEADER, "シーズン開始", "シーズン終了", "パス", ICON_HEADER])
         wb.save(file_path)
         return wb, ws
 
-    # アイコン列がなければ追加
+    # シーズン年列が無い場合
+    if SEASON_YEAR_HEADER not in header:
+        ws.cell(row=1, column=len(header) + 1, value=SEASON_YEAR_HEADER)
+        header.append(SEASON_YEAR_HEADER)
+        wb.save(file_path)
+
+    # アイコン列が無い場合
     if ICON_HEADER not in header:
         ws.cell(row=1, column=len(header) + 1, value=ICON_HEADER)
         wb.save(file_path)
 
     return wb, ws
 
-
 def get_colmap(ws):
     header = [c.value for c in ws[1]]
     return {name: idx + 1 for idx, name in enumerate(header)}
 
 
-def yield_targets(ws, allowed_countries: set[str] | None = None):
-    """
-    - シーズン開始/終了のどちらかが空の行だけ対象
-    - allowed_countries が指定されていれば、国がその集合に含まれる行だけ対象
-    """
+def existing_paths(ws) -> Set[str]:
+    """ season_data.xlsx に既にある 'パス' をセットで返す（重複追記防止） """
     col = get_colmap(ws)
-    max_row = ws.max_row if ws.max_row else 1
+    pcol = col["パス"]
+    out = set()
+    for r in range(2, (ws.max_row or 1) + 1):
+        v = (ws.cell(row=r, column=pcol).value or "").strip()
+        if v:
+            out.add(v)
+    return out
 
-    for r in range(2, max_row + 1):
-        path = (ws.cell(row=r, column=col["パス"]).value or "").strip()
-        if not path:
+def extract_countries_and_leagues(json_path: str) -> tuple[list[str], list[tuple[str, str]]]:
+    p = Path(json_path).expanduser()
+    if not p.exists():
+        return [], []
+
+    data = json.loads(p.read_text(encoding="utf-8"))
+    pairs: list[tuple[str, str]] = []
+
+    if isinstance(data, dict):
+        for c, v in data.items():
+            country = str(c).strip()
+            if not country:
+                continue
+            if isinstance(v, list):
+                for lv in v:
+                    league = str(lv).strip()
+                    if league:
+                        pairs.append((country, league))
+            else:
+                league = str(v).strip()
+                if league:
+                    pairs.append((country, league))
+
+    countries = sorted({c for c, _ in pairs})
+    return countries, pairs
+
+# --- Playwright helpers ---
+async def kill_onetrust(page):
+    # 出る時だけ消す
+    try:
+        btn = page.locator("#onetrust-accept-btn-handler").first
+        if await btn.count() and await btn.is_visible():
+            await btn.click(timeout=1500, force=True)
+    except:
+        pass
+    try:
+        await page.evaluate("""
+        () => {
+          const ids = ["onetrust-consent-sdk", "onetrust-banner-sdk"];
+          ids.forEach(id => document.getElementById(id)?.remove());
+          document.querySelectorAll(".ot-sdk-container, .ot-sdk-row, .otOverlay, .ot-pc-footer, .ot-pc-header")
+            .forEach(el => el.remove());
+          const overlay = document.querySelector("#onetrust-consent-sdk, .otOverlay");
+          if (overlay) overlay.style.pointerEvents = "none";
+        }
+        """)
+    except:
+        pass
+
+
+async def goto_home(page):
+    await page.goto(BASE_URL, wait_until="domcontentloaded")
+    await kill_onetrust(page)
+
+
+def normalize_country_name(s: str) -> str:
+    s = (s or "").strip()
+    s = s.replace("　", " ")
+    s = re.sub(r"\s+", " ", s)
+    return s
+
+def norm(s: str) -> str:
+    if s is None:
+        return ""
+    s = str(s).replace("\u3000", " ")
+    s = re.sub(r"\s+", " ", s).strip()
+    return s
+
+def norm_comp(s: str) -> str:
+    # 比較用（空白除去）
+    return norm(s).replace(" ", "")
+
+def is_excluded(category: str) -> bool:
+    cat = norm(category)
+    # UNDER/GENDER は "含まれていたら除外"
+    for w in UNDER_LIST + GENDER_LIST:
+        if w and w in cat:
+            return True
+    # EXP_LIST は「文字列に含まれていたら除外」＝部分一致で除外
+    for w in EXP_LIST:
+        if w and w in cat:
+            return True
+    return False
+
+def build_allowed_set_from_contains() -> set[str]:
+    # CONTAINS_LIST は完全一致想定だが、表記ゆれ対策で空白無し比較も作る
+    return {norm_comp(x) for x in CONTAINS_LIST}
+
+def build_allowed_set_from_json(pairs: list[tuple[str, str]]) -> set[str]:
+    # "国: リーグ" 形式で持つ
+    return {norm_comp(f"{c}: {l}") for c, l in pairs}
+
+def is_allowed_category(category: str, allowed_set: set[str]) -> bool:
+    if is_excluded(category):
+        return False
+    return norm_comp(category) in allowed_set
+
+
+async def open_country_via_leftmenu(page, country: str, country_map: dict) -> bool:
+    """
+    country_map: {表示名: href}  例 {"イングランド": "/soccer/england/"}
+    """
+    target = normalize_country_name(country)
+
+    # 1) 完全一致
+    if target in country_map:
+        href = country_map[target]
+        await page.goto(BASE_URL + href, wait_until="domcontentloaded")
+        await kill_onetrust(page)
+        return True
+
+    # 2) 部分一致（例: 表示が「ｱﾝﾃｨｸﾞｱ･ﾊﾞｰﾌﾞｰﾀﾞ」みたいなケース）
+    #    JSON側が正式表記、表示名が半角カナの可能性があるので、まずは「含む」だけやる
+    for name, href in country_map.items():
+        if target in normalize_country_name(name) or normalize_country_name(name) in target:
+            await page.goto(BASE_URL + href, wait_until="domcontentloaded")
+            await kill_onetrust(page)
+            return True
+
+    print(f"  ❌ country href not found in leftmenu: {country}")
+    return False
+
+async def expand_leftmenu_countries(page, max_clicks: int = 200) -> int:
+    """
+    左メニュー「国」の 'もっと表示' を、消える/増えなくなるまでクリックする。
+    戻り値: 実クリック回数
+    """
+    clicks = 0
+    menu = page.locator("#category-left-menu")
+    await menu.wait_for(state="visible", timeout=15000)
+
+    # 「国」セクションのコンテナ（この中に a.lmc__item が並ぶ）
+    # lmc__menu 全体を対象にしても良いが、過検出を避けるため menu 内に限定
+    while clicks < max_clicks:
+        more = menu.locator("span.lmc__itemMore").first
+
+        # more が無い/見えない → 押し切り完了
+        if await more.count() == 0 or not await more.is_visible():
+            break
+
+        before = await menu.locator("a.lmc__element.lmc__item[href^='/soccer/']").count()
+
+        await more.scroll_into_view_if_needed()
+        try:
+            await more.click(timeout=5000)
+        except:
+            # 広告overlay等で失敗することがあるので少し待って再評価
+            await page.wait_for_timeout(300)
+            break
+
+        clicks += 1
+
+        # クリック後：国リンク数が増える or moreが消えるまで待つ
+        try:
+            await page.wait_for_function(
+                """
+                ({rootSel, aSel, before}) => {
+                  const root = document.querySelector(rootSel);
+                  if (!root) return true;
+                  const now = root.querySelectorAll(aSel).length;
+                  const more = root.querySelector("span.lmc__itemMore");
+                  const moreVisible = more && more.offsetParent !== null;
+                  return (now > before) || !moreVisible;
+                }
+                """,
+                arg={
+                    "rootSel": "#category-left-menu",
+                    "aSel": "a.lmc__element.lmc__item[href^='/soccer/']",
+                    "before": before,
+                },
+                timeout=15000
+            )
+        except PwTimeoutError:
+            # 増えない/重い場合は終了
+            break
+
+    return clicks
+
+
+async def get_all_country_links_from_leftmenu(page) -> List[Tuple[str, str]]:
+    """
+    左メニュー「国」一覧から (表示名, href) を全取得する。
+    事前に expand_leftmenu_countries() で押し切る前提でも、
+    この関数内で押し切ってもOK。
+    """
+    await goto_home(page)          # あなたの既存
+    await kill_onetrust(page)      # あなたの既存
+
+    clicks = await expand_leftmenu_countries(page)
+    print(f"[LEFTMENU] more clicked: {clicks}")
+
+    menu = page.locator("#category-left-menu")
+    items = menu.locator("a.lmc__element.lmc__item[href^='/soccer/']")
+    n = await items.count()
+
+    out: List[Tuple[str, str]] = []
+    seen = set()
+
+    for i in range(n):
+        a = items.nth(i)
+        href = (await a.get_attribute("href")) or ""
+        name = (await a.locator("span.lmc__elementName").first.text_content()) or ""
+        name = re.sub(r"\s+", " ", name).strip()
+
+        # 念のため /soccer/<slug>/ だけに限定
+        if not re.match(r"^/soccer/[^/]+/?$", href):
+            continue
+        if not name:
             continue
 
-        # ★ JSONがある場合の country フィルタ
-        if allowed_countries is not None:
-            country = (ws.cell(row=r, column=col["国"]).value or "").strip()
-            if not country or country not in allowed_countries:
+        key = (name, href)
+        if key in seen:
+            continue
+        seen.add(key)
+        out.append((name, href))
+
+    print(f"[LEFTMENU] countries: {len(out)}")
+    return out
+
+async def scrape_league_links_on_country_page(page) -> List[Tuple[str, str]]:
+    """
+    国ページからリーグ（大会）リンクを抽出して (league_name, path) を返す。
+    """
+    # まずある程度描画待ち
+    try:
+        await page.wait_for_timeout(800)
+    except:
+        pass
+
+    anchors = page.locator("a[href]")
+    n = await anchors.count()
+
+    leagues: List[Tuple[str, str]] = []
+    seen = set()
+
+    for i in range(n):
+        a = anchors.nth(i)
+        try:
+            href = (await a.get_attribute("href")) or ""
+            txt = (await a.text_content()) or ""
+            txt = re.sub(r"\s+", " ", txt).strip()
+
+            if not href or not txt:
                 continue
 
-        start = ws.cell(row=r, column=col["シーズン開始"]).value
-        end   = ws.cell(row=r, column=col["シーズン終了"]).value
+            # パスに統一
+            path = href.replace(BASE_URL, "")
+            if not path.startswith("/"):
+                continue
 
-        if (start not in (None, "")) and (end not in (None, "")):
-            continue
+            # リーグページっぽいものだけ
+            # /soccer/<country>/<league>/ を基本として拾う
+            if not re.match(r"^/soccer/[^/]+/[^/]+/?$", path):
+                continue
 
-        yield r, path
+            # 明らかなナビゲーションは除外
+            if re.search(r"(概要|順位表|結果|日程|ニュース|統計|選手|チーム)", txt):
+                continue
 
+            key = (txt, path)
+            if key in seen:
+                continue
+            seen.add(key)
+            leagues.append((txt, path))
+        except:
+            pass
 
-# --- Playwright でページから取得 ---
-async def fetch_icon_and_progress_ddmm(page, full_url: str):
+    return leagues
+
+def norm_name(s: str) -> str:
     """
-    リーグページから
-      - アイコンURL（リーグヘッダーロゴ）
-      - event__time の最小/最大（dd.mm）
-    を取得。
+    比較用に正規化（全角/半角や空白の揺れを吸収）
     """
-    icon_url, start_ddmm, end_ddmm = "", "", ""
+    if s is None:
+        return ""
+    s = str(s)
+    s = s.replace("\u3000", " ")          # 全角スペース→半角
+    s = re.sub(r"\s+", " ", s).strip()    # 連続空白を1個に
+    return s
 
-    await page.goto(full_url, wait_until="domcontentloaded")
+async def fetch_timeline_and_icon_from_league(page, league_path: str) -> tuple[str, str, str, str]:
+    """
+    # return: (start_ddmm, end_ddmm, icon_url, season_year, league_name_page)
+    timeline が取れない場合は fixtures から推定する
+    """
+    league_path = (league_path or "").strip()
+    if not league_path:
+        return "", "", "", ""
 
-    # リーグアイコン（なければ空のまま）
+    # --- 初期化（UnboundLocalError 防止） ---
+    start_ddmm, end_ddmm, icon_url, season_year = "", "", "", ""
+
+    # URL組み立て
+    if league_path.startswith("http"):
+        url = league_path
+    else:
+        if not league_path.startswith("/"):
+            league_path = "/" + league_path
+        url = BASE_URL + league_path
+
+    print(f"[LEAGUE GOTO] {url}")
+    await page.goto(url, wait_until="domcontentloaded")
+    await kill_onetrust(page)
+
+    # standings 等の hash ページへ飛ばされたらトップへ戻す
+    if "#" in page.url:
+        await page.goto(url.split("#", 1)[0], wait_until="domcontentloaded")
+        await kill_onetrust(page)
+
     try:
-        icon = await page.query_selector("img.heading__logo, img[class*='heading__logo--']")
-        if not icon:
-            icon = await page.query_selector("[data-testid='wcl-headerLeague'] img.heading__logo")
-        if icon:
-            src = await icon.get_attribute("src")
+        await page.wait_for_load_state("networkidle", timeout=12000)
+    except:
+        pass
+
+    print(f"[LEAGUE AT] {page.url}")
+
+    # --- season year ---
+    try:
+        info = page.locator("div.heading__info").first
+        if await info.count():
+            season_year = (await info.text_content() or "").strip()
+    except:
+        pass
+
+    league_name_page = await fetch_league_name_from_page(page)
+
+    # --- timeline（取れたら優先） ---
+    try:
+        await page.wait_for_selector("#timeline span", timeout=8000)
+        spans = page.locator("#timeline span")
+        cnt = await spans.count()
+
+        if cnt >= 2:
+            start_ddmm = (await spans.nth(0).text_content() or "").strip()
+            end_ddmm   = (await spans.nth(1).text_content() or "").strip()
+        else:
+            s = page.locator("#timeline span[class*='wcl-start']").first
+            e = page.locator("#timeline span[class*='wcl-end']").first
+            if await s.count():
+                start_ddmm = (await s.text_content() or "").strip()
+            if await e.count():
+                end_ddmm = (await e.text_content() or "").strip()
+    except:
+        pass
+
+    # --- icon ---
+    try:
+        img = page.locator("img.heading__logo.heading__logo--1").first
+        if await img.count():
+            src = await img.get_attribute("src")
             if src:
-                icon_url = src
-    except PwTimeoutError:
+                icon_url = src.strip()
+
+        if not icon_url:
+            img2 = page.locator("img.heading__logo").first
+            if await img2.count():
+                src2 = await img2.get_attribute("src")
+                if src2:
+                    icon_url = src2.strip()
+    except:
         pass
 
-    # 「もっと試合を表示する」を押し切る
-    try:
-        await page.wait_for_selector(".event__match", timeout=8000)
-    except PwTimeoutError:
-        return icon_url, start_ddmm, end_ddmm
+    # 正規化
+    start_ddmm = (start_ddmm or "").replace(" ", "")
+    end_ddmm   = (end_ddmm or "").replace(" ", "")
 
-    try:
-        clicks = await click_show_more_until_end(page)
-        print(f"押した回数: {clicks}")
-    except PwTimeoutError:
-        pass
+    # ✅ timeline が無い/空なら fixtures へフォールバック
+    if not start_ddmm or not end_ddmm:
+        fs, fe = await fetch_start_end_from_fixtures(page, league_path)
+        if not start_ddmm:
+            start_ddmm = fs
+        if not end_ddmm:
+            end_ddmm = fe
 
-    # event__time をすべて取得し、dd.mm を抽出
-    texts = await page.locator(".event__match .event__time").all_text_contents()
-    pat = re.compile(r"(\d{1,2})\.(\d{1,2})\.")   # 例: 29.08. 21:30 -> (29, 08)
+        # fixtures 側で icon を取り直す（保険）
+        if not icon_url:
+            try:
+                img = page.locator("img.heading__logo.heading__logo--1").first
+                if await img.count():
+                    src = await img.get_attribute("src")
+                    if src:
+                        icon_url = src.strip()
+            except:
+                pass
 
-    ddmm_list = []
-    for t in texts:
-        m = pat.search(t)
-        if not m:
-            continue
-        dd = int(m.group(1))
-        mm = int(m.group(2))
-        ddmm = f"{dd:02d}.{mm:02d}"
-        key = mm * 100 + dd   # 年なし比較用の簡易キー
-        ddmm_list.append((key, ddmm))
+        # fixtures 側で season_year を取り直す（保険）
+        if not season_year:
+            try:
+                info = page.locator("div.heading__info").first
+                if await info.count():
+                    season_year = (await info.text_content() or "").strip()
+            except:
+                pass
 
-    if ddmm_list:
-        # 最小/最大をシーズン開始/終了の候補として採用
-        start_ddmm = min(ddmm_list, key=lambda x: x[0])[1]
-        end_ddmm   = max(ddmm_list, key=lambda x: x[0])[1]
+    print(f"[GOT] season_year={season_year} start={start_ddmm} end={end_ddmm} icon={'Y' if icon_url else 'N'}")
+    return start_ddmm, end_ddmm, icon_url, season_year, league_name_page
 
-    return icon_url, start_ddmm, end_ddmm
-
-async def click_show_more_until_end(
+async def click_show_more_fixtures_until_end(
     page,
     button_text: str = "もっと試合を表示する",
-    max_clicks: int = 50,
-    wait_timeout: int = 15000
+    max_clicks: int = 120,
+    wait_timeout: int = 15000,
 ) -> int:
-    """
-    「もっと試合を表示する」を、表示されなくなる/増えなくなるまで押す。
-    戻り値: 実際にクリックした回数
-    """
     clicks = 0
     while clicks < max_clicks:
         link = page.locator("a[data-testid='wcl-buttonLink']").filter(has_text=button_text).first
+
         if await link.count() == 0 or not await link.is_visible():
             break
 
         before = await page.locator(".event__match").count()
+
         await link.scroll_into_view_if_needed()
-        await link.click()
+        try:
+            await link.click(timeout=5000)
+        except:
+            break
+
         clicks += 1
 
-        # ★ ここが修正点: 第2引数はキーワード arg= で渡す
         try:
             await page.wait_for_function(
                 """
-                ({sel, before, linkSel}) => {
-                  const now = document.querySelectorAll(sel).length;
-                  const link = document.querySelector(linkSel);
-                  return (now > before) || !link || link.offsetParent === null;
+                ({before}) => {
+                  const now = document.querySelectorAll(".event__match").length;
+                  const btn = document.querySelector("a[data-testid='wcl-buttonLink']");
+                  const visible = btn && btn.offsetParent !== null;
+                  return (now > before) || !visible;
                 }
                 """,
-                arg={"sel": ".event__match", "before": before, "linkSel": "a[data-testid='wcl-buttonLink']"},
-                timeout=wait_timeout
+                arg={"before": before},
+                timeout=wait_timeout,
             )
         except PwTimeoutError:
             break
 
     return clicks
 
-def extract_countries(json_path: str = "bm001_country_league.json") -> list[str]:
+async def fetch_league_name_from_page(page) -> str:
     """
-    bm001_country_league.json が存在したら読み込み、
-    country だけをユニークに抽出してリストで返す。
-
-    想定して拾うパターン（広め）:
-      - [{"country": "...", "league": "..."}, ...]
-      - {"items": [{"country": "...", ...}, ...]}
-      - {"country_league": [{"country": "...", ...}, ...]}
-      - {"Japan": ["J1", "J2"], "England": [...]} のような country -> leagues 配列（キーが国）
-      - ネストした dict/list 内に "country" キーが出てくる形
+    pathに遷移した後のヘッダーからリーグ名を取得。
+    取れなければ "" を返す。
     """
-    p = Path(json_path)
-    if not p.exists():
-        return []
+    try:
+        loc = page.locator("span.headerLeague__title-text").first
+        if await loc.count():
+            txt = (await loc.text_content() or "").strip()
+            if txt:
+                return txt
+    except:
+        pass
 
-    data = json.loads(p.read_text(encoding="utf-8"))
+    # 保険：data-testid で拾う（同じ要素）
+    try:
+        loc = page.locator("span[data-testid='wcl-scores-simple-text-01']").first
+        if await loc.count():
+            txt = (await loc.text_content() or "").strip()
+            if txt:
+                return txt
+    except:
+        pass
 
-    countries: set[str] = set()
+    return ""
 
-    def norm(s) -> str:
-        return str(s).strip()
-
-    def walk(obj):
-        if isinstance(obj, dict):
-            # よくあるコンテナキー配下
-            for k in ("items", "country_league", "data", "results"):
-                if k in obj:
-                    walk(obj[k])
-
-            # country キーがあれば拾う
-            if "country" in obj:
-                c = norm(obj["country"])
-                if c:
-                    countries.add(c)
-
-            # country -> leagues のマップっぽい場合、キー側が国名になりやすい
-            # 例: {"Japan": ["J1", "J2"], "England": ["Premier League"]}
-            for ck, cv in obj.items():
-                if isinstance(cv, list):
-                    c = norm(ck)
-                    if c:
-                        countries.add(c)
-                    walk(cv)
-                else:
-                    walk(cv)
-
-        elif isinstance(obj, list):
-            for x in obj:
-                walk(x)
-
-    walk(data)
-    return sorted(countries)
-
-def xlsx_to_csv(xlsx_path: str, sheet_name: str = "season", csv_path: str | None = None) -> str:
+async def fetch_start_end_from_fixtures(page, league_path: str) -> tuple[str, str]:
     """
-    xlsx の指定シートを丸ごと CSV に変換する（ヘッダー行含む）。
-    返り値: 出力した CSV パス
+    fixtures へ行って、全件表示後に
+    先頭の dd.mm. → 開始
+    末尾の dd.mm. → 終了
+    を返す
     """
-    xlsx_path = str(xlsx_path)
-    if csv_path is None:
-        base = os.path.splitext(xlsx_path)[0]
-        csv_path = base + ".csv"
+    league_path = (league_path or "").strip()
+    if not league_path:
+        return "", ""
+    if not league_path.endswith("/"):
+        league_path += "/"
 
-    wb = load_workbook(xlsx_path, data_only=True)
-    ws = wb[sheet_name] if sheet_name in wb.sheetnames else wb.active
+    url = BASE_URL + league_path + "fixtures/"
+    print(f"[FIXTURES GOTO] {url}")
+    await page.goto(url, wait_until="domcontentloaded")
+    await kill_onetrust(page)
 
-    # 1行目（ヘッダー）を基準に列数を決める
-    header = [c.value for c in ws[1]]
-    max_col = len(header)
+    try:
+        await page.wait_for_selector(".event__match", timeout=12000)
+    except PwTimeoutError:
+        print("[FIXTURES] .event__match not found")
+        return "", ""
 
-    # Excelの空行は ws.max_row に含まれることがあるので、末尾の完全空行は落とす
-    last_row = ws.max_row
-    while last_row >= 2:
-        row_vals = [ws.cell(row=last_row, column=c).value for c in range(1, max_col + 1)]
-        if any(v not in (None, "") for v in row_vals):
-            break
-        last_row -= 1
+    try:
+        await page.wait_for_load_state("networkidle", timeout=12000)
+    except:
+        pass
 
-    # 日本語Excelで開くことを想定して utf-8-sig 推奨
-    with open(csv_path, "w", newline="", encoding="utf-8-sig") as f:
-        writer = csv.writer(f)
-        writer.writerow(header)
+    clicks = await click_show_more_fixtures_until_end(page)
+    print(f"[FIXTURES] show more clicked: {clicks}")
 
-        for r in range(2, last_row + 1):
-            writer.writerow([ws.cell(row=r, column=c).value for c in range(1, max_col + 1)])
+    # dd.mm. 抽出（例: "16.08. 21:30" / "16.08." / "16.08. (延期)" 等を想定）
+    pat = re.compile(r"(\d{1,2})\.(\d{1,2})\.")
+    texts = await page.locator(".event__match .event__time").all_text_contents()
 
-    return csv_path
+    ddmms: list[str] = []
+    for t in texts:
+        m = pat.search(t or "")
+        if not m:
+            continue
+        dd = int(m.group(1))
+        mm = int(m.group(2))
+        ddmms.append(f"{dd:02d}.{mm:02d}.")
 
-def print_pairs(pairs: list[tuple[str, str]], limit: int = 50):
-    if not pairs:
-        print("[bm001_country_league.json] 見つからない or 組が抽出できませんでした")
-        return
-    print(f"[bm001_country_league.json] 抽出 {len(pairs)} 件（先頭{min(limit, len(pairs))}件）")
-    for c, l in pairs[:limit]:
-        print(f"- {c} / {l}")
+    if not ddmms:
+        print("[FIXTURES] no dd.mm found")
+        return "", ""
+
+    start_ddmm = ddmms[0]
+    end_ddmm = ddmms[-1]
+    return start_ddmm, end_ddmm
 
 # --- メイン ---
 async def main():
     wb, ws = open_or_init_season_book(SEASON_XLSX)
     col = get_colmap(ws)
 
-    # ✅ スクレイピング前に JSON 有無で対象 country を決める
-    allowed_countries: set[str] | None = None
-    countries = extract_countries(B001_JSON_PATH)
+    print(f"[SEASON_XLSX] {SEASON_XLSX}")
 
-    if countries:  # JSONあり & country抽出できた
-        allowed_countries = set(countries)
-        print(f"[FILTER] JSONあり: country {len(allowed_countries)}件で絞り込み")
-    else:          # JSONなし or 抽出できない
-        allowed_countries = None
-        print("[FILTER] JSONなし/空: 絞り込みなし（全件対象）")
+    # --- 1) JSON を読む（あれば country+league 指定、なければ CONTAINS_LIST 運用） ---
+    countries, country_league_pairs = extract_countries_and_leagues(B001_JSON_PATH)
 
-    updated_rows = 0
+    json_has_pairs = bool(country_league_pairs)
+    if json_has_pairs:
+        allowed_set = build_allowed_set_from_json(country_league_pairs)  # "国: リーグ" の正規化セット
+        allowed_leagues_by_country: dict[str, set[str]] = {}
+        for c, l in country_league_pairs:
+            c2 = norm_name(c)
+            l2 = norm_name(l)
+            if c2 and l2:
+                allowed_leagues_by_country.setdefault(c2, set()).add(l2)
+        allowed_countries = set(allowed_leagues_by_country.keys())
+        print(f"[FILTER] JSONあり: pairs {len(allowed_set)} / countries {len(allowed_countries)}")
+        print("[countries]", sorted(allowed_countries))
+        print("[pairs]", sorted(country_league_pairs))
+    else:
+        allowed_set = build_allowed_set_from_contains()
+        allowed_countries = {norm(x.split(":", 1)[0]) for x in CONTAINS_LIST if ":" in x}
+        allowed_leagues_by_country = {}
+        print(f"[FILTER] JSONなし: contains {len(allowed_set)} / countries {len(allowed_countries)}")
+        print("[countries]", sorted(allowed_countries))
+
+    existed = existing_paths(ws)
+    appended = 0
+    updated_timeline = 0
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True)
-        context = await browser.new_context()
+        context = await browser.new_context(locale="ja-JP", timezone_id="Asia/Tokyo")
         page = await context.new_page()
 
-        # ✅ スクレイピング（JSONがある場合は国一致行だけ回る）
-        for row, path in yield_targets(ws, allowed_countries=allowed_countries):
-            full_url = f"{BASE_URL}{path}fixtures/"
-            print(f"[更新対象] row={row} -> {full_url}")
+        # --- 2) 左メニュー国一覧を全部展開→ (表示名, href) を取得 ---
+        all_countries = await get_all_country_links_from_leftmenu(page)
+        country_map = {name: href for name, href in all_countries}
 
-            icon_url, start_ddmm, end_ddmm = await fetch_icon_and_progress_ddmm(page, full_url)
+        # --- 3) 国→リーグ抽出→許可リーグだけ Excel 追記（path列を作る） ---
+        for country in sorted(allowed_countries):
+            print(f"\n=== {country} ===")
 
-            # ✅ エクセルに記入（空セルだけ）
-            if (not ws.cell(row=row, column=col["シーズン開始"]).value) and start_ddmm:
-                ws.cell(row=row, column=col["シーズン開始"], value=start_ddmm)
-            if (not ws.cell(row=row, column=col["シーズン終了"]).value) and end_ddmm:
-                ws.cell(row=row, column=col["シーズン終了"], value=end_ddmm)
-            if (not ws.cell(row=row, column=col[ICON_HEADER]).value) and icon_url:
-                ws.cell(row=row, column=col[ICON_HEADER], value=icon_url)
+            ok = await open_country_via_leftmenu(page, country, country_map)
+            if not ok:
+                continue
 
-            updated_rows += 1
-            await page.wait_for_timeout(200)
+            await kill_onetrust(page)
+
+            leagues_raw = await scrape_league_links_on_country_page(page)
+
+            # category で allowed_set を通す（JSON/contains共通、除外語もここで弾く）
+            filtered_1: list[tuple[str, str]] = []
+            for league_name, path in leagues_raw:
+                category = f"{country}: {league_name}"
+                if is_allowed_category(category, allowed_set):
+                    filtered_1.append((league_name, path))
+            print(f"  leagues matched(category): {len(filtered_1)} / scraped: {len(leagues_raw)}")
+
+            # JSONありなら、その国で指定されたリーグ名だけにさらに絞る
+            if json_has_pairs:
+                allowed_leagues = allowed_leagues_by_country.get(norm_name(country), set())
+
+                def is_allowed_league_name(league_name: str) -> bool:
+                    ln = norm_name(league_name)
+                    if ln in allowed_leagues:
+                        return True
+                    ln_comp = ln.replace(" ", "")
+                    for a in allowed_leagues:
+                        if ln_comp == a.replace(" ", ""):
+                            return True
+                    return False
+
+                leagues_final = [(name, path) for (name, path) in filtered_1 if is_allowed_league_name(name)]
+                print(f"  leagues matched(JSON): {len(leagues_final)} / allowed={sorted(list(allowed_leagues))}")
+            else:
+                leagues_final = filtered_1
+
+            # --- 3-1) 追記（重複は弾く） ---
+            for league_name, path in leagues_final:
+                if path in existed:
+                    continue
+                ws.append([country, league_name, "", "", "", path, ""])
+                existed.add(path)
+                appended += 1
+
+        # --- 4) いまExcelにある path を順に見て、timeline(icon) を埋める ---
+        # ※ ここは「今回追記した分だけ」更新したいなら appended 行だけ追う実装にしてもOK
+        max_row = ws.max_row or 1
+        for r in range(2, max_row + 1):
+            path = (ws.cell(row=r, column=col["パス"]).value or "").strip()
+            if not path:
+                continue
+
+            # 既に埋まってるならスキップ（必要なら条件を変えてOK）
+            cur_year  = ws.cell(row=r, column=col[SEASON_YEAR_HEADER]).value
+            cur_start = ws.cell(row=r, column=col["シーズン開始"]).value
+            cur_end   = ws.cell(row=r, column=col["シーズン終了"]).value
+            cur_icon  = ws.cell(row=r, column=col[ICON_HEADER]).value
+            # どれか1つでも空なら取りに行く
+            if (cur_year not in (None, "")) and (cur_start not in (None, "")) and (cur_end not in (None, "")) and (cur_icon not in (None, "")):
+                continue
+
+            start_ddmm, end_ddmm, icon_url, season_year = "", "", "", ""
+
+            start_ddmm, end_ddmm, icon_url, season_year, league_name_page = await fetch_timeline_and_icon_from_league(page, path)
+            # Excelのリーグ列をページのリーグ名で更新（取れた場合のみ）
+            if league_name_page:
+                ws.cell(row=r, column=col["リーグ"], value=league_name_page)
+
+            if season_year and (cur_year in (None, "")):
+                ws.cell(row=r, column=col[SEASON_YEAR_HEADER], value=season_year)
+            if start_ddmm and (cur_start in (None, "")):
+                ws.cell(row=r, column=col["シーズン開始"], value=start_ddmm)
+            if end_ddmm and (cur_end in (None, "")):
+                ws.cell(row=r, column=col["シーズン終了"], value=end_ddmm)
+            if icon_url and (cur_icon in (None, "")):
+                ws.cell(row=r, column=col[ICON_HEADER], value=icon_url)
+
+            if start_ddmm or end_ddmm or icon_url or season_year:
+                updated_timeline += 1
+
+            # 連打しすぎない
+            await page.wait_for_timeout(120)
 
         await context.close()
         await browser.close()
 
-    # ✅ Excel保存（スクレイピング後）
     wb.save(SEASON_XLSX)
+    print(f"\n✅ 追記数: {appended}")
+    print(f"✅ timeline/icon 更新行数: {updated_timeline}")
 
-    # ✅ 最後に CSV 変換
-    csv_path = xlsx_to_csv(SEASON_XLSX, sheet_name="season")
+    # CSV出力
+    csv_path = os.path.splitext(SEASON_XLSX)[0] + ".csv"
+    with open(csv_path, "w", newline="", encoding="utf-8-sig") as f:
+        writer = csv.writer(f)
+        writer.writerow(["国", "リーグ", SEASON_YEAR_HEADER, "シーズン開始", "シーズン終了", "パス", ICON_HEADER])
+        for row_vals in ws.iter_rows(min_row=2, values_only=True):
+            writer.writerow(list(row_vals))
     print(f"CSV出力: {csv_path}")
-
-    print(f"更新行数: {updated_rows}")
 
 if __name__ == "__main__":
     asyncio.run(main())
