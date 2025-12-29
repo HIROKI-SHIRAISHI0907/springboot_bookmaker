@@ -2,6 +2,7 @@ import os
 import re
 import asyncio
 import csv
+import pandas as pd
 import json
 from pathlib import Path
 from typing import List, Tuple, Set, Any
@@ -746,6 +747,17 @@ async def main():
         for row_vals in ws.iter_rows(min_row=2, values_only=True):
             writer.writerow(list(row_vals))
     print(f"CSV出力: {csv_path}")
+
+    excel_to_csv_and_delete(SEASON_XLSX, csv_path)
+
+def excel_to_csv_and_delete(excel_file: str, csv_file: str) -> bool:
+    try:
+        os.remove(excel_file)
+        print(f"[CONVERT] {excel_file} -> {csv_file}（xlsx削除）")
+        return True
+    except Exception as e:
+        print(f"[ERROR] Excel->CSV失敗: {excel_file} ({e})")
+        return False
 
 if __name__ == "__main__":
     asyncio.run(main())
