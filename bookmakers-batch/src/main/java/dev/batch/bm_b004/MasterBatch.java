@@ -1,13 +1,12 @@
-package dev.application.main.service;
+package dev.batch.bm_b004;
 
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import dev.application.analyze.bm_m032.CountryLeagueMasterStat;
-import dev.application.analyze.common.util.BatchResultConst;
-import dev.application.analyze.interf.BatchIF;
+import dev.batch.constant.BatchConstant;
+import dev.batch.interf.BatchIF;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.getstatinfo.GetTeamMasterInfo;
 import dev.common.logger.ManageLoggerComponent;
@@ -58,13 +57,13 @@ public class MasterBatch implements BatchIF {
 			this.countryLeagueMasterStat.masterStat(getMemberList);
 		} catch (Exception e) {
 			// エラー
-			return BatchResultConst.BATCH_ERR;
+			return BatchConstant.BATCH_ERROR;
 		}
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		return BatchResultConst.BATCH_OK;
+		return BatchConstant.BATCH_SUCCESS;
 	}
 
 }

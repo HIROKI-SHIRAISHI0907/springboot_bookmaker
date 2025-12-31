@@ -1,13 +1,12 @@
-package dev.application.main.service;
+package dev.batch.bm_b003;
 
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import dev.application.analyze.bm_m029.CountryLeagueSeasonMasterStat;
-import dev.application.analyze.common.util.BatchResultConst;
-import dev.application.analyze.interf.BatchIF;
+import dev.batch.constant.BatchConstant;
+import dev.batch.interf.BatchIF;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.getstatinfo.GetSeasonInfo;
 import dev.common.logger.ManageLoggerComponent;
@@ -58,13 +57,13 @@ public class SeasonMasterBatch implements BatchIF {
 			this.countryLeagueSeasonMasterStat.seasonStat(getMemberList);
 		} catch (Exception e) {
 			// エラー
-			return BatchResultConst.BATCH_ERR;
+			return BatchConstant.BATCH_ERROR;
 		}
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		return BatchResultConst.BATCH_OK;
+		return BatchConstant.BATCH_SUCCESS;
 	}
 
 }

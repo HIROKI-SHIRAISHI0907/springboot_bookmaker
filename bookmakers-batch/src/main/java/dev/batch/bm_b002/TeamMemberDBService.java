@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m028;
+package dev.batch.bm_b002;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
-import dev.application.domain.repository.master.TeamMemberMasterRepository;
+import dev.batch.repository.master.TeamMemberMasterRepository;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 

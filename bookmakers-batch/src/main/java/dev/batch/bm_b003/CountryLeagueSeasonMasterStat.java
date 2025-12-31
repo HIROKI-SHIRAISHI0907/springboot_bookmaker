@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m029;
+package dev.batch.bm_b003;
 
 import java.util.List;
 
@@ -6,12 +6,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.application.analyze.interf.SeasonEntityIF;
+import dev.batch.interf.SeasonEntityIF;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
- * BM_M029統計分析ロジック
+ * country_league_season_masterロジック
  * @author shiraishitoshio
  *
  */

@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m029;
+package dev.batch.bm_b003;
 
 /**
  * 有効フラグ定数クラス

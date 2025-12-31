@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m028;
+package dev.batch.bm_b002;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -8,7 +8,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import dev.application.domain.repository.master.CountryLeagueMasterRepository;
+import dev.batch.repository.master.CountryLeagueMasterRepository;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.logger.ManageLoggerComponent;

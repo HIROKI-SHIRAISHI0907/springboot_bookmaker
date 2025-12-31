@@ -1,4 +1,4 @@
-package dev.application.domain.repository.master;
+package dev.batch.repository.master;
 
 import java.util.List;
 

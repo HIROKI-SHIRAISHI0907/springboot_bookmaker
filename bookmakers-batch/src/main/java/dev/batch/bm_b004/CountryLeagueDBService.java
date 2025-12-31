@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m032;
+package dev.batch.bm_b004;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -8,7 +8,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.application.domain.repository.master.CountryLeagueMasterRepository;
+import dev.batch.repository.master.CountryLeagueMasterRepository;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 

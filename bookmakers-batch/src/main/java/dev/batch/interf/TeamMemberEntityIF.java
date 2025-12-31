@@ -1,4 +1,4 @@
-package dev.application.analyze.interf;
+package dev.batch.interf;
 
 import java.util.List;
 import java.util.Map;

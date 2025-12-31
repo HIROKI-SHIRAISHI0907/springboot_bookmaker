@@ -1,4 +1,4 @@
-package dev.application.main.service;
+package dev.batch.bm_b002;
 
 import java.util.List;
 import java.util.Map;
@@ -6,9 +6,8 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import dev.application.analyze.bm_m028.TeamMemberMasterStat;
-import dev.application.analyze.common.util.BatchResultConst;
-import dev.application.analyze.interf.BatchIF;
+import dev.batch.constant.BatchConstant;
+import dev.batch.interf.BatchIF;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.getstatinfo.GetMemberInfo;
 import dev.common.logger.ManageLoggerComponent;
@@ -59,13 +58,13 @@ public class TeamMasterBatch implements BatchIF {
 			this.teamMemberMasterStat.teamMemberStat(getMemberMap);
 		} catch (Exception e) {
 			// エラー
-			return BatchResultConst.BATCH_ERR;
+			return BatchConstant.BATCH_ERROR;
 		}
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		return BatchResultConst.BATCH_OK;
+		return BatchConstant.BATCH_SUCCESS;
 	}
 
 }

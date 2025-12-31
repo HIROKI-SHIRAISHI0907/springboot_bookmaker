@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m028;
+package dev.batch.bm_b002;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -14,12 +14,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.application.analyze.interf.TeamMemberEntityIF;
+import dev.batch.interf.TeamMemberEntityIF;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
- * BM_M028統計分析ロジック
+ * team_member_masterロジック
  * @author shiraishitoshio
  *
  */
