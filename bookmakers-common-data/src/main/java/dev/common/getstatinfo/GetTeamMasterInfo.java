@@ -128,7 +128,8 @@ public class GetTeamMasterInfo {
 	private FindBookInputDTO setBookInputDTO() {
 		FindBookInputDTO findBookInputDTO = new FindBookInputDTO();
 		findBookInputDTO.setDataPath(PATH);
-		findBookInputDTO.setTargetFile(BookMakersCommonConst.XLSX);
+		findBookInputDTO.setPrefixFile(BookMakersCommonConst.TEAM_DATA_);
+		findBookInputDTO.setTargetFile(BookMakersCommonConst.CSV);
 		return findBookInputDTO;
 	}
 

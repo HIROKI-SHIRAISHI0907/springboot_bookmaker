@@ -133,14 +133,17 @@ public class BookMakersCommonConst {
 	/** output_ */
 	public static final String OUTPUT_ = "output_";
 
-	/** team_member_ */
-	public static final String TEAM_MEMBER_ = "team_member_";
+	/** teamMemberData_ */
+	public static final String TEAM_MEMBER_DATA_ = "teamMemberData_";
+
+	/** teamData_ */
+	public static final String TEAM_DATA_ = "teamData_";
 
 	/** future_ */
 	public static final String FUTURE_ = "future_";
 
-	/** season_data.xlsx */
-	public static final String SEASON_XLSX = "season_data.xlsx";
+	/** season_data.csv */
+	public static final String SEASON_CSV = "season_data.csv";
 
 	/** .xlsx */
 	public static final String XLSX = ".xlsx";

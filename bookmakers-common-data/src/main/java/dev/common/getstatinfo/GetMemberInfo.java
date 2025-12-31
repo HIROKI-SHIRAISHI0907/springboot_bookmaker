@@ -155,7 +155,7 @@ public class GetMemberInfo {
 		containsList[5] = "average_stats/";
 		findBookInputDTO.setContainsList(containsList);
 		findBookInputDTO.setCsvNumber("0");
-		findBookInputDTO.setPrefixFile(BookMakersCommonConst.TEAM_MEMBER_);
+		findBookInputDTO.setPrefixFile(BookMakersCommonConst.TEAM_MEMBER_DATA_);
 		findBookInputDTO.setSuffixFile(BookMakersCommonConst.CSV);
 		return findBookInputDTO;
 	}

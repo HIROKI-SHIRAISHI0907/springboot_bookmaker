@@ -125,7 +125,7 @@ public class GetSeasonInfo {
 	private FindBookInputDTO setBookInputDTO() {
 		FindBookInputDTO findBookInputDTO = new FindBookInputDTO();
 		findBookInputDTO.setDataPath(PATH);
-		findBookInputDTO.setTargetFile(BookMakersCommonConst.SEASON_XLSX);
+		findBookInputDTO.setTargetFile(BookMakersCommonConst.SEASON_CSV);
 		return findBookInputDTO;
 	}
 
