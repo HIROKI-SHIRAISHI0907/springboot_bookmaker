@@ -48,5 +48,10 @@ public interface CountryLeagueSeasonMasterRepository {
 	})
 	List<CountryLeagueSeasonMasterEntity> findByCountryAndLeague(String country, String league);
 
+	@Select({
+			"SELECT country, league, round FROM country_league_season_master ",
+			"WHERE disp_valid_flg = #{validFlg}"
+	})
+	List<CountryLeagueSeasonMasterEntity> findRoundValidFlg(String validFlg);
 
 }

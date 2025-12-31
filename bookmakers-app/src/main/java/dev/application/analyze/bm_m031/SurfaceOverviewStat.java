@@ -60,7 +60,7 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 
 	/** 国・リーグ別の総ラウンド数提供 */
 	@Autowired
-	private BmM029CountryLeagueBean bean;
+	private BmM031SurfaceOverviewBean bean;
 
 	/** SurfaceOverview の CRUD */
 	@Autowired
