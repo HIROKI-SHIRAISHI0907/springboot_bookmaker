@@ -22,6 +22,7 @@ import dev.application.analyze.bm_m025.CalcCorrelationRankingStat;
 import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureStat;
 import dev.application.analyze.bm_m031.SurfaceOverviewStat;
 import dev.application.analyze.bm_m033.RankHistoryStat;
+import dev.application.analyze.interf.StatIF;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
 

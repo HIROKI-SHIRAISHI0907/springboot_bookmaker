@@ -1,4 +1,4 @@
-package dev.application.main.service;
+package dev.application.analyze.interf;
 
 /**
  * 未来統計用サービスクラスIF

@@ -1,4 +1,4 @@
-package dev.application.main.service;
+package dev.application.analyze.interf;
 
 import java.util.List;
 import java.util.Map;

@@ -6,8 +6,9 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import dev.application.analyze.bm_m027.RankingService;
 import dev.application.analyze.common.util.BatchResultConst;
-import dev.application.analyze.interf.BatchIF;
+import dev.application.analyze.interf.ServiceIF;
 import dev.common.entity.BookDataEntity;
 import dev.common.getstatinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
@@ -18,14 +19,14 @@ import dev.common.logger.ManageLoggerComponent;
  *
  */
 @Service
-public class StatBatch implements BatchIF {
+public class MainStat implements ServiceIF {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = StatBatch.class.getProtectionDomain()
+	private static final String PROJECT_NAME = MainStat.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = StatBatch.class.getSimpleName();
+	private static final String CLASS_NAME = MainStat.class.getSimpleName();
 
 	/**
 	 * 統計情報取得管理クラス

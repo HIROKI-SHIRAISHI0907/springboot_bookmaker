@@ -1,4 +1,4 @@
-package dev.application.main.service;
+package dev.application.analyze.bm_m028;
 
 import java.util.List;
 

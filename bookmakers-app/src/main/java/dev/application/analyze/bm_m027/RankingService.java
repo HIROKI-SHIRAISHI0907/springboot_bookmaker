@@ -1,4 +1,4 @@
-package dev.application.main.service;
+package dev.application.analyze.bm_m027;
 
 import java.util.List;
 import java.util.Map;
@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.application.analyze.bm_m027.AnalyzeRankingStat;
+import dev.application.analyze.interf.StatIF;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
 

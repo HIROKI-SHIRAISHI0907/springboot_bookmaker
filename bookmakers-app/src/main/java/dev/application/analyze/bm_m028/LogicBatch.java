@@ -1,10 +1,10 @@
-package dev.application.main.service;
+package dev.application.analyze.bm_m028;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import dev.application.analyze.common.util.BatchResultConst;
-import dev.application.analyze.interf.BatchIF;
+import dev.application.analyze.interf.ServiceIF;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
@@ -13,7 +13,7 @@ import dev.common.logger.ManageLoggerComponent;
  *
  */
 @Service
-public class LogicBatch implements BatchIF {
+public class LogicBatch implements ServiceIF {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = LogicBatch.class.getProtectionDomain()
