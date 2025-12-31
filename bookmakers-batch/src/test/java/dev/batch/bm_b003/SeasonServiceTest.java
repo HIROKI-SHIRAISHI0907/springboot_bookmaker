@@ -1,4 +1,4 @@
-package dev.application.main.service;
+package dev.batch.bm_b003;
 
 import static org.junit.jupiter.api.Assertions.*;
 
@@ -6,20 +6,20 @@ import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
-import dev.batch.bm_b003.TeamMasterBatch;
 
 @SpringBootTest
-class TeamMemberServiceTest {
+public class SeasonServiceTest {
 
-    @Autowired
-    private TeamMasterBatch teamMasterBatch;
+	@Autowired
+    private SeasonMasterBatch seasonMasterBatch;
 
     @Test
     void execute_shouldReturnZero_whenExecutionSuccessful() throws Exception {
         // Act
-    	teamMasterBatch.execute();
+        int result = seasonMasterBatch.execute();
 
         // Assert
-        assertTrue(true); // 戻り値が0であること
+        assertEquals(0, result); // 戻り値が0であること
     }
+
 }

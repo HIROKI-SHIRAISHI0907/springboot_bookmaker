@@ -26,6 +26,9 @@ public class CountryLeagueSeasonDBService {
 	/** クラス名 */
 	private static final String CLASS_NAME = CountryLeagueSeasonDBService.class.getSimpleName();
 
+	/** 有効フラグ */
+	private static final String VALID_FLG_0 = "0";
+
 	/** CountryLeagueSeasonMasterRepositoryレポジトリクラス */
 	@Autowired
 	private CountryLeagueSeasonMasterRepository countryLeagueSeasonMasterRepository;
@@ -71,7 +74,7 @@ public class CountryLeagueSeasonDBService {
 			for (CountryLeagueSeasonMasterEntity entity : batch) {
 				try {
 					// 有効フラグを埋める
-					entity.setValidFlg(ValidFlgConst.VALID_FLG_0);
+					entity.setValidFlg(VALID_FLG_0);
 					int result = this.countryLeagueSeasonMasterRepository.insert(entity);
 					if (result != 1) {
 						String messageCd = "新規登録エラー";
