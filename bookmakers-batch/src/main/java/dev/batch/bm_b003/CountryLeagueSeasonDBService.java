@@ -75,6 +75,7 @@ public class CountryLeagueSeasonDBService {
 				try {
 					// 有効フラグを埋める
 					entity.setValidFlg(VALID_FLG_0);
+					// シーズン年を元にシーズン開始日と終了日を埋める
 					int result = this.countryLeagueSeasonMasterRepository.insert(entity);
 					if (result != 1) {
 						String messageCd = "新規登録エラー";
