@@ -251,11 +251,17 @@ async def open_all_blocks_fast(page, overall_ms: int = 180000, batch_size: int =
 # standings 到達＆待機（柔軟）
 # =========================
 STANDINGS_WAIT_SELECTORS = [
+    # まずは“ページに着いた”判定（これが重要）
+    "div.tableWrapper",
+    "div[data-testid='wcl-tabs']",
+    "div#tournamentTable",
+
+    # 従来の順位表判定
     "a.tableCellParticipant__image",
     "a.tableCellParticipant__name",
     ".ui-table__body .ui-table__row",
     ".table__cell--participant a",
-    ".tableWrapper .ui-table",  # 最低限
+    ".tableWrapper .ui-table",
 ]
 
 # 置き換え：visible待機だと最初の要素が画面外でタイムアウトしやすい
@@ -297,7 +303,7 @@ async def goto_standings_with_redirect(page, base_href: str, comp_id: Optional[s
     async def _goto(url, tries=2) -> bool:
         for i in range(tries):
             try:
-                await page.goto(url, wait_until="commit", timeout=NAV_TIMEOUT)
+                await page.goto(url, wait_until="domcontentloaded", timeout=NAV_TIMEOUT)
                 hit = await wait_any_selector(page, STANDINGS_WAIT_SELECTORS, timeout_ms=SEL_TIMEOUT)
                 print(f"[NAV OK] {url} (waited: {hit})")
                 return True
@@ -308,8 +314,14 @@ async def goto_standings_with_redirect(page, base_href: str, comp_id: Optional[s
 
     # 1) compId を優先
     if comp_id:
-        url = f"{base}#/{comp_id}/table/overall"
-        if await _goto(url, tries=2):
+        # 新系: #/compId/standings/overall/
+        urlA = f"{base}#/{comp_id}/standings/overall/"
+        if await _goto(urlA, tries=2):
+            return True
+
+        # 旧系: #/compId/table/overall
+        urlB = f"{base}#/{comp_id}/table/overall"
+        if await _goto(urlB, tries=2):
             return True
 
     # 2) 素直に /standings/
@@ -345,16 +357,191 @@ async def goto_standings_with_redirect(page, base_href: str, comp_id: Optional[s
 
     return False
 
+async def get_wcl_tabs(page) -> dict[str, str]:
+    """
+    wcl-tabs(secondary) から {ラベル: stageId} を抽出
+    例: {"本大会": "pSZ0WVeb", "降格戦": "GhVdXBth", ...}
+    """
+    tabs = {}
+    try:
+        # a[href^="#/"] の href="#/pSZ0WVeb/" 形式からIDを抜く
+        items = page.locator('div[data-testid="wcl-tabs"] a[href^="#/"]')
+        n = await items.count()
+        for i in range(n):
+            a = items.nth(i)
+            href = (await a.get_attribute("href")) or ""
+            # "#/pSZ0WVeb/" -> "pSZ0WVeb"
+            m = re.match(r"^#\/([A-Za-z0-9]+)\/?$", href.strip())
+            if not m:
+                continue
+            stage_id = m.group(1)
+
+            # 表示名はボタンテキスト
+            label = (await a.inner_text()) or ""
+            label = re.sub(r"\s+", " ", label).strip()
+            if label:
+                tabs[label] = stage_id
+    except Exception:
+        pass
+    return tabs
+
+async def force_main_stage_overall(page, base_href: str) -> bool:
+    """
+    現在ページが降格戦/降格グループ等に飛ばされていても、
+    wcl-tabs から「本大会」の stageId を拾って
+    #/stageId/standings/overall/ に強制遷移する。
+    """
+    tabs = await get_wcl_tabs(page)
+    stage_id = tabs.get("本大会")
+    if not stage_id:
+        return False
+
+    base_href = (base_href or "").rstrip("/") + "/"
+    base = "https://flashscore.co.jp" + base_href + "standings/"
+    url = f"{base}#/{stage_id}/standings/overall/"
+
+    try:
+        # 同一ページ内遷移（hash 変更）
+        await page.evaluate("""(sid) => { location.hash = `#/${sid}/standings/overall/`; }""", stage_id)
+        hit = await wait_any_selector(page, STANDINGS_WAIT_SELECTORS, timeout_ms=SEL_TIMEOUT)
+        print(f"[MAIN OK] #/{stage_id}/standings/overall/ (waited: {hit})")
+        return True
+    except Exception as e:
+        print(f"[MAIN FAIL] stage={stage_id} ({e.__class__.__name__})")
+        return False
+
+async def goto_first_wcl_tab(page, base_href: str) -> bool:
+    """
+    standings 画面で wcl-tabs(secondary) が出たら、先頭タブへ強制遷移する。
+    先頭タブの href="#/XXXX/" を拾って、
+      1) #/XXXX/standings/overall/
+      2) #/XXXX/table/overall
+      3) #/XXXX/
+    の順で当てにいく（draw に飛ばされる対策）。
+    """
+    try:
+        tabs = page.locator("div[data-testid='wcl-tabs'][role='tablist'] a[href^='#/']")
+        if await tabs.count() == 0:
+            return False
+
+        first_a = tabs.first
+        href = (await first_a.get_attribute("href")) or ""
+        m = re.match(r"^#\/([A-Za-z0-9]+)\/?$", href.strip())
+        if not m:
+            return False
+        sid = m.group(1)
+
+        # standings の base を作る
+        base_href = (base_href or "").rstrip("/") + "/"
+        base = "https://flashscore.co.jp" + base_href + "standings/"
+
+        # hash を強制で切替（SPAなので goto より強い）
+        async def _try_hash(hash_value: str) -> bool:
+            try:
+                # まず hash を更新
+                await page.evaluate("(h) => { location.hash = h; }", hash_value)
+                # 画面が切り替わる猶予
+                await page.wait_for_timeout(250)
+                # /team/ が出る or standings行が出るのを待つ
+                await wait_any_selector(page, [
+                    ".ui-table__body a[href^='/team/']",
+                    "a.tableCellParticipant__name[href^='/team/']",
+                    "a.tableCellParticipant__image[href^='/team/']",
+                    ".ui-table__body .ui-table__row",
+                    "div.tableWrapper",
+                ], timeout_ms=SEL_TIMEOUT)
+                return True
+            except Exception:
+                return False
+
+        # 1) 本命（あなたの例の “本大会” と同じ系）
+        if await _try_hash(f"#/{sid}/standings/overall/"):
+            print(f"[WCL] switched to first tab: #/{sid}/standings/overall/")
+            return True
+
+        # 2) 旧系
+        if await _try_hash(f"#/{sid}/table/overall"):
+            print(f"[WCL] switched to first tab: #/{sid}/table/overall")
+            return True
+
+        # 3) とりあえずタブだけ（サイト側が自動で詳細へ寄せる場合あり）
+        if await _try_hash(f"#/{sid}/"):
+            print(f"[WCL] switched to first tab: #/{sid}/")
+            return True
+
+        # 最後の保険：a をクリック（hash 更新が効かない時）
+        try:
+            await first_a.click(timeout=1200)
+            await page.wait_for_timeout(300)
+            await wait_any_selector(page, [
+                ".ui-table__body a[href^='/team/']",
+                ".ui-table__body .ui-table__row",
+                "div.tableWrapper",
+            ], timeout_ms=SEL_TIMEOUT)
+            print("[WCL] clicked first tab anchor")
+            return True
+        except Exception:
+            pass
+
+        return False
+
+    except Exception as e:
+        print(f"[WCL WARN] goto_first_wcl_tab failed: {e.__class__.__name__}")
+        return False
+
 # =========================
 # リーグ → チーム
 # =========================
-async def scrape_league_to_teams(ctx, country: str, league: str, href: str, comp_id: Optional[str]) -> List[Tuple[str,str]]:
+# =========================
+# リーグ → チーム
+# =========================
+async def scrape_league_to_teams(
+    ctx,
+    country: str,
+    league: str,
+    href: str,
+    comp_id: Optional[str]
+) -> List[Tuple[str, str]]:
+    """
+    standings に到達できない(=gotoがFalse)ときでも、
+    wcl-tabs / hash切替で復帰できるケースがあるので、
+    途中で return せず「/team/ が出るか」を最終成功条件にする。
+    """
     page = await ctx.new_page()
-    teams: List[Tuple[str,str]] = []
+    teams: List[Tuple[str, str]] = []
+
     try:
         ok = await goto_standings_with_redirect(page, href, comp_id)
         if not ok:
-            print(f"[WARN] standings到達失敗: {country} / {league} ({href})")
+            print(f"[WARN] standings到達失敗: {country} / {league} ({href}) -> 救済ルート継続")
+
+        # ★救済0: まず本大会に寄せられるなら寄せる（Kリーグ等）
+        # （本大会が無いリーグでは False で即戻るだけ）
+        try:
+            await force_main_stage_overall(page, href)
+        except Exception:
+            pass
+
+        # ★救済1: wcl-tabs が出る大会は「先頭タブ」へ寄せる（ペルー等）
+        try:
+            await goto_first_wcl_tab(page, href)
+        except Exception:
+            pass
+
+        # ★最終成功条件：/team/ が出る（これが出ないなら抽出しても0件）
+        try:
+            await wait_any_selector(
+                page,
+                [
+                    ".ui-table__body a[href^='/team/']",
+                    "a.tableCellParticipant__name[href^='/team/']",
+                    "a.tableCellParticipant__image[href^='/team/']",
+                    ".table__cell--participant a[href^='/team/']",
+                ],
+                timeout_ms=SEL_TIMEOUT
+            )
+        except Exception:
+            print(f"[WARN] {country}:{league} /team/ が見つからず終了 ({page.url})")
             return []
 
         # まずは全描画させる（仮想化/遅延対策）
@@ -367,7 +554,7 @@ async def scrape_league_to_teams(ctx, country: str, league: str, href: str, comp
             "a.tableCellParticipant__name"                 # チーム名側
         )
 
-        tmp: List[Tuple[str,str]] = []
+        tmp: List[Tuple[str, str]] = []
         for a in anchors:
             href2 = (await a.get_attribute("href")) or ""
             if not href2.startswith("/team/"):
@@ -391,7 +578,7 @@ async def scrape_league_to_teams(ctx, country: str, league: str, href: str, comp
                     tmp.append((nm, m.group(1)))
 
         # 重複除去（同名同リンクのみ統合）
-        seen = set()
+        seen: Set[Tuple[str, str]] = set()
         for t in tmp:
             if t in seen:
                 continue
@@ -399,11 +586,10 @@ async def scrape_league_to_teams(ctx, country: str, league: str, href: str, comp
             teams.append(t)
 
         print(f"[{country}:{league}] チーム抽出: {len(teams)}件")
+        return teams
 
     finally:
         await page.close()
-    return teams
-
 
 # =========================
 # 国×リーグの抽出
@@ -690,6 +876,58 @@ def extract_country_leagues_map(json_path: str) -> Dict[str, Set[str]]:
     walk(data)
     return out
 
+async def ensure_main_competition_tab(page) -> bool:
+    """
+    昇格戦/プレーオフ等のタブに飛ばされた場合に「本大会」へ戻す。
+    戻せたら True / 見つからない or 変更なしなら False
+    """
+    # まずURLの雰囲気で「昇格戦系かも」を検知（完全一致じゃなく雰囲気でOK）
+    url = page.url or ""
+    looks_like_playoff = any(x in url for x in ["/draw/", "/qualification/", "/playoff/", "/relegation/"])
+
+    # 例で提示されている a > button[data-testid=wcl-tab] 構造に寄せて探す
+    # 「本大会」ボタンがあって未選択ならクリック
+    try:
+        # 1) まずテキストで「本大会」タブを優先
+        btn = page.locator("button[role='tab']:has-text('本大会')")
+        if await btn.count() > 0:
+            selected = (await btn.first.get_attribute("data-selected")) or ""
+            if selected.lower() != "true":
+                await btn.first.click()
+                # 切替後に standings が出るのを待つ
+                await wait_any_selector(page, STANDINGS_WAIT_SELECTORS, timeout_ms=SEL_TIMEOUT)
+                print("[TAB] switched to 本大会")
+                return True
+            return False
+
+        # 2) 文言が変わる保険（本戦/通常/リーグ戦など）
+        for label in ["本戦", "通常", "リーグ戦", "レギュラーシーズン"]:
+            btn2 = page.locator(f"button[role='tab']:has-text('{label}')")
+            if await btn2.count() > 0:
+                selected = (await btn2.first.get_attribute("data-selected")) or ""
+                if selected.lower() != "true":
+                    await btn2.first.click()
+                    await wait_any_selector(page, STANDINGS_WAIT_SELECTORS, timeout_ms=SEL_TIMEOUT)
+                    print(f"[TAB] switched to {label}")
+                    return True
+                return False
+
+        # 3) URLで怪しいのにタブが見つからないなら、一応タブ群だけ探す（wcl-tab）
+        if looks_like_playoff:
+            btn3 = page.locator("button[data-testid='wcl-tab']:has-text('本大会')")
+            if await btn3.count() > 0:
+                selected = (await btn3.first.get_attribute("data-selected")) or ""
+                if selected.lower() != "true":
+                    await btn3.first.click()
+                    await wait_any_selector(page, STANDINGS_WAIT_SELECTORS, timeout_ms=SEL_TIMEOUT)
+                    print("[TAB] switched to 本大会 (wcl-tab)")
+                    return True
+
+    except Exception as e:
+        print(f"[TAB WARN] ensure_main_competition_tab failed: {e.__class__.__name__}")
+
+    return False
+
 # =========================
 # 実行
 # =========================
@@ -718,10 +956,12 @@ async def main():
         print(f"[FILTER] JSONあり: countries={len(allowed_countries)} pairs={sum(len(v) for v in TARGETS.values())}")
         print("[TARGETS]", {k: sorted(list(v)) for k, v in TARGETS.items()})
     else:
-        # JSONが無い/空なら「全部回す」
-        TARGETS = None
-        allowed_countries = None
-        print("[FILTER] JSONなし/空: 全件（全リーグ）運用")
+        # JSONが無い/空なら CONTAINS_LIST のみ
+        # ※ 起動時に作った TARGETS をそのまま使う
+        allowed_countries = set(TARGETS.keys())
+
+        print("[FILTER] JSONなし/空: CONTAINS_LIST のみ運用")
+        print("[TARGETS]", {k: sorted(list(v)) for k, v in TARGETS.items()})
 
     async with async_playwright() as p:
         browser = await p.chromium.launch(headless=True, args=["--disable-gpu"])
