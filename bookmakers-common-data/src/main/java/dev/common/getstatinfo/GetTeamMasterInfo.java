@@ -129,7 +129,12 @@ public class GetTeamMasterInfo {
 		FindBookInputDTO findBookInputDTO = new FindBookInputDTO();
 		findBookInputDTO.setDataPath(PATH);
 		findBookInputDTO.setPrefixFile(BookMakersCommonConst.TEAM_DATA_);
-		findBookInputDTO.setTargetFile(BookMakersCommonConst.CSV);
+		findBookInputDTO.setSuffixFile(BookMakersCommonConst.CSV);
+		findBookInputDTO.setContainsList(new String[0]);
+		findBookInputDTO.setTargetFile(null);              // targetFile は使わない
+		findBookInputDTO.setGetBookFlg(true);              // getFiles を使う
+		findBookInputDTO.setCsvNumber(null);
+		findBookInputDTO.setCsvBackNumber(null);
 		return findBookInputDTO;
 	}
 

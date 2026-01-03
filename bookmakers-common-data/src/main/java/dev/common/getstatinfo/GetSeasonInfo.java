@@ -63,7 +63,7 @@ public class GetSeasonInfo {
 	public List<CountryLeagueSeasonMasterEntity> getData() {
 		final String METHOD_NAME = "getData";
 		// パス
-		PATH = config.getOutputCsvFolder();
+		PATH = config.getTeamCsvFolder();
 
 		// 時間計測開始
 		long startTime = System.nanoTime();

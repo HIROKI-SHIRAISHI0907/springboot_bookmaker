@@ -21,6 +21,9 @@ public class CountryLeagueSeasonMasterEntity extends MetaEntity {
 	/** リーグ */
 	private String league;
 
+	/** シーズン年 */
+	private String seasonYear;
+
 	/** シーズン開始 */
 	private String startSeasonDate;
 

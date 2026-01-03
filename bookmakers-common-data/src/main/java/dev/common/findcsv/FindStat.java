@@ -34,10 +34,6 @@ public class FindStat {
 	/** クラス名 */
 	private static final String CLASS_NAME = FindStat.class.getSimpleName();
 
-	///** 探索件数 */
-	//@Value("${bmbusiness.findbookcounter:1}")
-	//private int findBookCounter = 200;
-
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;

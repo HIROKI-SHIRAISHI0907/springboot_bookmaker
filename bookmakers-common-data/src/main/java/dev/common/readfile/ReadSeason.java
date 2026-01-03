@@ -1,17 +1,12 @@
 package dev.common.readfile;
 
-import java.io.File;
+import java.io.BufferedReader;
 import java.io.FileInputStream;
-import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
-import org.apache.poi.ss.usermodel.Cell;
-import org.apache.poi.ss.usermodel.DataFormatter;
-import org.apache.poi.ss.usermodel.Row;
-import org.apache.poi.ss.usermodel.Sheet;
-import org.apache.poi.ss.usermodel.Workbook;
-import org.apache.poi.ss.usermodel.WorkbookFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -19,13 +14,10 @@ import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.dto.ReadFileOutputDTO;
-import dev.common.server.TimeConfig;
-import dev.common.util.DateStatHelper;
 
 /**
  * ファイル読み込みクラス
  * @author shiraishitoshio
- *
  */
 @Component
 public class ReadSeason {
@@ -40,9 +32,8 @@ public class ReadSeason {
 	/** 実行モード */
 	private static final String EXEC_MODE = "READ_SEASON";
 
-	/** TimeConfigクラス */
-	@Autowired
-	private TimeConfig timeConfig;
+	/** 期待するCSV列数（country, league, season_year, start, end, round, path, icon） */
+	private static final int EXPECT_COLS = 8;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -55,69 +46,88 @@ public class ReadSeason {
 	 */
 	public ReadFileOutputDTO getFileBody(String fileFullPath) {
 		final String METHOD_NAME = "getFileBody";
-		// ログ出力
+
 		this.manageLoggerComponent.init(EXEC_MODE, fileFullPath);
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		ReadFileOutputDTO readFileOutputDTO = new ReadFileOutputDTO();
-		List<CountryLeagueSeasonMasterEntity> entiryList = new ArrayList<CountryLeagueSeasonMasterEntity>();
-		try (InputStream is = new FileInputStream(new File(fileFullPath));
-				Workbook wb = WorkbookFactory.create(is)) {
-			if (wb.getNumberOfSheets() == 0) {
-				readFileOutputDTO.setResultCd(BookMakersCommonConst.ERR_CD_NO_SHEET_EXISTS);
-				readFileOutputDTO.setCountryLeagueSeasonList(entiryList);
-				return readFileOutputDTO; // シートなし
-			}
-			Sheet sheet = wb.getSheetAt(0);
-			DataFormatter formatter = new DataFormatter(); // 表示通りの文字列に整形
-			int firstRow = sheet.getFirstRowNum();
-			int lastRow = sheet.getLastRowNum();
+		List<CountryLeagueSeasonMasterEntity> entiryList = new ArrayList<>();
 
-			for (int r = firstRow + 1; r <= lastRow; r++) { // 1行目をヘッダーとしてスキップ
-				Row row = sheet.getRow(r);
-				if (row == null)
-					continue;
+		try {
+			// =========================
+			// CSV 処理
+			// =========================
+			if (fileFullPath != null && fileFullPath.toLowerCase().endsWith(".csv")) {
 
-				String country = cellString(row.getCell(0), formatter);
-				String league = cellString(row.getCell(1), formatter);
-				String start = cellString(row.getCell(2), formatter);
-				String end = cellString(row.getCell(3), formatter);
-				String round = cellString(row.getCell(4), formatter);
-				String path = cellString(row.getCell(5), formatter);
-				String icon = cellString(row.getCell(6), formatter);
+				try (BufferedReader br = new BufferedReader(
+						new InputStreamReader(new FileInputStream(fileFullPath), StandardCharsets.UTF_8))) {
 
-				// 全部国,リーグが空ならスキップ
-				if (country.isBlank() && league.isBlank())
-					continue;
+					String line;
+					boolean headerSkipped = false;
 
-				// シーズンん開始終了が空ならスキップ
-				if (start.isBlank() && end.isBlank())
-					continue;
+					while ((line = br.readLine()) != null) {
 
-				// ラウンド数が空ならスキップ
-				if (round.isBlank()) {
-					continue;
+						// BOM除去（UTF-8-SIG対策）: 1行目の先頭だけに付く可能性がある
+						if (!headerSkipped && !line.isEmpty() && line.charAt(0) == '\uFEFF') {
+							line = line.substring(1);
+						}
+
+						// 行自体が完全に空ならスキップ
+						if (line.isEmpty()) {
+							continue;
+						}
+
+						// CSV簡易パース（ダブルクォート対応）
+						List<String> cols = parseCsvLine(line);
+
+						// ✅ 空欄があっても「列」としてカウントするため、期待列数まで空文字で埋める
+						while (cols.size() < EXPECT_COLS) {
+							cols.add("");
+						}
+
+						// 1行目はヘッダーとしてスキップ
+						if (!headerSkipped) {
+							headerSkipped = true;
+							continue;
+						}
+
+						// ✅ 「空欄があっても文字列としてカウント」したいので、
+						//    ここでは空欄チェックで弾かない。
+						//    ただし、完全に空行（全列が空）だけは除外する。
+						if (isAllEmpty(cols)) {
+							continue;
+						}
+
+						// 取り出し（空欄でも "" が入る）
+						String country = safeGet(cols, 0);
+						String league  = safeGet(cols, 1);
+						String year    = safeGet(cols, 2);
+						String start   = safeGet(cols, 3);
+						String end     = safeGet(cols, 4);
+						String round   = safeGet(cols, 5);
+						String path    = safeGet(cols, 6);
+						String icon    = safeGet(cols, 7);
+
+						CountryLeagueSeasonMasterEntity e = new CountryLeagueSeasonMasterEntity();
+						e.setCountry(country);
+						e.setLeague(league);
+						e.setSeasonYear(year);
+						e.setStartSeasonDate(start);
+						e.setEndSeasonDate(end);
+						e.setRound(round);
+						e.setPath(path);
+						e.setIcon(icon);
+
+						entiryList.add(e);
+					}
 				}
 
-				// 日付変換
-				DateStatHelper.SeasonIso season =
-	                    DateStatHelper.toSeasonIso(start, end, this.timeConfig.clock());
-	            String startConv = season.startIso;
-	            String endConv   = season.endIso;
-
-				CountryLeagueSeasonMasterEntity e = new CountryLeagueSeasonMasterEntity();
-				e.setCountry(country);
-				e.setLeague(league);
-				e.setStartSeasonDate(startConv);
-				e.setEndSeasonDate(endConv);
-				e.setRound(round);
-				e.setPath(path);
-				e.setIcon(icon);
-				entiryList.add(e);
+				readFileOutputDTO.setResultCd(BookMakersCommonConst.NORMAL_CD);
+				readFileOutputDTO.setCountryLeagueSeasonList(entiryList);
+				return readFileOutputDTO;
 			}
-			readFileOutputDTO.setResultCd(BookMakersCommonConst.NORMAL_CD);
-			readFileOutputDTO.setCountryLeagueSeasonList(entiryList);
+
 		} catch (Exception e) {
 			readFileOutputDTO.setExceptionProject(PROJECT_NAME);
 			readFileOutputDTO.setExceptionClass(CLASS_NAME);
@@ -126,26 +136,71 @@ public class ReadSeason {
 			readFileOutputDTO.setErrMessage(BookMakersCommonConst.ERR_MESSAGE_ERR_FILE_READS);
 			readFileOutputDTO.setThrowAble(e);
 			return readFileOutputDTO;
-		}
 
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		this.manageLoggerComponent.clear();
+		} finally {
+			// ✅ CSVでreturnした場合も含め、必ず終端ログ/クリア
+			this.manageLoggerComponent.debugEndInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+			this.manageLoggerComponent.clear();
+		}
 
 		return readFileOutputDTO;
 	}
 
 	/**
-	 * セルを文字列化（DataFormatterで型を意識せず取得）
-	 * @param cell
-	 * @param formatter
-	 * @return
+	 * CSV 1行を簡易パース（ダブルクォート対応、"" は " に展開）
+	 * ※ 空欄も "" として返る（例: "a,,b" -> ["a","","b"]）
 	 */
-    private static String cellString(Cell cell, DataFormatter formatter) {
-        if (cell == null) return "";
-        // 数値・日付・文字列などをセルの見た目どおりに
-        String s = formatter.formatCellValue(cell);
-        return s != null ? s.trim() : "";
-    }
+	private List<String> parseCsvLine(String line) {
+		List<String> cols = new ArrayList<>();
+		StringBuilder sb = new StringBuilder();
+		boolean inQuotes = false;
 
+		for (int i = 0; i < line.length(); i++) {
+			char c = line.charAt(i);
+
+			if (c == '"') {
+				// "" -> "
+				if (inQuotes && i + 1 < line.length() && line.charAt(i + 1) == '"') {
+					sb.append('"');
+					i++;
+				} else {
+					inQuotes = !inQuotes;
+				}
+				continue;
+			}
+
+			if (c == ',' && !inQuotes) {
+				cols.add(sb.toString()); // ✅ trimしない：空欄やスペースも「文字列」として保持
+				sb.setLength(0);
+				continue;
+			}
+
+			sb.append(c);
+		}
+
+		// 最後の列
+		cols.add(sb.toString());
+		return cols;
+	}
+
+	/**
+	 * 全列が "" のときだけ true（空白スペースのみは「文字列」として扱いたいので empty 判定にしない）
+	 */
+	private boolean isAllEmpty(List<String> cols) {
+		for (String v : cols) {
+			if (v != null && !v.isEmpty()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	private String safeGet(List<String> cols, int idx) {
+		if (cols == null || idx < 0 || idx >= cols.size()) {
+			return "";
+		}
+		String v = cols.get(idx);
+		return v == null ? "" : v;
+	}
 }
