@@ -13,10 +13,12 @@ from playwright.async_api import async_playwright, TimeoutError as PwTimeoutErro
 BASE_OUTPUT_URL = "/Users/shiraishitoshio/bookmaker"
 
 # ✅ パス修正（スラッシュ忘れ防止）
-SEASON_XLSX = str(Path(BASE_OUTPUT_URL) / "season_data.xlsx")
+TEAMS_BY_LEAGUE_DIR = os.path.join(BASE_OUTPUT_URL, "teams_by_league")
+SEASON_XLSX = str(Path(TEAMS_BY_LEAGUE_DIR) / "season_data.xlsx")
 
 BASE_URL = "https://www.flashscore.co.jp"
 SEASON_YEAR_HEADER = "シーズン年"
+ROUND_HEADER = "ラウンド数"
 ICON_HEADER = "リーグアイコン"
 B001_JSON_PATH = str(Path(BASE_OUTPUT_URL) / "json/b001/b001_country_league.json")
 
@@ -42,7 +44,8 @@ def open_or_init_season_book(file_path: str = SEASON_XLSX):
         wb = Workbook()
         ws = wb.active
         ws.title = "season"
-        ws.append(["国", "リーグ", SEASON_YEAR_HEADER, "シーズン開始", "シーズン終了", "パス", ICON_HEADER])
+        ws.append(["国", "リーグ", SEASON_YEAR_HEADER, "シーズン開始", "シーズン終了", ROUND_HEADER, "パス", ICON_HEADER])
+
         wb.save(file_path)
         return wb, ws
 
@@ -50,10 +53,10 @@ def open_or_init_season_book(file_path: str = SEASON_XLSX):
     ws = wb["season"] if "season" in wb.sheetnames else wb.active
 
     header = [c.value for c in ws[1]]
-    expected = ["国", "リーグ", SEASON_YEAR_HEADER, "シーズン開始", "シーズン終了", "パス"]
-    if not header or header[:6] != expected:
+    expected = ["国", "リーグ", SEASON_YEAR_HEADER, "シーズン開始", "シーズン終了", ROUND_HEADER, "パス", ICON_HEADER]
+    if not header or header[:7] != expected:
         ws.delete_rows(1, ws.max_row if ws.max_row else 1)
-        ws.append(["国", "リーグ", SEASON_YEAR_HEADER, "シーズン開始", "シーズン終了", "パス", ICON_HEADER])
+        ws.append(["国", "リーグ", SEASON_YEAR_HEADER, "シーズン開始", "シーズン終了", ROUND_HEADER, "パス", ICON_HEADER])
         wb.save(file_path)
         return wb, ws
 
@@ -61,6 +64,11 @@ def open_or_init_season_book(file_path: str = SEASON_XLSX):
     if SEASON_YEAR_HEADER not in header:
         ws.cell(row=1, column=len(header) + 1, value=SEASON_YEAR_HEADER)
         header.append(SEASON_YEAR_HEADER)
+        wb.save(file_path)
+
+    if ROUND_HEADER not in header:
+        ws.cell(row=1, column=len(header) + 1, value=ROUND_HEADER)
+        header.append(ROUND_HEADER)
         wb.save(file_path)
 
     # アイコン列が無い場合
@@ -264,6 +272,24 @@ async def expand_leftmenu_countries(page, max_clicks: int = 200) -> int:
 
     return clicks
 
+def pick_first_league_fallback(country: str, leagues_raw: list[tuple[str, str]]) -> list[tuple[str, str]]:
+    """
+    CONTAINS で1件も取れない国の救済:
+    leagues_raw から最初の「まともな」リーグを1件だけ返す
+    """
+    for league_name, path in leagues_raw:
+        # 既存の除外条件（Uxx/女子/EXPなど）
+        if is_excluded(f"{country}: {league_name}"):
+            continue
+
+        # 念のため、見出し/ナビっぽいのを弾く（国ページ抽出が緩い場合の保険）
+        if re.search(r"(概要|順位表|結果|日程|ニュース|統計|選手|チーム)", league_name or ""):
+            continue
+
+        if path and league_name:
+            return [(league_name, path)]
+
+    return []
 
 async def get_all_country_links_from_leftmenu(page) -> List[Tuple[str, str]]:
     """
@@ -366,17 +392,18 @@ def norm_name(s: str) -> str:
     s = re.sub(r"\s+", " ", s).strip()    # 連続空白を1個に
     return s
 
-async def fetch_timeline_and_icon_from_league(page, league_path: str) -> tuple[str, str, str, str]:
+async def fetch_timeline_and_icon_from_league(page, league_path: str) -> tuple[str, str, str, str, str, str]:
     """
     # return: (start_ddmm, end_ddmm, icon_url, season_year, league_name_page)
     timeline が取れない場合は fixtures から推定する
     """
     league_path = (league_path or "").strip()
     if not league_path:
-        return "", "", "", ""
+        return "", "", "", "", "", ""
 
     # --- 初期化（UnboundLocalError 防止） ---
     start_ddmm, end_ddmm, icon_url, season_year = "", "", "", ""
+    round_num = ""
 
     # URL組み立て
     if league_path.startswith("http"):
@@ -454,7 +481,7 @@ async def fetch_timeline_and_icon_from_league(page, league_path: str) -> tuple[s
 
     # ✅ timeline が無い/空なら fixtures へフォールバック
     if not start_ddmm or not end_ddmm:
-        fs, fe = await fetch_start_end_from_fixtures(page, league_path)
+        fs, fe, round_num = await fetch_start_end_from_fixtures(page, league_path)
         if not start_ddmm:
             start_ddmm = fs
         if not end_ddmm:
@@ -480,8 +507,13 @@ async def fetch_timeline_and_icon_from_league(page, league_path: str) -> tuple[s
             except:
                 pass
 
+        if not round_num:
+            _, _, round_num2 = await fetch_start_end_from_fixtures(page, league_path)
+            if round_num2:
+                round_num = round_num2
+
     print(f"[GOT] season_year={season_year} start={start_ddmm} end={end_ddmm} icon={'Y' if icon_url else 'N'}")
-    return start_ddmm, end_ddmm, icon_url, season_year, league_name_page
+    return start_ddmm, end_ddmm, icon_url, season_year, league_name_page, round_num
 
 async def click_show_more_fixtures_until_end(
     page,
@@ -526,9 +558,21 @@ async def click_show_more_fixtures_until_end(
 
 async def fetch_league_name_from_page(page) -> str:
     """
-    pathに遷移した後のヘッダーからリーグ名を取得。
-    取れなければ "" を返す。
+    リーグ名をヘッダーから取得。
+    優先: div.heading__title div.heading__name  (例: "J2 リーグ")
+    fallback: span.headerLeague__title-text     (例: "J2 リーグ - 昇格戦")
     """
+    # ① ここが本命（あなたが欲しいやつ）
+    try:
+        loc = page.locator("div.heading__title div.heading__name").first
+        if await loc.count():
+            txt = (await loc.text_content() or "").strip()
+            if txt:
+                return txt
+    except:
+        pass
+
+    # ② 予備（従来のやつ）
     try:
         loc = page.locator("span.headerLeague__title-text").first
         if await loc.count():
@@ -538,28 +582,13 @@ async def fetch_league_name_from_page(page) -> str:
     except:
         pass
 
-    # 保険：data-testid で拾う（同じ要素）
-    try:
-        loc = page.locator("span[data-testid='wcl-scores-simple-text-01']").first
-        if await loc.count():
-            txt = (await loc.text_content() or "").strip()
-            if txt:
-                return txt
-    except:
-        pass
-
     return ""
 
-async def fetch_start_end_from_fixtures(page, league_path: str) -> tuple[str, str]:
-    """
-    fixtures へ行って、全件表示後に
-    先頭の dd.mm. → 開始
-    末尾の dd.mm. → 終了
-    を返す
-    """
+async def fetch_start_end_from_fixtures(page, league_path: str) -> tuple[str, str, str]:
     league_path = (league_path or "").strip()
     if not league_path:
-        return "", ""
+        return "", "", ""
+
     if not league_path.endswith("/"):
         league_path += "/"
 
@@ -572,36 +601,55 @@ async def fetch_start_end_from_fixtures(page, league_path: str) -> tuple[str, st
         await page.wait_for_selector(".event__match", timeout=12000)
     except PwTimeoutError:
         print("[FIXTURES] .event__match not found")
-        return "", ""
+        return "", "", ""
 
     try:
         await page.wait_for_load_state("networkidle", timeout=12000)
     except:
         pass
 
+    # ✅ もっと試合を表示する を押し切る
     clicks = await click_show_more_fixtures_until_end(page)
     print(f"[FIXTURES] show more clicked: {clicks}")
 
-    # dd.mm. 抽出（例: "16.08. 21:30" / "16.08." / "16.08. (延期)" 等を想定）
-    pat = re.compile(r"(\d{1,2})\.(\d{1,2})\.")
-    texts = await page.locator(".event__match .event__time").all_text_contents()
+    # =========================
+    # 開始日・終了日
+    # =========================
+    pat_date = re.compile(r"(\d{1,2})\.(\d{1,2})\.")
+    times = await page.locator(".event__match .event__time").all_text_contents()
 
     ddmms: list[str] = []
-    for t in texts:
-        m = pat.search(t or "")
+    for t in times:
+        m = pat_date.search(t or "")
         if not m:
             continue
         dd = int(m.group(1))
         mm = int(m.group(2))
         ddmms.append(f"{dd:02d}.{mm:02d}.")
 
-    if not ddmms:
-        print("[FIXTURES] no dd.mm found")
-        return "", ""
+    start_ddmm = ddmms[0] if ddmms else ""
+    end_ddmm   = ddmms[-1] if ddmms else ""
 
-    start_ddmm = ddmms[0]
-    end_ddmm = ddmms[-1]
-    return start_ddmm, end_ddmm
+    # =========================
+    # ✅ ラウンド数（最大ラウンド）
+    # =========================
+    round_num = ""
+
+    try:
+        rounds = await page.locator("div.event__round.event__round--static").all_text_contents()
+        nums = []
+        for txt in rounds:
+            m = re.search(r"ラウンド\s*(\d+)", txt or "")
+            if m:
+                nums.append(int(m.group(1)))
+
+        if nums:
+            round_num = str(max(nums))  # 最後 or 最大でOK
+    except:
+        pass
+
+    print(f"[FIXTURES GOT] start={start_ddmm} end={end_ddmm} round={round_num}")
+    return start_ddmm, end_ddmm, round_num
 
 # --- メイン ---
 async def main():
@@ -664,6 +712,16 @@ async def main():
                 category = f"{country}: {league_name}"
                 if is_allowed_category(category, allowed_set):
                     filtered_1.append((league_name, path))
+
+            # ✅ フォールバック：CONTAINSで0件なら先頭リーグ1件だけ採用
+            if (not json_has_pairs) and (len(filtered_1) == 0):
+                fb = pick_first_league_fallback(country, leagues_raw)
+                if fb:
+                    filtered_1 = fb
+                    print(f"  [FALLBACK] no match in CONTAINS → pick first league: {filtered_1[0][0]}")
+                else:
+                    print(f"  [FALLBACK] no usable league found")
+        
             print(f"  leagues matched(category): {len(filtered_1)} / scraped: {len(leagues_raw)}")
 
             # JSONありなら、その国で指定されたリーグ名だけにさらに絞る
@@ -689,7 +747,7 @@ async def main():
             for league_name, path in leagues_final:
                 if path in existed:
                     continue
-                ws.append([country, league_name, "", "", "", path, ""])
+                ws.append([country, league_name, "", "", "", "", path, ""])
                 existed.add(path)
                 appended += 1
 
@@ -710,9 +768,9 @@ async def main():
             if (cur_year not in (None, "")) and (cur_start not in (None, "")) and (cur_end not in (None, "")) and (cur_icon not in (None, "")):
                 continue
 
-            start_ddmm, end_ddmm, icon_url, season_year = "", "", "", ""
+            start_ddmm, end_ddmm, icon_url, season_year, round_num = "", "", "", "", ""
 
-            start_ddmm, end_ddmm, icon_url, season_year, league_name_page = await fetch_timeline_and_icon_from_league(page, path)
+            start_ddmm, end_ddmm, icon_url, season_year, league_name_page, round_num = await fetch_timeline_and_icon_from_league(page, path)
             # Excelのリーグ列をページのリーグ名で更新（取れた場合のみ）
             if league_name_page:
                 ws.cell(row=r, column=col["リーグ"], value=league_name_page)
@@ -723,6 +781,9 @@ async def main():
                 ws.cell(row=r, column=col["シーズン開始"], value=start_ddmm)
             if end_ddmm and (cur_end in (None, "")):
                 ws.cell(row=r, column=col["シーズン終了"], value=end_ddmm)
+            cur_round = ws.cell(row=r, column=col[ROUND_HEADER]).value
+            if round_num and (cur_round in (None, "")):
+                ws.cell(row=r, column=col[ROUND_HEADER], value=round_num)
             if icon_url and (cur_icon in (None, "")):
                 ws.cell(row=r, column=col[ICON_HEADER], value=icon_url)
 
@@ -743,7 +804,7 @@ async def main():
     csv_path = os.path.splitext(SEASON_XLSX)[0] + ".csv"
     with open(csv_path, "w", newline="", encoding="utf-8-sig") as f:
         writer = csv.writer(f)
-        writer.writerow(["国", "リーグ", SEASON_YEAR_HEADER, "シーズン開始", "シーズン終了", "パス", ICON_HEADER])
+        writer.writerow(["国", "リーグ", SEASON_YEAR_HEADER, "シーズン開始", "シーズン終了", ROUND_HEADER, "パス", ICON_HEADER])
         for row_vals in ws.iter_rows(min_row=2, values_only=True):
             writer.writerow(list(row_vals))
     print(f"CSV出力: {csv_path}")

@@ -1,12 +1,15 @@
 # -*- coding: utf-8 -*-
 """
-TeamMemberExcel_writer_queue.py
-- teams_by_league/teamData_*.csv を全読み（xは連番数字）
-- 6〜10チーム並列処理（TEAM_CONCURRENCY）
-- 各チームは PagePool(PLAYER_PER_TEAM) で選手詳細を並列取得
-- page.goto の実同時数と発火間隔を制御（GLOBAL_NAV_CONCURRENCY / NAV_GAP_MS）
-- 不要リソース/広告/同意ドメインは遮断
-- Excel 書込は専用 Writer タスクに集約（バッファ追記＋デバウンス保存）
+TeamMemberExcel_writer_queue.py（リーグ並列 + 1リーグ内10チーム並列 + 重複完全回避）
+- 途中停止して再実行しても「既に出力に書いた選手」は二度と書かない
+  => 既存CSV/XLSXからロード + Writerが書いた瞬間に existing_keys を更新
+
+- teams_by_league/teamData_*.csv を全読み
+- (国,リーグ) 単位でリーグ並列（LEAGUE_CONCURRENCY）
+- 各リーグは 10チームずつ並列（TEAMS_PER_LEAGUE_CONCURRENCY=10）
+- チーム内は PagePool(PLAYER_PER_TEAM) で選手詳細を並列取得
+- goto 制御（GLOBAL_NAV_CONCURRENCY / NAV_GAP_MS）
+- Writer集約（saveはto_thread）
 - 最後に xlsx -> csv 変換して xlsx 削除
 """
 import json
@@ -29,7 +32,6 @@ BASE_DIR = "/Users/shiraishitoshio/bookmaker"
 TEAMS_BY_LEAGUE_DIR = os.path.join(BASE_DIR, "teams_by_league")
 B001_JSON_PATH = "/Users/shiraishitoshio/bookmaker/json/b001/b001_country_league.json"
 
-# teams_by_league の入力ファイル形式（xは数字連番）
 TEAMDATA_PREFIX = "teamData_"
 TEAMDATA_GLOB = os.path.join(TEAMS_BY_LEAGUE_DIR, f"{TEAMDATA_PREFIX}*.csv")
 
@@ -48,27 +50,25 @@ CONTAINS_LIST = [
     "エストニア: メスタリリーガ", "ウクライナ: プレミアリーグ", "ベルギー: ジュピラー･プロリーグ", "エクアドル: リーガ・プロ",
     "日本: YBC ルヴァンカップ", "日本: 天皇杯"
 ]
-UNDER_LIST  = ["U17", "U18", "U19", "U20", "U21", "U22", "U23", "U24", "U25"]
-GENDER_LIST = ["女子"]
-EXP_LIST    = ["ポルトガル: リーガ・ポルトガル 2", "イングランド: プレミアリーグ 2", "イングランド: プレミアリーグ U18"]
 
-# タイムアウト(ms)
 OP_TIMEOUT = 5000
 NAV_TIMEOUT = 12000
 SEL_TIMEOUT = 20000
 
-# 並列度
-TEAM_CONCURRENCY       = 10     # 同時チーム
-PLAYER_PER_TEAM        = 1      # チーム内の同時タブ（詳細用 Page プール）
-GLOBAL_NAV_CONCURRENCY = 3      # 全体の同時 goto 上限
-NAV_GAP_MS             = 150    # goto の最小発火間隔
+# ---- 並列設定 ----
+LEAGUE_CONCURRENCY = 4
+TEAMS_PER_LEAGUE_CONCURRENCY = 10
 
-# Writer の保存ポリシー（状況に合わせて調整）
-SAVE_INTERVAL_SEC      = 2.0    # これ秒ごとにバッファがあれば保存
-SAVE_EVERY_N_ROWS      = 80     # これ行以上たまったら即保存（50刻み回避のためやや大きめ）
-LOG_EVERY_ENQUEUE      = True   # True: チームごとにENQUEUEログを出す
+PLAYER_PER_TEAM = 3
+GLOBAL_PLAYERDETAIL_CONCURRENCY = 8
 
-# ブロックする外部ドメイン
+GLOBAL_NAV_CONCURRENCY = 3
+NAV_GAP_MS = 150
+
+SAVE_INTERVAL_SEC = 2.0
+SAVE_EVERY_N_ROWS = 80
+LOG_EVERY_ENQUEUE = True
+
 BLOCKED_HOST_KEYWORDS = [
     "googletagmanager", "google-analytics", "doubleclick", "googlesyndication",
     "scorecardresearch", "criteo", "adsystem", "mathtag", "quantserve",
@@ -83,14 +83,13 @@ def ensure_dirs():
     os.makedirs(BASE_DIR, exist_ok=True)
     os.makedirs(TEAMS_BY_LEAGUE_DIR, exist_ok=True)
 
-def load_existing_player_keys() -> Set[Tuple[str, str, str, str]]:
+def load_existing_player_keys(base_dir: str) -> Set[Tuple[str, str, str, str]]:
     """
     既存の teamMemberData_*.csv / *.xlsx から (国,リーグ,チーム,選手名) を集合化
     """
     s: Set[Tuple[str, str, str, str]] = set()
 
-    # 1) csv（今後の主）
-    for path in sorted(glob.glob(os.path.join(BASE_DIR, f"{EXCEL_BASE_PREFIX}[0-9]*.csv"))):
+    for path in sorted(glob.glob(os.path.join(TEAMS_BY_LEAGUE_DIR, f"{EXCEL_BASE_PREFIX}[0-9]*.csv"))):
         try:
             with open(path, "r", encoding="utf-8-sig", newline="") as f:
                 r = csv.DictReader(f)
@@ -104,26 +103,20 @@ def load_existing_player_keys() -> Set[Tuple[str, str, str, str]]:
         except Exception as e:
             print(f"[WARN] 既存CSV読込失敗: {path} / {e}")
 
-    # 2) xlsx（過去の残骸があれば拾う）
-    for path in sorted(glob.glob(os.path.join(BASE_DIR, f"{EXCEL_BASE_PREFIX}[0-9]*.xlsx"))):
+    for path in sorted(glob.glob(os.path.join(base_dir, f"{EXCEL_BASE_PREFIX}[0-9]*.xlsx"))):
         try:
             wb = load_workbook(path, data_only=True, read_only=True)
             ws = wb.active
             for row in ws.iter_rows(min_row=2, values_only=True):
                 if not row or row[0] is None:
                     continue
-                s.add((str(row[0]), str(row[1]), str(row[2]), str(row[3])))
+                s.add((str(row[0]).strip(), str(row[1]).strip(), str(row[2]).strip(), str(row[3]).strip()))
         except Exception as e:
             print(f"[WARN] 既存XLSX読込失敗: {path} / {e}")
 
     return s
 
 def read_teams_from_file(path: str) -> List[Tuple[str, str, str, str]]:
-    """
-    teams_by_league/teamData_*.csv を読み込み、(国, リーグ, チーム, チームリンク) のリストを返す。
-    期待ヘッダー: 国, リーグ, チーム, チームリンク
-    ※ 多少ヘッダー揺れがあっても拾えるようにする
-    """
     out: List[Tuple[str, str, str, str]] = []
 
     KEYMAP = {
@@ -142,7 +135,7 @@ def read_teams_from_file(path: str) -> List[Tuple[str, str, str, str]]:
             if not reader.fieldnames:
                 return out
 
-            resolved: Dict[str, str] = {}  # 正規キー -> 実ヘッダー
+            resolved: Dict[str, str] = {}
             fields = [h.strip() for h in reader.fieldnames if h]
             for canonical, aliases in KEYMAP.items():
                 for a in aliases:
@@ -150,7 +143,6 @@ def read_teams_from_file(path: str) -> List[Tuple[str, str, str, str]]:
                         resolved[canonical] = a
                         break
 
-            # fallback: 国=0, リーグ=1, チーム=2, チームリンク=3
             use_fallback = any(k not in resolved for k in ("国", "リーグ", "チーム", "チームリンク"))
             if use_fallback:
                 f.seek(0)
@@ -188,11 +180,6 @@ def build_targets_from_contains() -> Dict[str, Set[str]]:
     return out
 
 def extract_country_leagues_map(json_path: str) -> Dict[str, Set[str]]:
-    """
-    JSONが
-      {"日本": ["J1 リーグ", ...], "メキシコ": ["リーガ MX"]}
-    の形式を基本想定。保険で {"country":..,"league":..} 形式も拾う。
-    """
     p = Path(json_path).expanduser()
     if not p.exists():
         return {}
@@ -211,17 +198,14 @@ def extract_country_leagues_map(json_path: str) -> Dict[str, Set[str]]:
 
     def walk(obj):
         if isinstance(obj, dict):
-            # 1) country -> [league,...]
             for k, v in obj.items():
                 if isinstance(v, list) and all(isinstance(x, (str, int, float)) for x in v):
                     for lv in v:
                         add(k, lv)
 
-            # 2) {"country": "...", "league": "..."}
             if "country" in obj and "league" in obj:
                 add(obj.get("country"), obj.get("league"))
 
-            # よくあるネスト
             for kk in ("items", "data", "results", "country_league"):
                 if kk in obj:
                     walk(obj[kk])
@@ -238,19 +222,12 @@ def extract_country_leagues_map(json_path: str) -> Dict[str, Set[str]]:
     return out
 
 def list_teamdata_csv_paths() -> List[str]:
-    """
-    teams_by_league/teamData_*.csv を収集し、
-    x部分（数字）で昇順ソートして返す。
-    - teamData_1.csv, teamData_2.csv, teamData_10.csv ... を正しく並べる
-    - 数字が取れないものは末尾扱い
-    """
     paths = glob.glob(TEAMDATA_GLOB)
     if not paths:
         return []
 
     def extract_num(p: str) -> int:
         base = os.path.basename(p)
-        # teamData_001.csv みたいなのもOK
         m = re.search(rf"^{re.escape(TEAMDATA_PREFIX)}(\d+)\.csv$", base)
         if m:
             try:
@@ -261,10 +238,18 @@ def list_teamdata_csv_paths() -> List[str]:
 
     return sorted(paths, key=lambda p: (extract_num(p), os.path.basename(p)))
 
+def group_by_league(rows: List[Tuple[str, str, str, str]]) -> Dict[Tuple[str, str], List[Tuple[str, str, str, str]]]:
+    mp: Dict[Tuple[str, str], List[Tuple[str, str, str, str]]] = {}
+    for r in rows:
+        mp.setdefault((r[0], r[1]), []).append(r)
+    return mp
+
 # =========================
 # Playwright ヘルパ
 # =========================
 global_nav_sema = asyncio.Semaphore(GLOBAL_NAV_CONCURRENCY)
+playerdetail_sema = asyncio.Semaphore(GLOBAL_PLAYERDETAIL_CONCURRENCY)
+
 _nav_gap_lock = asyncio.Lock()
 _last_nav_ts = 0.0
 
@@ -296,7 +281,6 @@ async def make_context(browser):
         req = route.request
         rtype = req.resource_type
         url = req.url.lower()
-
         if rtype in {"image", "stylesheet", "font", "media", "beacon"}:
             return await route.abort()
         if any(k in url for k in BLOCKED_HOST_KEYWORDS):
@@ -355,19 +339,23 @@ class PagePool:
                     pass
 
 # =========================
-# Excel Writer（専用タスク）
+# Excel Writer（専用タスク）※ここが重複回避の肝
 # =========================
 class ExcelWriter:
     """
-    - Queue に [row, row, ...] の「チーム単位バッチ」を入れる
-    - 受け取り次第、現在開いているワークブックに append
-    - max_records超えたら自動ローテーション
-    - SAVE_INTERVAL_SEC ごと or SAVE_EVERY_N_ROWS ごとに保存
+    重要:
+    - 既存ファイルからロードした existing_keys に加えて
+      「Writer が実際に書いた瞬間」に existing_keys を更新する
+    => 途中停止でも再実行時に確実に二重書きしない
     """
-    def __init__(self, base_dir: str, prefix: str, max_records: int):
+    def __init__(self, base_dir: str, prefix: str, max_records: int,
+                 existing_keys: Set[Tuple[str, str, str, str]], keys_lock: asyncio.Lock):
         self.base_dir = base_dir
         self.prefix = prefix
         self.max_records = max_records
+        self.existing_keys = existing_keys
+        self.keys_lock = keys_lock
+
         self.q: asyncio.Queue = asyncio.Queue()
         self._task: Optional[asyncio.Task] = None
 
@@ -377,21 +365,19 @@ class ExcelWriter:
         self.rows_in_current = 0
         self._dirty_since_last_save = 0
 
-    def _scan_next_seq(self) -> int:
+    def _scan_existing_max_seq(self) -> int:
         existing = sorted(glob.glob(os.path.join(self.base_dir, f"{self.prefix}[0-9]*.xlsx")))
         if not existing:
-            return 1
-
+            return 0
         def num(p):
             m = re.search(rf"{re.escape(self.prefix)}(\d+)\.xlsx$", os.path.basename(p))
             return int(m.group(1)) if m else 0
-
-        last = max(existing, key=num)
-        return num(last) if num(last) > 0 else 1
+        return max((num(p) for p in existing), default=0)
 
     def _open_initial(self):
-        start_seq = self._scan_next_seq()
-        # 既存ファイルの末尾に続きを書く（空きがあれば）
+        max_seq = self._scan_existing_max_seq()
+        start_seq = 1 if max_seq <= 0 else max_seq
+
         for seq in range(start_seq, start_seq + 2):
             path = os.path.join(self.base_dir, f"{self.prefix}{seq}.xlsx")
             if os.path.exists(path):
@@ -403,11 +389,13 @@ class ExcelWriter:
                     self.rows_in_current = used
                     return
 
-        # 空きが無ければ新規を開く
-        path0 = os.path.join(self.base_dir, f"{self.prefix}{start_seq}.xlsx")
-        self._rotate_new(start_seq if not os.path.exists(path0) else start_seq + 1)
+        new_seq = 1 if max_seq <= 0 else (max_seq + 1)
+        self.seq = new_seq
+        self.wb = None
+        self.ws = None
+        self.rows_in_current = 0
 
-    def _rotate_new(self, seq_new: int):
+    async def _rotate_new(self, seq_new: int):
         path = os.path.join(self.base_dir, f"{self.prefix}{seq_new}.xlsx")
         wb = Workbook()
         ws = wb.active
@@ -418,12 +406,12 @@ class ExcelWriter:
         ])
         self.wb, self.ws, self.seq = wb, ws, seq_new
         self.rows_in_current = 0
-        self._save_now()
+        await self._save_now()
         print(f"[WRITER] Rotate -> {os.path.basename(path)}")
 
-    def _save_now(self):
+    async def _save_now(self):
         path = os.path.join(self.base_dir, f"{self.prefix}{self.seq}.xlsx")
-        self.wb.save(path)
+        await asyncio.to_thread(self.wb.save, path)
         self._dirty_since_last_save = 0
 
     def enqueue_team_rows(self, rows: List[List[object]], label: str):
@@ -431,24 +419,47 @@ class ExcelWriter:
 
     async def run(self):
         self._open_initial()
+        if self.wb is None:
+            await self._rotate_new(self.seq)
 
         while True:
             try:
                 rows, label = await asyncio.wait_for(self.q.get(), timeout=SAVE_INTERVAL_SEC)
             except asyncio.TimeoutError:
                 if self._dirty_since_last_save > 0:
-                    self._save_now()
+                    await self._save_now()
                 continue
 
-            if rows is None:  # 終了
+            if rows is None:
                 if self._dirty_since_last_save > 0:
-                    self._save_now()
+                    await self._save_now()
                 break
 
+            # ---- ここで「実際に書く直前」にも既存キーを見て二重防止（最終防衛線） ----
+            filtered: List[List[object]] = []
+            async with self.keys_lock:
+                for r in rows:
+                    # ヘッダ: ["国","リーグ","所属チーム","選手名",...]
+                    c = str(r[0]).strip()
+                    l = str(r[1]).strip()
+                    t = str(r[2]).strip()
+                    n = str(r[3]).strip()
+                    key = (c, l, t, n)
+                    if key in self.existing_keys:
+                        continue
+                    # 「書く予定」として先に登録（これで直後に落ちても次回はスキップ）
+                    self.existing_keys.add(key)
+                    filtered.append(r)
+
+            if not filtered:
+                if LOG_EVERY_ENQUEUE:
+                    print(f"[WRITER] SKIP {label}: 0 new rows (all existed)")
+                continue
+
             offset = 0
-            while offset < len(rows):
+            while offset < len(filtered):
                 remain = self.max_records - self.rows_in_current
-                chunk = rows[offset: offset + remain]
+                chunk = filtered[offset: offset + remain]
 
                 for r in chunk:
                     self.ws.append(r)
@@ -458,14 +469,14 @@ class ExcelWriter:
                 offset += len(chunk)
 
                 if self.rows_in_current >= self.max_records:
-                    self._save_now()
-                    self._rotate_new(self.seq + 1)
+                    await self._save_now()
+                    await self._rotate_new(self.seq + 1)
 
             if LOG_EVERY_ENQUEUE:
-                print(f"[WRITER] APPEND {label}: +{len(rows)} rows -> file #{self.seq} (cur={self.rows_in_current})")
+                print(f"[WRITER] APPEND {label}: +{len(filtered)} rows -> file #{self.seq} (cur={self.rows_in_current})")
 
             if self._dirty_since_last_save >= SAVE_EVERY_N_ROWS:
-                self._save_now()
+                await self._save_now()
 
     async def start(self):
         if self._task is None:
@@ -477,12 +488,11 @@ class ExcelWriter:
             await self._task
 
 # =========================
-# スクレイピング本体
+# スクレイピング
 # =========================
 async def scrape_player_detail_with_page(page, full_url: str) -> Dict[str, str]:
     age = birth = mv = contract = loan = img = inj = "N/A"
 
-    # playerInfoItem が出るまで待つ（このHTMLならこれで十分）
     ok = await safe_goto(page, full_url, "div.playerHeader__wrapper div.playerInfoItem")
     if not ok:
         return {
@@ -500,7 +510,6 @@ async def scrape_player_detail_with_page(page, full_url: str) -> Dict[str, str]:
     except Exception:
         pass
 
-    # playerInfoItem を素直に読む（最初のspanがラベル、残りが値）
     try:
         items = await page.query_selector_all("div.playerHeader__wrapper div.playerInfoItem")
         for it in items:
@@ -509,7 +518,7 @@ async def scrape_player_detail_with_page(page, full_url: str) -> Dict[str, str]:
                 continue
 
             label = (await spans[0].text_content() or "").strip()
-            label = re.sub(r"\s+", " ", label).replace(":", "").strip()  # "年齢: " → "年齢"
+            label = re.sub(r"\s+", " ", label).replace(":", "").strip()
 
             values = []
             for sp in spans[1:]:
@@ -518,7 +527,6 @@ async def scrape_player_detail_with_page(page, full_url: str) -> Dict[str, str]:
                 if tx:
                     values.append(tx)
 
-            # 例: 年齢 -> ["35", "(30.09.1990)"] みたいになる
             if "年齢" in label:
                 if len(values) >= 1:
                     age = values[0]
@@ -531,17 +539,13 @@ async def scrape_player_detail_with_page(page, full_url: str) -> Dict[str, str]:
                 if values:
                     contract = values[0]
             elif "ローン" in label or "ローン元" in label:
-                # ローン元が存在するページだけ埋まる想定
                 if values:
                     loan = values[0]
-                # ローン元と一緒に期限が入るタイプがあれば保険
                 if len(values) >= 2 and contract == "N/A":
                     contract = values[1].replace("期限", "").replace(":", "").strip().strip("()")
-
     except Exception as e:
         print(f"[PLAYER DETAIL] parse失敗: {full_url} / {e}")
 
-    # 故障情報：svg の title に入っている（例: "膝損傷 推定リターン: 01.01.2026"）
     try:
         inj_svg = await page.query_selector('svg[data-testid="wcl-icon-incidents-injury"]')
         if inj_svg:
@@ -559,208 +563,133 @@ async def scrape_player_detail_with_page(page, full_url: str) -> Dict[str, str]:
         "img_url": img, "injury_text": inj
     }
 
-async def process_team(ctx,
-                       existing_keys: Set[Tuple[str, str, str, str]],
-                       claimed_keys: Set[Tuple[str, str, str, str]],
-                       claim_lock: asyncio.Lock,
-                       team_sema: asyncio.Semaphore,
-                       writer: ExcelWriter,
-                       country: str, league: str, team: str, href: str):
-    """チーム1件（選手はPagePoolで並列）。完了後 Writer に一括投入。"""
-    async with team_sema:
-        page = await ctx.new_page()
-        pool = PagePool(ctx, size=max(PLAYER_PER_TEAM, 1))
-        try:
-            team_url  = href if href.startswith("http") else f"https://flashscore.co.jp{href}"
-            squad_url = team_url.rstrip("/") + "/squad/"
+async def process_team(
+    ctx,
+    existing_keys: Set[Tuple[str, str, str, str]],
+    claimed_keys: Set[Tuple[str, str, str, str]],
+    keys_lock: asyncio.Lock,
+    writer: ExcelWriter,
+    country: str, league: str, team: str, href: str
+):
+    page = await ctx.new_page()
+    pool = PagePool(ctx, size=max(PLAYER_PER_TEAM, 1))
+    try:
+        team_url  = href if href.startswith("http") else f"https://flashscore.co.jp{href}"
+        squad_url = team_url.rstrip("/") + "/squad/"
 
-            ok = await safe_goto(page, squad_url, "div.lineupTable.lineupTable--soccer")
-            if not ok:
-                print(f"[{country}:{league}:{team}] スカッド取得失敗: goto failed")
-                return
+        ok = await safe_goto(page, squad_url, "div.lineupTable.lineupTable--soccer")
+        if not ok:
+            print(f"[{country}:{league}:{team}] スカッド取得失敗: goto failed")
+            return
 
-            players: List[Tuple[str, str, str, str, str]] = []
-            tables = await page.query_selector_all("div.lineupTable.lineupTable--soccer")
-            for t in tables or []:
-                pos_el = await t.query_selector("div.lineupTable__title")
-                position = (await pos_el.text_content()).strip() if pos_el else "N/A"
-                rows = await t.query_selector_all("div.lineupTable__row")
-                for r in rows:
-                    jersey_el = await r.query_selector(".lineupTable__cell--jersey")
-                    jersey = (await jersey_el.text_content()).strip() if jersey_el else "N/A"
+        players: List[Tuple[str, str, str, str, str]] = []
+        tables = await page.query_selector_all("div.lineupTable.lineupTable--soccer")
+        for t in tables or []:
+            pos_el = await t.query_selector("div.lineupTable__title")
+            position = (await pos_el.text_content()).strip() if pos_el else "N/A"
+            rows = await t.query_selector_all("div.lineupTable__row")
+            for r in rows:
+                jersey_el = await r.query_selector(".lineupTable__cell--jersey")
+                jersey = (await jersey_el.text_content()).strip() if jersey_el else "N/A"
 
-                    name_el = await r.query_selector(".lineupTable__cell--player .lineupTable__cell--name")
-                    if not name_el:
-                        continue
-                    name = (await name_el.text_content()).strip()
-                    href2 = await name_el.get_attribute("href")
-                    if not href2:
-                        continue
+                name_el = await r.query_selector(".lineupTable__cell--player .lineupTable__cell--name")
+                if not name_el:
+                    continue
+                name = (await name_el.text_content()).strip()
+                href2 = await name_el.get_attribute("href")
+                if not href2:
+                    continue
 
-                    goal_el = await r.query_selector(".lineupTable__cell--goal")
-                    goals = (await goal_el.text_content()).strip() if goal_el else "N/A"
+                goal_el = await r.query_selector(".lineupTable__cell--goal")
+                goals = (await goal_el.text_content()).strip() if goal_el else "N/A"
 
-                    players.append((position, jersey, name, href2, goals))
+                players.append((position, jersey, name, href2, goals))
 
-            if not players:
-                print(f"[{country}:{league}:{team}] 選手0件")
-                return
+        if not players:
+            print(f"[{country}:{league}:{team}] 選手0件")
+            return
 
-            rows_to_write: List[List[object]] = []
-            BATCH = max(PLAYER_PER_TEAM * 4, 4)
+        BATCH = max(PLAYER_PER_TEAM * 4, 4)
 
-            async def handle(p):
-                position, jersey, name, href2, goals = p
-                key = (country, league, team, name)
+        async def handle(p) -> Optional[List[object]]:
+            position, jersey, name, href2, goals = p
+            key = (country, league, team, name)
 
-                async with claim_lock:
-                    if key in existing_keys or key in claimed_keys:
-                        return
-                    claimed_keys.add(key)
+            # 早めに除外（Writer側でも最終防衛するので、ここは高速化用）
+            async with keys_lock:
+                if key in existing_keys or key in claimed_keys:
+                    return None
+                claimed_keys.add(key)
 
-                purl = href2 if href2.startswith("http") else f"https://flashscore.co.jp{href2}"
+            purl = href2 if href2.startswith("http") else f"https://flashscore.co.jp{href2}"
+
+            async with playerdetail_sema:
                 tab = await pool.acquire()
                 try:
                     detail = await scrape_player_detail_with_page(tab, purl)
                 finally:
                     await pool.release(tab)
 
-                rows_to_write.append([
-                    country, league, team, name, position, jersey, goals,
-                    detail.get("age_text","N/A"), detail.get("birth_date","N/A"),
-                    detail.get("market_value","N/A"), detail.get("loan_info","N/A"),
-                    detail.get("contract_date","N/A"), detail.get("img_url","N/A"),
-                    detail.get("injury_text","N/A"), datetime.datetime.now()
-                ])
+            return [
+                country, league, team, name, position, jersey, goals,
+                detail.get("age_text","N/A"), detail.get("birth_date","N/A"),
+                detail.get("market_value","N/A"), detail.get("loan_info","N/A"),
+                detail.get("contract_date","N/A"), detail.get("img_url","N/A"),
+                detail.get("injury_text","N/A"), datetime.datetime.now()
+            ]
 
-            for i in range(0, len(players), BATCH):
-                await asyncio.gather(*(handle(p) for p in players[i:i+BATCH]))
+        rows_to_write: List[List[object]] = []
+        for i in range(0, len(players), BATCH):
+            got = await asyncio.gather(*(handle(p) for p in players[i:i+BATCH]))
+            rows_to_write.extend([r for r in got if r])
 
-            if rows_to_write:
-                if LOG_EVERY_ENQUEUE:
-                    print(f"[ENQUEUE] {country} / {league} / {team}: {len(rows_to_write)} 件をWriterへ")
-                writer.enqueue_team_rows(rows_to_write, f"{country}/{league}/{team}")
+        if rows_to_write:
+            if LOG_EVERY_ENQUEUE:
+                print(f"[ENQUEUE] {country} / {league} / {team}: {len(rows_to_write)} 件をWriterへ")
+            writer.enqueue_team_rows(rows_to_write, f"{country}/{league}/{team}")
 
-            print(f"[TEAM-DONE] {country} / {league} / {team}")
+        print(f"[TEAM-DONE] {country} / {league} / {team}")
 
-        except Exception as e:
-            print(f"[{country}:{league}:{team}] 処理中エラー: {e}")
-        finally:
-            try:
-                await pool.close()
-            except Exception:
-                pass
-            try:
-                await page.close()
-            except Exception:
-                pass
+    except Exception as e:
+        print(f"[{country}:{league}:{team}] 処理中エラー: {e}")
+    finally:
+        try:
+            await pool.close()
+        except Exception:
+            pass
+        try:
+            await page.close()
+        except Exception:
+            pass
 
-# =========================
-# エントリポイント
-# =========================
-async def main():
-    ensure_dirs()
+async def process_league(
+    ctx,
+    existing_keys: Set[Tuple[str, str, str, str]],
+    claimed_keys: Set[Tuple[str, str, str, str]],
+    keys_lock: asyncio.Lock,
+    writer: ExcelWriter,
+    league_key: Tuple[str, str],
+    teams: List[Tuple[str, str, str, str]],
+):
+    country, league = league_key
+    print(f"[LEAGUE-START] {country} / {league} teams={len(teams)}")
 
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    print(f"{now}  TeamMemberData: 開始（Writer/Queue 方式）")
+    for i in range(0, len(teams), TEAMS_PER_LEAGUE_CONCURRENCY):
+        chunk = teams[i:i + TEAMS_PER_LEAGUE_CONCURRENCY]
+        results = await asyncio.gather(*[
+            process_team(ctx, existing_keys, claimed_keys, keys_lock, writer, c, l, team, href)
+            for (c, l, team, href) in chunk
+        ], return_exceptions=True)
 
-    existing_keys = load_existing_player_keys()
-    print(f"[INIT] 既取得キー: {len(existing_keys)} 件")
-
-    # =========================
-    # teamData_x.csv（x=数字連番）を全部読む
-    # =========================
-    team_rows: List[Tuple[str, str, str, str]] = []
-    paths = list_teamdata_csv_paths()
-    if not paths:
-        print(f"[EXIT] teamData_*.csv が見つかりません: {TEAMDATA_GLOB}")
-        return
-
-    for p in paths:
-        rows = read_teams_from_file(p)
-        print(f"[LOAD] {os.path.basename(p)}: {len(rows)} 行")
-        team_rows.extend(rows)
-
-    # 完全重複除去
-    seen: Set[Tuple[str, str, str, str]] = set()
-    uniq_rows: List[Tuple[str, str, str, str]] = []
-    for row in team_rows:
-        if row not in seen:
-            seen.add(row)
-            uniq_rows.append(row)
-
-    print(f"[PLAN] 処理チーム数（重複除去後）: {len(uniq_rows)}")
-
-    # =========================
-    # フィルタ: JSONあればその国×リーグだけ / なければCONTAINSだけ
-    # =========================
-    json_targets = extract_country_leagues_map(B001_JSON_PATH)
-
-    if json_targets:
-        before = len(uniq_rows)
-        uniq_rows = [
-            r for r in uniq_rows
-            if (r[0] in json_targets and r[1] in json_targets[r[0]])
-        ]
-        print(f"[FILTER] JSONあり: countries={len(json_targets)} pairs={sum(len(v) for v in json_targets.values())} / チーム {before} -> {len(uniq_rows)}")
-    else:
-        contains_targets = build_targets_from_contains()
-        before = len(uniq_rows)
-        uniq_rows = [
-            r for r in uniq_rows
-            if (r[0] in contains_targets and r[1] in contains_targets[r[0]])
-        ]
-        print(f"[FILTER] JSONなし/空: CONTAINS適用 countries={len(contains_targets)} / チーム {before} -> {len(uniq_rows)}")
-
-    if not uniq_rows:
-        print("[EXIT] フィルタ後の対象チームが0件のため終了します")
-        return
-
-    # ライター起動
-    writer = ExcelWriter(TEAMS_BY_LEAGUE_DIR, EXCEL_BASE_PREFIX, EXCEL_MAX_RECORDS)
-    await writer.start()
-
-    claim_lock = asyncio.Lock()
-    team_sema = asyncio.Semaphore(TEAM_CONCURRENCY)
-    claimed_keys: Set[Tuple[str, str, str, str]] = set()
-
-    async with async_playwright() as p:
-        browser = await p.chromium.launch(
-            headless=True,
-            args=[
-                "--disable-gpu",
-                "--disable-dev-shm-usage",
-                "--disable-background-timer-throttling",
-                "--disable-renderer-backgrounding",
-                "--disable-backgrounding-occluded-windows",
-                "--disable-breakpad",
-                "--disable-features=TranslateUI,BackForwardCache,AcceptCHFrame,MediaRouter",
-                "--blink-settings=imagesEnabled=false",
-            ],
-        )
-        ctx = await make_context(browser)
-
-        tasks = [
-            process_team(ctx, existing_keys, claimed_keys, claim_lock,
-                         team_sema, writer, country, league, team, href)
-            for (country, league, team, href) in uniq_rows
-        ]
-        results = await asyncio.gather(*tasks, return_exceptions=True)
         for r in results:
             if isinstance(r, Exception):
-                print(f"[WARN] タスク例外: {r}")
+                print(f"[WARN] チームタスク例外: {country}/{league} / {r}")
 
-        await ctx.close()
-        await browser.close()
+    print(f"[LEAGUE-DONE] {country} / {league}")
 
-    # ライター停止（残りを保存して終了）
-    await writer.stop()
-
-    # xlsx -> csv 変換して xlsx 削除
-    convert_xlsx_to_csv_and_delete_all(TEAMS_BY_LEAGUE_DIR, EXCEL_BASE_PREFIX)
-
-    print("TeamMemberData: 完了（Writer/Queue 方式）")
-
+# =========================
+# 変換
+# =========================
 def convert_xlsx_to_csv_and_delete_all(base_dir: str, prefix: str) -> None:
     xlsx_paths = sorted(glob.glob(os.path.join(base_dir, f"{prefix}[0-9]*.xlsx")))
     if not xlsx_paths:
@@ -782,6 +711,107 @@ def convert_xlsx_to_csv_and_delete_all(base_dir: str, prefix: str) -> None:
             print(f"[CONVERT] {os.path.basename(xlsx_path)} -> {os.path.basename(csv_path)}（xlsx削除）")
         except Exception as e:
             print(f"[ERROR] 変換失敗: {xlsx_path} / {e}")
+
+# =========================
+# エントリポイント
+# =========================
+async def main():
+    ensure_dirs()
+    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    print(f"{now}  TeamMemberData: 開始（リーグ並列 + 10チーム並列 + 重複完全回避）")
+
+    existing_keys = load_existing_player_keys(BASE_DIR)
+    print(f"[INIT] 既取得キー: {len(existing_keys)} 件")
+
+    team_rows: List[Tuple[str, str, str, str]] = []
+    paths = list_teamdata_csv_paths()
+    if not paths:
+        print(f"[EXIT] teamData_*.csv が見つかりません: {TEAMDATA_GLOB}")
+        return
+
+    for p in paths:
+        rows = read_teams_from_file(p)
+        print(f"[LOAD] {os.path.basename(p)}: {len(rows)} 行")
+        team_rows.extend(rows)
+
+    seen: Set[Tuple[str, str, str, str]] = set()
+    uniq_rows: List[Tuple[str, str, str, str]] = []
+    for row in team_rows:
+        if row not in seen:
+            seen.add(row)
+            uniq_rows.append(row)
+
+    print(f"[PLAN] 処理チーム数（重複除去後）: {len(uniq_rows)}")
+
+    p_json = Path(B001_JSON_PATH).expanduser()
+    if p_json.exists():
+        json_targets = extract_country_leagues_map(B001_JSON_PATH)
+        before = len(uniq_rows)
+        uniq_rows = [r for r in uniq_rows if (r[0] in json_targets and r[1] in json_targets[r[0]])]
+        print(f"[FILTER] JSON(存在) / チーム {before} -> {len(uniq_rows)} (targets={sum(len(v) for v in json_targets.values())})")
+
+        # JSONが存在するのに0件になったら、JSONの中身/形式が想定と違う可能性が高いので明示終了
+        if not uniq_rows:
+            print("[EXIT] b001_country_league.json は存在しますが、対象チームが0件です。JSONの国名/リーグ名の表記ゆれ、またはJSON形式を確認してください。")
+            return
+    else:
+        contains_targets = build_targets_from_contains()
+        before = len(uniq_rows)
+        uniq_rows = [r for r in uniq_rows if (r[0] in contains_targets and r[1] in contains_targets[r[0]])]
+        print(f"[FILTER] JSON(なし) / チーム {before} -> {len(uniq_rows)}")
+
+    if not uniq_rows:
+        print("[EXIT] フィルタ後の対象チームが0件のため終了します")
+        return
+
+    league_map = group_by_league(uniq_rows)
+    league_items = list(league_map.items())
+    print(f"[PLAN] 対象リーグ数: {len(league_items)}")
+
+    # 既存キー/claimedキーは同じロックで守る
+    keys_lock = asyncio.Lock()
+    claimed_keys: Set[Tuple[str, str, str, str]] = set()
+
+    # Writer（Writerが書いた瞬間に existing_keys を更新する）
+    writer = ExcelWriter(BASE_DIR, EXCEL_BASE_PREFIX, EXCEL_MAX_RECORDS, existing_keys, keys_lock)
+    await writer.start()
+
+    league_sema = asyncio.Semaphore(LEAGUE_CONCURRENCY)
+
+    async with async_playwright() as p:
+        browser = await p.chromium.launch(
+            headless=True,
+            args=[
+                "--disable-gpu",
+                "--disable-dev-shm-usage",
+                "--disable-background-timer-throttling",
+                "--disable-renderer-backgrounding",
+                "--disable-backgrounding-occluded-windows",
+                "--disable-breakpad",
+                "--disable-features=TranslateUI,BackForwardCache,AcceptCHFrame,MediaRouter",
+                "--blink-settings=imagesEnabled=false",
+            ],
+        )
+        ctx = await make_context(browser)
+
+        async def run_one_league(lk: Tuple[str, str], teams: List[Tuple[str, str, str, str]]):
+            async with league_sema:
+                await process_league(ctx, existing_keys, claimed_keys, keys_lock, writer, lk, teams)
+
+        tasks = [run_one_league(lk, teams) for (lk, teams) in league_items]
+        results = await asyncio.gather(*tasks, return_exceptions=True)
+        for r in results:
+            if isinstance(r, Exception):
+                print(f"[WARN] リーグタスク例外: {r}")
+
+        await ctx.close()
+        await browser.close()
+
+    await writer.stop()
+
+    convert_xlsx_to_csv_and_delete_all(BASE_DIR, EXCEL_BASE_PREFIX)
+
+    print("TeamMemberData: 完了（重複完全回避）")
 
 if __name__ == "__main__":
     asyncio.run(main())
