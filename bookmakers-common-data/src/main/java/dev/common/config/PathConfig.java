@@ -24,6 +24,12 @@ public class PathConfig {
 	private String csvFolder;
 
 	/**
+	 * 未来フォルダ
+	 */
+	@Value("${app.future-csv-folder}")
+	private String futureFolder;
+
+	/**
 	 * OUTPUTCSVフォルダ
 	 */
 	@Value("${app.output-csv-folder}")
@@ -49,6 +55,14 @@ public class PathConfig {
 	 */
 	public String getCsvFolder() {
         return csvFolder;
+    }
+
+	/**
+	 * 未来パスを返す
+	 * @return
+	 */
+	public String getFutureFolder() {
+        return futureFolder;
     }
 
 	/**

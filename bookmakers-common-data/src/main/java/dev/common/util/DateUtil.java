@@ -67,6 +67,20 @@ public class DateUtil {
 	private static final DateTimeFormatter PATTERN_DD_MM_YYYY = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
 	/**
+	 * 追加：日本形式（秒なし）
+	 */
+	private static final DateTimeFormatter JAPANESE_FORMAT_NO_SEC
+	        = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
+
+	/**
+	 * 追加：スラッシュ区切りも来るなら（必要なら）
+	 */
+	private static final DateTimeFormatter JAPANESE_SLASH_NO_SEC
+	        = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm");
+	private static final DateTimeFormatter JAPANESE_SLASH_SEC
+	        = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
+
+	/**
 	 * コンストラクタ生成禁止
 	 */
 	private DateUtil() {
@@ -343,6 +357,47 @@ public class DateUtil {
 		} catch (DateTimeParseException e) {
 			throw new IllegalArgumentException("不正な日時フォーマットです: " + input, e);
 		}
+	}
+
+	/**
+	 * 入力がどの形式でも "yyyy-MM-dd HH:mm:ss" に正規化して返す
+	 */
+	public static String normalizeToJapaneseFormat(String input) {
+	    if (input == null || input.isBlank()) {
+	        return "";
+	    }
+
+	    // 1) German: "dd.MM.yyyy HH:mm"
+	    try {
+	        LocalDateTime dt = LocalDateTime.parse(input, GERMAN_FORMAT);
+	        return dt.format(JAPANESE_FORMAT);
+	    } catch (DateTimeParseException ignore) {}
+
+	    // 2) Japanese: "yyyy-MM-dd HH:mm:ss"
+	    try {
+	        LocalDateTime dt = LocalDateTime.parse(input, JAPANESE_FORMAT);
+	        return dt.format(JAPANESE_FORMAT);
+	    } catch (DateTimeParseException ignore) {}
+
+	    // 3) Japanese: "yyyy-MM-dd HH:mm"
+	    try {
+	        LocalDateTime dt = LocalDateTime.parse(input, JAPANESE_FORMAT_NO_SEC);
+	        return dt.format(JAPANESE_FORMAT);
+	    } catch (DateTimeParseException ignore) {}
+
+	    // 4) Optional: "yyyy/MM/dd HH:mm:ss"
+	    try {
+	        LocalDateTime dt = LocalDateTime.parse(input, JAPANESE_SLASH_SEC);
+	        return dt.format(JAPANESE_FORMAT);
+	    } catch (DateTimeParseException ignore) {}
+
+	    // 5) Optional: "yyyy/MM/dd HH:mm"
+	    try {
+	        LocalDateTime dt = LocalDateTime.parse(input, JAPANESE_SLASH_NO_SEC);
+	        return dt.format(JAPANESE_FORMAT);
+	    } catch (DateTimeParseException ignore) {}
+
+	    throw new IllegalArgumentException("不正な日時フォーマットです: " + input);
 	}
 
 }

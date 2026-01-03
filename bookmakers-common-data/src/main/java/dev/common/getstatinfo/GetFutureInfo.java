@@ -11,6 +11,7 @@ import java.util.concurrent.Future;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.FutureEntity;
 import dev.common.find.dto.FindBookInputDTO;
@@ -35,10 +36,14 @@ public class GetFutureInfo {
 	/** クラス名 */
 	private static final String CLASS_NAME = GetFutureInfo.class.getSimpleName();
 
+	/** Configクラス */
+	@Autowired
+	private PathConfig config;
+
 	/**
-	 * CSV原本パス
+	 * パス(/Users/shiraishitoshio/bookmaker/の予定)
 	 */
-	private static final String PATH = "/Users/shiraishitoshio/bookmaker/";
+	private String PATH;
 
 	/**
 	 * 統計データCsv読み取りクラス
@@ -63,6 +68,8 @@ public class GetFutureInfo {
 	 */
 	public Map<String, List<FutureEntity>> getData() {
 		final String METHOD_NAME = "getData";
+		// パス
+		PATH = config.getFutureFolder();
 
 		// 時間計測開始
 		long startTime = System.nanoTime();

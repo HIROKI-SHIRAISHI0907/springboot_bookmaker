@@ -67,7 +67,7 @@ public class ReadFuture {
 					mappingDto.setFile(fileFullPath);
 					mappingDto.setGameTeamCategory(parts[0]);
 					mappingDto.setFutureTime(String.valueOf(
-							DateUtil.convertGermanToJapaneseFormat(parts[1])));
+							DateUtil.normalizeToJapaneseFormat(parts[1])));
 					mappingDto.setHomeRank(parts[2].replace(".0", ""));
 					mappingDto.setAwayRank(parts[3].replace(".0", ""));
 					mappingDto.setHomeTeamName(parts[4]);
