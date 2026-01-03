@@ -5,14 +5,14 @@ import static org.junit.jupiter.api.Assertions.*;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-
-import dev.batch.bm_b005.FutureService;
+import org.springframework.test.context.ActiveProfiles;
 
 @SpringBootTest
-class FutureServiceTest {
+@ActiveProfiles("test")
+class FutureBatchTest {
 
     @Autowired
-    private FutureService futureService;
+    private FutureBatch futureService;
 
     @Test
     void execute_shouldReturnZero_whenExecutionSuccessful() throws Exception {

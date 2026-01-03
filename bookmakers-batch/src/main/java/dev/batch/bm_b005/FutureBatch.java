@@ -6,7 +6,8 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import dev.batch.interf.FutureIF;
+import dev.batch.constant.BatchConstant;
+import dev.batch.interf.BatchIF;
 import dev.common.entity.FutureEntity;
 import dev.common.getstatinfo.GetFutureInfo;
 import dev.common.logger.ManageLoggerComponent;
@@ -17,14 +18,14 @@ import dev.common.logger.ManageLoggerComponent;
  *
  */
 @Service
-public class FutureService implements FutureIF {
+public class FutureBatch implements BatchIF {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = FutureService.class.getProtectionDomain()
+	private static final String PROJECT_NAME = FutureBatch.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = FutureService.class.getSimpleName();
+	private static final String CLASS_NAME = FutureBatch.class.getSimpleName();
 
 	/**
 	 * 未来情報取得管理クラス
@@ -48,7 +49,7 @@ public class FutureService implements FutureIF {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void execute() throws Exception {
+	public int execute() throws Exception {
 		final String METHOD_NAME = "execute";
 		// ログ出力
 		this.loggerComponent.debugStartInfoLog(
@@ -60,17 +61,14 @@ public class FutureService implements FutureIF {
 		try {
 			this.futureStat.futureStat(getFutureMap);
 		} catch (Exception e) {
-			this.loggerComponent.createSystemException(
-					PROJECT_NAME,
-					CLASS_NAME,
-					METHOD_NAME,
-					e.getMessage(),
-					e.getCause());
+			// エラー
+			return BatchConstant.BATCH_ERROR;
 		}
 
 		// endLog
 		this.loggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		return BatchConstant.BATCH_SUCCESS;
 
 	}
 
