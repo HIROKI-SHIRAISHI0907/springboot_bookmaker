@@ -7,7 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.application.analyze.interf.OriginIF;
-import dev.application.main.service.FutureStartFlgService;
 import dev.common.entity.DataEntity;
 import dev.common.getstatinfo.GetOriginInfo;
 import dev.common.logger.ManageLoggerComponent;

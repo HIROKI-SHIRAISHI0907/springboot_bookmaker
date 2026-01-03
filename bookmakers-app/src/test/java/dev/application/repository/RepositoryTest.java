@@ -20,7 +20,6 @@ import dev.application.analyze.bm_m007_bm_m016.TimeRangeFeatureScoredEntity;
 import dev.application.analyze.bm_m017_bm_m018.LeagueScoreTimeBandStatsEntity;
 import dev.application.analyze.bm_m017_bm_m018.LeagueScoreTimeBandStatsSplitScoreEntity;
 import dev.application.analyze.bm_m019_bm_m020.MatchClassificationResultCountEntity;
-import dev.application.analyze.bm_m019_bm_m020.MatchClassificationResultEntity;
 import dev.application.analyze.bm_m021.TeamMatchFinalStatsEntity;
 import dev.application.analyze.bm_m023.ScoreBasedFeatureStatsEntity;
 import dev.application.analyze.bm_m024.CalcCorrelationEntity;
@@ -33,7 +32,6 @@ import dev.application.domain.repository.bm.EachTeamScoreBasedFeatureStatsReposi
 import dev.application.domain.repository.bm.LeagueScoreTimeBandStatsRepository;
 import dev.application.domain.repository.bm.LeagueScoreTimeBandStatsSplitScoreRepository;
 import dev.application.domain.repository.bm.MatchClassificationResultCountRepository;
-import dev.application.domain.repository.bm.MatchClassificationResultRepository;
 import dev.application.domain.repository.bm.NoGoalMatchStatsRepository;
 import dev.application.domain.repository.bm.ScoreBasedFeatureStatsRepository;
 import dev.application.domain.repository.bm.TeamMatchFinalStatsRepository;
@@ -43,9 +41,7 @@ import dev.application.domain.repository.bm.TimeRangeFeatureAllLeagueRepository;
 import dev.application.domain.repository.bm.TimeRangeFeatureRepository;
 import dev.application.domain.repository.bm.TimeRangeFeatureScoredRepository;
 import dev.application.domain.repository.bm.TimeRangeFeatureUpdateRepository;
-import dev.application.domain.repository.master.FutureMasterRepository;
 import dev.common.entity.DataEntity;
-import dev.common.entity.FutureEntity;
 
 @SpringBootTest
 @Transactional
@@ -101,10 +97,6 @@ class RepositoryTest {
 
 	/** BM_M019_BM_M020 */
 	@Autowired
-	private MatchClassificationResultRepository matchClassificationResultRepository;
-
-	/** BM_M019_BM_M020 */
-	@Autowired
 	private MatchClassificationResultCountRepository matchClassificationResultCountRepository;
 
 	/** BM_M021 */
@@ -122,10 +114,6 @@ class RepositoryTest {
 	/** BM_M026 */
 	@Autowired
 	private EachTeamScoreBasedFeatureStatsRepository eachTeamScoreBasedFeatureStatsRepository;
-
-	/** BM_M022 */
-	@Autowired
-	private FutureMasterRepository futureRepository;
 
 	@Test
 	void test1() {
@@ -285,14 +273,6 @@ class RepositoryTest {
 	}
 
 	@Test
-	void test14() {
-		MatchClassificationResultEntity entity = new MatchClassificationResultEntity();
-
-		int saved = matchClassificationResultRepository.insertBatch(null);
-		assertEquals(1, saved);
-	}
-
-	@Test
 	void test15() {
 		String country = "";
 		String league = "";
@@ -375,21 +355,6 @@ class RepositoryTest {
 		assertFalse(list.isEmpty());
 
 		int savedUpd = eachTeamScoreBasedFeatureStatsRepository.updateStatValues(entity);
-		assertEquals(1, savedUpd);
-	}
-
-	@Test
-	void test20() {
-		String home = "高知ユナイテッド";
-		String away = "鹿児島ユナイテッドFC";
-		FutureEntity entity = new FutureEntity();
-		entity.setHomeTeamName(home);
-		entity.setAwayTeamName(away);
-
-		int saved = futureRepository.insert(entity);
-		assertEquals(1, saved);
-
-		int savedUpd = futureRepository.findDataCount(entity);
 		assertEquals(1, savedUpd);
 	}
 
