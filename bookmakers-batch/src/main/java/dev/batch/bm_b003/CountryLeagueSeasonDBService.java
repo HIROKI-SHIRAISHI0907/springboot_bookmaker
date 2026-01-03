@@ -76,6 +76,11 @@ public class CountryLeagueSeasonDBService {
 					// 有効フラグを埋める
 					entity.setValidFlg(VALID_FLG_0);
 					// シーズン年を元にシーズン開始日と終了日を埋める
+					String[] years = convertSeasonYear(entity.getSeasonYear());
+					String startDate = buildDate(years[0], entity.getStartSeasonDate());
+					String endDate   = buildDate(years[1], entity.getEndSeasonDate());
+					entity.setStartSeasonDate(startDate);
+					entity.setEndSeasonDate(endDate);
 					int result = this.countryLeagueSeasonMasterRepository.insert(entity);
 					if (result != 1) {
 						String messageCd = "新規登録エラー";
@@ -102,5 +107,83 @@ public class CountryLeagueSeasonDBService {
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
 		return 0;
 	}
+
+	/**
+	 * 年変換
+	 * @param year
+	 * @return
+	 */
+	private String[] convertSeasonYear(String year) {
+		// 戻り値[0] = 開始年, [1] = 終了年
+		if (year == null || year.isEmpty()) {
+			throw new IllegalArgumentException("seasonYear is null or empty");
+		}
+
+		if (year.length() == 9 && year.contains("/")) {
+			// 2025/2026
+			String[] years = year.split("/");
+			return new String[] { years[0], years[1] };
+		}
+
+		if (year.length() == 4) {
+			// 2025
+			return new String[] { year, year };
+		}
+
+		throw new IllegalArgumentException("Invalid seasonYear format: " + year);
+	}
+
+	/**
+	 * 日付構築
+	 * @param year
+	 * @param seasonDate
+	 * @return
+	 */
+	private String buildDate(String year, String seasonDate) {
+	    if (seasonDate == null || seasonDate.isEmpty()) {
+	        return null;
+	    }
+
+	    // 例: "4.10." , ".24.08" , "24.08" などから「数値」を抜き出す
+	    String[] raw = seasonDate.split("\\.");
+	    List<String> nums = new ArrayList<>();
+	    for (String s : raw) {
+	        if (s != null) {
+	            s = s.trim();
+	            if (!s.isEmpty()) nums.add(s);
+	        }
+	    }
+
+	    if (nums.size() < 2) {
+	        throw new IllegalArgumentException("Invalid seasonDate format: " + seasonDate);
+	    }
+
+	    // まずは「日.月」 or 「月.日」判定
+	    int a = Integer.parseInt(nums.get(0));
+	    int b = Integer.parseInt(nums.get(1));
+
+	    int day;
+	    int month;
+
+	    // ".24.08" は「日=24, 月=8」なので a(24) が 12より大きければ日と判断
+	    if (a > 12) {
+	        day = a;
+	        month = b;
+	    } else if (b > 12) {
+	        // "08.24" のように b が 12超なら b が日
+	        month = a;
+	        day = b;
+	    } else {
+	        // 両方 12以下は曖昧なので、従来形式 "4.10." を優先（=月.日）
+	        month = a;
+	        day = b;
+	    }
+
+	    String monthStr = String.format("%02d", month);
+	    String dayStr   = String.format("%02d", day);
+
+	    return year + "-" + monthStr + "-" + dayStr;
+	}
+
 
 }

@@ -2,8 +2,10 @@ package dev.batch.bm_b001;
 
 import java.io.File;
 import java.util.HashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -51,33 +53,32 @@ public class UpdateTimesCountryLeagueMasterBatch implements BatchIF {
             }
         }
 
-		Map<String, String> countryLeagueMap = new HashMap<>();
-
 		// 日付がMasterの終了日を超えていたら「---」に更新
 		List<CountryLeagueSeasonMasterEntity> expiredDate =
 				this.countryLeagueSeasonMasterRepository.findExpiredByEndDate(nowDate);
 
-		for (CountryLeagueSeasonMasterEntity entity : expiredDate) {
-			// Map に詰める
-	        countryLeagueMap.put(
-	                entity.getCountry(),
-	                entity.getLeague()
-	        );
+		Map<String, Set<String>> countryLeagueMap = new HashMap<String, Set<String>>();
 
-			int result = this.countryLeagueSeasonMasterRepository
-			.clearEndSeasonDate(entity.getCountry(), entity.getLeague());
-			// ログ
-			if (result != 1) return BatchConstant.BATCH_ERROR;
+		for (CountryLeagueSeasonMasterEntity entity : expiredDate) {
+		    String country = entity.getCountry();
+		    String league  = entity.getLeague();
+
+		    countryLeagueMap
+		        .computeIfAbsent(country, k -> new LinkedHashSet<String>())
+		        .add(league);
+
+		    int result = this.countryLeagueSeasonMasterRepository
+		        .clearEndSeasonDate(country, league);
+		    if (result != 1) return BatchConstant.BATCH_ERROR;
 		}
 
-		// ★ JSON 出力
-	    try {
-	    	ObjectMapper mapper = new ObjectMapper();
-            mapper.writerWithDefaultPrettyPrinter()
-                  .writeValue(new File(jsonPath), countryLeagueMap);
-	    } catch (Exception e) {
-	        return BatchConstant.BATCH_ERROR;
-	    }
+		try {
+		    ObjectMapper mapper = new ObjectMapper();
+		    mapper.writerWithDefaultPrettyPrinter()
+		          .writeValue(new File(jsonPath), countryLeagueMap);
+		} catch (Exception e) {
+		    return BatchConstant.BATCH_ERROR;
+		}
 
 
 		return BatchConstant.BATCH_SUCCESS;

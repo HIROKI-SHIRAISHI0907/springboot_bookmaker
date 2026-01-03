@@ -42,6 +42,7 @@ public interface CountryLeagueSeasonMasterRepository {
 			    INSERT INTO country_league_season_master (
 			        country,
 			        league,
+			        season_year,
 			        start_season_date,
 			        end_season_date,
 			        round,
@@ -55,6 +56,7 @@ public interface CountryLeagueSeasonMasterRepository {
 			    ) VALUES (
 			        #{country},
 			        #{league},
+			        #{seasonYear},
 			        #{startSeasonDate}::timestamptz,
 					#{endSeasonDate}::timestamptz,
 			        #{round},
