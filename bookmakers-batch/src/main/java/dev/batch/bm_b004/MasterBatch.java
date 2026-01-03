@@ -12,58 +12,76 @@ import dev.common.getstatinfo.GetTeamMasterInfo;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
- * マスタ登録バッチ実行クラス
- * @author shiraishitoshio
+ * マスタ登録バッチ実行クラス。
+ * <p>
+ * 国・リーグなどのマスタデータを取得し、登録ロジック（Transactional想定）を実行する。
+ * </p>
  *
+ * <p><b>実行方式</b></p>
+ * <ul>
+ *   <li>開始/終了ログを必ず出力する</li>
+ *   <li>例外は内部で捕捉し、debugErrorLog に例外を付与して出力する</li>
+ *   <li>戻り値で成功/失敗を返却する</li>
+ * </ul>
+ *
+ * @author shiraishitoshio
  */
-@Service
+@Service("B004")
 public class MasterBatch implements BatchIF {
 
-	/** プロジェクト名 */
-	private static final String PROJECT_NAME = MasterBatch.class.getProtectionDomain()
-			.getCodeSource().getLocation().getPath();
+    /** プロジェクト名 */
+    private static final String PROJECT_NAME = MasterBatch.class.getProtectionDomain()
+            .getCodeSource().getLocation().getPath();
 
-	/** クラス名 */
-	private static final String CLASS_NAME = MasterBatch.class.getSimpleName();
+    /** クラス名 */
+    private static final String CLASS_NAME = MasterBatch.class.getSimpleName();
 
-	/**
-	 * マスタ情報取得管理クラス
-	 */
-	@Autowired
-	private GetTeamMasterInfo getTeamMasterInfo;
+    /** エラーコード（運用ルールに合わせて変更） */
+    private static final String ERROR_CODE = "BM_B004_ERROR";
 
-	/** BM_M032統計分析ロジック */
-	@Autowired
-	private CountryLeagueMasterStat countryLeagueMasterStat;
+    /** マスタ情報取得管理クラス */
+    @Autowired
+    private GetTeamMasterInfo getTeamMasterInfo;
 
-	/** ログ管理クラス */
-	@Autowired
-	private ManageLoggerComponent manageLoggerComponent;
+    /** BM_M032統計分析ロジック */
+    @Autowired
+    private CountryLeagueMasterStat countryLeagueMasterStat;
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public int execute() throws Exception {
-		final String METHOD_NAME = "execute";
-		// ログ出力
-		this.manageLoggerComponent.debugStartInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+    /** ログ管理クラス */
+    @Autowired
+    private ManageLoggerComponent manageLoggerComponent;
 
-		// マスタデータ情報を取得
-		List<List<CountryLeagueMasterEntity>> getMemberList = this.getTeamMasterInfo.getData();
-		// BM_M032登録(Transactional)
-		try {
-			this.countryLeagueMasterStat.masterStat(getMemberList);
-		} catch (Exception e) {
-			// エラー
-			return BatchConstant.BATCH_ERROR;
-		}
+    /**
+     * バッチ処理を実行する。
+     *
+     * @return
+     * <ul>
+     *   <li>{@link BatchConstant#BATCH_SUCCESS}：正常終了</li>
+     *   <li>{@link BatchConstant#BATCH_ERROR}：異常終了</li>
+     * </ul>
+     */
+    @Override
+    public int execute() {
+        final String METHOD_NAME = "execute";
+        this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// endLog
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		return BatchConstant.BATCH_SUCCESS;
-	}
+        try {
+            // マスタデータ情報を取得
+            List<List<CountryLeagueMasterEntity>> list = this.getTeamMasterInfo.getData();
 
+            // BM_M032登録(Transactional)
+            this.countryLeagueMasterStat.masterStat(list);
+
+            return BatchConstant.BATCH_SUCCESS;
+
+        } catch (Exception e) {
+            this.manageLoggerComponent.debugErrorLog(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, e
+            );
+            return BatchConstant.BATCH_ERROR;
+
+        } finally {
+            this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+        }
+    }
 }
