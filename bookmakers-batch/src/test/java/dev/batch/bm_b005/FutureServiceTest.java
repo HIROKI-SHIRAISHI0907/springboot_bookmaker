@@ -1,10 +1,12 @@
-package dev.application.main.service;
+package dev.batch.bm_b005;
 
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
+
+import dev.batch.bm_b005.FutureService;
 
 @SpringBootTest
 class FutureServiceTest {

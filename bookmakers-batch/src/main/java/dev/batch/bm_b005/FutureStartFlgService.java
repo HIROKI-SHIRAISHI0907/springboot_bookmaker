@@ -1,4 +1,4 @@
-package dev.application.main.service;
+package dev.batch.bm_b005;
 
 import java.util.List;
 import java.util.Map;
@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.application.domain.repository.master.FutureMasterRepository;
+import dev.batch.repository.master.FutureMasterRepository;
 import dev.common.entity.DataEntity;
 import dev.common.entity.FutureEntity;
 import dev.common.exception.wrap.RootCauseWrapper;

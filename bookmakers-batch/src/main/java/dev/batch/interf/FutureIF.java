@@ -1,4 +1,4 @@
-package dev.application.analyze.interf;
+package dev.batch.interf;
 
 /**
  * 未来統計用サービスクラスIF

@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m022;
+package dev.batch.bm_b005;
 
 import java.io.IOException;
 import java.nio.file.Files;
@@ -11,7 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.application.analyze.interf.FutureEntityIF;
+import dev.batch.interf.FutureEntityIF;
 import dev.common.entity.FutureEntity;
 import dev.common.logger.ManageLoggerComponent;
 

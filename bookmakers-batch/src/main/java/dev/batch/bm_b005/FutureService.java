@@ -1,4 +1,4 @@
-package dev.application.main.service;
+package dev.batch.bm_b005;
 
 import java.util.List;
 import java.util.Map;
@@ -6,8 +6,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import dev.application.analyze.bm_m022.FutureStat;
-import dev.application.analyze.interf.FutureIF;
+import dev.batch.interf.FutureIF;
 import dev.common.entity.FutureEntity;
 import dev.common.getstatinfo.GetFutureInfo;
 import dev.common.logger.ManageLoggerComponent;
