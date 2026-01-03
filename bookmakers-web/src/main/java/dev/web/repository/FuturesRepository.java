@@ -13,7 +13,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.web.api.bm_w001.FuturesResponseDTO;
-import lombok.RequiredArgsConstructor;
 
 /**
  * FuturesRepositoryクラス
@@ -21,11 +20,15 @@ import lombok.RequiredArgsConstructor;
  *
  */
 @Repository
-@RequiredArgsConstructor
 public class FuturesRepository {
 
-	@Qualifier("masterJdbcTemplate")
     private final NamedParameterJdbcTemplate masterJdbcTemplate;
+
+    public FuturesRepository(
+            @Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate
+    ) {
+        this.masterJdbcTemplate = masterJdbcTemplate;
+    }
 
     // --------------------------------------------------------
     // 一覧: GET /api/:country/:league/:team/future（チーム取得）

@@ -12,19 +12,21 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import lombok.RequiredArgsConstructor;
-
 /**
  * LeaguesRepositoryクラス
  * @author shiraishitoshio
  *
  */
 @Repository
-@RequiredArgsConstructor
 public class LeaguesRepository {
 
-    @Qualifier("masterJdbcTemplate")
     private final NamedParameterJdbcTemplate masterJdbcTemplate;
+
+    public LeaguesRepository(
+            @Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate
+    ) {
+        this.masterJdbcTemplate = masterJdbcTemplate;
+    }
 
     // --- Row 用の内部クラス（DB そのまま） ---
     public static class LeagueCountRow {

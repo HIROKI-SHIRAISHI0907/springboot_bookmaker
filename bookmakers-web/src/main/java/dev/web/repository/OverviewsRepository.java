@@ -12,7 +12,6 @@ import org.springframework.stereotype.Repository;
 import dev.web.api.bm_w003.OverviewResponseDTO;
 import dev.web.api.bm_w003.ScheduleMatchDTO;
 import dev.web.api.bm_w003.SurfaceSnapshotDTO;
-import lombok.RequiredArgsConstructor;
 
 /**
  * OverviewsRepositoryクラス
@@ -20,14 +19,18 @@ import lombok.RequiredArgsConstructor;
  *
  */
 @Repository
-@RequiredArgsConstructor
 public class OverviewsRepository {
 
-	@Qualifier("bmJdbcTemplate")
-    private final NamedParameterJdbcTemplate bmJdbcTemplate;
-
-	@Qualifier("masterJdbcTemplate")
+	private final NamedParameterJdbcTemplate bmJdbcTemplate;
     private final NamedParameterJdbcTemplate masterJdbcTemplate;
+
+    public OverviewsRepository(
+            @Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate,
+            @Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate
+    ) {
+        this.bmJdbcTemplate = bmJdbcTemplate;
+        this.masterJdbcTemplate = masterJdbcTemplate;
+    }
 
     // --------------------------------------------------------
     // 取得: GET /api/:country/:league/:team/overview（月ごとのデータ）

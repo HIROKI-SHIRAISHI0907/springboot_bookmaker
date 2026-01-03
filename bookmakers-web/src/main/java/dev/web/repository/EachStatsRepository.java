@@ -10,16 +10,24 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import lombok.RequiredArgsConstructor;
-
 /**
  * EachStatsRepositoryクラス
  * @author shiraishitoshio
  *
  */
 @Repository
-@RequiredArgsConstructor
 public class EachStatsRepository {
+
+	private final NamedParameterJdbcTemplate bmJdbcTemplate;
+    private final NamedParameterJdbcTemplate masterJdbcTemplate;
+
+    public EachStatsRepository(
+            @Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate,
+            @Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate
+    ) {
+        this.bmJdbcTemplate = bmJdbcTemplate;
+        this.masterJdbcTemplate = masterJdbcTemplate;
+    }
 
     private static final String TABLE_NAME = "each_team_score_based_feature_stats";
 
@@ -84,12 +92,6 @@ public class EachStatsRepository {
         "home_intercept_count_stat",
         "away_intercept_count_stat"
     };
-
-    @Qualifier("masterJdbcTemplate")
-    private final NamedParameterJdbcTemplate masterJdbcTemplate;
-
-    @Qualifier("bmJdbcTemplate")
-    private final NamedParameterJdbcTemplate bmJdbcTemplate;
 
     /** country / league / teamSlug から日本語チーム名。見つからなければ teamSlug を返す。 */
     public String findTeamName(String country, String league, String teamSlug) {

@@ -9,22 +9,24 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import lombok.RequiredArgsConstructor;
-
 /**
  * CorrelationsRepositoryクラス
  * @author shiraishitoshio
  *
  */
 @Repository
-@RequiredArgsConstructor
 public class CorrelationsRepository {
 
-	@Qualifier("bmJdbcTemplate")
-    private final NamedParameterJdbcTemplate bmJdbcTemplate;
-
-	@Qualifier("masterJdbcTemplate")
+	private final NamedParameterJdbcTemplate bmJdbcTemplate;
     private final NamedParameterJdbcTemplate masterJdbcTemplate;
+
+    public CorrelationsRepository(
+            @Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate,
+            @Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate
+    ) {
+        this.bmJdbcTemplate = bmJdbcTemplate;
+        this.masterJdbcTemplate = masterJdbcTemplate;
+    }
 
     // --------------------------------------------------------
     // 一覧: GET /api/:country/:league/:team/correlations（チーム取得）

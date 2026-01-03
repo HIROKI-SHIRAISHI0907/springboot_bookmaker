@@ -8,7 +8,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.web.api.bm_w004.ScheduledSurfaceSnapshotDTO;
-import lombok.RequiredArgsConstructor;
 
 /**
  * ScheduledOverviewsRepositoryクラス
@@ -19,11 +18,15 @@ import lombok.RequiredArgsConstructor;
  * @author shiraishitoshio
  */
 @Repository
-@RequiredArgsConstructor
 public class ScheduledOverviewsRepository {
 
-	@Qualifier("bmJdbcTemplate")
 	private final NamedParameterJdbcTemplate bmJdbcTemplate;
+
+    public ScheduledOverviewsRepository(
+            @Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate
+    ) {
+        this.bmJdbcTemplate = bmJdbcTemplate;
+    }
 
 	/**
 	 * 指定されたチーム・役割（home / away）について、

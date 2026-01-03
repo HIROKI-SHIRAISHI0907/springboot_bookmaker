@@ -10,7 +10,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.web.api.bm_w005.GameMatchDTO;
-import lombok.RequiredArgsConstructor;
 
 /**
  * GamesRepositoryクラス
@@ -24,14 +23,18 @@ import lombok.RequiredArgsConstructor;
  * @author shiraishitoshio
  */
 @Repository
-@RequiredArgsConstructor
 public class GamesRepository {
 
-	@Qualifier("bmJdbcTemplate")
-    private final NamedParameterJdbcTemplate bmJdbcTemplate;
-
-    @Qualifier("masterJdbcTemplate")
+	private final NamedParameterJdbcTemplate bmJdbcTemplate;
     private final NamedParameterJdbcTemplate masterJdbcTemplate;
+
+    public GamesRepository(
+            @Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate,
+            @Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate
+    ) {
+        this.bmJdbcTemplate = bmJdbcTemplate;
+        this.masterJdbcTemplate = masterJdbcTemplate;
+    }
 
     /**
      * スラッグ → 日本語チーム名 の解決

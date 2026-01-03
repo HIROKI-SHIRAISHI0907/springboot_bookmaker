@@ -34,20 +34,21 @@ public class DataSourceConfig {
     }
 
     // master 用
-    @Bean
+    @Bean(name = "webMasterDataSourceProperties")
     @ConfigurationProperties("spring.datasource.master")
     public DataSourceProperties masterDataSourceProperties() {
         return new DataSourceProperties();
     }
 
-    @Bean
-    public DataSource masterDataSource() {
-        return masterDataSourceProperties().initializeDataSourceBuilder().build();
+    @Bean(name = "webMasterDataSource")
+    public DataSource webMasterDataSource(
+            @Qualifier("webMasterDataSourceProperties") DataSourceProperties props) {
+        return props.initializeDataSourceBuilder().build();
     }
 
-    @Bean
-    public NamedParameterJdbcTemplate masterJdbcTemplate(
-            @Qualifier("masterDataSource") DataSource dataSource) {
+    @Bean(name = "webMasterJdbcTemplate")
+    public NamedParameterJdbcTemplate webMasterJdbcTemplate(
+            @Qualifier("webMasterDataSource") DataSource dataSource) {
         return new NamedParameterJdbcTemplate(dataSource);
     }
 }

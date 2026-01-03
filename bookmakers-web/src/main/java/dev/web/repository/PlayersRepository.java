@@ -8,7 +8,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.web.api.bm_w009.PlayerDTO;
-import lombok.RequiredArgsConstructor;
 
 /**
  * PlayersRepositoryクラス
@@ -16,14 +15,18 @@ import lombok.RequiredArgsConstructor;
  *
  */
 @Repository
-@RequiredArgsConstructor
 public class PlayersRepository {
 
-    @Qualifier("masterJdbcTemplate")
+	private final NamedParameterJdbcTemplate bmJdbcTemplate;
     private final NamedParameterJdbcTemplate masterJdbcTemplate;
 
-    @Qualifier("bmJdbcTemplate")
-    private final NamedParameterJdbcTemplate bmJdbcTemplate;
+    public PlayersRepository(
+            @Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate,
+            @Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate
+    ) {
+        this.bmJdbcTemplate = bmJdbcTemplate;
+        this.masterJdbcTemplate = masterJdbcTemplate;
+    }
 
     /**
      * country / league / teamSlug から 日本語チーム名を取得。

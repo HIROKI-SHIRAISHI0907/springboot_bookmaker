@@ -13,7 +13,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.web.api.bm_w005.GameDetailDTO;
-import lombok.RequiredArgsConstructor;
 
 /**
  * GameDetailRepositoryクラス
@@ -26,11 +25,15 @@ import lombok.RequiredArgsConstructor;
  * @author shiraishitoshio
  */
 @Repository
-@RequiredArgsConstructor
 public class GameDetailsRepository {
 
-	@Qualifier("bmJdbcTemplate")
-    private final NamedParameterJdbcTemplate bmJdbcTemplate;
+	private final NamedParameterJdbcTemplate bmJdbcTemplate;
+
+    public GameDetailsRepository(
+            @Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate
+    ) {
+        this.bmJdbcTemplate = bmJdbcTemplate;
+    }
 
     /**
      * 試合詳細を取得（LIVE / FINISHED 問わず）

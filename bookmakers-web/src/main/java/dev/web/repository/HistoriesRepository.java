@@ -14,7 +14,6 @@ import org.springframework.stereotype.Repository;
 
 import dev.web.api.bm_w002.HistoryDetailResponseDTO;
 import dev.web.api.bm_w002.HistoryResponseDTO;
-import lombok.RequiredArgsConstructor;
 
 /**
  * HistoriesRepositoryクラス
@@ -22,14 +21,18 @@ import lombok.RequiredArgsConstructor;
  *
  */
 @Repository
-@RequiredArgsConstructor
 public class HistoriesRepository {
 
-	@Qualifier("bmJdbcTemplate")
 	private final NamedParameterJdbcTemplate bmJdbcTemplate;
+    private final NamedParameterJdbcTemplate masterJdbcTemplate;
 
-	@Qualifier("masterJdbcTemplate")
-	private final NamedParameterJdbcTemplate masterJdbcTemplate;
+    public HistoriesRepository(
+            @Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate,
+            @Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate
+    ) {
+        this.bmJdbcTemplate = bmJdbcTemplate;
+        this.masterJdbcTemplate = masterJdbcTemplate;
+    }
 
 	// --------------------------------------------------------
 	// 一覧: GET /api/:country/:league/:team/history（チーム取得）

@@ -9,7 +9,6 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.web.api.bm_w006.StandingRowDTO;
-import lombok.RequiredArgsConstructor;
 
 /**
  * 順位表取得用リポジトリ.
@@ -25,14 +24,18 @@ import lombok.RequiredArgsConstructor;
  * @author shiraishitoshio
  */
 @Repository
-@RequiredArgsConstructor
 public class StandingsRepository {
 
-	@Qualifier("bmJdbcTemplate")
-    private final NamedParameterJdbcTemplate bmJdbcTemplate;
-
-    @Qualifier("masterJdbcTemplate")
+	private final NamedParameterJdbcTemplate bmJdbcTemplate;
     private final NamedParameterJdbcTemplate masterJdbcTemplate;
+
+    public StandingsRepository(
+            @Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate,
+            @Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate
+    ) {
+        this.bmJdbcTemplate = bmJdbcTemplate;
+        this.masterJdbcTemplate = masterJdbcTemplate;
+    }
 
     /**
      * 国・リーグを指定して順位表を取得する。

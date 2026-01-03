@@ -14,7 +14,6 @@ import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
 import dev.web.api.bm_w007.LiveMatchResponse;
-import lombok.RequiredArgsConstructor;
 
 /**
  * 現在開催中の試合（LIVE）取得 Repository
@@ -23,14 +22,18 @@ import lombok.RequiredArgsConstructor;
  * @author shiraishitoshio
  */
 @Repository
-@RequiredArgsConstructor
 public class LiveMatchesRepository {
 
-	@Qualifier("bmJdbcTemplate")
-    private final NamedParameterJdbcTemplate bmJdbcTemplate;
-
-    @Qualifier("masterJdbcTemplate")
+	private final NamedParameterJdbcTemplate bmJdbcTemplate;
     private final NamedParameterJdbcTemplate masterJdbcTemplate;
+
+    public LiveMatchesRepository(
+            @Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate,
+            @Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate
+    ) {
+        this.bmJdbcTemplate = bmJdbcTemplate;
+        this.masterJdbcTemplate = masterJdbcTemplate;
+    }
 
 	/**
 	 * LIVE 試合一覧を取得。
