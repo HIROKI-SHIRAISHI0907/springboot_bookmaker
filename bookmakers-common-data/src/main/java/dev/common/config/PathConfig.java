@@ -42,6 +42,48 @@ public class PathConfig {
 	private String teamCsvFolder;
 
 	/**
+	 * pythonファイル実行
+	 */
+	@Value("${process.python.root}")
+	private String pythonRoot;
+
+	/**
+	 * pythonBinライブラリ
+	 */
+	@Value("${process.python.pythonBin}")
+	private String pythonBin;
+
+	/**
+	 * S3リージョン
+	 */
+	@Value("${process.s3.region}")
+	private String s3Region;
+
+	/**
+	 * S3バケット（teamSeasonDateData）
+	 */
+	@Value("${process.s3.buckets.teamSeasonDateData}")
+	private String s3BucketsTeamSeasonDateData;
+
+	/**
+	 * S3バケット（teamData）
+	 */
+	@Value("${process.s3.buckets.teamData}")
+	private String s3BucketsTeamData;
+
+	/**
+	 * S3バケット（teamMemberData）
+	 */
+	@Value("${process.s3.buckets.teamMemberData}")
+	private String s3BucketsTeamMemberData;
+
+	/**
+	 * S3バケット（outputs）
+	 */
+	@Value("${process.s3.buckets.outputs}")
+	private String s3BucketsOutputs;
+
+	/**
 	 * JSONフォルダ作成パスを返す
 	 * @return
 	 */
@@ -80,5 +122,72 @@ public class PathConfig {
 	public String getTeamCsvFolder() {
         return teamCsvFolder;
     }
+
+	/**
+	 * Python実行ルートディレクトリを取得する。
+	 *
+	 * @return Pythonファイル配置ルートパス
+	 */
+	public String getPythonRoot() {
+	    return pythonRoot;
+	}
+
+	/**
+	 * Python実行バイナリ名を取得する。
+	 * <p>
+	 * 例：python3, python
+	 * </p>
+	 *
+	 * @return Python実行コマンド
+	 */
+	public String getPythonBin() {
+	    return pythonBin;
+	}
+
+	/**
+	 * S3リージョンを取得する。
+	 *
+	 * @return S3リージョン（例：ap-northeast-1）
+	 */
+	public String getS3Region() {
+	    return s3Region;
+	}
+
+	/**
+	 * TeamSeasonDateData用のS3バケット名を取得する。
+	 *
+	 * @return TeamSeasonDateData用S3バケット名
+	 */
+	public String getS3BucketsTeamSeasonDateData() {
+	    return s3BucketsTeamSeasonDateData;
+	}
+
+	/**
+	 * TeamData用のS3バケット名を取得する。
+	 *
+	 * @return TeamData用S3バケット名
+	 */
+	public String getS3BucketsTeamData() {
+	    return s3BucketsTeamData;
+	}
+
+	/**
+	 * TeamMemberData用のS3バケット名を取得する。
+	 *
+	 * @return TeamMemberData用S3バケット名
+	 */
+	public String getS3BucketsTeamMemberData() {
+	    return s3BucketsTeamMemberData;
+	}
+
+	/**
+	 * Outputs（汎用出力）用のS3バケット名を取得する。
+	 *
+	 * @return Outputs用S3バケット名
+	 */
+	public String getS3BucketsOutputs() {
+	    return s3BucketsOutputs;
+	}
+
 
 }

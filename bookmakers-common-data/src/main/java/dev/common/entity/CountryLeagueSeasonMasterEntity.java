@@ -42,4 +42,7 @@ public class CountryLeagueSeasonMasterEntity extends MetaEntity {
 	/** 有効フラグ*/
 	private String validFlg;
 
+	/** 削除フラグ */
+	private String delFlg;
+
 }

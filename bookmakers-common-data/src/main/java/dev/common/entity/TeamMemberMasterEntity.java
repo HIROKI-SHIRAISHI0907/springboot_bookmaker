@@ -84,4 +84,7 @@ public class TeamMemberMasterEntity extends MetaEntity {
 	/** 更新済みスタンプ */
 	private String updStamp;
 
+	/** 削除フラグ */
+	private String delFlg;
+
 }

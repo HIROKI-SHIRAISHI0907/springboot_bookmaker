@@ -27,4 +27,7 @@ public class CountryLeagueMasterEntity extends MetaEntity {
 	/** リンク */
 	private String link;
 
+	/** 削除フラグ */
+	private String delFlg;
+
 }
