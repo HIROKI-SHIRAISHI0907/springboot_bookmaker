@@ -25,6 +25,17 @@ public interface CountryLeagueSeasonMasterRepository {
 			""")
 	List<CountryLeagueSeasonMasterEntity> findExpiredByEndDate(String date);
 
+	@Select("""
+			    SELECT
+			        country,
+			        league
+			    FROM
+			        country_league_season_master
+			    WHERE
+			        end_season_date = NULL
+			""")
+	List<CountryLeagueSeasonMasterEntity> findHyphen();
+
 	@Update("""
 			    UPDATE country_league_season_master
 			    SET
@@ -63,10 +74,10 @@ public interface CountryLeagueSeasonMasterRepository {
 			        #{path},
 			        #{icon},
 			        #{validFlg},
-			        'TEST',
-			        CURRENT_TIMESTAMP,
-			        'TEST',
-			        CURRENT_TIMESTAMP
+			        #{registerId},
+			        #{registerTime},
+			        #{updateId},
+			        #{updateTime}
 			    )
 			""")
 	int insert(CountryLeagueSeasonMasterEntity entity);
@@ -81,5 +92,21 @@ public interface CountryLeagueSeasonMasterRepository {
 			        league = #{league};
 			""")
 	int findDataCount(CountryLeagueSeasonMasterEntity entity);
+
+	@Select("""
+			    SELECT DISTINCT
+			        country,
+			        league
+			    FROM
+			        country_league_season_master
+			    WHERE
+			    	country = #{country} AND
+			        league = #{league} AND
+			        start_season_date IS NOT NULL
+			        AND CURRENT_DATE BETWEEN (start_season_date::date - INTERVAL '10 days') AND start_season_date::date
+			""")
+	List<CountryLeagueSeasonMasterEntity> findCountryLeagueStartingWithin10Days(
+			@Param("country") String country,
+			@Param("league") String league);
 
 }
