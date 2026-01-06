@@ -89,7 +89,7 @@ def load_existing_player_keys(base_dir: str) -> Set[Tuple[str, str, str, str]]:
     """
     s: Set[Tuple[str, str, str, str]] = set()
 
-    for path in sorted(glob.glob(os.path.join(TEAMS_BY_LEAGUE_DIR, f"{EXCEL_BASE_PREFIX}[0-9]*.csv"))):
+    for path in sorted(glob.glob(os.path.join(base_dir, f"{EXCEL_BASE_PREFIX}[0-9]*.csv"))):
         try:
             with open(path, "r", encoding="utf-8-sig", newline="") as f:
                 r = csv.DictReader(f)
@@ -720,7 +720,7 @@ async def main():
     now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
     print(f"{now}  TeamMemberData: 開始（リーグ並列 + 10チーム並列 + 重複完全回避）")
 
-    existing_keys = load_existing_player_keys(BASE_DIR)
+    existing_keys = load_existing_player_keys(TEAMS_BY_LEAGUE_DIR)
     print(f"[INIT] 既取得キー: {len(existing_keys)} 件")
 
     team_rows: List[Tuple[str, str, str, str]] = []
@@ -773,7 +773,7 @@ async def main():
     claimed_keys: Set[Tuple[str, str, str, str]] = set()
 
     # Writer（Writerが書いた瞬間に existing_keys を更新する）
-    writer = ExcelWriter(BASE_DIR, EXCEL_BASE_PREFIX, EXCEL_MAX_RECORDS, existing_keys, keys_lock)
+    writer = ExcelWriter(TEAMS_BY_LEAGUE_DIR, EXCEL_BASE_PREFIX, EXCEL_MAX_RECORDS, existing_keys, keys_lock)
     await writer.start()
 
     league_sema = asyncio.Semaphore(LEAGUE_CONCURRENCY)
