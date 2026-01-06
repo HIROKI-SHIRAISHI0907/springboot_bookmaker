@@ -809,7 +809,7 @@ async def main():
 
     await writer.stop()
 
-    convert_xlsx_to_csv_and_delete_all(BASE_DIR, EXCEL_BASE_PREFIX)
+    convert_xlsx_to_csv_and_delete_all(TEAMS_BY_LEAGUE_DIR, EXCEL_BASE_PREFIX)
 
     print("TeamMemberData: 完了（重複完全回避）")
 
