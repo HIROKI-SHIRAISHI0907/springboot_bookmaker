@@ -1,0 +1,93 @@
+-- =========================
+-- test data for country_league_master
+-- =========================
+
+INSERT INTO country_league_master
+(country, league, team, link, del_flg, register_id, register_time, update_id, update_time)
+VALUES
+-- ---------- J3 ----------
+('日本','J3 リーグ','栃木シティ','/team/tochigi-city/4MvNs2n5/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','ヴァンラーレ八戸','/team/vanraure/hKLJFla1/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','FC大阪','/team/fc-osaka/E3uzKMdT/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','テゲバジャーロ宮崎','/team/tegevajaro-miyazaki/2DLKhMtU/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','鹿児島ﾕﾅｲﾃｯﾄﾞFC','/team/kagoshima-united/8jbnAT1B/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','ツエーゲン金沢','/team/kanazawa/KY7LrA6d/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','栃木SC','/team/tochigi/rcqppiCl/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','ギラヴァンツ北九州','/team/giravanz-kitakyushu/00Cp2KYP/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','奈良クラブ','/team/nara-club/6s0AMsBf/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','福島ユナイテッドFC','/team/fukushima-united/KSReC3sk/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','ガイナーレ鳥取','/team/gainare-tottori/G6Tk4M6t/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','SC相模原','/team/sc-sagamihara/nXumKCoo/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','FC岐阜','/team/gifu/QRxJwWRn/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','ザスパクサツ群馬','/team/thespakusatsu-gunma/UFZb6lCI/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','松本山雅FC','/team/matsumoto-yamaga/0lMXpXdr/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','FC琉球','/team/ryukyu/tM115Db3/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','カマタマーレ讃岐','/team/kamatamare-sanuki/S6HnxZqN/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','高知ユナイテッド','/team/kochi-united/A13oDV39/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','AC長野パルセイロ','/team/nagano-parceiro/4UgFVol8/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J3 リーグ','アスルクラロ沼津','/team/azul-claro-numazu/K8znKTMa/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+
+-- ---------- J2 ----------
+('日本','J2 リーグ','水戸ホーリーホック','/team/mito/GliRsh4P/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','V・ファーレン長崎','/team/v-varen-nagasaki/hl74HAcF/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','ｼﾞｪﾌﾕﾅｲﾃｯﾄﾞ市原・千葉','/team/chiba/zNLhJb1S/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','徳島ヴォルティス','/team/tokushima/IcwgwCCt/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','ジュビロ磐田','/team/iwata/QeOGk0W2/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','大宮アルディージャ','/team/omiya-ardija/OErJ0IVR/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','ベガルタ仙台','/team/vegalta-sendai/lSW1nlRB/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','サガン鳥栖','/team/tosu/nsRRyAda/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','いわきFC','/team/iwaki/Mi3WmBrD/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','モンテディオ山形','/team/montedio-yamagata/2uKzonBU/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','FC今治','/team/imabari/0fQDWIvJ/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','北海道ｺﾝｻﾄﾞｰﾚ札幌','/team/sapporo/Ak9yLKWF/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','ヴァンフォーレ甲府','/team/kofu/4IyNxjsg/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','ブラウブリッツ秋田','/team/blaublitz/fwDHgzFc/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','藤枝MYFC','/team/fujieda-myfc/jFPWWTQn/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','大分トリニータ','/team/oita-trinita/Q17PNMnc/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','カターレ富山','/team/toyama/tdPByjKs/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','ロアッソ熊本','/team/kumamoto/ARlzJ8RO/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','レノファ山口FC','/team/renofa-yamaguchi/f1DPrs5c/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J2 リーグ','愛媛FC','/team/ehime/dMNh5kdn/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP)
+
+-- ---------- J1 ----------
+('日本','J1 リーグ','水戸ホーリーホック','/team/mito/GliRsh4P/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','東京ヴェルディ','/team/verdy/ppNYGTQb/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','横浜F・マリノス','/team/yokohama-m/4h6TMt23/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','川崎フロンターレ','/team/kawasaki-frontale/bF5XL0H9/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','柏レイソル','/team/kashiwa/hEbtKvnM/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','ｼﾞｪﾌﾕﾅｲﾃｯﾄﾞ市原・千葉','/team/chiba/zNLhJb1S/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','浦和レッズ','/team/urawa/C8IHSxPk/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','FC東京','/team/fc-tokyo/8zCQQGg2/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','鹿島アントラーズ','/team/kashima/4nNKlKo9/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','町田ゼルビア','/team/machida-zelvia/CUSC1dab/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','アビスパ福岡','/team/avispa-fukuoka/SdMQZTB5/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','セレッソ大阪','/team/c-osaka/rJJl6Vtt/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','京都サンガ','/team/kyoto/fZS33RAH/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','名古屋グランパス','/team/nagoya/6BeXoaup/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','清水エスパルス','/team/shimizu/vPgupwAd/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','ヴィッセル神戸','/team/kobe/698tGI9q/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','サンフレッチェ広島','/team/hiroshima/fX7MRdvd/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','ガンバ大阪','/team/g-osaka/zLQAGOBK/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','ファジアーノ岡山','/team/okayama/vDpqgnYn/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('日本','J1 リーグ','V・ファーレン長崎','/team/v-varen-nagasaki/hl74HAcF/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP);
+
+-- ---------- リーガMX ----------
+('メキシコ','リーガ MX','トルーカ','/team/toluca/8hiBr2eQ/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX','ティグレス UNAL','/team/u-a-n-l-tigres/Iy4albIC/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX','クルス・アスル','/team/cruz-azul/G8PFBMll/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX','クラブ・アメリカ','/team/club-america/vyrswtJm/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX','モンテレイ','/team/monterrey/Ya23C2Zs/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX','ﾁｰﾊﾞｽ･ｸﾞｱﾀﾞﾗﾊﾗ','/team/guadalajara-chivas/Y5TaMKY6/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX','クラブ・ティフアナ','/team/club-tijuana/nuNVeQkr/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX','フアレス','/team/juarez/2wZp8NAh/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX','パチューカ','/team/pachuca/QT16qrtK/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX','UNAM プーマス','/team/u-n-a-m-pumas/UB73mIXI/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX','サントス・ラグナ','/team/santos-laguna/EBPEFrRQ/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX','ケレタロ','/team/queretaro/fqJAznPc/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX','ネカクサ','/team/necaxa/nw32pOQD/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX','アトラス','/team/atlas/AVOJAt4f/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX','ｱﾄﾚﾃｨｺ･ｻﾝﾙｲｽ','/team/atletico-san-luis/OYSN90J0/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX','マサトランFC','/team/mazatlan-fc/AXl5ehGE/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX','クラブレオン','/team/club-leon/l0iuHPBQ/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX','プエブラ','/team/puebla/pO5ijKm0/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP);
+;

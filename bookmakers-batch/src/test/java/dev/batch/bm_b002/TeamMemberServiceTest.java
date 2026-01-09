@@ -13,7 +13,7 @@ import org.springframework.test.context.ActiveProfiles;
 class TeamMemberServiceTest {
 
     @Autowired
-    private TeamMasterBatch teamMasterBatch;
+    private TeamMemberMasterBatch teamMasterBatch;
 
     @Test
     void execute_shouldReturnZero_whenExecutionSuccessful() throws Exception {

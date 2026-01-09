@@ -28,14 +28,14 @@ import dev.common.logger.ManageLoggerComponent;
  * @author shiraishitoshio
  */
 @Service("B002")
-public class TeamMasterBatch implements BatchIF {
+public class TeamMemberMasterBatch implements BatchIF {
 
     /** プロジェクト名 */
-    private static final String PROJECT_NAME = TeamMasterBatch.class.getProtectionDomain()
+    private static final String PROJECT_NAME = TeamMemberMasterBatch.class.getProtectionDomain()
             .getCodeSource().getLocation().getPath();
 
     /** クラス名 */
-    private static final String CLASS_NAME = TeamMasterBatch.class.getSimpleName();
+    private static final String CLASS_NAME = TeamMemberMasterBatch.class.getSimpleName();
 
     /** エラーコード（運用ルールに合わせて変更） */
     private static final String ERROR_CODE = "BM_B002_ERROR";

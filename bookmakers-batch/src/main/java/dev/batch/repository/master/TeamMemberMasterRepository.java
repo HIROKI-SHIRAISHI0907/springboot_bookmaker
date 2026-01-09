@@ -15,19 +15,20 @@ public interface TeamMemberMasterRepository {
 	@Insert({
 	    "INSERT INTO team_member_master (",
 	    "country, league, team, score, loan_belong, jersey, member, face_pic_path, belong_list, height, weight, position, birth, age, market_value, injury,",
-	    "versus_team_score_data, retire_flg, deadline, deadline_contract_date, latest_info_date, upd_stamp,",
+	    "versus_team_score_data, retire_flg, deadline, deadline_contract_date, latest_info_date, upd_stamp, del_flg, ",
 	    "register_id, register_time, update_id, update_time",
 	    ") VALUES (",
 	    "#{country}, #{league}, #{team}, #{score}, #{loanBelong}, #{jersey}, #{member}, #{facePicPath}, #{belongList}, #{height}, #{weight}, #{position}, #{birth}, #{age}, #{marketValue}, #{injury},",
-	    "#{versusTeamScoreData}, #{retireFlg}, #{deadline}, #{deadlineContractDate}, #{latestInfoDate}, #{updStamp},",
-	    "#{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz));"
+	    "#{versusTeamScoreData}, #{retireFlg}, #{deadline}, #{deadlineContractDate}, #{latestInfoDate}, #{updStamp}, #{delFlg}, ",
+	    //"#{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz));"
+	    "#{registerId}, #{registerTime}, #{updateId}, #{updateTime});"
 	})
 	int insert(TeamMemberMasterEntity entity);
 
 	@Select({
 	    "SELECT ",
 	    "id, country, league, team, score, loan_belong, jersey, member, face_pic_path, belong_list, height, weight, position, birth, age, market_value, injury,",
-	    "versus_team_score_data, retire_flg, deadline, deadline_contract_date, latest_info_date, upd_stamp ",
+	    "versus_team_score_data, retire_flg, deadline, deadline_contract_date, latest_info_date, upd_stamp, del_flg ",
 	    "FROM team_member_master;"
 	})
 	List<TeamMemberMasterEntity> findData();
@@ -56,6 +57,7 @@ public interface TeamMemberMasterRepository {
 	    "deadline_contract_date = #{deadlineContractDate},",
 	    "latest_info_date = #{latestInfoDate},",
 	    "upd_stamp = #{updStamp} ",
+	    "del_flg = '0'",
 	    "WHERE id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER);"
 	})
 	int update(TeamMemberMasterEntity entity);

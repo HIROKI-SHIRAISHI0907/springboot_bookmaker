@@ -21,7 +21,8 @@ public interface CountryLeagueSeasonMasterRepository {
 			    FROM
 			        country_league_season_master
 			    WHERE
-			        end_season_date < CAST(#{date} AS DATE)
+			        end_season_date < CAST(#{date} AS DATE) AND
+			        del_flg = '0'
 			""")
 	List<CountryLeagueSeasonMasterEntity> findExpiredByEndDate(String date);
 
@@ -32,7 +33,8 @@ public interface CountryLeagueSeasonMasterRepository {
 			    FROM
 			        country_league_season_master
 			    WHERE
-			        end_season_date = NULL
+			        end_season_date IS NULL AND
+			        del_flg = '0'
 			""")
 	List<CountryLeagueSeasonMasterEntity> findHyphen();
 
@@ -40,6 +42,7 @@ public interface CountryLeagueSeasonMasterRepository {
 			    UPDATE country_league_season_master
 			    SET
 			        end_season_date = NULL,
+			        del_flg = '0',
 			        update_time = CURRENT_TIMESTAMP,
 			        update_id = 'BATCH'
 			    WHERE
@@ -60,6 +63,7 @@ public interface CountryLeagueSeasonMasterRepository {
 			        path,
 			        icon,
 			        valid_flg,
+			        del_flg,
 			        register_id,
 			        register_time,
 			        update_id,
@@ -74,6 +78,7 @@ public interface CountryLeagueSeasonMasterRepository {
 			        #{path},
 			        #{icon},
 			        #{validFlg},
+			        #{del_flg},
 			        #{registerId},
 			        #{registerTime},
 			        #{updateId},
@@ -89,7 +94,8 @@ public interface CountryLeagueSeasonMasterRepository {
 			    	country_league_season_master
 			    WHERE
 			        country = #{country} AND
-			        league = #{league};
+			        league = #{league} AND
+			        del_flg = '0';
 			""")
 	int findDataCount(CountryLeagueSeasonMasterEntity entity);
 
@@ -108,5 +114,75 @@ public interface CountryLeagueSeasonMasterRepository {
 	List<CountryLeagueSeasonMasterEntity> findCountryLeagueStartingWithin10Days(
 			@Param("country") String country,
 			@Param("league") String league);
+
+	@Select("""
+			    SELECT
+			     country,
+			     league,
+			     path,
+			     season_year,
+			     start_season_date,
+			     end_season_date,
+			     round,
+			     icon,
+			     valid_flg,
+			     del_flg
+			 FROM country_league_season_master
+			 WHERE country = #{country} AND league = #{league}
+			""")
+	List<CountryLeagueSeasonMasterEntity> findByCountryAndLeague(@Param("country") String country,
+			@Param("league") String league);
+
+	@Select("""
+			    SELECT
+			        country,
+			        league,
+			        path,
+			     	season_year,
+			     	start_season_date,
+			     	end_season_date,
+			     	round,
+			     	icon,
+			     	valid_flg,
+			     	del_flg
+			    FROM
+			    	country_league_season_master
+			    WHERE
+			        country = #{country} AND
+			        path = #{path};
+			""")
+	List<CountryLeagueSeasonMasterEntity> findByCountryAndPath(@Param("country") String country,
+			@Param("path") String path);
+
+	@Update("""
+			    UPDATE
+			        country_league_season_master
+			    SET
+			        season_year = #{seasonYear},
+					start_season_date = #{startSeasonDate}::timestamptz,
+					end_season_date = #{endSeasonDate}::timestamptz,
+					round = #{round},
+					path = #{path},
+					icon = #{icon},
+					valid_flg = '0',
+					del_flg = '0'
+			    WHERE
+			        country = #{country} AND
+			        league = #{league};
+			""")
+	int updateByCountryLeague(CountryLeagueSeasonMasterEntity entity);
+
+	@Update("""
+			 UPDATE country_league_season_master
+			 SET
+			     valid_flg = '0',
+			     del_flg = '1'
+			 WHERE
+			     country = #{country}
+			     AND league = #{league}
+			     AND path = #{path}
+			""")
+	int logicalDeleteByCountryLeaguePath(@Param("country") String country,
+			@Param("league") String league, @Param("path") String path);
 
 }
