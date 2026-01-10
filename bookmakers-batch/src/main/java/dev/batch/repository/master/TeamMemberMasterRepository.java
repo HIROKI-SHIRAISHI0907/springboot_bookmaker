@@ -29,7 +29,7 @@ public interface TeamMemberMasterRepository {
 	    "SELECT ",
 	    "id, country, league, team, score, loan_belong, jersey, member, face_pic_path, belong_list, height, weight, position, birth, age, market_value, injury,",
 	    "versus_team_score_data, retire_flg, deadline, deadline_contract_date, latest_info_date, upd_stamp, del_flg ",
-	    "FROM team_member_master;"
+	    "FROM team_member_master ORDER BY id;"
 	})
 	List<TeamMemberMasterEntity> findData();
 
@@ -56,7 +56,7 @@ public interface TeamMemberMasterRepository {
 	    "deadline = #{deadline},",
 	    "deadline_contract_date = #{deadlineContractDate},",
 	    "latest_info_date = #{latestInfoDate},",
-	    "upd_stamp = #{updStamp} ",
+	    "upd_stamp = #{updStamp},",
 	    "del_flg = '0'",
 	    "WHERE id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER);"
 	})

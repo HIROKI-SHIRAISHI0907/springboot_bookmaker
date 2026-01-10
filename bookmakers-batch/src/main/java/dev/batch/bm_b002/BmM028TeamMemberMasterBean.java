@@ -1,5 +1,7 @@
 package dev.batch.bm_b002;
 
+import java.time.LocalDate;
+import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -12,7 +14,6 @@ import dev.batch.repository.master.CountryLeagueMasterRepository;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
-import jakarta.annotation.PostConstruct;
 
 /**
  * team_member_masterのbeanロジック
@@ -28,6 +29,9 @@ public class BmM028TeamMemberMasterBean {
 
 	/** クラス名 */
 	private static final String CLASS_NAME = BmM028TeamMemberMasterBean.class.getSimpleName();
+
+	/** ZONEID */
+	private static final ZoneId JST = ZoneId.of("Asia/Tokyo");
 
 	/** TeamMemberDBService部品 */
 	@Autowired
@@ -47,8 +51,9 @@ public class BmM028TeamMemberMasterBean {
 	/** 件数取得 */
 	private Map<String, List<String>> teamMap;
 
-	/** 初期化 */
-	@PostConstruct
+	/**
+	 * 初期Mapデータ生成
+	 */
 	public void init() {
 		final String METHOD_NAME = "init";
 		// hashデータを取得
@@ -57,8 +62,10 @@ public class BmM028TeamMemberMasterBean {
 			List<List<TeamMemberMasterEntity>> list = this.teamMemberDBService.selectInBatch();
 			for (List<TeamMemberMasterEntity> listTmp : list) {
 				for (TeamMemberMasterEntity subMap : listTmp) {
-					String member = subMap.getMember();
-					map.put(member, subMap);
+					String key = personKey(subMap);
+					if (key != null) {
+						map.put(key, subMap);
+					}
 				}
 			}
 		} catch (Exception e) {
@@ -86,10 +93,84 @@ public class BmM028TeamMemberMasterBean {
 					|| "インテル・マイアミCF".equals(teams)) {
 				continue;
 			}
-			String key = country + "-" + league;
+			String key = nz(country) + "-" + nz(league);
 			team.computeIfAbsent(key, k -> new ArrayList<>()).add(teams);
 		}
 		this.teamMap = team;
+	}
+
+	/** パーソンキー（移籍して同一人物でない可能性があるため）*/
+	public static String personKey(TeamMemberMasterEntity e) {
+		if (e == null) return null;
+
+		String member = nz(e.getMember());
+		String birthS = nz(e.getBirth());
+		String ageS = nz(e.getAge());
+
+		if (member.isEmpty() || birthS.isEmpty() || ageS.isEmpty())
+			return null;
+
+		Integer ageFromCsv = parseIntOrNull(ageS);
+		LocalDate birth = parseDateOrNull(birthS);
+		if (ageFromCsv == null || birth == null)
+			return null;
+
+		// 基準日：latestInfoDate があればそれ、なければ今日（JST）
+		LocalDate baseDate = parseDateOrNull(nz(e.getLatestInfoDate()));
+		if (baseDate == null) baseDate = LocalDate.now(JST);
+
+		int ageKey = calcAge(birth, baseDate); // ←誕生日を迎えた瞬間 +1 になる
+		return member + "|" + birthS + "|" + ageKey;
+	}
+
+	public static String personKeyMinus1(String personKey) {
+        // "member|birth|NN" の NN を NN-1 にする
+        if (personKey == null) return null;
+        int idx = personKey.lastIndexOf('|');
+        if (idx < 0) return null;
+        String head = personKey.substring(0, idx);
+        String tail = personKey.substring(idx + 1);
+        Integer n = parseIntOrNull(tail);
+        if (n == null) return null;
+        return head + "|" + (n - 1);
+    }
+
+	/** ===== ユーティリティ ===== */
+	private static String nz(String s) {
+		return s == null ? "" : s.trim();
+	}
+
+	/** ===== ユーティリティ ===== */
+	private static Integer parseIntOrNull(String s) {
+		try {
+			return Integer.valueOf(s.trim());
+		} catch (Exception ex) {
+			return null;
+		}
+	}
+
+	/** ===== ユーティリティ ===== */
+	private static LocalDate parseDateOrNull(String s) {
+		if (s == null || s.trim().isEmpty()) return null;
+	    String t = s.trim();
+
+	    // ISO (yyyy-MM-dd)
+	    try { return LocalDate.parse(t); } catch (Exception ignore) {}
+
+	    // dd.MM.yyyy
+	    try {
+	        java.time.format.DateTimeFormatter f =
+	            java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy");
+	        return LocalDate.parse(t, f);
+	    } catch (Exception ignore) {}
+
+	    return null;
+	}
+
+	/** 年齢計算 */
+	private static int calcAge(LocalDate birth, LocalDate baseDate) {
+		// Periodで年齢計算（誕生日を迎えたら自動的に+1）
+		return java.time.Period.between(birth, baseDate).getYears();
 	}
 
 	/**

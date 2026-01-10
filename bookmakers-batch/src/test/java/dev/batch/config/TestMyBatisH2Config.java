@@ -2,16 +2,15 @@ package dev.batch.config;
 
 import javax.sql.DataSource;
 
+import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.FilterType;
 import org.springframework.core.io.ClassPathResource;
-import org.springframework.core.io.support.PathMatchingResourcePatternResolver;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.jdbc.datasource.DriverManagerDataSource;
 import org.springframework.jdbc.datasource.init.DatabasePopulatorUtils;
@@ -23,7 +22,6 @@ import org.springframework.transaction.annotation.EnableTransactionManagement;
 import dev.common.logger.ManageLoggerComponentImpl;
 
 
-@Configuration
 @EnableTransactionManagement
 @MapperScan(basePackages = {
         "dev.batch.repository.master",
@@ -67,14 +65,9 @@ public class TestMyBatisH2Config {
         SqlSessionFactoryBean factory = new SqlSessionFactoryBean();
         factory.setDataSource(ds);
 
-        // mapper XML を使っている場合（★resources配下のパスに合わせて調整）
-        factory.setMapperLocations(
-                new PathMatchingResourcePatternResolver()
-                        .getResources("classpath*:mapper/**/*.xml")
-        );
-
-        // MyBatis config.xml を使ってる場合はここで設定も可
-        // factory.setConfigLocation(new ClassPathResource("mybatis-config.xml"));
+        Configuration mybatisConf = new Configuration();
+        mybatisConf.setMapUnderscoreToCamelCase(true);
+        factory.setConfiguration(mybatisConf);
 
         return factory.getObject();
     }

@@ -47,7 +47,7 @@ VALUES
 ('日本','J2 リーグ','カターレ富山','/team/toyama/tdPByjKs/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
 ('日本','J2 リーグ','ロアッソ熊本','/team/kumamoto/ARlzJ8RO/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
 ('日本','J2 リーグ','レノファ山口FC','/team/renofa-yamaguchi/f1DPrs5c/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('日本','J2 リーグ','愛媛FC','/team/ehime/dMNh5kdn/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP)
+('日本','J2 リーグ','愛媛FC','/team/ehime/dMNh5kdn/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
 
 -- ---------- J1 ----------
 ('日本','J1 リーグ','水戸ホーリーホック','/team/mito/GliRsh4P/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
@@ -69,7 +69,7 @@ VALUES
 ('日本','J1 リーグ','サンフレッチェ広島','/team/hiroshima/fX7MRdvd/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
 ('日本','J1 リーグ','ガンバ大阪','/team/g-osaka/zLQAGOBK/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
 ('日本','J1 リーグ','ファジアーノ岡山','/team/okayama/vDpqgnYn/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('日本','J1 リーグ','V・ファーレン長崎','/team/v-varen-nagasaki/hl74HAcF/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP);
+('日本','J1 リーグ','V・ファーレン長崎','/team/v-varen-nagasaki/hl74HAcF/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
 
 -- ---------- リーガMX ----------
 ('メキシコ','リーガ MX','トルーカ','/team/toluca/8hiBr2eQ/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
