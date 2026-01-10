@@ -180,7 +180,7 @@ public class TeamMemberServiceITTest {
 				break;
 			}
 			case "デン トーマス": {
-				assertion("J1 リーグ", "横浜F・マリノス", entity.getMember(),
+				assertion("J1 リーグ", "アルビレックス新潟", entity.getMember(),
 						"44", "横浜F・=0,アルビレ=0", "€515k→€1.2k", "N/A",
 						"https://static.flashscore.com/res/image/data/rywgsieM-CA5BfAS2.png", "",
 						"横浜F・マリノス,アルビレックス新潟", entity);

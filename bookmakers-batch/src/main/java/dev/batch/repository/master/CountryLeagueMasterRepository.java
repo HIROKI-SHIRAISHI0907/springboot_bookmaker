@@ -13,26 +13,26 @@ import dev.common.entity.CountryLeagueMasterEntity;
 @Mapper
 public interface CountryLeagueMasterRepository {
 
-	@Insert("""
-			    INSERT INTO country_league_master (
-			        country,
-			        league,
-			        team,
-			        link,
-			        del_flg,
-			        register_id,
-			        register_time,
-			        update_id,
-			        update_time
-			    ) VALUES (
-			        #{country},
-			        #{league},
-			        #{team},
-			        #{link},
-			        #{delFlg},
-			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
-			    );
-			""")
+	@Insert({
+			    "INSERT INTO country_league_master (",
+			    "    country,",
+			    "    league,",
+			    "    team,",
+			    "    link,",
+			    "    del_flg,",
+			    "    register_id,",
+			    "    register_time,",
+			    "    update_id,",
+			    "    update_time",
+			    ") VALUES (",
+			    "    #{country},",
+			    "    #{league},",
+			    "    #{team},",
+			    "    #{link},",
+			    "    #{delFlg},",
+			    //"    #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
+			    "#{registerId}, #{registerTime}, #{updateId}, #{updateTime});"
+	})
 	int insert(CountryLeagueMasterEntity entity);
 
 	@Select("""

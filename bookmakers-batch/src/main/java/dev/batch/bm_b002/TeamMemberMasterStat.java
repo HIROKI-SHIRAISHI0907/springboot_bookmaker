@@ -474,16 +474,6 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 		return map;
 	}
 
-	/** チームマップ */
-	private static boolean isAllowedByTeamMap(Map<String, List<String>> teamMap, TeamMemberMasterEntity entity) {
-		String country = nz(entity.getCountry());
-		String league = nz(entity.getLeague());
-		String team = nz(entity.getTeam());
-		String keyCL = country + "-" + league;
-		List<String> teams = teamMap.get(keyCL);
-		return teams != null && teams.contains(team);
-	}
-
 	/** 4文字を付与した文字列 */
 	private static String toTeam4ScoreString(LinkedHashMap<String, Integer> map) {
 		if (map.isEmpty())
