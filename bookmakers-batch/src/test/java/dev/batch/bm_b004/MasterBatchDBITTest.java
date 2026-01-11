@@ -57,20 +57,20 @@ import dev.common.logger.ManageLoggerComponent;
 @Sql(scripts = "classpath:empty.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
 public class MasterBatchDBITTest {
 
-	 /** BM_M032統計分析ロジック */
-    @Autowired
-    private CountryLeagueMasterStat countryLeagueMasterStat;
+	/** BM_M032統計分析ロジック */
+	@Autowired
+	private CountryLeagueMasterStat countryLeagueMasterStat;
 
-    /** CountryLeagueDBPart */
-    @Autowired
-    private CountryLeagueDBPart countryLeagueDBPart;
+	/** CountryLeagueDBPart */
+	@Autowired
+	private CountryLeagueDBPart countryLeagueDBPart;
 
-    @Autowired
+	@Autowired
 	private CountryLeagueMasterRepository countryLeagueMasterRepository;
 
-    /** バッチ共通ログ出力を行う。 */
-    @Autowired
-    private ManageLoggerComponent manageLoggerComponent;
+	/** バッチ共通ログ出力を行う。 */
+	@Autowired
+	private ManageLoggerComponent manageLoggerComponent;
 
 	/**
 	 * 試験データ登録確認
@@ -83,8 +83,7 @@ public class MasterBatchDBITTest {
 				.map(m -> m.getName())
 				.orElse("unknown");
 
-		List<List<CountryLeagueMasterEntity>> insertList =
-				new ArrayList<List<CountryLeagueMasterEntity>>();
+		List<List<CountryLeagueMasterEntity>> insertList = new ArrayList<List<CountryLeagueMasterEntity>>();
 		insertList.add(CsvImport.importCsv(
 				"src/test/java/dev/batch/"
 						+ "bm_b004/data/" + testMethodName + "_J1.csv",
@@ -103,9 +102,9 @@ public class MasterBatchDBITTest {
 				CountryLeagueMasterEntity.class,
 				TEAM,
 				null));
-        this.countryLeagueMasterStat.masterStat(insertList);
-        List<CountryLeagueMasterEntity> data = this.countryLeagueMasterRepository.findData();
-        assertEquals(60, data.size());
+		this.countryLeagueMasterStat.masterStat(insertList);
+		List<CountryLeagueMasterEntity> data = this.countryLeagueMasterRepository.findData();
+		assertEquals(60, data.size());
 	}
 
 	/**
@@ -115,8 +114,8 @@ public class MasterBatchDBITTest {
 	 */
 	@Test
 	void execute_TC_TS_002(TestInfo testInfo) throws Exception {
-        boolean result = this.countryLeagueDBPart.dbOperation(null);
-        assertTrue(result);
+		boolean result = this.countryLeagueDBPart.dbOperation(null);
+		assertTrue(result);
 	}
 
 	/**
@@ -126,9 +125,9 @@ public class MasterBatchDBITTest {
 	 */
 	@Test
 	void execute_TC_TS_003(TestInfo testInfo) throws Exception {
-        boolean result = this.countryLeagueDBPart.dbOperation(
-        		new ArrayList<CountryLeagueMasterEntity>());
-        assertTrue(result);
+		boolean result = this.countryLeagueDBPart.dbOperation(
+				new ArrayList<CountryLeagueMasterEntity>());
+		assertTrue(result);
 	}
 
 	/**
@@ -142,15 +141,14 @@ public class MasterBatchDBITTest {
 				.map(m -> m.getName())
 				.orElse("unknown");
 
-		List<CountryLeagueMasterEntity> csvRows =
-				CsvImport.importCsv(
+		List<CountryLeagueMasterEntity> csvRows = CsvImport.importCsv(
 				"src/test/java/dev/batch/"
 						+ "bm_b004/data/" + testMethodName + ".csv",
 				CountryLeagueMasterEntity.class,
 				TEAM,
 				null);
-        boolean result = this.countryLeagueDBPart.dbOperation(csvRows);
-        assertFalse(result);
+		boolean result = this.countryLeagueDBPart.dbOperation(csvRows);
+		assertFalse(result);
 	}
 
 	/**
@@ -164,15 +162,221 @@ public class MasterBatchDBITTest {
 				.map(m -> m.getName())
 				.orElse("unknown");
 
-		List<CountryLeagueMasterEntity> csvRows =
-				CsvImport.importCsv(
+		List<CountryLeagueMasterEntity> csvRows = CsvImport.importCsv(
 				"src/test/java/dev/batch/"
 						+ "bm_b004/data/" + testMethodName + ".csv",
 				CountryLeagueMasterEntity.class,
 				TEAM,
 				null);
-        boolean result = this.countryLeagueDBPart.dbOperation(csvRows);
-        assertFalse(result);
+		boolean result = this.countryLeagueDBPart.dbOperation(csvRows);
+		assertFalse(result);
 	}
 
+	/**
+	 * 試験データ空行含みデータ登録確認
+	 * @param testInfo
+	 * @throws Exception
+	 */
+	@Test
+	void execute_TC_TS_006(TestInfo testInfo) throws Exception {
+		String testMethodName = testInfo.getTestMethod()
+				.map(m -> m.getName())
+				.orElse("unknown");
+
+		List<List<CountryLeagueMasterEntity>> insertList = new ArrayList<List<CountryLeagueMasterEntity>>();
+		insertList.add(CsvImport.importCsv(
+				"src/test/java/dev/batch/"
+						+ "bm_b004/data/" + testMethodName + ".csv",
+				CountryLeagueMasterEntity.class,
+				TEAM,
+				null));
+		this.countryLeagueMasterStat.masterStat(insertList);
+		List<CountryLeagueMasterEntity> data = this.countryLeagueMasterRepository.findData();
+		assertEquals(6, data.size());
+	}
+
+	/**
+	 * 試験データ空行含みデータ登録確認
+	 * @param testInfo
+	 * @throws Exception
+	 */
+	@Test
+	void execute_TC_TS_007(TestInfo testInfo) throws Exception {
+		String testMethodName = testInfo.getTestMethod()
+				.map(m -> m.getName())
+				.orElse("unknown");
+
+		List<List<CountryLeagueMasterEntity>> insertList = new ArrayList<List<CountryLeagueMasterEntity>>();
+		insertList.add(CsvImport.importCsv(
+				"src/test/java/dev/batch/"
+						+ "bm_b004/data/" + testMethodName + ".csv",
+				CountryLeagueMasterEntity.class,
+				TEAM,
+				null));
+		this.countryLeagueMasterStat.masterStat(insertList);
+		List<CountryLeagueMasterEntity> data = this.countryLeagueMasterRepository.findData();
+		assertEquals(6, data.size());
+	}
+
+	/**
+	 * 試験データ空行含みデータ登録確認
+	 * @param testInfo
+	 * @throws Exception
+	 */
+	@Test
+	void execute_TC_TS_008(TestInfo testInfo) throws Exception {
+		String testMethodName = testInfo.getTestMethod()
+				.map(m -> m.getName())
+				.orElse("unknown");
+
+		List<List<CountryLeagueMasterEntity>> insertList = new ArrayList<List<CountryLeagueMasterEntity>>();
+		insertList.add(CsvImport.importCsv(
+				"src/test/java/dev/batch/"
+						+ "bm_b004/data/" + testMethodName + "_before.csv",
+				CountryLeagueMasterEntity.class,
+				TEAM,
+				null));
+		this.countryLeagueMasterStat.masterStat(insertList);
+		List<CountryLeagueMasterEntity> data = this.countryLeagueMasterRepository.findData();
+		assertEquals(4, data.size());
+
+		List<CountryLeagueMasterEntity> updateList = CsvImport.importCsv(
+				"src/test/java/dev/batch/"
+						+ "bm_b004/data/" + testMethodName + "_after.csv",
+				CountryLeagueMasterEntity.class,
+				TEAM,
+				null);
+		boolean result = this.countryLeagueDBPart.dbOperation(updateList);
+		assertTrue(result);
+
+		List<CountryLeagueMasterEntity> dataRows = this.countryLeagueMasterRepository.findData();
+		assertEquals(4, data.size());
+		for (CountryLeagueMasterEntity entity : dataRows) {
+			switch (entity.getTeam()) {
+			case "いわきFC": {
+				assertion("J2 リーグ", entity.getTeam(),
+						"/team/iwaki/Mi3WmBrD/", "0", entity);
+				break;
+			}
+			case "モンテディオ山形": {
+				assertion("J2 リーグ", entity.getTeam(),
+						"/team/montedio-yamagata/2uKzonBU/", "0", entity);
+				break;
+			}
+			case "FC今治": {
+				assertion("J2 リーグ", entity.getTeam(),
+						"/team/imabari/0fQDWIvJ/", "0", entity);
+				break;
+			}
+			case "北海道ｺﾝｻﾄﾞｰﾚ札幌": {
+				assertion("J2 リーグ", entity.getTeam(),
+						"/team/sapporo/Ak9yLKWF/", "0", entity);
+				break;
+			}
+			}
+		}
+
+	}
+
+	/**
+	 * 試験データ変更パターン確認
+	 * いわきFC...退会
+	 * モンテディオ山形...link変更
+	 * FC今治...昇格
+	 * 北海道コンサドーレ札幌...チーム名変更
+	 * @param testInfo
+	 * @throws Exception
+	 */
+	@Test
+	void execute_TC_TS_009(TestInfo testInfo) throws Exception {
+		String testMethodName = testInfo.getTestMethod()
+				.map(m -> m.getName())
+				.orElse("unknown");
+
+		List<List<CountryLeagueMasterEntity>> insertList = new ArrayList<List<CountryLeagueMasterEntity>>();
+		insertList.add(CsvImport.importCsv(
+				"src/test/java/dev/batch/"
+						+ "bm_b004/data/" + testMethodName + "_before.csv",
+				CountryLeagueMasterEntity.class,
+				TEAM,
+				null));
+		this.countryLeagueMasterStat.masterStat(insertList);
+		List<CountryLeagueMasterEntity> data = this.countryLeagueMasterRepository.findData();
+		assertEquals(4, data.size());
+
+		List<CountryLeagueMasterEntity> updateList = CsvImport.importCsv(
+				"src/test/java/dev/batch/"
+						+ "bm_b004/data/" + testMethodName + "_after.csv",
+				CountryLeagueMasterEntity.class,
+				TEAM,
+				null);
+		boolean result = this.countryLeagueDBPart.dbOperation(updateList);
+		assertTrue(result);
+
+		List<CountryLeagueMasterEntity> updateList2 = CsvImport.importCsv(
+				"src/test/java/dev/batch/"
+						+ "bm_b004/data/" + testMethodName + "_after2.csv",
+				CountryLeagueMasterEntity.class,
+				TEAM,
+				null);
+		boolean result2 = this.countryLeagueDBPart.dbOperation(updateList2);
+		assertTrue(result2);
+
+		List<CountryLeagueMasterEntity> dataRows = this.countryLeagueMasterRepository.findData();
+		assertEquals(5, dataRows.size());
+		for (CountryLeagueMasterEntity entity : dataRows) {
+			String t = entity.getTeam();
+		    if (!List.of("いわきFC","モンテディオ山形","FC今治","北海道ｺﾝｻﾄﾞｰﾚ札幌").contains(t)) {
+		        System.out.println("[UNMATCH] league=" + entity.getLeague()
+		            + " team=[" + t + "] link=" + entity.getLink()
+		            + " delFlg=" + entity.getDelFlg());
+		    }
+			switch (t) {
+			case "いわきFC": {
+				assertion("J2 リーグ", entity.getTeam(),
+						"/team/iwaki/Mi3WmBrD/", "1", entity);
+				break;
+			}
+			case "モンテディオ山形": {
+				assertion("J2 リーグ", entity.getTeam(),
+						"/team/montedioyamagata/2uKzonBU/", "0", entity);
+				break;
+			}
+			case "FC今治": {
+				if ("J1 リーグ".equals(entity.getLeague())) {
+					assertion("J1 リーグ", entity.getTeam(),
+							"/team/imabari/0fQDWIvJ/", "0", entity);
+					break;
+				} else {
+					assertion("J2 リーグ", entity.getTeam(),
+							"/team/imabari/0fQDWIvJ/", "1", entity);
+					break;
+				}
+			}
+			case "北海道ｺﾝｻﾄﾞｰﾚ札幌": {
+				assertion("J2 リーグ", entity.getTeam(),
+						"/team/sapporo/Ak9yLKWF/", "0", entity);
+				break;
+			}
+			}
+		}
+	}
+
+	/**
+	 * アサーション
+	 * @param entity
+	 */
+	private static void assertion(
+			String league,
+			String team,
+			String link,
+			String delFlg,
+			CountryLeagueMasterEntity entity) {
+		System.out.println("[START] 日本: " + league + ": " + team);
+		assertEquals("[COUNTRY]: " + "日本", "[COUNTRY]: " + entity.getCountry());
+		assertEquals("[LEAGUE]: " + league, "[LEAGUE]: " + entity.getLeague());
+		assertEquals("[LINK]: " + link, "[LINK]: " + entity.getLink());
+		assertEquals("[DELFLG]: " + delFlg, "[DELFLG]: " + entity.getDelFlg());
+		System.out.println("[END] 日本: " + league + ": " + team);
+	}
 }

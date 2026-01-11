@@ -75,7 +75,6 @@ public class CountryLeagueDBService {
 			List<CountryLeagueMasterEntity> batch = insertEntities.subList(i, end);
 			for (CountryLeagueMasterEntity entity : batch) {
 				try {
-					entity.setDelFlg("0");
 					int result = this.countryLeagueMasterRepository.insert(entity);
 					if (result != 1) {
 						String messageCd = "新規登録エラー";

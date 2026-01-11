@@ -163,7 +163,7 @@ public class CountryLeagueDBPart {
 
 					if (needUpdate) {
 						int upd = countryLeagueMasterRepository.updateById(
-								hit.getId(), csv.getLeague(), csv.getTeam(), csv.getLink());
+								hit.getLeague(), csv.getTeam(), csv.getLink(), hit.getId());
 						if (upd != 1) {
 							manageLoggerComponent.debugErrorLog(
 									PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, null,
@@ -185,6 +185,10 @@ public class CountryLeagueDBPart {
 					}
 				}
 			}
+
+			// 6) LOGICAL DELETE は「更新後のDB状態」で判定しないと、改名（team変更）で誤って削除される。
+			//    Step1で取った dbLeagueRows は “更新前スナップショット” なので、ここで取り直す。
+			dbLeagueRows = countryLeagueMasterRepository.findActiveByCountryAndLeague(country, league);
 
 			// 6) LOGICAL DELETE（この国×このリーグの差分）
 			for (CountryLeagueMasterEntity db : dbLeagueRows) {
