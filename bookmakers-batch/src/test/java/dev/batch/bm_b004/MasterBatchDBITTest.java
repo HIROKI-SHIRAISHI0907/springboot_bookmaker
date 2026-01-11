@@ -20,6 +20,7 @@ import dev.batch.config.TestMyBatisH2Config;
 import dev.batch.general.CsvImport;
 import dev.batch.repository.master.CountryLeagueMasterRepository;
 import dev.common.entity.CountryLeagueMasterEntity;
+import dev.common.logger.ManageLoggerComponent;
 
 /**
  * MasterBatchDBITTest
@@ -60,8 +61,16 @@ public class MasterBatchDBITTest {
     @Autowired
     private CountryLeagueMasterStat countryLeagueMasterStat;
 
+    /** CountryLeagueDBPart */
+    @Autowired
+    private CountryLeagueDBPart countryLeagueDBPart;
+
     @Autowired
 	private CountryLeagueMasterRepository countryLeagueMasterRepository;
+
+    /** バッチ共通ログ出力を行う。 */
+    @Autowired
+    private ManageLoggerComponent manageLoggerComponent;
 
 	/**
 	 * 試験データ登録確認
@@ -97,6 +106,73 @@ public class MasterBatchDBITTest {
         this.countryLeagueMasterStat.masterStat(insertList);
         List<CountryLeagueMasterEntity> data = this.countryLeagueMasterRepository.findData();
         assertEquals(60, data.size());
+	}
+
+	/**
+	 * 試験データ登録確認
+	 * @param testInfo
+	 * @throws Exception
+	 */
+	@Test
+	void execute_TC_TS_002(TestInfo testInfo) throws Exception {
+        boolean result = this.countryLeagueDBPart.dbOperation(null);
+        assertTrue(result);
+	}
+
+	/**
+	 * 試験データ登録確認
+	 * @param testInfo
+	 * @throws Exception
+	 */
+	@Test
+	void execute_TC_TS_003(TestInfo testInfo) throws Exception {
+        boolean result = this.countryLeagueDBPart.dbOperation(
+        		new ArrayList<CountryLeagueMasterEntity>());
+        assertTrue(result);
+	}
+
+	/**
+	 * 試験データバッチキー不正
+	 * @param testInfo
+	 * @throws Exception
+	 */
+	@Test
+	void execute_TC_TS_004(TestInfo testInfo) throws Exception {
+		String testMethodName = testInfo.getTestMethod()
+				.map(m -> m.getName())
+				.orElse("unknown");
+
+		List<CountryLeagueMasterEntity> csvRows =
+				CsvImport.importCsv(
+				"src/test/java/dev/batch/"
+						+ "bm_b004/data/" + testMethodName + ".csv",
+				CountryLeagueMasterEntity.class,
+				TEAM,
+				null);
+        boolean result = this.countryLeagueDBPart.dbOperation(csvRows);
+        assertFalse(result);
+	}
+
+	/**
+	 * 試験データ混在チェック
+	 * @param testInfo
+	 * @throws Exception
+	 */
+	@Test
+	void execute_TC_TS_005(TestInfo testInfo) throws Exception {
+		String testMethodName = testInfo.getTestMethod()
+				.map(m -> m.getName())
+				.orElse("unknown");
+
+		List<CountryLeagueMasterEntity> csvRows =
+				CsvImport.importCsv(
+				"src/test/java/dev/batch/"
+						+ "bm_b004/data/" + testMethodName + ".csv",
+				CountryLeagueMasterEntity.class,
+				TEAM,
+				null);
+        boolean result = this.countryLeagueDBPart.dbOperation(csvRows);
+        assertFalse(result);
 	}
 
 }

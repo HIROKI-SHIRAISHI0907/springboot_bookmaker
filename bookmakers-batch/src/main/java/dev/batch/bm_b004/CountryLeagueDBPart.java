@@ -47,6 +47,11 @@ public class CountryLeagueDBPart {
     @Autowired
     private ManageLoggerComponent manageLoggerComponent;
 
+    /**
+     * 操作メソッド
+     * @param csvRows
+     * @return
+     */
     @Transactional
 	public boolean dbOperation(List<CountryLeagueMasterEntity> csvRows) {
 		final String METHOD_NAME = "dbOperation";
@@ -65,7 +70,8 @@ public class CountryLeagueDBPart {
 			if (isBlank(country) || isBlank(league)) {
 				manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, null,
-						"invalid batch header: country/league is blank");
+						"invalid batch header: country/league is blank (country: " + country
+						+ ", league: " + league + ")");
 				return false;
 			}
 

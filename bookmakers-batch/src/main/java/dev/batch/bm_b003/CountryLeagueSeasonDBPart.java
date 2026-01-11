@@ -76,7 +76,8 @@ public class CountryLeagueSeasonDBPart {
 				if (isBlank(country) || isBlank(league) || isBlank(path)) {
 					manageLoggerComponent.debugWarnLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE,
-							"skip invalid row (country/league/path is blank)");
+							"skip invalid row country/league/path is blank (country: " + country
+									+ ", league: " + league + ", path: " + path + ")");
 					continue;
 				}
 
@@ -122,9 +123,10 @@ public class CountryLeagueSeasonDBPart {
 				String key = country + "\t" + path;
 				String dbLeague = dbLeagueByCountryPath.get(key);
 				if (dbLeague == null) {
-					List<CountryLeagueSeasonMasterEntity>  dbSameCountryPath = countryLeagueSeasonMasterRepository
+					List<CountryLeagueSeasonMasterEntity> dbSameCountryPath = countryLeagueSeasonMasterRepository
 							.findByCountryAndPath(country, path);
-					dbLeague = (dbSameCountryPath == null || dbSameCountryPath.isEmpty()) ? "" : dbSameCountryPath.get(0).getLeague();
+					dbLeague = (dbSameCountryPath == null || dbSameCountryPath.isEmpty()) ? ""
+							: dbSameCountryPath.get(0).getLeague();
 					dbLeagueByCountryPath.put(key, dbLeague);
 				}
 
