@@ -54,7 +54,10 @@ import dev.common.logger.ManageLoggerComponent;
 		// --- data.sqlを実行しない
 		"spring.sql.init.mode=never"
 })
-@Sql(scripts = "classpath:empty.sql", executionPhase = Sql.ExecutionPhase.BEFORE_TEST_CLASS)
+@Sql(
+		  scripts = "classpath:empty.sql",
+		  executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
+		)
 public class MasterBatchDBITTest {
 
 	/** BM_M032統計分析ロジック */
@@ -209,29 +212,6 @@ public class MasterBatchDBITTest {
 		List<List<CountryLeagueMasterEntity>> insertList = new ArrayList<List<CountryLeagueMasterEntity>>();
 		insertList.add(CsvImport.importCsv(
 				"src/test/java/dev/batch/"
-						+ "bm_b004/data/" + testMethodName + ".csv",
-				CountryLeagueMasterEntity.class,
-				TEAM,
-				null));
-		this.countryLeagueMasterStat.masterStat(insertList);
-		List<CountryLeagueMasterEntity> data = this.countryLeagueMasterRepository.findData();
-		assertEquals(6, data.size());
-	}
-
-	/**
-	 * 試験データ空行含みデータ登録確認
-	 * @param testInfo
-	 * @throws Exception
-	 */
-	@Test
-	void execute_TC_TS_008(TestInfo testInfo) throws Exception {
-		String testMethodName = testInfo.getTestMethod()
-				.map(m -> m.getName())
-				.orElse("unknown");
-
-		List<List<CountryLeagueMasterEntity>> insertList = new ArrayList<List<CountryLeagueMasterEntity>>();
-		insertList.add(CsvImport.importCsv(
-				"src/test/java/dev/batch/"
 						+ "bm_b004/data/" + testMethodName + "_before.csv",
 				CountryLeagueMasterEntity.class,
 				TEAM,
@@ -288,7 +268,7 @@ public class MasterBatchDBITTest {
 	 * @throws Exception
 	 */
 	@Test
-	void execute_TC_TS_009(TestInfo testInfo) throws Exception {
+	void execute_TC_TS_008(TestInfo testInfo) throws Exception {
 		String testMethodName = testInfo.getTestMethod()
 				.map(m -> m.getName())
 				.orElse("unknown");

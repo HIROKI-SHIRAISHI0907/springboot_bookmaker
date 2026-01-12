@@ -230,6 +230,7 @@ public class CountryLeagueDBPart {
 		return s == null || s.trim().isEmpty();
 	}
 
+	/** 同一文字列か */
 	private boolean safeEq(String a, String b) {
 		if (a == null) return b == null;
 		return a.equals(b);
