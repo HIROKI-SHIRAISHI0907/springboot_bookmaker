@@ -8,7 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.batch.constant.BatchStatusConstant;
 import dev.batch.interf.jobExecControlIF;
-import dev.batch.repository.bm.BatchJobExecRepository;
+import dev.batch.repository.master.BatchJobExecRepository;
 import dev.common.logger.ManageLoggerComponent;
 
 @Service

@@ -132,3 +132,21 @@ CREATE TABLE IF NOT EXISTS future_master (
   update_id               VARCHAR(100),
   update_time             TIMESTAMP WITH TIME ZONE
 );
+
+-- -------------------------
+-- batch_job_exec
+-- -------------------------
+CREATE TABLE batch_job_exec (
+    job_id         VARCHAR(64)  NOT NULL,
+    batch_cd       VARCHAR(64)  NOT NULL,
+    status         VARCHAR(32)  NOT NULL,
+    register_id    VARCHAR(64),
+    register_time  TIMESTAMPTZ,
+    update_id      VARCHAR(64),
+    update_time    TIMESTAMPTZ,
+
+    CONSTRAINT pk_batch_job_exec PRIMARY KEY (job_id)
+);
+
+CREATE INDEX IF NOT EXISTS idx_batch_job_exec_batchcd ON batch_job_exec(batch_cd);
+CREATE INDEX IF NOT EXISTS idx_batch_job_exec_status  ON batch_job_exec(status);

@@ -1,4 +1,4 @@
-package dev.batch.repository.bm;
+package dev.batch.repository.master;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
@@ -11,22 +11,23 @@ import dev.batch.bm_b099.BatchJobExecEntity;
 @Mapper
 public interface BatchJobExecRepository {
 
-	@Insert("""
-			    INSERT INTO batch_job_exec (
-			        job_id,
-			        batch_cd,
-			        status,
-			        register_id,
-			        register_time,
-			        update_id,
-			        update_time
-			    ) VALUES (
-			        #{jobId},
-			        #{batchCd},
-			        #{status},
-			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
-			    );
-			""")
+	@Insert({
+		"	    INSERT INTO batch_job_exec (",
+		"	        job_id,",
+		"	        batch_cd,",
+		"	        status,",
+		"	        register_id,",
+		"	        register_time,",
+		"	        update_id,",
+		"	        update_time",
+		"	    ) VALUES (",
+		"	        #{jobId},",
+		"	        #{batchCd},",
+		"	        #{status},",
+		//"	        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)",
+		"	        #{registerId}, #{registerTime}, #{updateId}, #{updateTime}",
+		"	    );"
+	})
 	int jobStartExec(BatchJobExecEntity entity);
 
 	@Select("""
