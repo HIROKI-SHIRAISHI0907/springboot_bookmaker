@@ -52,39 +52,41 @@ public interface CountryLeagueSeasonMasterRepository {
 	int clearEndSeasonDate(@Param("country") String country,
 			@Param("league") String league);
 
-	@Insert("""
-			    INSERT INTO country_league_season_master (
-			        country,
-			        league,
-			        season_year,
-			        start_season_date,
-			        end_season_date,
-			        round,
-			        path,
-			        icon,
-			        valid_flg,
-			        del_flg,
-			        register_id,
-			        register_time,
-			        update_id,
-			        update_time
-			    ) VALUES (
-			        #{country},
-			        #{league},
-			        #{seasonYear},
-			        #{startSeasonDate}::timestamptz,
-					#{endSeasonDate}::timestamptz,
-			        #{round},
-			        #{path},
-			        #{icon},
-			        #{validFlg},
-			        #{del_flg},
-			        #{registerId},
-			        #{registerTime},
-			        #{updateId},
-			        #{updateTime}
-			    )
-			""")
+	@Insert({
+		"	    INSERT INTO country_league_season_master (",
+		"	        country,",
+		"	        league,",
+		"	        season_year,",
+		"	        start_season_date,",
+		"	        end_season_date,",
+		"	        round,",
+		"	        path,",
+		"	        icon,",
+		"	        valid_flg,",
+		"	        del_flg,",
+		"	        register_id,",
+		"	        register_time,",
+		"	        update_id,",
+		"	        update_time",
+		"	    ) VALUES (",
+		"	        #{country},",
+		"	        #{league},",
+		"	        #{seasonYear},",
+		//"	        #{startSeasonDate}::timestamptz,",
+		//"			#{endSeasonDate}::timestamptz,",
+		"			#{startSeasonDate},",
+		"			#{endSeasonDate},",
+		"	        #{round},",
+		"	        #{path},",
+		"	        #{icon},",
+		"	        '0',",
+		"	        '0',",
+		"	        #{registerId},",
+		"	        #{registerTime},",
+		"	        #{updateId},",
+		"	        #{updateTime}",
+		"	    )",
+	""})
 	int insert(CountryLeagueSeasonMasterEntity entity);
 
 	@Select("""
@@ -154,22 +156,24 @@ public interface CountryLeagueSeasonMasterRepository {
 	List<CountryLeagueSeasonMasterEntity> findByCountryAndPath(@Param("country") String country,
 			@Param("path") String path);
 
-	@Update("""
-			    UPDATE
-			        country_league_season_master
-			    SET
-			        season_year = #{seasonYear},
-					start_season_date = #{startSeasonDate}::timestamptz,
-					end_season_date = #{endSeasonDate}::timestamptz,
-					round = #{round},
-					path = #{path},
-					icon = #{icon},
-					valid_flg = '0',
-					del_flg = '0'
-			    WHERE
-			        country = #{country} AND
-			        league = #{league};
-			""")
+	@Update({
+		"	    UPDATE ",
+		"	        country_league_season_master ",
+		"	    SET ",
+		"	        season_year = #{seasonYear},",
+		//"			start_season_date = #{startSeasonDate}::timestamptz,",
+		//"			end_season_date = #{endSeasonDate}::timestamptz,",
+		"			start_season_date = #{startSeasonDate},",
+		"			end_season_date = #{endSeasonDate},",
+		"			round = #{round},",
+		"			path = #{path},",
+		"			icon = #{icon},",
+		"			valid_flg = '0',",
+		"			del_flg = '0'",
+		"	    WHERE",
+		"	        country = #{country} AND",
+		"	        league = #{league};"
+	})
 	int updateByCountryLeague(CountryLeagueSeasonMasterEntity entity);
 
 	@Update("""
@@ -184,5 +188,25 @@ public interface CountryLeagueSeasonMasterRepository {
 			""")
 	int logicalDeleteByCountryLeaguePath(@Param("country") String country,
 			@Param("league") String league, @Param("path") String path);
+
+	@Select("""
+			    SELECT
+			    	id,
+			        country,
+			        league,
+			        path,
+			     	season_year,
+			     	start_season_date,
+			     	end_season_date,
+			     	round,
+			     	icon,
+			     	valid_flg,
+			     	del_flg
+			    FROM
+			    	country_league_season_master
+			    ORDER BY
+			    	id;
+			""")
+	List<CountryLeagueSeasonMasterEntity> findData();
 
 }

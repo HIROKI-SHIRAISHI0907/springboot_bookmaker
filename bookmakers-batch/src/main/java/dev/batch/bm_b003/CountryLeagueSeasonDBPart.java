@@ -73,6 +73,13 @@ public class CountryLeagueSeasonDBPart {
 				String league = row.getLeague();
 				String path = row.getPath(); // ← entityにpathがある想定（なければ該当getter名に変更）
 
+				// シーズン年を元にシーズン開始日と終了日を埋める
+				String[] years = SeasonDateBuilder.convertSeasonYear(row.getSeasonYear());
+				String startDate = SeasonDateBuilder.buildDate(years[0], row.getStartSeasonDate());
+				String endDate   = SeasonDateBuilder.buildDate(years[1], row.getEndSeasonDate());
+				row.setStartSeasonDate(startDate);
+				row.setEndSeasonDate(endDate);
+
 				if (isBlank(country) || isBlank(league) || isBlank(path)) {
 					manageLoggerComponent.debugWarnLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE,
