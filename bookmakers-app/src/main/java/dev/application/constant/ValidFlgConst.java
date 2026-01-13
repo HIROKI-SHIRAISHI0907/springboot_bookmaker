@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m031;
+package dev.application.constant;
 
 /**
  * 有効フラグ定数クラス

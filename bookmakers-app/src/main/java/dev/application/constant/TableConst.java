@@ -7,6 +7,9 @@ package dev.application.constant;
  */
 public class TableConst {
 
+	/** コンストラクタ生成禁止 */
+	private TableConst() {}
+
 	/** country:league */
 	public static final String CALC_CORRELATION = "calc_correlation";
 

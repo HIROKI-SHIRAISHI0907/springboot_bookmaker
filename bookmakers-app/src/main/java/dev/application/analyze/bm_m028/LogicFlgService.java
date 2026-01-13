@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.common.util.TableUtil;
+import dev.application.constant.LogicFlgConst;
 import dev.application.domain.repository.bm.LogicFlgRepository;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
@@ -28,12 +29,6 @@ public class LogicFlgService {
 
 	/** クラス名 */
 	private static final String CLASS_NAME = LogicFlgService.class.getSimpleName();
-
-	/** 有効 */
-	private static final String LOGIC_FLG_0 = "0";
-
-	/** 無効 */
-	private static final String LOGIC_FLG_1 = "1";
 
 	/**
 	 * 論理削除レポジトリ
@@ -82,15 +77,15 @@ public class LogicFlgService {
 		this.categoryList = TableUtil.getCategoryList();
 
 		// 更新(データが空の場合は制限をかけていないため全てフラグ0にする)
-		logicFlgAllUpdate(LOGIC_FLG_1);
+		logicFlgAllUpdate(LogicFlgConst.LOGIC_FLG_1);
 		if (!stat.isEmpty()) {
 			for (ConditionData dto : stat) {
 				String country = dto.getCountry();
 				String league = dto.getLeague();
-				logicFlgUpdate(country, league, LOGIC_FLG_0);
+				logicFlgUpdate(country, league, LogicFlgConst.LOGIC_FLG_0);
 			}
 		} else {
-			logicFlgAllUpdate(LOGIC_FLG_0);
+			logicFlgAllUpdate(LogicFlgConst.LOGIC_FLG_0);
 		}
 
 		// endLog
