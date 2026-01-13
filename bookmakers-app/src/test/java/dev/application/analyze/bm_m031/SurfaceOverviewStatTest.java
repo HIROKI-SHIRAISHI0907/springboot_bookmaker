@@ -36,9 +36,10 @@ public class SurfaceOverviewStatTest {
 
 	/**
 	 * 処理速度実験
+	 * @throws Exception
 	 */
 	@Test
-	void test_calcStat_shouldCorrectly_memory() {
+	void test_calcStat_shouldCorrectly_memory() throws Exception {
 		// Act
 		String csvNumber = "0";
 		String csvNumberAfter = null;
@@ -257,9 +258,10 @@ public class SurfaceOverviewStatTest {
 
 	/**
 	 * 連敗(横浜・F・マリノス)
+	 * @throws Exception
 	 */
 	@Test
-	void test_calcStat_shouldCorrectly_concective() {
+	void test_calcStat_shouldCorrectly_concective() throws Exception {
 		// Act
 		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
 				.addMatchSnapshots("日本", "J1 リーグ", "横浜・F・マリノス", "東京ヴェルディ",
@@ -287,9 +289,10 @@ public class SurfaceOverviewStatTest {
 
 	/**
 	 * 連敗(ザスパクサツ群馬)
+	 * @throws Exception
 	 */
 	@Test
-	void test_calcStat_shouldCorrectly_concective2() {
+	void test_calcStat_shouldCorrectly_concective2() throws Exception {
 		// Act
 		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
 				.addMatchSnapshots("日本", "J3 リーグ", "栃木シティ", "ザスパクサツ群馬",
@@ -317,9 +320,10 @@ public class SurfaceOverviewStatTest {
 
 	/**
 	 * 連敗(ザスパクサツ群馬)
+	 * @throws Exception
 	 */
 	@Test
-	void test_calcStat_shouldCorrectly_concective3() {
+	void test_calcStat_shouldCorrectly_concective3() throws Exception {
 		// Act
 		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
 				.addMatchSnapshots("日本", "J3 リーグ", "高知ユナイテッド", "ザスパクサツ群馬",
@@ -337,9 +341,10 @@ public class SurfaceOverviewStatTest {
 
 	/**
 	 * 連敗(ザスパクサツ群馬)
+	 * @throws Exception
 	 */
 	@Test
-	void test_calcStat_shouldCorrectly_concective4() {
+	void test_calcStat_shouldCorrectly_concective4() throws Exception {
 		// Act
 		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
 				.addMatchSnapshots("日本", "J3 リーグ", "ギラヴァンツ北九州", "ザスパクサツ群馬",
@@ -357,9 +362,10 @@ public class SurfaceOverviewStatTest {
 
 	/**
 	 * 連敗(ザスパクサツ群馬)
+	 * @throws Exception
 	 */
 	@Test
-	void test_calcStat_shouldCorrectly_concective5() {
+	void test_calcStat_shouldCorrectly_concective5() throws Exception {
 		// Act
 		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
 				.addMatchSnapshots("日本", "J3 リーグ", "奈良クラブ", "ザスパクサツ群馬",
@@ -377,9 +383,10 @@ public class SurfaceOverviewStatTest {
 
 	/**
 	 * 連敗(ザスパクサツ群馬)
+	 * @throws Exception
 	 */
 	@Test
-	void test_calcStat_shouldCorrectly_concective6() {
+	void test_calcStat_shouldCorrectly_concective6() throws Exception {
 		// Act
 		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
 				.addMatchSnapshots("日本", "J3 リーグ", "カマタマーレ讃岐", "ザスパクサツ群馬",
@@ -397,9 +404,10 @@ public class SurfaceOverviewStatTest {
 
 	/**
 	 * 連敗(ザスパクサツ群馬)
+	 * @throws Exception
 	 */
 	@Test
-	void test_calcStat_shouldCorrectly_concective7() {
+	void test_calcStat_shouldCorrectly_concective7() throws Exception {
 		// Act
 		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
 				.addMatchSnapshots("日本", "J3 リーグ", "福島ユナイテッドFC", "ザスパクサツ群馬",
@@ -412,9 +420,10 @@ public class SurfaceOverviewStatTest {
 
 	/**
 	 * 連敗(ザスパクサツ群馬)
+	 * @throws Exception
 	 */
 	@Test
-	void test_calcStat_shouldCorrectly_concective8() {
+	void test_calcStat_shouldCorrectly_concective8() throws Exception {
 		// Act
 		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
 				.addMatchSnapshots("日本", "J3 リーグ", "AC長野パルセイロ", "ザスパクサツ群馬",
@@ -441,9 +450,10 @@ public class SurfaceOverviewStatTest {
 
 	/**
 	 * 連敗(ザスパクサツ群馬)
+	 * @throws Exception
 	 */
 	@Test
-	void test_calcStat_shouldCorrectly_concective9() {
+	void test_calcStat_shouldCorrectly_concective9() throws Exception {
 		// Act
 		Map<String, Map<String, List<BookDataEntity>>> entities = SurfaceOverviewTestData.builder()
 				.addMatchSnapshots("日本", "J3 リーグ", "ザスパクサツ群馬", "ヴァンラーレ八戸",

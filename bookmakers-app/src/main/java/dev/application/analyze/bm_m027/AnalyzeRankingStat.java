@@ -81,6 +81,8 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
+		bean.init();
+
 		// 並列実行基盤
 		int threads = Math.max(2, Runtime.getRuntime().availableProcessors());
 		ExecutorService exec = Executors.newFixedThreadPool(threads);

@@ -16,6 +16,6 @@ public interface AnalyzeEntityIF {
 	 * 統計分析処理メソッド
 	 * @param entities エンティティ(国-リーグ, ホーム-アウェー, エンティティリスト)
 	 */
-	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities);
+	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) throws Exception;
 
 }

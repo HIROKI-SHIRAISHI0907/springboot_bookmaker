@@ -11,7 +11,6 @@ import org.springframework.stereotype.Component;
 import dev.application.domain.repository.master.CountryLeagueSeasonMasterRepository;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
-import jakarta.annotation.PostConstruct;
 
 /**
  * surface_overviewのbeanロジック
@@ -50,7 +49,6 @@ public class BmM031SurfaceOverviewBean {
 
 	/** 初期化
 	 * @throws Exception */
-	@PostConstruct
 	public void init() throws Exception {
 		final String METHOD_NAME = "init";
 

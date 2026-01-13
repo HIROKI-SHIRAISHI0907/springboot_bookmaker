@@ -14,7 +14,6 @@ import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureEntity;
 import dev.application.domain.repository.bm.EachTeamScoreBasedFeatureStatsRepository;
 import dev.application.domain.repository.bm.ScoreBasedFeatureStatsRepository;
 import dev.common.logger.ManageLoggerComponent;
-import jakarta.annotation.PostConstruct;
 
 /**
  * average_statistics_dataのbeanロジック
@@ -50,7 +49,6 @@ public class BmM023M026InitStatRankingBean {
 	private Map<String, List<KeyRanking>> eachScoreMap;
 
 	/** 初期化 */
-	@PostConstruct
 	public void init() {
 		final String METHOD_NAME = "init";
 		// average_statistics_data

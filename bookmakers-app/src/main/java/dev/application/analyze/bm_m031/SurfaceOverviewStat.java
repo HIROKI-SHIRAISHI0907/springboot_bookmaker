@@ -84,13 +84,15 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	 * 集計は一旦メモリ（resultMap）にため、最後に upsert します。</p>
 	 *
 	 * @param entities country,league をキー、試合（home-away）毎の BookDataEntity リストを値に持つネストマップ
+	 * @throws Exception
 	 */
 	@Override
-	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) {
+	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) throws Exception {
 		final String METHOD_NAME = "calcStat";
 		manageLoggerComponent.init(EXEC_MODE, null);
 		manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
+		bean.init();
 		roundMap = bean.getCountryLeagueRoundMap();
 
 		// 同月×チームの途中結果を保持
