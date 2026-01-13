@@ -63,7 +63,7 @@ public interface CountryLeagueSeasonMasterRepository {
 		"	        path,",
 		"	        icon,",
 		"	        valid_flg,",
-		"	        del_flg,",
+		"           del_flg,",
 		"	        register_id,",
 		"	        register_time,",
 		"	        update_id,",
@@ -72,20 +72,16 @@ public interface CountryLeagueSeasonMasterRepository {
 		"	        #{country},",
 		"	        #{league},",
 		"	        #{seasonYear},",
-		//"	        #{startSeasonDate}::timestamptz,",
-		//"			#{endSeasonDate}::timestamptz,",
-		"			#{startSeasonDate},",
-		"			#{endSeasonDate},",
+		"	        #{startSeasonDate}::timestamptz,",
+		"			#{endSeasonDate}::timestamptz,",
+		//"			#{startSeasonDate},",
+		//"			#{endSeasonDate},",
 		"	        #{round},",
 		"	        #{path},",
 		"	        #{icon},",
 		"	        '0',",
 		"	        '0',",
-		"	        #{registerId},",
-		"	        #{registerTime},",
-		"	        #{updateId},",
-		"	        #{updateTime}",
-		"	    )",
+		"           #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz))",
 	""})
 	int insert(CountryLeagueSeasonMasterEntity entity);
 
@@ -161,10 +157,10 @@ public interface CountryLeagueSeasonMasterRepository {
 		"	        country_league_season_master ",
 		"	    SET ",
 		"	        season_year = #{seasonYear},",
-		//"			start_season_date = #{startSeasonDate}::timestamptz,",
-		//"			end_season_date = #{endSeasonDate}::timestamptz,",
-		"			start_season_date = #{startSeasonDate},",
-		"			end_season_date = #{endSeasonDate},",
+		"			start_season_date = #{startSeasonDate}::timestamptz,",
+		"			end_season_date = #{endSeasonDate}::timestamptz,",
+		//"			start_season_date = #{startSeasonDate},",
+		//"			end_season_date = #{endSeasonDate},",
 		"			round = #{round},",
 		"			path = #{path},",
 		"			icon = #{icon},",
@@ -179,7 +175,7 @@ public interface CountryLeagueSeasonMasterRepository {
 	@Update("""
 			 UPDATE country_league_season_master
 			 SET
-			     valid_flg = '0',
+			 	 valid_flg = '0',
 			     del_flg = '1'
 			 WHERE
 			     country = #{country}

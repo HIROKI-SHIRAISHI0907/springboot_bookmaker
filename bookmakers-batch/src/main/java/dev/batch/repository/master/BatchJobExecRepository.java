@@ -24,8 +24,8 @@ public interface BatchJobExecRepository {
 		"	        #{jobId},",
 		"	        #{batchCd},",
 		"	        #{status},",
-		//"	        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)",
-		"	        #{registerId}, #{registerTime}, #{updateId}, #{updateTime}",
+		"	        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)",
+		//"	        #{registerId}, #{registerTime}, #{updateId}, #{updateTime}",
 		"	    );"
 	})
 	int jobStartExec(BatchJobExecEntity entity);
@@ -35,7 +35,7 @@ public interface BatchJobExecRepository {
 			 FROM batch_job_exec
 			 WHERE
 			     batch_cd = #{batchCd}
-			     AND status IN (0, 1)
+			     AND status IN ('0','1')
 			     AND update_time >= (CURRENT_TIMESTAMP - INTERVAL '2 hours');
 			""")
 	int jobCountExec(@Param("batchCd") String batchCd);
@@ -49,7 +49,7 @@ public interface BatchJobExecRepository {
 			    	update_time = CURRENT_TIMESTAMP
 			    WHERE
 			        job_id = #{jobId}
-			        AND status IN (0, 1);
+			        AND status IN ('0','1');
 			""")
 	int jobUpdateExc(@Param("jobId") String jobId, @Param("status") int status);
 
@@ -61,7 +61,7 @@ public interface BatchJobExecRepository {
 			        update_time = CURRENT_TIMESTAMP
 			    WHERE
 			        batch_cd = #{batchCd}
-			        AND status IN (0,1)
+			        AND status IN ('0','1')
 			        AND update_time < (CURRENT_TIMESTAMP - INTERVAL '2 hours')
 			""")
 	int failStaleJobs(@Param("batchCd") String batchCd);
@@ -73,7 +73,7 @@ public interface BatchJobExecRepository {
 			        update_time = CURRENT_TIMESTAMP
 			    WHERE
 			        job_id = #{jobId}
-			        AND status IN (0, 1);
+			        AND status IN ('0','1');
 			""")
 	int heartbeat(@Param("jobId") String jobId);
 
