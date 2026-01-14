@@ -1,8 +1,5 @@
 package dev.batch.bm_b002;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -18,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.batch.interf.TeamMemberEntityIF;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.util.FileDeleteUtil;
 
 /**
  * team_member_masterロジック
@@ -36,7 +34,7 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 	private static final String CLASS_NAME = TeamMemberMasterStat.class.getSimpleName();
 
 	/** 実行モード */
-	private static final String EXEC_MODE = "BM_M028_TEAM_MEMBER";
+	private static final String EXEC_MODE = "TEAM_MEMBER";
 
 	/** 監督 */
 	private static final String MANAGER = "監督";
@@ -149,19 +147,13 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 		}
 
 		// 途中で例外が起きなければ全てのファイルを削除する
-		for (String path : insertPath) {
-		    try {
-		        boolean deleted = Files.deleteIfExists(Paths.get(path));
-		        if (deleted) {
-		            manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ファイル削除成功", path);
-		        } else {
-		            manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "削除対象なし（既に無い）", path);
-		        }
-		    } catch (IOException e) {
-		        manageLoggerComponent.debugErrorLog(
-		            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ファイル削除失敗", e, path);
-		    }
-		}
+		FileDeleteUtil.deleteFiles(
+				insertPath,
+				manageLoggerComponent,
+				PROJECT_NAME,
+				CLASS_NAME,
+				METHOD_NAME,
+				"TEAM_MEMBER_MASTER");
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(

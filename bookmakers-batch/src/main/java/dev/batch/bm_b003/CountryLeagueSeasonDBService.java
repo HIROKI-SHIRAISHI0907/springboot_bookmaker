@@ -97,7 +97,7 @@ public class CountryLeagueSeasonDBService {
 				}
 			}
 		}
-		String messageCd = "BM_M028 登録件数: " + insertEntities.size();
+		String messageCd = "登録件数: " + insertEntities.size();
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
 		return 0;

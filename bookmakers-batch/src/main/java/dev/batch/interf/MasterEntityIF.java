@@ -16,6 +16,7 @@ public interface MasterEntityIF {
 	 * マスタデータ処理メソッド
 	 * @param entities エンティティ
 	 */
-	public void masterStat(List<List<CountryLeagueMasterEntity>> entities) throws Exception;
+	public void masterStat(String file,
+			List<CountryLeagueMasterEntity> entities) throws Exception;
 
 }

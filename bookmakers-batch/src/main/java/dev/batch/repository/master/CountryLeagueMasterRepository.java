@@ -51,7 +51,7 @@ public interface CountryLeagueMasterRepository {
 			        team = #{team} AND
 			        del_flg = '0';
 			""")
-	List<CountryLeagueMasterEntity> findByCountryLeague(String country, String league, String team);
+	CountryLeagueMasterEntity findByCountryLeague(String country, String league, String team);
 
 	@Select("""
 			    SELECT

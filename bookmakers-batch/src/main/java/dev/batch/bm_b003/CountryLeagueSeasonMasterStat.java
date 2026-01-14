@@ -1,5 +1,6 @@
 package dev.batch.bm_b003;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -7,8 +8,10 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.batch.interf.SeasonEntityIF;
+import dev.common.config.PathConfig;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.util.FileDeleteUtil;
 
 /**
  * country_league_season_masterロジック
@@ -27,7 +30,11 @@ public class CountryLeagueSeasonMasterStat implements SeasonEntityIF {
 	private static final String CLASS_NAME = CountryLeagueSeasonMasterStat.class.getSimpleName();
 
 	/** 実行モード */
-	private static final String EXEC_MODE = "BM_M029_COUNTRY_LEAGUE_SEASON";
+	private static final String EXEC_MODE = "COUNTRY_LEAGUE_SEASON";
+
+	/** PathConfig */
+	@Autowired
+	private PathConfig pathConfig;
 
 	/** CountryLeagueSeasonDBService部品 */
 	@Autowired
@@ -48,6 +55,7 @@ public class CountryLeagueSeasonMasterStat implements SeasonEntityIF {
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
+		List<String> insertPath = new ArrayList<String>();
 		// 今後のチーム情報を登録する
 		try {
 			List<CountryLeagueSeasonMasterEntity> insertEntities = this.countryLeagueSeasonDBService
@@ -57,10 +65,20 @@ public class CountryLeagueSeasonMasterStat implements SeasonEntityIF {
 				String messageCd = "新規登録エラー";
 				throw new Exception(messageCd);
 			}
+			insertPath.add(pathConfig.getTeamCsvFolder() + "season_data.csv");
 		} catch (Exception e) {
 			String messageCd = "システムエラー";
 			throw new Exception(messageCd, e);
 		}
+
+		// 途中で例外が起きなければ全てのファイルを削除する
+		FileDeleteUtil.deleteFiles(
+				insertPath,
+				manageLoggerComponent,
+				PROJECT_NAME,
+				CLASS_NAME,
+				METHOD_NAME,
+				"SEASON_MASTER");
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
