@@ -44,7 +44,7 @@ public class ColorDBService {
 			String league = chkEntities.getLeague();
 			String team = chkEntities.getTeam();
 			TeamColorMasterEntity master = this.teamColorMasterRepository.findByCountryLeague(country, league, team);
-			if (master.getId() == null) {
+			if (master == null) {
 				TeamColorMasterEntity colorEntity = new TeamColorMasterEntity();
 				colorEntity.setCountry(country);
 				colorEntity.setLeague(league);

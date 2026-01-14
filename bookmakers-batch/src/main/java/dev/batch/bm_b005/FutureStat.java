@@ -1,8 +1,5 @@
 package dev.batch.bm_b005;
 
-import java.io.IOException;
-import java.nio.file.Files;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
@@ -14,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.batch.interf.FutureEntityIF;
 import dev.common.entity.FutureEntity;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.util.FileDeleteUtil;
 
 /**
  * BM_M022未来データ登録ロジック
@@ -70,15 +68,13 @@ public class FutureStat implements FutureEntityIF {
 		}
 
 		// 途中で例外が起きなければ全てのファイルを削除する
-		for (String path : insertPath) {
-		    try {
-		        Files.deleteIfExists(Paths.get(path));
-		    } catch (IOException e) {
-		        this.manageLoggerComponent.debugErrorLog(
-		            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ファイル削除失敗", e, path);
-		        // ここでは例外をthrowしないことで、DB登録は保持
-		    }
-		}
+		FileDeleteUtil.deleteFiles(
+				insertPath,
+				manageLoggerComponent,
+				PROJECT_NAME,
+				CLASS_NAME,
+				METHOD_NAME,
+				"FUTURE");
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(

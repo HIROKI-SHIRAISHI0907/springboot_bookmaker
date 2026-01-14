@@ -3,7 +3,6 @@ package dev.batch.bm_b004;
 import static dev.batch.general.CsvHeaderMaps.*;
 import static org.junit.jupiter.api.Assertions.*;
 
-import java.util.ArrayList;
 import java.util.List;
 
 import org.junit.jupiter.api.Tag;
@@ -55,9 +54,9 @@ import dev.common.logger.ManageLoggerComponent;
 		"spring.sql.init.mode=never"
 })
 @Sql(
-		  scripts = "classpath:empty.sql",
-		  executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
-		)
+		scripts = "classpath:empty.sql",
+		executionPhase = Sql.ExecutionPhase.BEFORE_TEST_METHOD
+)
 public class MasterBatchDBITTest {
 
 	/** BM_M032統計分析ロジック */
@@ -86,58 +85,38 @@ public class MasterBatchDBITTest {
 				.map(m -> m.getName())
 				.orElse("unknown");
 
-		List<List<CountryLeagueMasterEntity>> insertList = new ArrayList<List<CountryLeagueMasterEntity>>();
-		insertList.add(CsvImport.importCsv(
-				"src/test/java/dev/batch/"
-						+ "bm_b004/data/" + testMethodName + "_J1.csv",
-				CountryLeagueMasterEntity.class,
-				TEAM,
-				null));
-		insertList.add(CsvImport.importCsv(
-				"src/test/java/dev/batch/"
-						+ "bm_b004/data/" + testMethodName + "_J2.csv",
-				CountryLeagueMasterEntity.class,
-				TEAM,
-				null));
-		insertList.add(CsvImport.importCsv(
-				"src/test/java/dev/batch/"
-						+ "bm_b004/data/" + testMethodName + "_J3.csv",
-				CountryLeagueMasterEntity.class,
-				TEAM,
-				null));
-		this.countryLeagueMasterStat.masterStat(insertList);
+		String f1 = "src/test/java/dev/batch/bm_b004/data/" + testMethodName + "_J1.csv";
+		String f2 = "src/test/java/dev/batch/bm_b004/data/" + testMethodName + "_J2.csv";
+		String f3 = "src/test/java/dev/batch/bm_b004/data/" + testMethodName + "_J3.csv";
+
+		List<CountryLeagueMasterEntity> rows1 = CsvImport.importCsv(
+				f1, CountryLeagueMasterEntity.class, TEAM, null);
+		List<CountryLeagueMasterEntity> rows2 = CsvImport.importCsv(
+				f2, CountryLeagueMasterEntity.class, TEAM, null);
+		List<CountryLeagueMasterEntity> rows3 = CsvImport.importCsv(
+				f3, CountryLeagueMasterEntity.class, TEAM, null);
+
+		this.countryLeagueMasterStat.masterStat(f1, rows1);
+		this.countryLeagueMasterStat.masterStat(f2, rows2);
+		this.countryLeagueMasterStat.masterStat(f3, rows3);
+
 		List<CountryLeagueMasterEntity> data = this.countryLeagueMasterRepository.findData();
 		assertEquals(60, data.size());
 	}
 
-	/**
-	 * 試験データ登録確認
-	 * @param testInfo
-	 * @throws Exception
-	 */
 	@Test
 	void execute_TC_TS_002(TestInfo testInfo) throws Exception {
 		boolean result = this.countryLeagueDBPart.dbOperation(null);
 		assertTrue(result);
 	}
 
-	/**
-	 * 試験データ登録確認
-	 * @param testInfo
-	 * @throws Exception
-	 */
 	@Test
 	void execute_TC_TS_003(TestInfo testInfo) throws Exception {
 		boolean result = this.countryLeagueDBPart.dbOperation(
-				new ArrayList<CountryLeagueMasterEntity>());
+				new java.util.ArrayList<CountryLeagueMasterEntity>());
 		assertTrue(result);
 	}
 
-	/**
-	 * 試験データバッチキー不正
-	 * @param testInfo
-	 * @throws Exception
-	 */
 	@Test
 	void execute_TC_TS_004(TestInfo testInfo) throws Exception {
 		String testMethodName = testInfo.getTestMethod()
@@ -154,11 +133,6 @@ public class MasterBatchDBITTest {
 		assertFalse(result);
 	}
 
-	/**
-	 * 試験データ混在チェック
-	 * @param testInfo
-	 * @throws Exception
-	 */
 	@Test
 	void execute_TC_TS_005(TestInfo testInfo) throws Exception {
 		String testMethodName = testInfo.getTestMethod()
@@ -175,48 +149,34 @@ public class MasterBatchDBITTest {
 		assertFalse(result);
 	}
 
-	/**
-	 * 試験データ空行含みデータ登録確認
-	 * @param testInfo
-	 * @throws Exception
-	 */
 	@Test
 	void execute_TC_TS_006(TestInfo testInfo) throws Exception {
 		String testMethodName = testInfo.getTestMethod()
 				.map(m -> m.getName())
 				.orElse("unknown");
 
-		List<List<CountryLeagueMasterEntity>> insertList = new ArrayList<List<CountryLeagueMasterEntity>>();
-		insertList.add(CsvImport.importCsv(
-				"src/test/java/dev/batch/"
-						+ "bm_b004/data/" + testMethodName + ".csv",
-				CountryLeagueMasterEntity.class,
-				TEAM,
-				null));
-		this.countryLeagueMasterStat.masterStat(insertList);
+		String f1 = "src/test/java/dev/batch/bm_b004/data/" + testMethodName + ".csv";
+		List<CountryLeagueMasterEntity> rows = CsvImport.importCsv(
+				f1, CountryLeagueMasterEntity.class, TEAM, null);
+
+		this.countryLeagueMasterStat.masterStat(f1, rows);
+
 		List<CountryLeagueMasterEntity> data = this.countryLeagueMasterRepository.findData();
 		assertEquals(6, data.size());
 	}
 
-	/**
-	 * 試験データ空行含みデータ登録確認
-	 * @param testInfo
-	 * @throws Exception
-	 */
 	@Test
 	void execute_TC_TS_007(TestInfo testInfo) throws Exception {
 		String testMethodName = testInfo.getTestMethod()
 				.map(m -> m.getName())
 				.orElse("unknown");
 
-		List<List<CountryLeagueMasterEntity>> insertList = new ArrayList<List<CountryLeagueMasterEntity>>();
-		insertList.add(CsvImport.importCsv(
-				"src/test/java/dev/batch/"
-						+ "bm_b004/data/" + testMethodName + "_before.csv",
-				CountryLeagueMasterEntity.class,
-				TEAM,
-				null));
-		this.countryLeagueMasterStat.masterStat(insertList);
+		String before = "src/test/java/dev/batch/bm_b004/data/" + testMethodName + "_before.csv";
+		List<CountryLeagueMasterEntity> beforeRows = CsvImport.importCsv(
+				before, CountryLeagueMasterEntity.class, TEAM, null);
+
+		this.countryLeagueMasterStat.masterStat(before, beforeRows);
+
 		List<CountryLeagueMasterEntity> data = this.countryLeagueMasterRepository.findData();
 		assertEquals(4, data.size());
 
@@ -230,7 +190,8 @@ public class MasterBatchDBITTest {
 		assertTrue(result);
 
 		List<CountryLeagueMasterEntity> dataRows = this.countryLeagueMasterRepository.findData();
-		assertEquals(4, data.size());
+		assertEquals(4, dataRows.size());
+
 		for (CountryLeagueMasterEntity entity : dataRows) {
 			switch (entity.getTeam()) {
 			case "いわきFC": {
@@ -255,32 +216,20 @@ public class MasterBatchDBITTest {
 			}
 			}
 		}
-
 	}
 
-	/**
-	 * 試験データ変更パターン確認
-	 * いわきFC...退会
-	 * モンテディオ山形...link変更
-	 * FC今治...昇格
-	 * 北海道コンサドーレ札幌...チーム名変更
-	 * @param testInfo
-	 * @throws Exception
-	 */
 	@Test
 	void execute_TC_TS_008(TestInfo testInfo) throws Exception {
 		String testMethodName = testInfo.getTestMethod()
 				.map(m -> m.getName())
 				.orElse("unknown");
 
-		List<List<CountryLeagueMasterEntity>> insertList = new ArrayList<List<CountryLeagueMasterEntity>>();
-		insertList.add(CsvImport.importCsv(
-				"src/test/java/dev/batch/"
-						+ "bm_b004/data/" + testMethodName + "_before.csv",
-				CountryLeagueMasterEntity.class,
-				TEAM,
-				null));
-		this.countryLeagueMasterStat.masterStat(insertList);
+		String before = "src/test/java/dev/batch/bm_b004/data/" + testMethodName + "_before.csv";
+		List<CountryLeagueMasterEntity> beforeRows = CsvImport.importCsv(
+				before, CountryLeagueMasterEntity.class, TEAM, null);
+
+		this.countryLeagueMasterStat.masterStat(before, beforeRows);
+
 		List<CountryLeagueMasterEntity> data = this.countryLeagueMasterRepository.findData();
 		assertEquals(4, data.size());
 
@@ -304,13 +253,14 @@ public class MasterBatchDBITTest {
 
 		List<CountryLeagueMasterEntity> dataRows = this.countryLeagueMasterRepository.findData();
 		assertEquals(5, dataRows.size());
+
 		for (CountryLeagueMasterEntity entity : dataRows) {
 			String t = entity.getTeam();
-		    if (!List.of("いわきFC","モンテディオ山形","FC今治","北海道ｺﾝｻﾄﾞｰﾚ札幌").contains(t)) {
-		        System.out.println("[UNMATCH] league=" + entity.getLeague()
-		            + " team=[" + t + "] link=" + entity.getLink()
-		            + " delFlg=" + entity.getDelFlg());
-		    }
+			if (!List.of("いわきFC","モンテディオ山形","FC今治","北海道ｺﾝｻﾄﾞｰﾚ札幌").contains(t)) {
+				System.out.println("[UNMATCH] league=" + entity.getLeague()
+						+ " team=[" + t + "] link=" + entity.getLink()
+						+ " delFlg=" + entity.getDelFlg());
+			}
 			switch (t) {
 			case "いわきFC": {
 				assertion("J2 リーグ", entity.getTeam(),
@@ -326,12 +276,11 @@ public class MasterBatchDBITTest {
 				if ("J1 リーグ".equals(entity.getLeague())) {
 					assertion("J1 リーグ", entity.getTeam(),
 							"/team/imabari/0fQDWIvJ/", "0", entity);
-					break;
 				} else {
 					assertion("J2 リーグ", entity.getTeam(),
 							"/team/imabari/0fQDWIvJ/", "1", entity);
-					break;
 				}
+				break;
 			}
 			case "北海道ｺﾝｻﾄﾞｰﾚ札幌": {
 				assertion("J2 リーグ", entity.getTeam(),
@@ -342,10 +291,6 @@ public class MasterBatchDBITTest {
 		}
 	}
 
-	/**
-	 * アサーション
-	 * @param entity
-	 */
 	private static void assertion(
 			String league,
 			String team,

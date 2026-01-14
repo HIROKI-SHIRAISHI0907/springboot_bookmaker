@@ -45,7 +45,7 @@ public class CountryLeagueDBService {
 			String team = chkEntities.getTeam();
 			CountryLeagueMasterEntity master = this.countryLeagueMasterRepository.findByCountryLeague(country, league,
 					team);
-			if (master.getId() == null) {
+			if (master == null) {
 				return chkEntities;
 			}
 		} catch (Exception e) {

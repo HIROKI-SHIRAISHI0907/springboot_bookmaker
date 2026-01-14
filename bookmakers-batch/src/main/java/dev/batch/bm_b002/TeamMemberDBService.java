@@ -4,7 +4,6 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
 import dev.batch.repository.master.TeamMemberMasterRepository;
@@ -61,24 +60,27 @@ public class TeamMemberDBService {
 	public int insertInBatch(List<TeamMemberMasterEntity> insertEntities) {
 		final String METHOD_NAME = "insertInBatch";
 		final int BATCH_SIZE = 100;
+		int inserted = 0;
+	    int skipped = 0;
 		for (int i = 0; i < insertEntities.size(); i += BATCH_SIZE) {
 			int end = Math.min(i + BATCH_SIZE, insertEntities.size());
 			List<TeamMemberMasterEntity> batch = insertEntities.subList(i, end);
 			for (TeamMemberMasterEntity entity : batch) {
 				try {
 					int result = this.teamMemberMasterRepository.insert(entity);
-					if (result != 1) {
-						String messageCd = "新規登録エラー";
-						this.manageLoggerComponent.debugErrorLog(
-								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-						return 9;
-					}
-				} catch (DuplicateKeyException e) {
-					String messageCd = "登録済みです";
-					this.manageLoggerComponent.debugWarnLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
-					// 重複は特に例外として出さない
-					continue;
+					if (result == 1) {
+	                    inserted++;
+	                } else if (result == 0) {
+	                    // ON CONFLICT DO NOTHING → 重複扱い
+	                    skipped++;
+	                    continue;
+	                } else {
+	                    // 通常ここには来ない想定
+	                    String messageCd = "新規登録エラー(result=" + result + ")";
+	                    this.manageLoggerComponent.debugErrorLog(
+	                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
+	                    return 9;
+	                }
 				} catch (Exception e) {
 					String messageCd = "システムエラー";
 					this.manageLoggerComponent.debugErrorLog(
@@ -87,9 +89,9 @@ public class TeamMemberDBService {
 				}
 			}
 		}
-		String messageCd = "BM_M028 登録件数: " + insertEntities.size();
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
+	            PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+	            "登録件数: " + inserted + " / 重複スキップ: " + skipped);
 		return 0;
 	}
 
