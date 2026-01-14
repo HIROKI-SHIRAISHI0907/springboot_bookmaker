@@ -101,7 +101,8 @@ public class BmM028TeamMemberMasterBean {
 
 	/** パーソンキー（移籍して同一人物でない可能性があるため）*/
 	public static String personKey(TeamMemberMasterEntity e) {
-		if (e == null) return null;
+		if (e == null)
+			return null;
 
 		String member = nz(e.getMember());
 		String birthS = nz(e.getBirth());
@@ -117,23 +118,27 @@ public class BmM028TeamMemberMasterBean {
 
 		// 基準日：latestInfoDate があればそれ、なければ今日（JST）
 		LocalDate baseDate = parseDateOrNull(nz(e.getLatestInfoDate()));
-		if (baseDate == null) baseDate = LocalDate.now(JST);
+		if (baseDate == null)
+			baseDate = LocalDate.now(JST);
 
 		int ageKey = calcAge(birth, baseDate); // ←誕生日を迎えた瞬間 +1 になる
 		return member + "|" + birthS + "|" + ageKey;
 	}
 
 	public static String personKeyMinus1(String personKey) {
-        // "member|birth|NN" の NN を NN-1 にする
-        if (personKey == null) return null;
-        int idx = personKey.lastIndexOf('|');
-        if (idx < 0) return null;
-        String head = personKey.substring(0, idx);
-        String tail = personKey.substring(idx + 1);
-        Integer n = parseIntOrNull(tail);
-        if (n == null) return null;
-        return head + "|" + (n - 1);
-    }
+		// "member|birth|NN" の NN を NN-1 にする
+		if (personKey == null)
+			return null;
+		int idx = personKey.lastIndexOf('|');
+		if (idx < 0)
+			return null;
+		String head = personKey.substring(0, idx);
+		String tail = personKey.substring(idx + 1);
+		Integer n = parseIntOrNull(tail);
+		if (n == null)
+			return null;
+		return head + "|" + (n - 1);
+	}
 
 	/** ===== ユーティリティ ===== */
 	private static String nz(String s) {
@@ -151,20 +156,43 @@ public class BmM028TeamMemberMasterBean {
 
 	/** ===== ユーティリティ ===== */
 	private static LocalDate parseDateOrNull(String s) {
-		if (s == null || s.trim().isEmpty()) return null;
-	    String t = s.trim();
+		if (s == null || s.trim().isEmpty())
+			return null;
+		String t = s.trim();
 
-	    // ISO (yyyy-MM-dd)
-	    try { return LocalDate.parse(t); } catch (Exception ignore) {}
+		// ISO (yyyy-MM-dd)
+		try {
+			return LocalDate.parse(t);
+		} catch (Exception ignore) {
+		}
 
-	    // dd.MM.yyyy
-	    try {
-	        java.time.format.DateTimeFormatter f =
-	            java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy");
-	        return LocalDate.parse(t, f);
-	    } catch (Exception ignore) {}
+		// dd.MM.yyyy
+		try {
+			java.time.format.DateTimeFormatter f = java.time.format.DateTimeFormatter.ofPattern("dd.MM.yyyy");
+			return LocalDate.parse(t, f);
+		} catch (Exception ignore) {
+		}
 
-	    return null;
+		// 3) "yyyy-MM-dd HH:mm:ss" → LocalDateTime で読んで日付だけ取る
+		try {
+			var f = java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+			return java.time.LocalDateTime.parse(t, f).toLocalDate();
+		} catch (Exception ignore) {
+		}
+
+		// 4) "yyyy-MM-dd'T'HH:mm:ss"（ISOっぽい日時）→ LocalDateTime
+		try {
+			return java.time.LocalDateTime.parse(t).toLocalDate();
+		} catch (Exception ignore) {
+		}
+
+		// 5) "yyyy-MM-dd'T'HH:mm:ss.SSS..." → OffsetDateTime/Instant 系も吸収（Z付きなど）
+		try {
+			return java.time.OffsetDateTime.parse(t).toLocalDate();
+		} catch (Exception ignore) {
+		}
+
+		return null;
 	}
 
 	/** 年齢計算 */

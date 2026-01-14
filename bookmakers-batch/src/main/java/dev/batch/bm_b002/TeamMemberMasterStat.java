@@ -59,17 +59,25 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 	 */
 	@Override
 	public void teamMemberStat(Map<String, List<TeamMemberMasterEntity>> entities) throws Exception {
-		final String METHOD_NAME = "execute";
+		final String METHOD_NAME = "teamMemberStat";
 		// ログ出力
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// メンバーマップ
 		this.bean.init();
-		Map<String, TeamMemberMasterEntity> memberMap = this.bean.getMemberMap();
 		// チームマップ
 		Map<String, List<String>> teamMap = this.bean.getTeamMap();
+		if (teamMap.isEmpty()) {
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, "country_league_masterにデータがありません。");
+			this.manageLoggerComponent.debugEndInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+			this.manageLoggerComponent.clear();
+			return;
+		}
+		// メンバーマップ
+		Map<String, TeamMemberMasterEntity> memberMap = this.bean.getMemberMap();
 
 		List<String> insertPath = new ArrayList<String>();
 		// 今後の対戦カードを登録する
@@ -110,18 +118,18 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 					}
 
 					// ---- ここから下は「新規登録」候補のみ ----
-				    // personKeyが作れない場合も新規候補（ただしフィルタで落とす）
-				    String country = entity.getCountry();
-				    String league = entity.getLeague();
-				    String team = entity.getTeam();
-				    String keyCL = nz(country) + "-" + nz(league);
-				    List<String> teams = teamMap.get(keyCL);
+					// personKeyが作れない場合も新規候補（ただしフィルタで落とす）
+					String country = entity.getCountry();
+					String league = entity.getLeague();
+					String team = entity.getTeam();
+					String keyCL = nz(country) + "-" + nz(league);
+					List<String> teams = teamMap.get(keyCL);
 
-				    // 新規は従来通り、所属チームがマスタにいるものだけ
-				    if (teams == null || !teams.contains(team)) {
-				        continue;
-				    }
-				    insertEntities.add(entity);
+					// 新規は従来通り、所属チームがマスタにいるものだけ
+					if (teams == null || !teams.contains(team)) {
+						continue;
+					}
+					insertEntities.add(entity);
 				}
 				int result = this.teamMemberDBService.insertInBatch(insertEntities);
 				if (result == 9) {
@@ -142,13 +150,17 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 
 		// 途中で例外が起きなければ全てのファイルを削除する
 		for (String path : insertPath) {
-			try {
-				Files.deleteIfExists(Paths.get(path));
-			} catch (IOException e) {
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ファイル削除失敗", e, path);
-				// ここでは例外をthrowしないことで、DB登録は保持
-			}
+		    try {
+		        boolean deleted = Files.deleteIfExists(Paths.get(path));
+		        if (deleted) {
+		            manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ファイル削除成功", path);
+		        } else {
+		            manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "削除対象なし（既に無い）", path);
+		        }
+		    } catch (IOException e) {
+		        manageLoggerComponent.debugErrorLog(
+		            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ファイル削除失敗", e, path);
+		    }
 		}
 
 		// endLog

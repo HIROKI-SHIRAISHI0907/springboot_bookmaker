@@ -122,7 +122,7 @@ public interface CountryLeagueMasterRepository {
 	int updateById(@Param("league") String league,
 			@Param("team") String team,
 			@Param("link") String link,
-			@Param("id") String id);
+			@Param("id") Integer id);
 
 	@Update("""
 			    UPDATE country_league_master
@@ -131,7 +131,7 @@ public interface CountryLeagueMasterRepository {
 					update_time = CURRENT_TIMESTAMP
 			    WHERE id = #{id} AND del_flg = '0';
 			""")
-	int logicalDeleteById(@Param("id") String id);
+	int logicalDeleteById(@Param("id") Integer id);
 
 	@Update("""
 			    UPDATE country_league_master
@@ -140,6 +140,6 @@ public interface CountryLeagueMasterRepository {
 					update_time = CURRENT_TIMESTAMP
 			    WHERE id = #{id} AND del_flg = '1';
 			""")
-	int reviveById(@Param("id") String id);
+	int reviveById(@Param("id") Integer id);
 
 }
