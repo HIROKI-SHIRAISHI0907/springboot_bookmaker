@@ -7,6 +7,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
@@ -309,9 +310,10 @@ public class B001AsyncMasterPythonWorker {
 
 			}
 			if (teamDataReady) {
-				List<List<CountryLeagueMasterEntity>> teamDataRows = fileTeamDataCsvReads();
-				for (List<CountryLeagueMasterEntity> rows : teamDataRows) {
-					if (!this.countryLeagueDBPart.dbOperation(rows)) {
+				Map<String, List<CountryLeagueMasterEntity>> teamDataRows = fileTeamDataCsvReads();
+				for (Map.Entry<String, List<CountryLeagueMasterEntity>> rows
+						: teamDataRows.entrySet()) {
+					if (!this.countryLeagueDBPart.dbOperation(rows.getValue())) {
 						this.manageLoggerComponent.debugErrorLog(
 								PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, null,
 								"teamData logic failed. ");
@@ -471,13 +473,13 @@ public class B001AsyncMasterPythonWorker {
 	 *
 	 * @return CSVから取得したデータ（読み取り不可の場合は空リスト）
 	 */
-	private List<List<CountryLeagueMasterEntity>> fileTeamDataCsvReads() {
+	private Map<String, List<CountryLeagueMasterEntity>> fileTeamDataCsvReads() {
 		final String METHOD_NAME = "fileTeamDataCsvReads";
 		try {
 			return this.getTeamMasterInfo.getData();
 		} catch (Exception e) {
 			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, e);
-			return new ArrayList<>();
+			return new LinkedHashMap<>();
 		}
 	}
 
