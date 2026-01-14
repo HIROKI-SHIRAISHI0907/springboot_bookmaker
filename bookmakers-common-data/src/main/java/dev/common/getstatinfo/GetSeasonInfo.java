@@ -84,17 +84,15 @@ public class GetSeasonInfo {
 		}
 
 		// 読み込んだパスからデータ取得
-		String fileStatList = findBookOutputDTO.getBookList().get(0);
-		// 結果構造：Map<"JPN-J1", Map<"HOME", List<BookDataEntity>>>
-		if (fileStatList == null) {
-			String messageCd = "データなし";
-			String fillChar = "GetSeasonInfo";
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar);
-			return null;
+		List<String> list = findBookOutputDTO.getBookList();
+		if (list == null || list.isEmpty() || list.get(0) == null) {
+		    this.manageLoggerComponent.debugInfoLog(
+		        PROJECT_NAME, CLASS_NAME, METHOD_NAME, "データなし", "GetSeasonInfo");
+		    return null;
 		}
 
-		ReadFileOutputDTO readFileOutputDTO = this.readSeason.getFileBody(fileStatList);
+		String filePath = list.get(0);
+		ReadFileOutputDTO readFileOutputDTO = this.readSeason.getFileBody(filePath);
 		List<CountryLeagueSeasonMasterEntity> entity = null;
 		try {
 			entity = readFileOutputDTO.getCountryLeagueSeasonList();

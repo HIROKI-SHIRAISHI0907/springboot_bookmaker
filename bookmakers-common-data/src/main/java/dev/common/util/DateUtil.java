@@ -346,17 +346,38 @@ public class DateUtil {
 	 * @return
 	 */
 	public static String convertOnlyDD_MM_YYYY(String input) {
-		if ("".equals(input)) {
-			return "";
-		}
-		try {
-			// 変換処理（00:00:00.000 を補完）
-			LocalDate date = LocalDate.parse(input, PATTERN_DD_MM_YYYY);
-			LocalDateTime dateTime = date.atStartOfDay();
-			return dateTime.format(JAPANESE_FORMAT);
-		} catch (DateTimeParseException e) {
-			throw new IllegalArgumentException("不正な日時フォーマットです: " + input, e);
-		}
+	    if (input == null) return "";
+
+	    // 1) 正規化（前後空白、NBSP、制御文字を除去）
+	    String raw = input;
+	    String s = input
+	            .replace('\u00A0', ' ')     // NBSP → space
+	            .replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", "") // 制御文字除去（改行などは除外）
+	            .trim();
+
+	    if (s.isEmpty() || "N/A".equalsIgnoreCase(s)) return "";
+
+	    // 2) dd.MM.yyyy
+	    try {
+	        LocalDate date = LocalDate.parse(s, PATTERN_DD_MM_YYYY);
+	        return date.atStartOfDay().format(JAPANESE_FORMAT);
+	    } catch (DateTimeParseException ignore) {}
+
+	    // 3) もし dd.MM.yyyy HH:mm / HH:mm:ss が来ても拾う（保険）
+	    try {
+	        LocalDateTime dt = LocalDateTime.parse(s, DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
+	        return dt.format(JAPANESE_FORMAT);
+	    } catch (DateTimeParseException ignore) {}
+
+	    try {
+	        LocalDateTime dt = LocalDateTime.parse(s, DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss"));
+	        return dt.format(JAPANESE_FORMAT);
+	    } catch (DateTimeParseException ignore) {}
+
+	    // 4) 例外時に「見えない文字」を特定できるように情報を出す
+	    throw new IllegalArgumentException(
+	        "不正な日時フォーマットです: [" + visualize(raw) + "] -> normalized:[" + visualize(s) + "]"
+	    );
 	}
 
 	/**
@@ -398,6 +419,23 @@ public class DateUtil {
 	    } catch (DateTimeParseException ignore) {}
 
 	    throw new IllegalArgumentException("不正な日時フォーマットです: " + input);
+	}
+
+	/** 目に見えない文字を可視化する */
+	private static String visualize(String str) {
+	    if (str == null) return "null";
+	    StringBuilder sb = new StringBuilder();
+	    for (int i = 0; i < str.length(); i++) {
+	        char c = str.charAt(i);
+	        if (c == ' ') sb.append("␠");
+	        else if (c == '\t') sb.append("\\t");
+	        else if (c == '\n') sb.append("\\n");
+	        else if (c == '\r') sb.append("\\r");
+	        else if (c == '\u00A0') sb.append("NBSP");
+	        else if (Character.isISOControl(c)) sb.append(String.format("\\u%04x", (int)c));
+	        else sb.append(c);
+	    }
+	    return sb.toString();
 	}
 
 }

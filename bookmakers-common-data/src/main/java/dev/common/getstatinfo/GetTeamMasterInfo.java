@@ -86,13 +86,10 @@ public class GetTeamMasterInfo {
 
 		// 読み込んだパスからデータ取得
 		List<String> fileStatList = findBookOutputDTO.getBookList();
-		// 結果構造：Map<"JPN-J1", Map<"HOME", List<BookDataEntity>>>
-		if (fileStatList == null) {
-			String messageCd = "データなし";
-			String fillChar = "GetSeasonInfo";
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar);
-			return null;
+		if (fileStatList == null || fileStatList.isEmpty()) {
+		    this.manageLoggerComponent.debugInfoLog(
+		        PROJECT_NAME, CLASS_NAME, METHOD_NAME, "データなし", "GetTeamMasterInfo");
+		    return null;
 		}
 
 		List<List<CountryLeagueMasterEntity>> entityList = new ArrayList<List<CountryLeagueMasterEntity>>();

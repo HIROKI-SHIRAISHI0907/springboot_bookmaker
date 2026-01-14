@@ -9,6 +9,7 @@ import java.util.Map;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -103,38 +104,44 @@ public class GetOriginInfo {
 			return resultMap;
 		}
 		// スレッドプールを作成（例：同時に最大4スレッド）
-		ExecutorService executor = Executors.newFixedThreadPool(4);
-		// タスク送信
-		List<Future<ReadFileOutputDTO>> originList = new ArrayList<>();
-		for (String file : fileStatList) {
-			Future<ReadFileOutputDTO> future = executor.submit(() -> this.readOrigin.getFileBody(file));
-			originList.add(future);
-		}
+		ExecutorService executor = Executors.newFixedThreadPool(Math.min(8, fileStatList.size()));
+		try {
+		    // submit + get は現状維持でもOK（invokeAllにしてもOK）
+		    List<Future<ReadFileOutputDTO>> originList = new ArrayList<>();
+		    for (String file : fileStatList) {
+		        originList.add(executor.submit(() -> this.readOrigin.getFileBody(file)));
+		    }
 
-		for (Future<ReadFileOutputDTO> future : originList) {
-			try {
-				ReadFileOutputDTO dto = future.get();
-				List<DataEntity> entity = dto.getDataList();
-				// null または 空チェック
-				if (entity == null || entity.isEmpty()) {
-					continue;
-				}
-				String file = entity.get(0).getFile();
-				resultMap
-						.computeIfAbsent(file, s -> new ArrayList<>())
-						.addAll(entity);
-			} catch (Exception e) {
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e);
-				this.manageLoggerComponent.createBusinessException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						"InterruptedException|ExecutionException: エラー",
-						e);
-			}
+		    for (Future<ReadFileOutputDTO> future : originList) {
+		        ReadFileOutputDTO dto = future.get();
+		        List<DataEntity> entity = dto.getDataList();
+		        if (entity == null || entity.isEmpty()) continue;
+
+		        String file = entity.get(0).getFile();
+		        resultMap.computeIfAbsent(file, s -> new ArrayList<>()).addAll(entity);
+		    }
+
+		} catch (InterruptedException ie) {
+		    Thread.currentThread().interrupt();
+		    this.manageLoggerComponent.createBusinessException(
+		        PROJECT_NAME, CLASS_NAME, METHOD_NAME, "スレッド中断", ie);
+
+		} catch (Exception e) {
+		    this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e);
+		    this.manageLoggerComponent.createBusinessException(
+		        PROJECT_NAME, CLASS_NAME, METHOD_NAME, "Origin読み込みエラー", e);
+
+		} finally {
+		    executor.shutdown();
+		    try {
+		        if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
+		            executor.shutdownNow();
+		        }
+		    } catch (InterruptedException ie) {
+		        executor.shutdownNow();
+		        Thread.currentThread().interrupt();
+		    }
 		}
-		executor.shutdown();
 
 		// 時間計測終了
 		long endTime = System.nanoTime();

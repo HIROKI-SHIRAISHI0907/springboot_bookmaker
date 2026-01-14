@@ -4,9 +4,11 @@ import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.concurrent.TimeUnit;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -67,79 +69,82 @@ public class GetMemberInfo {
 	 * 取得メソッド
 	 */
 	public Map<String, List<TeamMemberMasterEntity>> getData() {
-		final String METHOD_NAME = "getData";
-		// パス
-		PATH = config.getTeamCsvFolder();
+	    final String METHOD_NAME = "getData";
+	    PATH = config.getTeamCsvFolder();
 
-		// 時間計測開始
-		long startTime = System.nanoTime();
+	    long startTime = System.nanoTime();
 
-		// 設定
-		FindBookInputDTO findBookInputDTO = setBookInputDTO();
+	    FindBookInputDTO findBookInputDTO = setBookInputDTO();
+	    FindBookOutputDTO findBookOutputDTO = this.findStatCsv.execute(findBookInputDTO);
 
-		// 統計データCsv読み取りクラス
-		FindBookOutputDTO findBookOutputDTO = this.findStatCsv.execute(findBookInputDTO);
-		// エラーの場合,戻り値の例外を業務例外に集約してスロー
-		if (!BookMakersCommonConst.NORMAL_CD.equals(findBookOutputDTO.getResultCd())) {
-			this.manageLoggerComponent.createBusinessException(
-					findBookOutputDTO.getExceptionProject(),
-					findBookOutputDTO.getExceptionClass(),
-					findBookOutputDTO.getExceptionMethod(),
-					findBookOutputDTO.getErrMessage(),
-					findBookOutputDTO.getThrowAble());
-		}
+	    if (!BookMakersCommonConst.NORMAL_CD.equals(findBookOutputDTO.getResultCd())) {
+	        this.manageLoggerComponent.createBusinessException(
+	            findBookOutputDTO.getExceptionProject(),
+	            findBookOutputDTO.getExceptionClass(),
+	            findBookOutputDTO.getExceptionMethod(),
+	            findBookOutputDTO.getErrMessage(),
+	            findBookOutputDTO.getThrowAble());
+	    }
 
-		// 読み込んだパスからデータ取得
-		List<String> fileStatList = findBookOutputDTO.getBookList();
-		// 結果構造：Map<"JPN-J1", Map<"HOME", List<BookDataEntity>>>
-		Map<String, List<TeamMemberMasterEntity>> resultMap = new HashMap<>();
-		if (fileStatList.size() <= 0) {
-			String messageCd = "データなし";
-			String fillChar = "GetMemberInfo";
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar);
-			return resultMap;
-		}
-		// スレッドプールを作成（例：同時に最大4スレッド）
-		ExecutorService executor = Executors.newFixedThreadPool(fileStatList.size());
-		// タスク送信
-		List<Future<ReadFileOutputDTO>> futureList = new ArrayList<>();
-		for (String file : fileStatList) {
-			Future<ReadFileOutputDTO> future = executor.submit(() -> this.readTeamMember.getFileBody(file));
-			futureList.add(future);
-		}
+	    List<String> fileStatList = findBookOutputDTO.getBookList();
+	    Map<String, List<TeamMemberMasterEntity>> resultMap = new HashMap<>();
 
-		for (Future<ReadFileOutputDTO> future : futureList) {
-			try {
-				ReadFileOutputDTO dto = future.get();
-				List<TeamMemberMasterEntity> entity = dto.getMemberList();
-				// null または 空チェック
-				if (entity == null || entity.isEmpty()) {
-					continue;
-				}
-				String file = entity.get(0).getFile();
-				resultMap
-						.computeIfAbsent(file, s -> new ArrayList<>())
-						.addAll(entity);
-			} catch (Exception e) {
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e);
-				this.manageLoggerComponent.createBusinessException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						"InterruptedException|ExecutionException: エラー",
-						e);
-			}
-		}
-		//executor.shutdown();
+	    if (fileStatList.isEmpty()) {
+	        this.manageLoggerComponent.debugInfoLog(
+	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "データなし", "GetMemberInfo");
+	        return resultMap;
+	    }
 
-		// 時間計測終了
-		long endTime = System.nanoTime();
-		long durationMs = (endTime - startTime) / 1_000_000; // ミリ秒に変換
+	    // ★上限を付ける（例：最大8）
+	    int poolSize = Math.min(8, fileStatList.size());
+	    ExecutorService executor = Executors.newFixedThreadPool(poolSize);
 
-		System.out.println("時間: " + durationMs);
-		return resultMap;
+	    try {
+	        // invokeAll にすると、まとめて投げてまとめて待てる（future.get ループより安全）
+	        List<Callable<ReadFileOutputDTO>> tasks = new ArrayList<>();
+	        for (String file : fileStatList) {
+	            tasks.add(() -> this.readTeamMember.getFileBody(file));
+	        }
+
+	        // タイムアウトも付けられる（例：60秒）
+	        List<Future<ReadFileOutputDTO>> futures = executor.invokeAll(tasks, 60, TimeUnit.SECONDS);
+
+	        for (Future<ReadFileOutputDTO> f : futures) {
+	            if (f.isCancelled()) {
+	                // タイムアウト等でキャンセルされたタスク
+	                this.manageLoggerComponent.debugErrorLog(
+	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ReadTeamMember timeout/cancel", null);
+	                continue;
+	            }
+	            ReadFileOutputDTO dto = f.get();
+	            List<TeamMemberMasterEntity> entity = dto.getMemberList();
+	            if (entity == null || entity.isEmpty()) continue;
+
+	            String file = entity.get(0).getFile();
+	            resultMap.computeIfAbsent(file, k -> new ArrayList<>()).addAll(entity);
+	        }
+
+	    } catch (Exception e) {
+	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e);
+	        this.manageLoggerComponent.createBusinessException(
+	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "GetMemberInfo: read error", e);
+	    } finally {
+	        executor.shutdown();
+	        try {
+	            if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
+	                executor.shutdownNow();
+	            }
+	        } catch (InterruptedException ie) {
+	            executor.shutdownNow();
+	            Thread.currentThread().interrupt();
+	        }
+	    }
+
+	    long endTime = System.nanoTime();
+	    long durationMs = (endTime - startTime) / 1_000_000;
+	    System.out.println("時間: " + durationMs);
+
+	    return resultMap;
 	}
 
 	/**

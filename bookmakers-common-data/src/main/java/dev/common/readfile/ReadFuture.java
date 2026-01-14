@@ -66,8 +66,21 @@ public class ReadFuture {
 					FutureEntity mappingDto = new FutureEntity();
 					mappingDto.setFile(fileFullPath);
 					mappingDto.setGameTeamCategory(parts[0]);
-					mappingDto.setFutureTime(String.valueOf(
-							DateUtil.normalizeToJapaneseFormat(parts[1])));
+					// ===== futureTime =====
+	                try {
+	                    mappingDto.setFutureTime(
+	                            DateUtil.normalizeToJapaneseFormat(parts[1])
+	                    );
+	                } catch (Exception e) {
+	                    String msg = "futureTime parse error"
+	                            + " file=" + fileFullPath
+	                            + " row=" + row
+	                            + " raw=[" + parts[1] + "]";
+	                    this.manageLoggerComponent.debugErrorLog(
+	                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, e);
+	                    // 今回は空で続行（必要なら continue; で行スキップも可）
+	                    mappingDto.setFutureTime("");
+	                }
 					mappingDto.setHomeRank(parts[2].replace(".0", ""));
 					mappingDto.setAwayRank(parts[3].replace(".0", ""));
 					mappingDto.setHomeTeamName(parts[4]);
