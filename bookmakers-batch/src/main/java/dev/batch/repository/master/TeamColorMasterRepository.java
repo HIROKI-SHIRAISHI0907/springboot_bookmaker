@@ -45,7 +45,7 @@ public interface TeamColorMasterRepository {
 			        league = #{league} AND
 			        team = #{team};
 			""")
-	List<TeamColorMasterEntity> findByCountryLeague(String country, String league, String team);
+	TeamColorMasterEntity findByCountryLeague(String country, String league, String team);
 
 	@Select("""
 			    SELECT

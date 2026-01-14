@@ -41,18 +41,20 @@ public class ColorMasterStat implements MasterEntityIF {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void masterStat(List<List<CountryLeagueMasterEntity>> entities) throws Exception {
-		final String METHOD_NAME = "calcStat";
+	public void masterStat(String file,
+			List<CountryLeagueMasterEntity> entities) throws Exception {
+		final String METHOD_NAME = "masterStat";
 		// ログ出力
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		// 今後の色情報を登録する
-		for (List<CountryLeagueMasterEntity> entity : entities) {
+		for (CountryLeagueMasterEntity entity : entities) {
 			try {
-				List<TeamColorMasterEntity> insertEntities = this.colorDBService
+				TeamColorMasterEntity insertEntities = this.colorDBService
 						.selectInBatch(entity);
+				if (insertEntities == null) continue;
 				int result = this.colorDBService.insertInBatch(insertEntities);
 				if (result == 9) {
 					String messageCd = "新規登録エラー";
