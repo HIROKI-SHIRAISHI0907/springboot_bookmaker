@@ -18,6 +18,7 @@ import dev.web.api.bm_u001.StatSizeFinalizeDTO;
 import dev.web.api.bm_w015.ConditionData;
 import dev.web.api.bm_w015.CsvArtifactResource;
 import dev.web.api.bm_w015.StatConditionDTO;
+import dev.web.repository.master.StatSizeFinalizeMasterRepository;
 
 /**
  * 特定の条件に応じたCSVを追加作成判断するためのヘルパークラス

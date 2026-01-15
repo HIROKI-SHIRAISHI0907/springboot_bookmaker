@@ -4,31 +4,22 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import dev.common.constant.LogicFlgConst;
-import dev.common.exception.wrap.RootCauseWrapper;
-import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.TableUtil;
 import dev.web.api.bm_w015.ConditionData;
 import dev.web.repository.user.LogicFlgRepository;
 import dev.web.util.CsvArtifactHelper;
+import lombok.RequiredArgsConstructor;
 
 /**
- * 論理削除サービスクラス
+ * LogicFlgService
  * @author shiraishitoshio
  *
  */
 @Service
-@Transactional
+@RequiredArgsConstructor
 public class LogicFlgService {
-
-	/** プロジェクト名 */
-	private static final String PROJECT_NAME = LogicFlgService.class.getProtectionDomain()
-			.getCodeSource().getLocation().getPath();
-
-	/** クラス名 */
-	private static final String CLASS_NAME = LogicFlgService.class.getSimpleName();
 
 	/**
 	 * 論理削除レポジトリ
@@ -42,14 +33,6 @@ public class LogicFlgService {
 	@Autowired
 	private CsvArtifactHelper CsvArtifactHelper;
 
-	/** ログ管理ラッパー*/
-	@Autowired
-	private RootCauseWrapper rootCauseWrapper;
-
-	/** ログ管理クラス */
-	@Autowired
-	private ManageLoggerComponent manageLoggerComponent;
-
 	/** 国リーグリスト */
 	private List<String> countryList;
 
@@ -59,46 +42,45 @@ public class LogicFlgService {
 	/**
 	 * 実行メソッド
 	 */
-	public int execute() throws Exception {
-		final String METHOD_NAME = "execute";
-
-		// 時間計測開始
-		long startTime = System.nanoTime();
-
-		// ログ出力
-		this.manageLoggerComponent.debugStartInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	public LogicFlgResponse execute() throws Exception {
+		LogicFlgResponse res = new LogicFlgResponse();
+		res.setResponseCode("200");
+		res.setMessage("処理が成功しました。");
 
 		// 設定統計データの取得
 		List<ConditionData> stat = setUpdateStat();
+		if (stat == null) {
+			res.setResponseCode("404");
+			res.setMessage("処理が失敗しました。");
+			return res;
+		}
 
 		// 更新用全テーブル
 		this.countryList = TableUtil.getCountryList();
 		this.categoryList = TableUtil.getCategoryList();
 
 		// 更新(データが空の場合は制限をかけていないため全てフラグ0にする)
-		logicFlgAllUpdate(LogicFlgConst.LOGIC_FLG_1);
+		res = logicFlgAllUpdate(LogicFlgConst.LOGIC_FLG_1, res);
+		if (!"200".equals(res.getResponseCode())) {
+			return res;
+		}
 		if (!stat.isEmpty()) {
 			for (ConditionData dto : stat) {
 				String country = dto.getCountry();
 				String league = dto.getLeague();
-				logicFlgUpdate(country, league, LogicFlgConst.LOGIC_FLG_0);
+				res = logicFlgUpdate(country, league, LogicFlgConst.LOGIC_FLG_0, res);
+				if (!"200".equals(res.getResponseCode())) {
+					return res;
+				}
 			}
 		} else {
-			logicFlgAllUpdate(LogicFlgConst.LOGIC_FLG_0);
+			res = logicFlgAllUpdate(LogicFlgConst.LOGIC_FLG_0, res);
+			if (!"200".equals(res.getResponseCode())) {
+				return res;
+			}
 		}
 
-		// endLog
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-
-		// 時間計測終了
-		long endTime = System.nanoTime();
-		long durationMs = (endTime - startTime) / 1_000_000; // ミリ秒に変換
-
-		System.out.println("時間: " + durationMs);
-
-		return 0;
+		return res;
 	}
 
 	/**
@@ -113,88 +95,44 @@ public class LogicFlgService {
 	/**
 	 * 更新メソッド
 	 */
-	private synchronized void logicFlgUpdate(String country, String league, String flg) {
-		final String METHOD_NAME = "logicFlgUpdate";
+	private synchronized LogicFlgResponse logicFlgUpdate(String country, String league,
+			String flg, LogicFlgResponse res) {
 		for (String table : this.countryList) {
-			String fillChar = setLoggerFillChar(
-					country,
-					league,
-					table);
 			int result = this.logicFlgRepository.updateLogicFlgByCountryLeague(
 					table, country, league, flg);
-			if (result != 1) {
-				String messageCd = "更新エラー";
-				this.rootCauseWrapper.throwUnexpectedRowCount(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						messageCd,
-						1, result,
-						String.format("country=%s, league=%s, table=%s", country, league, table));
+			if (result == 0) {
+				res.setResponseCode("404");
+				res.setMessage("処理が失敗しました。");
+				return res;
 			}
-			String messageCd = "更新件数";
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "更新件数: 1件");
 		}
 
 		for (String table : this.categoryList) {
-			String fillChar = setLoggerFillChar(
-					country,
-					league,
-					table);
 			int result = this.logicFlgRepository.updateLogicFlgByCategoryLike(
 					table, country, league, flg);
-			if (result != 1) {
-				String messageCd = "更新エラー";
-				this.rootCauseWrapper.throwUnexpectedRowCount(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						messageCd,
-						1, result,
-						String.format("country=%s, league=%s, table=%s", country, league, table));
+			if (result == 0) {
+				res.setResponseCode("404");
+				res.setMessage("処理が失敗しました。");
+				return res;
 			}
-			String messageCd = "更新件数";
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "更新件数: 1件");
 		}
+		return res;
 	}
 
 	/**
 	 * 更新メソッド
 	 */
-	private synchronized void logicFlgAllUpdate(String flg) {
-		final String METHOD_NAME = "logicFlgAllUpdate";
+	private synchronized LogicFlgResponse logicFlgAllUpdate(String flg, LogicFlgResponse res) {
 		for (String table : this.countryList) {
-			String fillChar = setLoggerFillChar(
-					"",
-					"",
-					table);
 			int result = this.logicFlgRepository.updateAllLogicFlg(
 					table, flg);
-			if (result != 1) {
-				String messageCd = "更新エラー";
-				this.rootCauseWrapper.throwUnexpectedRowCount(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						messageCd,
-						1, result,
-						String.format("table=%s", table));
+			if (result == 0) {
+				res.setResponseCode("404");
+				res.setMessage("処理が失敗しました。");
+				return res;
 			}
-			String messageCd = "更新件数";
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "更新件数: 1件");
 		}
-	}
-
-	/**
-	 * 埋め字設定
-	 * @param country 国
-	 * @param league リーグ
-	 * @param team チーム
-	 * @return
-	 */
-	private String setLoggerFillChar(String country, String league, String table) {
-		StringBuilder stringBuilder = new StringBuilder();
-		stringBuilder.append("国: " + country + ", ");
-		stringBuilder.append("リーグ: " + league + ", ");
-		stringBuilder.append("テーブル: " + table);
-		return stringBuilder.toString();
+		return res;
 	}
 
 }

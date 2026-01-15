@@ -2,52 +2,51 @@ package dev.web.api.bm_u001;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Component;
+import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.common.logger.ManageLoggerComponent;
 import dev.web.repository.master.StatSizeFinalizeMasterRepository;
+import lombok.RequiredArgsConstructor;
 
 /**
- * BM_C001CSVロジック
+ * StatSizeFinalizeService
  * @author shiraishitoshio
  *
  */
-@Component
-@Transactional
+@Service
+@RequiredArgsConstructor
 public class StatSizeFinalizeService {
 
-	/** プロジェクト名 */
-	private static final String PROJECT_NAME = StatSizeFinalizeService.class.getProtectionDomain()
-			.getCodeSource().getLocation().getPath();
-
-	/** クラス名 */
-	private static final String CLASS_NAME = StatSizeFinalizeService.class.getSimpleName();
-
-	/** 実行モード */
-	private static final String EXEC_MODE = "BM_C001_STAT_SIZE_FINALIZE_CSV";
-
 	/** StatSizeFinalizeMasterRepositoryクラス */
-	@Autowired
-	private StatSizeFinalizeMasterRepository statSizeFinalizeMasterRepository;
-
-	/** ログ管理クラス */
-	@Autowired
-	private ManageLoggerComponent manageLoggerComponent;
+	private final StatSizeFinalizeMasterRepository statSizeFinalizeMasterRepository;
 
 	/**
 	 * 実行メソッド
 	 */
-	public void calcCsv(StatSizeFinalizeRequest input) {
-		final String METHOD_NAME = "calcCsv";
-		// ログ出力
-		this.manageLoggerComponent.init(EXEC_MODE, null);
-		this.manageLoggerComponent.debugStartInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	@Transactional
+	public StatSizeFinalizeResponse setStatFinalize(StatSizeFinalizeRequest req) {
+		StatSizeFinalizeResponse res = new StatSizeFinalizeResponse();
+
+		// 必須チェック
+		if (req.getSubList() == null) {
+			res.setResponseCode("400");
+			res.setMessage("必須項目が未入力です。");
+			return res;
+		}
+
+		for (SubInput input : req.getSubList()) {
+			if (isBlank(input.getOptionNum())
+					|| isBlank(input.getOptions())
+					|| isBlank(input.getFlg())) {
+
+				res.setResponseCode("400");
+				res.setMessage("必須項目が未入力です。");
+				return res;
+			}
+		}
 
 		// リスト
-		List<SubInput> list = input.getSubList();
+		List<SubInput> list = req.getSubList();
 		for (SubInput sub : list) {
 			StatSizeFinalizeDTO entity = new StatSizeFinalizeDTO();
 			entity.setOptionNum(sub.getOptionNum());
@@ -59,42 +58,27 @@ public class StatSizeFinalizeService {
 				entity.setId(data.get(0).getId());
 				int result = this.statSizeFinalizeMasterRepository.update(entity);
 				if (result != 1) {
-					String messageCd = "更新エラー";
-					this.manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-					this.manageLoggerComponent.createSystemException(
-							PROJECT_NAME,
-							CLASS_NAME,
-							METHOD_NAME,
-							messageCd,
-							null);
+					res.setResponseCode("404");
+					res.setMessage("処理が失敗しました。");
+					return res;
 				}
-				String messageCd = "更新件数";
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, "更新件数: 1件");
 			} else {
 				int result = this.statSizeFinalizeMasterRepository.insert(entity);
 				if (result != 1) {
-					String messageCd = "新規登録エラー";
-					this.manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-					this.manageLoggerComponent.createSystemException(
-							PROJECT_NAME,
-							CLASS_NAME,
-							METHOD_NAME,
-							messageCd,
-							null);
+					res.setResponseCode("404");
+					res.setMessage("処理が失敗しました。");
+					return res;
 				}
-				String messageCd = "登録件数";
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, "登録件数: 1件");
 			}
-		}
 
-		// endLog
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		this.manageLoggerComponent.clear();
+		}
+		res.setResponseCode("200");
+		res.setMessage("処理が成功しました。");
+		return res;
+	}
+
+	private boolean isBlank(String s) {
+		return s == null || s.trim().isEmpty();
 	}
 
 }
