@@ -1,4 +1,4 @@
-package dev.mng.analyze.bm_c001;
+package dev.web.util;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -14,10 +14,10 @@ import org.springframework.stereotype.Component;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.DataEntity;
 import dev.common.util.ExecuteMainUtil;
-import dev.mng.csvmng.CsvArtifactResource;
-import dev.mng.domain.repository.user.StatSizeFinalizeMasterRepository;
-import dev.mng.dto.ConditionData;
-import dev.mng.dto.StatConditionDTO;
+import dev.web.api.bm_u001.StatSizeFinalizeDTO;
+import dev.web.api.bm_w015.ConditionData;
+import dev.web.api.bm_w015.CsvArtifactResource;
+import dev.web.api.bm_w015.StatConditionDTO;
 
 /**
  * 特定の条件に応じたCSVを追加作成判断するためのヘルパークラス
@@ -31,7 +31,7 @@ public class CsvArtifactHelper {
 	private static final String STAT_SIZE_FINALIZE_FLG_0 = "0";
 
 	/** フラグデータ */
-	private List<StatSizeFinalizeMasterCsvEntity> flgData;
+	private List<StatSizeFinalizeDTO> flgData;
 
 	/** StatSizeFinalizeMasterRepositoryレポジトリクラス */
 	@Autowired
@@ -41,8 +41,8 @@ public class CsvArtifactHelper {
 	 * フラグが0のものの条件データを取得
 	 * @return
 	 */
-	public List<StatSizeFinalizeMasterCsvEntity> getMaster() {
-		List<StatSizeFinalizeMasterCsvEntity> flgData = null;
+	public List<StatSizeFinalizeDTO> getMaster() {
+		List<StatSizeFinalizeDTO> flgData = null;
 		try {
 			flgData = this.statSizeFinalizeMasterRepository
 					.findFlgData(STAT_SIZE_FINALIZE_FLG_0);
@@ -58,7 +58,7 @@ public class CsvArtifactHelper {
 	 * @return
 	 */
 	public CsvArtifactResource getData() {
-		List<StatSizeFinalizeMasterCsvEntity> flgData = getMaster();
+		List<StatSizeFinalizeDTO> flgData = getMaster();
 		CsvArtifactResource csvArtifactResource = new CsvArtifactResource();
 		csvArtifactResource = setOption1stNum(flgData, csvArtifactResource);
 		csvArtifactResource = setOption2ndNum(flgData, csvArtifactResource);
@@ -71,9 +71,9 @@ public class CsvArtifactHelper {
 	 * @param csvArtifactResource
 	 * @return
 	 */
-	public CsvArtifactResource setOption1stNum(List<StatSizeFinalizeMasterCsvEntity> entities,
+	public CsvArtifactResource setOption1stNum(List<StatSizeFinalizeDTO> entities,
 			CsvArtifactResource csvArtifactResource) {
-		for (StatSizeFinalizeMasterCsvEntity entity : entities) {
+		for (StatSizeFinalizeDTO entity : entities) {
 			switch (entity.getOptionNum()) {
 			// 0-0, 1-0など
 			case "1": {
@@ -93,11 +93,11 @@ public class CsvArtifactHelper {
 	 * @param csvArtifactResource
 	 * @return
 	 */
-	public CsvArtifactResource setOption2ndNum(List<StatSizeFinalizeMasterCsvEntity> entities,
+	public CsvArtifactResource setOption2ndNum(List<StatSizeFinalizeDTO> entities,
 			CsvArtifactResource csvArtifactResource) {
 		List<String> countryList = new ArrayList<String>();
 		List<String> leagueList = new ArrayList<String>();
-		for (StatSizeFinalizeMasterCsvEntity entity : entities) {
+		for (StatSizeFinalizeDTO entity : entities) {
 			switch (entity.getOptionNum()) {
 			// 国リーグ
 			case "2": {
@@ -137,7 +137,7 @@ public class CsvArtifactHelper {
 	public List<ConditionData> statCondition(StatConditionDTO dto) {
 		// フラグ0
 		if (this.flgData != null) {
-			List<StatSizeFinalizeMasterCsvEntity> flgData = getMaster();
+			List<StatSizeFinalizeDTO> flgData = getMaster();
 			this.flgData = flgData;
 		}
 

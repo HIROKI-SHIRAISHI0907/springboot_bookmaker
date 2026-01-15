@@ -1,4 +1,4 @@
-package dev.mng.analyze.bm_c001;
+package dev.web.api.bm_u001;
 
 import dev.common.entity.MetaEntity;
 import lombok.Data;
@@ -11,7 +11,7 @@ import lombok.EqualsAndHashCode;
  */
 @Data
 @EqualsAndHashCode(callSuper = false)
-public class StatSizeFinalizeMasterCsvEntity extends MetaEntity {
+public class StatSizeFinalizeDTO extends MetaEntity {
 
 	/** ID */
 	private String id;

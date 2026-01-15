@@ -1,5 +1,5 @@
 // src/main/java/dev/web/repository/GamesRepository.java
-package dev.web.repository;
+package dev.web.repository.master;
 
 import java.util.ArrayList;
 import java.util.List;

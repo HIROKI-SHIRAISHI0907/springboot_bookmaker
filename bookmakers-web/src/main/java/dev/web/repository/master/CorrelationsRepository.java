@@ -1,4 +1,4 @@
-package dev.web.repository;
+package dev.web.repository.master;
 
 import java.util.HashMap;
 import java.util.List;

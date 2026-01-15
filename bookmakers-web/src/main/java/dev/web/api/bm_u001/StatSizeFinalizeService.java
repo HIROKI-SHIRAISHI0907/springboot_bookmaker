@@ -1,4 +1,4 @@
-package dev.mng.analyze.bm_c001;
+package dev.web.api.bm_u001;
 
 import java.util.List;
 
@@ -7,10 +7,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.common.logger.ManageLoggerComponent;
-import dev.mng.analyze.interf.CsvEntityIF;
-import dev.mng.domain.repository.user.StatSizeFinalizeMasterRepository;
-import dev.mng.dto.CsvTargetCommonInputDTO;
-import dev.mng.dto.SubInput;
+import dev.web.repository.master.StatSizeFinalizeMasterRepository;
 
 /**
  * BM_C001CSVロジック
@@ -19,14 +16,14 @@ import dev.mng.dto.SubInput;
  */
 @Component
 @Transactional
-public class StatSizeFinalizeMasterCsv implements CsvEntityIF {
+public class StatSizeFinalizeService {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = StatSizeFinalizeMasterCsv.class.getProtectionDomain()
+	private static final String PROJECT_NAME = StatSizeFinalizeService.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = StatSizeFinalizeMasterCsv.class.getSimpleName();
+	private static final String CLASS_NAME = StatSizeFinalizeService.class.getSimpleName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_C001_STAT_SIZE_FINALIZE_CSV";
@@ -40,10 +37,9 @@ public class StatSizeFinalizeMasterCsv implements CsvEntityIF {
 	private ManageLoggerComponent manageLoggerComponent;
 
 	/**
-	 * {@inheritDoc}
+	 * 実行メソッド
 	 */
-	@Override
-	public void calcCsv(CsvTargetCommonInputDTO input) {
+	public void calcCsv(StatSizeFinalizeRequest input) {
 		final String METHOD_NAME = "calcCsv";
 		// ログ出力
 		this.manageLoggerComponent.init(EXEC_MODE, null);
@@ -53,11 +49,11 @@ public class StatSizeFinalizeMasterCsv implements CsvEntityIF {
 		// リスト
 		List<SubInput> list = input.getSubList();
 		for (SubInput sub : list) {
-			StatSizeFinalizeMasterCsvEntity entity = new StatSizeFinalizeMasterCsvEntity();
+			StatSizeFinalizeDTO entity = new StatSizeFinalizeDTO();
 			entity.setOptionNum(sub.getOptionNum());
 			entity.setOptions(sub.getOptions());
 			entity.setFlg(sub.getFlg());
-			List<StatSizeFinalizeMasterCsvEntity> data = this.statSizeFinalizeMasterRepository
+			List<StatSizeFinalizeDTO> data = this.statSizeFinalizeMasterRepository
 					.findData(sub.getOptionNum(), sub.getOptions());
 			if (!data.isEmpty()) {
 				entity.setId(data.get(0).getId());
@@ -75,7 +71,7 @@ public class StatSizeFinalizeMasterCsv implements CsvEntityIF {
 				}
 				String messageCd = "更新件数";
 				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, "BM_C001 更新件数: 1件");
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, "更新件数: 1件");
 			} else {
 				int result = this.statSizeFinalizeMasterRepository.insert(entity);
 				if (result != 1) {
@@ -91,7 +87,7 @@ public class StatSizeFinalizeMasterCsv implements CsvEntityIF {
 				}
 				String messageCd = "登録件数";
 				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, "BM_C001 登録件数: 1件");
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, "登録件数: 1件");
 			}
 		}
 

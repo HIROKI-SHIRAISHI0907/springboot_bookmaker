@@ -4,7 +4,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.web.repository.TeamMemberMasterRepository;
+import dev.web.repository.master.TeamMemberMasterRepository;
 import lombok.RequiredArgsConstructor;
 
 @Service

@@ -1,4 +1,4 @@
-package dev.web.repository;
+package dev.web.repository.master;
 
 import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;

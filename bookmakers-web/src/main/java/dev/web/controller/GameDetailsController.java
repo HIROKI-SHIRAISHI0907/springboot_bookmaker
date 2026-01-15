@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import dev.web.api.bm_w005.GameDetailDTO;
 import dev.web.api.bm_w005.GameDetailResponse;
-import dev.web.repository.GameDetailsRepository;
+import dev.web.repository.master.GameDetailsRepository;
 
 /**
  * GameDetailAPI コントローラー

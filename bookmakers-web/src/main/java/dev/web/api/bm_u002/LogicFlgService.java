@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m028;
+package dev.web.api.bm_u002;
 
 import java.util.List;
 
@@ -6,13 +6,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.application.analyze.common.util.TableUtil;
-import dev.application.constant.LogicFlgConst;
-import dev.application.domain.repository.bm.LogicFlgRepository;
+import dev.common.constant.LogicFlgConst;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
-import dev.mng.analyze.bm_c001.CsvArtifactHelper;
-import dev.mng.dto.ConditionData;
+import dev.common.util.TableUtil;
+import dev.web.api.bm_w015.ConditionData;
+import dev.web.repository.user.LogicFlgRepository;
+import dev.web.util.CsvArtifactHelper;
 
 /**
  * 論理削除サービスクラス

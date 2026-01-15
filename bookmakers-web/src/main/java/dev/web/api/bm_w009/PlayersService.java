@@ -4,7 +4,7 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
-import dev.web.repository.PlayersRepository;
+import dev.web.repository.master.PlayersRepository;
 import lombok.RequiredArgsConstructor;
 
 /**

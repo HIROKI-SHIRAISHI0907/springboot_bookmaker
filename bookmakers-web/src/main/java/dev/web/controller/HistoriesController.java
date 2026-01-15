@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import dev.web.api.bm_w002.HistoryDetailResponseDTO;
 import dev.web.api.bm_w002.HistoryResponseDTO;
-import dev.web.repository.HistoriesRepository;
+import dev.web.repository.master.HistoriesRepository;
 
 /**
  * HistoriesControllerクラス

@@ -1,11 +1,11 @@
-package dev.mng.csvmng;
+package dev.web.api.bm_w015;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-import dev.mng.dto.CsvTargetCommonInputDTO;
+import dev.web.api.bm_w015.ExportCsv;
 
 @SpringBootTest
 @ActiveProfiles("test")
@@ -17,7 +17,7 @@ public class ExportCsvTest {
     @Test
     void execute_shouldReturnZero_whenExecutionSuccessful() throws Exception {
         // Act
-        this.exportCsv.execute(new CsvTargetCommonInputDTO());
+        this.exportCsv.execute();
     }
 
 }

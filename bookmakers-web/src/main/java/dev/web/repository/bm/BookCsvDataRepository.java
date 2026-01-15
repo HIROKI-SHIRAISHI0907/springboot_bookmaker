@@ -1,4 +1,4 @@
-package dev.mng.domain.repository.data;
+package dev.web.repository.bm;
 
 import java.util.List;
 
@@ -7,7 +7,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import dev.common.entity.DataEntity;
-import dev.mng.csvmng.SeqWithKey;
+import dev.web.api.bm_w015.SeqWithKey;
 
 @Mapper
 public interface BookCsvDataRepository {

@@ -1,4 +1,4 @@
-package dev.mng.analyze.bm_c001;
+package dev.web.api.bm_u001;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -15,6 +15,7 @@ import dev.mng.csvmng.ExportCsv;
 import dev.mng.csvmng.ReaderCurrentCsvInfoBean;
 import dev.mng.dto.CsvTargetCommonInputDTO;
 import dev.mng.dto.SubInput;
+import dev.web.api.bm_w015.StatSizeFinalizeMasterCsv;
 
 /**
  * BM_C001CSVロジックテスト
@@ -43,7 +44,7 @@ public class StatSizeFinalizeMasterCsvTest {
 	void test_calcStat_shouldUpdateCorrectly_memory() {
 		// Act
 
-		CsvTargetCommonInputDTO csvCommonInputDTO = new CsvTargetCommonInputDTO();
+		StatSizeFinalizeRequest csvCommonInputDTO = new StatSizeFinalizeRequest();
 		List<SubInput> list = new ArrayList<SubInput>();
 		SubInput subInput = new SubInput();
 		subInput.setOptionNum("1");
@@ -76,7 +77,7 @@ public class StatSizeFinalizeMasterCsvTest {
 	void test_calcStat_shouldUpdateCorrectly_memory2() {
 		// Act
 
-		CsvTargetCommonInputDTO csvCommonInputDTO = new CsvTargetCommonInputDTO();
+		StatSizeFinalizeRequest csvCommonInputDTO = new StatSizeFinalizeRequest();
 		List<SubInput> list = new ArrayList<SubInput>();
 		SubInput subInput = new SubInput();
 		subInput.setOptionNum("1");

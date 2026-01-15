@@ -1,4 +1,4 @@
-package dev.mng.dto;
+package dev.web.api.bm_w015;
 
 import lombok.Data;
 

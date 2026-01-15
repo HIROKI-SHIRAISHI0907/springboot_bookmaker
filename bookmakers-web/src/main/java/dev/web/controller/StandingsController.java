@@ -14,7 +14,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import dev.web.api.bm_w006.LeagueStandingResponse;
 import dev.web.api.bm_w006.StandingRowDTO;
-import dev.web.repository.StandingsRepository;
+import dev.web.repository.master.StandingsRepository;
 
 /**
  * リーグ順位表API コントローラー.

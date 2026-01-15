@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import dev.web.api.bm_w001.FutureMatchesResponse;
 import dev.web.api.bm_w001.FuturesResponseDTO;
-import dev.web.repository.FuturesRepository;
+import dev.web.repository.master.FuturesRepository;
 
 @RestController
 @RequestMapping("/api")

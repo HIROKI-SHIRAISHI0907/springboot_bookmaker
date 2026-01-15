@@ -1,16 +1,16 @@
-package dev.mng.dto;
+package dev.web.api.bm_u001;
 
 import java.util.List;
 
 import lombok.Data;
 
 /**
- * StatSizeFinalizeMasterCsvInputDTO
+ * StatSizeFinalizeRequest
  * @author shiraishitoshio
  *
  */
 @Data
-public class CsvTargetCommonInputDTO {
+public class StatSizeFinalizeRequest {
 
 	/** リスト */
 	private List<SubInput> subList;

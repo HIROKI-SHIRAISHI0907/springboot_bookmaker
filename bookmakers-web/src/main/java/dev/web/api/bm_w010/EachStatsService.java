@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
-import dev.web.repository.EachStatsRepository;
+import dev.web.repository.master.EachStatsRepository;
 import lombok.RequiredArgsConstructor;
 
 /**

@@ -1,4 +1,4 @@
-package dev.application.domain.repository.bm;
+package dev.web.repository.user;
 
 import org.apache.ibatis.annotations.Lang;
 import org.apache.ibatis.annotations.Mapper;

@@ -1,4 +1,4 @@
-package dev.mng.csvmng;
+package dev.web.api.bm_w015;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,9 +30,8 @@ import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.DataEntity;
 import dev.common.filemng.FileMngWrapper;
 import dev.common.logger.ManageLoggerComponent;
-import dev.mng.analyze.bm_c001.CsvArtifactHelper;
-import dev.mng.domain.repository.data.BookCsvDataRepository;
-import dev.mng.dto.CsvTargetCommonInputDTO;
+import dev.web.repository.bm.BookCsvDataRepository;
+import dev.web.util.CsvArtifactHelper;
 
 /**
  * StatデータCSV出力ロジック
@@ -79,7 +78,7 @@ public class ExportCsv {
 	 * CSV作成処理
 	 * @throws IOException
 	 */
-	public void execute(CsvTargetCommonInputDTO input) throws IOException {
+	public void execute() throws IOException {
 		final String METHOD_NAME = "execute";
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
