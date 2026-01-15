@@ -7,8 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import dev.application.analyze.bm_m027.RankingService;
-import dev.application.analyze.common.util.BatchResultConst;
 import dev.application.analyze.interf.ServiceIF;
+import dev.common.constant.BatchResultConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.getstatinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
