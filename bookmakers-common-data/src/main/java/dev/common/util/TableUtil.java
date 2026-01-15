@@ -1,10 +1,11 @@
-package dev.application.analyze.common.util;
+package dev.common.util;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-import dev.application.constant.TableConst;
+import dev.common.constant.TableConst;
+
 
 /**
  * テーブルユーティル

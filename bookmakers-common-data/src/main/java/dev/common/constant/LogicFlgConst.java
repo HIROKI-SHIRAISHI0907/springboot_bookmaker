@@ -1,4 +1,4 @@
-package dev.application.constant;
+package dev.common.constant;
 
 /**
  * 論理フラグ

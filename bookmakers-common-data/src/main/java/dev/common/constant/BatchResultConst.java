@@ -1,4 +1,4 @@
-package dev.application.analyze.common.util;
+package dev.common.constant;
 
 /**
  * バッチ結果定数クラス

@@ -3,15 +3,14 @@ package dev.common.s3;
 import java.nio.file.Files;
 import java.nio.file.Path;
 
-import org.springframework.web.bind.annotation.RequestBody;
-
+import software.amazon.awssdk.core.sync.RequestBody;
+import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
 
 /**
  * S3オペレーター
  * @author shiraishitoshio
- *
  */
 public class S3Operator {
 
@@ -28,6 +27,7 @@ public class S3Operator {
                 .bucket(bucket)
                 .key(key)
                 .build();
+
         s3.putObject(req, RequestBody.fromFile(file));
     }
 
