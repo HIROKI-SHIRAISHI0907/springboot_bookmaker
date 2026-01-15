@@ -1,7 +1,8 @@
 package dev.common.getstatinfo;
 
-import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -61,7 +62,7 @@ public class GetTeamMasterInfo {
 	/**
 	 * 取得メソッド
 	 */
-	public List<List<CountryLeagueMasterEntity>> getData() {
+	public Map<String, List<CountryLeagueMasterEntity>> getData() {
 		final String METHOD_NAME = "getData";
 		// パス
 		PATH = config.getTeamCsvFolder();
@@ -72,8 +73,9 @@ public class GetTeamMasterInfo {
 		// 設定
 		FindBookInputDTO findBookInputDTO = setBookInputDTO();
 
-		// 統計データXlsx読み取りクラス
+		// 統計データCsv読み取りクラス
 		FindBookOutputDTO findBookOutputDTO = this.findStatCsv.execute(findBookInputDTO);
+
 		// エラーの場合,戻り値の例外を業務例外に集約してスロー
 		if (!BookMakersCommonConst.NORMAL_CD.equals(findBookOutputDTO.getResultCd())) {
 			this.manageLoggerComponent.createBusinessException(
@@ -87,25 +89,29 @@ public class GetTeamMasterInfo {
 		// 読み込んだパスからデータ取得
 		List<String> fileStatList = findBookOutputDTO.getBookList();
 		if (fileStatList == null || fileStatList.isEmpty()) {
-		    this.manageLoggerComponent.debugInfoLog(
-		        PROJECT_NAME, CLASS_NAME, METHOD_NAME, "データなし", "GetTeamMasterInfo");
-		    return null;
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, "データなし", "GetTeamMasterInfo");
+			return null;
 		}
 
-		List<List<CountryLeagueMasterEntity>> entityList = new ArrayList<List<CountryLeagueMasterEntity>>();
+		// ★ List<List<...>> → Map<String, List<...>>
+		// 順序を維持したいので LinkedHashMap
+		Map<String, List<CountryLeagueMasterEntity>> entityMap = new LinkedHashMap<>();
+
 		for (String path : fileStatList) {
 			try {
 				ReadFileOutputDTO readFileOutputDTO = this.readTeam.getFileBody(path);
 				List<CountryLeagueMasterEntity> entity = readFileOutputDTO.getCountryLeagueMasterList();
-				entityList.add(entity);
+				// キー：ファイルパス、値：そのファイルから読んだリスト
+				entityMap.put(path, entity);
 			} catch (Exception e) {
 				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e);
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ファイル読み込み失敗", e, path);
 				this.manageLoggerComponent.createBusinessException(
 						PROJECT_NAME,
 						CLASS_NAME,
 						METHOD_NAME,
-						"InterruptedException|ExecutionException: エラー",
+						"ファイル読み込みエラー: " + path,
 						e);
 			}
 		}
@@ -113,9 +119,9 @@ public class GetTeamMasterInfo {
 		// 時間計測終了
 		long endTime = System.nanoTime();
 		long durationMs = (endTime - startTime) / 1_000_000; // ミリ秒に変換
-
 		System.out.println("時間: " + durationMs);
-		return entityList;
+
+		return entityMap;
 	}
 
 	/**
