@@ -1,5 +1,5 @@
 // dev/web/repository/EachStatsRepository.java
-package dev.web.repository.master;
+package dev.web.repository.bm;
 
 import java.util.ArrayList;
 import java.util.List;

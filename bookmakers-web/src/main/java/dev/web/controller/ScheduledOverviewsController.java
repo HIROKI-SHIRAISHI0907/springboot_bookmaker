@@ -18,7 +18,7 @@ import org.springframework.web.bind.annotation.RestController;
 import dev.web.api.bm_w004.ScheduledOverviewsMatchDTO;
 import dev.web.api.bm_w004.ScheduledOverviewsResponse;
 import dev.web.api.bm_w004.ScheduledSurfaceSnapshotDTO;
-import dev.web.repository.master.ScheduledOverviewsRepository;
+import dev.web.repository.bm.ScheduledOverviewsRepository;
 
 /**
  * ScheduledOverviewsAPI コントローラー

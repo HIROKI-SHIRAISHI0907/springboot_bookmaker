@@ -37,7 +37,7 @@ public class StatSizeFinalizeService {
 		for (SubInput input : req.getSubList()) {
 			if (isBlank(input.getOptionNum())
 					|| isBlank(input.getOptions())
-					|| isBlank(input.getFlg())) {
+					|| isBlank(input.getValidFlg())) {
 
 				res.setResponseCode("400");
 				res.setMessage("必須項目が未入力です。");
@@ -51,7 +51,7 @@ public class StatSizeFinalizeService {
 			StatSizeFinalizeDTO entity = new StatSizeFinalizeDTO();
 			entity.setOptionNum(sub.getOptionNum());
 			entity.setOptions(sub.getOptions());
-			entity.setFlg(sub.getFlg());
+			entity.setValidFlg(sub.getValidFlg());
 			List<StatSizeFinalizeDTO> data = this.statSizeFinalizeMasterRepository
 					.findData(sub.getOptionNum(), sub.getOptions());
 			if (!data.isEmpty()) {

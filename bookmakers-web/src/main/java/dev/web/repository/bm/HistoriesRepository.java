@@ -1,4 +1,4 @@
-package dev.web.repository.master;
+package dev.web.repository.bm;
 
 import java.math.BigDecimal;
 import java.util.List;

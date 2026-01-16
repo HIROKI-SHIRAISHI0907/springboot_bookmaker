@@ -16,7 +16,7 @@ import org.springframework.web.bind.annotation.RestController;
 import dev.web.api.bm_w003.OverviewResponseDTO;
 import dev.web.api.bm_w003.ScheduleMatchDTO;
 import dev.web.api.bm_w003.SurfaceSnapshotDTO;
-import dev.web.repository.master.OverviewsRepository;
+import dev.web.repository.bm.OverviewsRepository;
 
 /**
  * OverviewsControllerクラス

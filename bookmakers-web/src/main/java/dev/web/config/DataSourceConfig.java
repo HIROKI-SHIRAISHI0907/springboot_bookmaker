@@ -51,4 +51,24 @@ public class DataSourceConfig {
             @Qualifier("webMasterDataSource") DataSource dataSource) {
         return new NamedParameterJdbcTemplate(dataSource);
     }
+
+ // user 用
+    @Bean(name = "webUserDataSourceProperties")
+    @ConfigurationProperties("spring.datasource.user")
+    public DataSourceProperties userDataSourceProperties() {
+        return new DataSourceProperties();
+    }
+
+    @Bean(name = "webUserDataSource")
+    public DataSource webUserDataSource(
+            @Qualifier("webUserDataSourceProperties") DataSourceProperties props) {
+        return props.initializeDataSourceBuilder().build();
+    }
+
+    @Bean(name = "webUserJdbcTemplate")
+    public NamedParameterJdbcTemplate webUserJdbcTemplate(
+            @Qualifier("webUserDataSource") DataSource dataSource) {
+        return new NamedParameterJdbcTemplate(dataSource);
+    }
+
 }

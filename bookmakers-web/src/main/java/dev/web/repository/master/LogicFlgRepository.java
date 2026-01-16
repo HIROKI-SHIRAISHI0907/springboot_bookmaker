@@ -1,4 +1,4 @@
-package dev.web.repository.user;
+package dev.web.repository.master;
 
 import java.util.Set;
 
@@ -17,15 +17,15 @@ import dev.common.util.TableUtil;
 @Repository
 public class LogicFlgRepository {
 
-    private final NamedParameterJdbcTemplate bmJdbcTemplate;
+    private final NamedParameterJdbcTemplate webMasterJdbcTemplate;
 
     // SQLインジェクション防止：テーブル名は許可リストのみ
     private final Set<String> allowedTables;
 
     public LogicFlgRepository(
-            @Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate
+            @Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate webMasterJdbcTemplate
     ) {
-        this.bmJdbcTemplate = bmJdbcTemplate;
+        this.webMasterJdbcTemplate = webMasterJdbcTemplate;
 
         // 既存の TableUtil から作る（国テーブル＋カテゴリテーブル）
         // ※必要に応じて union する
@@ -39,7 +39,7 @@ public class LogicFlgRepository {
         String safeTable = requireAllowedTable(table);
 
         String sql = "SELECT COUNT(*) FROM " + safeTable;
-        Integer count = bmJdbcTemplate.queryForObject(sql, new MapSqlParameterSource(), Integer.class);
+        Integer count = webMasterJdbcTemplate.queryForObject(sql, new MapSqlParameterSource(), Integer.class);
         return count == null ? 0 : count;
     }
 
@@ -61,7 +61,7 @@ public class LogicFlgRepository {
                 .addValue("country", country)
                 .addValue("league", league);
 
-        return bmJdbcTemplate.update(sql, params);
+        return webMasterJdbcTemplate.update(sql, params);
     }
 
     /**
@@ -82,7 +82,7 @@ public class LogicFlgRepository {
                 .addValue("logicFlg", logicFlg)
                 .addValue("pattern", pattern);
 
-        return bmJdbcTemplate.update(sql, params);
+        return webMasterJdbcTemplate.update(sql, params);
     }
 
     /**
@@ -99,7 +99,7 @@ public class LogicFlgRepository {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("logicFlg", logicFlg);
 
-        return bmJdbcTemplate.update(sql, params);
+        return webMasterJdbcTemplate.update(sql, params);
     }
 
     // -------------------------

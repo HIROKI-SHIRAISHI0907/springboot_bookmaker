@@ -15,7 +15,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import dev.web.api.bm_w005.GameMatchDTO;
 import dev.web.api.bm_w005.GameMatchesResponse;
-import dev.web.repository.master.GamesRepository;
+import dev.web.repository.bm.GamesRepository;
 
 /**
  * GamesAPI コントローラー

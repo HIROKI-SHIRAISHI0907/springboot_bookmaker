@@ -23,6 +23,6 @@ public class StatSizeFinalizeDTO extends MetaEntity {
 	private String options;
 
 	/** フラグ(0:有効,1:無効) */
-	private String flg;
+	private String validFlg;
 
 }

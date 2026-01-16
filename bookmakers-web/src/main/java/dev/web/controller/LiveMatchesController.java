@@ -13,7 +13,7 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import dev.web.api.bm_w007.LiveMatchResponse;
-import dev.web.repository.master.LiveMatchesRepository;
+import dev.web.repository.bm.LiveMatchesRepository;
 
 /**
  * LiveMatchesAPI コントローラー

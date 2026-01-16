@@ -8,9 +8,9 @@ import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
-import dev.web.repository.master.LeaguesRepository;
-import dev.web.repository.master.LeaguesRepository.LeagueCountRow;
-import dev.web.repository.master.LeaguesRepository.TeamRow;
+import dev.web.repository.bm.LeaguesRepository;
+import dev.web.repository.bm.LeaguesRepository.LeagueCountRow;
+import dev.web.repository.bm.LeaguesRepository.TeamRow;
 import lombok.RequiredArgsConstructor;
 
 /**

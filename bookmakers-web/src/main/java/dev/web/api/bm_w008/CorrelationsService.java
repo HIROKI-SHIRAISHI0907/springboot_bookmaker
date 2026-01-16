@@ -8,7 +8,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
-import dev.web.repository.master.CorrelationsRepository;
+import dev.web.repository.bm.CorrelationsRepository;
 import lombok.RequiredArgsConstructor;
 
 /**

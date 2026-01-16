@@ -1,4 +1,4 @@
-package dev.web.repository.master;
+package dev.web.repository.bm;
 
 import java.sql.ResultSet;
 import java.sql.Timestamp;
