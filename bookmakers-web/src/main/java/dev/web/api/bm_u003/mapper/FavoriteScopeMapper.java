@@ -20,6 +20,11 @@ import dev.web.api.bm_u003.TeamScope;
 @Component
 public class FavoriteScopeMapper {
 
+	/**
+	 * Mapper
+	 * @param scope
+	 * @return
+	 */
     public FavoriteScopeResponse toResponse(FavoriteScope scope) {
 
         FavoriteScopeResponse res = new FavoriteScopeResponse();

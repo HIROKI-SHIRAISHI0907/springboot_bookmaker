@@ -16,11 +16,11 @@ import dev.web.api.bm_w012.CountryLeagueSearchCondition;
  *
  */
 @Repository
-public class CountryLeagueMasterRepository {
+public class CountryLeagueMasterWebRepository {
 
 	private final NamedParameterJdbcTemplate masterJdbcTemplate;
 
-	public CountryLeagueMasterRepository(
+	public CountryLeagueMasterWebRepository(
 			@Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate) {
 		this.masterJdbcTemplate = masterJdbcTemplate;
 	}

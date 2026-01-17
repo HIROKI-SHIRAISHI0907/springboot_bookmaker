@@ -1,5 +1,7 @@
 package dev.web.api.bm_u003;
 
+import java.util.List;
+
 import lombok.Data;
 
 /**
@@ -10,16 +12,13 @@ import lombok.Data;
 @Data
 public class FavoriteRequest {
 
-	/** ユーザーID */
-	private Integer userId;
+	/** ユーザーID（共通） */
+    private Long userId;
 
-	/** 国 */
-	private String country;
+    /** 登録者ID（共通） */
+    private String operatorId;
 
-	/** リーグ */
-	private String league;
-
-	/** チーム */
-	private String team;
+    /** まとめて登録する項目 */
+    private List<FavoriteItem> items;
 
 }

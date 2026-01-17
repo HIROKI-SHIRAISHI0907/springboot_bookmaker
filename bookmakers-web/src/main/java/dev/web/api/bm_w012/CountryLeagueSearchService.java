@@ -5,7 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.web.repository.master.CountryLeagueMasterRepository;
+import dev.web.repository.master.CountryLeagueMasterWebRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -17,7 +17,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CountryLeagueSearchService {
 
-    private final CountryLeagueMasterRepository repo;
+    private final CountryLeagueMasterWebRepository repo;
 
     @Transactional(readOnly = true)
     public List<CountryLeagueDTO> search(CountryLeagueSearchCondition cond) {

@@ -4,7 +4,7 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.web.repository.master.CountryLeagueSeasonMasterRepository;
+import dev.web.repository.master.CountryLeagueSeasonMasterWebRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -16,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CountryLeagueSeasonUpdateService {
 
-    private final CountryLeagueSeasonMasterRepository repo;
+    private final CountryLeagueSeasonMasterWebRepository repo;
 
     @Transactional
     public CountryLeagueSeasonUpdateResponse patchLink(CountryLeagueSeasonUpdateRequest req) {

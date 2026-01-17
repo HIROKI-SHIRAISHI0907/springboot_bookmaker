@@ -4,6 +4,18 @@ app:
   team-csv-folder: /Users/shiraishitoshio/bookmaker/teams_by_league/
   future-csv-folder: /Users/shiraishitoshio/bookmaker/future/
   b001-json-folder: /Users/shiraishitoshio/bookmaker/json/b001/
+  
+process:
+  python:
+    root: /Users/shiraishitoshio/bookmaker/team_master_python
+    pythonBin: python3
+  s3:
+    region: ap-northeast-1
+    buckets:
+      teamSeasonDateData: aws-s3-team-season-date-data
+      teamData: aws-s3-team-data
+      teamMemberData: aws-s3-team-member-data
+      outputs: aws-s3-outputs
 
 server:
   port: 8080
@@ -11,19 +23,17 @@ server:
 spring:
   datasource:
     bm:
-      jdbc-url: jdbc:postgresql://localhost:54320/soccer_bm
+      url: jdbc:postgresql://localhost:54320/soccer_bm
       username: postgres
       password: sonic3717
       driver-class-name: org.postgresql.Driver
-
     master:
-      jdbc-url: jdbc:postgresql://localhost:54320/soccer_bm_master
+      url: jdbc:postgresql://localhost:54320/soccer_bm_master
       username: postgres
       password: sonic3717
       driver-class-name: org.postgresql.Driver
-      
-    user: 
-      jdbc-url: jdbc:postgresql://localhost:54320/soccer_bm_user
+    user:
+      url: jdbc:postgresql://localhost:54320/soccer_bm_user
       username: postgres
       password: sonic3717
       driver-class-name: org.postgresql.Driver

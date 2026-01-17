@@ -15,11 +15,11 @@ import dev.web.api.bm_w014.CountryLeagueSeasonSearchCondition;
  * @author shiraishitoshio
  */
 @Repository
-public class CountryLeagueSeasonMasterRepository {
+public class CountryLeagueSeasonMasterWebRepository {
 
     private final NamedParameterJdbcTemplate masterJdbcTemplate;
 
-    public CountryLeagueSeasonMasterRepository(
+    public CountryLeagueSeasonMasterWebRepository(
             @Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate
     ) {
         this.masterJdbcTemplate = masterJdbcTemplate;

@@ -4,14 +4,14 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.web.repository.master.TeamMemberMasterRepository;
+import dev.web.repository.master.TeamMemberMasterWebRepository;
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class TeamMemberUpdateService {
 
-    private final TeamMemberMasterRepository repo;
+    private final TeamMemberMasterWebRepository repo;
 
     @Transactional
     public TeamMemberUpdateResponse patchTeamMember(TeamMemberUpdateRequest req) {

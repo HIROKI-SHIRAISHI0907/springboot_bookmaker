@@ -16,11 +16,11 @@ import dev.web.api.bm_w013.TeamMemberSearchCondition;
  *
  */
 @Repository
-public class TeamMemberMasterRepository {
+public class TeamMemberMasterWebRepository {
 
     private final NamedParameterJdbcTemplate bmJdbcTemplate;
 
-    public TeamMemberMasterRepository(
+    public TeamMemberMasterWebRepository(
             @Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate
     ) {
         this.bmJdbcTemplate = bmJdbcTemplate;
