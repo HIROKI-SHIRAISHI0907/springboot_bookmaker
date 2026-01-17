@@ -46,7 +46,7 @@ public class FavoriteRepository {
               :userId, :level, :country, :league, :team,
               :operatorId, now(), :operatorId, now()
             )
-            ON CONFLICT ON CONSTRAINT uk_fav_scope DO NOTHING
+            ON CONFLICT (user_id, level, country, league, team) DO NOTHING
             """;
 
         Map<String, Object> params = Map.of(

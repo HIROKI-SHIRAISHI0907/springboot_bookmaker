@@ -14,31 +14,8 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 public class DataSourceConfig {
 
     // =========================
-    // user (PRIMARY)
-    // =========================
-    @Bean(name = "userDataSourceProperties")
-    @Primary
-    @ConfigurationProperties(prefix = "spring.datasource.user")
-    public DataSourceProperties userDataSourceProperties() {
-        return new DataSourceProperties();
-    }
-
-    @Bean(name = "userDataSource")
-    @Primary
-    public DataSource userDataSource(
-            @Qualifier("userDataSourceProperties") DataSourceProperties props) {
-        return props.initializeDataSourceBuilder().build();
-    }
-
-    @Bean(name = "userJdbcTemplate")
-    @Primary
-    public NamedParameterJdbcTemplate userJdbcTemplate(
-            @Qualifier("userDataSource") DataSource ds) {
-        return new NamedParameterJdbcTemplate(ds);
-    }
-
-    // =========================
-    // bm
+    // bm (Primaryにしたいならここで@Primary)
+    // ※今回は user を Primary にします（好みで変えてOK）
     // =========================
     @Bean(name = "bmDataSourceProperties")
     @ConfigurationProperties(prefix = "spring.datasource.bm")
@@ -59,23 +36,47 @@ public class DataSourceConfig {
     }
 
     // =========================
-    // master
+    // master (既存名: webMaster*)
     // =========================
-    @Bean(name = "masterDataSourceProperties")
+    @Bean(name = "webMasterDataSourceProperties")
     @ConfigurationProperties(prefix = "spring.datasource.master")
-    public DataSourceProperties masterDataSourceProperties() {
+    public DataSourceProperties webMasterDataSourceProperties() {
         return new DataSourceProperties();
     }
 
-    @Bean(name = "masterDataSource")
-    public DataSource masterDataSource(
-            @Qualifier("masterDataSourceProperties") DataSourceProperties props) {
+    @Bean(name = "webMasterDataSource")
+    public DataSource webMasterDataSource(
+            @Qualifier("webMasterDataSourceProperties") DataSourceProperties props) {
         return props.initializeDataSourceBuilder().build();
     }
 
-    @Bean(name = "masterJdbcTemplate")
-    public NamedParameterJdbcTemplate masterJdbcTemplate(
-            @Qualifier("masterDataSource") DataSource ds) {
+    @Bean(name = "webMasterJdbcTemplate")
+    public NamedParameterJdbcTemplate webMasterJdbcTemplate(
+            @Qualifier("webMasterDataSource") DataSource ds) {
+        return new NamedParameterJdbcTemplate(ds);
+    }
+
+    // =========================
+    // user (Primary)
+    // =========================
+    @Bean(name = "webUserDataSourceProperties")
+    @Primary
+    @ConfigurationProperties(prefix = "spring.datasource.user")
+    public DataSourceProperties webUserDataSourceProperties() {
+        return new DataSourceProperties();
+    }
+
+    @Bean(name = "webUserDataSource")
+    @Primary
+    public DataSource webUserDataSource(
+            @Qualifier("webUserDataSourceProperties") DataSourceProperties props) {
+        return props.initializeDataSourceBuilder().build();
+    }
+
+    @Bean(name = "webUserJdbcTemplate")
+    @Primary
+    public NamedParameterJdbcTemplate webUserJdbcTemplate(
+            @Qualifier("webUserDataSource") DataSource ds) {
         return new NamedParameterJdbcTemplate(ds);
     }
 }

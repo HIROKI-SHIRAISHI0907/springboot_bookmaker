@@ -21,77 +21,79 @@ public class FavoriteService {
 	 */
 	@Transactional
 	public FavoriteResponse upsert(FavoriteRequest req) {
-		FavoriteResponse res = new FavoriteResponse();
+	    FavoriteResponse res = new FavoriteResponse();
 
-		try {
-			requireUser(req);
-		} catch (Exception e) {
-			res.setResponseCode("400");
-			res.setMessage("必須項目が未入力です。");
-			return res;
-		}
+	    try {
+	        requireUser(req);
+	    } catch (Exception e) {
+	        res.setResponseCode("400");
+	        res.setMessage("必須項目が未入力です。");
+	        return res;
+	    }
 
-		if (req.getItems() == null || req.getItems().isEmpty()) {
-			res.setResponseCode("400");
-			res.setMessage("必須項目が未入力です。");
-			return res;
-		}
+	    if (req.getItems() == null || req.getItems().isEmpty()) {
+	        res.setResponseCode("400");
+	        res.setMessage("必須項目が未入力です。");
+	        return res;
+	    }
 
-		String operatorId = normalize(req.getOperatorId());
-		if (operatorId.isEmpty())
-			operatorId = "system";
+	    String operatorId = normalize(req.getOperatorId());
+	    if (operatorId.isEmpty()) operatorId = "system";
 
-		for (FavoriteItem item : req.getItems()) {
+	    java.util.LinkedHashSet<FavKey> keys = new java.util.LinkedHashSet<>();
 
-			String country = normalize(item.getCountry());
-			String league = normalize(item.getLeague());
-			String team = normalize(item.getTeam());
+	    for (FavoriteItem item : req.getItems()) {
 
-			if (country.isEmpty()) {
-				res.setResponseCode("400");
-				res.setMessage("必須項目が未入力です。（country）");
-				return res;
-			}
+	        String country = normalize(item.getCountry());
+	        String league  = normalize(item.getLeague());
+	        String team    = normalize(item.getTeam());
 
-			int level;
-			if (!team.isEmpty()) {
-				if (league.isEmpty()) {
-					res.setResponseCode("400");
-					res.setMessage("必須項目が未入力です。(league)");
-					return res;
-				}
-				level = 3;
-			} else if (!league.isEmpty()) {
-				level = 2;
-			} else {
-				level = 1;
-			}
+	        if (country.isEmpty()) {
+	            res.setResponseCode("400");
+	            res.setMessage("必須項目が未入力です。（country）");
+	            return res;
+	        }
 
-			// DB保存値：NULLではなく空文字
-			String leagueValue = (level >= 2) ? league : "";
-			String teamValue = (level == 3) ? team : "";
+	        // team ありなら league 必須
+	        if (!team.isEmpty() && league.isEmpty()) {
+	            res.setResponseCode("400");
+	            res.setMessage("必須項目が未入力です。(league)");
+	            return res;
+	        }
 
-			try {
-				favoriteRepository.insert(
-						req.getUserId(),
-						level,
-						country,
-						leagueValue,
-						teamValue,
-						operatorId);
-			} catch (Exception e) {
-				// 最低限これで原因がログに出ます
-				e.printStackTrace();
+	        // 親を自動補完
+	        keys.add(new FavKey(1, country, "", ""));
+	        if (!league.isEmpty()) {
+	            keys.add(new FavKey(2, country, league, ""));
+	        }
+	        if (!team.isEmpty()) {
+	            keys.add(new FavKey(3, country, league, team));
+	        }
+	    }
 
-				res.setResponseCode("404");
-				res.setMessage("登録処理が失敗しました。");
-				return res;
-			}
+	    java.util.ArrayList<FavKey> ordered = new java.util.ArrayList<>(keys);
+	    ordered.sort(java.util.Comparator.comparingInt(k -> k.level)); // 1→2→3
 
-		}
-		res.setResponseCode("200");
-		res.setMessage("登録処理が成功しました。");
-		return res;
+	    for (FavKey k : ordered) {
+	        try {
+	            favoriteRepository.insert(
+	                req.getUserId(),
+	                k.level,
+	                k.country,
+	                k.league,
+	                k.team,
+	                operatorId
+	            );
+	        } catch (Exception e) {
+	            res.setResponseCode("404");
+	            res.setMessage("登録処理が失敗しました。");
+	            return res;
+	        }
+	    }
+
+	    res.setResponseCode("200");
+	    res.setMessage("登録処理が成功しました。");
+	    return res;
 	}
 
 	@Transactional
@@ -109,6 +111,41 @@ public class FavoriteService {
 		return res;
 	}
 
+	private static final class FavKey {
+	    final int level;
+	    final String country;
+	    final String league;
+	    final String team;
+
+	    FavKey(int level, String country, String league, String team) {
+	        this.level = level;
+	        this.country = country;
+	        this.league = league;
+	        this.team = team;
+	    }
+
+	    @Override
+	    public boolean equals(Object o) {
+	        if (this == o) return true;
+	        if (!(o instanceof FavKey)) return false;
+	        FavKey other = (FavKey) o;
+	        return level == other.level
+	            && country.equals(other.country)
+	            && league.equals(other.league)
+	            && team.equals(other.team);
+	    }
+
+	    @Override
+	    public int hashCode() {
+	        int h = Integer.hashCode(level);
+	        h = 31 * h + country.hashCode();
+	        h = 31 * h + league.hashCode();
+	        h = 31 * h + team.hashCode();
+	        return h;
+	    }
+	}
+
+
 	// -------------------
 	// validation helpers
 	// -------------------
@@ -119,6 +156,9 @@ public class FavoriteService {
 	}
 
 	private static String normalize(String v) {
-		return v == null ? "" : v.trim();
+		if (v == null) return "";
+	    String s = v.trim();
+	    if (s.equalsIgnoreCase("null")) return "";
+	    return s;
 	}
 }
