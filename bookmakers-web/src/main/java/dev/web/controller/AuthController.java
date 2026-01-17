@@ -1,9 +1,7 @@
-// src/main/java/dev/web/jwt/AuthController.java
 package dev.web.controller;
 
 import java.util.List;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -13,47 +11,65 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.auth0.jwt.interfaces.DecodedJWT;
 
-import dev.web.dto.AuthRequest;
-import dev.web.dto.AuthResponse;
+import dev.web.api.bm_u004.AuthResponse;
+import dev.web.api.bm_u004.AuthService;
+import dev.web.api.bm_u004.LoginRequest;
+import dev.web.api.bm_u004.SignUpRequest;
 import dev.web.jwt.JwtService;
+import lombok.RequiredArgsConstructor;
 
-
-/**
- * JWT発行用コントローラー
- * 別ECS(React) から username / password で叩く想定
- */
 @RestController
+@RequiredArgsConstructor
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "${app.cors.allowed-origins:*}") // Reactのオリジンを環境変数等で設定可能
+@CrossOrigin(origins = "${app.cors.allowed-origins:*}")
 public class AuthController {
 
-	/** JWTサービス */
-	@Autowired
-    private JwtService jwtService;
+    private final JwtService jwtService;
+    private final AuthService authService;
 
-    /**
-     * 認証に成功したらJWTを返却
-     * POST /api/auth/token
-     */
-    @PostMapping("/token")
-    public ResponseEntity<AuthResponse> issueToken(@RequestBody AuthRequest req) {
-        // ユーザー名/パスワードで認証（UserDetailsService 側の実装/インメモリ設定が利用されます）
+    // signup: DB登録だけ（必要なら同時にtoken発行も可）
+    @PostMapping("/signup")
+    public ResponseEntity<AuthResponse> signUp(@RequestBody SignUpRequest req) {
+        AuthResponse res = authService.signUp(req);
+        return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
+    }
 
-        // JWT生成
-        String token = jwtService.generateToken(req.getUsername(), List.of("ROLE_USER"));
+    // login: 認証OKならJWT発行して返す（ここに統合）
+    @PostMapping("/login")
+    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest req) {
+        AuthResponse res = authService.login(req);
+        int status = parseStatus(res.getResponseCode());
 
-        // 期限等をレスポンスに含めたい場合はデコードして拾う
+        // 認証失敗ならそのまま返す
+        if (status != 200) {
+            return ResponseEntity.status(status).body(res);
+        }
+
+        // rolesは必要に応じてDBから取る（ひとまず固定）
+        List<String> roles = List.of("ROLE_USER");
+
+        // JWT生成（subjectに何を入れるかが重要）
+        // username(email)を入れるのが一般的。userIdを入れたいなら generateToken の仕様を合わせる。
+        String subject = req.getEmail(); // LoginRequestにemailがある想定
+        String token = jwtService.generateToken(subject, roles);
+
         DecodedJWT decoded = jwtService.verifyToken(token);
         long iat = decoded.getIssuedAt().toInstant().getEpochSecond();
         long exp = decoded.getExpiresAt().toInstant().getEpochSecond();
 
-        AuthResponse body = new AuthResponse();
-        body.setAccessToken(token);
-        body.setTokenType("Bearer");
-        body.setIssuedAtEpochSecond(iat);
-        body.setExpiresAtEpochSecond(exp);
-        body.setRoles(List.of("ROLE_USER"));
+        res.setAccessToken(token);
+        res.setTokenType("Bearer");
+        res.setIssuedAtEpochSecond(iat);
+        res.setExpiresAtEpochSecond(exp);
+        res.setRoles(roles);
 
-        return ResponseEntity.ok(body);
+        return ResponseEntity.ok(res);
+    }
+
+    // ★ tokenエンドポイントは重複元なので削除推奨
+    // もし残すなら「refresh token」専用などに役割変更するのが吉。
+
+    private static int parseStatus(String code) {
+        try { return Integer.parseInt(code); } catch (Exception e) { return 500; }
     }
 }
