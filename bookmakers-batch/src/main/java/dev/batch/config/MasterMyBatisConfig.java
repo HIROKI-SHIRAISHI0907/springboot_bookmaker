@@ -7,8 +7,6 @@ import org.mybatis.spring.SqlSessionFactoryBean;
 import org.mybatis.spring.SqlSessionTemplate;
 import org.mybatis.spring.annotation.MapperScan;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
@@ -21,11 +19,7 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 )
 public class MasterMyBatisConfig {
 
-    @Bean(name = "masterDataSource")
-    @ConfigurationProperties(prefix = "spring.datasource.master")
-    public DataSource masterDataSource() {
-        return DataSourceBuilder.create().build();
-    }
+    // ★ masterDataSource は dev.web.config.DataSourceConfig の Bean を使う（重複定義しない）
 
     @Bean(name = "masterSqlSessionFactory")
     public SqlSessionFactory masterSqlSessionFactory(

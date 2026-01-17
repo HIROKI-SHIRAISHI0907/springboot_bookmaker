@@ -12,7 +12,7 @@ import org.apache.ibatis.annotations.Update;
 import dev.common.entity.TeamMemberMasterEntity;
 
 @Mapper
-public interface TeamMemberMasterRepository {
+public interface TeamMemberMasterBatchRepository {
 
 	@Insert({
 			"INSERT INTO team_member_master (",

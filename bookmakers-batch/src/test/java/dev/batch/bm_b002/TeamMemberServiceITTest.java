@@ -19,7 +19,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import dev.batch.config.TestMyBatisH2Config;
 import dev.batch.general.CsvImport;
-import dev.batch.repository.master.TeamMemberMasterRepository;
+import dev.batch.repository.master.TeamMemberMasterBatchRepository;
 import dev.common.entity.TeamMemberMasterEntity;
 
 /**
@@ -57,7 +57,7 @@ public class TeamMemberServiceITTest {
 	private TeamMemberMasterStat teamMemberMasterStat;
 
 	@Autowired
-	private TeamMemberMasterRepository teamMemberMasterRepository;
+	private TeamMemberMasterBatchRepository teamMemberMasterRepository;
 
 	/**
 	 * 試験データ登録確認

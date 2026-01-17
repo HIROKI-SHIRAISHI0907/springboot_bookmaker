@@ -3,15 +3,15 @@ package dev.batch.bm_b001;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.batch.repository.master.CountryLeagueSeasonMasterRepository;
+import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 
 @Component
 public class TestDataInserter {
 
-    private final CountryLeagueSeasonMasterRepository repo;
+    private final CountryLeagueSeasonMasterBatchRepository repo;
 
-    public TestDataInserter(CountryLeagueSeasonMasterRepository repo) {
+    public TestDataInserter(CountryLeagueSeasonMasterBatchRepository repo) {
         this.repo = repo;
     }
 

@@ -18,7 +18,7 @@ import org.springframework.test.context.junit.jupiter.SpringExtension;
 
 import dev.batch.config.TestMyBatisH2Config;
 import dev.batch.general.CsvImport;
-import dev.batch.repository.master.CountryLeagueSeasonMasterRepository;
+import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 
@@ -66,7 +66,7 @@ public class SeasonMasterBatchDBITTest {
 	private CountryLeagueSeasonDBPart countryLeagueSeasonDBPart;
 
 	@Autowired
-	private CountryLeagueSeasonMasterRepository countryLeagueSeasonMasterRepository;
+	private CountryLeagueSeasonMasterBatchRepository countryLeagueSeasonMasterRepository;
 
 	/** バッチ共通ログ出力を行う。 */
 	@Autowired

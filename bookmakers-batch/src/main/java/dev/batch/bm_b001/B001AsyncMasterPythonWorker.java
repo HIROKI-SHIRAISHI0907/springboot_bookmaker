@@ -30,7 +30,7 @@ import dev.batch.builder.ProcessRunner;
 import dev.batch.constant.BatchConstant;
 import dev.batch.constant.PythonConstant;
 import dev.batch.interf.jobExecControlIF;
-import dev.batch.repository.master.CountryLeagueSeasonMasterRepository;
+import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
 import dev.common.config.PathConfig;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
@@ -89,7 +89,7 @@ public class B001AsyncMasterPythonWorker {
 
 	/** 国リーグシーズンマスタの参照・更新を行うリポジトリ。 */
 	@Autowired
-	private CountryLeagueSeasonMasterRepository countryLeagueSeasonMasterRepository;
+	private CountryLeagueSeasonMasterBatchRepository countryLeagueSeasonMasterRepository;
 
 	/** パスや外部実行設定（Python/S3等）を保持する設定クラス。 */
 	@Autowired

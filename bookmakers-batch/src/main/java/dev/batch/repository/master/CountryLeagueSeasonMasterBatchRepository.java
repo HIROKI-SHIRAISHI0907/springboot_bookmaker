@@ -11,7 +11,7 @@ import org.apache.ibatis.annotations.Update;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 
 @Mapper
-public interface CountryLeagueSeasonMasterRepository {
+public interface CountryLeagueSeasonMasterBatchRepository {
 
 	@Select("""
 			    SELECT

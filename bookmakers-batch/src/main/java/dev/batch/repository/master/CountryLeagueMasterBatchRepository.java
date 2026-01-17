@@ -11,7 +11,7 @@ import org.apache.ibatis.annotations.Update;
 import dev.common.entity.CountryLeagueMasterEntity;
 
 @Mapper
-public interface CountryLeagueMasterRepository {
+public interface CountryLeagueMasterBatchRepository {
 
 	@Insert({
 			    "INSERT INTO country_league_master (",

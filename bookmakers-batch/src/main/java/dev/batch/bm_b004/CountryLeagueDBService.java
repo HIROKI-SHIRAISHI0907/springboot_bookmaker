@@ -5,7 +5,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.batch.repository.master.CountryLeagueMasterRepository;
+import dev.batch.repository.master.CountryLeagueMasterBatchRepository;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 
@@ -27,7 +27,7 @@ public class CountryLeagueDBService {
 
 	/** CountryLeagueMasterRepositoryレポジトリクラス */
 	@Autowired
-	private CountryLeagueMasterRepository countryLeagueMasterRepository;
+	private CountryLeagueMasterBatchRepository countryLeagueMasterRepository;
 
 	/** ログ管理クラス */
 	@Autowired

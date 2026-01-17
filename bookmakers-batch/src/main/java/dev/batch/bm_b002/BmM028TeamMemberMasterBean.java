@@ -10,7 +10,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import dev.batch.repository.master.CountryLeagueMasterRepository;
+import dev.batch.repository.master.CountryLeagueMasterBatchRepository;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
@@ -39,7 +39,7 @@ public class BmM028TeamMemberMasterBean {
 
 	/** CountryLeagueMasterRepositoryレポジトリクラス */
 	@Autowired
-	private CountryLeagueMasterRepository countryLeagueMasterRepository;
+	private CountryLeagueMasterBatchRepository countryLeagueMasterRepository;
 
 	/** ログ管理クラス */
 	@Autowired

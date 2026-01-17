@@ -7,7 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
-import dev.batch.repository.master.CountryLeagueSeasonMasterRepository;
+import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 
@@ -28,7 +28,7 @@ public class CountryLeagueSeasonDBService {
 
 	/** CountryLeagueSeasonMasterRepositoryレポジトリクラス */
 	@Autowired
-	private CountryLeagueSeasonMasterRepository countryLeagueSeasonMasterRepository;
+	private CountryLeagueSeasonMasterBatchRepository countryLeagueSeasonMasterRepository;
 
 	/** ログ管理クラス */
 	@Autowired

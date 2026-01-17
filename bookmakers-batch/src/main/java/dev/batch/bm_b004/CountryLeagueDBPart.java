@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.batch.repository.master.CountryLeagueMasterRepository;
+import dev.batch.repository.master.CountryLeagueMasterBatchRepository;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 
@@ -41,7 +41,7 @@ public class CountryLeagueDBPart {
 
     /** 国リーグマスタの参照・更新を行うリポジトリ。 */
     @Autowired
-    private CountryLeagueMasterRepository countryLeagueMasterRepository;
+    private CountryLeagueMasterBatchRepository countryLeagueMasterRepository;
 
     /** バッチ共通ログ出力を行う。 */
     @Autowired
