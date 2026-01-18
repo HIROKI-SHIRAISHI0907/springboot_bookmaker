@@ -1,0 +1,10 @@
+# Playwright（Dockerイメージと合わせる）
+playwright==1.57.0
+
+# データ処理
+pandas
+openpyxl
+
+# AWS S3
+boto3
+botocore
