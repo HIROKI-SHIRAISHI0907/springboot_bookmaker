@@ -41,17 +41,20 @@ from botocore.exceptions import ClientError
 
 S3_BUCKET = "aws-s3-team-csv"
 B001_S3_KEY = "json/b001_country_league.json"
+B001_JSON_PATH = "/tmp/bookmaker/json/b001/b001_country_league.json"
+
 _s3 = boto3.client("s3")
 
-def s3_download_if_exists(key: str, local_path: str) -> bool:
-    try:
-        _s3.head_object(Bucket=S3_BUCKET, Key=key)
-    except ClientError:
-        return False
+def s3_download_if_exists(bucket: str, key: str, local_path: str) -> bool:
     os.makedirs(os.path.dirname(local_path), exist_ok=True)
-    _s3.download_file(S3_BUCKET, key, local_path)
-    print(f"[S3 DOWNLOAD] s3://{S3_BUCKET}/{key} -> {local_path}")
-    return True
+    try:
+        _s3.download_file(bucket, key, local_path)
+        print(f"[S3 DOWNLOAD] s3://{bucket}/{key} -> {local_path}")
+        return True
+    except ClientError as e:
+        code = e.response.get("Error", {}).get("Code", "Unknown")
+        print(f"[S3] input json not found or no permission: s3://{bucket}/{key} (Code={code})")
+        return False
 
 def s3_upload_csv_to_bucket_root(local_csv_path: str) -> bool:
     """
@@ -65,9 +68,10 @@ def s3_upload_csv_to_bucket_root(local_csv_path: str) -> bool:
         print(f"[S3 UPLOAD] {local_csv_path} -> s3://{S3_BUCKET}/{key}")
         return True
     except ClientError as e:
-        print(f"[S3 ERROR] upload failed: {local_csv_path} ({e})")
+        code = e.response.get("Error", {}).get("Code", "Unknown")
+        print(f"[S3 ERROR] upload failed: {local_csv_path} -> s3://{S3_BUCKET}/{key} (Code={code})")
         return False
-
+    
 # =========================
 # 設定（固定）
 # =========================
@@ -587,9 +591,9 @@ async def scrape_league_to_teams(
 # =========================
 # 国×リーグの抽出
 # =========================
-async def collect_target_leagues(page, allowed_countries: Optional[Set[str]] = None) -> List[Tuple[str,str,str,Optional[str]]]:
-    await page.goto("https://flashscore.co.jp/soccer/", wait_until="commit")
-    await page.wait_for_selector("div.lmc__block")
+async def collect_target_leagues(page, allowed_countries: Optional[Set[str]] = None):
+    await page.goto("https://flashscore.co.jp/soccer/", wait_until="domcontentloaded", timeout=NAV_TIMEOUT)
+    await page.wait_for_selector("div.lmc__block", state="attached", timeout=SEL_TIMEOUT)
 
     opened = await open_all_blocks_fast(page, overall_ms=180000, batch_size=120, settle_ms=120)
     print(f"opened_blocks: {opened}")
@@ -781,7 +785,7 @@ async def main():
     print(f"{now}  データ取得対象の時間です。（SEED）")
 
     # ✅ 入力JSONをS3から復元（あれば）
-    s3_download_if_exists(B001_S3_KEY, B001_JSON_PATH)
+    s3_download_if_exists(S3_BUCKET, B001_S3_KEY, B001_JSON_PATH)
 
     # --- JSON を読む（あれば country+league 指定、なければ CONTAINS_LIST） ---
     _, country_league_pairs = extract_countries_and_leagues(B001_JSON_PATH)
