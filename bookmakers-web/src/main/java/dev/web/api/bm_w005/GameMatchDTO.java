@@ -5,7 +5,7 @@ import lombok.Data;
 
 /**
  * GamesAPI（当日開催中/終了試合一覧）の 1 試合分
- * /api/{country}/{league}/{team}/games
+ * /api/games/{country}/{league}/{team}
  *
  * @author shiraishitoshio
  */

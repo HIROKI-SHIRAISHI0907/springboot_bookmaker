@@ -12,13 +12,13 @@ import dev.web.repository.bm.CorrelationsRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
- * CorrelationsServiceクラス
+ * CorrelationsAPI用サービス
  * @author shiraishitoshio
  *
  */
 @Service
 @RequiredArgsConstructor
-public class CorrelationsService {
+public class CorrelationsAPIService {
 
     private final CorrelationsRepository repo;
 
@@ -75,8 +75,15 @@ public class CorrelationsService {
         return out;
     }
 
+    /**
+     * スコア設定
+     * @param target
+     * @param scoreKey
+     * @param row
+     */
     private void setScore(ScoreCorrelationsDTO target, String scoreKey, Map<String, Object> row) {
         List<CorrelationsItemDTO> list = new ArrayList<>();
+
         if (row != null) {
             for (int i = 1; i <= 74; i++) {
                 String key = "rank_" + i + "th";
@@ -85,14 +92,26 @@ public class CorrelationsService {
 
                 String s = v.toString();
                 if (!s.contains(",")) continue;
-                String[] p = s.split(",");
+
+                String[] p = s.split(",", 2);
                 if (p.length != 2) continue;
 
-                String metric = p[0];
-                Double val = Double.valueOf(p[1]);
+                String metric = p[0] == null ? null : p[0].trim();
+                String valStr = p[1] == null ? null : p[1].trim();
+
+                if (metric == null || metric.isEmpty()) continue;
+                if (valStr == null || valStr.isEmpty()) continue;
+                if ("null".equalsIgnoreCase(valStr)) continue; // ★ここが効く
+
+                Double val;
+                try {
+                    val = Double.valueOf(valStr);
+                } catch (NumberFormatException ex) {
+                    // "NaN" や "—" 等が混ざっても落とさない
+                    continue;
+                }
 
                 list.add(new CorrelationsItemDTO(metric, val));
-
                 if (list.size() >= 5) break;
             }
         }
@@ -103,4 +122,5 @@ public class CorrelationsService {
             case "ALL" -> target.setAll(list);
         }
     }
+
 }

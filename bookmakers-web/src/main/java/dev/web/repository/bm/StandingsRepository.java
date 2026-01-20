@@ -13,7 +13,7 @@ import dev.web.api.bm_w006.StandingRowDTO;
 /**
  * 順位表取得用リポジトリ.
  *
- * /api/{country}/{league}/standings
+ * /api/standings/{country}/{league}
  * で利用される。
  *
  * - public.surface_overview からチームごとに集計

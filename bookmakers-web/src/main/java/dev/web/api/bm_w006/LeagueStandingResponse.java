@@ -9,7 +9,7 @@ import lombok.Data;
 
 /**
  * リーグ順位表APIレスポンス
- * /api/{country}/{league}/standings
+ * /api/standings/{country}/{league}
  *
  * フロント側 LeagueStanding 型に対応:
  *  - season

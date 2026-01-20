@@ -6,7 +6,7 @@ import lombok.Data;
 
 /**
  * GameDetailAPI レスポンス
- * /api/{country}/{league}/{team}/games/detail/{seq}
+ * /api/games/detail/{country}/{league}/{team}/{seq}
  *
  *   { "detail": { ... } }
  *

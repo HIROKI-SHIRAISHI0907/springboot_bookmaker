@@ -17,7 +17,7 @@ import dev.web.api.bm_w005.GameDetailDTO;
 /**
  * GameDetailRepositoryクラス
  *
- * /api/{country}/{league}/{team}/games/detail/{seq}
+ * /api/games/detail/{country}/{league}/{team}/{seq}
  * 用の DB アクセス。
  *
  * public.data から 1 試合分のスタッツを取得する。
@@ -93,7 +93,7 @@ public class GameDetailsRepository {
             NULLIF(TRIM(d.audience), '') AS audience,
             NULLIF(TRIM(d.judge), '') AS link_maybe,
             NULLIF(TRIM(d.times), '') AS times
-          FROM public.data d
+          FROM data d
           WHERE d.seq = :seq::bigint
             AND d.data_category LIKE :likeCond
           LIMIT 1

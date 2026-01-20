@@ -24,7 +24,7 @@ import dev.web.repository.bm.ScheduledOverviewsRepository;
  * ScheduledOverviewsAPI コントローラー
  *
  * エンドポイント:
- *   GET /api/{country}/{league}/scheduled-overviews/{seq}?home=...&away=...
+ *   GET /api/scheduled-overviews/{country}/{league}/{seq}?home=...&away=...
  *
  * フロント側:
  *   fetchScheduleOverview(country, league, seq, { home, away })

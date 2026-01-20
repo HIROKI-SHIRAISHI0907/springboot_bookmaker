@@ -14,7 +14,7 @@ import dev.web.api.bm_w005.GameMatchDTO;
 /**
  * GamesRepositoryクラス
  *
- * /api/{country}/{league}/{team}/games
+ * /api/games/{country}/{league}/{team}
  * 用の DB アクセス。
  *
  * - future_master & public.data を突合し、

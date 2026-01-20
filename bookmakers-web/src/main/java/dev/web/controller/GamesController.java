@@ -1,8 +1,6 @@
 // src/main/java/dev/web/controller/GamesController.java
 package dev.web.controller;
 
-import java.net.URLDecoder;
-import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -21,14 +19,14 @@ import dev.web.repository.bm.GamesRepository;
  * GamesAPI コントローラー
  *
  * エンドポイント:
- *   GET /api/{country}/{league}/{team}/games
+ *   GET /api/games/{country}/{league}/{team}
  *
  * フロント側 fetchTeamGames(...) に対応。
  *
  * @author shiraishitoshio
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/games")
 public class GamesController {
 
     private final GamesRepository gamesRepository;
@@ -37,15 +35,12 @@ public class GamesController {
         this.gamesRepository = gamesRepository;
     }
 
-    @GetMapping("/{country}/{league}/{team}/games")
+    @GetMapping("/{country}/{league}/{team}")
     public ResponseEntity<?> getTeamGames(
-            @PathVariable("country") String countryRaw,
-            @PathVariable("league") String leagueRaw,
+            @PathVariable("country") String country,
+            @PathVariable("league") String league,
             @PathVariable("team") String teamSlug
     ) {
-
-        String country = safeDecode(countryRaw);
-        String league  = safeDecode(leagueRaw);
 
         if (!StringUtils.hasText(country) || !StringUtils.hasText(league) || !StringUtils.hasText(teamSlug)) {
             return ResponseEntity.badRequest()
@@ -81,15 +76,6 @@ public class GamesController {
     }
 
     // ---------- private helpers ----------
-
-    private String safeDecode(String s) {
-        if (s == null) return null;
-        try {
-            return URLDecoder.decode(s, StandardCharsets.UTF_8);
-        } catch (IllegalArgumentException ex) {
-            return s;
-        }
-    }
 
     /**
      * フロント側の { message: string } と互換の簡易 DTO

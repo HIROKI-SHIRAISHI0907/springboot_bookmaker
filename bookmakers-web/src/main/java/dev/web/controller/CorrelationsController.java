@@ -7,17 +7,17 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.web.api.bm_w008.CorrelationsService;
+import dev.web.api.bm_w008.CorrelationsAPIService;
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api")
+@RequestMapping("/api/leagues/correlations")
 public class CorrelationsController {
 
-    private final CorrelationsService service;
+    private final CorrelationsAPIService service;
 
-    @GetMapping("/{country}/{league}/{team}/correlations")
+    @GetMapping("/{country}/{league}/{team}")
     public ResponseEntity<?> getCorrelations(
             @PathVariable String country,
             @PathVariable String league,

@@ -49,7 +49,7 @@ public class ScheduledOverviewsRepository {
 		String sql = """
 				WITH base AS (
 				  SELECT *
-				  FROM public.surface_overview
+				  FROM surface_overview
 				  WHERE
 				    BTRIM(country) = BTRIM(:country)
 				    AND BTRIM(league)  = BTRIM(:league)
