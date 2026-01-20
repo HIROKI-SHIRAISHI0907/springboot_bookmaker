@@ -16,7 +16,6 @@ import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.getstatinfo.GetStatInfo;
-import jakarta.annotation.PostConstruct;
 
 /**
  * 既存CSV情報読み取り処理
@@ -38,7 +37,6 @@ public class ReaderCurrentCsvInfoBean {
 	/**
 	 * 既存CSV情報読み取り
 	 */
-	@PostConstruct
 	public void init() {
 	    Map<String, Map<String, List<BookDataEntity>>> data = this.getStatInfo.getData("0", null);
 	    this.csvInfo = buildCsvInfoWithVersus(data);  // Map<String, List<Integer>>

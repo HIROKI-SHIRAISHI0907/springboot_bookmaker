@@ -91,6 +91,9 @@ public class ExportCsv {
 		// パス
 		final Path CSV_FOLDER = Paths.get(config.getCsvFolder());
 
+		// 0) 現在作成済みのCSV読み込み
+		bean.init();
+
 		// 1) 現在のグルーピングをDBから作る
 		List<List<Integer>> currentGroups = sortSeqs();
 
