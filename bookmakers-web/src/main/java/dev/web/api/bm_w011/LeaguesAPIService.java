@@ -20,7 +20,7 @@ import lombok.RequiredArgsConstructor;
  */
 @Service
 @RequiredArgsConstructor
-public class LeaguesService {
+public class LeaguesAPIService {
 
     private final LeaguesRepository repo;
 
@@ -33,7 +33,7 @@ public class LeaguesService {
             LeagueFlatItemResponse item = new LeagueFlatItemResponse();
             item.setCountry(r.country);
             item.setLeague(r.league);
-            item.setTeamCount(r.team_count != null ? r.team_count.intValue() : 0);
+            item.setTeamCount(r.getTeamCount() != null ? r.getTeamCount().intValue() : 0);
             String path = "/" + repo.toPath(r.country) + "/" + repo.toPath(r.league);
             item.setPath(path);
             out.add(item);
@@ -57,7 +57,7 @@ public class LeaguesService {
 
             LeagueInfoDTO info = new LeagueInfoDTO();
             info.setName(r.league);
-            info.setTeamCount(r.team_count != null ? r.team_count.intValue() : 0);
+            info.setTeamCount(r.getTeamCount() != null ? r.getTeamCount().intValue() : 0);
             info.setPath("/" + repo.toPath(r.country) + "/" + repo.toPath(r.league));
 
             group.getLeagues().add(info);

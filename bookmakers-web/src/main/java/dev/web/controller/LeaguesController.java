@@ -11,7 +11,7 @@ import org.springframework.web.server.ResponseStatusException;
 
 import dev.web.api.bm_w011.LeagueFlatItemResponse;
 import dev.web.api.bm_w011.LeagueGroupedResponse;
-import dev.web.api.bm_w011.LeaguesService;
+import dev.web.api.bm_w011.LeaguesAPIService;
 import dev.web.api.bm_w011.TeamDetailResponse;
 import dev.web.api.bm_w011.TeamsInLeagueResponse;
 import lombok.RequiredArgsConstructor;
@@ -21,7 +21,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class LeaguesController {
 
-    private final LeaguesService service;
+    private final LeaguesAPIService service;
 
     /** フラット一覧（必要なら） GET /api/leagues */
     @GetMapping("/leagues")
@@ -35,8 +35,8 @@ public class LeaguesController {
         return service.getLeaguesGrouped();
     }
 
-    /** GET /api/{country}/{league}/leagues - チーム一覧 */
-    @GetMapping("/{country}/{league}/leagues")
+    /** GET /api/leagues/{country}/{league} - チーム一覧 */
+    @GetMapping("/leagues/{country}/{league}")
     public TeamsInLeagueResponse getTeamsInLeague(
             @PathVariable String country,
             @PathVariable String league) {
@@ -44,8 +44,8 @@ public class LeaguesController {
         return service.getTeamsInLeague(country, league);
     }
 
-    /** GET /api/{country}/{league}/{team}/leagues - チーム詳細 */
-    @GetMapping("/{country}/{league}/{team}/leagues")
+    /** GET /api/leagues/{country}/{league}/{team} - チーム詳細 */
+    @GetMapping("/leagues/{country}/{league}/{team}")
     public TeamDetailResponse getTeamDetail(
             @PathVariable String country,
             @PathVariable String league,

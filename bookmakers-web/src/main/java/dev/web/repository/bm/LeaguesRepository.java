@@ -12,6 +12,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import lombok.Data;
+
 /**
  * LeaguesRepositoryクラス
  * @author shiraishitoshio
@@ -29,12 +31,14 @@ public class LeaguesRepository {
     }
 
     // --- Row 用の内部クラス（DB そのまま） ---
+    @Data
     public static class LeagueCountRow {
         public String country;
         public String league;
-        public Long team_count;
+        public Long teamCount;
     }
 
+    @Data
     public static class TeamRow {
         public Integer id;
         public String country;
