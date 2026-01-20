@@ -5,23 +5,23 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.web.api.bm_w010.EachStatsService;
+import dev.web.api.bm_w010.EachStatsAPIService;
 import dev.web.api.bm_w010.TeamStatsResponse;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/stats")
 @RequiredArgsConstructor
 public class EachStatsController {
 
-    private final EachStatsService service;
+    private final EachStatsAPIService service;
 
     /**
-     * GET /api/{country}/{league}/{team}/stats
+     * GET /api/stats/{country}/{league}/{team}
      *
      * frontend: fetchTeamFeatureStats(country, league, teamSlug)
      */
-    @GetMapping("/{country}/{league}/{team}/stats")
+    @GetMapping("/{country}/{league}/{team}")
     public TeamStatsResponse getStats(
             @PathVariable String country,
             @PathVariable String league,

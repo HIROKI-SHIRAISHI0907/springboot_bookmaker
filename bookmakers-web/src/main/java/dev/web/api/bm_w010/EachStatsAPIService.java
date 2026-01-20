@@ -17,13 +17,13 @@ import dev.web.repository.bm.EachStatsRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
- * EachStatsServiceクラス
+ * EachStatsAPI用サービス
  * @author shiraishitoshio
  *
  */
 @Service
 @RequiredArgsConstructor
-public class EachStatsService {
+public class EachStatsAPIService {
 
     private final EachStatsRepository repo;
 

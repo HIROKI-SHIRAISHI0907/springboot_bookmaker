@@ -8,13 +8,13 @@ import dev.web.repository.bm.PlayersRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
- * PlayersServiceクラス
+ * PlayersAPI用サービス
  * @author shiraishitoshio
  *
  */
 @Service
 @RequiredArgsConstructor
-public class PlayersService {
+public class PlayersAPIService {
 
     private final PlayersRepository repo;
 

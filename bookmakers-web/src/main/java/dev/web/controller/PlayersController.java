@@ -5,21 +5,21 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import dev.web.api.bm_w009.PlayersAPIService;
 import dev.web.api.bm_w009.PlayersResponse;
-import dev.web.api.bm_w009.PlayersService;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/players")
 @RequiredArgsConstructor
 public class PlayersController {
 
-    private final PlayersService service;
+    private final PlayersAPIService service;
 
     /**
-     * GET /api/{country}/{league}/{team}/players
+     * GET /api/players/{country}/{league}/{team}/
      */
-    @GetMapping("/{country}/{league}/{team}/players")
+    @GetMapping("/{country}/{league}/{team}")
     public PlayersResponse getPlayers(
             @PathVariable String country,
             @PathVariable String league,
