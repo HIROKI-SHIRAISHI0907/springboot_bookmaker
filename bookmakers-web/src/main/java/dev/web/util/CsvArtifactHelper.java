@@ -15,9 +15,9 @@ import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.DataEntity;
 import dev.common.util.ExecuteMainUtil;
 import dev.web.api.bm_u001.StatSizeFinalizeDTO;
-import dev.web.api.bm_w015.ConditionData;
-import dev.web.api.bm_w015.CsvArtifactResource;
-import dev.web.api.bm_w015.StatConditionDTO;
+import dev.web.api.bm_w020.ConditionData;
+import dev.web.api.bm_w020.CsvArtifactResource;
+import dev.web.api.bm_w020.StatConditionDTO;
 import dev.web.repository.master.StatSizeFinalizeMasterRepository;
 
 /**

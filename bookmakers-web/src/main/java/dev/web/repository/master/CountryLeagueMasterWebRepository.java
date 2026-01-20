@@ -7,8 +7,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import dev.web.api.bm_w012.CountryLeagueDTO;
-import dev.web.api.bm_w012.CountryLeagueSearchCondition;
+import dev.web.api.bm_w017.CountryLeagueDTO;
+import dev.web.api.bm_w017.CountryLeagueSearchCondition;
 
 /**
  * CountryLeagueMasterRepositoryクラス

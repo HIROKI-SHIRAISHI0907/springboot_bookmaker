@@ -5,7 +5,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-import dev.web.api.bm_w015.ExportCsv;
+import dev.web.api.bm_w020.ExportCsv;
 
 @SpringBootTest
 @ActiveProfiles("test")

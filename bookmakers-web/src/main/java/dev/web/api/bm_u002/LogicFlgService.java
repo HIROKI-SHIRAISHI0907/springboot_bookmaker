@@ -7,7 +7,7 @@ import org.springframework.stereotype.Service;
 
 import dev.common.constant.LogicFlgConst;
 import dev.common.util.TableUtil;
-import dev.web.api.bm_w015.ConditionData;
+import dev.web.api.bm_w020.ConditionData;
 import dev.web.repository.master.LogicFlgRepository;
 import dev.web.util.CsvArtifactHelper;
 import lombok.RequiredArgsConstructor;

@@ -7,8 +7,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import dev.web.api.bm_w014.CountryLeagueSeasonDTO;
-import dev.web.api.bm_w014.CountryLeagueSeasonSearchCondition;
+import dev.web.api.bm_w019.CountryLeagueSeasonDTO;
+import dev.web.api.bm_w019.CountryLeagueSeasonSearchCondition;
 
 /**
  * CountryLeagueSeasonMasterRepository

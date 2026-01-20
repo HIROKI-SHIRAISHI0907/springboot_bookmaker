@@ -11,13 +11,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.web.api.bm_w012.CountryLeagueDTO;
-import dev.web.api.bm_w012.CountryLeagueFindAllService;
-import dev.web.api.bm_w012.CountryLeagueSearchCondition;
-import dev.web.api.bm_w012.CountryLeagueSearchService;
-import dev.web.api.bm_w012.CountryLeagueUpdateRequest;
-import dev.web.api.bm_w012.CountryLeagueUpdateResponse;
-import dev.web.api.bm_w012.CountryLeagueUpdateService;
+import dev.web.api.bm_w017.CountryLeagueDTO;
+import dev.web.api.bm_w017.CountryLeagueFindAllService;
+import dev.web.api.bm_w017.CountryLeagueSearchCondition;
+import dev.web.api.bm_w017.CountryLeagueSearchService;
+import dev.web.api.bm_w017.CountryLeagueUpdateRequest;
+import dev.web.api.bm_w017.CountryLeagueUpdateResponse;
+import dev.web.api.bm_w017.CountryLeagueUpdateService;
 import lombok.RequiredArgsConstructor;
 
 @RestController

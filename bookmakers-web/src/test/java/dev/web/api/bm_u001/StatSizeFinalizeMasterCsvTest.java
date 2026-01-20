@@ -11,8 +11,8 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
 
-import dev.web.api.bm_w015.ExportCsv;
-import dev.web.api.bm_w015.ReaderCurrentCsvInfoBean;
+import dev.web.api.bm_w020.ExportCsv;
+import dev.web.api.bm_w020.ReaderCurrentCsvInfoBean;
 
 
 /**

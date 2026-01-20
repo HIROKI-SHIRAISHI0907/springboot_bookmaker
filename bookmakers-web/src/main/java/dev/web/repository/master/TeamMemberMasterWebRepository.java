@@ -7,8 +7,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import dev.web.api.bm_w013.TeamMemberDTO;
-import dev.web.api.bm_w013.TeamMemberSearchCondition;
+import dev.web.api.bm_w018.TeamMemberDTO;
+import dev.web.api.bm_w018.TeamMemberSearchCondition;
 
 /**
  * TeamMemberMasterRepositoryクラス

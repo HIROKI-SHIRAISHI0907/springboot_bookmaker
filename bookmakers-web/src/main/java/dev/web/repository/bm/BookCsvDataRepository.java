@@ -9,7 +9,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.common.entity.DataEntity;
-import dev.web.api.bm_w015.SeqWithKey;
+import dev.web.api.bm_w020.SeqWithKey;
 
 /**
  * CSV出力用のデータ取得リポジトリ.
