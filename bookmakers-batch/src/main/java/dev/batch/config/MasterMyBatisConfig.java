@@ -19,11 +19,9 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 )
 public class MasterMyBatisConfig {
 
-    // ★ masterDataSource は dev.web.config.DataSourceConfig の Bean を使う（重複定義しない）
-
     @Bean(name = "masterSqlSessionFactory")
     public SqlSessionFactory masterSqlSessionFactory(
-            @Qualifier("masterDataSource") DataSource ds) throws Exception {
+            @Qualifier("webMasterDataSource") DataSource ds) throws Exception {
         SqlSessionFactoryBean factory = new SqlSessionFactoryBean();
         factory.setDataSource(ds);
         return factory.getObject();
@@ -37,7 +35,7 @@ public class MasterMyBatisConfig {
 
     @Bean(name = "masterTxManager")
     public DataSourceTransactionManager masterTxManager(
-            @Qualifier("masterDataSource") DataSource ds) {
+            @Qualifier("webMasterDataSource") DataSource ds) {
         return new DataSourceTransactionManager(ds);
     }
 }
