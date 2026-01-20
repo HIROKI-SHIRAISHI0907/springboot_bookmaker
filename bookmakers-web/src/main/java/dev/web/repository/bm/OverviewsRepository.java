@@ -165,7 +165,7 @@ public class OverviewsRepository {
             m.home_team,
             m.away_team,
             m.link
-          FROM public.future_master m
+          FROM future_master m
           WHERE m.seq = :seq
             AND m.country = :country
             AND m.league  = :league
@@ -228,7 +228,7 @@ public class OverviewsRepository {
             MAX(descend_disp) AS descend_disp,
             MAX(home_adversity_disp) AS home_adversity_disp,
             MAX(away_adversity_disp) AS away_adversity_disp
-          FROM public.surface_overview
+          FROM surface_overview
           WHERE country = :country
             AND league  = :league
             AND game_year  = :gameYear

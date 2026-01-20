@@ -4,7 +4,7 @@ import lombok.Data;
 
 /**
  * ScheduledOverviewsAPI（開催予定スナップショット）
- * /api/{国}/{リーグ}/scheduled-overviews/{seq}
+ * /api/scheduled-overviews/{国}/{リーグ}/{seq}
  * の surfaces 要素1件分
  *
  * @author shiraishitoshio

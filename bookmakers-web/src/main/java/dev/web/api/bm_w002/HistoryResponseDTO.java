@@ -3,7 +3,7 @@ package dev.web.api.bm_w002;
 import lombok.Data;
 
 /**
- * HistoriesAPI(/api/{国}/{リーグ}/{チーム}/history)
+ * HistoriesAPI(/api/history/{国}/{リーグ}/{チーム})
  * @author shiraishitoshio
  *
  */

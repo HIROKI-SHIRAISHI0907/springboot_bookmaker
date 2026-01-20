@@ -8,7 +8,7 @@ import lombok.Data;
 
 /**
  * ScheduledOverviewsAPI レスポンス
- * /api/{国}/{リーグ}/scheduled-overviews/{seq}
+ * /api/scheduled-overviews/{国}/{リーグ}/{seq}
  * で返却されるルートオブジェクト
  *
  *   {

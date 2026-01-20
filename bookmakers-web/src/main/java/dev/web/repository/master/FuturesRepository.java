@@ -31,7 +31,7 @@ public class FuturesRepository {
     }
 
     // --------------------------------------------------------
-    // 一覧: GET /api/:country/:league/:team/future（チーム取得）
+    // 一覧: GET /api/future/:country/:league/:team（チーム取得）
     // --------------------------------------------------------
     public String findTeamJa(String country, String league, String teamSlug) {
         String sql = """
@@ -58,7 +58,7 @@ public class FuturesRepository {
     }
 
     // --------------------------------------------------------
-    // 取得: GET /api/:country/:league/:team/future
+    // 取得: GET /api/future/:country/:league/:team
     // --------------------------------------------------------
     public List<FuturesResponseDTO> findFutureMatches(String teamJa, String country, String league) {
         String likeCond = country + ": " + league + "%";

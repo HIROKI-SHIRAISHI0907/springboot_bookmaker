@@ -35,7 +35,7 @@ import dev.web.repository.bm.ScheduledOverviewsRepository;
  * @author shiraishitoshio
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/scheduled-overviews")
 public class ScheduledOverviewsController {
 
 	private final ScheduledOverviewsRepository scheduledOverviewsRepository;
@@ -47,12 +47,12 @@ public class ScheduledOverviewsController {
 	/**
 	 * 開催予定 詳細取得 API
 	 *
-	 * GET /api/{country}/{league}/scheduled-overviews/{seq}?home=...&away=...
+	 * GET /api/scheduled-overviews/{country}/{league}/{seq}?home=...&away=...
 	 *
 	 * クエリパラメータ home / away のどちらかは必須（両方指定も可）。
 	 * surface_overview から、指定チームの月別データを集約したスナップショットを返す。
 	 */
-	@GetMapping("/{country}/{league}/scheduled-overviews/{seq}")
+	@GetMapping("/{country}/{league}/{seq}")
 	public ResponseEntity<?> getScheduledOverview(
 			@PathVariable("country") String countryRaw,
 			@PathVariable("league") String leagueRaw,
