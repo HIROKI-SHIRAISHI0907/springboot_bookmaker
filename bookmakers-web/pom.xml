@@ -5,10 +5,10 @@
 	<modelVersion>4.0.0</modelVersion>
 
 	<parent>
-		<groupId>com.example</groupId>
-		<artifactId>bookmakers-parent</artifactId>
-		<version>0.0.1-SNAPSHOT</version>
-		<relativePath>../bookmakers-parent/pom.xml</relativePath>
+		<groupId>org.springframework.boot</groupId>
+  		<artifactId>spring-boot-starter-parent</artifactId>
+  		<version>3.4.1</version>
+  		<relativePath/>
 	</parent>
 
 	<artifactId>bookmakers-web</artifactId>
@@ -39,12 +39,6 @@
 		<dependency>
 			<groupId>org.flywaydb</groupId>
 			<artifactId>flyway-core</artifactId>
-		</dependency>
-
-		<dependency>
-			<groupId>com.example</groupId>
-			<artifactId>bookmakers-common-data</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
 
 		<dependency>

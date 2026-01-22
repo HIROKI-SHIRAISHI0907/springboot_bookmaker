@@ -1,0 +1,68 @@
+app:
+  csv-folder: /tmp/csv/
+  output-csv-folder: /tmp/outputs/
+  team-csv-folder: /tmp/teams_by_league/
+  future-csv-folder: /tmp/future/
+  b001-json-folder: /tmp/json/b001/
+  
+process:
+  python:
+    root: ${PY_ROOT:/opt/team_master_python}
+    pythonBin: ${PY_BIN:python3}
+  s3:
+    region: ${AWS_REGION:ap-northeast-1}
+    buckets:
+      teamSeasonDateData: ${S3_TEAM_SEASON_DATE_DATA:aws-s3-season-csv}
+      teamData: ${S3_TEAM_DATA:aws-s3-team-csv}
+      teamMemberData: ${S3_TEAM_MEMBER_DATA:aws-s3-team-member-csv}
+      outputs: ${S3_OUTPUTS:aws-s3-outputs-csv}
+      future: ${S3_FUTURE:aws-s3-future-csv}
+
+server:
+  port: 8080
+  servlet:
+    context-path: /v1
+
+spring:
+  datasource:
+    bm:
+      url: ${BM_DB_URL}
+      username: ${BM_DB_USER}
+      password: ${BM_DB_PASS}
+      driver-class-name: org.postgresql.Driver
+    master:
+      url: ${MASTER_DB_URL}
+      username: ${MASTER_DB_USER}
+      password: ${MASTER_DB_PASS}
+      driver-class-name: org.postgresql.Driver
+    user:
+      url: ${USER_DB_URL}
+      username: ${USER_DB_USER}
+      password: ${USER_DB_PASS}
+      driver-class-name: org.postgresql.Driver
+
+  flyway:
+    enabled: true
+    baseline-on-migrate: true
+    baseline-version: 0
+    url: ${BM_DB_URL}
+    user: ${BM_DB_USER}
+    password: ${BM_DB_PASS}
+    driver-class-name: org.postgresql.Driver
+
+mybatis:
+  type-handlers-package: dev.application.mybatis
+  configuration:
+    map-underscore-to-camel-case: true
+
+security:
+  jwt:
+    issuer: bookmakers-web
+    secret: ${JWT_SECRET}
+    expires-in: 3600
+    
+management:
+  endpoints:
+    web:
+      exposure:
+        include: health,info

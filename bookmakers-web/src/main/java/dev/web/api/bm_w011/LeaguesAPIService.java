@@ -14,7 +14,7 @@ import dev.web.repository.bm.LeaguesRepository.TeamRow;
 import lombok.RequiredArgsConstructor;
 
 /**
- * LeaguesServiceクラス
+ * LeaguesAPI用サービス
  * @author shiraishitoshio
  *
  */

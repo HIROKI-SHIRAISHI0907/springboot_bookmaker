@@ -12,13 +12,16 @@ process:
   s3:
     region: ap-northeast-1
     buckets:
-      teamSeasonDateData: aws-s3-team-season-date-data
+      teamSeasonDateData: aws-s3-season-csv
       teamData: aws-s3-team-data
-      teamMemberData: aws-s3-team-member-data
-      outputs: aws-s3-outputs
+      teamMemberData: aws-s3-team-member-csv
+      outputs: aws-s3-outputs-csv
+      future: aws-s3-future-csv
 
 server:
   port: 8080
+  servlet:
+    context-path: /v1
 
 spring:
   datasource:
