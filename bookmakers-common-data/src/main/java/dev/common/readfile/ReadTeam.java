@@ -20,7 +20,7 @@ import dev.common.readfile.dto.ReadFileOutputDTO;
  * 形式: country, league, team, link
  */
 @Component
-public class ReadTeam {
+public class ReadTeam implements ReadFileBodyIF {
 
     /** プロジェクト名 */
     private static final String PROJECT_NAME = ReadTeam.class.getProtectionDomain()
@@ -41,6 +41,7 @@ public class ReadTeam {
      * @param fileFullPath ファイル名（フルパス）
      * @return readFileOutputDTO
      */
+    @Override
     public ReadFileOutputDTO getFileBody(String fileFullPath) {
         final String METHOD_NAME = "getFileBody";
 

@@ -22,7 +22,7 @@ import dev.common.readfile.dto.ReadFileOutputDTO;
  *
  */
 @Component
-public class ReadStat {
+public class ReadStat implements ReadFileBodyIF {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = ReadStat.class.getProtectionDomain()
@@ -43,6 +43,7 @@ public class ReadStat {
 	 * @param fileFullPath ファイル名（フルパス）
 	 * @return readFileOutputDTO
 	 */
+	@Override
 	public ReadFileOutputDTO getFileBody(String fileFullPath) {
 		final String METHOD_NAME = "getFileBody";
 		// ログ出力

@@ -1,4 +1,4 @@
-package dev.common.getstatinfo;
+package dev.common.getinfo;
 
 import java.util.ArrayList;
 import java.util.Comparator;

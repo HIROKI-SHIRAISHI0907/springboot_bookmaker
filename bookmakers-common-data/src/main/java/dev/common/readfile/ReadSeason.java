@@ -20,7 +20,7 @@ import dev.common.readfile.dto.ReadFileOutputDTO;
  * @author shiraishitoshio
  */
 @Component
-public class ReadSeason {
+public class ReadSeason implements ReadFileBodyIF {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = ReadSeason.class.getProtectionDomain()
@@ -44,6 +44,7 @@ public class ReadSeason {
 	 * @param fileFullPath ファイル名（フルパス）
 	 * @return readFileOutputDTO
 	 */
+	@Override
 	public ReadFileOutputDTO getFileBody(String fileFullPath) {
 		final String METHOD_NAME = "getFileBody";
 

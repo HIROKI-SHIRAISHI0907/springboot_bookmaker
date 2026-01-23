@@ -19,7 +19,7 @@ import dev.common.readfile.dto.ReadFileOutputDTO;
  *
  */
 @Component
-public class ReadOrigin {
+public class ReadOrigin implements ReadFileBodyIF {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = ReadOrigin.class.getProtectionDomain()
@@ -33,6 +33,7 @@ public class ReadOrigin {
 	 * @param fileFullPath ファイル名（フルパス）
 	 * @return readFileOutputDTO
 	 */
+	@Override
 	public ReadFileOutputDTO getFileBody(String fileFullPath) {
 		final String METHOD_NAME = "getFileBody";
 

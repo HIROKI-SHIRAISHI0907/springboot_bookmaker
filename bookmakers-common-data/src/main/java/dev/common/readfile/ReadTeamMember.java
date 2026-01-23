@@ -22,7 +22,7 @@ import dev.common.util.DateUtil;
  *
  */
 @Component
-public class ReadTeamMember {
+public class ReadTeamMember implements ReadFileBodyIF {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = ReadTeamMember.class.getProtectionDomain()
@@ -43,6 +43,7 @@ public class ReadTeamMember {
 	 * @param fileFullPath ファイル名（フルパス）
 	 * @return readFileOutputDTO
 	 */
+	@Override
 	public ReadFileOutputDTO getFileBody(String fileFullPath) {
 		final String METHOD_NAME = "getFileBody";
 

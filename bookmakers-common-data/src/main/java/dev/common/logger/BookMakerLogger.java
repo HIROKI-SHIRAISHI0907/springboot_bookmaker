@@ -134,17 +134,56 @@ public class BookMakerLogger {
 	 */
 	private static String buildMessage(String projectName, String className, String methodName, String messageCd,
 			Exception e, String... fillChar) {
-		StringBuilder sb = new StringBuilder();
-		sb.append("[").append(projectName).append("]");
-		sb.append("[").append(className).append("#").append(methodName).append("]");
-		sb.append("[").append(messageCd).append("]");
-		if (e != null && e.toString().length() > 0) {
-			sb.append(" - ").append(String.join(", ", e.toString()));
-		}
-		if (fillChar != null && fillChar.length > 0) {
-			sb.append(" - ").append(String.join(", ", fillChar));
-		}
-		return sb.toString();
+		// ★ 最後の名前だけ取得
+	    String project = lastName(projectName);
+	    String clazz   = lastName(className);
+	    String method  = lastName(methodName);
+
+		// ★ メッセージコード → 文言へ変換
+	    String messageText = MessageSourceProvider.getMessage(messageCd, fillChar);
+
+	    StringBuilder sb = new StringBuilder();
+	    sb.append("[").append(project).append("]");
+	    sb.append("[").append(clazz).append("#").append(method).append("]");
+	    sb.append("[").append(messageCd);
+
+	    // メッセージ本文を追加
+	    if (!messageCd.equals(messageText)) {
+	        sb.append(":").append(messageText);
+	    }
+	    sb.append("]");
+
+	    if (e != null && e.toString().length() > 0) {
+	        sb.append(" - ").append(e.toString());
+	    }
+	    return sb.toString();
+	}
+
+	/**
+	 * パスやパッケージ名から末尾の名称だけ取得する
+	 * 例:
+	 *  - com.example.demo → demo
+	 *  - dev.common.logger.BookMakerLogger → BookMakerLogger
+	 *  - /usr/local/bin/app → app
+	 */
+	private static String lastName(String value) {
+	    if (value == null || value.isEmpty()) {
+	        return value;
+	    }
+
+	    // / 区切り対応
+	    int slashIndex = value.lastIndexOf('/');
+	    if (slashIndex >= 0) {
+	        value = value.substring(slashIndex + 1);
+	    }
+
+	    // . 区切り対応
+	    int dotIndex = value.lastIndexOf('.');
+	    if (dotIndex >= 0) {
+	        value = value.substring(dotIndex + 1);
+	    }
+
+	    return value;
 	}
 
 }

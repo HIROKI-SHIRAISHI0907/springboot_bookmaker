@@ -23,7 +23,7 @@ import dev.common.util.DateUtil;
  *
  */
 @Component
-public class ReadFuture {
+public class ReadFuture implements ReadFileBodyIF {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = ReadFuture.class.getProtectionDomain()
@@ -44,6 +44,7 @@ public class ReadFuture {
 	 * @param fileFullPath ファイル名（フルパス）
 	 * @return readFileOutputDTO
 	 */
+	@Override
 	public ReadFileOutputDTO getFileBody(String fileFullPath) {
 		final String METHOD_NAME = "getFileBody";
 		// ログ出力
