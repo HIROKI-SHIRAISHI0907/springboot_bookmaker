@@ -1,7 +1,7 @@
 package dev.common.readfile;
 
 import java.io.BufferedReader;
-import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
@@ -45,107 +45,58 @@ public class ReadSeason implements ReadFileBodyIF {
 	 * @return readFileOutputDTO
 	 */
 	@Override
-	public ReadFileOutputDTO getFileBody(String fileFullPath) {
-		final String METHOD_NAME = "getFileBody";
+	public ReadFileOutputDTO getFileBodyFromStream(InputStream is, String key) {
+	    final String METHOD_NAME = "getFileBodyFromStream";
 
-		this.manageLoggerComponent.init(EXEC_MODE, fileFullPath);
-		this.manageLoggerComponent.debugStartInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	    this.manageLoggerComponent.init(EXEC_MODE, key);
+	    this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		ReadFileOutputDTO readFileOutputDTO = new ReadFileOutputDTO();
-		List<CountryLeagueSeasonMasterEntity> entiryList = new ArrayList<>();
+	    ReadFileOutputDTO dto = new ReadFileOutputDTO();
+	    List<CountryLeagueSeasonMasterEntity> entiryList = new ArrayList<>();
 
-		try {
-			// =========================
-			// CSV 処理
-			// =========================
-			if (fileFullPath != null && fileFullPath.toLowerCase().endsWith(".csv")) {
+	    try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+	        String line;
+	        boolean headerSkipped = false;
+	        while ((line = br.readLine()) != null) {
+	            if (!headerSkipped && !line.isEmpty() && line.charAt(0) == '\uFEFF') {
+	                line = line.substring(1);
+	            }
+	            if (line.isEmpty()) continue;
+	            List<String> cols = parseCsvLine(line);
+	            while (cols.size() < EXPECT_COLS) cols.add("");
+	            if (!headerSkipped) {
+	                headerSkipped = true;
+	                continue;
+	            }
+	            if (isAllEmpty(cols)) continue;
+	            CountryLeagueSeasonMasterEntity e = new CountryLeagueSeasonMasterEntity();
+	            e.setCountry(safeGet(cols, 0));
+	            e.setLeague(safeGet(cols, 1));
+	            e.setSeasonYear(safeGet(cols, 2));
+	            e.setStartSeasonDate(safeGet(cols, 3));
+	            e.setEndSeasonDate(safeGet(cols, 4));
+	            e.setRound(safeGet(cols, 5));
+	            e.setPath(safeGet(cols, 6));
+	            e.setIcon(safeGet(cols, 7));
+	            entiryList.add(e);
+	        }
+	        dto.setResultCd(BookMakersCommonConst.NORMAL_CD);
+	        dto.setCountryLeagueSeasonList(entiryList);
+	        return dto;
 
-				try (BufferedReader br = new BufferedReader(
-						new InputStreamReader(new FileInputStream(fileFullPath), StandardCharsets.UTF_8))) {
+	    } catch (Exception e) {
+	        dto.setExceptionProject(PROJECT_NAME);
+	        dto.setExceptionClass(CLASS_NAME);
+	        dto.setExceptionMethod(METHOD_NAME);
+	        dto.setResultCd(BookMakersCommonConst.ERR_CD_ERR_FILE_READS);
+	        dto.setErrMessage(BookMakersCommonConst.ERR_MESSAGE_ERR_FILE_READS);
+	        dto.setThrowAble(e);
+	        return dto;
 
-					String line;
-					boolean headerSkipped = false;
-
-					while ((line = br.readLine()) != null) {
-
-						// BOM除去（UTF-8-SIG対策）: 1行目の先頭だけに付く可能性がある
-						if (!headerSkipped && !line.isEmpty() && line.charAt(0) == '\uFEFF') {
-							line = line.substring(1);
-						}
-
-						// 行自体が完全に空ならスキップ
-						if (line.isEmpty()) {
-							continue;
-						}
-
-						// CSV簡易パース（ダブルクォート対応）
-						List<String> cols = parseCsvLine(line);
-
-						// ✅ 空欄があっても「列」としてカウントするため、期待列数まで空文字で埋める
-						while (cols.size() < EXPECT_COLS) {
-							cols.add("");
-						}
-
-						// 1行目はヘッダーとしてスキップ
-						if (!headerSkipped) {
-							headerSkipped = true;
-							continue;
-						}
-
-						// ✅ 「空欄があっても文字列としてカウント」したいので、
-						//    ここでは空欄チェックで弾かない。
-						//    ただし、完全に空行（全列が空）だけは除外する。
-						if (isAllEmpty(cols)) {
-							continue;
-						}
-
-						// 取り出し（空欄でも "" が入る）
-						String country = safeGet(cols, 0);
-						String league  = safeGet(cols, 1);
-						String year    = safeGet(cols, 2);
-						String start   = safeGet(cols, 3);
-						String end     = safeGet(cols, 4);
-						String round   = safeGet(cols, 5);
-						String path    = safeGet(cols, 6);
-						String icon    = safeGet(cols, 7);
-
-						CountryLeagueSeasonMasterEntity e = new CountryLeagueSeasonMasterEntity();
-						e.setCountry(country);
-						e.setLeague(league);
-						e.setSeasonYear(year);
-						e.setStartSeasonDate(start);
-						e.setEndSeasonDate(end);
-						e.setRound(round);
-						e.setPath(path);
-						e.setIcon(icon);
-
-						entiryList.add(e);
-					}
-				}
-
-				readFileOutputDTO.setResultCd(BookMakersCommonConst.NORMAL_CD);
-				readFileOutputDTO.setCountryLeagueSeasonList(entiryList);
-				return readFileOutputDTO;
-			}
-
-		} catch (Exception e) {
-			readFileOutputDTO.setExceptionProject(PROJECT_NAME);
-			readFileOutputDTO.setExceptionClass(CLASS_NAME);
-			readFileOutputDTO.setExceptionMethod(METHOD_NAME);
-			readFileOutputDTO.setResultCd(BookMakersCommonConst.ERR_CD_ERR_FILE_READS);
-			readFileOutputDTO.setErrMessage(BookMakersCommonConst.ERR_MESSAGE_ERR_FILE_READS);
-			readFileOutputDTO.setThrowAble(e);
-			return readFileOutputDTO;
-
-		} finally {
-			// ✅ CSVでreturnした場合も含め、必ず終端ログ/クリア
-			this.manageLoggerComponent.debugEndInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-			this.manageLoggerComponent.clear();
-		}
-
-		return readFileOutputDTO;
+	    } finally {
+	        this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	        this.manageLoggerComponent.clear();
+	    }
 	}
 
 	/**

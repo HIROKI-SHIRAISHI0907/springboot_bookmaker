@@ -1,11 +1,14 @@
 package dev.common.getinfo;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
@@ -14,12 +17,10 @@ import org.springframework.stereotype.Component;
 import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
-import dev.common.find.dto.FindBookInputDTO;
-import dev.common.find.dto.FindBookOutputDTO;
-import dev.common.findcsv.FindStat;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.ReadStat;
 import dev.common.readfile.dto.ReadFileOutputDTO;
+import dev.common.s3.S3Operator;
 import dev.common.util.ExecuteMainUtil;
 
 /**
@@ -37,24 +38,19 @@ public class GetStatInfo {
 	/** クラス名 */
 	private static final String CLASS_NAME = GetStatInfo.class.getSimpleName();
 
-	/** Configクラス */
+	/** 取得バケット正規表現：X.csv */
+	private static final Pattern SEQ_CSV_KEY =
+	        Pattern.compile("^\\d+\\.csv$"); // 例: 1.csv, 12.csv
+
+	/** S3オペレーター */
+	@Autowired
+	private S3Operator s3Operator;
+
+	/** パス設定 */
 	@Autowired
 	private PathConfig config;
 
-	/**
-	 * パス(/Users/shiraishitoshio/bookmaker/csv/の予定)
-	 */
-	private String PATH;
-
-	/**
-	 * 統計データCsv読み取りクラス
-	 */
-	@Autowired
-	private FindStat findStatCsv;
-
-	/**
-	 * ファイル読み込みクラス
-	 */
+	/** ファイル読み込みクラス */
 	@Autowired
 	private ReadStat readStat;
 
@@ -72,154 +68,150 @@ public class GetStatInfo {
 	 * 取得メソッド
 	 */
 	public Map<String, Map<String, List<BookDataEntity>>> getData(String csvNumber, String csvBackNumber) {
-		final String METHOD_NAME = "getData";
-		// パス
-		PATH = config.getCsvFolder();
+	    final String METHOD_NAME = "getData";
 
-		// 時間計測開始
-		long startTime = System.nanoTime();
+	    String bucket = config.getS3BucketsStats();
+	    List<String> fileStatList = s3Operator.listSeqCsvKeysInRoot(bucket, SEQ_CSV_KEY);
 
-		// 設定
-		FindBookInputDTO findBookInputDTO = setBookInputDTO(csvNumber, csvBackNumber);
+	    // csvNumber/csvBackNumber で連番範囲フィルタ
+	    fileStatList = filterKeysBySeqRange(fileStatList, csvNumber, csvBackNumber);
 
-		// 統計データCsv読み取りクラス
-		FindBookOutputDTO findBookOutputDTO = this.findStatCsv.execute(findBookInputDTO);
-		// エラーの場合,戻り値の例外を業務例外に集約してスロー
-		if (!BookMakersCommonConst.NORMAL_CD.equals(findBookOutputDTO.getResultCd())) {
-			this.manageLoggerComponent.createBusinessException(
-					findBookOutputDTO.getExceptionProject(),
-					findBookOutputDTO.getExceptionClass(),
-					findBookOutputDTO.getExceptionMethod(),
-					findBookOutputDTO.getErrMessage(),
-					findBookOutputDTO.getThrowAble());
-		}
+	    Map<String, Map<String, List<BookDataEntity>>> resultMap = new HashMap<>();
+	    if (fileStatList.isEmpty()) {
+	        this.manageLoggerComponent.debugInfoLog(
+	                PROJECT_NAME, CLASS_NAME, METHOD_NAME, "データなし(S3)", "GetStatInfo");
+	        return resultMap;
+	    }
 
-		// 読み込んだパスからデータ取得
-		List<String> fileStatList = findBookOutputDTO.getBookList();
-		// 結果構造：Map<"JPN-J1", Map<"HOME"-"AWAY", List<BookDataEntity>>>
-		Map<String, Map<String, List<BookDataEntity>>> resultMap = new HashMap<>();
-		if (fileStatList.size() <= 0) {
-			String messageCd = "データなし";
-			String fillChar = "GetStatInfo";
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar);
-			return resultMap;
-		}
-		// ★ 同時実行をハード制限（CsvQueueConfigの並列数に合わせる）
-		final int concurrency = 8; // または csvTaskExecutor.getMaxPoolSize()
-		final Semaphore gate = new Semaphore(concurrency);
+	    final int concurrency = 8;
+	    final Semaphore gate = new Semaphore(concurrency);
 
-		List<CompletableFuture<ReadFileOutputDTO>> futures = new ArrayList<>(fileStatList.size());
-		for (String file : fileStatList) {
-			try {
-				// キューを溢れさせない（ここでブロックしてin-flight最大数を制限）
-				gate.acquire();
-			} catch (InterruptedException ie) {
-				Thread.currentThread().interrupt();
-				this.manageLoggerComponent.createBusinessException(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, "Semaphore acquire 中断", ie);
-				break;
-			}
-			CompletableFuture<ReadFileOutputDTO> cf = CompletableFuture
-					.supplyAsync(() -> this.readStat.getFileBody(file), csvTaskExecutor)
-					.whenComplete((r, t) -> gate.release());
-			futures.add(cf);
-		}
+	    List<CompletableFuture<ReadFileOutputDTO>> futures = new ArrayList<>(fileStatList.size());
+	    for (String key : fileStatList) {
+	        try {
+	            gate.acquire();
+	        } catch (InterruptedException ie) {
+	            Thread.currentThread().interrupt();
+	            this.manageLoggerComponent.createBusinessException(
+	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, "Semaphore acquire 中断", ie);
+	            break;
+	        }
 
-		for (CompletableFuture<ReadFileOutputDTO> cf : futures) {
-			try {
-				ReadFileOutputDTO dto = cf.join(); // get()と違いchecked例外なし
-				if (dto == null) {
-					this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, null);
-					this.manageLoggerComponent.createBusinessException(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, "dto: nullエラー", null);
-					continue;
-				}
-				List<BookDataEntity> entity = dto.getReadHoldDataList();
-				if (entity == null) {
-					this.manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, null);
-					this.manageLoggerComponent.createBusinessException(
-							PROJECT_NAME,
-							CLASS_NAME,
-							METHOD_NAME,
-							"entity: nullエラー",
-							null);
-				}
+	        CompletableFuture<ReadFileOutputDTO> cf = CompletableFuture
+	                .supplyAsync(() -> {
+	                    try (InputStream is = s3Operator.download(bucket, key)) {
+	                        return this.readStat.getFileBodyFromStream(is, key);
+	                    } catch (Exception e) {
+	                        ReadFileOutputDTO dto = new ReadFileOutputDTO();
+	                        dto.setExceptionProject(PROJECT_NAME);
+	                        dto.setExceptionClass(CLASS_NAME);
+	                        dto.setExceptionMethod(METHOD_NAME);
+	                        dto.setResultCd(BookMakersCommonConst.ERR_CD_ERR_FILE_READS);
+	                        dto.setErrMessage("S3 download/read error key=" + key);
+	                        dto.setThrowAble(e);
+	                        return dto;
+	                    }
+	                }, csvTaskExecutor)
+	                .whenComplete((r, t) -> gate.release());
 
-				String[] data_key = ExecuteMainUtil.splitLeagueInfo(entity.get(0).getGameTeamCategory());
-				String country = data_key[0];
-				String league = data_key[1];
-				String home = entity.get(0).getHomeTeamName();
-				String away = entity.get(0).getAwayTeamName();
+	        futures.add(cf);
+	    }
 
-				if (country == null || league == null ||
-						home == null || away == null) {
-					// country/league/home/awayがnullのためスキップ
-					this.manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, null);
-					this.manageLoggerComponent.createBusinessException(
-							PROJECT_NAME,
-							CLASS_NAME,
-							METHOD_NAME,
-							"country/league/home/away: nullエラー, " +
-									country + ", " + league + ", " + home +
-									", " + away,
-							null);
-					continue;
-				}
+	    for (CompletableFuture<ReadFileOutputDTO> cf : futures) {
+	        try {
+	            ReadFileOutputDTO dto = cf.join();
+	            if (dto == null) {
+	                this.manageLoggerComponent.createBusinessException(
+	                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, "dto: nullエラー", null);
+	                continue;
+	            }
+	            if (!BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
+	                this.manageLoggerComponent.debugErrorLog(
+	                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, dto.getErrMessage(), null);
+	                continue;
+	            }
 
-				String mapKey = entity.get(0).getGameTeamCategory();
-				String teamKey = home + "-" + away;
-				// データをマップに追加
-				resultMap
-						.computeIfAbsent(mapKey, k -> new HashMap<>())
-						.computeIfAbsent(teamKey, s -> new ArrayList<>())
-						.addAll(entity);
-			} catch (RuntimeException e) {
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e);
-				this.manageLoggerComponent.createBusinessException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						"非同期処理中にエラー",
-						e);
-			}
-		}
-		// Spring管理のExecutorはアプリ終了時に停止するためshutdown不要
+	            List<BookDataEntity> entity = dto.getReadHoldDataList();
+	            if (entity == null || entity.isEmpty()) continue;
 
-		// 時間計測終了
-		long endTime = System.nanoTime();
-		long durationMs = (endTime - startTime) / 1_000_000; // ミリ秒に変換
+	            String[] data_key = ExecuteMainUtil.splitLeagueInfo(entity.get(0).getGameTeamCategory());
+	            String country = data_key[0];
+	            String league = data_key[1];
+	            String home = entity.get(0).getHomeTeamName();
+	            String away = entity.get(0).getAwayTeamName();
 
-		System.out.println("時間: " + durationMs);
+	            if (country == null || league == null || home == null || away == null) {
+	                this.manageLoggerComponent.createBusinessException(
+	                        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+	                        "country/league/home/away: nullエラー, " + country + ", " + league + ", " + home + ", " + away,
+	                        null);
+	                continue;
+	            }
 
-		return resultMap;
+	            String mapKey = entity.get(0).getGameTeamCategory();
+	            String teamKey = home + "-" + away;
+
+	            resultMap
+	                    .computeIfAbsent(mapKey, k -> new HashMap<>())
+	                    .computeIfAbsent(teamKey, s -> new ArrayList<>())
+	                    .addAll(entity);
+
+	        } catch (Exception e) {
+	            this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e);
+	            this.manageLoggerComponent.createBusinessException(
+	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, "非同期処理中にエラー", e);
+	        }
+	    }
+	    return resultMap;
 	}
 
 	/**
-	 * 読み取りinputDTOに設定する
-	 * @param csvNumber CSV番号
-	 * @param csvBackNumber CSV番号
-	 * @return
-	 */
-	private FindBookInputDTO setBookInputDTO(String csvNumber, String csvBackNumber) {
-		FindBookInputDTO findBookInputDTO = new FindBookInputDTO();
-		findBookInputDTO.setDataPath(PATH);
-		findBookInputDTO.setCopyFlg(false);
-		findBookInputDTO.setGetBookFlg(false);
-		findBookInputDTO.setCsvNumber(csvNumber);
-		findBookInputDTO.setCsvBackNumber(csvBackNumber);
-		String[] containsList = new String[6];
-		containsList[0] = "breakfile";
-		containsList[1] = "all.csv";
-		containsList[3] = "conditiondata/";
-		containsList[4] = "python_analytics/";
-		containsList[5] = "average_stats/";
-		findBookInputDTO.setContainsList(containsList);
-		findBookInputDTO.setSuffixFile(BookMakersCommonConst.CSV);
-		return findBookInputDTO;
-	}
+     * フィルター付きソート
+     * @param keys
+     * @param csvNumber
+     * @param csvBackNumber
+     * @return
+     */
+    public static List<String> filterKeysBySeqRange(List<String> keys, String csvNumber, String csvBackNumber) {
+        Integer from = null;
+        Integer to = null;
 
+        try {
+            if (csvNumber != null && !csvNumber.isBlank()) from = Integer.parseInt(csvNumber.trim());
+        } catch (NumberFormatException ignore) {}
+        try {
+            if (csvBackNumber != null && !csvBackNumber.isBlank()) to = Integer.parseInt(csvBackNumber.trim());
+        } catch (NumberFormatException ignore) {}
+
+        if (from == null && to == null) return keys;
+
+        final Integer fFrom = from;
+        final Integer fTo = to;
+
+        return keys.stream()
+                .filter(k -> {
+                    Integer seq = extractSeqFromKey(k);
+                    if (seq == null) return false;
+                    if (fFrom != null && seq < fFrom) return false;
+                    if (fTo != null && seq > fTo) return false;
+                    return true;
+                })
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * ソート用整数変換
+     * @param key
+     * @return
+     */
+    private static Integer extractSeqFromKey(String key) {
+        if (key == null) return null;
+        var m = java.util.regex.Pattern.compile("^(\\d+)\\.csv$").matcher(key);
+        if (!m.find()) return null;
+        try {
+            return Integer.parseInt(m.group(1));
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
 }

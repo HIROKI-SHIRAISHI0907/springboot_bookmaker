@@ -12,10 +12,12 @@ process:
   s3:
     region: ap-northeast-1
     buckets:
-      teamSeasonDateData: aws-s3-team-season-date-data
-      teamData: aws-s3-team-data
-      teamMemberData: aws-s3-team-member-data
-      outputs: aws-s3-outputs
+      teamSeasonDateData: aws-s3-season-csv
+      teamData: aws-s3-team-csv
+      teamMemberData: aws-s3-team-member-csv
+      outputs: aws-s3-outputs-csv
+      future: aws-s3-future-csv
+      stats: aws-s3-stat-csv
   
 spring:
   flyway:

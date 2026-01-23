@@ -1,5 +1,7 @@
 package dev.common.readfile;
 
+import java.io.InputStream;
+
 import dev.common.readfile.dto.ReadFileOutputDTO;
 
 /**
@@ -14,6 +16,6 @@ public interface ReadFileBodyIF {
 	 * @param fileFullPath パス
 	 * @return
 	 */
-	public ReadFileOutputDTO getFileBody(String fileFullPath);
+	public ReadFileOutputDTO getFileBodyFromStream(InputStream is, String key);
 
 }

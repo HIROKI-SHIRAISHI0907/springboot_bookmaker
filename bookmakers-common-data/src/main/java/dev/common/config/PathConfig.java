@@ -84,6 +84,18 @@ public class PathConfig {
 	private String s3BucketsOutputs;
 
 	/**
+	 * S3バケット（future）
+	 */
+	@Value("${process.s3.buckets.future}")
+	private String s3BucketsFuture;
+
+	/**
+	 * S3バケット（stat）
+	 */
+	@Value("${process.s3.buckets.stats}")
+	private String s3BucketsStats;
+
+	/**
 	 * JSONフォルダ作成パスを返す
 	 * @return
 	 */
@@ -189,5 +201,22 @@ public class PathConfig {
 	    return s3BucketsOutputs;
 	}
 
+	/**
+	 * Future用のS3バケット名を取得する。
+	 *
+	 * @return Future用S3バケット名
+	 */
+	public String getS3BucketsFuture() {
+	    return s3BucketsFuture;
+	}
+
+	/**
+	 * Stat用のS3バケット名を取得する。
+	 *
+	 * @return Stat用S3バケット名
+	 */
+	public String getS3BucketsStats() {
+	    return s3BucketsStats;
+	}
 
 }

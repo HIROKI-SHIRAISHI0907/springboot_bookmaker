@@ -1,9 +1,9 @@
 package dev.common.readfile;
 
 import java.io.BufferedReader;
-import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
-import java.nio.charset.Charset;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -29,6 +29,8 @@ public class ReadTeam implements ReadFileBodyIF {
     /** クラス名 */
     private static final String CLASS_NAME = ReadTeam.class.getSimpleName();
 
+
+
     /** 実行モード */
     private static final String EXEC_MODE = "READ_TEAM";
 
@@ -42,88 +44,60 @@ public class ReadTeam implements ReadFileBodyIF {
      * @return readFileOutputDTO
      */
     @Override
-    public ReadFileOutputDTO getFileBody(String fileFullPath) {
-        final String METHOD_NAME = "getFileBody";
+    public ReadFileOutputDTO getFileBodyFromStream(InputStream is, String key) {
+        final String METHOD_NAME = "getFileBodyFromStream";
 
-        this.manageLoggerComponent.init(EXEC_MODE, fileFullPath);
-        this.manageLoggerComponent.debugStartInfoLog(
-                PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+        this.manageLoggerComponent.init(EXEC_MODE, key);
+        this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-        ReadFileOutputDTO readFileOutputDTO = new ReadFileOutputDTO();
+        ReadFileOutputDTO dto = new ReadFileOutputDTO();
         List<CountryLeagueMasterEntity> entityList = new ArrayList<>();
 
-        // 文字コードは運用に合わせて変更可（UTF-8/Shift_JIS など）
-        Charset charset = Charset.forName("UTF-8");
-
-        try (BufferedReader br = new BufferedReader(
-                new InputStreamReader(new FileInputStream(fileFullPath), charset))) {
+        try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
 
             String line;
             int rowNo = 0;
 
             while ((line = br.readLine()) != null) {
                 rowNo++;
-
                 // 1行目ヘッダーはスキップ
-                if (rowNo == 1) {
-                    continue;
-                }
-
-                // 空行スキップ
-                if (line.trim().isEmpty()) {
-                    continue;
-                }
-
+                if (rowNo == 1) continue;
+                if (line.trim().isEmpty()) continue;
                 List<String> cols = parseCsvLine(line);
 
-                // 必要列が足りない場合はスキップ（または警告ログ）
-                if (cols.size() < 3) {
-                    // team列が無いので読みようがない
-                    continue;
-                }
-
+                if (cols.size() < 3) continue;
                 String country = getCol(cols, 0);
                 String league  = getCol(cols, 1);
                 String team    = getCol(cols, 2);
-                String link    = getCol(cols, 3); // 無い場合は空文字
-
-                // 国・リーグが両方空ならスキップ
-                if (country.isBlank() && league.isBlank()) {
-                    continue;
-                }
-
-                // チームが空ならスキップ
-                if (team.isBlank()) {
-                    continue;
-                }
+                String link    = getCol(cols, 3);
+                if (country.isBlank() && league.isBlank()) continue;
+                if (team.isBlank()) continue;
 
                 CountryLeagueMasterEntity e = new CountryLeagueMasterEntity();
                 e.setCountry(country);
                 e.setLeague(league);
                 e.setTeam(team);
                 e.setLink(link);
-
                 entityList.add(e);
             }
 
-            readFileOutputDTO.setResultCd(BookMakersCommonConst.NORMAL_CD);
-            readFileOutputDTO.setCountryLeagueMasterList(entityList);
+            dto.setResultCd(BookMakersCommonConst.NORMAL_CD);
+            dto.setCountryLeagueMasterList(entityList);
+            return dto;
 
         } catch (Exception e) {
-            readFileOutputDTO.setExceptionProject(PROJECT_NAME);
-            readFileOutputDTO.setExceptionClass(CLASS_NAME);
-            readFileOutputDTO.setExceptionMethod(METHOD_NAME);
-            readFileOutputDTO.setResultCd(BookMakersCommonConst.ERR_CD_ERR_FILE_READS);
-            readFileOutputDTO.setErrMessage(BookMakersCommonConst.ERR_MESSAGE_ERR_FILE_READS);
-            readFileOutputDTO.setThrowAble(e);
-            return readFileOutputDTO;
+            dto.setExceptionProject(PROJECT_NAME);
+            dto.setExceptionClass(CLASS_NAME);
+            dto.setExceptionMethod(METHOD_NAME);
+            dto.setResultCd(BookMakersCommonConst.ERR_CD_ERR_FILE_READS);
+            dto.setErrMessage(BookMakersCommonConst.ERR_MESSAGE_ERR_FILE_READS);
+            dto.setThrowAble(e);
+            return dto;
+
+        } finally {
+            this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+            this.manageLoggerComponent.clear();
         }
-
-        this.manageLoggerComponent.debugEndInfoLog(
-                PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-        this.manageLoggerComponent.clear();
-
-        return readFileOutputDTO;
     }
 
     /** cols[i] を安全に取得してtrimして返す */

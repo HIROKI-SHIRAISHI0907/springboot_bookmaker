@@ -1,5 +1,6 @@
 package dev.common.getinfo;
 
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -9,6 +10,8 @@ import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -16,12 +19,10 @@ import org.springframework.stereotype.Component;
 import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.FutureEntity;
-import dev.common.find.dto.FindBookInputDTO;
-import dev.common.find.dto.FindBookOutputDTO;
-import dev.common.findcsv.FindStat;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.ReadFuture;
 import dev.common.readfile.dto.ReadFileOutputDTO;
+import dev.common.s3.S3Operator;
 
 /**
  * 未来情報取得管理クラス
@@ -38,24 +39,19 @@ public class GetFutureInfo {
 	/** クラス名 */
 	private static final String CLASS_NAME = GetFutureInfo.class.getSimpleName();
 
-	/** Configクラス */
+	/** 取得バケット正規表現：YYYY-mm-dd/.../future_X.csv */
+	private static final Pattern DATE_FUTURE_CSV_KEY =
+	        Pattern.compile("^\\d{4}-\\d{2}-\\d{2}/.*future_[^/]+\\.csv$");
+
+	/** S3オペレーター */
+	@Autowired
+	private S3Operator s3Operator;
+
+	/** パス設定 */
 	@Autowired
 	private PathConfig config;
 
-	/**
-	 * パス(/Users/shiraishitoshio/bookmaker/の予定)
-	 */
-	private String PATH;
-
-	/**
-	 * 統計データCsv読み取りクラス
-	 */
-	@Autowired
-	private FindStat findStatCsv;
-
-	/**
-	 * ファイル読み込みクラス
-	 */
+	/** ファイル読み込みクラス */
 	@Autowired
 	private ReadFuture readFuture;
 
@@ -70,28 +66,21 @@ public class GetFutureInfo {
 	 */
 	public Map<String, List<FutureEntity>> getData() {
 	    final String METHOD_NAME = "getData";
-	    PATH = config.getFutureFolder();
 
-	    long startTime = System.nanoTime();
+	    String bucket = config.getS3BucketsFuture();
 
-	    FindBookInputDTO findBookInputDTO = setBookInputDTO();
-	    FindBookOutputDTO findBookOutputDTO = this.findStatCsv.execute(findBookInputDTO);
+	    // 最終更新時間を昇順に取得
+	    List<String> fileStatList = s3Operator
+	            .listAllDateCsvObjectsSortedByLastModifiedAsc(bucket, DATE_FUTURE_CSV_KEY)
+	            .stream()
+	            .map(o -> o.key())
+	            .collect(Collectors.toList());
 
-	    if (!BookMakersCommonConst.NORMAL_CD.equals(findBookOutputDTO.getResultCd())) {
-	        this.manageLoggerComponent.createBusinessException(
-	            findBookOutputDTO.getExceptionProject(),
-	            findBookOutputDTO.getExceptionClass(),
-	            findBookOutputDTO.getExceptionMethod(),
-	            findBookOutputDTO.getErrMessage(),
-	            findBookOutputDTO.getThrowAble());
-	    }
-
-	    List<String> fileStatList = findBookOutputDTO.getBookList();
 	    Map<String, List<FutureEntity>> resultMap = new HashMap<>();
 
-	    if (fileStatList == null || fileStatList.isEmpty()) {
+	    if (fileStatList.isEmpty()) {
 	        this.manageLoggerComponent.debugInfoLog(
-	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "データなし", "GetFutureInfo");
+	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "データなし(S3)", "GetFutureInfo");
 	        return resultMap;
 	    }
 
@@ -101,25 +90,42 @@ public class GetFutureInfo {
 
 	    try {
 	        List<Callable<ReadFileOutputDTO>> tasks = new ArrayList<>(fileStatList.size());
-	        for (String file : fileStatList) {
-	            tasks.add(() -> this.readFuture.getFileBody(file));
+
+	        for (String key : fileStatList) {
+	            tasks.add(() -> {
+	                try (InputStream is = s3Operator.download(bucket, key)) {
+	                    // ★ ReadFuture 側に「InputStreamから読む」メソッドを用意
+	                    return readFuture.getFileBodyFromStream(is, key);
+	                }
+	            });
 	        }
 
-	        // タイムアウトは必要に応じて調整
 	        List<Future<ReadFileOutputDTO>> futures = executor.invokeAll(tasks, 60, TimeUnit.SECONDS);
 
 	        for (Future<ReadFileOutputDTO> f : futures) {
 	            if (f.isCancelled()) {
 	                this.manageLoggerComponent.debugErrorLog(
-	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ReadFuture timeout/cancel", null);
+	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ReadFutureS3 timeout/cancel", null);
 	                continue;
 	            }
 	            ReadFileOutputDTO dto = f.get();
+	            if (!BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
+	                this.manageLoggerComponent.debugErrorLog(
+	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+	                    "ReadFutureS3 failed [" +
+	                    dto.getThrowAble() + "]", null);
+	                continue;
+	            }
 	            List<FutureEntity> entity = dto.getFutureList();
-	            if (entity == null || entity.isEmpty()) continue;
+	            if (entity == null || entity.isEmpty()) {
+	            	this.manageLoggerComponent.debugInfoLog(
+		                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, null);
+	            	continue;
+	            }
 
-	            String file = entity.get(0).getFile();
-	            resultMap.computeIfAbsent(file, k -> new ArrayList<>()).addAll(entity);
+	            // MapキーはS3キーでまとめるのが自然
+	            String key = entity.get(0).getFile(); // getFile にS3 keyを入れる想定
+	            resultMap.computeIfAbsent(key, k -> new ArrayList<>()).addAll(entity);
 	        }
 
 	    } catch (InterruptedException ie) {
@@ -130,7 +136,7 @@ public class GetFutureInfo {
 	    } catch (Exception e) {
 	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e);
 	        this.manageLoggerComponent.createBusinessException(
-	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "Future読み込みエラー", e);
+	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "S3 Future読み込みエラー", e);
 
 	    } finally {
 	        executor.shutdown();
@@ -144,31 +150,7 @@ public class GetFutureInfo {
 	        }
 	    }
 
-	    long durationMs = (System.nanoTime() - startTime) / 1_000_000;
-	    System.out.println("時間: " + durationMs);
 	    return resultMap;
-	}
-
-	/**
-	 * 読み取りinputDTOに設定する
-	 * @return
-	 */
-	private FindBookInputDTO setBookInputDTO() {
-		FindBookInputDTO findBookInputDTO = new FindBookInputDTO();
-		findBookInputDTO.setDataPath(PATH);
-		findBookInputDTO.setCopyFlg(false);
-		findBookInputDTO.setGetBookFlg(true);
-		String[] containsList = new String[6];
-		containsList[0] = "breakfile";
-		containsList[1] = "all.csv";
-		containsList[3] = "conditiondata/";
-		containsList[4] = "python_analytics/";
-		containsList[5] = "average_stats/";
-		findBookInputDTO.setContainsList(containsList);
-		findBookInputDTO.setCsvNumber("0");
-		findBookInputDTO.setPrefixFile(BookMakersCommonConst.FUTURE_);
-		findBookInputDTO.setSuffixFile(BookMakersCommonConst.CSV);
-		return findBookInputDTO;
 	}
 
 }
