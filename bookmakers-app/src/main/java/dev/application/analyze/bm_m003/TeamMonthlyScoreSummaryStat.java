@@ -34,6 +34,9 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M003_TEAM_MONTHLY_SCORE";
 
+	/** BM_STAT_NUMBER */
+	private static final String BM_NUMBER = "BM_M003";
+
 	/** TeamMonthlyScoreSummaryRepositoryレポジトリクラス */
 	@Autowired
 	private TeamMonthlyScoreSummaryRepository teamMonthlyScoreSummaryRepository;
@@ -70,6 +73,9 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 				int prevHomeScore = 0;
 				int prevAwayScore = 0;
 				for (BookDataEntity entity : entityList) {
+					String messageCd = MessageCdConst.MCD00099I_LOG;
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, entity.getFilePath());
 					String recordTime = entity.getRecordTime();
 					if (recordTime == null || recordTime.length() < 7)
 						continue;
@@ -253,7 +259,7 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 
 			String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
 			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "BM_M003 更新件数: 1件");
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 更新件数: 1件");
 		} else {
 			int result = this.teamMonthlyScoreSummaryRepository.insertTeamMonthlyScore(teamMonthlyScoreSummaryEntity);
 			if (result != 1) {
@@ -268,7 +274,7 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 
 			String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "BM_M003 登録件数: 1件");
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: 1件");
 		}
 
 	}

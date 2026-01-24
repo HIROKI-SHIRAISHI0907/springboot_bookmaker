@@ -16,6 +16,7 @@ import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.bm.LeagueScoreTimeBandStatsRepository;
 import dev.application.domain.repository.bm.LeagueScoreTimeBandStatsSplitScoreRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
@@ -38,6 +39,12 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M017_BM_M018_LEAGUE_SCORE_TIME_BAND";
+
+	/** BM_STAT_NUMBER */
+	private static final String BM_NUMBER_17 = "BM_M017";
+
+	/** BM_STAT_NUMBER */
+	private static final String BM_NUMBER_18 = "BM_M018";
 
 	/** within_data_scored_counter */
 	private static String MAIN = "within_data_scored_counter";
@@ -82,8 +89,9 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 				int prevHomeScore = 0;
 				int prevAwayScore = 0;
 				for (BookDataEntity e : dataList) {
+					String messageCd = MessageCdConst.MCD00099I_LOG;
 					this.manageLoggerComponent.debugInfoLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e.getFilePath());
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e.getFilePath());
 					// ゴール取り消しはスキップ
 					if (BookMakersCommonConst.GOAL_DELETE.equals(e.getJudge()))
 						continue;
@@ -407,14 +415,6 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 			String homeSumScore, String awaySumScore, String homeTimeRange, String awayTimeRange,
 			String target, String search, String country, String league) {
 		final String METHOD_NAME = "setRegData";
-		//		// leagueKey に対応する内側の Map を取得または作成
-		//		Map<Integer, LeagueScoreRegisterData> innerMap = resultMap.computeIfAbsent(leagueKey, k -> new HashMap<>());
-		//		// 通番は 1 から順番に（既存サイズ + 1）
-		//		int nextSeqNo = innerMap.size() + 1;
-		//		// Map に登録
-		//		innerMap.put(nextSeqNo,
-		//				new LeagueScoreRegisterData(sumScore, timeRange, homeSumScore, awaySumScore,
-		//						homeTimeRange, awayTimeRange, target, search, table));
 		String fillChar = setLoggerFillChar(country, league);
 		if (MAIN.equals(table)) {
 			// 登録
@@ -426,21 +426,19 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 			leagueScoreTimeBandStatsEntity.setTarget(target);
 			leagueScoreTimeBandStatsEntity.setSearch(search);
 			int result = this.leagueScoreTimeBandStatsRepository.insert(leagueScoreTimeBandStatsEntity);
-			if (result != 1) {
-				String messageCd = "新規登録エラー";
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						messageCd,
-						null);
+			if (result == 0) {
+            	String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
+				this.rootCauseWrapper.throwUnexpectedRowCount(
+				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+				        messageCd,
+				        1, result,
+				        null
+				    );
+            }
 
-			}
-			String messageCd = "登録件数";
+			String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M017 登録件数: 1件");
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER_17 + " 登録件数: " + result + "件 (" + fillChar + ")");
 		} else if (DETAIL.equals(table)) {
 			// 登録
 			LeagueScoreTimeBandStatsSplitScoreEntity leagueScoreTimeBandStatsSplitScoreEntity = new LeagueScoreTimeBandStatsSplitScoreEntity();
@@ -454,17 +452,19 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 			leagueScoreTimeBandStatsSplitScoreEntity.setSearch(search);
 			int result = this.leagueScoreTimeBandStatsSplitScoreRepository
 					.insert(leagueScoreTimeBandStatsSplitScoreEntity);
-			if (result != 1) {
-				String messageCd = "新規登録エラー";
+			if (result == 0) {
+            	String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 				this.rootCauseWrapper.throwUnexpectedRowCount(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						messageCd,
-						1, result,
-						null);
-			}
-			String messageCd = "登録件数";
+				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+				        messageCd,
+				        1, result,
+				        null
+				    );
+            }
+
+			String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M018 登録件数: 1件");
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER_18 + " 登録件数: " + result + "件 (" + fillChar + ")");
 		}
 
 	}
@@ -481,42 +481,36 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 	private synchronized void setUpdData(String table, String id, String target,
 			String search, String country, String league) {
 		final String METHOD_NAME = "setUpdData";
-
-		//		// leagueKey に対応する内側の Map を取得または作成
-		//		Map<Integer, LeagueScoreUpdateData> innerMap = resultMap.computeIfAbsent(leagueKey, k -> new HashMap<>());
-		//		// 通番は 1 から順番に（既存サイズ + 1）
-		//		int nextSeqNo = innerMap.size() + 1;
-		//		// Map に登録
-		//		innerMap.put(nextSeqNo,
-		//				new LeagueScoreUpdateData(id, target, search, table, timeRange));
 		String fillChar = setLoggerFillChar(country, league);
 		if (MAIN.equals(table)) {
 			int result = this.leagueScoreTimeBandStatsRepository.update(id, target, search);
 			if (result != 1) {
-				String messageCd = "更新エラー";
+				String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
 				this.rootCauseWrapper.throwUnexpectedRowCount(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						messageCd,
-						1, result,
-						String.format("id=%s, count=%s, remarks=%s", id, null, null));
+				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+				        messageCd,
+				        1, result,
+				        String.format("id=%s, result=%s, BM_NUMBER=%s", id, result, BM_NUMBER_17));
 			}
-			String messageCd = "更新件数";
+
+			String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
 			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M017 更新件数: 1件");
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER_17 + " 更新件数: " + result + "件 (" + fillChar + ")");
 		} else if (DETAIL.equals(table)) {
 			int result = this.leagueScoreTimeBandStatsSplitScoreRepository
 					.update(id, target, search);
 			if (result != 1) {
-				String messageCd = "更新エラー";
+				String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
 				this.rootCauseWrapper.throwUnexpectedRowCount(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						messageCd,
-						1, result,
-						String.format("id=%s, count=%s, remarks=%s", id, null, null));
+				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+				        messageCd,
+				        1, result,
+				        String.format("id=%s, result=%s, BM_NUMBER=%s", id, result, BM_NUMBER_18));
 			}
-			String messageCd = "更新件数";
+
+			String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
 			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M018 更新件数: 1件");
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER_18 + " 更新件数: " + result + "件 (" + fillChar + ")");
 		}
 	}
 
@@ -602,5 +596,4 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 		stringBuilder.append("リーグ: " + league);
 		return stringBuilder.toString();
 	}
-
 }

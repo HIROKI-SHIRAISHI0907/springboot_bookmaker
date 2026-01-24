@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.bm.CountryLeagueSummaryRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
@@ -34,6 +35,9 @@ public class CountryLeagueSummaryStat implements AnalyzeEntityIF {
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M006_COUNTRY_LEAGUE_SUMMARY";
+
+	/** BM_STAT_NUMBER */
+	private static final String BM_NUMBER = "BM_M006";
 
 	/** CountryLeagueSummaryRepositoryレポジトリクラス */
 	@Autowired
@@ -121,18 +125,35 @@ public class CountryLeagueSummaryStat implements AnalyzeEntityIF {
                 e.setCsvCount(String.valueOf(newCnt));
                 int result = this.countryLeagueSummaryRepository.update(e);
                 if (result != 1) {
-                    this.rootCauseWrapper.throwUnexpectedRowCount(
-                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, "更新エラー", 1, result,
-                        String.format("id=%s, country=%s, league=%s", id, country, league));
+                	String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
+    				this.rootCauseWrapper.throwUnexpectedRowCount(
+    				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+    				        messageCd,
+    				        1, result,
+    				        String.format("id=%s, country=%s, league=%s", id, country, league)
+    				    );
                 }
+
+                String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
+    			this.manageLoggerComponent.debugInfoLog(
+    					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 更新件数: " + result + "件");
             } else {
                 // 新規: まず insert を試す
                 e.setCsvCount(addCnt);
                 int result = this.countryLeagueSummaryRepository.insert(e);
-                if (result != 1) {
-                    this.rootCauseWrapper.throwUnexpectedRowCount(
-                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, "新規登録エラー", 1, result, null);
+                if (result == 0) {
+                	String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
+    				this.rootCauseWrapper.throwUnexpectedRowCount(
+    				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+    				        messageCd,
+    				        1, result,
+    				        null
+    				    );
                 }
+
+                String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
+    			this.manageLoggerComponent.debugInfoLog(
+    					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: " + result + "件");
             }
         } catch (DuplicateKeyException dup) {
             // 競合: 直近の値を再取得して加算更新
@@ -147,7 +168,20 @@ public class CountryLeagueSummaryStat implements AnalyzeEntityIF {
                 u.setLeague(league);
                 u.setDataCount(cur.getDataCount() == null ? "0" : cur.getDataCount());
                 u.setCsvCount(String.valueOf(newCnt));
-                this.countryLeagueSummaryRepository.update(u);
+                int result = this.countryLeagueSummaryRepository.update(u);
+                if (result != 1) {
+                	String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
+                	this.rootCauseWrapper.throwUnexpectedRowCount(
+    				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+    				        messageCd,
+    				        1, result,
+    				        String.format("id=%s, country=%s, league=%s", cur.getId(), country, league)
+    				    );
+                }
+
+                String messageCd = MessageCdConst.MCD00009I_REINSERT_DUE_TO_DUPLICATION_OR_COMPETITION;
+    			this.manageLoggerComponent.debugInfoLog(
+    					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: " + result + "件");
             } else {
                 throw dup; // 理論上ここには来ないはず
             }

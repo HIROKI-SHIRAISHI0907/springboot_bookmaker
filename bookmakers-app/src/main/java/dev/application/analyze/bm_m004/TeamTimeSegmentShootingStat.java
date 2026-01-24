@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.bm.TeamTimeSegmentShootingStatsRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
@@ -31,6 +32,9 @@ public class TeamTimeSegmentShootingStat implements AnalyzeEntityIF {
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M004_TEAM_TIME_SEGMENT_SHOOTING";
+
+	/** BM_STAT_NUMBER */
+	private static final String BM_NUMBER = "BM_M004";
 
 	/** TeamTimeSegmentShootingStatsRepositoryレポジトリクラス */
 	@Autowired
@@ -69,8 +73,9 @@ public class TeamTimeSegmentShootingStat implements AnalyzeEntityIF {
 
 				// BookDataEntityを走査し時間帯ごとの値を加算
 				for (BookDataEntity data : bookList) {
+					String messageCd = MessageCdConst.MCD00099I_LOG;
 					this.manageLoggerComponent.debugInfoLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, data.getFilePath());
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, data.getFilePath());
 					String timeZone = getTimeZone(data.getTime()); // 0-10, 11-20 など
 					timeSegmentMap.putIfAbsent(timeZone, new TimeSegmentAggregator());
 					TimeSegmentAggregator aggr = timeSegmentMap.get(timeZone);
@@ -288,7 +293,7 @@ public class TeamTimeSegmentShootingStat implements AnalyzeEntityIF {
 
 		int result = this.teamTimeSegmentShootingStatsRepository.insert(entity);
 		if (result != 1) {
-			String messageCd = "新規登録エラー";
+			String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 			this.rootCauseWrapper.throwUnexpectedRowCount(
 			        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 			        messageCd,
@@ -297,10 +302,10 @@ public class TeamTimeSegmentShootingStat implements AnalyzeEntityIF {
 			    );
 		}
 
-		String messageCd = "登録件数";
 		String fillChar = setLoggerFillChar(entity);
+		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M004 登録件数: 1件");
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: 1件 (" + fillChar + ")");
 	}
 
 	/**

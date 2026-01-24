@@ -12,6 +12,7 @@ import org.springframework.stereotype.Component;
 
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.bm.NoGoalMatchStatsRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
@@ -34,6 +35,9 @@ public class NoGoalMatchStat implements AnalyzeEntityIF {
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M005_NO_GOAL_MATCH_DATA";
+
+	/** BM_STAT_NUMBER */
+	private static final String BM_NUMBER = "BM_M005";
 
 	/** BookDataToNoGoalMatchMapperマッパークラス */
 	@Autowired
@@ -67,9 +71,15 @@ public class NoGoalMatchStat implements AnalyzeEntityIF {
 
 		// 登録情報あるか
 		if (noEntities.isEmpty()) {
-			String messageCd = "登録しない";
+			List<BookDataEntity> allList =
+				    entities.values().stream()
+				        .flatMap(m -> m.values().stream())
+				        .flatMap(List::stream)
+				        .collect(Collectors.toList());
+			String fillChar = (!allList.isEmpty()) ? setLoggerFillChar(allList.get(0)) : "";
+			String messageCd = MessageCdConst.MCD00008I_NO_SCORE_SKIP;
 			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar);
 		}
 
 		// Mapを回す
@@ -96,9 +106,9 @@ public class NoGoalMatchStat implements AnalyzeEntityIF {
 			insertCounter++;
 		}
 
-		String messageCd = "登録件数";
+		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "合計登録件数: " + insertCounter + "件");
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + "合計登録件数: " + insertCounter + "件");
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
@@ -168,6 +178,19 @@ public class NoGoalMatchStat implements AnalyzeEntityIF {
 	private String setLoggerFillChar(NoGoalMatchStatisticsEntity entity) {
 		StringBuilder stringBuilder = new StringBuilder();
 		stringBuilder.append("国,リーグ: " + entity.getDataCategory() + ", ");
+		stringBuilder.append("ホームチーム: " + entity.getHomeTeamName() + ", ");
+		stringBuilder.append("アウェーチーム: " + entity.getAwayTeamName());
+		return stringBuilder.toString();
+	}
+
+	/**
+	 * 埋め字設定
+	 * @param entity
+	 * @return
+	 */
+	private String setLoggerFillChar(BookDataEntity entity) {
+		StringBuilder stringBuilder = new StringBuilder();
+		stringBuilder.append("国,リーグ: " + entity.getGameTeamCategory() + ", ");
 		stringBuilder.append("ホームチーム: " + entity.getHomeTeamName() + ", ");
 		stringBuilder.append("アウェーチーム: " + entity.getAwayTeamName());
 		return stringBuilder.toString();

@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 
 import dev.application.domain.repository.bm.TimeRangeFeatureAllLeagueRepository;
 import dev.application.domain.repository.bm.TimeRangeFeatureScoredRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
@@ -82,16 +83,17 @@ public class TimeRangeFeatureQueueService {
 	 * @return
 	 */
 	public ConcurrentMap<String, Object> enqueueCommonReturn(String mapKey, BookDataEntity entity, String tableName) {
-	    final ConcurrentMap<String, Object> result = new ConcurrentHashMap<>();
+	    final String METHOD_NAME = "enqueueCommonReturn";
+		final ConcurrentMap<String, Object> result = new ConcurrentHashMap<>();
 	    final Map<String, TeamRangeUpdateData> updateMap = new ConcurrentHashMap<>();
 	    final Map<String, TeamRangeRegisterData> registerMap = new ConcurrentHashMap<>();
 
 	    try {
 	    	// ★ ここで防御
 	        if (tableName == null || tableName.isBlank()) {
-	            this.manageLoggerComponent.debugErrorLog(
-	                PROJECT_NAME, CLASS_NAME, "enqueueCommonReturn",
-	                "テーブル名解決不可（null／空）", null, mapKey);
+	        	String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
+    			this.manageLoggerComponent.debugErrorLog(
+    					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, mapKey);
 	            result.put(TimeRangeFeatureCommonUtil.UPDATEMAP, updateMap);
 	            result.put(TimeRangeFeatureCommonUtil.REGISTERMAP, registerMap);
 	            return result;
@@ -179,8 +181,9 @@ public class TimeRangeFeatureQueueService {
 	        result.put(TimeRangeFeatureCommonUtil.REGISTERMAP, registerMap);
 
 	    } catch (Exception e) {
-	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME,
-	                "enqueueCommonReturn", "非同期判定失敗", e, mapKey);
+	    	String messageCd = MessageCdConst.MCD00006E_ASYNCHRONOUS_ERROR;
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, mapKey);
 	        // 失敗しても呼び出し側は空マップで継続できるよう、最低限のキーは入れて返す
 	        result.putIfAbsent(TimeRangeFeatureCommonUtil.UPDATEMAP, updateMap);
 	        result.putIfAbsent(TimeRangeFeatureCommonUtil.REGISTERMAP, registerMap);
@@ -268,7 +271,7 @@ public class TimeRangeFeatureQueueService {
 	@Scheduled(fixedRate = 5000) // 5秒ごと
 	public void monitorQueueStatus() {
 		final String METHOD_NAME = "monitorQueueStatus";
-		String messageCd = "キューモニター監視";
+		String messageCd = MessageCdConst.MCD00010I_MONITORING_QUEUE_LOG;
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
 				"[QueueMonitor] Queue={" + getQueueSize() + "}"

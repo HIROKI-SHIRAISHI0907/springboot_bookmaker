@@ -15,6 +15,7 @@ import dev.application.domain.repository.bm.TimeRangeFeatureAllLeagueRepository;
 import dev.application.domain.repository.bm.TimeRangeFeatureRepository;
 import dev.application.domain.repository.bm.TimeRangeFeatureScoredRepository;
 import dev.application.domain.repository.bm.TimeRangeFeatureUpdateRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
@@ -37,6 +38,9 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M007_BM_M016_WITH_IN";
+
+	/** BM_STAT_NUMBER */
+	private static final String BM_NUMBER = "BM_M007-BM_M016";
 
 	/** TimeRangeFeatureQueueService非同期キュークラス */
 	@Autowired
@@ -223,9 +227,11 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 
 		int result = this.timeRangeFeatureRepository.insert(timeRangeFeatureEntity);
 		if (result != 1)
-			logAndThrow("新規登録エラー", METHOD_NAME, result, loggers);
+			logAndThrow(MessageCdConst.MCD00007E_INSERT_FAILED, METHOD_NAME, result, loggers);
 
-		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "登録件数", tableId);
+		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: " + result + "件, " + tableId);
 	}
 
 	/**
@@ -234,7 +240,7 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 	 * @param table テーブル
 	 */
 	private synchronized void commonInsert(TeamRangeRegisterData registerData, String table) {
-		final String methodName = "commonInsert";
+		final String METHOD_NAME = "commonInsert";
 		String loggers = setLogger(
 				registerData.getCountry(),
 				registerData.getLeague(),
@@ -245,19 +251,22 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 					.mapStruct(registerData);
 			int result = this.timeRangeFeatureScoredRepository.insert(entity);
 			if (result != 1) {
-				logAndThrow("新規登録エラー", methodName, result, loggers);
+				logAndThrow(MessageCdConst.MCD00007E_INSERT_FAILED, METHOD_NAME, result, loggers);
 			}
+			String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: " + result + "件, テーブル情報: " + table);
 		} else if (table.endsWith("all_league")) {
 			TimeRangeFeatureAllLeagueEntity entity = this.registerDataToTimeRangeFeatureAllLeagueMapper
 					.mapStruct(registerData);
 			int result = this.timeRangeFeatureAllLeagueRepository.insert(entity);
 			if (result != 1) {
-				logAndThrow("新規登録エラー", methodName, result, loggers);
+				logAndThrow(MessageCdConst.MCD00007E_INSERT_FAILED, METHOD_NAME, result, loggers);
 			}
+			String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: " + result + "件, テーブル情報: " + table);
 		}
-		String messageCd = "登録件数";
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, methodName, messageCd, table);
 	}
 
 	/**
@@ -265,18 +274,19 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 	 * @param updateData 更新データ
 	 */
 	private synchronized void commonUpdate(TeamRangeUpdateData updateData) {
-		final String methodName = "commonUpdate";
+		final String METHOD_NAME = "commonUpdate";
 		int result = this.timeRangeFeatureUpdateRepository.update(
 				updateData.getId(),
 				updateData.getTarget(),
 				updateData.getSearch(),
 				updateData.getTable());
 		if (result != 1) {
-			logAndThrow("更新エラー", methodName, result, "");
+			logAndThrow(MessageCdConst.MCD00008E_UPDATE_FAILED, METHOD_NAME, result, "");
 		}
-		String messageCd = "更新件数";
+
+		String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, methodName, messageCd, updateData.getTable());
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 更新件数: " + result + "件, テーブル情報: " + updateData.getTable());
 	}
 
 	/**
