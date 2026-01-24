@@ -41,10 +41,9 @@ public class RootCauseWrapper {
 
         // 2) 管理用の SystemException を作成/送出（戻らない想定）
         //    ※ createSystemException(...) が void でも、戻ってきたらフォールバックへ
-        this.manageLoggerComponent.createSystemException(project, clazz, method, messageCd, exForLog);
+        this.manageLoggerComponent.createSystemException(project, clazz, method, messageCd, cause, exForLog);
 
         // 3) フォールバック（念のため必ず例外を投げる）
-        //    SystemException の public CTOR が使えるなら差し替えてください。
         throw new RuntimeException(messageCd, exForLog);
     }
 

@@ -16,6 +16,7 @@ import org.springframework.stereotype.Component;
 
 import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.ReadStat;
@@ -92,8 +93,9 @@ public class GetStatInfo {
 	            gate.acquire();
 	        } catch (InterruptedException ie) {
 	            Thread.currentThread().interrupt();
-	            this.manageLoggerComponent.createBusinessException(
-	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, "Semaphore acquire 中断", ie);
+	            String msgCd = MessageCdConst.MCD00004E_THREAD_INTERRUPTION;
+		        this.manageLoggerComponent.createBusinessException(
+		            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, ie);
 	            break;
 	        }
 
@@ -121,13 +123,17 @@ public class GetStatInfo {
 	        try {
 	            ReadFileOutputDTO dto = cf.join();
 	            if (dto == null) {
-	                this.manageLoggerComponent.createBusinessException(
-	                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, "dto: nullエラー", null);
+	            	String msgCd = MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP;
+	            	this.manageLoggerComponent.debugInfoLog(
+		                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, "dto null");
+	            	 this.manageLoggerComponent.createBusinessException(
+	         	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, null);
 	                continue;
 	            }
 	            if (!BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
+	            	String msgCd = MessageCdConst.MCD00003E_EXECUTION_SKIP;
 	                this.manageLoggerComponent.debugErrorLog(
-	                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, dto.getErrMessage(), null);
+	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, dto.getErrMessage());
 	                continue;
 	            }
 
@@ -141,10 +147,11 @@ public class GetStatInfo {
 	            String away = entity.get(0).getAwayTeamName();
 
 	            if (country == null || league == null || home == null || away == null) {
+	            	String msgCd = MessageCdConst.MCD00003E_EXECUTION_SKIP;
+	                this.manageLoggerComponent.debugErrorLog(
+	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, "country/league/home/away: nullエラー, " + country + ", " + league + ", " + home + ", " + away);
 	                this.manageLoggerComponent.createBusinessException(
-	                        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-	                        "country/league/home/away: nullエラー, " + country + ", " + league + ", " + home + ", " + away,
-	                        null);
+	        	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, null);
 	                continue;
 	            }
 
@@ -157,9 +164,11 @@ public class GetStatInfo {
 	                    .addAll(entity);
 
 	        } catch (Exception e) {
-	            this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e);
-	            this.manageLoggerComponent.createBusinessException(
-	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, "非同期処理中にエラー", e);
+	        	String msgCd = MessageCdConst.MCD00006E_ASYNCHRONOUS_ERROR;
+                this.manageLoggerComponent.debugErrorLog(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null);
+                this.manageLoggerComponent.createBusinessException(
+        	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, null);
 	        }
 	    }
 	    return resultMap;

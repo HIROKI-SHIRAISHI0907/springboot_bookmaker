@@ -84,9 +84,10 @@ public interface ManageLoggerComponent {
 	 * @param methodName メソッド名
 	 * @param messageCd メッセージコード
 	 * @param exception 例外
+	 * @param exceptionExp 例外
      */
 	void createBusinessException(String projectName, String className, String methodName, String errorCode,
-			Throwable exception);
+			Throwable exception, Exception exceptionExp);
 
 	/**
      * SystemExceptionログ
@@ -95,7 +96,8 @@ public interface ManageLoggerComponent {
 	 * @param methodName メソッド名
 	 * @param messageCd メッセージコード
 	 * @param exception 例外
+	 * @param exceptionExp 例外
      */
 	void createSystemException(String projectName, String className, String methodName, String errorCode,
-			Throwable exception);
+			Throwable exception, Exception exceptionExp);
 }

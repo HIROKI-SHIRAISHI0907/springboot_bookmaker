@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 
 import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.ReadSeason;
@@ -60,26 +61,27 @@ public class GetSeasonInfo {
         try (InputStream is = s3Operator.download(bucket, key)) {
             ReadFileOutputDTO dto = readSeason.getFileBodyFromStream(is, key);
             if (!BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
-                this.manageLoggerComponent.createBusinessException(
-                        dto.getExceptionProject(),
-                        dto.getExceptionClass(),
-                        dto.getExceptionMethod(),
-                        dto.getErrMessage(),
-                        dto.getThrowAble());
+            	String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
+    	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME,
+    	        		METHOD_NAME, msgCd, null, "S3 season_data.csv 読み込みエラー");
+            	this.manageLoggerComponent.createBusinessException(
+        	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, null);
             }
 
             List<CountryLeagueSeasonMasterEntity> entity = dto.getCountryLeagueSeasonList();
             if (entity == null || entity.isEmpty()) {
-                this.manageLoggerComponent.debugInfoLog(
-                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, "データなし(S3)", "GetSeasonInfo");
+            	String msgCd = MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP;
+    	        this.manageLoggerComponent.debugInfoLog(
+    	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, "データなし(S3)");
                 return null;
             }
             return entity;
 
         } catch (Exception e) {
-            this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e);
-            this.manageLoggerComponent.createBusinessException(
-                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, "S3 season_data.csv 読み込みエラー", e);
+        	String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
+	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e, "S3 season_data.csv ダウンロードエラー");
+	        this.manageLoggerComponent.createBusinessException(
+		            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, e);
             return null;
 
         }

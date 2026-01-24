@@ -87,13 +87,14 @@ public class ManageLoggerComponentImpl implements ManageLoggerComponent {
 	 */
 	@Override
 	public void createBusinessException(String projectName, String className, String methodName, String errorCode,
-			Throwable exception) {
+			Throwable exception, Exception exceptionExp) {
 		throw new BusinessException(
 				projectName,
 				className,
 				methodName,
 				errorCode,
-				exception);
+				exception,
+				exceptionExp);
 	}
 
 	/**
@@ -101,13 +102,14 @@ public class ManageLoggerComponentImpl implements ManageLoggerComponent {
 	 */
 	@Override
 	public void createSystemException(String projectName, String className, String methodName, String errorCode,
-			Throwable exception) {
+			Throwable exception, Exception exceptionExp) {
 		throw new SystemException(
 				projectName,
 				className,
 				methodName,
 				errorCode,
-				exception);
+				exception,
+				exceptionExp);
 	}
 
 

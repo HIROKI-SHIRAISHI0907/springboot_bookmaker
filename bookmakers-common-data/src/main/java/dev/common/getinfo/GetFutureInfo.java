@@ -18,6 +18,7 @@ import org.springframework.stereotype.Component;
 
 import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.FutureEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.ReadFuture;
@@ -79,8 +80,9 @@ public class GetFutureInfo {
 	    Map<String, List<FutureEntity>> resultMap = new HashMap<>();
 
 	    if (fileStatList.isEmpty()) {
+	    	String msgCd = MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP;
 	        this.manageLoggerComponent.debugInfoLog(
-	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "データなし(S3)", "GetFutureInfo");
+	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, "データなし(S3)");
 	        return resultMap;
 	    }
 
@@ -104,22 +106,25 @@ public class GetFutureInfo {
 
 	        for (Future<ReadFileOutputDTO> f : futures) {
 	            if (f.isCancelled()) {
+	            	String msgCd = MessageCdConst.MCD00003E_EXECUTION_SKIP;
 	                this.manageLoggerComponent.debugErrorLog(
-	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ReadFutureS3 timeout/cancel", null);
+	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, "ReadFutureS3 timeout/cancel");
 	                continue;
 	            }
 	            ReadFileOutputDTO dto = f.get();
 	            if (!BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
+	            	String msgCd = MessageCdConst.MCD00003E_EXECUTION_SKIP;
 	                this.manageLoggerComponent.debugErrorLog(
-	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null,
 	                    "ReadFutureS3 failed [" +
-	                    dto.getThrowAble() + "]", null);
+	                    dto.getThrowAble() + "]");
 	                continue;
 	            }
 	            List<FutureEntity> entity = dto.getFutureList();
 	            if (entity == null || entity.isEmpty()) {
+	            	String msgCd = MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP;
 	            	this.manageLoggerComponent.debugInfoLog(
-		                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, null);
+		                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, "dataList is empty");
 	            	continue;
 	            }
 
@@ -129,14 +134,16 @@ public class GetFutureInfo {
 	        }
 
 	    } catch (InterruptedException ie) {
-	        Thread.currentThread().interrupt();
+	    	Thread.currentThread().interrupt();
+	        String msgCd = MessageCdConst.MCD00004E_THREAD_INTERRUPTION;
 	        this.manageLoggerComponent.createBusinessException(
-	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "スレッド中断", ie);
+	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, ie);
 
 	    } catch (Exception e) {
-	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e);
+	    	String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
+	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e, "S3 Future読み込みエラー");
 	        this.manageLoggerComponent.createBusinessException(
-	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "S3 Future読み込みエラー", e);
+	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, e);
 
 	    } finally {
 	        executor.shutdown();

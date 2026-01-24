@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.common.config.PathConfig;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.ReadTeamMember;
@@ -71,8 +72,9 @@ public class GetTeamMemberInfo {
         Map<String, List<TeamMemberMasterEntity>> resultMap = new HashMap<>();
 
         if (keys == null || keys.isEmpty()) {
-            this.manageLoggerComponent.debugInfoLog(
-                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, "データなし(S3)", "GetTeamMemberInfo");
+        	String msgCd = MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP;
+	        this.manageLoggerComponent.debugInfoLog(
+	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, "データなし(S3)");
             return resultMap;
         }
 
@@ -109,9 +111,10 @@ public class GetTeamMemberInfo {
             }
 
         } catch (Exception e) {
-            this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e);
-            this.manageLoggerComponent.createBusinessException(
-                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, "GetTeamMemberInfo(S3): read error", e);
+        	String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
+	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e, "S3 teamMemberData");
+	        this.manageLoggerComponent.createBusinessException(
+	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, e);
 
         } finally {
             executor.shutdown();

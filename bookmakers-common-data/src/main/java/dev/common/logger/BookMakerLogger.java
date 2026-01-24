@@ -87,7 +87,7 @@ public class BookMakerLogger {
 	public static void info(String projectName, String className, String methodName, String messageCd,
 			String... fillChar) {
 		Logger logger = LoggerFactory.getLogger(className);
-		String msg = buildMessage(projectName, className, methodName, messageCd, null, fillChar);
+		String msg = buildMessage(projectName, className, methodName, "INFO:" + messageCd, null, fillChar);
 		logger.info(msg);
 	}
 
@@ -102,7 +102,7 @@ public class BookMakerLogger {
 	public static void warn(String projectName, String className, String methodName, String messageCd,
 			String... fillChar) {
 		Logger logger = LoggerFactory.getLogger(className);
-		String msg = buildMessage(projectName, className, methodName, messageCd, null, fillChar);
+		String msg = buildMessage(projectName, className, methodName, "WARN:" + messageCd, null, fillChar);
 		logger.warn(msg);
 	}
 
