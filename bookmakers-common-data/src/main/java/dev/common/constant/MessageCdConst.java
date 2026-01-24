@@ -17,16 +17,16 @@ public class MessageCdConst {
 	public static final String MCD00003I_EXECUTION_SKIP = "MCD00003I";
 
 	/** MCD00004I: 処理が正常終了しました。(理由: {1}) */
-	public static final String MCD00004I_OTHER_EXECUTION_GREEN_FIN = "MCD00001I";
+	public static final String MCD00004I_OTHER_EXECUTION_GREEN_FIN = "MCD00004I";
 
-	/** MCD00001I: 処理が正常終了しました。(バッチ名: {1}) */
-	public static final String MCD00001I_BATCH_EXECUTION_GREEN_FIN = "MCD00001I";
+	/** MCD00005I: 登録処理が成功しました。(備考: {1}) */
+	public static final String MCD00005I_INSERT_SUCCESS = "MCD00005I";
 
-	/** MCD00001I: 処理が正常終了しました。(バッチ名: {1}) */
-	public static final String MCD00001I_BATCH_EXECUTION_GREEN_FIN = "MCD00001I";
+	/** MCD00006I: 更新処理が成功しました。(備考: {1}) */
+	public static final String MCD00006I_UPDATE_SUCCESS = "MCD00006I";
 
-	/** MCD00001I: 処理が正常終了しました。(バッチ名: {1}) */
-	public static final String MCD00001I_BATCH_EXECUTION_GREEN_FIN = "MCD00001I";
+	/** MCD00007I: 削除処理が成功しました。(備考: {1}) */
+	public static final String MCD00007I_DELETE_SUCCESS = "MCD00007I";
 
 	/** MCD00001I: 処理が正常終了しました。(バッチ名: {1}) */
 	public static final String MCD00001I_BATCH_EXECUTION_GREEN_FIN = "MCD00001I";
@@ -58,11 +58,14 @@ public class MessageCdConst {
 	/** MCD00006E: 非同期エラーが発生しました。処理を中断します。(備考: {1}) */
 	public static final String MCD00006E_ASYNCHRONOUS_ERROR = "MCD00006E";
 
-	/** MCD00003E: 処理をスキップします。(理由: {1}) */
-	public static final String MCD00003E_EXECUTION_SKIP = "MCD00003E";
+	/** MCD00007E: 登録処理が失敗しました。(理由: {1}) */
+	public static final String MCD00007E_INSERT_FAILED = "MCD00007E";
 
-	/** MCD00003E: 処理をスキップします。(理由: {1}) */
-	public static final String MCD00003E_EXECUTION_SKIP = "MCD00003E";
+	/** MCD00008E: 更新処理が失敗しました。(理由: {1}) */
+	public static final String MCD00008E_UPDATE_FAILED = "MCD00008E";
+
+	/** MCD00009E: 削除処理が失敗しました。(理由: {1}) */
+	public static final String MCD00009E_DELETE_FAILED = "MCD00009E";
 
 	/** MCD00003E: 処理をスキップします。(理由: {1}) */
 	public static final String MCD00003E_EXECUTION_SKIP = "MCD00003E";
