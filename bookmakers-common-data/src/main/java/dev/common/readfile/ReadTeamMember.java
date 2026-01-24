@@ -1,9 +1,9 @@
 package dev.common.readfile;
 
 import java.io.BufferedReader;
-import java.io.File;
-import java.io.FileInputStream;
+import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -44,107 +44,107 @@ public class ReadTeamMember implements ReadFileBodyIF {
 	 * @return readFileOutputDTO
 	 */
 	@Override
-	public ReadFileOutputDTO getFileBody(String fileFullPath) {
-		final String METHOD_NAME = "getFileBody";
+	public ReadFileOutputDTO getFileBodyFromStream(InputStream is, String key) {
+	    final String METHOD_NAME = "getFileBodyFromStream";
 
-		this.manageLoggerComponent.init(EXEC_MODE, fileFullPath);
-		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	    this.manageLoggerComponent.init(EXEC_MODE, key);
+	    this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		String errCd = BookMakersCommonConst.NORMAL_CD;
-		String fillChar = "";
+	    String errCd = BookMakersCommonConst.NORMAL_CD;
+	    String fillChar = "";
 
-		ReadFileOutputDTO readFileOutputDTO = new ReadFileOutputDTO();
-		File file = new File(fileFullPath);
-		List<TeamMemberMasterEntity> entiryList = new ArrayList<>();
+	    ReadFileOutputDTO dto = new ReadFileOutputDTO();
+	    List<TeamMemberMasterEntity> entiryList = new ArrayList<>();
 
-		try (BufferedReader br = new BufferedReader(
-				new InputStreamReader(new FileInputStream(file)))) {
+	    try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
+	        String text;
+	        int row = 0;
+	        while ((text = br.readLine()) != null) {
+	            row++;
+	            // 1行目ヘッダーはスキップ
+	            if (row == 1) continue;
+	            if (text.trim().isEmpty()) continue;
+	            String[] parts = text.split(",", -1);
+	            // 列数ガード（最低15列想定）
+	            if (parts.length < 15) {
+	                errCd = BookMakersCommonConst.ERR_CD_ABNORMALY_DATA;
+	                String msg = "column shortage"
+	                        + " key=" + key
+	                        + " row=" + row
+	                        + " cols=" + parts.length;
+	                this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, null);
+	                fillChar += msg + "|| ";
+	                continue;
+	            }
 
-			String text;
-			int row = 0;
-			while ((text = br.readLine()) != null) {
-				row++;
+	            TeamMemberMasterEntity mappingDto = new TeamMemberMasterEntity();
+	            mappingDto.setFile(key);
+	            mappingDto.setCountry(parts[0]);
+	            mappingDto.setLeague(parts[1]);
+	            mappingDto.setTeam(parts[2]);
+	            mappingDto.setMember(parts[3]);
+	            mappingDto.setPosition(parts[4]);
+	            mappingDto.setJersey(parts[5].replace("N/A", "").replace(".0", ""));
+	            mappingDto.setScore(parts[6].replace(".0", ""));
+	            mappingDto.setAge(parts[7].replace(".0", ""));
 
-				// ヘッダーは読み込まない（1行目）
-				if (row == 1) {
-					continue;
-				}
-				// カンマ分割
-				String[] parts = text.split(",", -1);
-				TeamMemberMasterEntity mappingDto = new TeamMemberMasterEntity();
-				mappingDto.setFile(fileFullPath);
-				mappingDto.setCountry(parts[0]);
-				mappingDto.setLeague(parts[1]);
-				mappingDto.setTeam(parts[2]);
-				mappingDto.setMember(parts[3]);
-				mappingDto.setPosition(parts[4]);
-				mappingDto.setJersey(parts[5].replace("N/A", "").replace(".0", ""));
-				mappingDto.setScore(parts[6].replace(".0", ""));
-				mappingDto.setAge(parts[7].replace(".0", ""));
-				// birth
-                try {
-                    mappingDto.setBirth(DateUtil.convertOnlyDD_MM_YYYY(parts[8]));
-                } catch (Exception e) {
-                    errCd = BookMakersCommonConst.ERR_CD_ABNORMALY_DATA;
+	            // birth
+	            try {
+	                mappingDto.setBirth(DateUtil.convertOnlyDD_MM_YYYY(parts[8]));
+	            } catch (Exception e) {
+	                errCd = BookMakersCommonConst.ERR_CD_ABNORMALY_DATA;
+	                String msg = "birth parse error"
+	                        + " key=" + key
+	                        + " row=" + row
+	                        + " raw=[" + parts[8] + "]";
+	                this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, e);
+	                fillChar += msg + ", " + e + "|| ";
+	                mappingDto.setBirth("");
+	            }
 
-                    String msg = "birth parse error"
-                            + " file=" + fileFullPath
-                            + " row=" + row
-                            + " raw=[" + parts[8] + "]";
-                    this.manageLoggerComponent.debugErrorLog(
-                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, e);
+	            mappingDto.setMarketValue(parts[9].replace("N/A", ""));
+	            mappingDto.setLoanBelong(parts[10]);
 
-                    fillChar += msg + ", " + e + "|| ";
-                    // birthは空で続行（必要なら continue; に変えて行ごと除外でもOK）
-                    mappingDto.setBirth("");
-                }
-				mappingDto.setMarketValue(parts[9].replace("N/A", ""));
-				mappingDto.setLoanBelong(parts[10]);
-				// deadlineContractDate
-                try {
-                    mappingDto.setDeadlineContractDate(
-                            DateUtil.convertOnlyDD_MM_YYYY(parts[11].replace("N/A", ""))
-                    );
-                } catch (Exception e) {
-                    errCd = BookMakersCommonConst.ERR_CD_ABNORMALY_DATA;
+	            // deadlineContractDate
+	            try {
+	                mappingDto.setDeadlineContractDate(
+	                        DateUtil.convertOnlyDD_MM_YYYY(parts[11].replace("N/A", ""))
+	                );
+	            } catch (Exception e) {
+	                errCd = BookMakersCommonConst.ERR_CD_ABNORMALY_DATA;
+	                String msg = "deadlineContractDate parse error"
+	                        + " key=" + key
+	                        + " row=" + row
+	                        + " raw=[" + parts[11] + "]";
+	                this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, e);
+	                fillChar += msg + ", " + e + "|| ";
+	                mappingDto.setDeadlineContractDate("");
+	            }
 
-                    String msg = "deadlineContractDate parse error"
-                            + " file=" + fileFullPath
-                            + " row=" + row
-                            + " raw=[" + parts[11] + "]";
-                    this.manageLoggerComponent.debugErrorLog(
-                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, e);
+	            mappingDto.setFacePicPath(parts[12]);
+	            mappingDto.setInjury(parts[13]);
+	            mappingDto.setLatestInfoDate(parts[14]);
 
-                    fillChar += msg + ", " + e + "|| ";
-                    // 日付だけ捨てて続行
-                    mappingDto.setDeadlineContractDate("");
-                }
-                mappingDto.setFacePicPath(parts[12]);
-                mappingDto.setInjury(parts[13]);
-                mappingDto.setLatestInfoDate(parts[14]);
+	            entiryList.add(mappingDto);
+	        }
 
-                // ★ここ重要：errCdで全体をnullにすると、その後の正常行まで捨てる可能性あり
-                // なので「行単位で落とす」か「項目だけ空で続行」にするのがおすすめ
-                entiryList.add(mappingDto);
-			}
-			readFileOutputDTO.setResultCd(errCd);
-			readFileOutputDTO.setMemberList(entiryList);
-			readFileOutputDTO.setErrMessage(fillChar);
-		} catch (Exception e) {
-			readFileOutputDTO.setExceptionProject(PROJECT_NAME);
-			readFileOutputDTO.setExceptionClass(CLASS_NAME);
-			readFileOutputDTO.setExceptionMethod(METHOD_NAME);
-			readFileOutputDTO.setResultCd(BookMakersCommonConst.ERR_CD_ERR_FILE_READS);
-			readFileOutputDTO.setErrMessage(BookMakersCommonConst.ERR_MESSAGE_ERR_FILE_READS);
-			readFileOutputDTO.setThrowAble(e);
-			return readFileOutputDTO;
-		}
+	        dto.setResultCd(errCd);
+	        dto.setMemberList(entiryList);
+	        dto.setErrMessage(fillChar);
+	        return dto;
 
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		this.manageLoggerComponent.clear();
+	    } catch (Exception e) {
+	        dto.setExceptionProject(PROJECT_NAME);
+	        dto.setExceptionClass(CLASS_NAME);
+	        dto.setExceptionMethod(METHOD_NAME);
+	        dto.setResultCd(BookMakersCommonConst.ERR_CD_ERR_FILE_READS);
+	        dto.setErrMessage(BookMakersCommonConst.ERR_MESSAGE_ERR_FILE_READS);
+	        dto.setThrowAble(e);
+	        return dto;
 
-		return readFileOutputDTO;
+	    } finally {
+	        this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	        this.manageLoggerComponent.clear();
+	    }
 	}
-
 }
