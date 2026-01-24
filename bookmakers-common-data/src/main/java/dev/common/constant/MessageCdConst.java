@@ -28,17 +28,23 @@ public class MessageCdConst {
 	/** MCD00007I: 削除処理が成功しました。(備考: {1}) */
 	public static final String MCD00007I_DELETE_SUCCESS = "MCD00007I";
 
-	/** MCD00001I: 処理が正常終了しました。(バッチ名: {1}) */
-	public static final String MCD00001I_BATCH_EXECUTION_GREEN_FIN = "MCD00001I";
+	/** MCD00008I: 得点が発生しませんでしたのでスキップします。(備考: {1}) */
+	public static final String MCD00008I_NO_SCORE_SKIP = "MCD00008I";
 
-	/** MCD00001I: 処理が正常終了しました。(バッチ名: {1}) */
-	public static final String MCD00001I_BATCH_EXECUTION_GREEN_FIN = "MCD00001I";
+	/** MCD00009I: 重複or競合が起きたので再取得登録しました。(備考: {1}) */
+	public static final String MCD00009I_REINSERT_DUE_TO_DUPLICATION_OR_COMPETITION = "MCD00009I";
 
-	/** MCD00001I: 処理が正常終了しました。(バッチ名: {1}) */
-	public static final String MCD00001I_BATCH_EXECUTION_GREEN_FIN = "MCD00001I";
+	/** MCD00010I: キュー監視モニター用ログです。(備考: {1}) */
+	public static final String MCD00010I_MONITORING_QUEUE_LOG = "MCD00010I";
 
-	/** MCD00001I: 処理が正常終了しました。(バッチ名: {1}) */
-	public static final String MCD00001I_BATCH_EXECUTION_GREEN_FIN = "MCD00001I";
+	/** MCD00011I: バルク登録処理が成功しました。(備考: {1}) */
+	public static final String MCD00011I_BULKINSERT_SUCCESS = "MCD00011I";
+
+	/** MCD00012I: 件数反映処理が成功しました。(備考: {1}) */
+	public static final String MCD00012I_COUNTER_REFLECTION_SUCCESS = "MCD00012I";
+
+	/** MCD00099I: 途中ログ (備考: {1}) */
+	public static final String MCD00099I_LOG = "MCD00099I";
 
 	/** MCD00001E: 処理が異常終了しました。(バッチ名: {1}) */
 	public static final String MCD00001E_BATCH_EXECUTION_GREEN_FIN = "MCD00001E";
@@ -67,11 +73,14 @@ public class MessageCdConst {
 	/** MCD00009E: 削除処理が失敗しました。(理由: {1}) */
 	public static final String MCD00009E_DELETE_FAILED = "MCD00009E";
 
-	/** MCD00003E: 処理をスキップします。(理由: {1}) */
-	public static final String MCD00003E_EXECUTION_SKIP = "MCD00003E";
+	/** MCD00010E: テーブル名の解決ができませんでした。(理由: {1}) */
+	public static final String MCD00010E_TABLE_NAME_ERROR = "MCD00010E";
 
-	/** MCD00003E: 処理をスキップします。(理由: {1}) */
-	public static final String MCD00003E_EXECUTION_SKIP = "MCD00003E";
+	/** MCD00011E: バルク登録処理が失敗しました。(理由: {1}) */
+	public static final String MCD00011E_BULKINSERT_FAILED = "MCD00011E";
+
+	/** MCD00012E: 件数反映処理が失敗しました。(理由: {1}) */
+	public static final String MCD00012E_COUNTER_REFLECTION_FAILED = "MCD00012E";
 
 	/** MCD00003E: 処理をスキップします。(理由: {1}) */
 	public static final String MCD00003E_EXECUTION_SKIP = "MCD00003E";
