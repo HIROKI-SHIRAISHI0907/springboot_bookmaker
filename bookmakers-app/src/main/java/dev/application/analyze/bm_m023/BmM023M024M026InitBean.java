@@ -7,6 +7,7 @@ import org.springframework.stereotype.Component;
 
 import dev.application.analyze.bm_m024.CalcCorrelationEntity;
 import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureEntity;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
 import jakarta.annotation.PostConstruct;
@@ -156,8 +157,8 @@ public class BmM023M024M026InitBean {
 		}
 
 		if (startIdx == -1 || endIdx == -1 || startIdx > endIdx) {
-			String fillChar = "startIdx: " + startIdx + ", endIdx: " + endIdx;
-			String messageCd = "初期化エラー: 対象フィールド範囲なし";
+			String messageCd = MessageCdConst.MCD00013E_INITILIZATION_ERROR;
+			String fillChar = "対象フィールド範囲なし";
 			this.loggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, fillChar);
 			this.loggerComponent.createBusinessException(
@@ -165,7 +166,7 @@ public class BmM023M024M026InitBean {
 					CLASS_NAME,
 					METHOD_NAME,
 					messageCd,
-					null);
+					null, null);
 		}
 		// 初期化
 		for (int cnt = 0; cnt < AverageStatisticsSituationConst.COUNTER; cnt++) {

@@ -9,6 +9,7 @@ import org.springframework.stereotype.Component;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.bm.TeamMatchFinalStatsRepository;
 import dev.common.constant.BookMakersCommonConst;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
@@ -31,6 +32,9 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M021_TEAM_MATCH_FINAL";
+
+	/** BM_STAT_NUMBER */
+	private static final String BM_NUMBER = "BM_M021";
 
 	/** TeamMatchFinalStatsRepositoryレポジトリクラス */
 	@Autowired
@@ -63,8 +67,9 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 			Map<String, List<BookDataEntity>> matchMap = entry.getValue();
 			for (List<BookDataEntity> dataList : matchMap.values()) {
 				BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(dataList);
+				String messageCd = MessageCdConst.MCD00099I_LOG;
 				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, returnMaxEntity.getFilePath());
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, returnMaxEntity.getFilePath());
 				if (!finDataExistsChk(returnMaxEntity))
 					continue;
 				// 支配率,3分割データについて設定
@@ -89,7 +94,7 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 		final String METHOD_NAME = "saveTeamMatchData";
 		int result = this.teamMatchFinalStatsRepository.insert(entities);
 		if (result != 1) {
-			String messageCd = "新規登録エラー";
+			String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 			this.rootCauseWrapper.throwUnexpectedRowCount(
 			        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 			        messageCd,
@@ -97,9 +102,10 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 			        null
 			    );
 		}
-		String messageCd = "登録件数";
+
+		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M021 登録件数: 1件");
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: " + result + "件 (" + fillChar + ")");
 	}
 
 	/**
@@ -113,7 +119,7 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 				entity.getHomeTeamName(), entity.getAwayTeamName());
 		// 最大通番を持つデータを取得
 		if (!BookMakersCommonConst.FIN.equals(entity.getTime())) {
-			String messageCd = "終了済データなし";
+			String messageCd = MessageCdConst.MCD00013I_NO_FIN_DATA;
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar);
 			return false;

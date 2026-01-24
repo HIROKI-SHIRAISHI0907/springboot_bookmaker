@@ -20,6 +20,7 @@ import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.bm.ScoreBasedFeatureStatsRepository;
 import dev.application.domain.repository.bm.StatEncryptionRepository;
 import dev.common.constant.BookMakersCommonConst;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
@@ -42,6 +43,9 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M023_SCORE_BASED_FEATURE";
+
+	/** BM_STAT_NUMBER */
+	private static final String BM_NUMBER = "BM_M023";
 
 	/** Beanクラス */
 	@Autowired
@@ -128,17 +132,19 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			StatEncryptionEntity newEntrys = encryption(entrys);
 			int result = this.statEncryptionRepository.insert(newEntrys);
 			if (result != 1) {
-				String messageCd = "新規登録エラー";
-				this.rootCauseWrapper.throwUnexpectedRowCount(
-				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-				        messageCd,
-				        1, result,
-				        null
-				    );
+				if (result != 1) {
+					String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
+					this.rootCauseWrapper.throwUnexpectedRowCount(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+							messageCd,
+							1, result,
+							null);
+				}
+
+				String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
+				this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: " + result + "件");
 			}
-			String messageCd = "登録件数";
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, "BM_M030 登録件数: 1件");
 		}
 
 		// endLog
@@ -457,21 +463,23 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				entity.getLeague());
 		int result = this.scoreBasedFeatureStatsRepository.insert(entity);
 		if (result != 1) {
-			String messageCd = "新規登録エラー";
-			this.rootCauseWrapper.throwUnexpectedRowCount(
-			        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-			        messageCd,
-			        1, result,
-			        null
-			    );
+			if (result != 1) {
+				String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, fillChar);
+				this.manageLoggerComponent.createSystemException(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, null);
+			}
+
+			String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+					BM_NUMBER + " 登録件数: " + result + "件 (" + fillChar + ")");
 		}
-		String messageCd = "登録件数";
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M023 登録件数: 1件");
 	}
 
 	/**
-	 * 登録メソッド
+	 * 更新メソッド
 	 * @param entity エンティティ
 	 */
 	private void update(ScoreBasedFeatureStatsEntity entity) {
@@ -483,17 +491,17 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				entity.getLeague());
 		int result = this.scoreBasedFeatureStatsRepository.updateStatValues(entity);
 		if (result != 1) {
-			String messageCd = "更新エラー";
-			this.rootCauseWrapper.throwUnexpectedRowCount(
-			        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-			        messageCd,
-			        1, result,
-			        String.format("id=%s, count=%s, remarks=%s", entity.getId(), null, null)
-			    );
+			String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, fillChar);
+			this.manageLoggerComponent.createSystemException(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, null);
 		}
-		String messageCd = "登録件数";
+
+		String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M023 更新件数: 1件");
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+				BM_NUMBER + " 更新件数: " + result + "件 (" + fillChar + ")");
 	}
 
 	/**
@@ -555,9 +563,10 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 						tSigmaCntList[idx] = Integer.parseInt(values[15]);
 					}
 				} catch (Exception e) {
+					String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
 					this.manageLoggerComponent.debugErrorLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							"リフレクションエラー", e,
+							messageCd, e,
 							"対象フィールド: " + field.getName());
 				}
 			}
@@ -600,7 +609,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				// 件数カウント
 				cntList[idx]++;
 			} catch (Exception e) {
-				String messageCd = "リフレクションエラー";
+				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 			}
@@ -634,7 +643,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				// 件数カウント
 				cntList[idx]++;
 			} catch (Exception e) {
-				String messageCd = "リフレクションエラー";
+				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 			}
@@ -678,7 +687,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				// 件数カウント
 				cntList[idx]++;
 			} catch (Exception e) {
-				String messageCd = "リフレクションエラー";
+				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 			}
@@ -712,7 +721,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				// 件数カウント
 				cntList[idx]++;
 			} catch (Exception e) {
-				String messageCd = "リフレクションエラー";
+				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 			}
@@ -758,13 +767,12 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				// 件数カウント
 				cntList[idx]++;
 			} catch (NumberFormatException e) {
-				// 数値変換失敗時はスキップ（加算しない）
+				String messageCd = MessageCdConst.MCD00015E_NUMBERFORMAT_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						"NumberFormatException: " + field.getName(), e, fillChar);
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+						e, fillChar);
 			} catch (Exception e) {
-				// リフレクション等の例外
-				String messageCd = "リフレクションエラー";
+				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 			}
@@ -794,12 +802,12 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				aveList[idx] = String.valueOf(aveTimeTmpsValue + currentTimeValue) + "'";
 				cntList[idx]++;
 			} catch (NumberFormatException e) {
-				// 数値変換失敗時はスキップ（加算しない）
+				String messageCd = MessageCdConst.MCD00015E_NUMBERFORMAT_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						"NumberFormatException", e, fillChar);
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+						e, fillChar);
 			} catch (Exception e) {
-				String messageCd = "リフレクションエラー";
+				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 			}
@@ -846,13 +854,12 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				sigmaList[idx] = String.valueOf(prev + diffSquared);
 				cntList[idx]++;
 			} catch (NumberFormatException e) {
-				// 数値変換失敗時はスキップ（加算しない）
+				String messageCd = MessageCdConst.MCD00015E_NUMBERFORMAT_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						"NumberFormatException: " + field.getName(), e, fillChar);
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+						e, fillChar);
 			} catch (Exception e) {
-				// リフレクション等の例外
-				String messageCd = "リフレクションエラー";
+				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 			}
@@ -896,12 +903,12 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				cntList[idx]++;
 			}
 		} catch (NumberFormatException e) {
-			// 数値変換失敗時はスキップ（加算しない）
+			String messageCd = MessageCdConst.MCD00015E_NUMBERFORMAT_ERROR;
 			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					"NumberFormatException", e, fillChar);
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+					e, fillChar);
 		} catch (Exception e) {
-			String messageCd = "リフレクションエラー";
+			String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 		}
@@ -976,7 +983,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				// 件数カウント
 				cntList[idx] = cnt;
 			} catch (Exception e) {
-				String messageCd = "リフレクションエラー";
+				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 			}
@@ -1060,7 +1067,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				// 件数カウント
 				cntList[idx] = cnt;
 			} catch (Exception e) {
-				String messageCd = "リフレクションエラー";
+				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 			}
@@ -1112,9 +1119,9 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				list[i - FEATURE_START] = format;
 			}
 		} catch (Exception ex) {
+			String messageCd = MessageCdConst.MCD00016E_FORMAT_ERROR;
 			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					"形式更新中に例外発生", ex, feature_name);
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex, feature_name);
 		}
 	}
 
@@ -1159,12 +1166,12 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			// String 型のフィールドに値を代入
 			field.set(entity, insertStr);
 		} catch (Exception e) {
-			String messageCd = "リフレクションエラー";
-			String fillChar = "ScoreBasedFeatureStatsEntity への値設定エラー";
+			String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
+			String fillChar = "ScoreBasedFeatureEntity への値設定エラー";
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 			this.manageLoggerComponent.createSystemException(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, null);
 		}
 		return entity;
 	}
@@ -1219,7 +1226,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	private synchronized StatEncryptionEntity buildBmM30Form(final List<BookDataEntity> entities,
 			String country, String league, String chkBody,
 			Map<String, Function<BookDataEntity, String>> fieldMap) {
-
+		final String METHOD_NAME = "buildBmM30Form";
 		StatEncryptionEntity result = new StatEncryptionEntity();
 		for (Map.Entry<String, Function<BookDataEntity, String>> entry : fieldMap.entrySet()) {
 			String fieldName = entry.getKey();
@@ -1230,7 +1237,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 						try {
 							return getter.apply(e);
 						} catch (Exception ex) {
-							System.err.println("getter失敗: " + fieldName);
 							return "";
 						}
 					})
@@ -1241,8 +1247,9 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				field.setAccessible(true);
 				field.set(result, joinedValue);
 			} catch (NoSuchFieldException | IllegalAccessException e) {
-				System.err.println("フィールド代入失敗: " + fieldName);
-				e.printStackTrace();
+				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fieldName);
 			}
 		}
 		// setterでセット
@@ -1279,19 +1286,20 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				i++;
 			}
 		} catch (Exception e) {
+			String messageCd = MessageCdConst.MCD00017E_ENCRYPTION_ERROR;
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME,
 					CLASS_NAME,
 					METHOD_NAME,
-					null,
+					messageCd,
 					e,
 					"StatEncryptionEntityの暗号化に失敗しました");
 			this.manageLoggerComponent.createSystemException(
 					PROJECT_NAME,
 					CLASS_NAME,
 					METHOD_NAME,
-					null,
-					null);
+					messageCd,
+					null, null);
 		}
 		return encryptedEntity;
 	}
@@ -1320,17 +1328,14 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				// 件数カウント
 				cnt++;
 			} catch (NumberFormatException e) {
-				// 数値変換失敗時はスキップ（加算しない）
+				String messageCd = MessageCdConst.MCD00015E_NUMBERFORMAT_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						null, e);
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+						e, numericStr);
 			} catch (Exception e) {
-				// リフレクション等の例外
-				String messageCd = "リフレクションエラー";
+				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, numericStr);
 			}
 		}
 		String skewOrKurtSumAve = String.valueOf(sum);
@@ -1367,17 +1372,14 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				// 件数カウント
 				cnt++;
 			} catch (NumberFormatException e) {
-				// 数値変換失敗時はスキップ（加算しない）
+				String messageCd = MessageCdConst.MCD00015E_NUMBERFORMAT_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						null, e);
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+						e, numericStr);
 			} catch (Exception e) {
-				// リフレクション等の例外
-				String messageCd = "リフレクションエラー";
+				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, numericStr);
 			}
 		}
 		String skewOrKurtSumSigma = String.valueOf(sum);
