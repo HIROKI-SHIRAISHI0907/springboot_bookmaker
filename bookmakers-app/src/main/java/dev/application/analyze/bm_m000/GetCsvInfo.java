@@ -19,7 +19,7 @@ import dev.common.entity.BookDataEntity;
 import dev.common.find.dto.FindBookInputDTO;
 import dev.common.find.dto.FindBookOutputDTO;
 import dev.common.findcsv.FindStat;
-import dev.common.getstatinfo.GetStatInfo;
+import dev.common.getinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.ReadStat;
 import dev.common.readfile.dto.ReadFileOutputDTO;

@@ -14,7 +14,7 @@ import dev.application.common.SurfaceOverviewTestData;
 import dev.application.domain.repository.bm.SurfaceOverviewRepository;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
-import dev.common.getstatinfo.GetStatInfo;
+import dev.common.getinfo.GetStatInfo;
 
 /**
  * BM_M025統計分析ロジックテスト

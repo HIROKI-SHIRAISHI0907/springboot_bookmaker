@@ -9,7 +9,7 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
 import dev.common.entity.BookDataEntity;
-import dev.common.getstatinfo.GetStatInfo;
+import dev.common.getinfo.GetStatInfo;
 
 /**
  * BM_M006統計分析ロジックテスト

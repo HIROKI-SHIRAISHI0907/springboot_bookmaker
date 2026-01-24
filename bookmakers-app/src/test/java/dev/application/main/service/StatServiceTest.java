@@ -10,7 +10,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 
 import dev.common.entity.BookDataEntity;
-import dev.common.getstatinfo.GetStatInfo;
+import dev.common.getinfo.GetStatInfo;
 
 @SpringBootTest
 class StatServiceTest {

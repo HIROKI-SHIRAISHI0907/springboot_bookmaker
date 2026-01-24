@@ -10,7 +10,7 @@ import dev.application.analyze.bm_m027.RankingService;
 import dev.application.analyze.interf.ServiceIF;
 import dev.common.constant.BatchResultConst;
 import dev.common.entity.BookDataEntity;
-import dev.common.getstatinfo.GetStatInfo;
+import dev.common.getinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
 
 /**

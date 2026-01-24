@@ -12,7 +12,7 @@ import dev.application.analyze.bm_m001.OriginStat;
 import dev.application.analyze.interf.OriginIF;
 import dev.common.entity.BookDataEntity;
 import dev.common.entity.DataEntity;
-import dev.common.getstatinfo.GetOriginInfo;
+import dev.common.getinfo.GetOriginInfo;
 import dev.common.logger.ManageLoggerComponent;
 
 /**

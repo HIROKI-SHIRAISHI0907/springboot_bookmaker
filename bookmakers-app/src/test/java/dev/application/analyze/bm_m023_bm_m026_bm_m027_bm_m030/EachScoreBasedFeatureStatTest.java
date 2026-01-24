@@ -10,7 +10,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureStat;
 import dev.common.entity.BookDataEntity;
-import dev.common.getstatinfo.GetStatInfo;
+import dev.common.getinfo.GetStatInfo;
 
 /**
  * BM_M023統計分析ロジックテスト

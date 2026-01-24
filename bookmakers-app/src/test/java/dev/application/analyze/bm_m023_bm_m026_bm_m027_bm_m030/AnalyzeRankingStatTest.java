@@ -10,7 +10,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import dev.application.analyze.bm_m027.AnalyzeRankingStat;
 import dev.common.entity.BookDataEntity;
-import dev.common.getstatinfo.GetStatInfo;
+import dev.common.getinfo.GetStatInfo;
 
 /**
  * BM_M027統計分析ロジックテスト

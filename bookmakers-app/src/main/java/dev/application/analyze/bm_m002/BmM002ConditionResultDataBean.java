@@ -10,6 +10,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import dev.application.domain.repository.bm.ConditionResultDataRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.ReadStat;
 import jakarta.annotation.PostConstruct;
@@ -85,14 +86,11 @@ public class BmM002ConditionResultDataBean {
 			this.hash = hash;
 		} catch (Exception e) {
 			String fillChar = (e.getMessage() != null) ? e.getMessage() : null;
+			String msgCd = MessageCdConst.MCD00002E_BATCH_EXECUTION_SKIP;
 			this.loggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e, fillChar);
-			this.loggerComponent.createBusinessException(
-					PROJECT_NAME,
-					CLASS_NAME,
-					METHOD_NAME,
-					null,
-					null);
+	        this.loggerComponent.createBusinessException(
+	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, null);
 		}
 
 		// hashを条件にDBから値を取得(1件の想定)

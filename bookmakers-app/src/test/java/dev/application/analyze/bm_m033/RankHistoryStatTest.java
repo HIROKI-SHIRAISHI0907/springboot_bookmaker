@@ -14,7 +14,7 @@ import org.springframework.test.context.ActiveProfiles;
 
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
-import dev.common.getstatinfo.GetStatInfo;
+import dev.common.getinfo.GetStatInfo;
 
 /**
  * BM_M033統計分析ロジックテスト

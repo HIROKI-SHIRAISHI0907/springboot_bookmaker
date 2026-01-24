@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.bm.TeamMonthlyScoreSummaryRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
@@ -69,8 +70,6 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 				int prevHomeScore = 0;
 				int prevAwayScore = 0;
 				for (BookDataEntity entity : entityList) {
-					this.manageLoggerComponent.debugInfoLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, entity.getFilePath());
 					String recordTime = entity.getRecordTime();
 					if (recordTime == null || recordTime.length() < 7)
 						continue;
@@ -243,7 +242,7 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 		if (updFlg) {
 			int result = this.teamMonthlyScoreSummaryRepository.update(teamMonthlyScoreSummaryEntity);
 			if (result != 1) {
-				String messageCd = "更新エラー";
+				String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
 				this.rootCauseWrapper.throwUnexpectedRowCount(
 				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 				        messageCd,
@@ -252,13 +251,13 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 				    );
 			}
 
-			String messageCd = "更新件数";
+			String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "BM_M003 更新件数: 1件");
 		} else {
 			int result = this.teamMonthlyScoreSummaryRepository.insertTeamMonthlyScore(teamMonthlyScoreSummaryEntity);
 			if (result != 1) {
-				String messageCd = "新規登録エラー";
+				String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 				this.rootCauseWrapper.throwUnexpectedRowCount(
 				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 				        messageCd,
@@ -267,7 +266,7 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 				    );
 			}
 
-			String messageCd = "登録件数";
+			String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "BM_M003 登録件数: 1件");
 		}
