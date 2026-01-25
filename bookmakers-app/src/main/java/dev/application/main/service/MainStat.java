@@ -36,7 +36,7 @@ public class MainStat implements ServiceIF {
 
 	/** StatService */
 	@Autowired
-	private StatService statService;
+	private CoreStat statService;
 
 	/** RankingService */
 	@Autowired

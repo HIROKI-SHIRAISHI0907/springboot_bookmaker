@@ -33,14 +33,14 @@ import dev.common.logger.ManageLoggerComponent;
  */
 @Service
 @Transactional
-public class StatService implements StatIF {
+public class CoreStat implements StatIF {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = StatService.class.getProtectionDomain()
+	private static final String PROJECT_NAME = CoreStat.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = StatService.class.getSimpleName();
+	private static final String CLASS_NAME = CoreStat.class.getSimpleName();
 
 	/**
 	 * BM_M002統計分析ロジッククラス

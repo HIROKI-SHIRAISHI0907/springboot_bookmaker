@@ -8,7 +8,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import dev.application.analyze.common.entity.StatRequestResource;
 import dev.application.analyze.common.entity.StatResponseResource;
-import dev.application.main.service.StatService;
+import dev.application.main.service.CoreStat;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -21,7 +21,7 @@ import lombok.RequiredArgsConstructor;
 public class StatController {
 
 	@Autowired
-	private StatService statService;
+	private CoreStat statService;
 
 	/**
 	 * 実行メソッド

@@ -13,7 +13,7 @@ import dev.common.entity.BookDataEntity;
 import dev.common.getinfo.GetStatInfo;
 
 @SpringBootTest
-class StatServiceTest {
+class CoreStatTest {
 
 	/**
 	 * 統計情報取得管理クラス
@@ -23,7 +23,7 @@ class StatServiceTest {
 
 	/** StatService */
 	@Autowired
-	private StatService statService;
+	private CoreStat statService;
 
 	@Test
 	void execute_shouldReturnZero_whenExecutionSuccessful() throws Exception {
