@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import dev.application.analyze.bm_m023H_bm_m026H.BasedFeatureHistoryStat;
 import dev.common.entity.BookDataEntity;
 import dev.common.getinfo.GetStatInfo;
 
@@ -24,7 +25,7 @@ public class MetricDeltaStatTest {
 	private GetStatInfo getStatInfo;
 
 	@Autowired
-	private MetricDeltaStat metricDeltaStat;
+	private BasedFeatureHistoryStat metricDeltaStat;
 
 	/**
 	 * 処理速度実験

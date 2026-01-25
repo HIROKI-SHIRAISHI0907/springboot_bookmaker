@@ -145,22 +145,23 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				//System.out.println("team, chkBody, upd: " + team + ", " + newEntrys.isUpdFlg());
 				int result = this.statEncryptionRepository.updateEncValues(newEntrys);
 				if (result != 1) {
-					String messageCd = "新規登録エラー";
+					String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
 					this.rootCauseWrapper.throwUnexpectedRowCount(
 					        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					        messageCd,
 					        1, result,
-					        String.format("id=%s, count=%s, remarks=%s", entrys.getId(), null, null)
+					        String.format("id=%s, team=%s", entrys.getId(), team)
 					    );
 				}
-				String messageCd = "更新件数";
+
+				String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
 				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, "BM_M030 更新件数: 1件");
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 更新件数: " + result + "件");
 			} else {
 				//System.out.println("team, chkBody, reg: " + team);
 				int result = this.statEncryptionRepository.insert(newEntrys);
 				if (result != 1) {
-					String messageCd = "新規登録エラー";
+					String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 					this.rootCauseWrapper.throwUnexpectedRowCount(
 					        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					        messageCd,
@@ -168,9 +169,10 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 					        null
 					    );
 				}
-				String messageCd = "登録件数";
+
+				String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, "BM_M030 登録件数: 1件");
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: " + result + "件");
 			}
 		}
 

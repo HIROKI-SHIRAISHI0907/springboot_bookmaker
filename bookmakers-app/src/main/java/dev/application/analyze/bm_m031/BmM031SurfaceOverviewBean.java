@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.application.domain.repository.master.CountryLeagueSeasonMasterRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.constant.ValidFlgConst;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
@@ -49,7 +50,8 @@ public class BmM031SurfaceOverviewBean {
 	private Map<String, Integer> countryLeagueRoundMap;
 
 	/** 初期化
-	 * @throws Exception */
+	 * @throws Exception
+	 */
 	public void init() throws Exception {
 		final String METHOD_NAME = "init";
 
@@ -75,13 +77,14 @@ public class BmM031SurfaceOverviewBean {
 				}
 			}
 		} catch (Exception e) {
-			String messageCd = "initエラー";
+			String messageCd = MessageCdConst.MCD00013E_INITILIZATION_ERROR;
 			this.loggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, key);
 			this.loggerComponent.createBusinessException(
 					PROJECT_NAME,
 					CLASS_NAME,
 					METHOD_NAME,
+					messageCd,
 					null,
 					null);
 		}

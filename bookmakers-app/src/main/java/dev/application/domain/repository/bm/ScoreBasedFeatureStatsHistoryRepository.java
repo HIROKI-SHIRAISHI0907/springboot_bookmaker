@@ -2,7 +2,6 @@ package dev.application.domain.repository.bm;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Update;
 
 import dev.application.analyze.bm_m023.ScoreBasedFeatureStatsEntity;
 
@@ -38,8 +37,4 @@ public interface ScoreBasedFeatureStatsHistoryRepository {
     })
     int insert(ScoreBasedFeatureStatsEntity entity);
 
-    @Update({
-    	"TRUNCATE TABLE score_based_feature_stats_history;"
-    })
-    int truncate();
 }
