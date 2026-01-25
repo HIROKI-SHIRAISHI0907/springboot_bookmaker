@@ -1,17 +1,21 @@
-package dev.batch.bm_b008;
+package dev.batch.bm_b009;
+
+import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import dev.application.main.service.CoreHistoryStat;
 import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
+import dev.common.entity.DataEntity;
+import dev.common.getinfo.GetOriginInfo;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
- * 履歴登録バッチ実行クラス。
+ * リアルタイムデータバッチ実行クラス。
  * <p>
- * シーズンが終了したデータを取得し、登録ロジック（Transactional想定）を実行する。
+ * 3分間隔で取得したリアルタイムデータを取得し、登録ロジック（Transactional想定）を実行する。
  * </p>
  *
  * <p><b>実行方式</b></p>
@@ -23,22 +27,22 @@ import dev.common.logger.ManageLoggerComponent;
  *
  * @author shiraishitoshio
  */
-@Service("B008")
-public class StatHistoryBatch implements BatchIF {
+@Service("B009")
+public class RealTimeOutputsBatch implements BatchIF {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = StatHistoryBatch.class.getProtectionDomain()
+	private static final String PROJECT_NAME = RealTimeOutputsBatch.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = StatHistoryBatch.class.getSimpleName();
+	private static final String CLASS_NAME = RealTimeOutputsBatch.class.getSimpleName();
 
 	/** エラーコード（運用ルールに合わせて変更） */
-	private static final String ERROR_CODE = "BM_B008_ERROR";
+	private static final String ERROR_CODE = "BM_B009_ERROR";
 
-	/** CoreHistoryStat部品 */
+	/** GetOriginInfo部品 */
 	@Autowired
-	private CoreHistoryStat coreHistoryStat;
+	private GetOriginInfo getOriginInfo;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -59,8 +63,11 @@ public class StatHistoryBatch implements BatchIF {
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		try {
-			// 履歴登録(Transactional)
-			this.coreHistoryStat.execute();
+			// リアルタイムデータ情報を取得
+			Map<String, List<DataEntity>> outputs = this.getOriginInfo.getData();
+
+			// リアルタイムデータ登録(Transactional)
+			//this.coreStat.execute(stat);
 
 			return BatchConstant.BATCH_SUCCESS;
 

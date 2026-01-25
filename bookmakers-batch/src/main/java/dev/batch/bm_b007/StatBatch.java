@@ -6,16 +6,17 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import dev.application.main.service.CoreStat;
 import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
-import dev.common.entity.CountryLeagueMasterEntity;
-import dev.common.getinfo.GetTeamInfo;
+import dev.common.entity.BookDataEntity;
+import dev.common.getinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
  * 選手登録バッチ実行クラス。
  * <p>
- * 選手CSVデータを取得し、登録ロジック（Transactional想定）を実行する。
+ * 統計データ用に生成した情報を取得し、登録ロジック（Transactional想定）を実行する。
  * </p>
  *
  * <p><b>実行方式</b></p>
@@ -27,7 +28,7 @@ import dev.common.logger.ManageLoggerComponent;
  *
  * @author shiraishitoshio
  */
-@Service("B006")
+@Service("B007")
 public class StatBatch implements BatchIF {
 
 	/** プロジェクト名 */
@@ -38,15 +39,15 @@ public class StatBatch implements BatchIF {
 	private static final String CLASS_NAME = StatBatch.class.getSimpleName();
 
 	/** エラーコード（運用ルールに合わせて変更） */
-	private static final String ERROR_CODE = "BM_B006_ERROR";
+	private static final String ERROR_CODE = "BM_B007_ERROR";
 
-	/** マスタ情報取得管理クラス */
+	/** 統計生成情報取得管理クラス */
 	@Autowired
-	private GetTeamInfo getTeamMasterInfo;
+	private GetStatInfo getStatInfo;
 
-	/** ColorMasterStat部品 */
+	/** CoreStat部品 */
 	@Autowired
-	private ColorMasterStat colorMasterStat;
+	private CoreStat coreStat;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -67,19 +68,15 @@ public class StatBatch implements BatchIF {
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		try {
-			// マスタデータ情報を取得
-			Map<String, List<CountryLeagueMasterEntity>> listMap = this.getTeamMasterInfo.getData();
+			// シーケンス情報を取得
 
-			// 色登録(Transactional)
-			for (Map.Entry<String, List<CountryLeagueMasterEntity>> entry : listMap.entrySet()) {
-				try {
-					this.colorMasterStat.masterStat(entry.getKey(), entry.getValue());
-				} catch (Exception e) {
-					this.manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, e);
-					continue;
-				}
-			}
+			// リアルタイムデータ情報を取得
+			Map<String, Map<String, List<BookDataEntity>>> stat = this.getStatInfo.getData(null, null);
+
+			// 統計データ登録(Transactional)
+			this.coreStat.execute(stat);
+
+			// シーケンス情報を更新
 			return BatchConstant.BATCH_SUCCESS;
 
 		} catch (Exception e) {

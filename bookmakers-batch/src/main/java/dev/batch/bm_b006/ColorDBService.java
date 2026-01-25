@@ -6,11 +6,12 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.batch.repository.master.TeamColorMasterRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
- * BM_M032色データDB管理部品
+ * BM_B006色データDB管理部品
  * @author shiraishitoshio
  *
  */
@@ -24,6 +25,9 @@ public class ColorDBService {
 
 	/** クラス名 */
 	private static final String CLASS_NAME = ColorDBService.class.getSimpleName();
+
+	/** BM_BATCH_NUMBER */
+	private static final String BM_NUMBER = "BM_B006";
 
 	/** TeamColorMasterRepositoryレポジトリクラス */
 	@Autowired
@@ -52,7 +56,7 @@ public class ColorDBService {
 				return colorEntity;
 			}
 		} catch (Exception e) {
-			String messageCd = "DB接続エラー";
+			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
 			throw e;
@@ -69,24 +73,26 @@ public class ColorDBService {
 		try {
 			int result = this.teamColorMasterRepository.insert(insertEntities);
 			if (result != 1) {
-				String messageCd = "新規登録エラー";
+				String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
 				return 9;
 			}
 		} catch (DuplicateKeyException e) {
-			String messageCd = "登録済みです";
+			String messageCd = MessageCdConst.MCD00002W_DUPLICATION_WARNING;
 			this.manageLoggerComponent.debugWarnLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
 		} catch (Exception e) {
-			String messageCd = "システムエラー";
+			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
 			return 9;
 		}
-		String messageCd = "登録件数: 1件";
+
+		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+				BM_NUMBER + " 登録件数: 1件");
 		return 0;
 	}
 
