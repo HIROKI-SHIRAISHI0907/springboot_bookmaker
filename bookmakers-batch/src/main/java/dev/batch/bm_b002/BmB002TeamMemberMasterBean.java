@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.batch.repository.master.CountryLeagueMasterBatchRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
@@ -21,14 +22,14 @@ import dev.common.logger.ManageLoggerComponent;
  *
  */
 @Component
-public class BmM028TeamMemberMasterBean {
+public class BmB002TeamMemberMasterBean {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = BmM028TeamMemberMasterBean.class.getProtectionDomain()
+	private static final String PROJECT_NAME = BmB002TeamMemberMasterBean.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = BmM028TeamMemberMasterBean.class.getSimpleName();
+	private static final String CLASS_NAME = BmB002TeamMemberMasterBean.class.getSimpleName();
 
 	/** ZONEID */
 	private static final ZoneId JST = ZoneId.of("Asia/Tokyo");
@@ -69,13 +70,15 @@ public class BmM028TeamMemberMasterBean {
 				}
 			}
 		} catch (Exception e) {
+			String messageCd = MessageCdConst.MCD00013E_INITILIZATION_ERROR;
 			String fillChar = (e.getMessage() != null) ? e.getMessage() : null;
 			this.loggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e, fillChar);
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 			this.loggerComponent.createBusinessException(
 					PROJECT_NAME,
 					CLASS_NAME,
 					METHOD_NAME,
+					messageCd,
 					null,
 					null);
 		}

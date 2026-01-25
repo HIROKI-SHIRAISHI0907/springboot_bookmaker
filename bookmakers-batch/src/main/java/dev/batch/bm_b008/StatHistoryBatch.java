@@ -1,4 +1,4 @@
-package dev.batch.bm_b006;
+package dev.batch.bm_b008;
 
 import java.util.List;
 import java.util.Map;
@@ -9,13 +9,12 @@ import org.springframework.stereotype.Service;
 import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
 import dev.common.entity.CountryLeagueMasterEntity;
-import dev.common.getinfo.GetTeamInfo;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
- * 履歴登録バッチ実行クラス。
+ * 選手登録バッチ実行クラス。
  * <p>
- * シーズンが終了したデータに対して履歴テーブルに登録する処理を実行する。
+ * 選手CSVデータを取得し、登録ロジック（Transactional想定）を実行する。
  * </p>
  *
  * <p><b>実行方式</b></p>
@@ -27,26 +26,22 @@ import dev.common.logger.ManageLoggerComponent;
  *
  * @author shiraishitoshio
  */
-@Service("B007")
-public class ColorMasterBatch implements BatchIF {
+@Service("B006")
+public class StatHistoryBatch implements BatchIF {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = ColorMasterBatch.class.getProtectionDomain()
+	private static final String PROJECT_NAME = StatHistoryBatch.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = ColorMasterBatch.class.getSimpleName();
+	private static final String CLASS_NAME = StatHistoryBatch.class.getSimpleName();
 
 	/** エラーコード（運用ルールに合わせて変更） */
-	private static final String ERROR_CODE = "BM_B007_ERROR";
+	private static final String ERROR_CODE = "BM_B008_ERROR";
 
-	/** マスタ情報取得管理クラス */
+	/** StatService部品 */
 	@Autowired
-	private GetTeamInfo getTeamMasterInfo;
-
-	/** ColorMasterStat部品 */
-	@Autowired
-	private ColorMasterStat colorMasterStat;
+	private StatService statService;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -67,9 +62,6 @@ public class ColorMasterBatch implements BatchIF {
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		try {
-			// マスタデータ情報を取得
-			Map<String, List<CountryLeagueMasterEntity>> listMap = this.getTeamMasterInfo.getData();
-
 			// 色登録(Transactional)
 			for (Map.Entry<String, List<CountryLeagueMasterEntity>> entry : listMap.entrySet()) {
 				try {

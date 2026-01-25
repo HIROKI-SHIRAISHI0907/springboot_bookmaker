@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
 import dev.common.entity.FutureEntity;
-import dev.common.getstatinfo.GetFutureInfo;
+import dev.common.getinfo.GetFutureInfo;
 import dev.common.logger.ManageLoggerComponent;
 
 /**

@@ -13,6 +13,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.batch.interf.TeamMemberEntityIF;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.FileDeleteUtil;
@@ -41,7 +42,7 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 
 	/** beanクラス */
 	@Autowired
-	private BmM028TeamMemberMasterBean bean;
+	private BmB002TeamMemberMasterBean bean;
 
 	/** TeamMemberDBService部品 */
 	@Autowired
@@ -67,8 +68,9 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 		// チームマップ
 		Map<String, List<String>> teamMap = this.bean.getTeamMap();
 		if (teamMap.isEmpty()) {
+			String messageCd = MessageCdConst.MCD00014I_NO_MAP_DATA;
 			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, "country_league_masterにデータがありません。");
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "country_league_masterにデータがありません。");
 			this.manageLoggerComponent.debugEndInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 			this.manageLoggerComponent.clear();
@@ -91,7 +93,7 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 					if (MANAGER.equals(entity.getPosition()))
 						continue;
 					// insertとupdateで分ける
-					String keyPerson = BmM028TeamMemberMasterBean.personKey(entity);
+					String keyPerson = BmB002TeamMemberMasterBean.personKey(entity);
 
 					TeamMemberMasterEntity oldEntity = null;
 					if (keyPerson != null) {
@@ -99,7 +101,7 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 
 						// ageKey-1 も試す（誕生日境界ズレ）
 						if (oldEntity == null) {
-							String keyMinus1 = BmM028TeamMemberMasterBean.personKeyMinus1(keyPerson);
+							String keyMinus1 = BmB002TeamMemberMasterBean.personKeyMinus1(keyPerson);
 							if (keyMinus1 != null) {
 								oldEntity = memberMap.get(keyMinus1);
 							}
@@ -131,17 +133,17 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 				}
 				int result = this.teamMemberDBService.insertInBatch(insertEntities);
 				if (result == 9) {
-					String messageCd = "新規登録エラー";
+					String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 					throw new Exception(messageCd);
 				}
 				result = this.teamMemberDBService.updateInBatch(updateEntities, fillChar);
 				if (result == 9) {
-					String messageCd = "更新エラー";
+					String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
 					throw new Exception(messageCd);
 				}
 				insertPath.add(filePath);
 			} catch (Exception e) {
-				String messageCd = "システムエラー";
+				String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 				throw new Exception(messageCd, e);
 			}
 		}

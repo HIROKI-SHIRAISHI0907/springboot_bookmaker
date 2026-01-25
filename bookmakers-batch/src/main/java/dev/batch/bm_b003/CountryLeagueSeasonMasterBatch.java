@@ -8,7 +8,7 @@ import org.springframework.stereotype.Service;
 import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
-import dev.common.getstatinfo.GetSeasonInfo;
+import dev.common.getinfo.GetSeasonInfo;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
@@ -27,14 +27,14 @@ import dev.common.logger.ManageLoggerComponent;
  * @author shiraishitoshio
  */
 @Service("B003")
-public class SeasonMasterBatch implements BatchIF {
+public class CountryLeagueSeasonMasterBatch implements BatchIF {
 
     /** プロジェクト名 */
-    private static final String PROJECT_NAME = SeasonMasterBatch.class.getProtectionDomain()
+    private static final String PROJECT_NAME = CountryLeagueSeasonMasterBatch.class.getProtectionDomain()
             .getCodeSource().getLocation().getPath();
 
     /** クラス名 */
-    private static final String CLASS_NAME = SeasonMasterBatch.class.getSimpleName();
+    private static final String CLASS_NAME = CountryLeagueSeasonMasterBatch.class.getSimpleName();
 
     /** エラーコード（運用ルールに合わせて変更） */
     private static final String ERROR_CODE = "BM_B003_ERROR";

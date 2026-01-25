@@ -8,6 +8,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 
@@ -26,6 +27,9 @@ public class CountryLeagueSeasonDBService {
 	/** クラス名 */
 	private static final String CLASS_NAME = CountryLeagueSeasonDBService.class.getSimpleName();
 
+	/** BM_BATCH_NUMBER */
+	private static final String BM_NUMBER = "BM_B003";
+
 	/** CountryLeagueSeasonMasterRepositoryレポジトリクラス */
 	@Autowired
 	private CountryLeagueSeasonMasterBatchRepository countryLeagueSeasonMasterRepository;
@@ -38,8 +42,7 @@ public class CountryLeagueSeasonDBService {
 	 * チェックメソッド
 	 * @param chkEntities
 	 */
-	public List<CountryLeagueSeasonMasterEntity> selectInBatch(List<CountryLeagueSeasonMasterEntity> chkEntities
-			) {
+	public List<CountryLeagueSeasonMasterEntity> selectInBatch(List<CountryLeagueSeasonMasterEntity> chkEntities) {
 		final String METHOD_NAME = "selectInBatch";
 		List<CountryLeagueSeasonMasterEntity> entities = new ArrayList<CountryLeagueSeasonMasterEntity>();
 		for (CountryLeagueSeasonMasterEntity entity : chkEntities) {
@@ -49,9 +52,9 @@ public class CountryLeagueSeasonDBService {
 					entities.add(entity);
 				}
 			} catch (Exception e) {
-				String messageCd = "DB接続エラー";
+				String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, "DB接続エラー");
 				throw e;
 			}
 		}
@@ -73,33 +76,35 @@ public class CountryLeagueSeasonDBService {
 					// シーズン年を元にシーズン開始日と終了日を埋める
 					String[] years = SeasonDateBuilder.convertSeasonYear(entity.getSeasonYear());
 					String startDate = SeasonDateBuilder.buildDate(years[0], entity.getStartSeasonDate());
-					String endDate   = SeasonDateBuilder.buildDate(years[1], entity.getEndSeasonDate());
+					String endDate = SeasonDateBuilder.buildDate(years[1], entity.getEndSeasonDate());
 					entity.setStartSeasonDate(startDate);
 					entity.setEndSeasonDate(endDate);
 					int result = this.countryLeagueSeasonMasterRepository.insert(entity);
 					if (result != 1) {
-						String messageCd = "新規登録エラー";
+						String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 						this.manageLoggerComponent.debugErrorLog(
 								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
 						return 9;
 					}
 				} catch (DuplicateKeyException e) {
-					String messageCd = "登録済みです";
+					String messageCd = MessageCdConst.MCD00002W_DUPLICATION_WARNING;
 					this.manageLoggerComponent.debugWarnLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
 					// 重複は特に例外として出さない
 					continue;
 				} catch (Exception e) {
-					String messageCd = "システムエラー";
+					String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 					this.manageLoggerComponent.debugErrorLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
 					return 9;
 				}
 			}
 		}
-		String messageCd = "登録件数: " + insertEntities.size();
+
+		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+				BM_NUMBER + " 登録件数: " + insertEntities.size());
 		return 0;
 	}
 

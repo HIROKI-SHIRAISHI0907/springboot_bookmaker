@@ -9,6 +9,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.batch.interf.SeasonEntityIF;
 import dev.common.config.PathConfig;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.FileDeleteUtil;
@@ -62,12 +63,12 @@ public class CountryLeagueSeasonMasterStat implements SeasonEntityIF {
 					.selectInBatch(entities);
 			int result = this.countryLeagueSeasonDBService.insertInBatch(insertEntities);
 			if (result == 9) {
-				String messageCd = "新規登録エラー";
+				String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 				throw new Exception(messageCd);
 			}
 			insertPath.add(pathConfig.getTeamCsvFolder() + "season_data.csv");
 		} catch (Exception e) {
-			String messageCd = "システムエラー";
+			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			throw new Exception(messageCd, e);
 		}
 

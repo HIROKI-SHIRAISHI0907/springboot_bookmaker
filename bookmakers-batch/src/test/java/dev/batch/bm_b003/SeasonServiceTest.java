@@ -13,7 +13,7 @@ import org.springframework.test.context.ActiveProfiles;
 public class SeasonServiceTest {
 
 	@Autowired
-    private SeasonMasterBatch seasonMasterBatch;
+    private CountryLeagueSeasonMasterBatch seasonMasterBatch;
 
     @Test
     void execute_shouldReturnZero_whenExecutionSuccessful() throws Exception {

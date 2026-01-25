@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
 import dev.common.entity.CountryLeagueMasterEntity;
-import dev.common.getstatinfo.GetTeamMasterInfo;
+import dev.common.getinfo.GetTeamInfo;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
@@ -28,21 +28,21 @@ import dev.common.logger.ManageLoggerComponent;
  * @author shiraishitoshio
  */
 @Service("B004")
-public class MasterBatch implements BatchIF {
+public class CountryLeagueMasterBatch implements BatchIF {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = MasterBatch.class.getProtectionDomain()
+	private static final String PROJECT_NAME = CountryLeagueMasterBatch.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = MasterBatch.class.getSimpleName();
+	private static final String CLASS_NAME = CountryLeagueMasterBatch.class.getSimpleName();
 
 	/** エラーコード（運用ルールに合わせて変更） */
 	private static final String ERROR_CODE = "BM_B004_ERROR";
 
 	/** マスタ情報取得管理クラス */
 	@Autowired
-	private GetTeamMasterInfo getTeamMasterInfo;
+	private GetTeamInfo getTeamMasterInfo;
 
 	/** BM_M032統計分析ロジック */
 	@Autowired

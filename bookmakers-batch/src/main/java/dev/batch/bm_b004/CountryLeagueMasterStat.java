@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.batch.interf.MasterEntityIF;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.FileDeleteUtil;
@@ -58,11 +59,11 @@ public class CountryLeagueMasterStat implements MasterEntityIF {
 				if (insertEntities == null) continue;
 				int result = this.countryLeagueDBService.insertInBatch(insertEntities);
 				if (result == 9) {
-					String messageCd = "新規登録エラー";
+					String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 					throw new Exception(messageCd);
 				}
 			} catch (Exception e) {
-				String messageCd = "システムエラー";
+				String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 				throw new Exception(messageCd, e);
 			}
 		}

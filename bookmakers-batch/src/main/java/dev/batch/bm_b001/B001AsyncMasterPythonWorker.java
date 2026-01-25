@@ -35,9 +35,9 @@ import dev.common.config.PathConfig;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.entity.TeamMemberMasterEntity;
-import dev.common.getstatinfo.GetMemberInfo;
-import dev.common.getstatinfo.GetSeasonInfo;
-import dev.common.getstatinfo.GetTeamMasterInfo;
+import dev.common.getinfo.GetSeasonInfo;
+import dev.common.getinfo.GetTeamInfo;
+import dev.common.getinfo.GetTeamMemberInfo;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.DateUtil;
 
@@ -101,11 +101,11 @@ public class B001AsyncMasterPythonWorker {
 
 	/** teamData 系CSVの読み取り（存在確認含む）を行う。 */
 	@Autowired
-	private GetTeamMasterInfo getTeamMasterInfo;
+	private GetTeamInfo getTeamMasterInfo;
 
 	/** teamMemberData 系CSVの読み取り（存在確認含む）を行う。 */
 	@Autowired
-	private GetMemberInfo getMemberInfo;
+	private GetTeamMemberInfo getMemberInfo;
 
 	/** CountryLeagueSeasonDBPart */
 	@Autowired
@@ -311,8 +311,7 @@ public class B001AsyncMasterPythonWorker {
 			}
 			if (teamDataReady) {
 				Map<String, List<CountryLeagueMasterEntity>> teamDataRows = fileTeamDataCsvReads();
-				for (Map.Entry<String, List<CountryLeagueMasterEntity>> rows
-						: teamDataRows.entrySet()) {
+				for (Map.Entry<String, List<CountryLeagueMasterEntity>> rows : teamDataRows.entrySet()) {
 					if (!this.countryLeagueDBPart.dbOperation(rows.getValue())) {
 						this.manageLoggerComponent.debugErrorLog(
 								PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, null,

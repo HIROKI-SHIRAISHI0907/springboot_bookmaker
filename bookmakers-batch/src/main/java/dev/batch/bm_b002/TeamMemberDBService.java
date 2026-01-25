@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.batch.repository.master.TeamMemberMasterBatchRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 
@@ -24,6 +25,9 @@ public class TeamMemberDBService {
 
 	/** クラス名 */
 	private static final String CLASS_NAME = TeamMemberDBService.class.getSimpleName();
+
+	/** BM_BATCH_NUMBER */
+	private static final String BM_NUMBER = "BM_B002";
 
 	/** TeamMemberMasterRepositoryレポジトリクラス */
 	@Autowired
@@ -45,9 +49,9 @@ public class TeamMemberDBService {
 			List<TeamMemberMasterEntity> entity = this.teamMemberMasterRepository.findData();
 			entities.add(entity);
 		} catch (Exception e) {
-			String messageCd = "DB接続エラー";
+			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, "DB接続エラー");
 			throw e;
 		}
 		return entities;
@@ -61,7 +65,7 @@ public class TeamMemberDBService {
 		final String METHOD_NAME = "insertInBatch";
 		final int BATCH_SIZE = 100;
 		int inserted = 0;
-	    int skipped = 0;
+		int skipped = 0;
 		for (int i = 0; i < insertEntities.size(); i += BATCH_SIZE) {
 			int end = Math.min(i + BATCH_SIZE, insertEntities.size());
 			List<TeamMemberMasterEntity> batch = insertEntities.subList(i, end);
@@ -69,29 +73,32 @@ public class TeamMemberDBService {
 				try {
 					int result = this.teamMemberMasterRepository.insert(entity);
 					if (result == 1) {
-	                    inserted++;
-	                } else if (result == 0) {
-	                    // ON CONFLICT DO NOTHING → 重複扱い
-	                    skipped++;
-	                    continue;
-	                } else {
-	                    // 通常ここには来ない想定
-	                    String messageCd = "新規登録エラー(result=" + result + ")";
-	                    this.manageLoggerComponent.debugErrorLog(
-	                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-	                    return 9;
-	                }
+						inserted++;
+					} else if (result == 0) {
+						// ON CONFLICT DO NOTHING → 重複扱い
+						skipped++;
+						continue;
+					} else {
+						// 通常ここには来ない想定
+						String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+						this.manageLoggerComponent.debugErrorLog(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null,
+								"新規登録エラー(result=" + result + ")");
+						return 9;
+					}
 				} catch (Exception e) {
-					String messageCd = "システムエラー";
+					String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 					this.manageLoggerComponent.debugErrorLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
 					return 9;
 				}
 			}
 		}
+
+		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 		this.manageLoggerComponent.debugInfoLog(
-	            PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-	            "登録件数: " + inserted + " / 重複スキップ: " + skipped);
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+				BM_NUMBER + " 登録件数: " + inserted + " / 重複スキップ: " + skipped);
 		return 0;
 	}
 
@@ -111,16 +118,16 @@ public class TeamMemberDBService {
 					entities.add(entity);
 				}
 			} catch (Exception e) {
-				String messageCd = "DB接続エラー";
+				String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 				throw e;
 			}
 		}
-		String messageCd = "BM_M028 更新件数: " + chkEntities.size();
+
+		String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 更新件数: " + chkEntities.size() + "件 (" + fillChar + ")");
 		return 0;
 	}
-
 }

@@ -9,7 +9,7 @@ import org.springframework.stereotype.Service;
 import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
 import dev.common.entity.TeamMemberMasterEntity;
-import dev.common.getstatinfo.GetMemberInfo;
+import dev.common.getinfo.GetTeamMemberInfo;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
@@ -42,7 +42,7 @@ public class TeamMemberMasterBatch implements BatchIF {
 
     /** 選手情報取得管理クラス */
     @Autowired
-    private GetMemberInfo getMemberInfo;
+    private GetTeamMemberInfo getMemberInfo;
 
     /** BM_M028統計分析ロジック */
     @Autowired

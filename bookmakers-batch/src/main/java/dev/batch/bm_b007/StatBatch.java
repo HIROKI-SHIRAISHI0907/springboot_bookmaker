@@ -1,4 +1,4 @@
-package dev.batch.bm_b006;
+package dev.batch.bm_b007;
 
 import java.util.List;
 import java.util.Map;
@@ -13,9 +13,9 @@ import dev.common.getinfo.GetTeamInfo;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
- * 履歴登録バッチ実行クラス。
+ * 選手登録バッチ実行クラス。
  * <p>
- * シーズンが終了したデータに対して履歴テーブルに登録する処理を実行する。
+ * 選手CSVデータを取得し、登録ロジック（Transactional想定）を実行する。
  * </p>
  *
  * <p><b>実行方式</b></p>
@@ -27,18 +27,18 @@ import dev.common.logger.ManageLoggerComponent;
  *
  * @author shiraishitoshio
  */
-@Service("B007")
-public class ColorMasterBatch implements BatchIF {
+@Service("B006")
+public class StatBatch implements BatchIF {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = ColorMasterBatch.class.getProtectionDomain()
+	private static final String PROJECT_NAME = StatBatch.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = ColorMasterBatch.class.getSimpleName();
+	private static final String CLASS_NAME = StatBatch.class.getSimpleName();
 
 	/** エラーコード（運用ルールに合わせて変更） */
-	private static final String ERROR_CODE = "BM_B007_ERROR";
+	private static final String ERROR_CODE = "BM_B006_ERROR";
 
 	/** マスタ情報取得管理クラス */
 	@Autowired
