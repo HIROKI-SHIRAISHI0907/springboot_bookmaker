@@ -21,6 +21,7 @@ import dev.application.analyze.bm_m023.StatFormatResolver;
 import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.bm.CalcCorrelationRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
@@ -58,6 +59,9 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
 
     /** 実行モード（ログ用） */
     private static final String EXEC_MODE = "BM_M024_CALC_CORRELATION";
+
+    /** BM_STAT_NUMBER */
+	private static final String BM_NUMBER = "BM_M024";
 
     /** 相関結果登録レポジトリ */
     @Autowired
@@ -181,7 +185,7 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
     private void basedEntities(ConcurrentHashMap<String, CalcCorrelationEntity> insertMap,
                                List<BookDataEntity> entities, String flg,
                                String country, String league, String home, String away) {
-
+    	final String METHOD_NAME = "basedEntities";
         // フィルタリング
         List<BookDataEntity> filteredList = null;
         if (AverageStatisticsSituationConst.ALL_DATA.equals(flg)) {
@@ -253,9 +257,9 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
                         }
                     }
                 } catch (Exception e) {
-                    manageLoggerComponent.debugErrorLog(
-                            PROJECT_NAME, CLASS_NAME, "calc-corr-trisplit",
-                            "tri-split 抽出失敗: " + name, e);
+                	String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+    				this.manageLoggerComponent.debugErrorLog(
+    						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, "tri-split 抽出失敗: " + name);
                     setOut(outFields, entity, OUT_OFFSET + outIdx++, 0.0);
                     setOut(outFields, entity, OUT_OFFSET + outIdx++, 0.0);
                     setOut(outFields, entity, OUT_OFFSET + outIdx++, 0.0);
@@ -298,9 +302,10 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
                         }
                     }
                 } catch (Exception e) {
-                    manageLoggerComponent.debugErrorLog(
-                            PROJECT_NAME, CLASS_NAME, "calc-corr-single",
-                            "単一抽出失敗: " + name, e);
+                	String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+    				this.manageLoggerComponent.debugErrorLog(
+    						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e,
+    						"calc-corr-single 単一抽出失敗: " + name);
                     setOut(outFields, entity, OUT_OFFSET + outIdx++, 0.0);
                     continue;
                 }
@@ -328,15 +333,17 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
      * @param value     値
      */
     private void setOut(Field[] outFields, CalcCorrelationEntity entity, int idx, double value) {
+    	final String METHOD_NAME = "setOut";
         if (idx < 0 || idx >= outFields.length) return;
         Field out = outFields[idx];
         out.setAccessible(true);
         try {
             out.set(entity, String.format("%.5f", value));
         } catch (IllegalAccessException e) {
-            manageLoggerComponent.debugErrorLog(
-                    PROJECT_NAME, CLASS_NAME, "setOut",
-                    "相関係数設定失敗: " + out.getName(), e);
+        	String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e,
+					"相関係数設定失敗: " + out.getName());
         }
     }
 
@@ -390,14 +397,15 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
 
         int result = this.calcCorrelationRepository.insert(entity);
         if (result != 1) {
-            String messageCd = "新規登録エラー";
-            this.rootCauseWrapper.throwUnexpectedRowCount(
+        	String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
+        	this.rootCauseWrapper.throwUnexpectedRowCount(
                     PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-                    messageCd, 1, result, null);
+                    messageCd, 1, result, fillChar);
         }
-        String messageCd = "登録件数";
-        this.manageLoggerComponent.debugInfoLog(
-                PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M024 登録件数: 1件");
+
+        String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: " + result + "件 (" + fillChar + ")");
     }
 
     /**
@@ -413,6 +421,7 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
      * @return 相関係数（[-1,1]）、計算不可時は 0.0
      */
     public double calculatePearsonCorrelation(double[] x, double[] y) {
+    	final String METHOD_NAME = "calculatePearsonCorrelation";
         if (x == null || y == null) return 0.0;
         int n = Math.min(x.length, y.length);
         List<Double> xs = new ArrayList<>(n);
@@ -434,6 +443,9 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
             double r = new PearsonsCorrelation().correlation(xx, yy);
             return Double.isFinite(r) ? r : 0.0;
         } catch (Exception ignore) {
+        	String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ignore, "説明変数系列: " + xx + ", 目的変数系列: " + yy);
             return 0.0;
         }
     }

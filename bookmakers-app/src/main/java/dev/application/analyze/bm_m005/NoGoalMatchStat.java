@@ -100,15 +100,9 @@ public class NoGoalMatchStat implements AnalyzeEntityIF {
 		}
 
 		// Map登録
-		int insertCounter = 0;
 		for (NoGoalMatchStatisticsEntity entity : insertEntities) {
 			save(entity);
-			insertCounter++;
 		}
-
-		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + "合計登録件数: " + insertCounter + "件");
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
@@ -155,19 +149,16 @@ public class NoGoalMatchStat implements AnalyzeEntityIF {
 
 		int result = this.noGoalMatchStatisticsRepository.insert(entity);
 		if (result != 1) {
-			String messageCd = "新規登録エラー";
-			this.rootCauseWrapper.throwUnexpectedRowCount(
-			        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-			        messageCd,
-			        1, result,
-			        null
-			    );
+			String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
+        	this.rootCauseWrapper.throwUnexpectedRowCount(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                    messageCd, 1, result, null);
 		}
 
-		String messageCd = "登録件数";
 		String fillChar = setLoggerFillChar(entity);
+		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M005 登録件数: 1件");
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: " + result + "件 (" + fillChar + ")");
 	}
 
 	/**

@@ -24,6 +24,7 @@ import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureEntity;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.bm.EachTeamScoreBasedFeatureStatsRepository;
 import dev.application.domain.repository.bm.ScoreBasedFeatureStatsRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
@@ -46,6 +47,15 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M027_ANALYZE_RANKING";
+
+	/** BM_STAT_NUMBER */
+	private static final String BM_NUMBER = "BM_M027";
+
+	/** SCORE_BASED_FEATURE */
+	private static final String SCORE_BASED_FEATURE = "scoreBasedFeatureStats";
+
+	/** EACH_SCORE_BASED_FEATURE */
+	private static final String EACH_SCORE_BASED_FEATURE = "eachTeamScoreBasedFeatureStats";
 
 	/** 上位件数（必要に応じて調整） */
 	private static final int TOP_N = 68;
@@ -116,9 +126,10 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 							concatValueWithRank(ordered);
 							return mergeToScoreBased(ordered);
 						} catch (Exception ex) {
+							String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 							this.manageLoggerComponent.debugErrorLog(
 									PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-									"overall score task failed: " + sc, ex);
+									messageCd, ex, "overall score task failed: " + sc);
 							return Collections.emptyList();
 						}
 					}, exec));
@@ -140,8 +151,10 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 			// =========================
 			Map<String, List<KeyRanking>> eachTeamScoreMap = this.bean.getEachScoreMap();
 			if (eachTeamScoreMap == null || eachTeamScoreMap.isEmpty()) {
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "", null,
-						"eachTeamScoreMap empty");
+				String messageCd = MessageCdConst.MCD00014I_NO_MAP_DATA;
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						messageCd, null, "eachTeamScoreMap empty");
 			} else {
 				Map<String, List<KeyRanking>> byScoreEachTeam = new java.util.HashMap<>();
 				for (Map.Entry<String, List<KeyRanking>> e : eachTeamScoreMap.entrySet()) {
@@ -162,9 +175,10 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 							concatValueWithRank(ordered);
 							return mergeToEachScoreBased(ordered);
 						} catch (Exception ex) {
+							String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 							this.manageLoggerComponent.debugErrorLog(
 									PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-									"eachTeam score task failed: " + sc, ex);
+									messageCd, ex, "eachTeam score task failed: " + sc);
 							return Collections.emptyList();
 						}
 					}, exec));
@@ -254,20 +268,20 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 				entity.getScore(),
 				entity.getCountry(),
 				entity.getLeague(),
-				"");
+				SCORE_BASED_FEATURE);
 		int result = this.scoreBasedFeatureStatsRepository.updateStatValues(entity);
 		if (result != 1) {
-			String messageCd = "更新エラー average_statistics_data";
+			String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
 			this.rootCauseWrapper.throwUnexpectedRowCount(
-			        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-			        messageCd,
-			        1, result,
-			        String.format("id=%s, count=%s, remarks=%s", entity.getId(), null, null)
-			    );
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					messageCd, 1, result,
+					String.format("id=%s", entity.getId()));
 		}
-		String messageCd = "更新件数 average_statistics_data";
+
+		String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M027 更新件数: 1件");
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+				BM_NUMBER + " 更新件数: " + result + "件 (" + fillChar + ")");
 	}
 
 	/**
@@ -280,20 +294,20 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 				entity.getScore(),
 				entity.getCountry(),
 				entity.getLeague(),
-				"");
+				EACH_SCORE_BASED_FEATURE);
 		int result = this.eachTeamScoreBasedFeatureStatsRepository.updateStatValues(entity);
 		if (result != 1) {
-			String messageCd = "更新エラー average_statistics_data_detail";
+			String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
 			this.rootCauseWrapper.throwUnexpectedRowCount(
-			        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-			        messageCd,
-			        1, result,
-			        String.format("id=%s, count=%s, remarks=%s", entity.getId(), null, null)
-			    );
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					messageCd, 1, result,
+					String.format("id=%s", entity.getId()));
 		}
-		String messageCd = "更新件数 average_statistics_data_detail";
+
+		String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M027 更新件数: 1件");
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+				BM_NUMBER + " 更新件数: " + result + "件 (" + fillChar + ")");
 	}
 
 	/**
@@ -556,6 +570,7 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 	 * @param value
 	 */
 	private void setIfEmptyByReflection(ScoreBasedFeatureStatsEntity target, String fieldName, String value) {
+		final String METHOD_NAME = "setIfEmptyByReflection";
 		try {
 			Field f = ScoreBasedFeatureStatsEntity.class.getDeclaredField(fieldName);
 			f.setAccessible(true);
@@ -564,14 +579,15 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 				f.set(target, value);
 			}
 		} catch (NoSuchFieldException nsfe) {
-			// 未対応フィールド名は情報ログに流す（必要なければ無視）
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, "mergeToScoreBased",
-					"未知のフィールド名: " + fieldName, value, null);
-		} catch (IllegalAccessException iae) {
+			String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
 			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, "mergeToScoreBased",
-					"プロパティ設定失敗: " + fieldName, iae, value);
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, nsfe,
+					"未知のフィールド名(ScoreBasedFeatureStatsEntity): " + fieldName + ", 値:" + value);
+		} catch (IllegalAccessException iae) {
+			String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, iae,
+					"プロパティ設定失敗(ScoreBasedFeatureStatsEntity): " + fieldName + ", 値:" + value);
 		}
 	}
 
@@ -582,6 +598,7 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 	 * @param value
 	 */
 	private void setIfEmptyByReflection(EachTeamScoreBasedFeatureEntity target, String fieldName, String value) {
+		final String METHOD_NAME = "setIfEmptyByReflection";
 		try {
 			Field f = EachTeamScoreBasedFeatureEntity.class.getDeclaredField(fieldName);
 			f.setAccessible(true);
@@ -590,14 +607,15 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 				f.set(target, value);
 			}
 		} catch (NoSuchFieldException nsfe) {
-			// 未対応フィールド名は情報ログに流す（必要なければ無視）
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, "mergeToScoreBased",
-					"未知のフィールド名: " + fieldName, value, null);
-		} catch (IllegalAccessException iae) {
+			String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
 			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, "mergeToScoreBased",
-					"プロパティ設定失敗: " + fieldName, iae, value);
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, nsfe,
+					"未知のフィールド名(EachTeamScoreBasedFeatureEntity): " + fieldName + ", 値:" + value);
+		} catch (IllegalAccessException iae) {
+			String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, iae,
+					"プロパティ設定失敗(EachTeamScoreBasedFeatureEntity): " + fieldName + ", 値:" + value);
 		}
 	}
 
@@ -630,16 +648,16 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 	 * @param score スコア
 	 * @param country 国
 	 * @param league リーグ
-	 * @param team チーム
+	 * @param bikou 備考
 	 * @return
 	 */
 	private String setLoggerFillChar(String score,
-			String country, String league, String team) {
+			String country, String league, String bikou) {
 		StringBuilder stringBuilder = new StringBuilder();
 		stringBuilder.append("スコア: " + score + ", ");
 		stringBuilder.append("国: " + country + ", ");
 		stringBuilder.append("リーグ: " + league + ", ");
-		stringBuilder.append("チーム: " + team);
+		stringBuilder.append("備考: " + bikou);
 		return stringBuilder.toString();
 	}
 }

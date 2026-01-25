@@ -19,6 +19,7 @@ import dev.application.analyze.bm_m024.CalcCorrelationEntity;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.bm.CalcCorrelationRankingRepository;
 import dev.application.domain.repository.bm.CalcCorrelationRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
@@ -41,6 +42,9 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M025_CALC_CORRELATION_RANKING";
+
+	/** BM_STAT_NUMBER */
+	private static final String BM_NUMBER = "BM_M025";
 
 	/** CalcCorrelationRepositoryレポジトリクラス */
 	@Autowired
@@ -163,10 +167,9 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 					league,
 					home,
 					away);
-			String messageCd = "";
-			this.manageLoggerComponent.debugWarnLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					messageCd, fillChar);
+			String messageCd = MessageCdConst.MCD00014I_NO_MAP_DATA;
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar);
 			return;
 		}
 
@@ -192,7 +195,7 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 				ind++;
 			}
 		} catch (Exception e) {
-			String messageCd = "";
+			String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					messageCd, e, fillChar);
@@ -200,9 +203,9 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 
 		// ソート
 		// 降順 & (null / 空 / 非数 / NaN) は最後尾
-		Comparator<SortRanking> byCorrDescNaNLast =
-		    Comparator.comparingDouble((SortRanking s) -> safeCorrKey(s.getCorr()))
-		              .reversed();
+		Comparator<SortRanking> byCorrDescNaNLast = Comparator
+				.comparingDouble((SortRanking s) -> safeCorrKey(s.getCorr()))
+				.reversed();
 		sortList.sort(byCorrDescNaNLast);
 
 		CalcCorrelationRankingEntity enti = new CalcCorrelationRankingEntity();
@@ -231,15 +234,17 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 	 * @return
 	 */
 	private static double safeCorrKey(String in) {
-	    if (in == null) return Double.NEGATIVE_INFINITY; // reversedで最後尾へ
-	    in = in.trim();
-	    if (in.isEmpty()) return Double.NEGATIVE_INFINITY;
-	    try {
-	        double v = Double.parseDouble(in);
-	        return Double.isNaN(v) ? Double.NEGATIVE_INFINITY : v;
-	    } catch (NumberFormatException e) {
-	        return Double.NEGATIVE_INFINITY; // 数値じゃなければ最後尾
-	    }
+		if (in == null)
+			return Double.NEGATIVE_INFINITY; // reversedで最後尾へ
+		in = in.trim();
+		if (in.isEmpty())
+			return Double.NEGATIVE_INFINITY;
+		try {
+			double v = Double.parseDouble(in);
+			return Double.isNaN(v) ? Double.NEGATIVE_INFINITY : v;
+		} catch (NumberFormatException e) {
+			return Double.NEGATIVE_INFINITY; // 数値じゃなければ最後尾
+		}
 	}
 
 	/**
@@ -250,6 +255,7 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 	 * @param value
 	 */
 	private void setOut(Field[] outFields, CalcCorrelationRankingEntity entity, int idx, String value) {
+		final String METHOD_NAME = "setOut";
 		if (idx < 0 || idx >= outFields.length)
 			return;
 		Field out = outFields[idx];
@@ -257,9 +263,9 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 		try {
 			out.set(entity, value);
 		} catch (IllegalAccessException e) {
+			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, "setOut",
-					"相関係数設定失敗: " + out.getName(), e);
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, "相関係数設定失敗: " + out.getName());
 		}
 	}
 
@@ -277,18 +283,16 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 				entity.getHome(),
 				entity.getAway());
 		int result = this.calcCorrelationRankingRepository.insert(entity);
-		if (result != 1) {
-			String messageCd = "新規登録エラー";
-			this.rootCauseWrapper.throwUnexpectedRowCount(
-			        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-			        messageCd,
-			        1, result,
-			        null
-			    );
+		if (result == 0) {
+			String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
+        	this.rootCauseWrapper.throwUnexpectedRowCount(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                    messageCd, 1, result, fillChar);
 		}
-		String messageCd = "登録件数";
+
+		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "BM_M025 登録件数: 1件");
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: " + result + "件 (" + fillChar + ")");
 	}
 
 	/**

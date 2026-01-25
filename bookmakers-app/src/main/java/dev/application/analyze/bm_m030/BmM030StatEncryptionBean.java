@@ -24,6 +24,7 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import dev.application.domain.repository.bm.StatEncryptionRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
 import jakarta.annotation.PostConstruct;
@@ -158,13 +159,15 @@ public class BmM030StatEncryptionBean {
 			IvParameterSpec ivSpec = new IvParameterSpec(FIXED_IV);
 			this.iv = ivSpec;
 		} catch (Exception e) {
+			String messageCd = MessageCdConst.MCD00013E_INITILIZATION_ERROR;
 			String fillChar = (e.getMessage() != null) ? e.getMessage() : null;
 			this.loggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e, fillChar);
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 			this.loggerComponent.createBusinessException(
 					PROJECT_NAME,
 					CLASS_NAME,
 					METHOD_NAME,
+					messageCd,
 					null,
 					null);
 		}
@@ -188,13 +191,15 @@ public class BmM030StatEncryptionBean {
 			} else if (team != null && !team.isBlank()) {
 				key += ("-" + team + "-" + chkBody);
 			} else {
+				String messageCd = MessageCdConst.MCD00013E_INITILIZATION_ERROR;
 				String fillErr = "home, away, team Err";
 				this.loggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, null, fillErr);
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, fillErr);
 				this.loggerComponent.createBusinessException(
 						PROJECT_NAME,
 						CLASS_NAME,
 						METHOD_NAME,
+						messageCd,
 						null,
 						null);
 			}
@@ -239,6 +244,7 @@ public class BmM030StatEncryptionBean {
 					targetField.setAccessible(true);
 					targetField.set(newEntity, standardData);
 				} catch (IllegalAccessException e) {
+					String messageCd = MessageCdConst.MCD00013E_INITILIZATION_ERROR;
 					String fillChar = "リフレクションエラー: " + fieldName + ", " + value;
 					this.loggerComponent.debugErrorLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e, fillChar);
@@ -246,6 +252,7 @@ public class BmM030StatEncryptionBean {
 							PROJECT_NAME,
 							CLASS_NAME,
 							METHOD_NAME,
+							messageCd,
 							null,
 							null);
 				}
@@ -270,8 +277,8 @@ public class BmM030StatEncryptionBean {
 		}
 
 		if (startEncryptionIdx == -1 || endEncryptionIdx == -1 || startEncryptionIdx > endEncryptionIdx) {
-			String fillChar = "startEncryptionIdx: " + startEncryptionIdx + ", endEncryptionIdx: " + endEncryptionIdx;
-			String messageCd = "初期化エラー: 対象フィールド範囲なし";
+			String messageCd = MessageCdConst.MCD00013E_INITILIZATION_ERROR;
+			String fillChar = "初期化エラー: 対象フィールド範囲なし(startEncryptionIdx: " + startEncryptionIdx + ", endEncryptionIdx: " + endEncryptionIdx + ")";
 			this.loggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, fillChar);
 			this.loggerComponent.createBusinessException(
@@ -279,6 +286,7 @@ public class BmM030StatEncryptionBean {
 					CLASS_NAME,
 					METHOD_NAME,
 					messageCd,
+					null,
 					null);
 		}
 		// 開始情報

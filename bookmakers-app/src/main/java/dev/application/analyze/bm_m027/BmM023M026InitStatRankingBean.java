@@ -13,6 +13,7 @@ import dev.application.analyze.bm_m023.ScoreBasedFeatureStatsEntity;
 import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureEntity;
 import dev.application.domain.repository.bm.EachTeamScoreBasedFeatureStatsRepository;
 import dev.application.domain.repository.bm.ScoreBasedFeatureStatsRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
@@ -91,10 +92,9 @@ public class BmM023M026InitStatRankingBean {
 					ind++;
 				}
 			} catch (Exception e) {
-				String messageCd = "";
+				String messageCd = MessageCdConst.MCD00013E_INITILIZATION_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						messageCd, e, fillChar);
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 			}
 		}
 		this.scoreMap = scoreMap;
@@ -140,10 +140,9 @@ public class BmM023M026InitStatRankingBean {
 					ind++;
 				}
 			} catch (Exception e) {
-				String messageCd = "";
+				String messageCd = MessageCdConst.MCD00013E_INITILIZATION_ERROR;
 				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						messageCd, e, fillChar);
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 			}
 		}
 		this.eachScoreMap = eachScoreMap;
