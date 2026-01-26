@@ -10,6 +10,7 @@ import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
 import dev.batch.interf.jobExecControlIF;
 import dev.batch.util.JobIdUtil;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.getinfo.GetTeamInfo;
 import dev.common.logger.ManageLoggerComponent;
@@ -107,11 +108,23 @@ public class CountryLeagueMasterBatch implements BatchIF {
 					continue;
 				}
 			}
+
+			String messageCd = MessageCdConst.MCD00015I_BATCH_ACCEPTED;
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+					BATCH_CODE + " accepted. jobId=" + jobId);
+
 			return BatchConstant.BATCH_SUCCESS;
 
 		} catch (Exception e) {
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, e);
+			if (jobInserted) {
+				try {
+					jobExecControl.jobException(jobId);
+				} catch (Exception ignore) {
+				}
+			}
 			return BatchConstant.BATCH_ERROR;
 
 		} finally {

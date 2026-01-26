@@ -11,6 +11,7 @@ import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
 import dev.batch.interf.jobExecControlIF;
 import dev.batch.util.JobIdUtil;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.getinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
@@ -80,6 +81,16 @@ public class StatBatch implements BatchIF {
 		String jobId = JobIdUtil.generate(BATCH_CODE);
 		boolean jobInserted = false;
 		try {
+			// 0: QUEUED（受付）
+			boolean started = jobExecControl.jobStart(jobId, BATCH_CODE);
+			if (!started) {
+				this.manageLoggerComponent.debugWarnLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE,
+						"jobStart failed (duplicate or insert error). jobId=" + jobId);
+				return BatchConstant.BATCH_ERROR;
+			}
+			jobInserted = true;
+
 			// シーケンス情報を取得
 
 			// リアルタイムデータ情報を取得
@@ -89,11 +100,23 @@ public class StatBatch implements BatchIF {
 			this.coreStat.execute(stat);
 
 			// シーケンス情報を更新
+
+			String messageCd = MessageCdConst.MCD00015I_BATCH_ACCEPTED;
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+					BATCH_CODE + " accepted. jobId=" + jobId);
+
 			return BatchConstant.BATCH_SUCCESS;
 
 		} catch (Exception e) {
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, e);
+			if (jobInserted) {
+				try {
+					jobExecControl.jobException(jobId);
+				} catch (Exception ignore) {
+				}
+			}
 			return BatchConstant.BATCH_ERROR;
 
 		} finally {

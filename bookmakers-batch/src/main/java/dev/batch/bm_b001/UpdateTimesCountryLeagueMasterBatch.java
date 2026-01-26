@@ -72,7 +72,7 @@ public class UpdateTimesCountryLeagueMasterBatch implements BatchIF {
 			String messageCd = MessageCdConst.MCD00015I_BATCH_ACCEPTED;
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-					"B001 accepted. jobId=" + jobId);
+					BATCH_CODE + " accepted. jobId=" + jobId);
 
 			// 受付成功（処理完了はjobテーブルのstatusで判定）
 			return BatchConstant.BATCH_SUCCESS;
