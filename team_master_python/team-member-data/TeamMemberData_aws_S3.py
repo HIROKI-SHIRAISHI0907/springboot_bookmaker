@@ -23,6 +23,7 @@ from typing import List, Tuple, Dict, Set, Optional
 
 from openpyxl import Workbook, load_workbook
 from playwright.async_api import async_playwright
+from playwright.async_api import Error as PwError
 
 # =========================
 # S3（固定）
@@ -122,11 +123,13 @@ def s3_download_teamdata_all(bucket: str, local_dir: str) -> List[str]:
             print(f"[S3 ERROR] download failed: s3://{bucket}/{k} (Code={code})")
     return local_paths
 
+
 def getenv_int(name: str, default: int) -> int:
     try:
         return int(os.getenv(name, default))
     except Exception:
         return default
+
 
 def getenv_str(name: str, default: str) -> str:
     v = os.getenv(name)
@@ -134,8 +137,10 @@ def getenv_str(name: str, default: str) -> str:
         return default
     return str(v)
 
+
 import sys
 import time
+
 
 def log(msg: str):
     # 1行単位で即時CloudWatchに流す
@@ -149,12 +154,14 @@ def log(msg: str):
 
 
 HEARTBEAT_SEC = getenv_int("HEARTBEAT_SEC", 30)  # 例: 30秒ごと
-PROGRESS_SEC  = getenv_int("PROGRESS_SEC", 60)   # 例: 60秒ごと
+PROGRESS_SEC = getenv_int("PROGRESS_SEC", 60)  # 例: 60秒ごと
+
 
 class Progress:
     """
     全体の進捗を一定間隔で出す（ログが止まって見える問題を潰す）
     """
+
     def __init__(self):
         self.started = time.time()
         self.last_progress = 0.0
@@ -195,7 +202,9 @@ class Progress:
             f"goto_fail={c['goto_fail']}"
         )
 
+
 progress = Progress()
+
 
 async def heartbeat_task():
     """
@@ -204,6 +213,7 @@ async def heartbeat_task():
     while True:
         await asyncio.sleep(HEARTBEAT_SEC)
         progress.maybe_log(force=True)
+
 
 # =========================
 # 設定（ECS固定）
@@ -218,16 +228,49 @@ EXCEL_BASE_PREFIX = "teamMemberData_"
 EXCEL_MAX_RECORDS = 50
 
 CONTAINS_LIST = [
-    "ケニア: プレミアリーグ", "コロンビア: プリメーラ A", "タンザニア: プレミアリーグ", "イングランド: プレミアリーグ",
-    "イングランド: EFL チャンピオンシップ", "イングランド: EFL リーグ 1", "エチオピア: プレミアリーグ", "コスタリカ: リーガ FPD",
-    "ジャマイカ: プレミアリーグ", "スペイン: ラ・リーガ", "ブラジル: セリエ A ベターノ", "ブラジル: セリエ B", "ドイツ: ブンデスリーガ",
-    "韓国: K リーグ 1", "中国: 中国スーパーリーグ", "日本: J1 リーグ", "日本: J2 リーグ", "日本: J3 リーグ", "インドネシア: スーパーリーグ",
-    "オーストラリア: A リーグ・メン", "チュニジア: チュニジア･プロリーグ", "ウガンダ: プレミアリーグ", "メキシコ: リーガ MX",
-    "フランス: リーグ・アン", "スコットランド: プレミアシップ", "オランダ: エールディビジ", "アルゼンチン: トルネオ・ベターノ",
-    "イタリア: セリエ A", "イタリア: セリエ B", "ポルトガル: リーガ・ポルトガル", "トルコ: スュペル・リグ", "セルビア: スーペルリーガ",
-    "日本: WEリーグ", "ボリビア: LFPB", "ブルガリア: パルヴァ・リーガ", "カメルーン: エリート 1", "ペルー: リーガ 1",
-    "エストニア: メスタリリーガ", "ウクライナ: プレミアリーグ", "ベルギー: ジュピラー･プロリーグ", "エクアドル: リーガ・プロ",
-    "日本: YBC ルヴァンカップ", "日本: 天皇杯"
+    "ケニア: プレミアリーグ",
+    "コロンビア: プリメーラ A",
+    "タンザニア: プレミアリーグ",
+    "イングランド: プレミアリーグ",
+    "イングランド: EFL チャンピオンシップ",
+    "イングランド: EFL リーグ 1",
+    "エチオピア: プレミアリーグ",
+    "コスタリカ: リーガ FPD",
+    "ジャマイカ: プレミアリーグ",
+    "スペイン: ラ・リーガ",
+    "ブラジル: セリエ A ベターノ",
+    "ブラジル: セリエ B",
+    "ドイツ: ブンデスリーガ",
+    "韓国: K リーグ 1",
+    "中国: 中国スーパーリーグ",
+    "日本: J1 リーグ",
+    "日本: J2 リーグ",
+    "日本: J3 リーグ",
+    "インドネシア: スーパーリーグ",
+    "オーストラリア: A リーグ・メン",
+    "チュニジア: チュニジア･プロリーグ",
+    "ウガンダ: プレミアリーグ",
+    "メキシコ: リーガ MX",
+    "フランス: リーグ・アン",
+    "スコットランド: プレミアシップ",
+    "オランダ: エールディビジ",
+    "アルゼンチン: トルネオ・ベターノ",
+    "イタリア: セリエ A",
+    "イタリア: セリエ B",
+    "ポルトガル: リーガ・ポルトガル",
+    "トルコ: スュペル・リグ",
+    "セルビア: スーペルリーガ",
+    "日本: WEリーグ",
+    "ボリビア: LFPB",
+    "ブルガリア: パルヴァ・リーガ",
+    "カメルーン: エリート 1",
+    "ペルー: リーガ 1",
+    "エストニア: メスタリリーガ",
+    "ウクライナ: プレミアリーグ",
+    "ベルギー: ジュピラー･プロリーグ",
+    "エクアドル: リーガ・プロ",
+    "日本: YBC ルヴァンカップ",
+    "日本: 天皇杯",
 ]
 
 # ---- Timeouts / retries ----
@@ -235,6 +278,11 @@ OP_TIMEOUT = getenv_int("OP_TIMEOUT_MS", 15000)
 NAV_TIMEOUT = getenv_int("NAV_TIMEOUT_MS", 60000)
 SEL_TIMEOUT = getenv_int("SEL_TIMEOUT_MS", 60000)
 SAFE_GOTO_TRIES = getenv_int("SAFE_GOTO_TRIES", 5)
+
+# ---- Fast-fail for squad ----
+SQUAD_NAV_TIMEOUT = getenv_int("SQUAD_NAV_TIMEOUT_MS", 15000)  # 15s
+SQUAD_SEL_TIMEOUT = getenv_int("SQUAD_SEL_TIMEOUT_MS", 15000)  # 15s
+SQUAD_TRIES = getenv_int("SQUAD_TRIES", 1)  # 1回で諦める
 
 WAIT_UNTIL = getenv_str("WAIT_UNTIL", "commit")  # commit / domcontentloaded など
 
@@ -251,11 +299,30 @@ SAVE_INTERVAL_SEC = 2.0
 SAVE_EVERY_N_ROWS = 80
 LOG_EVERY_ENQUEUE = True
 
+# pool size（ページ使い回し）
+TEAM_PAGEPOOL_SIZE = getenv_int("TEAM_PAGEPOOL_SIZE", TEAMS_PER_LEAGUE_CONCURRENCY)
+DETAIL_PAGEPOOL_SIZE = getenv_int("DETAIL_PAGEPOOL_SIZE", GLOBAL_PLAYERDETAIL_CONCURRENCY)
+
 BLOCKED_HOST_KEYWORDS = [
-    "googletagmanager", "google-analytics", "doubleclick", "googlesyndication",
-    "scorecardresearch", "criteo", "adsystem", "mathtag", "quantserve",
-    "taboola", "facebook", "twitter", "hotjar", "onetrust", "cookiebot",
-    "trustarc", "ioam.de", "amazon-adsystem", "adservice"
+    "googletagmanager",
+    "google-analytics",
+    "doubleclick",
+    "googlesyndication",
+    "scorecardresearch",
+    "criteo",
+    "adsystem",
+    "mathtag",
+    "quantserve",
+    "taboola",
+    "facebook",
+    "twitter",
+    "hotjar",
+    "onetrust",
+    "cookiebot",
+    "trustarc",
+    "ioam.de",
+    "amazon-adsystem",
+    "adservice",
 ]
 
 
@@ -263,6 +330,7 @@ def ensure_dirs():
     os.makedirs(BASE_DIR, exist_ok=True)
     os.makedirs(TEAMS_BY_LEAGUE_DIR, exist_ok=True)
     os.makedirs(os.path.dirname(B001_JSON_PATH), exist_ok=True)
+
 
 # =========================
 # JSON（国×リーグ）読み取り（指定版）
@@ -424,13 +492,32 @@ def group_by_league(rows: List[Tuple[str, str, str, str]]) -> Dict[Tuple[str, st
 
 
 # =========================
-# Playwright（以降は前回提示したECS版と同じ）
+# Playwright（修正版）
 # =========================
 global_nav_sema = asyncio.Semaphore(GLOBAL_NAV_CONCURRENCY)
 playerdetail_sema = asyncio.Semaphore(GLOBAL_PLAYERDETAIL_CONCURRENCY)
 
 _nav_gap_lock = asyncio.Lock()
 _last_nav_ts = 0.0
+
+
+def is_driver_dead(e: Exception) -> bool:
+    s = str(e)
+    return (
+        "Connection closed while reading from the driver" in s
+        or "pipe closed by peer" in s
+        or "Browser has been closed" in s
+        or "Target crashed" in s
+        or "BrowserType.launch: Target closed" in s
+    )
+
+
+async def safe_close(obj):
+    try:
+        if obj is not None:
+            await obj.close()
+    except Exception:
+        pass
 
 
 async def _respect_nav_gap():
@@ -448,9 +535,11 @@ async def make_context(browser):
     ctx = await browser.new_context(
         locale="ja-JP",
         timezone_id="Asia/Tokyo",
-        user_agent=("Mozilla/5.0 (X11; Linux x86_64) "
-                    "AppleWebKit/537.36 (KHTML, like Gecko) "
-                    "Chrome/124.0.0.0 Safari/537.36"),
+        user_agent=(
+            "Mozilla/5.0 (X11; Linux x86_64) "
+            "AppleWebKit/537.36 (KHTML, like Gecko) "
+            "Chrome/124.0.0.0 Safari/537.36"
+        ),
         viewport={"width": 1280, "height": 800},
         ignore_https_errors=True,
         java_script_enabled=True,
@@ -472,25 +561,47 @@ async def make_context(browser):
     return ctx
 
 
-async def safe_goto(page, url: str, selector_to_wait: Optional[str],
-                    nav_timeout=NAV_TIMEOUT, sel_timeout=SEL_TIMEOUT, tries=SAFE_GOTO_TRIES) -> bool:
+async def safe_goto(
+    page,
+    url: str,
+    selector_to_wait: Optional[str],
+    nav_timeout=NAV_TIMEOUT,
+    sel_timeout=SEL_TIMEOUT,
+    tries=SAFE_GOTO_TRIES,
+) -> bool:
     last = None
     for i in range(tries):
         try:
             async with global_nav_sema:
                 await _respect_nav_gap()
-                await page.goto(url, wait_until=WAIT_UNTIL, timeout=nav_timeout)
+                resp = await page.goto(url, wait_until=WAIT_UNTIL, timeout=nav_timeout)
+
+            # HTTPエラーは即失敗（selector待ちに行かない）
+            if resp is not None:
+                st = resp.status
+                if st >= 400:
+                    raise RuntimeError(f"HTTP {st}")
+
             if selector_to_wait:
                 await page.wait_for_selector(selector_to_wait, timeout=sel_timeout, state="attached")
             return True
         except Exception as e:
             last = e
+            # driver死はここで粘っても戻らないので投げる
+            if is_driver_dead(e):
+                raise
             await asyncio.sleep(0.8 * (i + 1))
+
     progress.inc("goto_fail", 1)
     log(f"Page.goto 最終失敗: {url} / {last}")
     return False
 
+
 class PagePool:
+    """
+    ctx.new_page() 連発を避ける（ページを使い回す）
+    """
+
     def __init__(self, ctx, size: int):
         self.ctx = ctx
         self.sema = asyncio.Semaphore(size)
@@ -505,6 +616,12 @@ class PagePool:
         return await self.ctx.new_page()
 
     async def release(self, page):
+        # 次の利用に備えて軽くリセット（重くしない）
+        try:
+            await page.goto("about:blank", wait_until="commit", timeout=3000)
+        except Exception:
+            pass
+
         async with self.lock:
             self.cache.append(page)
         self.sema.release()
@@ -520,8 +637,14 @@ class PagePool:
 
 
 class ExcelWriter:
-    def __init__(self, base_dir: str, prefix: str, max_records: int,
-                 existing_keys: Set[Tuple[str, str, str, str]], keys_lock: asyncio.Lock):
+    def __init__(
+        self,
+        base_dir: str,
+        prefix: str,
+        max_records: int,
+        existing_keys: Set[Tuple[str, str, str, str]],
+        keys_lock: asyncio.Lock,
+    ):
         self.base_dir = base_dir
         self.prefix = prefix
         self.max_records = max_records
@@ -573,11 +696,25 @@ class ExcelWriter:
         path = os.path.join(self.base_dir, f"{self.prefix}{seq_new}.xlsx")
         wb = Workbook()
         ws = wb.active
-        ws.append([
-            "国", "リーグ", "所属チーム", "選手名", "ポジション", "背番号",
-            "得点数", "年齢", "誕生日", "市場価値", "ローン保有元",
-            "契約期限", "顔写真", "故障情報", "データ取得時間"
-        ])
+        ws.append(
+            [
+                "国",
+                "リーグ",
+                "所属チーム",
+                "選手名",
+                "ポジション",
+                "背番号",
+                "得点数",
+                "年齢",
+                "誕生日",
+                "市場価値",
+                "ローン保有元",
+                "契約期限",
+                "顔写真",
+                "故障情報",
+                "データ取得時間",
+            ]
+        )
         self.wb, self.ws, self.seq = wb, ws, seq_new
         self.rows_in_current = 0
         await self._save_now()
@@ -630,7 +767,7 @@ class ExcelWriter:
             offset = 0
             while offset < len(filtered):
                 remain = self.max_records - self.rows_in_current
-                chunk = filtered[offset: offset + remain]
+                chunk = filtered[offset : offset + remain]
 
                 for r in chunk:
                     self.ws.append(r)
@@ -644,7 +781,9 @@ class ExcelWriter:
                     await self._rotate_new(self.seq + 1)
 
             if LOG_EVERY_ENQUEUE:
-                print(f"[WRITER] APPEND {label}: +{len(filtered)} rows -> file #{self.seq} (cur={self.rows_in_current})")
+                print(
+                    f"[WRITER] APPEND {label}: +{len(filtered)} rows -> file #{self.seq} (cur={self.rows_in_current})"
+                )
 
             if self._dirty_since_last_save >= SAVE_EVERY_N_ROWS:
                 await self._save_now()
@@ -665,9 +804,13 @@ async def scrape_player_detail_with_page(page, full_url: str) -> Dict[str, str]:
     ok = await safe_goto(page, full_url, "div.playerHeader__wrapper div.playerInfoItem")
     if not ok:
         return {
-            "age_text": age, "birth_date": birth, "market_value": mv,
-            "loan_info": loan, "contract_date": contract,
-            "img_url": img, "injury_text": inj
+            "age_text": age,
+            "birth_date": birth,
+            "market_value": mv,
+            "loan_info": loan,
+            "contract_date": contract,
+            "img_url": img,
+            "injury_text": inj,
         }
 
     try:
@@ -713,6 +856,9 @@ async def scrape_player_detail_with_page(page, full_url: str) -> Dict[str, str]:
                 if len(values) >= 2 and contract == "N/A":
                     contract = values[1].replace("期限", "").replace(":", "").strip().strip("()")
     except Exception as e:
+        # driver死は上に投げてリーグ再起動させる
+        if is_driver_dead(e):
+            raise
         print(f"[PLAYER DETAIL] parse失敗: {full_url} / {e}")
 
     try:
@@ -727,22 +873,54 @@ async def scrape_player_detail_with_page(page, full_url: str) -> Dict[str, str]:
         pass
 
     return {
-        "age_text": age, "birth_date": birth, "market_value": mv,
-        "loan_info": loan, "contract_date": contract,
-        "img_url": img, "injury_text": inj
+        "age_text": age,
+        "birth_date": birth,
+        "market_value": mv,
+        "loan_info": loan,
+        "contract_date": contract,
+        "img_url": img,
+        "injury_text": inj,
     }
 
 
-async def process_team(ctx, existing_keys, claimed_keys, keys_lock, writer, country, league, team, href):
-    page = await ctx.new_page()
-    pool = PagePool(ctx, size=max(PLAYER_PER_TEAM, 1))
+async def process_team(
+    ctx,
+    team_pool: PagePool,
+    detail_pool: PagePool,
+    existing_keys,
+    claimed_keys,
+    keys_lock,
+    writer,
+    country,
+    league,
+    team,
+    href,
+):
+    page = None
+    try:
+        page = await team_pool.acquire()
+    except Exception as e:
+        log(f"[WARN] new_page failed: {country}/{league}/{team} / {e}")
+        progress.inc("teams_done", 1)
+        progress.maybe_log()
+        return
+
     try:
         team_url = href if href.startswith("http") else f"https://flashscore.co.jp{href}"
         squad_url = team_url.rstrip("/") + "/squad/"
 
-        ok = await safe_goto(page, squad_url, "div.lineupTable.lineupTable--soccer")
+        ok = await safe_goto(
+            page,
+            squad_url,
+            "div.lineupTable.lineupTable--soccer",
+            nav_timeout=SQUAD_NAV_TIMEOUT,
+            sel_timeout=SQUAD_SEL_TIMEOUT,
+            tries=SQUAD_TRIES,
+        )
         if not ok:
-            print(f"[{country}:{league}:{team}] スカッド取得失敗")
+            log(f"[{country}:{league}:{team}] スカッド取得失敗（fast-skip）")
+            progress.inc("teams_done", 1)
+            progress.maybe_log()
             return
 
         players: List[Tuple[str, str, str, str, str]] = []
@@ -769,9 +947,12 @@ async def process_team(ctx, existing_keys, claimed_keys, keys_lock, writer, coun
                 players.append((position, jersey, name, href2, goals))
 
         if not players:
-            print(f"[{country}:{league}:{team}] 選手0件")
+            log(f"[{country}:{league}:{team}] 選手0件")
+            progress.inc("teams_done", 1)
+            progress.maybe_log()
             return
 
+        # gatherの塊（大きすぎるとメモリ/負荷が跳ねるので控えめ）
         BATCH = max(PLAYER_PER_TEAM * 4, 4)
 
         async def handle(p) -> Optional[List[object]]:
@@ -786,60 +967,105 @@ async def process_team(ctx, existing_keys, claimed_keys, keys_lock, writer, coun
             purl = href2 if href2.startswith("http") else f"https://flashscore.co.jp{href2}"
 
             async with playerdetail_sema:
-                tab = await pool.acquire()
+                tab = None
                 try:
+                    tab = await detail_pool.acquire()
                     detail = await scrape_player_detail_with_page(tab, purl)
+                    progress.inc("player_detail_ok", 1)
+                except Exception as e:
+                    progress.inc("player_detail_fail", 1)
+                    # driver死はリーグごと作り直しのため上へ
+                    if is_driver_dead(e):
+                        raise
+                    return None
                 finally:
-                    await pool.release(tab)
+                    if tab is not None:
+                        try:
+                            await detail_pool.release(tab)
+                        except Exception:
+                            pass
 
             return [
-                country, league, team, name, position, jersey, goals,
-                detail.get("age_text", "N/A"), detail.get("birth_date", "N/A"),
-                detail.get("market_value", "N/A"), detail.get("loan_info", "N/A"),
-                detail.get("contract_date", "N/A"), detail.get("img_url", "N/A"),
+                country,
+                league,
+                team,
+                name,
+                position,
+                jersey,
+                goals,
+                detail.get("age_text", "N/A"),
+                detail.get("birth_date", "N/A"),
+                detail.get("market_value", "N/A"),
+                detail.get("loan_info", "N/A"),
+                detail.get("contract_date", "N/A"),
+                detail.get("img_url", "N/A"),
                 detail.get("injury_text", "N/A"),
-                datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+                datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S"),
             ]
 
         rows_to_write: List[List[object]] = []
         for i in range(0, len(players), BATCH):
-            got = await asyncio.gather(*(handle(p) for p in players[i:i + BATCH]))
-            rows_to_write.extend([r for r in got if r])
+            got = await asyncio.gather(*(handle(p) for p in players[i : i + BATCH]), return_exceptions=True)
+            for r in got:
+                if isinstance(r, list):
+                    rows_to_write.append(r)
+                elif isinstance(r, Exception):
+                    # driver死だけは上に投げる（リーグ再起動）
+                    if is_driver_dead(r):
+                        raise r
 
         if rows_to_write:
             writer.enqueue_team_rows(rows_to_write, f"{country}/{league}/{team}")
+            progress.inc("players_enqueued", len(rows_to_write))
 
         log(f"[TEAM-DONE] {country} / {league} / {team}")
-
         progress.inc("teams_done", 1)
         progress.maybe_log()
 
     except Exception as e:
-        print(f"[{country}:{league}:{team}] エラー: {e}")
+        # driver死は上位でリーグ再起動させるため投げる
+        if is_driver_dead(e):
+            raise
+        log(f"[WARN] team failed: {country}/{league}/{team} / {e}")
+        progress.inc("teams_done", 1)
+        progress.maybe_log()
     finally:
-        try:
-            await pool.close()
-        except Exception:
-            pass
-        try:
-            await page.close()
-        except Exception:
-            pass
+        if page is not None:
+            try:
+                await team_pool.release(page)
+            except Exception:
+                pass
 
 
-async def process_league(ctx, existing_keys, claimed_keys, keys_lock, writer, league_key, teams):
+async def process_league(
+    ctx,
+    team_pool: PagePool,
+    detail_pool: PagePool,
+    existing_keys,
+    claimed_keys,
+    keys_lock,
+    writer,
+    league_key,
+    teams,
+):
     country, league = league_key
     log(f"[LEAGUE-START] {country} / {league} teams={len(teams)}")
 
     for i in range(0, len(teams), TEAMS_PER_LEAGUE_CONCURRENCY):
-        chunk = teams[i:i + TEAMS_PER_LEAGUE_CONCURRENCY]
-        results = await asyncio.gather(*[
-            process_team(ctx, existing_keys, claimed_keys, keys_lock, writer, c, l, team, href)
-            for (c, l, team, href) in chunk
-        ], return_exceptions=True)
+        chunk = teams[i : i + TEAMS_PER_LEAGUE_CONCURRENCY]
+        results = await asyncio.gather(
+            *[
+                process_team(ctx, team_pool, detail_pool, existing_keys, claimed_keys, keys_lock, writer, c, l, team, href)
+                for (c, l, team, href) in chunk
+            ],
+            return_exceptions=True,
+        )
 
         for r in results:
             if isinstance(r, Exception):
+                # driver死は上位へ
+                if is_driver_dead(r):
+                    raise r
                 print(f"[WARN] チーム例外: {country}/{league} / {r}")
 
     log(f"[LEAGUE-DONE] {country} / {league}")
@@ -864,7 +1090,7 @@ def convert_xlsx_to_csv_upload_and_delete_all(base_dir: str, prefix: str) -> Non
                 for row in ws.iter_rows(values_only=True):
                     w.writerow([("" if v is None else v) for v in row])
 
-            # ✅ 出力は member バケット直下へ
+            # 出力は member バケット直下へ
             s3_upload_to_bucket_root(S3_BUCKET_MEMBER, csv_path)
 
             os.remove(xlsx_path)
@@ -875,15 +1101,14 @@ def convert_xlsx_to_csv_upload_and_delete_all(base_dir: str, prefix: str) -> Non
 
 async def main():
     ensure_dirs()
-    now = datetime.datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    log(f"TeamMemberData(ECS): 開始")
+    log("TeamMemberData(ECS): 開始")
 
     hb = asyncio.create_task(heartbeat_task())
 
-    # ✅ JSON（任意）は member バケットから
+    # JSON（任意）は member バケットから
     s3_download_if_exists(S3_BUCKET_MEMBER, B001_S3_KEY, B001_JSON_PATH)
 
-    # ✅ teamData_*.csv は team バケットから /tmp/bookmaker/teams_by_league へ
+    # teamData_*.csv は team バケットから /tmp/bookmaker/teams_by_league へ
     s3_download_teamdata_all(S3_BUCKET_TEAM, TEAMS_BY_LEAGUE_DIR)
 
     existing_keys = load_existing_player_keys(TEAMS_BY_LEAGUE_DIR)
@@ -892,6 +1117,7 @@ async def main():
     paths = glob.glob(os.path.join(TEAMS_BY_LEAGUE_DIR, "teamData_*.csv"))
     if not paths:
         print(f"[EXIT] teamData_*.csv が見つかりません（DL失敗の可能性）: s3://{S3_BUCKET_TEAM}/teamData_*.csv")
+        hb.cancel()
         return
 
     team_rows: List[Tuple[str, str, str, str]] = []
@@ -910,7 +1136,7 @@ async def main():
 
     log(f"[PLAN] 処理チーム数（重複除去後）: {len(uniq_rows)}")
 
-    # ✅ JSONがあれば（指定関数で）読み取り、無ければ CONTAINS_LIST フィルタ
+    # JSONがあれば読み取り、無ければ CONTAINS_LIST フィルタ
     p_json = Path(B001_JSON_PATH).expanduser()
     if p_json.exists():
         _countries, country_league_pairs = extract_countries_and_leagues(B001_JSON_PATH)
@@ -928,6 +1154,7 @@ async def main():
 
             if not uniq_rows:
                 print("[EXIT] JSONはあるが対象チームが0件（表記ゆれ/JSON形式を確認）")
+                hb.cancel()
                 return
         else:
             # JSONファイルはあるが空/形式不一致 => contains fallback
@@ -943,6 +1170,7 @@ async def main():
 
     if not uniq_rows:
         print("[EXIT] フィルタ後の対象チームが0件")
+        hb.cancel()
         return
 
     league_map = group_by_league(uniq_rows)
@@ -972,11 +1200,44 @@ async def main():
                 "--blink-settings=imagesEnabled=false",
             ],
         )
-        ctx = await make_context(browser)
 
         async def run_one_league(lk, teams):
             async with league_sema:
-                await process_league(ctx, existing_keys, claimed_keys, keys_lock, writer, lk, teams)
+                # リーグ単位で context を作って捨てる（長時間のメモリ累積を切る）
+                for attempt in range(2):  # 0:通常 / 1:driver死んだ時の1回だけ再試行
+                    ctx = None
+                    team_pool = None
+                    detail_pool = None
+                    try:
+                        ctx = await make_context(browser)
+                        team_pool = PagePool(ctx, size=max(1, TEAM_PAGEPOOL_SIZE))
+                        detail_pool = PagePool(ctx, size=max(1, DETAIL_PAGEPOOL_SIZE))
+
+                        await process_league(
+                            ctx,
+                            team_pool,
+                            detail_pool,
+                            existing_keys,
+                            claimed_keys,
+                            keys_lock,
+                            writer,
+                            lk,
+                            teams,
+                        )
+                        return
+                    except Exception as e:
+                        if is_driver_dead(e) and attempt == 0:
+                            log(f"[LEAGUE RETRY] driver closed: {lk} / retry with fresh context")
+                            # 次のattemptで作り直し
+                        else:
+                            log(f"[WARN] league failed: {lk} / {e}")
+                            return
+                    finally:
+                        if team_pool is not None:
+                            await team_pool.close()
+                        if detail_pool is not None:
+                            await detail_pool.close()
+                        await safe_close(ctx)
 
         tasks = [run_one_league(lk, teams) for (lk, teams) in league_items]
         results = await asyncio.gather(*tasks, return_exceptions=True)
@@ -984,12 +1245,11 @@ async def main():
             if isinstance(r, Exception):
                 print(f"[WARN] リーグ例外: {r}")
 
-        await ctx.close()
-        await browser.close()
+        await safe_close(browser)
 
     await writer.stop()
 
-    # ✅ xlsx -> csv & memberバケットへupload & xlsx delete
+    # xlsx -> csv & memberバケットへupload & xlsx delete
     convert_xlsx_to_csv_upload_and_delete_all(TEAMS_BY_LEAGUE_DIR, EXCEL_BASE_PREFIX)
 
     log("TeamMemberData(ECS): 完了（teamバケットから入力 -> memberバケットへ出力）")
@@ -999,15 +1259,6 @@ async def main():
         await hb
     except Exception:
         pass
-
-def handler(event=None, context=None):
-    try:
-        asyncio.run(main())
-    except RuntimeError:
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(main())
-    return {"statusCode": 200, "body": "ok"}
 
 
 if __name__ == "__main__":
