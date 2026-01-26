@@ -53,6 +53,10 @@ public class CountryLeagueMasterBatch implements BatchIF {
 	@Autowired
 	private CountryLeagueMasterStat countryLeagueMasterStat;
 
+	/** BM_M032統計分析ロジック */
+	@Autowired
+	private ColorMasterStat colorMasterStat;
+
 	/** ジョブ実行制御 */
 	@Autowired
 	private jobExecControlIF jobExecControl;
@@ -79,6 +83,16 @@ public class CountryLeagueMasterBatch implements BatchIF {
 		String jobId = JobIdUtil.generate(BATCH_CODE);
 		boolean jobInserted = false;
 		try {
+			// 0: QUEUED（受付）
+			boolean started = jobExecControl.jobStart(jobId, BATCH_CODE);
+			if (!started) {
+				this.manageLoggerComponent.debugWarnLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE,
+						"jobStart failed (duplicate or insert error). jobId=" + jobId);
+				return BatchConstant.BATCH_ERROR;
+			}
+			jobInserted = true;
+
 			// マスタデータ情報を取得
 			Map<String, List<CountryLeagueMasterEntity>> listMap = this.getTeamMasterInfo.getData();
 
@@ -86,6 +100,7 @@ public class CountryLeagueMasterBatch implements BatchIF {
 			for (Map.Entry<String, List<CountryLeagueMasterEntity>> entry : listMap.entrySet()) {
 				try {
 					this.countryLeagueMasterStat.masterStat(entry.getKey(), entry.getValue());
+					this.colorMasterStat.masterStat(entry.getKey(), entry.getValue());
 				} catch (Exception e) {
 					this.manageLoggerComponent.debugErrorLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, e);

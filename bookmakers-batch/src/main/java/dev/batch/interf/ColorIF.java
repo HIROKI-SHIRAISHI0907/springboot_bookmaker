@@ -2,7 +2,7 @@ package dev.batch.interf;
 
 import java.util.List;
 
-import dev.batch.bm_b006.TeamColorMasterEntity;
+import dev.batch.bm_b004.TeamColorMasterEntity;
 
 /**
  * 色データ用共通インターフェース

@@ -1,4 +1,4 @@
-package dev.batch.bm_b006;
+package dev.batch.bm_b004;
 
 import java.util.List;
 

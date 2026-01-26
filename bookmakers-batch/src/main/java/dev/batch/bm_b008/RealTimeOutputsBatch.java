@@ -1,24 +1,19 @@
-package dev.batch.bm_b007;
-
-import java.util.List;
-import java.util.Map;
+package dev.batch.bm_b008;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import dev.application.main.service.CoreStat;
+import dev.application.analyze.bm_m001.OriginService;
 import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
 import dev.batch.interf.jobExecControlIF;
 import dev.batch.util.JobIdUtil;
-import dev.common.entity.BookDataEntity;
-import dev.common.getinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
- * 選手登録バッチ実行クラス。
+ * リアルタイムデータバッチ実行クラス。
  * <p>
- * 統計データ用に生成した情報を取得し、登録ロジック（Transactional想定）を実行する。
+ * 3分間隔で取得したリアルタイムデータを取得し、登録ロジック（Transactional想定）を実行する。
  * </p>
  *
  * <p><b>実行方式</b></p>
@@ -30,29 +25,25 @@ import dev.common.logger.ManageLoggerComponent;
  *
  * @author shiraishitoshio
  */
-@Service("B007")
-public class StatBatch implements BatchIF {
+@Service("B008")
+public class RealTimeOutputsBatch implements BatchIF {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = StatBatch.class.getProtectionDomain()
+	private static final String PROJECT_NAME = RealTimeOutputsBatch.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = StatBatch.class.getSimpleName();
+	private static final String CLASS_NAME = RealTimeOutputsBatch.class.getSimpleName();
 
 	/** エラーコード（運用ルールに合わせて変更） */
-	private static final String ERROR_CODE = "BM_B007_ERROR";
+	private static final String ERROR_CODE = "BM_B008_ERROR";
 
 	/** バッチコード */
-	private static final String BATCH_CODE = "B007";
+	private static final String BATCH_CODE = "B008";
 
-	/** 統計生成情報取得管理クラス */
+	/** OriginService部品 */
 	@Autowired
-	private GetStatInfo getStatInfo;
-
-	/** CoreStat部品 */
-	@Autowired
-	private CoreStat coreStat;
+	private OriginService originService;
 
 	/** ジョブ実行制御 */
 	@Autowired
@@ -76,19 +67,13 @@ public class StatBatch implements BatchIF {
 		final String METHOD_NAME = "execute";
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// jobId採番（B007-xxxxx）
+		// jobId採番（B009-xxxxx）
 		String jobId = JobIdUtil.generate(BATCH_CODE);
 		boolean jobInserted = false;
 		try {
-			// シーケンス情報を取得
+			// リアルタイムデータサービス登録(Transactional)
+			this.originService.execute();
 
-			// リアルタイムデータ情報を取得
-			Map<String, Map<String, List<BookDataEntity>>> stat = this.getStatInfo.getData(null, null);
-
-			// 統計データ登録(Transactional)
-			this.coreStat.execute(stat);
-
-			// シーケンス情報を更新
 			return BatchConstant.BATCH_SUCCESS;
 
 		} catch (Exception e) {

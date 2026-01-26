@@ -1,23 +1,19 @@
-package dev.batch.bm_b006;
-
-import java.util.List;
-import java.util.Map;
+package dev.batch.bm_b007;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import dev.application.main.service.CoreHistoryStat;
 import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
 import dev.batch.interf.jobExecControlIF;
 import dev.batch.util.JobIdUtil;
-import dev.common.entity.CountryLeagueMasterEntity;
-import dev.common.getinfo.GetTeamInfo;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
  * 履歴登録バッチ実行クラス。
  * <p>
- * シーズンが終了したデータに対して履歴テーブルに登録する処理を実行する。
+ * シーズンが終了したデータを取得し、登録ロジック（Transactional想定）を実行する。
  * </p>
  *
  * <p><b>実行方式</b></p>
@@ -29,29 +25,25 @@ import dev.common.logger.ManageLoggerComponent;
  *
  * @author shiraishitoshio
  */
-@Service("B006")
-public class ColorMasterBatch implements BatchIF {
+@Service("B007")
+public class StatHistoryBatch implements BatchIF {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = ColorMasterBatch.class.getProtectionDomain()
+	private static final String PROJECT_NAME = StatHistoryBatch.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = ColorMasterBatch.class.getSimpleName();
+	private static final String CLASS_NAME = StatHistoryBatch.class.getSimpleName();
 
 	/** エラーコード（運用ルールに合わせて変更） */
-	private static final String ERROR_CODE = "BM_B006_ERROR";
+	private static final String ERROR_CODE = "BM_B007_ERROR";
 
 	/** バッチコード */
-	private static final String BATCH_CODE = "B006";
+	private static final String BATCH_CODE = "B007";
 
-	/** マスタ情報取得管理クラス */
+	/** CoreHistoryStat部品 */
 	@Autowired
-	private GetTeamInfo getTeamMasterInfo;
-
-	/** ColorMasterStat部品 */
-	@Autowired
-	private ColorMasterStat colorMasterStat;
+	private CoreHistoryStat coreHistoryStat;
 
 	/** ジョブ実行制御 */
 	@Autowired
@@ -75,23 +67,13 @@ public class ColorMasterBatch implements BatchIF {
 		final String METHOD_NAME = "execute";
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// jobId採番（B006-xxxxx）
+		// jobId採番（B008-xxxxx）
 		String jobId = JobIdUtil.generate(BATCH_CODE);
 		boolean jobInserted = false;
 		try {
-			// マスタデータ情報を取得
-			Map<String, List<CountryLeagueMasterEntity>> listMap = this.getTeamMasterInfo.getData();
+			// 履歴登録(Transactional)
+			this.coreHistoryStat.execute();
 
-			// 色登録(Transactional)
-			for (Map.Entry<String, List<CountryLeagueMasterEntity>> entry : listMap.entrySet()) {
-				try {
-					this.colorMasterStat.masterStat(entry.getKey(), entry.getValue());
-				} catch (Exception e) {
-					this.manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, e);
-					continue;
-				}
-			}
 			return BatchConstant.BATCH_SUCCESS;
 
 		} catch (Exception e) {

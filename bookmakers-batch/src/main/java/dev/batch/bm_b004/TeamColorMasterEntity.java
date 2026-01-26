@@ -1,4 +1,4 @@
-package dev.batch.bm_b006;
+package dev.batch.bm_b004;
 
 import dev.common.entity.MetaEntity;
 import lombok.Data;

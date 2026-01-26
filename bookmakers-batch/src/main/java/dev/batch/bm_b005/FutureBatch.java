@@ -79,6 +79,16 @@ public class FutureBatch implements BatchIF {
 		String jobId = JobIdUtil.generate(BATCH_CODE);
 		boolean jobInserted = false;
 		try {
+			// 0: QUEUED（受付）
+			boolean started = jobExecControl.jobStart(jobId, BATCH_CODE);
+			if (!started) {
+				this.manageLoggerComponent.debugWarnLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE,
+						"jobStart failed (duplicate or insert error). jobId=" + jobId);
+				return BatchConstant.BATCH_ERROR;
+			}
+			jobInserted = true;
+
 			// 未来CSVデータ情報を取得
 			Map<String, List<FutureEntity>> getFutureMap = this.getFutureInfo.getData();
 

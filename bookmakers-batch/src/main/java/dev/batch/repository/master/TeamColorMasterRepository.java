@@ -6,7 +6,7 @@ import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 
-import dev.batch.bm_b006.TeamColorMasterEntity;
+import dev.batch.bm_b004.TeamColorMasterEntity;
 
 @Mapper
 public interface TeamColorMasterRepository {
