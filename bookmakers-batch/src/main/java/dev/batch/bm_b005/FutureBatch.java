@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 
 import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
+import dev.batch.interf.jobExecControlIF;
+import dev.batch.util.JobIdUtil;
 import dev.common.entity.FutureEntity;
 import dev.common.getinfo.GetFutureInfo;
 import dev.common.logger.ManageLoggerComponent;
@@ -30,59 +32,68 @@ import dev.common.logger.ManageLoggerComponent;
 @Service("B005")
 public class FutureBatch implements BatchIF {
 
-    /** プロジェクト名 */
-    private static final String PROJECT_NAME = FutureBatch.class.getProtectionDomain()
-            .getCodeSource().getLocation().getPath();
+	/** プロジェクト名 */
+	private static final String PROJECT_NAME = FutureBatch.class.getProtectionDomain()
+			.getCodeSource().getLocation().getPath();
 
-    /** クラス名 */
-    private static final String CLASS_NAME = FutureBatch.class.getSimpleName();
+	/** クラス名 */
+	private static final String CLASS_NAME = FutureBatch.class.getSimpleName();
 
-    /** エラーコード（運用ルールに合わせて変更） */
-    private static final String ERROR_CODE = "BM_B005_ERROR";
+	/** エラーコード（運用ルールに合わせて変更） */
+	private static final String ERROR_CODE = "BM_B005_ERROR";
 
-    /** 未来情報取得管理クラス */
-    @Autowired
-    private GetFutureInfo getFutureInfo;
+	/** バッチコード */
+	private static final String BATCH_CODE = "B005";
 
-    /** BM_M022未来データ登録ロジック */
-    @Autowired
-    private FutureStat futureStat;
+	/** 未来情報取得管理クラス */
+	@Autowired
+	private GetFutureInfo getFutureInfo;
 
-    /** ログ管理クラス */
-    @Autowired
-    private ManageLoggerComponent manageLoggerComponent;
+	/** BM_M022未来データ登録ロジック */
+	@Autowired
+	private FutureStat futureStat;
 
-    /**
-     * バッチ処理を実行する。
-     *
-     * @return
-     * <ul>
-     *   <li>{@link BatchConstant#BATCH_SUCCESS}：正常終了</li>
-     *   <li>{@link BatchConstant#BATCH_ERROR}：異常終了</li>
-     * </ul>
-     */
-    @Override
-    public int execute() {
-        final String METHOD_NAME = "execute";
-        this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	/** ジョブ実行制御 */
+	@Autowired
+	private jobExecControlIF jobExecControl;
 
-        try {
-            // 未来CSVデータ情報を取得
-            Map<String, List<FutureEntity>> getFutureMap = this.getFutureInfo.getData();
+	/** ログ管理クラス */
+	@Autowired
+	private ManageLoggerComponent manageLoggerComponent;
 
-            // BM_M022登録(Transactional)
-            this.futureStat.futureStat(getFutureMap);
+	/**
+	 * バッチ処理を実行する。
+	 *
+	 * @return
+	 * <ul>
+	 *   <li>{@link BatchConstant#BATCH_SUCCESS}：正常終了</li>
+	 *   <li>{@link BatchConstant#BATCH_ERROR}：異常終了</li>
+	 * </ul>
+	 */
+	@Override
+	public int execute() {
+		final String METHOD_NAME = "execute";
+		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-            return BatchConstant.BATCH_SUCCESS;
+		// jobId採番（B005-xxxxx）
+		String jobId = JobIdUtil.generate(BATCH_CODE);
+		boolean jobInserted = false;
+		try {
+			// 未来CSVデータ情報を取得
+			Map<String, List<FutureEntity>> getFutureMap = this.getFutureInfo.getData();
 
-        } catch (Exception e) {
-            this.manageLoggerComponent.debugErrorLog(
-                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, e
-            );
-            return BatchConstant.BATCH_ERROR;
+			// BM_M022登録(Transactional)
+			this.futureStat.futureStat(getFutureMap);
 
-        } finally {
-            this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-        }
-    }
+			return BatchConstant.BATCH_SUCCESS;
+
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, e);
+			return BatchConstant.BATCH_ERROR;
+
+		} finally {
+			this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		}
+	}
 }

@@ -9,6 +9,8 @@ import org.springframework.stereotype.Service;
 import dev.application.main.service.CoreStat;
 import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
+import dev.batch.interf.jobExecControlIF;
+import dev.batch.util.JobIdUtil;
 import dev.common.entity.BookDataEntity;
 import dev.common.getinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
@@ -41,6 +43,9 @@ public class StatBatch implements BatchIF {
 	/** エラーコード（運用ルールに合わせて変更） */
 	private static final String ERROR_CODE = "BM_B007_ERROR";
 
+	/** バッチコード */
+	private static final String BATCH_CODE = "B007";
+
 	/** 統計生成情報取得管理クラス */
 	@Autowired
 	private GetStatInfo getStatInfo;
@@ -48,6 +53,10 @@ public class StatBatch implements BatchIF {
 	/** CoreStat部品 */
 	@Autowired
 	private CoreStat coreStat;
+
+	/** ジョブ実行制御 */
+	@Autowired
+	private jobExecControlIF jobExecControl;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -67,6 +76,9 @@ public class StatBatch implements BatchIF {
 		final String METHOD_NAME = "execute";
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
+		// jobId採番（B007-xxxxx）
+		String jobId = JobIdUtil.generate(BATCH_CODE);
+		boolean jobInserted = false;
 		try {
 			// シーケンス情報を取得
 

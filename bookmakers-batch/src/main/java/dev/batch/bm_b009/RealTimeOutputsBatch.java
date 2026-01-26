@@ -1,15 +1,13 @@
 package dev.batch.bm_b009;
 
-import java.util.List;
-import java.util.Map;
-
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import dev.application.analyze.bm_m001.OriginService;
 import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
-import dev.common.entity.DataEntity;
-import dev.common.getinfo.GetOriginInfo;
+import dev.batch.interf.jobExecControlIF;
+import dev.batch.util.JobIdUtil;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
@@ -40,9 +38,16 @@ public class RealTimeOutputsBatch implements BatchIF {
 	/** エラーコード（運用ルールに合わせて変更） */
 	private static final String ERROR_CODE = "BM_B009_ERROR";
 
-	/** GetOriginInfo部品 */
+	/** バッチコード */
+	private static final String BATCH_CODE = "B009";
+
+	/** OriginService部品 */
 	@Autowired
-	private GetOriginInfo getOriginInfo;
+	private OriginService originService;
+
+	/** ジョブ実行制御 */
+	@Autowired
+	private jobExecControlIF jobExecControl;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -62,12 +67,12 @@ public class RealTimeOutputsBatch implements BatchIF {
 		final String METHOD_NAME = "execute";
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
+		// jobId採番（B009-xxxxx）
+		String jobId = JobIdUtil.generate(BATCH_CODE);
+		boolean jobInserted = false;
 		try {
-			// リアルタイムデータ情報を取得
-			Map<String, List<DataEntity>> outputs = this.getOriginInfo.getData();
-
-			// リアルタイムデータ登録(Transactional)
-			//this.coreStat.execute(stat);
+			// リアルタイムデータサービス登録(Transactional)
+			this.originService.execute();
 
 			return BatchConstant.BATCH_SUCCESS;
 

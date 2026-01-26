@@ -6,6 +6,8 @@ import org.springframework.stereotype.Service;
 import dev.application.main.service.CoreHistoryStat;
 import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
+import dev.batch.interf.jobExecControlIF;
+import dev.batch.util.JobIdUtil;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
@@ -36,9 +38,16 @@ public class StatHistoryBatch implements BatchIF {
 	/** エラーコード（運用ルールに合わせて変更） */
 	private static final String ERROR_CODE = "BM_B008_ERROR";
 
+	/** バッチコード */
+	private static final String BATCH_CODE = "B008";
+
 	/** CoreHistoryStat部品 */
 	@Autowired
 	private CoreHistoryStat coreHistoryStat;
+
+	/** ジョブ実行制御 */
+	@Autowired
+	private jobExecControlIF jobExecControl;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -58,6 +67,9 @@ public class StatHistoryBatch implements BatchIF {
 		final String METHOD_NAME = "execute";
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
+		// jobId採番（B008-xxxxx）
+		String jobId = JobIdUtil.generate(BATCH_CODE);
+		boolean jobInserted = false;
 		try {
 			// 履歴登録(Transactional)
 			this.coreHistoryStat.execute();

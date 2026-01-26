@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 
 import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
+import dev.batch.interf.jobExecControlIF;
+import dev.batch.util.JobIdUtil;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.getinfo.GetTeamInfo;
 import dev.common.logger.ManageLoggerComponent;
@@ -27,7 +29,7 @@ import dev.common.logger.ManageLoggerComponent;
  *
  * @author shiraishitoshio
  */
-@Service("B007")
+@Service("B006")
 public class ColorMasterBatch implements BatchIF {
 
 	/** プロジェクト名 */
@@ -38,7 +40,10 @@ public class ColorMasterBatch implements BatchIF {
 	private static final String CLASS_NAME = ColorMasterBatch.class.getSimpleName();
 
 	/** エラーコード（運用ルールに合わせて変更） */
-	private static final String ERROR_CODE = "BM_B007_ERROR";
+	private static final String ERROR_CODE = "BM_B006_ERROR";
+
+	/** バッチコード */
+	private static final String BATCH_CODE = "B006";
 
 	/** マスタ情報取得管理クラス */
 	@Autowired
@@ -47,6 +52,10 @@ public class ColorMasterBatch implements BatchIF {
 	/** ColorMasterStat部品 */
 	@Autowired
 	private ColorMasterStat colorMasterStat;
+
+	/** ジョブ実行制御 */
+	@Autowired
+	private jobExecControlIF jobExecControl;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -66,6 +75,9 @@ public class ColorMasterBatch implements BatchIF {
 		final String METHOD_NAME = "execute";
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
+		// jobId採番（B006-xxxxx）
+		String jobId = JobIdUtil.generate(BATCH_CODE);
+		boolean jobInserted = false;
 		try {
 			// マスタデータ情報を取得
 			Map<String, List<CountryLeagueMasterEntity>> listMap = this.getTeamMasterInfo.getData();

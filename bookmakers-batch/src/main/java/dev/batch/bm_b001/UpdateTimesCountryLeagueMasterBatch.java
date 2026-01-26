@@ -7,6 +7,7 @@ import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
 import dev.batch.interf.jobExecControlIF;
 import dev.batch.util.JobIdUtil;
+import dev.common.constant.MessageCdConst;
 import dev.common.logger.ManageLoggerComponent;
 
 @Service("B001")
@@ -25,12 +26,15 @@ public class UpdateTimesCountryLeagueMasterBatch implements BatchIF {
 	/** バッチコード */
 	private static final String BATCH_CODE = "B001";
 
+	/** ロガー */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
 
+	/** ジョブ実行制御 */
 	@Autowired
 	private jobExecControlIF jobExecControl;
 
+	/** 非同期ワーカー */
 	@Autowired
 	private B001AsyncMasterPythonWorker asyncWorker;
 
@@ -65,8 +69,9 @@ public class UpdateTimesCountryLeagueMasterBatch implements BatchIF {
 			// 非同期起動（画面/呼び出し元は待たない）
 			asyncWorker.run(jobId);
 
+			String messageCd = MessageCdConst.MCD00015I_BATCH_ACCEPTED;
 			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
 					"B001 accepted. jobId=" + jobId);
 
 			// 受付成功（処理完了はjobテーブルのstatusで判定）

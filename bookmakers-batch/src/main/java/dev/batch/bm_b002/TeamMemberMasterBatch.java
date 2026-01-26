@@ -8,6 +8,8 @@ import org.springframework.stereotype.Service;
 
 import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
+import dev.batch.interf.jobExecControlIF;
+import dev.batch.util.JobIdUtil;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.getinfo.GetTeamMemberInfo;
 import dev.common.logger.ManageLoggerComponent;
@@ -30,59 +32,68 @@ import dev.common.logger.ManageLoggerComponent;
 @Service("B002")
 public class TeamMemberMasterBatch implements BatchIF {
 
-    /** プロジェクト名 */
-    private static final String PROJECT_NAME = TeamMemberMasterBatch.class.getProtectionDomain()
-            .getCodeSource().getLocation().getPath();
+	/** プロジェクト名 */
+	private static final String PROJECT_NAME = TeamMemberMasterBatch.class.getProtectionDomain()
+			.getCodeSource().getLocation().getPath();
 
-    /** クラス名 */
-    private static final String CLASS_NAME = TeamMemberMasterBatch.class.getSimpleName();
+	/** クラス名 */
+	private static final String CLASS_NAME = TeamMemberMasterBatch.class.getSimpleName();
 
-    /** エラーコード（運用ルールに合わせて変更） */
-    private static final String ERROR_CODE = "BM_B002_ERROR";
+	/** エラーコード（運用ルールに合わせて変更） */
+	private static final String ERROR_CODE = "BM_B002_ERROR";
 
-    /** 選手情報取得管理クラス */
-    @Autowired
-    private GetTeamMemberInfo getMemberInfo;
+	/** バッチコード */
+	private static final String BATCH_CODE = "B002";
 
-    /** BM_M028統計分析ロジック */
-    @Autowired
-    private TeamMemberMasterStat teamMemberMasterStat;
+	/** 選手情報取得管理クラス */
+	@Autowired
+	private GetTeamMemberInfo getMemberInfo;
 
-    /** ログ管理クラス */
-    @Autowired
-    private ManageLoggerComponent manageLoggerComponent;
+	/** BM_M028統計分析ロジック */
+	@Autowired
+	private TeamMemberMasterStat teamMemberMasterStat;
 
-    /**
-     * バッチ処理を実行する。
-     *
-     * @return
-     * <ul>
-     *   <li>{@link BatchConstant#BATCH_SUCCESS}：正常終了</li>
-     *   <li>{@link BatchConstant#BATCH_ERROR}：異常終了</li>
-     * </ul>
-     */
-    @Override
-    public int execute() {
-        final String METHOD_NAME = "execute";
-        this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	/** ジョブ実行制御 */
+	@Autowired
+	private jobExecControlIF jobExecControl;
 
-        try {
-            // 選手CSVデータ情報を取得
-            Map<String, List<TeamMemberMasterEntity>> getMemberMap = this.getMemberInfo.getData();
+	/** ログ管理クラス */
+	@Autowired
+	private ManageLoggerComponent manageLoggerComponent;
 
-            // BM_M028登録(Transactional)
-            this.teamMemberMasterStat.teamMemberStat(getMemberMap);
+	/**
+	 * バッチ処理を実行する。
+	 *
+	 * @return
+	 * <ul>
+	 *   <li>{@link BatchConstant#BATCH_SUCCESS}：正常終了</li>
+	 *   <li>{@link BatchConstant#BATCH_ERROR}：異常終了</li>
+	 * </ul>
+	 */
+	@Override
+	public int execute() {
+		final String METHOD_NAME = "execute";
+		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-            return BatchConstant.BATCH_SUCCESS;
+		// jobId採番（B002-xxxxx）
+		String jobId = JobIdUtil.generate(BATCH_CODE);
+		boolean jobInserted = false;
+		try {
+			// 選手CSVデータ情報を取得
+			Map<String, List<TeamMemberMasterEntity>> getMemberMap = this.getMemberInfo.getData();
 
-        } catch (Exception e) {
-            this.manageLoggerComponent.debugErrorLog(
-                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, e
-            );
-            return BatchConstant.BATCH_ERROR;
+			// BM_M028登録(Transactional)
+			this.teamMemberMasterStat.teamMemberStat(getMemberMap);
 
-        } finally {
-            this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-        }
-    }
+			return BatchConstant.BATCH_SUCCESS;
+
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, e);
+			return BatchConstant.BATCH_ERROR;
+
+		} finally {
+			this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		}
+	}
 }
