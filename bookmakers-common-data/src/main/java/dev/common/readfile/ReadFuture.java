@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.common.constant.BookMakersCommonConst;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.FutureEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.dto.ReadFileOutputDTO;
@@ -124,6 +125,7 @@ public class ReadFuture implements ReadFileBodyIF {
 	        try {
 	            mappingDto.setFutureTime(DateUtil.normalizeToJapaneseFormat(parts[1]));
 	        } catch (Exception e) {
+	        	String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 	            String msg = "futureTime parse error"
 	                    + " file=" + fileIdForLog
 	                    + " row=" + row

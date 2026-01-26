@@ -10,13 +10,13 @@ public class MessageCdConst {
 	/** MCD00001I: 処理が正常終了しました。(バッチ名: {1}) */
 	public static final String MCD00001I_BATCH_EXECUTION_GREEN_FIN = "MCD00001I";
 
-	/** MCD00002I: 処理が途中で正常終了しました。(理由: {1}) */
+	/** MCD00002I: 処理が途中で正常終了しました。(備考: {1}) */
 	public static final String MCD00002I_BATCH_EXECUTION_SKIP = "MCD00002I";
 
-	/** MCD00003I: 処理をスキップします。(理由: {1}) */
+	/** MCD00003I: 処理をスキップします。(備考: {1}) */
 	public static final String MCD00003I_EXECUTION_SKIP = "MCD00003I";
 
-	/** MCD00004I: 処理が正常終了しました。(理由: {1}) */
+	/** MCD00004I: 処理が正常終了しました。(備考: {1}) */
 	public static final String MCD00004I_OTHER_EXECUTION_GREEN_FIN = "MCD00004I";
 
 	/** MCD00005I: 登録処理が成功しました。(備考: {1}) */
@@ -43,8 +43,23 @@ public class MessageCdConst {
 	/** MCD00012I: 件数反映処理が成功しました。(備考: {1}) */
 	public static final String MCD00012I_COUNTER_REFLECTION_SUCCESS = "MCD00012I";
 
+	/** MCD00013I: 「終了済」データがありません。*/
+	public static final String MCD00013I_NO_FIN_DATA = "MCD00013I";
+
+	/** MCD00014I: マップデータがありませんでしたのでスキップします。(備考: {1}) */
+	public static final String MCD00014I_NO_MAP_DATA = "MCD00014I";
+
+	/** MCD00015I: バッチ処理を受け付けました。(備考: {1}) */
+	public static final String MCD00015I_BATCH_ACCEPTED = "MCD00015I";
+
 	/** MCD00099I: 途中ログ (備考: {1}) */
 	public static final String MCD00099I_LOG = "MCD00099I";
+
+	/** MCD00001W: 国リーグ分割失敗警告です。(備考: {1}) */
+	public static final String MCD00001W_COUNTRY_LEAGUE_SPLIT_FAIL_WARNING = "MCD00001W";
+
+	/** MCD00002W: 重複警告です。(備考: {1}) */
+	public static final String MCD00002W_DUPLICATION_WARNING = "MCD00002W";
 
 	/** MCD00001E: 処理が異常終了しました。(バッチ名: {1}) */
 	public static final String MCD00001E_BATCH_EXECUTION_GREEN_FIN = "MCD00001E";
@@ -55,13 +70,13 @@ public class MessageCdConst {
 	/** MCD00003E: 処理をスキップします。(理由: {1}) */
 	public static final String MCD00003E_EXECUTION_SKIP = "MCD00003E";
 
-	/** MCD00004E: スレッドに割り込みが発生しました。処理を中断します。(備考: {1}) */
+	/** MCD00004E: スレッドに割り込みが発生しました。処理を中断します。(理由: {1}) */
 	public static final String MCD00004E_THREAD_INTERRUPTION = "MCD00004E";
 
 	/** MCD00005E: 処理が異常終了しました。(理由: {1}) */
 	public static final String MCD00005E_OTHER_EXECUTION_GREEN_FIN = "MCD00005E";
 
-	/** MCD00006E: 非同期エラーが発生しました。処理を中断します。(備考: {1}) */
+	/** MCD00006E: 非同期エラーが発生しました。処理を中断します。(理由: {1}) */
 	public static final String MCD00006E_ASYNCHRONOUS_ERROR = "MCD00006E";
 
 	/** MCD00007E: 登録処理が失敗しました。(理由: {1}) */
@@ -82,8 +97,29 @@ public class MessageCdConst {
 	/** MCD00012E: 件数反映処理が失敗しました。(理由: {1}) */
 	public static final String MCD00012E_COUNTER_REFLECTION_FAILED = "MCD00012E";
 
-	/** MCD00003E: 処理をスキップします。(理由: {1}) */
-	public static final String MCD00003E_EXECUTION_SKIP = "MCD00003E";
+	/** MCD00013E: 初期化エラーが発生しました。(理由: {1}) */
+	public static final String MCD00013E_INITILIZATION_ERROR = "MCD00013E";
+
+	/** MCD00014E: リフレクションエラーが発生しました。(理由: {1}) */
+	public static final String MCD00014E_REFLECTION_ERROR = "MCD00014E";
+
+	/** MCD00015E: 数値変換エラーが発生しました。(理由: {1}) */
+	public static final String MCD00015E_NUMBERFORMAT_ERROR = "MCD00015E";
+
+	/** MCD00016E: 形式変換エラーが発生しました。(理由: {1}) */
+	public static final String MCD00016E_FORMAT_ERROR = "MCD00016E";
+
+	/** MCD00017E: 暗号化に失敗しました。(理由: {1}) */
+	public static final String MCD00017E_ENCRYPTION_ERROR = "MCD00017E";
+
+	/** MCD00018E: マージ失敗しました。(理由: {1}) */
+	public static final String MCD00018E_MERGE_ERROR = "MCD00018E";
+
+	/** MCD00019E: 重複エラーです。(理由: {1}) */
+	public static final String MCD00019E_DUPLICATION_ERROR = "MCD00019E";
+
+	/** MCD00020E: 日付エラーです。(理由: {1}) */
+	public static final String MCD00020E_DATE_ERROR = "MCD00020E";
 
 	/** MCD00099E: 予期せぬ例外が発生しました。(理由: {1}) */
 	public static final String MCD00099E_UNEXPECTED_EXCEPTION = "MCD00099E";
