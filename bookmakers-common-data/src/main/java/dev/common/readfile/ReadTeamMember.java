@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.common.constant.BookMakersCommonConst;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.dto.ReadFileOutputDTO;
@@ -67,12 +68,14 @@ public class ReadTeamMember implements ReadFileBodyIF {
 	            String[] parts = text.split(",", -1);
 	            // 列数ガード（最低15列想定）
 	            if (parts.length < 15) {
+	            	String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 	                errCd = BookMakersCommonConst.ERR_CD_ABNORMALY_DATA;
 	                String msg = "column shortage"
 	                        + " key=" + key
 	                        + " row=" + row
 	                        + " cols=" + parts.length;
-	                this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, null);
+	                this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+	                		messageCd, null, msg);
 	                fillChar += msg + "|| ";
 	                continue;
 	            }
@@ -92,12 +95,14 @@ public class ReadTeamMember implements ReadFileBodyIF {
 	            try {
 	                mappingDto.setBirth(DateUtil.convertOnlyDD_MM_YYYY(parts[8]));
 	            } catch (Exception e) {
+	            	String messageCd = MessageCdConst.MCD00020E_DATE_ERROR;
 	                errCd = BookMakersCommonConst.ERR_CD_ABNORMALY_DATA;
 	                String msg = "birth parse error"
 	                        + " key=" + key
 	                        + " row=" + row
 	                        + " raw=[" + parts[8] + "]";
-	                this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, e);
+	                this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME,
+	                		METHOD_NAME, messageCd, e, msg);
 	                fillChar += msg + ", " + e + "|| ";
 	                mappingDto.setBirth("");
 	            }
@@ -111,12 +116,14 @@ public class ReadTeamMember implements ReadFileBodyIF {
 	                        DateUtil.convertOnlyDD_MM_YYYY(parts[11].replace("N/A", ""))
 	                );
 	            } catch (Exception e) {
+	            	String messageCd = MessageCdConst.MCD00020E_DATE_ERROR;
 	                errCd = BookMakersCommonConst.ERR_CD_ABNORMALY_DATA;
 	                String msg = "deadlineContractDate parse error"
 	                        + " key=" + key
 	                        + " row=" + row
 	                        + " raw=[" + parts[11] + "]";
-	                this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, e);
+	                this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME,
+	                		METHOD_NAME, messageCd, e, msg);
 	                fillChar += msg + ", " + e + "|| ";
 	                mappingDto.setDeadlineContractDate("");
 	            }

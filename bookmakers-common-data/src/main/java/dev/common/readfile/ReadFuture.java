@@ -112,8 +112,10 @@ public class ReadFuture implements ReadFileBodyIF {
 
 	        // CSV列数が足りないと ArrayIndexOutOfBounds になるので最低限ガード
 	        if (parts.length < 18) {
+	        	String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 	            String msg = "CSV column error: file=" + fileIdForLog + " row=" + row + " cols=" + parts.length;
-	            this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, null);
+	            this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME,
+	            		METHOD_NAME, messageCd, null, msg);
 	            continue; // 欠損行はスキップ（必要なら例外でも可）
 	        }
 
@@ -125,12 +127,13 @@ public class ReadFuture implements ReadFileBodyIF {
 	        try {
 	            mappingDto.setFutureTime(DateUtil.normalizeToJapaneseFormat(parts[1]));
 	        } catch (Exception e) {
-	        	String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+	        	String messageCd = MessageCdConst.MCD00020E_DATE_ERROR;
 	            String msg = "futureTime parse error"
 	                    + " file=" + fileIdForLog
 	                    + " row=" + row
 	                    + " raw=[" + parts[1] + "]";
-	            this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, e);
+	            this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME,
+	            		METHOD_NAME, messageCd, e, msg);
 	            mappingDto.setFutureTime("");
 	        }
 
