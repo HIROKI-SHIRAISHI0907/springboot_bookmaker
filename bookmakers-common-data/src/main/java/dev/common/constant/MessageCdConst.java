@@ -52,6 +52,12 @@ public class MessageCdConst {
 	/** MCD00015I: バッチ処理を受け付けました。(備考: {1}) */
 	public static final String MCD00015I_BATCH_ACCEPTED = "MCD00015I";
 
+	/** MCD00016I: ファイルを削除しました。(備考: {1},ファイルパス: {2})) */
+	public static final String MCD00016I_FILE_DELETED = "MCD00016I";
+
+	/** MCD00017I: 削除対象のファイルがありませんでした。(備考: {1}) */
+	public static final String MCD00017I_NO_FILE_DELETED = "MCD00017I";
+
 	/** MCD00099I: 途中ログ (備考: {1}) */
 	public static final String MCD00099I_LOG = "MCD00099I";
 
@@ -120,6 +126,9 @@ public class MessageCdConst {
 
 	/** MCD00020E: 日付エラーです。(理由: {1}) */
 	public static final String MCD00020E_DATE_ERROR = "MCD00020E";
+
+	/** MCD00021E: ファイルの削除に失敗しました。(備考: {1},ファイルパス: {2}) */
+	public static final String MCD00021E_FILE_DELETED_FAILED = "MCD00021E";
 
 	/** MCD00099E: 予期せぬ例外が発生しました。(理由: {1}) */
 	public static final String MCD00099E_UNEXPECTED_EXCEPTION = "MCD00099E";

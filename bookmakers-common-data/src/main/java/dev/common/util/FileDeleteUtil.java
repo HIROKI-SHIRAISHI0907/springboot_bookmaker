@@ -6,6 +6,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
 
+import dev.common.constant.MessageCdConst;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
@@ -35,7 +36,8 @@ public class FileDeleteUtil {
 			String methodName,
 			String title) {
 		if (paths == null || paths.isEmpty()) {
-			logger.debugInfoLog(projectName, className, methodName,
+			String messageCd = MessageCdConst.MCD00017I_NO_FILE_DELETED;
+			logger.debugInfoLog(projectName, className, methodName, messageCd,
 					"削除対象ファイルなし" + (title == null ? "" : " - " + title));
 			return;
 		}
@@ -48,19 +50,23 @@ public class FileDeleteUtil {
 			try {
 				boolean deleted = Files.deleteIfExists(path);
 				if (deleted) {
-					logger.debugInfoLog(projectName, className, methodName,
+					String messageCd = MessageCdConst.MCD00016I_FILE_DELETED;
+					logger.debugInfoLog(projectName, className, methodName, messageCd,
 							"ファイル削除成功" + (title == null ? "" : " - " + title), p);
 				} else {
-					logger.debugInfoLog(projectName, className, methodName,
-							"削除対象なし（既に無い）" + (title == null ? "" : " - " + title), p);
+					String messageCd = MessageCdConst.MCD00017I_NO_FILE_DELETED;
+					logger.debugInfoLog(projectName, className, methodName, messageCd,
+							"削除対象なし（既に無い）" + (title == null ? "" : " - " + title) + "," + p);
 				}
 			} catch (IOException e) {
-				logger.debugErrorLog(projectName, className, methodName,
-						"ファイル削除失敗" + (title == null ? "" : " - " + title), e, p);
+				String messageCd = MessageCdConst.MCD00021E_FILE_DELETED_FAILED;
+				logger.debugErrorLog(projectName, className, methodName, messageCd,
+						e, "ファイル削除失敗" + (title == null ? "" : " - " + title), p);
 			} catch (Exception e) {
 				// 予期せぬ例外も握りつぶさずログ
-				logger.debugErrorLog(projectName, className, methodName,
-						"ファイル削除で予期せぬ例外" + (title == null ? "" : " - " + title), e, p);
+				String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+				logger.debugErrorLog(projectName, className, methodName, messageCd,
+						e, "ファイル削除で予期せぬ例外" + (title == null ? "" : " - " + title) + "," + p);
 			}
 		}
 	}
