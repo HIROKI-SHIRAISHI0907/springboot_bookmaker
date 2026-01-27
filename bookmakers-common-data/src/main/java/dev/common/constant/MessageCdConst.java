@@ -130,6 +130,9 @@ public class MessageCdConst {
 	/** MCD00021E: ファイルの削除に失敗しました。(備考: {1},ファイルパス: {2}) */
 	public static final String MCD00021E_FILE_DELETED_FAILED = "MCD00021E";
 
+	/** MCD00022E: CSVファイルが見つかりませんでした。(備考: {1}) */
+	public static final String MCD00022E_NO_FOUND_CSV_FILE = "MCD00022E";
+
 	/** MCD00099E: 予期せぬ例外が発生しました。(理由: {1}) */
 	public static final String MCD00099E_UNEXPECTED_EXCEPTION = "MCD00099E";
 
