@@ -15,7 +15,7 @@ import org.springframework.stereotype.Component;
 import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
-import dev.common.getstatinfo.GetStatInfo;
+import dev.common.getinfo.GetStatInfo;
 
 /**
  * 既存CSV情報読み取り処理

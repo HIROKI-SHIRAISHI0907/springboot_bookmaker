@@ -27,6 +27,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
 import dev.common.filemng.FileMngWrapper;
 import dev.common.logger.ManageLoggerComponent;
@@ -134,11 +135,11 @@ public class ExportCsv {
 		try {
 			csvArtifactResource = this.helper.getData();
 		} catch (Exception e) {
-			String messageCd = "DBエラー";
+			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
 			this.manageLoggerComponent.createSystemException(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, null);
 		}
 
 		// ここまでで作成するCSVグルーピングとものによっては再作成するCSVの番号が確定しているはず
@@ -157,11 +158,12 @@ public class ExportCsv {
 				try {
 					result = this.bookCsvDataRepository.findByData(ids);
 				} catch (Exception e) {
-					String messageCd = "DBエラー";
+					String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 					this.manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e,
+							"生成キューを作成(this.bookCsvDataRepository.findByData)");
 					this.manageLoggerComponent.createSystemException(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, null);
 				}
 				if (!this.helper.csvCondition(result, csvArtifactResource)) {
 					continue;
@@ -193,11 +195,12 @@ public class ExportCsv {
 				try {
 					result = this.bookCsvDataRepository.findByData(ids);
 				} catch (Exception e) {
-					String messageCd = "DBエラー";
+					String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 					this.manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+							e, "csv番号を最大採番から連番でつける(this.bookCsvDataRepository.findByData)");
 					this.manageLoggerComponent.createSystemException(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, null);
 				}
 				if (!this.helper.csvCondition(result, csvArtifactResource)) {
 					continue;
@@ -225,8 +228,8 @@ public class ExportCsv {
 		// firstRunがfalseの時のみ判定状態
 		if (newOrdered.isEmpty() && ordered.isEmpty()) {
 			// 完全一致 → 作業不要
-			String messageCd = "追加レコードなし";
-			String fillChar = "既存CSV数: " + csvInfoRow.size() + "件";
+			String messageCd = MessageCdConst.MCD00014I_NO_MAP_DATA;
+			String fillChar = "追加レコードがないため処理終了 (既存CSV数: " + csvInfoRow.size() + "件)";
 			endLog(METHOD_NAME, messageCd, fillChar);
 			return;
 		}
@@ -236,9 +239,9 @@ public class ExportCsv {
 		// 8) 並列でCSV内容生成 → 連番順に直列書き込み
 		ensureDir(CSV_FOLDER.toString());
 		if (ordered.isEmpty()) {
+			String messageCd = MessageCdConst.MCD00014I_NO_MAP_DATA;
 			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, "CSV作成結果", null,
-					"対象なし (0件)");
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "CSV作成結果(対象なし (0件))");
 		} else {
 			int threads = Math.max(2, Runtime.getRuntime().availableProcessors() - 1);
 			ExecutorService pool = Executors.newFixedThreadPool(threads);
@@ -276,9 +279,9 @@ public class ExportCsv {
 				} catch (Exception ex) {
 					failed++;
 					failedEntries.add(ordered.get(i));
-					String messageCd = "CSV作成失敗";
+					String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 					this.manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex);
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex, "書き込み順序が連番昇順で保証(CSV作成失敗)");
 				}
 			}
 			pool.shutdown();
@@ -288,17 +291,20 @@ public class ExportCsv {
 				Thread.currentThread().interrupt();
 			}
 
+			String messageCd = MessageCdConst.MCD00099I_LOG;
 			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, "CSV作成結果", null,
-					"成功: " + success + "件, 失敗: " + failed + "件, 合計: " + (success + failed) + "件");
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+					"CSV作成結果 (成功: " + success + "件, 失敗: " + failed + "件, 合計: " + (success + failed) + "件)");
 
 			// 9) data_team_list.txt を “成功分を反映し、失敗には『作成失敗』を付加”して原子置換
 			try {
 			    upsertDataTeamList(Paths.get(DATA_TEAM_LIST_TXT), this.config.getCsvFolder(), succeeded, failedEntries);
 			} catch (IOException ex) {
-			    String messageCd = "data_team_list.txt 更新失敗";
-			    this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex);
-			    this.manageLoggerComponent.createSystemException(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex);
+			    messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+			    this.manageLoggerComponent.debugErrorLog(
+			    		PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex, "data_team_list.txt 更新失敗");
+			    this.manageLoggerComponent.createSystemException(
+			    		PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex, null);
 			}
 
 		}
@@ -351,13 +357,6 @@ public class ExportCsv {
 	/**
 	 * text と db の“組み合わせ集合（順不同）”が完全一致なら null（早期終了）。
 	 * 一致しない場合は、db を「再作成」/「新規」に分類し返す。
-	 * 「再作成」＝グループ内の通番のうち1つでも text で登場したら該当。
-	 * その際、どの旧CSV連番(<連番>.csv)に載っていたか（テキスト側グループの最小seq）を保持。
-	 * seqList.txtのみ存在する場合は作成する
-	 */
-	/**
-	 * text と db の“組み合わせ集合（順不同）”が完全一致なら null（早期終了）。
-	 * 一致しない場合は、db を「再作成」/「新規」に分類し返す。
 	 * 再作成判定：ReaderCurrentCsvInfoBean#getCsvInfo() の情報を用い、
 	 *             グループ内の通番が 1 つでも既存CSVに含まれれば該当。
 	 * その際、どの <CSV番号>.csv に載っていたかを保持（最小CSV番号を採用）。
@@ -377,10 +376,10 @@ public class ExportCsv {
 		List<String> onlyInDb = new ArrayList<>(dbKeys);
 		if (onlyInDb.size() > textKeys.size()) {
 			onlyInDb.removeAll(textKeys);
-			String messageCd = "追加通番件数";
+			String messageCd = MessageCdConst.MCD00099I_LOG;
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null,
-					onlyInDb.size() + "件");
+					"組み合わせに入っていない通番による追加通番件数 (" + onlyInDb.size() + "件)");
 		}
 
 		CsvBuildPlan plan = new CsvBuildPlan();
@@ -406,9 +405,10 @@ public class ExportCsv {
 					try {
 						priorCsvNo = Integer.parseInt(versus_csvNo.split("_")[2]);
 					} catch (NumberFormatException | ArrayIndexOutOfBoundsException ex) {
-						String messageCd = "versus_csvNo エラー";
+						String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 						this.manageLoggerComponent.debugErrorLog(
-								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex, versus_csvNo);
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex,
+								"照合・分類の整数変換でエラー (" + versus_csvNo + ")");
 					}
 					contains++;
 					break;
@@ -426,8 +426,9 @@ public class ExportCsv {
 			}
 		}
 
+		String messageCd = MessageCdConst.MCD00099I_LOG;
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
 				String.format("同一: %d件, 含有: %d件, 新規: %d件, 全体作成可能数: %d件",
 						same, contains, news, dbSeqs.size()));
 		return plan;
@@ -549,11 +550,11 @@ public class ExportCsv {
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, "", null,
 						"最大のファイル番号は: " + maxFileNumber + ".csv");
 			} else {
-				String messageCd = "CSVファイルが見つかりませんでした。";
+				String messageCd = MessageCdConst.MCD00022E_NO_FOUND_CSV_FILE;
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
 				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, null);
 			}
 		} else {
 			return 0;
