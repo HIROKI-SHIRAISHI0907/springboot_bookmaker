@@ -84,13 +84,13 @@ public class ExportCsv {
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		// 連番組み合わせリスト（過去のグルーピングを保存）
-		final String SEQ_LIST = config.getCsvFolder() + "seqList.txt";
+		final String SEQ_LIST = config.getS3BucketsStats() + "seqList.txt";
 
 		// データチームリスト
-		final String DATA_TEAM_LIST_TXT = config.getCsvFolder() + "data_team_list.txt";
+		final String DATA_TEAM_LIST_TXT = config.getS3BucketsStats() + "data_team_list.txt";
 
 		// パス
-		final Path CSV_FOLDER = Paths.get(config.getCsvFolder());
+		final Path CSV_FOLDER = Paths.get(config.getS3BucketsStats());
 
 		// 0) 現在作成済みのCSV読み込み
 		bean.init();
