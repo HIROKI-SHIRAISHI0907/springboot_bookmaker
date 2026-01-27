@@ -22,7 +22,6 @@ import dev.common.findcsv.FindStat;
 import dev.common.getinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.ReadStat;
-import dev.common.readfile.dto.ReadFileOutputDTO;
 
 /**
  * 既存CSV情報取得管理クラス
@@ -79,7 +78,7 @@ public class GetCsvInfo {
         if (!BookMakersCommonConst.NORMAL_CD.equals(out.getResultCd())) {
             this.manageLoggerComponent.createBusinessException(
                     out.getExceptionProject(), out.getExceptionClass(), out.getExceptionMethod(),
-                    out.getErrMessage(), out.getThrowAble());
+                    out.getErrMessage(), out.getThrowAble(), null);
         }
         List<String> fileStatList = out.getBookList();
 
@@ -106,8 +105,8 @@ public class GetCsvInfo {
         // ソート済みの順序を維持するため、(file, future) のペアで保持
         class Job {
             final String file;
-            final CompletableFuture<ReadFileOutputDTO> future;
-            Job(String file, CompletableFuture<ReadFileOutputDTO> future) {
+            final CompletableFuture<String> future;
+            Job(String file, CompletableFuture<String> future) {
                 this.file = file; this.future = future;
             }
         }
@@ -120,11 +119,19 @@ public class GetCsvInfo {
             } catch (InterruptedException ie) {
                 Thread.currentThread().interrupt();
                 this.manageLoggerComponent.createBusinessException(
-                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, "Semaphore acquire 中断", ie);
+                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, "Semaphore acquire 中断", ie, null);
                 break;
             }
-            CompletableFuture<ReadFileOutputDTO> f = CompletableFuture
-                    .supplyAsync(() -> this.readStat.getFileBody(file), csvTaskExecutor)
+            CompletableFuture<String> f = CompletableFuture
+                    .supplyAsync(() -> {
+						try {
+							return this.readStat.getConditionDataFileBody(file);
+						} catch (Exception e) {
+							// TODO 自動生成された catch ブロック
+							e.printStackTrace();
+						}
+						return file;
+					}, csvTaskExecutor)
                     .whenComplete((r, t) -> gate.release());
             jobs.add(new Job(file, f));
         }
@@ -132,28 +139,28 @@ public class GetCsvInfo {
         // ソート順に join して、LinkedHashMap に挿入（=昇順のまま）
         for (Job job : jobs) {
             try {
-                ReadFileOutputDTO dto = job.future.join();
-                if (dto == null || dto.getReadHoldDataList() == null || dto.getReadHoldDataList().isEmpty()) {
+            	String dto = job.future.join();
+                if (dto == null) {
                     this.manageLoggerComponent.createBusinessException(
-                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "dto/readHoldDataList: null/empty", null);
+                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "dto/readHoldDataList: null/empty", null, null);
                     continue;
                 }
-                List<BookDataEntity> list = dto.getReadHoldDataList();
+                //List<BookDataEntity> list = dto.getReadHoldDataList();
 
                 // 総CSV件数を必要なら保持（先頭のみ／全件どちらでもOK）
-                list.get(0).setFileCount(csvCount);
+                //list.get(0).setFileCount(csvCount);
                 // for (BookDataEntity e : list) { e.setFileCount(csvCount); }
 
                 // キーは「ソート基準に使った元ファイル」のファイル名（衝突が嫌ならフルパスに）
-                String key = Paths.get(job.file).getFileName().toString();
+                //String key = Paths.get(job.file).getFileName().toString();
                 // String key = Paths.get(job.file).toString(); // フルパスにしたい場合
 
-                result.computeIfAbsent(key, k -> new ArrayList<>()).addAll(list);
+                //result.computeIfAbsent(key, k -> new ArrayList<>()).addAll(list);
 
             } catch (RuntimeException e) {
                 this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e);
                 this.manageLoggerComponent.createBusinessException(
-                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, "非同期処理中にエラー", e);
+                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, "非同期処理中にエラー", e, null);
             }
         }
 

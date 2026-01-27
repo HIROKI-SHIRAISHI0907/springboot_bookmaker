@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.application.analyze.interf.OriginIF;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
 import dev.common.getinfo.GetOriginInfo;
 import dev.common.logger.ManageLoggerComponent;
@@ -67,24 +68,28 @@ public class OriginService implements OriginIF {
 		try {
 			this.originStat.originStat(getStatMap);
 		} catch (Exception e) {
+			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			this.loggerComponent.createSystemException(
 					PROJECT_NAME,
 					CLASS_NAME,
 					METHOD_NAME,
-					e.getMessage(),
-					e.getCause());
+					messageCd,
+					null,
+					e);
 		}
 
 		// 未来データフラグ更新
 		try {
 			this.futureStartFlgService.execute(getStatMap);
 		} catch (Exception e) {
+			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			this.loggerComponent.createSystemException(
 					PROJECT_NAME,
 					CLASS_NAME,
 					METHOD_NAME,
-					e.getMessage(),
-					e.getCause());
+					messageCd,
+					null,
+					e);
 		}
 
 		// endLog

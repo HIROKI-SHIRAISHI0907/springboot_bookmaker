@@ -145,8 +145,10 @@ public class FutureStartFlgService {
 					CLASS_NAME,
 					METHOD_NAME,
 					messageCd,
-					null);
+					null,
+					e);
 		}
+
 		String messageCd = "更新件数";
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "更新件数: " + result + "件");

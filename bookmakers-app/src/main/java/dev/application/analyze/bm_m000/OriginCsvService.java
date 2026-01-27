@@ -93,8 +93,9 @@ public class OriginCsvService implements OriginIF {
 						PROJECT_NAME,
 						CLASS_NAME,
 						METHOD_NAME,
-						e.getMessage(),
-						e.getCause());
+						"エラー",
+						e,
+						null);
 			}
 		}
 
@@ -108,8 +109,9 @@ public class OriginCsvService implements OriginIF {
 					PROJECT_NAME,
 					CLASS_NAME,
 					METHOD_NAME,
-					e.getMessage(),
-					e.getCause());
+					"エラー",
+					e,
+					null);
 		}
 
 		// endLog
