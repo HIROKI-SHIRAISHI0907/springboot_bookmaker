@@ -98,29 +98,29 @@ public class ExportCsv {
 		String teamKey = s3Operator.buildKey(statsPrefix, "data_team_list.txt");
 
 		// ローカルに落とす先（既存のFileMngWrapper/Files.existsがそのまま使える）
-		Path localSeqPath  = Paths.get(config.getCsvFolder(), "seqList.txt");
+		Path localSeqPath = Paths.get(config.getCsvFolder(), "seqList.txt");
 		Path localTeamPath = Paths.get(config.getCsvFolder(), "data_team_list.txt");
 
 		// S3 → ローカルへダウンロード（S3に無い場合は例外になるので、必要ならcatchして firstRun 扱いに）
 		try {
-		    s3Operator.downloadToFile(statsBucket, seqKey, localSeqPath);
+			s3Operator.downloadToFile(statsBucket, seqKey, localSeqPath);
 		} catch (Exception ignore) {
-		    // seqList.txt がS3に無い = 初回相当
+			// seqList.txt がS3に無い = 初回相当
 			String messageCd = MessageCdConst.MCD00099I_LOG;
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ignore,
 					"seqList.txtがありません。(statsBucket: " + statsBucket +
-					"seqKey: " + seqKey + "localSeqPath: " + localSeqPath + ")");
+							"seqKey: " + seqKey + "localSeqPath: " + localSeqPath + ")");
 		}
 		try {
-		    s3Operator.downloadToFile(statsBucket, teamKey, localTeamPath);
+			s3Operator.downloadToFile(statsBucket, teamKey, localTeamPath);
 		} catch (Exception ignore) {
-		    // data_team_list.txt がS3に無い場合もあり得る
+			// data_team_list.txt がS3に無い場合もあり得る
 			String messageCd = MessageCdConst.MCD00099I_LOG;
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ignore,
 					"data_team_list.txtがありません。(statsBucket: " + statsBucket +
-					"teamKey: " + teamKey + "localTeamPath: " + localTeamPath + ")");
+							"teamKey: " + teamKey + "localTeamPath: " + localTeamPath + ")");
 		}
 
 		// 連番組み合わせリスト（過去のグルーピングを保存）
@@ -130,7 +130,7 @@ public class ExportCsv {
 		final String DATA_TEAM_LIST_TXT = localTeamPath.toString();
 
 		// パス
-		final Path CSV_FOLDER = Paths.get(config.getS3BucketsStats());
+		final Path CSV_FOLDER = Paths.get(config.getCsvFolder());
 
 		// 0) 現在作成済みのCSV読み込み
 		bean.init();
@@ -312,7 +312,8 @@ public class ExportCsv {
 					if (art.getContent().isEmpty()) {
 						continue;
 					}
-					writeCsvArtifact(art);
+					// S3へアップロード
+					writeCsvArtifact(art, statsBucket, statsPrefix);
 					success++;
 					succeeded.add(ordered.get(i));
 					// エラーの場合は次のアプリケーション起動時に作成される想定
@@ -338,20 +339,44 @@ public class ExportCsv {
 
 			// 9) data_team_list.txt を “成功分を反映し、失敗には『作成失敗』を付加”して原子置換
 			try {
-			    upsertDataTeamList(Paths.get(DATA_TEAM_LIST_TXT), this.config.getCsvFolder(), succeeded, failedEntries);
+				upsertDataTeamList(Paths.get(DATA_TEAM_LIST_TXT), this.config.getCsvFolder(), succeeded, failedEntries);
 			} catch (IOException ex) {
-			    messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
-			    this.manageLoggerComponent.debugErrorLog(
-			    		PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex, "data_team_list.txt 更新失敗");
-			    this.manageLoggerComponent.createSystemException(
-			    		PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex, null);
+				messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex, "data_team_list.txt 更新失敗");
+				this.manageLoggerComponent.createSystemException(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex, null);
 			}
 
 		}
 
 		// 10) 処理完了後、seqList.txt を最新状態で上書き（将来の差分計算基準）
-		if (!firstRun)
-			fileIO.write(SEQ_LIST, currentGroups.toString());
+		if (!firstRun) {
+			// 上書きで保存（追記はNG）
+			fileIO.overwrite(SEQ_LIST, currentGroups.toString());
+
+			// S3へアップロード（最新状態を保存）
+			try {
+				s3Operator.uploadFile(statsBucket, seqKey, localSeqPath);
+			} catch (Exception e) {
+				String messageCd = MessageCdConst.MCD00023E_S3_UPLOAD_FAILED;
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e,
+						statsBucket, "seqList.txt");
+			}
+		}
+
+		// data_team_list.txt も更新後にS3へアップロード
+		// upsertDataTeamList(...) の直後（成功/失敗問わずファイルが更新されうるタイミング）で:
+		try {
+			if (Files.exists(localTeamPath)) {
+				s3Operator.uploadFile(statsBucket, teamKey, localTeamPath);
+			}
+		} catch (Exception e) {
+			String messageCd = MessageCdConst.MCD00023E_S3_UPLOAD_FAILED;
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, statsBucket, "data_team_list.txt");
+		}
 
 		endLog(METHOD_NAME, null, null);
 	}
@@ -619,9 +644,24 @@ public class ExportCsv {
 	}
 
 	/** 直列ステージ：ファイルへ書き込み（上書き可・順序保証） */
-	private void writeCsvArtifact(CsvArtifact art) {
+	private void writeCsvArtifact(CsvArtifact art, String bucket, String prefix) {
+		final String METHOD_NAME = "writeCsvArtifact";
 		FileMngWrapper fw = new FileMngWrapper();
 		fw.csvWrite(art.getFilePath(), art.getContent());
+
+		// ここからS3アップロード
+		Path local = Paths.get(art.getFilePath());
+		String fileName = local.getFileName().toString(); // 例: "123.csv"
+		String key = s3Operator.buildKey(prefix, fileName); // 例: "stats/123.csv" or "123.csv"
+
+		try {
+			s3Operator.uploadFile(bucket, key, local);
+		} catch (Exception e) {
+			// ログは出すが例外エラーにはしない
+			String messageCd = MessageCdConst.MCD00023E_S3_UPLOAD_FAILED;
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, bucket, fileName);
+		}
 	}
 
 	/** ディレクトリ作成（存在すれば何もしない） */
@@ -640,106 +680,116 @@ public class ExportCsv {
 	 * - ファイル名の数値順（例: 12.csv -> 12）で整列
 	 */
 	private void upsertDataTeamList(
-	        Path out,
-	        String baseFolder,
-	        List<SimpleEntry<String, List<DataEntity>>> succeeded,
-	        List<SimpleEntry<String, List<DataEntity>>> failed) throws IOException {
+			Path out,
+			String baseFolder,
+			List<SimpleEntry<String, List<DataEntity>>> succeeded,
+			List<SimpleEntry<String, List<DataEntity>>> failed) throws IOException {
 
-	    if (out.getParent() != null) Files.createDirectories(out.getParent());
+		if (out.getParent() != null)
+			Files.createDirectories(out.getParent());
 
-	    // 既存を読み取り（無ければ空）
-	    List<String> existing = Files.exists(out)
-	            ? Files.readAllLines(out, java.nio.charset.StandardCharsets.UTF_8)
-	            : new ArrayList<>();
+		// 既存を読み取り（無ければ空）
+		List<String> existing = Files.exists(out)
+				? Files.readAllLines(out, java.nio.charset.StandardCharsets.UTF_8)
+				: new ArrayList<>();
 
-	    // 既存を map<file, line> に（キーは "123.csv" の部分）
-	    Map<String, String> byFile = existing.stream()
-	            .filter(s -> s != null && !s.isBlank())
-	            .map(String::trim)
-	            .collect(Collectors.toMap(
-	                    s -> s.split(":")[0].trim(),  // 例: "123.csv: ..."
-	                    s -> s,
-	                    (a, b) -> b));
+		// 既存を map<file, line> に（キーは "123.csv" の部分）
+		Map<String, String> byFile = existing.stream()
+				.filter(s -> s != null && !s.isBlank())
+				.map(String::trim)
+				.collect(Collectors.toMap(
+						s -> s.split(":")[0].trim(), // 例: "123.csv: ..."
+						s -> s,
+						(a, b) -> b));
 
-	    // 失敗行を反映（行末に「 作成失敗」を付与）
-	    if (failed != null) {
-	        for (SimpleEntry<String, List<DataEntity>> e : failed) {
-	            String file = e.getKey().replace(baseFolder, "");
-	            List<DataEntity> v = e.getValue();
-	            if (v == null || v.isEmpty()) continue;
-	            String round = v.get(0).getDataCategory();
-	            String homeTeams = v.get(0).getHomeTeamName();
-	            String awayTeams = v.get(0).getAwayTeamName();
-	            String line = file + ": " + round + "-" + homeTeams + "vs" + awayTeams + " 作成失敗";
-	            byFile.put(file, line);
-	        }
-	    }
+		// 失敗行を反映（行末に「 作成失敗」を付与）
+		if (failed != null) {
+			for (SimpleEntry<String, List<DataEntity>> e : failed) {
+				String file = e.getKey().replace(baseFolder, "");
+				List<DataEntity> v = e.getValue();
+				if (v == null || v.isEmpty())
+					continue;
+				String round = v.get(0).getDataCategory();
+				String homeTeams = v.get(0).getHomeTeamName();
+				String awayTeams = v.get(0).getAwayTeamName();
+				String line = file + ": " + round + "-" + homeTeams + "vs" + awayTeams + " 作成失敗";
+				byFile.put(file, line);
+			}
+		}
 
-	    // 成功行を反映（成功が失敗より優先して上書きされるよう、最後に put）
-	    if (succeeded != null) {
-	        for (SimpleEntry<String, List<DataEntity>> e : succeeded) {
-	            String file = e.getKey().replace(baseFolder, "");
-	            List<DataEntity> v = e.getValue();
-	            if (v == null || v.isEmpty()) continue;
-	            String round = v.get(0).getDataCategory();
-	            String homeTeams = v.get(0).getHomeTeamName();
-	            String awayTeams = v.get(0).getAwayTeamName();
-	            String line = file + ": " + round + "-" + homeTeams + "vs" + awayTeams;
-	            byFile.put(file, line);
-	        }
-	    }
+		// 成功行を反映（成功が失敗より優先して上書きされるよう、最後に put）
+		if (succeeded != null) {
+			for (SimpleEntry<String, List<DataEntity>> e : succeeded) {
+				String file = e.getKey().replace(baseFolder, "");
+				List<DataEntity> v = e.getValue();
+				if (v == null || v.isEmpty())
+					continue;
+				String round = v.get(0).getDataCategory();
+				String homeTeams = v.get(0).getHomeTeamName();
+				String awayTeams = v.get(0).getAwayTeamName();
+				String line = file + ": " + round + "-" + homeTeams + "vs" + awayTeams;
+				byFile.put(file, line);
+			}
+		}
 
-	    // ファイル名の数値で並べ替え（"12.csv" → 12）
-	    Comparator<String> byNum = Comparator.comparingInt(s -> {
-	        String name = s.trim();
-	        int dot = name.indexOf('.');
-	        String num = (dot > 0 ? name.substring(0, dot) : name).replaceAll("\\D+", "");
-	        return num.isEmpty() ? Integer.MAX_VALUE : Integer.parseInt(num);
-	    });
+		// ファイル名の数値で並べ替え（"12.csv" → 12）
+		Comparator<String> byNum = Comparator.comparingInt(s -> {
+			String name = s.trim();
+			int dot = name.indexOf('.');
+			String num = (dot > 0 ? name.substring(0, dot) : name).replaceAll("\\D+", "");
+			return num.isEmpty() ? Integer.MAX_VALUE : Integer.parseInt(num);
+		});
 
-	    List<String> lines = byFile.entrySet().stream()
-	            .sorted(Map.Entry.comparingByKey(byNum))
-	            .map(Map.Entry::getValue)
-	            .collect(Collectors.toList());
+		List<String> lines = byFile.entrySet().stream()
+				.sorted(Map.Entry.comparingByKey(byNum))
+				.map(Map.Entry::getValue)
+				.collect(Collectors.toList());
 
-	    // 一時ファイルに書いてから原子置換（途中失敗でも旧ファイルが残る）
-	    Path tmp = out.resolveSibling(out.getFileName().toString() + ".tmp");
-	    Files.write(tmp, lines, java.nio.charset.StandardCharsets.UTF_8,
-	            java.nio.file.StandardOpenOption.CREATE,
-	            java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
-	    Files.move(tmp, out,
-	            java.nio.file.StandardCopyOption.ATOMIC_MOVE,
-	            java.nio.file.StandardCopyOption.REPLACE_EXISTING);
+		// 一時ファイルに書いてから原子置換（途中失敗でも旧ファイルが残る）
+		Path tmp = out.resolveSibling(out.getFileName().toString() + ".tmp");
+		Files.write(tmp, lines, java.nio.charset.StandardCharsets.UTF_8,
+				java.nio.file.StandardOpenOption.CREATE,
+				java.nio.file.StandardOpenOption.TRUNCATE_EXISTING);
+		Files.move(tmp, out,
+				java.nio.file.StandardCopyOption.ATOMIC_MOVE,
+				java.nio.file.StandardCopyOption.REPLACE_EXISTING);
 	}
 
 	/** 空のスコアを直前レコードの値で補完（グループ内で前方参照） */
 	private static void backfillScores(List<DataEntity> list) {
-	    if (list == null || list.isEmpty()) return;
+		if (list == null || list.isEmpty())
+			return;
 
-	    // 念のため seq 昇順に整える（seq は String のため数値化）
-	    list.sort(Comparator.comparingInt(d -> {
-	        try { return Integer.parseInt(Objects.toString(d.getSeq(), "0")); }
-	        catch (NumberFormatException e) { return Integer.MAX_VALUE; }
-	    }));
+		// 念のため seq 昇順に整える（seq は String のため数値化）
+		list.sort(Comparator.comparingInt(d -> {
+			try {
+				return Integer.parseInt(Objects.toString(d.getSeq(), "0"));
+			} catch (NumberFormatException e) {
+				return Integer.MAX_VALUE;
+			}
+		}));
 
-	    String lastHome = null;
-	    String lastAway = null;
-	    for (DataEntity d : list) {
-	        // 先に前回値を反映
-	        if (isBlank(d.getHomeScore()) && lastHome != null) d.setHomeScore(lastHome);
-	        if (isBlank(d.getAwayScore()) && lastAway != null) d.setAwayScore(lastAway);
+		String lastHome = null;
+		String lastAway = null;
+		for (DataEntity d : list) {
+			// 先に前回値を反映
+			if (isBlank(d.getHomeScore()) && lastHome != null)
+				d.setHomeScore(lastHome);
+			if (isBlank(d.getAwayScore()) && lastAway != null)
+				d.setAwayScore(lastAway);
 
-	        // 現在値を次レコードのために保持（この時点で null/blank でなければ更新）
-	        if (!isBlank(d.getHomeScore())) lastHome = d.getHomeScore();
-	        if (!isBlank(d.getAwayScore())) lastAway = d.getAwayScore();
-	    }
+			// 現在値を次レコードのために保持（この時点で null/blank でなければ更新）
+			if (!isBlank(d.getHomeScore()))
+				lastHome = d.getHomeScore();
+			if (!isBlank(d.getAwayScore()))
+				lastAway = d.getAwayScore();
+		}
 	}
 
 	/** null/空白を判定 */
 	private static boolean isBlank(String s) {
-	    return s == null || s.trim().isEmpty();
+		return s == null || s.trim().isEmpty();
 	}
-
 
 	/** 終了ログ */
 	private void endLog(String method, String messageCd, String fillChar) {
