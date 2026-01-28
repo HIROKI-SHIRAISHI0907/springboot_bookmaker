@@ -10,6 +10,8 @@ import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.LinkedHashMap;
@@ -19,6 +21,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
 import dev.common.logger.ManageLoggerComponent;
 
@@ -155,7 +158,7 @@ public class FileMngWrapper {
 	}
 
 	/**
-	 * ファイル記入メソッド
+	 * ファイル追記記入メソッド
 	 * @param filename
 	 * @param body
 	 */
@@ -168,10 +171,33 @@ public class FileMngWrapper {
 			bufferedWriter.write(body);
 			bufferedWriter.newLine();
 		} catch (IOException e) {
-			String messageCd = "ファイル記入エラー";
+			String messageCd = MessageCdConst.MCD00024E_WRITE_FILE_FAILED;
 			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, filename);
 		}
+	}
+
+	/**
+	 * ファイルを上書き保存する（UTF-8）
+	 */
+	public void overwrite(String filename, String body) {
+	    final String METHOD_NAME = "overwrite";
+	    try {
+	        Path path = Paths.get(filename);
+	        Files.createDirectories(path.getParent());
+
+	        Files.writeString(
+	            path,
+	            body,
+	            StandardCharsets.UTF_8,
+	            StandardOpenOption.CREATE,
+	            StandardOpenOption.TRUNCATE_EXISTING
+	        );
+	    } catch (IOException e) {
+	        String messageCd = MessageCdConst.MCD00024E_WRITE_FILE_FAILED;
+	        this.manageLoggerComponent.debugErrorLog(
+	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, filename);
+	    }
 	}
 
 	/**
@@ -201,9 +227,9 @@ public class FileMngWrapper {
 	        bufferedWriter.newLine();
 
 	    } catch (IOException e) {
-	        String messageCd = "ファイル記入エラー";
+	        String messageCd = MessageCdConst.MCD00024E_WRITE_FILE_FAILED;
 	        this.manageLoggerComponent.debugErrorLog(
-	                PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+	                PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, filename);
 	    }
 	}
 
@@ -338,9 +364,9 @@ public class FileMngWrapper {
 				bw.write(sb.toString());
 			}
 		} catch (IOException | IllegalAccessException e) {
-			String messageCd = "ファイル記入エラー";
+			String messageCd = MessageCdConst.MCD00024E_WRITE_FILE_FAILED;
 			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, filename);
 		}
 	}
 

@@ -133,6 +133,12 @@ public class MessageCdConst {
 	/** MCD00022E: CSVファイルが見つかりませんでした。(備考: {1}) */
 	public static final String MCD00022E_NO_FOUND_CSV_FILE = "MCD00022E";
 
+	/** MCD00023E: S3へのアップロードが失敗しました。(バケット名: {1}, ファイル名: {2}) */
+	public static final String MCD00023E_S3_UPLOAD_FAILED = "MCD00023E";
+
+	/** MCD00024E: ファイル記入エラーが発生しました。(ファイル名: {1}) */
+	public static final String MCD00024E_WRITE_FILE_FAILED = "MCD00024E";
+
 	/** MCD00099E: 予期せぬ例外が発生しました。(理由: {1}) */
 	public static final String MCD00099E_UNEXPECTED_EXCEPTION = "MCD00099E";
 

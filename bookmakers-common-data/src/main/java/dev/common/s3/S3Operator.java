@@ -1,13 +1,20 @@
 package dev.common.s3;
 
+import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
+import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
+import java.nio.file.StandardOpenOption;
 import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
@@ -192,6 +199,53 @@ public class S3Operator {
 				Comparator.comparingInt((String k) -> extractTeamSeq(k, matcher))
 						.thenComparing(Comparator.naturalOrder()));
 		return keys;
+	}
+
+	/**
+	 * S3のテキストファイルをUTF-8で文字列として読む
+	 */
+	public String downloadTextUtf8(String bucket, String key) {
+		try (InputStream in = download(bucket, key);
+				BufferedReader br = new BufferedReader(new InputStreamReader(in, StandardCharsets.UTF_8))) {
+
+			return br.lines().collect(Collectors.joining("\n"));
+		} catch (Exception e) {
+			throw new RuntimeException("S3 text download failed. bucket=" + bucket + ", key=" + key, e);
+		}
+	}
+
+	/**
+	 * S3オブジェクトをローカルファイルに保存して Path を返す
+	 * - 親ディレクトリは自動作成
+	 * - 既存ファイルは上書き
+	 */
+	public Path downloadToFile(String bucket, String key, Path out) throws IOException {
+		if (out.getParent() != null) {
+			Files.createDirectories(out.getParent());
+		}
+
+		try (InputStream in = download(bucket, key);
+			 OutputStream os = Files.newOutputStream(out,
+					 StandardOpenOption.CREATE,
+					 StandardOpenOption.TRUNCATE_EXISTING,
+					 StandardOpenOption.WRITE)) {
+
+			in.transferTo(os);
+		}
+
+		return out;
+	}
+
+	/**
+	 * statsバケット直下（or prefix配下）の特定ファイルを読む用：prefixを安全に連結してkey化する
+	 * prefixは "" でもOK。 "stats" でも "stats/" でもOK。
+	 */
+	public String buildKey(String prefix, String filename) {
+		if (prefix == null || prefix.isBlank()) {
+			return filename;
+		}
+		String p = prefix.endsWith("/") ? prefix : prefix + "/";
+		return p + filename;
 	}
 
 	/**
