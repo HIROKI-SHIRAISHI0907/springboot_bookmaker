@@ -17,6 +17,7 @@ process:
       teamMemberData: ${S3_TEAM_MEMBER_DATA:aws-s3-team-member-csv}
       outputs: ${S3_OUTPUTS:aws-s3-outputs-csv}
       future: ${S3_FUTURE:aws-s3-future-csv}
+      stats: ${S3_STATS:aws-s3-stat-csv}
 
 server:
   port: 8080
