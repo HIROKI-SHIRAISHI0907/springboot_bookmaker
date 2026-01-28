@@ -25,8 +25,13 @@ public class BatchExecuteController {
 				"B001",
 				"B002",
 				"B003",
+				"B004",
 				"B005",
-				"B004_B006"
+				"B005",
+				"B006",
+				"B007",
+				"B008",
+				"B009"
 		});
 	}
 
@@ -46,9 +51,8 @@ public class BatchExecuteController {
 
 		String code = request.getBatchCode().trim();
 
-		// 単体OK：B001,B002,B003,B005
-		// 連結OK：B004_B006
-		if (!code.matches("^B00(1|2|3|5)$|^B004_B006$")) {
+		// 単体OK：B001~B009
+		if (!code.matches("^B00(1|2|3|4|5|6|7|8|9)$")) {
 			throw new IllegalArgumentException("invalid batchCode: " + code);
 		}
 	}

@@ -97,12 +97,6 @@
 		<!-- 自作モジュール：まずはversionを明示して確実に通す -->
 		<dependency>
 			<groupId>dev.parent</groupId>
-			<artifactId>bookmakers-batch</artifactId>
-			<version>0.0.1-SNAPSHOT</version>
-		</dependency>
-
-		<dependency>
-			<groupId>dev.parent</groupId>
 			<artifactId>bookmakers-common-data</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
 		</dependency>

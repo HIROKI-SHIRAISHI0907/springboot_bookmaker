@@ -1,7 +1,6 @@
 package dev.web.batch;
 
 import java.time.LocalDateTime;
-import java.util.List;
 import java.util.Map;
 
 import org.springframework.stereotype.Service;
@@ -20,9 +19,6 @@ import dev.web.api.bm_w099.BatchExecuteResponseDTO;
  */
 @Service
 public class WebBatchService {
-
-    /** 連結実行キー（B004 + B006 を同タイミング実行） */
-    private static final String COMBO_B004_B006 = "B004_B006";
 
     /** バッチマップ */
     private final Map<String, BatchIF> batchMap;
@@ -67,13 +63,6 @@ public class WebBatchService {
             }
 
             // ---------------------------
-            // ★ここから：B004_B006 の連結実行
-            // ---------------------------
-            if (COMBO_B004_B006.equals(code)) {
-                return executeSequential(code, start, List.of("B004", "B006"));
-            }
-
-            // ---------------------------
             // 既存：単体実行
             // ---------------------------
             BatchIF batch = batchMap.get(code);
@@ -98,66 +87,6 @@ public class WebBatchService {
         } finally {
             logger.clear();
         }
-    }
-
-    /**
-     * 連結バッチを順に実行する（同一リクエスト/同一ThreadContextで実行）
-     * @throws Exception
-     */
-    private BatchExecuteResponseDTO executeSequential(
-            String requestCode, LocalDateTime start, List<String> codes) {
-
-        for (String c : codes) {
-            BatchIF batch = batchMap.get(c);
-            if (batch == null) {
-                return new BatchExecuteResponseDTO(
-                        requestCode,
-                        BatchConstant.BATCH_ERROR,
-                        "ERROR",
-                        start,
-                        LocalDateTime.now(),
-                        "Missing batch bean: " + c + " (requested: " + requestCode + ")"
-                );
-            }
-
-            try {
-                int result = batch.execute();
-
-                if (result != BatchConstant.BATCH_SUCCESS) {
-                    return new BatchExecuteResponseDTO(
-                            requestCode,
-                            result,
-                            "ERROR",
-                            start,
-                            LocalDateTime.now(),
-                            "Batch failed: " + c + " (requested: " + requestCode + ")"
-                    );
-                }
-
-            } catch (Exception e) {
-                // ★どのバッチで落ちたか明確に残す
-                logger.debugErrorLog("BATCH", "WebBatchService", "executeSequential",
-                        "BATCH_EXECUTE_ERROR:" + c, e);
-
-                return new BatchExecuteResponseDTO(
-                        requestCode,
-                        BatchConstant.BATCH_ERROR,
-                        "ERROR",
-                        start,
-                        LocalDateTime.now(),
-                        "Exception in batch: " + c + " (requested: " + requestCode + ")"
-                );
-            }
-        }
-
-        return new BatchExecuteResponseDTO(
-                requestCode,
-                BatchConstant.BATCH_SUCCESS,
-                "SUCCESS",
-                start,
-                LocalDateTime.now(),
-                "Batch executed: " + requestCode + " (B004 then B006)"
-        );
     }
 
 }
