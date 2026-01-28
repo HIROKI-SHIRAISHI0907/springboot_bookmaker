@@ -1,0 +1,33 @@
+package dev.web.config;
+
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Configuration;
+
+import software.amazon.awssdk.regions.Region;
+import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
+import software.amazon.awssdk.services.ecs.EcsClient;
+
+/**
+ * AwsClientBean作成構成クラス
+ * @author shiraishitoshio
+ *
+ */
+@Configuration
+public class AwsClientConfig {
+
+    @Bean
+    public EcsClient ecsClient() {
+        // ECS(Fargate)ならタスクロール/実行ロールの認証情報が自動で使われる
+        // Region は環境変数 AWS_REGION があればそれを使う
+        return EcsClient.builder()
+                .region(Region.of(System.getenv().getOrDefault("AWS_REGION", "ap-northeast-1")))
+                .build();
+    }
+
+    @Bean
+    public CloudWatchLogsClient cloudWatchLogsClient() {
+        return CloudWatchLogsClient.builder()
+                .region(Region.of(System.getenv().getOrDefault("AWS_REGION", "ap-northeast-1")))
+                .build();
+    }
+}
