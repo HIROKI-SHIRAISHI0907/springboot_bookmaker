@@ -5,8 +5,8 @@ import java.util.Map;
 
 import org.springframework.stereotype.Service;
 
-import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
+import dev.common.constant.BatchConstant;
 import dev.common.logger.ManageLoggerComponent;
 import dev.web.api.bm_w099.BatchExecuteRequestDTO;
 import dev.web.api.bm_w099.BatchExecuteResponseDTO;
