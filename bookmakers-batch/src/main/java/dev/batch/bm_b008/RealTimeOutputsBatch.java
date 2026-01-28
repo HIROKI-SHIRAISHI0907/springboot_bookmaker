@@ -4,10 +4,10 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import dev.application.analyze.bm_m001.OriginService;
-import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
 import dev.batch.interf.jobExecControlIF;
 import dev.batch.util.JobIdUtil;
+import dev.common.constant.BatchConstant;
 import dev.common.constant.MessageCdConst;
 import dev.common.logger.ManageLoggerComponent;
 

@@ -5,10 +5,10 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import dev.batch.constant.BatchConstant;
 import dev.batch.interf.BatchIF;
 import dev.batch.interf.jobExecControlIF;
 import dev.batch.util.JobIdUtil;
+import dev.common.constant.BatchConstant;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.getinfo.GetSeasonInfo;

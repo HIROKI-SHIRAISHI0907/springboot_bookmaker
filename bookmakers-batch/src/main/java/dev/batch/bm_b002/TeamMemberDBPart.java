@@ -4,7 +4,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.batch.constant.BatchConstant;
+import dev.common.constant.BatchConstant;
 import dev.common.logger.ManageLoggerComponent;
 
 /**

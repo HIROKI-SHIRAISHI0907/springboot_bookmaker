@@ -11,10 +11,10 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import dev.batch.constant.BatchConstant;
 import dev.batch.interf.jobExecControlIF;
 import dev.batch.util.JobIdUtil;
 import dev.common.logger.ManageLoggerComponent;
+import dev.web.constant.BatchConstant;
 
 @ExtendWith(MockitoExtension.class)
 class UpdateTimesCountryLeagueMasterBatchUTTest {
