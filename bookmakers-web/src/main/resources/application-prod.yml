@@ -42,13 +42,7 @@ spring:
       driver-class-name: org.postgresql.Driver
 
   flyway:
-    enabled: true
-    baseline-on-migrate: true
-    baseline-version: 0
-    url: ${BM_DB_URL}
-    user: ${BM_DB_USER}
-    password: ${BM_DB_PASS}
-    driver-class-name: org.postgresql.Driver
+    enabled: false
 
 mybatis:
   type-handlers-package: dev.application.mybatis

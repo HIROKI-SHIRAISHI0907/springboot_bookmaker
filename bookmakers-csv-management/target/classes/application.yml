@@ -1,0 +1,47 @@
+app:
+  csv-folder: /Users/shiraishitoshio/bookmaker/csv/
+  output-csv-folder: /Users/shiraishitoshio/bookmaker/outputs/
+  team-csv-folder: /Users/shiraishitoshio/bookmaker/teams_by_league/
+  future-csv-folder: /Users/shiraishitoshio/bookmaker/future/
+  b001-json-folder: /Users/shiraishitoshio/bookmaker/json/b001/
+  
+process:
+  python:
+    root: /Users/shiraishitoshio/bookmaker/team_master_python
+    pythonBin: python3
+  s3:
+    region: ap-northeast-1
+    buckets:
+      teamSeasonDateData: aws-s3-team-season-date-data
+      teamData: aws-s3-team-data
+      teamMemberData: aws-s3-team-member-data
+      outputs: aws-s3-outputs
+
+spring:
+  datasource:
+    user:  # ★ stat_size_finalize_master 用（DB: soccer_bm_user）
+      url: jdbc:postgresql://localhost:54320/soccer_bm_user
+      username: postgres
+      password: sonic3717
+      driver-class-name: org.postgresql.Driver
+
+    datas:  # ★ data テーブル用（DB: soccer_bm）
+      url: jdbc:postgresql://localhost:54320/soccer_bm
+      username: postgres
+      password: sonic3717
+      driver-class-name: org.postgresql.Driver
+
+  flyway:
+    enabled: false
+    baseline-on-migrate: true
+    baseline-version: 0
+    # 単一FlywayだけだとどちらかのDBしかマイグレできないので、
+    # 本気で分けるなら flyway-user / flyway-data みたいに個別設定か、
+    # Java Config で Flyway を2つ定義する。
+    # まずは「テストでは手動でテーブル作っておく」でもOK。
+    # ここでは一旦コメントにとどめておきます。
+
+mybatis:
+  type-handlers-package: dev.application.mybatis
+  configuration:
+    map-underscore-to-camel-case: true
