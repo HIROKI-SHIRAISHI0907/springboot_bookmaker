@@ -17,7 +17,7 @@ import dev.common.getinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
- * 選手登録バッチ実行クラス。
+ * 統計分析バッチ実行クラス。
  * <p>
  * 統計データ用に生成した情報を取得し、登録ロジック（Transactional想定）を実行する。
  * </p>
