@@ -31,6 +31,7 @@ import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
 import dev.common.filemng.FileMngWrapper;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.s3.S3Operator;
 import dev.web.repository.bm.BookCsvDataRepository;
 import dev.web.util.CsvArtifactHelper;
 
@@ -54,6 +55,10 @@ public class ExportCsv {
 
 	/** 新規でCSV作成をするときのダミー文字列 */
 	private static final String CSV_NEW_PREFIX = "mk";
+
+	/** S3Operatorクラス */
+	@Autowired
+	private S3Operator s3Operator;
 
 	/** Configクラス */
 	@Autowired
@@ -83,11 +88,46 @@ public class ExportCsv {
 		final String METHOD_NAME = "execute";
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
+		// statsバケット名（aws-s3-stat-csv）
+		String statsBucket = config.getS3BucketsStats();
+
+		// S3キー（直下なら ""、stats/ 配下なら "stats" を入れる）
+		String statsPrefix = "";
+
+		String seqKey = s3Operator.buildKey(statsPrefix, "seqList.txt");
+		String teamKey = s3Operator.buildKey(statsPrefix, "data_team_list.txt");
+
+		// ローカルに落とす先（既存のFileMngWrapper/Files.existsがそのまま使える）
+		Path localSeqPath  = Paths.get(config.getCsvFolder(), "seqList.txt");
+		Path localTeamPath = Paths.get(config.getCsvFolder(), "data_team_list.txt");
+
+		// S3 → ローカルへダウンロード（S3に無い場合は例外になるので、必要ならcatchして firstRun 扱いに）
+		try {
+		    s3Operator.downloadToFile(statsBucket, seqKey, localSeqPath);
+		} catch (Exception ignore) {
+		    // seqList.txt がS3に無い = 初回相当
+			String messageCd = MessageCdConst.MCD00099I_LOG;
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ignore,
+					"seqList.txtがありません。(statsBucket: " + statsBucket +
+					"seqKey: " + seqKey + "localSeqPath: " + localSeqPath + ")");
+		}
+		try {
+		    s3Operator.downloadToFile(statsBucket, teamKey, localTeamPath);
+		} catch (Exception ignore) {
+		    // data_team_list.txt がS3に無い場合もあり得る
+			String messageCd = MessageCdConst.MCD00099I_LOG;
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ignore,
+					"data_team_list.txtがありません。(statsBucket: " + statsBucket +
+					"teamKey: " + teamKey + "localTeamPath: " + localTeamPath + ")");
+		}
+
 		// 連番組み合わせリスト（過去のグルーピングを保存）
-		final String SEQ_LIST = config.getS3BucketsStats() + "seqList.txt";
+		final String SEQ_LIST = localSeqPath.toString();
 
 		// データチームリスト
-		final String DATA_TEAM_LIST_TXT = config.getS3BucketsStats() + "data_team_list.txt";
+		final String DATA_TEAM_LIST_TXT = localTeamPath.toString();
 
 		// パス
 		final Path CSV_FOLDER = Paths.get(config.getS3BucketsStats());
