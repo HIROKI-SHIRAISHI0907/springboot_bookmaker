@@ -61,3 +61,43 @@ management:
     web:
       exposure:
         include: health,info
+        
+ecs:
+  default:
+    region: ${AWS_REGION:ap-northeast-1}
+
+  jobs:
+    B002:
+      cluster: ${ECS_B002_CLUSTER:team-member-cluster}
+      taskDefinition: ${ECS_B002_TASK_DEF:team-member-batch}
+      container: ${ECS_B002_CONTAINER:team-member-scraper}
+      logGroup: ${ECS_B002_LOG_GROUP:/ecs/team-member-batch}
+      
+    B003:
+      cluster: ${ECS_B003_CLUSTER:season-cluster}
+      taskDefinition: ${ECS_B003_TASK_DEF:season-batch}
+      container: ${ECS_B003_CONTAINER:season-scraper}
+      logGroup: ${ECS_B003_LOG_GROUP:/ecs/season-batch}
+      
+    B004:
+      cluster: ${ECS_B004_CLUSTER:team-cluster}
+      taskDefinition: ${ECS_B004_TASK_DEF:team-batch}
+      container: ${ECS_B004_CONTAINER:team-scraper}
+      logGroup: ${ECS_B004_LOG_GROUP:/ecs/team-batch}
+      
+    B005:
+      cluster: ${ECS_B005_CLUSTER:future-cluster}
+      taskDefinition: ${ECS_B005_TASK_DEF:future-batch}
+      container: ${ECS_B005_CONTAINER:future-scraper}
+      logGroup: ${ECS_B005_LOG_GROUP:/ecs/future-batch}
+
+    B008:
+      cluster: ${ECS_B008_CLUSTER:bm-cluster}
+      taskDefinition: ${ECS_B008_TASK_DEF:bm-batch}
+      container: ${ECS_B008_CONTAINER:timely-data-outputs-scraper}
+      logGroup: ${ECS_B008_LOG_GROUP:/ecs/bm-batch}
+
+    network:
+      subnets: ${ECS_SUBNETS:subnet-067d3d5d9d5ea2e17,subnet-008cd7c2beab18e5c,subnet-0bb92140d18f13851}
+      securityGroups: ${ECS_SGS:sg-024711907f71edd57}
+      assignPublicIp: true

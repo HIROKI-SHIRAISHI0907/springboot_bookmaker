@@ -1,45 +1,46 @@
 package dev.web.controller;
 
-import org.springframework.beans.factory.annotation.Autowired;
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.application.analyze.common.entity.StatRequestResource;
-import dev.application.analyze.common.entity.StatResponseResource;
-import dev.application.main.service.CoreStat;
+import dev.web.api.bm_w013.StatRequestResource;
+import dev.web.api.bm_w013.StatResponseResource;
+import dev.web.batch.EcsBatchTaskRunner;
 import lombok.RequiredArgsConstructor;
 
 /**
  * 統計分析コントローラークラス
- * @author shiraishitoshio
- *
  */
 @RestController
 @RequiredArgsConstructor
 public class StatController {
 
-	@Autowired
-	private CoreStat statService;
+    private final EcsBatchTaskRunner runner;
 
-	/**
-	 * 実行メソッド
-	 * @return
-	 * @throws Exception
-	 */
-	@PostMapping("/stat")
-	public ResponseEntity<StatResponseResource> execute(@RequestBody
-			StatRequestResource requestResource) throws Exception {
+    /**
+     * /stat を叩いたら B006 のFargateタスクを起動する
+     */
+    @PostMapping("/stat")
+    public ResponseEntity<StatResponseResource> execute(@RequestBody StatRequestResource req) {
 
-		// 統計用データサービス
-		//this.statService.execute();
+        // 必要ならリクエスト内容を env で渡す（nullは入れない）
+        Map<String, String> env = new HashMap<>();
+        // 例: env.put("COUNTRY", req.getCountry());
+        // 例: env.put("LEAGUE", req.getLeague());
 
-		StatResponseResource response = new StatResponseResource();
-		response.setReturnCd(null);
+        String taskArn = runner.runBatch("B006", env);
 
-		return ResponseEntity.ok(response);
+        StatResponseResource res = new StatResponseResource();
+        // あなたのDTO設計に合わせて詰めてOK
+        res.setReturnCd("ACCEPTED");
+        // resに taskArn を入れられるなら入れるのがおすすめ（進捗追跡できる）
+        // res.setTaskArn(taskArn);
 
-	}
-
+        return ResponseEntity.ok(res);
+    }
 }

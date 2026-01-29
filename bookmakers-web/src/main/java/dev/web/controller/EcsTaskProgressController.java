@@ -2,6 +2,7 @@ package dev.web.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -17,13 +18,23 @@ public class EcsTaskProgressController {
     private final EcsTaskProgressService service;
 
     /**
-     * ECSタスクの進捗率を取得する（CloudWatch Logsの最新[PROGRESS]ログから算出）。
-     * <pre>
-     * GET /api/ecs/tasks/latest/progress
-     * </pre>
+     * 最新RUNNINGタスクの進捗
+     * GET /api/ecs/{batchCode}/latest/progress
      */
-    @GetMapping("/latest/progress")
-    public ResponseEntity<EcsTaskProgressResponse> getProgress() {
-    	return ResponseEntity.ok(service.getLatestProgress());
+    @GetMapping("/ecs/{batchCode}/latest/progress")
+    public ResponseEntity<EcsTaskProgressResponse> latest(@PathVariable String batchCode) {
+        return ResponseEntity.ok(service.getLatestProgress(batchCode));
     }
+
+    /**
+     * 指定タスクの進捗
+     * GET /api/ecs/{batchCode}/tasks/{taskId}/progress
+     */
+    @GetMapping("/ecs/{batchCode}/tasks/{taskId}/progress")
+    public ResponseEntity<EcsTaskProgressResponse> byTask(
+            @PathVariable String batchCode,
+            @PathVariable String taskId) {
+        return ResponseEntity.ok(service.getProgress(batchCode, taskId));
+    }
+
 }

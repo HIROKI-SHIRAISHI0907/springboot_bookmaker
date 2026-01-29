@@ -1,4 +1,4 @@
-package dev.application.analyze.common.entity;
+package dev.web.api.bm_w013;
 
 import lombok.Data;
 
