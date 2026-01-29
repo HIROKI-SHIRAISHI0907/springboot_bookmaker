@@ -1,4 +1,4 @@
-package dev.batch.constant;
+package dev.common.constant;
 
 /**
  * バッチ定数
