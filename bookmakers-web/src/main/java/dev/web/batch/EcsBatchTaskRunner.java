@@ -59,6 +59,7 @@ public class EcsBatchTaskRunner {
     		    .environment(envs)
     		    .build();
 
+    	// VPC設定オブジェクト
         AwsVpcConfiguration vpc = AwsVpcConfiguration.builder()
                 .subnets(net.getSubnets())
                 .securityGroups(net.getSecurityGroups())
