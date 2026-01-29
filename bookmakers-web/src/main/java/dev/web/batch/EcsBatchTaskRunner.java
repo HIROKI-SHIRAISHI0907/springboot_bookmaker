@@ -1,5 +1,6 @@
 package dev.web.batch;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -11,6 +12,7 @@ import software.amazon.awssdk.services.ecs.EcsClient;
 import software.amazon.awssdk.services.ecs.model.AssignPublicIp;
 import software.amazon.awssdk.services.ecs.model.AwsVpcConfiguration;
 import software.amazon.awssdk.services.ecs.model.ContainerOverride;
+import software.amazon.awssdk.services.ecs.model.KeyValuePair;
 import software.amazon.awssdk.services.ecs.model.LaunchType;
 import software.amazon.awssdk.services.ecs.model.NetworkConfiguration;
 import software.amazon.awssdk.services.ecs.model.RunTaskRequest;
@@ -50,20 +52,12 @@ public class EcsBatchTaskRunner {
     	EcsJobPropertiesConfig.JobConfig cfg = props.require(batchCode);
 
         // BATCH_CODE は必須
-    	List<EnvironmentVariable> envs = new java.util.ArrayList<>();
-        envs.add(EnvironmentVariable.builder().name("BATCH_CODE").value(batchCode).build());
-        if (extraEnv != null) {
-            extraEnv.forEach((k, v) -> {
-                if (v != null) {
-                    envs.add(EnvironmentVariable.builder().name(k).value(v).build());
-                }
-            });
-        }
-
-        ContainerOverride containerOverride = ContainerOverride.builder()
-                .name(cfg.getContainer())
-                .environment(envs)
-                .build();
+    	List<KeyValuePair> envs = new ArrayList<>();
+    	envs.add(KeyValuePair.builder().name("BATCH_CODE").value(batchCode).build());
+    	ContainerOverride containerOverride = ContainerOverride.builder()
+    		    .name(cfg.getContainer())
+    		    .environment(envs)
+    		    .build();
 
         AwsVpcConfiguration vpc = AwsVpcConfiguration.builder()
                 .subnets(net.getSubnets())
