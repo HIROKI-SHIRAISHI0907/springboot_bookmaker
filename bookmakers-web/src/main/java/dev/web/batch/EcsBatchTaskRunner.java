@@ -49,6 +49,7 @@ public class EcsBatchTaskRunner {
      * @return
      */
     public String runBatch(String batchCode, Map<String, String> extraEnv) {
+    	// バッチコードに紐づく環境yml情報を取得
     	EcsJobPropertiesConfig.JobConfig cfg = props.require(batchCode);
 
         // BATCH_CODE は必須

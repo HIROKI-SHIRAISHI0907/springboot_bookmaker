@@ -28,9 +28,13 @@ public class EcsJobPropertiesConfig {
 
     @Data
     public static class JobConfig {
+    	/** クラスター */
         private String cluster;
+        /** タスク定義 */
         private String taskDefinition;
+        /** コンテナ */
         private String container;
+        /** ロググループ */
         private String logGroup;
     }
 
