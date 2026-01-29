@@ -67,6 +67,7 @@ public class EcsBatchTaskRunner {
                 .assignPublicIp(net.isAssignPublicIp() ? AssignPublicIp.ENABLED : AssignPublicIp.DISABLED)
                 .build();
 
+        // yml情報を元にECSをFargate起動
         RunTaskResponse resp = ecs.runTask(RunTaskRequest.builder()
                 .cluster(cfg.getCluster())
                 .taskDefinition(cfg.getTaskDefinition()) // ARN推奨
