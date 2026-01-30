@@ -6,14 +6,9 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import dev.batch.interf.BatchIF;
-import dev.batch.interf.jobExecControlIF;
-import dev.batch.util.JobIdUtil;
-import dev.common.constant.BatchConstant;
-import dev.common.constant.MessageCdConst;
+import dev.batch.common.AbstractJobBatchTemplate;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.getinfo.GetTeamInfo;
-import dev.common.logger.ManageLoggerComponent;
 
 /**
  * マスタ登録バッチ実行クラス。
@@ -31,7 +26,7 @@ import dev.common.logger.ManageLoggerComponent;
  * @author shiraishitoshio
  */
 @Service("B004")
-public class CountryLeagueMasterBatch implements BatchIF {
+public class CountryLeagueMasterBatch extends AbstractJobBatchTemplate {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = CountryLeagueMasterBatch.class.getProtectionDomain()
@@ -46,6 +41,27 @@ public class CountryLeagueMasterBatch implements BatchIF {
 	/** バッチコード */
 	private static final String BATCH_CODE = "B004";
 
+	/** オーバーライド */
+	@Override
+	protected String batchCode() {
+		return BATCH_CODE;
+	}
+
+	@Override
+	protected String errorCode() {
+		return ERROR_CODE;
+	}
+
+	@Override
+	protected String projectName() {
+		return PROJECT_NAME;
+	}
+
+	@Override
+	protected String className() {
+		return CLASS_NAME;
+	}
+
 	/** マスタ情報取得管理クラス */
 	@Autowired
 	private GetTeamInfo getTeamMasterInfo;
@@ -58,77 +74,25 @@ public class CountryLeagueMasterBatch implements BatchIF {
 	@Autowired
 	private ColorMasterStat colorMasterStat;
 
-	/** ジョブ実行制御 */
-	@Autowired
-	private jobExecControlIF jobExecControl;
-
-	/** ログ管理クラス */
-	@Autowired
-	private ManageLoggerComponent manageLoggerComponent;
-
 	/**
-	 * バッチ処理を実行する。
-	 *
-	 * @return
-	 * <ul>
-	 *   <li>{@link BatchConstant#BATCH_SUCCESS}：正常終了</li>
-	 *   <li>{@link BatchConstant#BATCH_ERROR}：異常終了</li>
-	 * </ul>
+	 * {@inheritDoc}
 	 */
 	@Override
-	public int execute() {
-		final String METHOD_NAME = "execute";
-		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	protected void doExecute(JobContext ctx) throws Exception {
+		final String METHOD_NAME = "doExecute";
+		// マスタデータ情報を取得
+		Map<String, List<CountryLeagueMasterEntity>> listMap = this.getTeamMasterInfo.getData();
 
-		// jobId採番（B004-xxxxx）
-		String jobId = JobIdUtil.generate(BATCH_CODE);
-		boolean jobInserted = false;
-		try {
-			// 0: QUEUED（受付）
-			boolean started = jobExecControl.jobStart(jobId, BATCH_CODE);
-			if (!started) {
-				this.manageLoggerComponent.debugWarnLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE,
-						"jobStart failed (duplicate or insert error). jobId=" + jobId);
-				return BatchConstant.BATCH_ERROR;
+		// 登録(Transactional)
+		for (Map.Entry<String, List<CountryLeagueMasterEntity>> entry : listMap.entrySet()) {
+			try {
+				this.countryLeagueMasterStat.masterStat(entry.getKey(), entry.getValue());
+				this.colorMasterStat.masterStat(entry.getKey(), entry.getValue());
+			} catch (Exception e) {
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, e);
+				continue;
 			}
-			jobInserted = true;
-
-			// マスタデータ情報を取得
-			Map<String, List<CountryLeagueMasterEntity>> listMap = this.getTeamMasterInfo.getData();
-
-			// 登録(Transactional)
-			for (Map.Entry<String, List<CountryLeagueMasterEntity>> entry : listMap.entrySet()) {
-				try {
-					this.countryLeagueMasterStat.masterStat(entry.getKey(), entry.getValue());
-					this.colorMasterStat.masterStat(entry.getKey(), entry.getValue());
-				} catch (Exception e) {
-					this.manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, e);
-					continue;
-				}
-			}
-
-			String messageCd = MessageCdConst.MCD00015I_BATCH_ACCEPTED;
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-					BATCH_CODE + " accepted. jobId=" + jobId);
-
-			return BatchConstant.BATCH_SUCCESS;
-
-		} catch (Exception e) {
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, e);
-			if (jobInserted) {
-				try {
-					jobExecControl.jobException(jobId);
-				} catch (Exception ignore) {
-				}
-			}
-			return BatchConstant.BATCH_ERROR;
-
-		} finally {
-			this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		}
 	}
 }

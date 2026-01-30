@@ -5,14 +5,9 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import dev.batch.interf.BatchIF;
-import dev.batch.interf.jobExecControlIF;
-import dev.batch.util.JobIdUtil;
-import dev.common.constant.BatchConstant;
-import dev.common.constant.MessageCdConst;
+import dev.batch.common.AbstractJobBatchTemplate;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.getinfo.GetSeasonInfo;
-import dev.common.logger.ManageLoggerComponent;
 
 /**
  * シーズン情報登録バッチ実行クラス。
@@ -30,7 +25,7 @@ import dev.common.logger.ManageLoggerComponent;
  * @author shiraishitoshio
  */
 @Service("B003")
-public class CountryLeagueSeasonMasterBatch implements BatchIF {
+public class CountryLeagueSeasonMasterBatch extends AbstractJobBatchTemplate {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = CountryLeagueSeasonMasterBatch.class.getProtectionDomain()
@@ -45,6 +40,27 @@ public class CountryLeagueSeasonMasterBatch implements BatchIF {
 	/** バッチコード */
 	private static final String BATCH_CODE = "B003";
 
+	/** オーバーライド */
+	@Override
+	protected String batchCode() {
+		return BATCH_CODE;
+	}
+
+	@Override
+	protected String errorCode() {
+		return ERROR_CODE;
+	}
+
+	@Override
+	protected String projectName() {
+		return PROJECT_NAME;
+	}
+
+	@Override
+	protected String className() {
+		return CLASS_NAME;
+	}
+
 	/** チーム情報取得管理クラス */
 	@Autowired
 	private GetSeasonInfo getSeasonInfo;
@@ -53,68 +69,14 @@ public class CountryLeagueSeasonMasterBatch implements BatchIF {
 	@Autowired
 	private CountryLeagueSeasonMasterStat countryLeagueSeasonMasterStat;
 
-	/** ジョブ実行制御 */
-	@Autowired
-	private jobExecControlIF jobExecControl;
-
-	/** ログ管理クラス */
-	@Autowired
-	private ManageLoggerComponent manageLoggerComponent;
-
 	/**
-	 * バッチ処理を実行する。
-	 *
-	 * @return
-	 * <ul>
-	 *   <li>{@link BatchConstant#BATCH_SUCCESS}：正常終了</li>
-	 *   <li>{@link BatchConstant#BATCH_ERROR}：異常終了</li>
-	 * </ul>
+	 * {@inheritDoc}
 	 */
 	@Override
-	public int execute() {
-		final String METHOD_NAME = "execute";
-		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-
-		// jobId採番（B003-xxxxx）
-		String jobId = JobIdUtil.generate(BATCH_CODE);
-		boolean jobInserted = false;
-		try {
-			// 0: QUEUED（受付）
-			boolean started = jobExecControl.jobStart(jobId, BATCH_CODE);
-			if (!started) {
-				this.manageLoggerComponent.debugWarnLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE,
-						"jobStart failed (duplicate or insert error). jobId=" + jobId);
-				return BatchConstant.BATCH_ERROR;
-			}
-			jobInserted = true;
-
-			// チームデータ情報を取得
-			List<CountryLeagueSeasonMasterEntity> list = this.getSeasonInfo.getData();
-
-			// BM_M029登録(Transactional)
-			this.countryLeagueSeasonMasterStat.seasonStat(list);
-
-			String messageCd = MessageCdConst.MCD00015I_BATCH_ACCEPTED;
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-					BATCH_CODE + " accepted. jobId=" + jobId);
-
-			return BatchConstant.BATCH_SUCCESS;
-
-		} catch (Exception e) {
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, e);
-			if (jobInserted) {
-				try {
-					jobExecControl.jobException(jobId);
-				} catch (Exception ignore) {
-				}
-			}
-			return BatchConstant.BATCH_ERROR;
-
-		} finally {
-			this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		}
+	protected void doExecute(JobContext ctx) throws Exception {
+		// チームデータ情報を取得
+		List<CountryLeagueSeasonMasterEntity> list = this.getSeasonInfo.getData();
+		// BM_M029登録(Transactional)
+		this.countryLeagueSeasonMasterStat.seasonStat(list);
 	}
 }
