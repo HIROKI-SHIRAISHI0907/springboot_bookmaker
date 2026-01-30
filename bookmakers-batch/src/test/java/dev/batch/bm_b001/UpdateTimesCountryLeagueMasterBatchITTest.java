@@ -7,8 +7,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-import dev.web.constant.BatchConstant;
-
 @SpringBootTest
 @ActiveProfiles("test")
 class UpdateTimesCountryLeagueMasterBatchITTest {
@@ -19,6 +17,6 @@ class UpdateTimesCountryLeagueMasterBatchITTest {
   @Test
   void execute_jobQueued_inserted_and_async_called() {
     int result = target.execute();
-    assertEquals(BatchConstant.BATCH_SUCCESS, result);
+    assertEquals(0, result);
   }
 }
