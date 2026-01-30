@@ -45,7 +45,7 @@ public class EcsBatchTaskRunner {
     /**
      * バッチ実行
      * @param batchCode
-     * @param extraEnv
+     * @param extraEnv 追加の環境設定
      * @return
      */
     public String runBatch(String batchCode, Map<String, String> extraEnv) {
@@ -59,6 +59,18 @@ public class EcsBatchTaskRunner {
     		    .name(cfg.getContainer())
     		    .environment(envs)
     		    .build();
+
+    	// 追加env（null/blank除外、BATCH_CODE は拒否）
+        if (extraEnv != null && !extraEnv.isEmpty()) {
+            for (Map.Entry<String, String> e : extraEnv.entrySet()) {
+                String k = e.getKey();
+                String v = e.getValue();
+                if (k == null || k.isBlank()) continue;
+                if (v == null || v.isBlank()) continue;
+                if ("BATCH_CODE".equals(k)) continue; // 保護
+                envs.add(KeyValuePair.builder().name(k).value(v).build());
+            }
+        }
 
     	// VPC設定オブジェクト
         AwsVpcConfiguration vpc = AwsVpcConfiguration.builder()

@@ -39,7 +39,7 @@ public class StatController {
         // あなたのDTO設計に合わせて詰めてOK
         res.setReturnCd("ACCEPTED");
         // resに taskArn を入れられるなら入れるのがおすすめ（進捗追跡できる）
-        // res.setTaskArn(taskArn);
+        res.setTaskArn(taskArn);
 
         return ResponseEntity.ok(res);
     }

@@ -7,6 +7,11 @@ import org.springframework.context.annotation.Configuration;
 
 import lombok.Data;
 
+/**
+ * ECSネットワーク設定クラス
+ * @author shiraishitoshio
+ *
+ */
 @Data
 @Configuration
 @ConfigurationProperties(prefix = "ecs.network")

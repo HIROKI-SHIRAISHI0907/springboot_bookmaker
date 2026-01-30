@@ -15,4 +15,9 @@ public class StatResponseResource {
 	 */
 	private String returnCd;
 
+	/**
+	 * エイリアスName
+	 */
+	private String taskArn;
+
 }

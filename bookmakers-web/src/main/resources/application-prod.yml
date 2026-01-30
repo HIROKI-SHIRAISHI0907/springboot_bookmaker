@@ -101,3 +101,42 @@ ecs:
       subnets: ${ECS_SUBNETS:subnet-067d3d5d9d5ea2e17,subnet-008cd7c2beab18e5c,subnet-0bb92140d18f13851}
       securityGroups: ${ECS_SGS:sg-024711907f71edd57}
       assignPublicIp: true
+
+s3-job:
+  jobs:
+    B002:
+      bucket: aws-s3-team-member-csv
+      prefix: json/
+      recursive: true
+      
+    B003:
+      bucket: ws-s3-season-csv
+      prefix: json/
+      recursive: true
+      
+    B004:
+      bucket: aws-s3-team-csv
+      prefix: json/
+      recursive: true
+      
+    B005:
+      bucket: aws-s3-future-csv
+      prefix: null
+      recursive: true
+      
+    B006:
+      bucket: aws-s3-stat-csv
+      prefix: null
+      recursive: true
+      
+    B008:
+      bucket: aws-s3-outputs-csv
+      prefix: null
+      recursive: true
+      
+    B009:
+      bucket: aws-s3-no-ecs-task-time-csv
+      prefix: null
+      recursive: true
+      
+      
