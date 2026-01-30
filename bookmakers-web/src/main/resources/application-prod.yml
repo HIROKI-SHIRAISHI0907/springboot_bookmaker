@@ -53,7 +53,7 @@ mybatis:
 security:
   jwt:
     issuer: bookmakers-web
-    secret: ${JWT_SECRET}
+    secret: ${JWT_SECRET:test}
     expires-in: 3600
     
 management:
