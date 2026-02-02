@@ -62,6 +62,11 @@ management:
       base-path: /actuator
       exposure:
         include: health,info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
         
 ecs:
   default:
