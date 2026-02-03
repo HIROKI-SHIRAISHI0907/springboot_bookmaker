@@ -47,124 +47,127 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 @Service
 public class S3FileCountService {
 
-    private static final String FALLBACK_MESSAGE =
-            "件数を算出できませんでした。bucket/prefix や権限をご確認ください。";
+	private static final String FALLBACK_MESSAGE = "件数を算出できませんでした。bucket/prefix や権限をご確認ください。";
 
-    private static final ZoneId JST = ZoneId.of("Asia/Tokyo");
+	private static final ZoneId JST = ZoneId.of("Asia/Tokyo");
 
-    private final S3Client s3;
-    private final S3JobPropertiesConfig props;
+	private final S3Client s3;
+	private final S3JobPropertiesConfig props;
 
-    public S3FileCountService(S3Client s3, S3JobPropertiesConfig props) {
-        this.s3 = s3;
-        this.props = props;
-    }
+	public S3FileCountService(S3Client s3, S3JobPropertiesConfig props) {
+		this.s3 = s3;
+		this.props = props;
+	}
 
-    /** 今日(JST)の件数も一緒に返す */
-    public S3FileCountResponse getFileCountWithToday(String batchCode) {
-        LocalDate todayJst = LocalDate.now(JST);
-        return getFileCountWithDay(batchCode, todayJst);
-    }
+	/** 今日(JST)の件数も一緒に返す */
+	public S3FileCountResponse getFileCountWithToday(String batchCode) {
+		LocalDate todayJst = LocalDate.now(JST);
+		return getFileCountWithDay(batchCode, todayJst);
+	}
 
-    /** 指定日(JST)の件数 + 全件数 */
-    public S3FileCountResponse getFileCountWithDay(String batchCode, LocalDate dayJst) {
-        S3JobPropertiesConfig.JobConfig cfg = props.require(batchCode);
+	/** 指定日(JST)の件数 + 全件数 */
+	public S3FileCountResponse getFileCountWithDay(String batchCode, LocalDate dayJst) {
+		S3JobPropertiesConfig.JobConfig cfg = props.require(batchCode);
 
-        S3FileCountResponse res = new S3FileCountResponse();
-        res.setBatchCode(batchCode);
-        res.setBucket(cfg.getBucket());
-        res.setPrefix(cfg.getPrefix());
-        res.setRecursive(cfg.isRecursive());
-        res.setDayJst(dayJst == null ? null : dayJst.toString());
+		S3FileCountResponse res = new S3FileCountResponse();
+		res.setBatchCode(batchCode);
+		res.setBucket(cfg.getBucket());
+		res.setPrefix(cfg.getPrefix());
+		res.setRecursive(cfg.isRecursive());
+		res.setDayJst(dayJst == null ? null : dayJst.toString());
 
-        if (cfg.getBucket() == null || cfg.getBucket().isBlank()) {
-            res.setMessage(FALLBACK_MESSAGE + " (バケットが指定されていません。batchCode: " + batchCode + ")");
-            return res;
-        }
+		if (cfg.getBucket() == null || cfg.getBucket().isBlank()) {
+			res.setMessage(FALLBACK_MESSAGE + " (バケットが指定されていません。batchCode: " + batchCode + ")");
+			return res;
+		}
 
-        String prefix = normalizePrefix(cfg.getPrefix());
+		String prefix = normalizePrefix(cfg.getPrefix());
 
-        // JSTの当日範囲 [start, end)
-        Instant start = null;
-        Instant end = null;
-        if (dayJst != null) {
-            ZonedDateTime zStart = dayJst.atStartOfDay(JST);
-            ZonedDateTime zEnd = zStart.plusDays(1);
-            start = zStart.toInstant();
-            end = zEnd.toInstant();
-        }
+		// JSTの当日範囲 [start, end)
+		Instant start = null;
+		Instant end = null;
+		if (dayJst != null) {
+			ZonedDateTime zStart = dayJst.atStartOfDay(JST);
+			ZonedDateTime zEnd = zStart.plusDays(1);
+			start = zStart.toInstant();
+			end = zEnd.toInstant();
+		}
 
-        try {
-            CountResult cr = countObjects(bucket(cfg), prefix, cfg.isRecursive(), start, end);
+		try {
+			CountResult cr = countObjects(bucket(cfg), prefix, cfg.isRecursive(), start, end);
 
-            res.setTotalCount(cr.total);
-            res.setCountOnDay(cr.onDay);
-            res.setMessage("OK");
-            return res;
-        } catch (Exception e) {
-            res.setMessage(FALLBACK_MESSAGE + " (" + e.getClass().getSimpleName() + ")");
-            return res;
-        }
-    }
+			res.setTotalCount(cr.total);
+			res.setCountOnDay(cr.onDay);
+			res.setMessage("OK");
+			return res;
+		} catch (Exception e) {
+			res.setMessage(FALLBACK_MESSAGE + " (" + e.getClass().getSimpleName() + ", exception: " + e + ")");
+			return res;
+		}
+	}
 
-    private String bucket(S3JobPropertiesConfig.JobConfig cfg) {
-        return cfg.getBucket();
-    }
+	private String bucket(S3JobPropertiesConfig.JobConfig cfg) {
+		return cfg.getBucket();
+	}
 
-    /**
-     * 1回の走査で
-     * - total: 全件
-     * - onDay: lastModified が [start, end) の件数
-     */
-    private CountResult countObjects(String bucket, String prefix, boolean recursive, Instant start, Instant end) {
-        String token = null;
-        long total = 0;
-        long onDay = 0;
+	/**
+	 * 1回の走査で
+	 * - total: 全件
+	 * - onDay: lastModified が [start, end) の件数
+	 */
+	private CountResult countObjects(String bucket, String prefix, boolean recursive, Instant start, Instant end) {
+		String token = null;
+		long total = 0;
+		long onDay = 0;
 
-        do {
-            ListObjectsV2Request.Builder req = ListObjectsV2Request.builder()
-                    .bucket(bucket)
-                    .prefix(prefix)
-                    .continuationToken(token)
-                    .maxKeys(1000);
+		do {
+			ListObjectsV2Request.Builder req = ListObjectsV2Request.builder()
+					.bucket(bucket)
+					.prefix(prefix)
+					.continuationToken(token)
+					.maxKeys(1000);
 
-            if (!recursive) req.delimiter("/");
+			if (!recursive)
+				req.delimiter("/");
 
-            ListObjectsV2Response resp = s3.listObjectsV2(req.build());
+			ListObjectsV2Response resp = s3.listObjectsV2(req.build());
 
-            if (resp.contents() != null) {
-                for (S3Object obj : resp.contents()) {
-                    // フォルダプレースホルダ除外したい場合
-                    if (prefix != null && Objects.equals(obj.key(), prefix)) continue;
+			if (resp.contents() != null) {
+				for (S3Object obj : resp.contents()) {
+					// フォルダプレースホルダ除外したい場合
+					if (prefix != null && Objects.equals(obj.key(), prefix))
+						continue;
 
-                    total++;
+					total++;
 
-                    if (start != null && end != null && obj.lastModified() != null) {
-                        Instant lm = obj.lastModified(); // SDK v2 は Instant
-                        if (!lm.isBefore(start) && lm.isBefore(end)) {
-                            onDay++;
-                        }
-                    }
-                }
-            }
+					if (start != null && end != null && obj.lastModified() != null) {
+						Instant lm = obj.lastModified(); // SDK v2 は Instant
+						if (!lm.isBefore(start) && lm.isBefore(end)) {
+							onDay++;
+						}
+					}
+				}
+			}
 
-            token = resp.isTruncated() ? resp.nextContinuationToken() : null;
-        } while (token != null);
+			token = resp.isTruncated() ? resp.nextContinuationToken() : null;
+		} while (token != null);
 
-        return new CountResult(total, onDay);
-    }
+		return new CountResult(total, onDay);
+	}
 
-    private static String normalizePrefix(String prefix) {
-        if (prefix == null || prefix.isBlank()) return null;
-        return prefix.endsWith("/") ? prefix : (prefix + "/");
-    }
+	private static String normalizePrefix(String prefix) {
+		if (prefix == null || prefix.isBlank())
+			return null;
+		return prefix.endsWith("/") ? prefix : (prefix + "/");
+	}
 
-    private static class CountResult {
-        final long total;
-        final long onDay;
-        CountResult(long total, long onDay) {
-            this.total = total;
-            this.onDay = onDay;
-        }
-    }
+	private static class CountResult {
+		final long total;
+		final long onDay;
+
+		CountResult(long total, long onDay) {
+			this.total = total;
+			this.onDay = onDay;
+		}
+	}
 }
