@@ -20,4 +20,10 @@ public class FavoriteScopeResponse {
     /** 許可国リーグチーム */
     private List<TeamScope> allowedTeamsByCountryLeague;
 
+    /** レスポンスコード */
+	private String responseCode; // "0"=成功, "9"=失敗 など運用に合わせて
+
+	/** メッセージ */
+    private String message;
+
 }

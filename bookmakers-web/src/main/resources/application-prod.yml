@@ -116,7 +116,7 @@ s3-job:
       recursive: true
       
     B003:
-      bucket: ws-s3-season-csv
+      bucket: aws-s3-season-csv
       prefix: json/
       recursive: true
       

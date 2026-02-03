@@ -31,9 +31,16 @@ public class FavoriteController {
      * GET /api/favorites/scope?userId=1
      */
     @GetMapping("/scope")
-    public ResponseEntity<FavoriteScopeResponse> getScope(@RequestParam Long userId) {
+    public ResponseEntity<FavoriteScopeResponse> getScope(@RequestParam("userId") Long userId) {
+    	FavoriteScopeResponse res = new FavoriteScopeResponse();
+    	if (userId == null) {
+    		res.setResponseCode("9");
+            res.setMessage("フィルタ条件取得エラー");
+            return ResponseEntity.internalServerError().body(res);
+    	}
+
         FavoriteScope scope = favoriteService.getScope(userId);
-        FavoriteScopeResponse res = favoriteScopeMapper.toResponse(scope);
+        res = favoriteScopeMapper.toResponse(scope);
         return ResponseEntity.ok(res);
     }
 
@@ -60,8 +67,8 @@ public class FavoriteController {
      */
     @DeleteMapping("/{id}")
     public ResponseEntity<FavoriteResponse> delete(
-            @RequestParam Long userId,
-            @PathVariable Long id
+            @RequestParam("userId") Long userId,
+            @PathVariable("id") Long id
     ) {
         FavoriteResponse res = null;
         try {
