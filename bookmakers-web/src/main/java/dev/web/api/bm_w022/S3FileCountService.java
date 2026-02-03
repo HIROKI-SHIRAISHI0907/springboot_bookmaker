@@ -8,8 +8,11 @@ import java.util.ArrayList;
 import java.util.List;
 import java.util.Objects;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import dev.common.constant.MessageCdConst;
+import dev.common.logger.ManageLoggerComponent;
 import dev.web.config.S3JobPropertiesConfig;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
@@ -49,12 +52,23 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 @Service
 public class S3FileCountService {
 
+	/** プロジェクト名 */
+	private static final String PROJECT_NAME = S3FileCountService.class.getProtectionDomain()
+			.getCodeSource().getLocation().getPath();
+
+	/** クラス名 */
+	private static final String CLASS_NAME = S3FileCountService.class.getSimpleName();
+
 	private static final String FALLBACK_MESSAGE = "件数を算出できませんでした。bucket/prefix や権限をご確認ください。";
 
 	private static final ZoneId JST = ZoneId.of("Asia/Tokyo");
 
 	private final S3Client s3;
 	private final S3JobPropertiesConfig props;
+
+	/** ログ管理クラス */
+	@Autowired
+	private ManageLoggerComponent manageLoggerComponent;
 
 	public S3FileCountService(S3Client s3, S3JobPropertiesConfig props) {
 		this.s3 = s3;
@@ -63,6 +77,7 @@ public class S3FileCountService {
 
 	/** ① 件数取得（POST /count） */
     public S3FileCountResponse count(S3FileCountRequest req) {
+    	final String METHOD_NAME = "count";
         S3JobPropertiesConfig.JobConfig cfg = props.require(req.getBatchCode());
 
         LocalDate dayJst = (req.getDay() != null) ? req.getDay() : LocalDate.now(JST);
@@ -97,13 +112,18 @@ public class S3FileCountService {
             res.setMessage("OK");
             return res;
         } catch (Exception e) {
-            res.setMessage(FALLBACK_MESSAGE + " (" + e.getClass().getSimpleName() + ", " + e + ")");
+        	String messageCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+					e);
+            res.setMessage(FALLBACK_MESSAGE + " (" + e.getClass().getSimpleName() + ")");
             return res;
         }
     }
 
     /** ② 一覧取得（POST /list） */
     public S3FileListResponse list(S3FileListRequest req) {
+    	final String METHOD_NAME = "list";
         S3JobPropertiesConfig.JobConfig cfg = props.require(req.getBatchCode());
 
         String effectivePrefix = resolvePrefix(cfg.getPrefix(), req.getScope(), req.getPrefixOverride());
@@ -130,9 +150,13 @@ public class S3FileCountService {
             res.setMessage("OK");
             return res;
         } catch (Exception e) {
+        	String messageCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
+        	this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+					e);
             res.setItems(List.of());
             res.setReturnedCount(0);
-            res.setMessage(FALLBACK_MESSAGE + " (" + e.getClass().getSimpleName() + ", " + e + ")");
+            res.setMessage(FALLBACK_MESSAGE + " (" + e.getClass().getSimpleName() + ")");
             return res;
         }
     }
