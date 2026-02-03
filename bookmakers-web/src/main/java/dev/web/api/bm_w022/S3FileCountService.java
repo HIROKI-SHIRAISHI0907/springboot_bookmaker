@@ -85,6 +85,11 @@ public class S3FileCountService {
         String effectivePrefix = resolvePrefix(cfg.getPrefix(), req.getScope(), req.getPrefixOverride());
         boolean recursive = cfg.isRecursive();
 
+        // ROOTの場合はdelimiter="/"
+        if (req.getScope() == S3PrefixScope.ROOT) {
+            recursive = false;
+        }
+
         S3FileCountResponse res = new S3FileCountResponse();
         res.setBatchCode(req.getBatchCode());
         res.setBucket(cfg.getBucket());
