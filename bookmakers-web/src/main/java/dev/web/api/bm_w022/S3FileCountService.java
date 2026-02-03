@@ -76,217 +76,236 @@ public class S3FileCountService {
 	}
 
 	/** ① 件数取得（POST /count） */
-    public S3FileCountResponse count(S3FileCountRequest req) {
-    	final String METHOD_NAME = "count";
-        S3JobPropertiesConfig.JobConfig cfg = props.require(req.getBatchCode());
+	public S3FileCountResponse count(S3FileCountRequest req) {
+		final String METHOD_NAME = "count";
+		S3JobPropertiesConfig.JobConfig cfg = props.require(req.getBatchCode());
 
-        LocalDate dayJst = (req.getDay() != null) ? req.getDay() : LocalDate.now(JST);
+		LocalDate dayJst = (req.getDay() != null) ? req.getDay() : LocalDate.now(JST);
 
-        String effectivePrefix = resolvePrefix(cfg.getPrefix(), req.getScope(), req.getPrefixOverride());
-        boolean recursive = cfg.isRecursive();
+		String effectivePrefix = resolvePrefix(cfg.getPrefix(), req.getScope(), req.getPrefixOverride());
+		boolean recursive = cfg.isRecursive();
 
-        // ROOTの場合はdelimiter="/"
-        if (req.getScope() == S3PrefixScope.ROOT) {
-            recursive = false;
-        }
+		// ROOTの場合はdelimiter="/"
+		if (req.getScope() == S3PrefixScope.ROOT) {
+			recursive = false;
+		}
 
-        S3FileCountResponse res = new S3FileCountResponse();
-        res.setBatchCode(req.getBatchCode());
-        res.setBucket(cfg.getBucket());
-        res.setPrefix(effectivePrefix);
-        res.setRecursive(recursive);
-        res.setDayJst(dayJst.toString());
+		S3FileCountResponse res = new S3FileCountResponse();
+		res.setBatchCode(req.getBatchCode());
+		res.setBucket(cfg.getBucket());
+		res.setPrefix(effectivePrefix);
+		res.setRecursive(recursive);
+		res.setDayJst(dayJst.toString());
 
-        if (cfg.getBucket() == null || cfg.getBucket().isBlank()) {
-            res.setMessage(FALLBACK_MESSAGE + " (バケットが指定されていません。batchCode: " + req.getBatchCode() + ")");
-            return res;
-        }
+		if (cfg.getBucket() == null || cfg.getBucket().isBlank()) {
+			res.setMessage(FALLBACK_MESSAGE + " (バケットが指定されていません。batchCode: " + req.getBatchCode() + ")");
+			return res;
+		}
 
-        // JSTの当日範囲 [start, end)
-        Instant start;
-        Instant end;
-        ZonedDateTime zStart = dayJst.atStartOfDay(JST);
-        ZonedDateTime zEnd = zStart.plusDays(1);
-        start = zStart.toInstant();
-        end = zEnd.toInstant();
+		// JSTの当日範囲 [start, end)
+		Instant start;
+		Instant end;
+		ZonedDateTime zStart = dayJst.atStartOfDay(JST);
+		ZonedDateTime zEnd = zStart.plusDays(1);
+		start = zStart.toInstant();
+		end = zEnd.toInstant();
 
-        try {
-            CountResult cr = countObjects(cfg.getBucket(), effectivePrefix, recursive, start, end);
-            res.setTotalCount(cr.total);
-            res.setCountOnDay(cr.onDay);
-            res.setMessage("OK");
-            return res;
-        } catch (Exception e) {
-        	String messageCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
+		try {
+			CountResult cr = countObjects(cfg.getBucket(), effectivePrefix, recursive, start, end);
+			res.setTotalCount(cr.total);
+			res.setCountOnDay(cr.onDay);
+			res.setMessage("OK");
+			return res;
+		} catch (Exception e) {
+			String messageCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
 					e);
-            res.setMessage(FALLBACK_MESSAGE + " (" + e.getClass().getSimpleName() + ")");
-            return res;
-        }
-    }
+			res.setMessage(FALLBACK_MESSAGE + " (" + e.getClass().getSimpleName() + ")");
+			return res;
+		}
+	}
 
-    /** ② 一覧取得（POST /list） */
-    public S3FileListResponse list(S3FileListRequest req) {
-    	final String METHOD_NAME = "list";
-        S3JobPropertiesConfig.JobConfig cfg = props.require(req.getBatchCode());
+	/** ② 一覧取得（POST /list） */
+	public S3FileListResponse list(S3FileListRequest req) {
+		final String METHOD_NAME = "list";
+		S3JobPropertiesConfig.JobConfig cfg = props.require(req.getBatchCode());
 
-        String effectivePrefix = resolvePrefix(cfg.getPrefix(), req.getScope(), req.getPrefixOverride());
-        boolean recursive = (req.getRecursiveOverride() != null) ? req.getRecursiveOverride() : cfg.isRecursive();
-        int limit = clamp(req.getLimit(), 1, 1000); // 上限はお好みで
+		String effectivePrefix = resolvePrefix(cfg.getPrefix(), req.getScope(), req.getPrefixOverride());
+		boolean recursive = (req.getRecursiveOverride() != null) ? req.getRecursiveOverride() : cfg.isRecursive();
+		int limit = clamp(req.getLimit(), 1, 1000); // 上限はお好みで
 
-        S3FileListResponse res = new S3FileListResponse();
-        res.setBatchCode(req.getBatchCode());
-        res.setBucket(cfg.getBucket());
-        res.setPrefix(effectivePrefix);
-        res.setRecursive(recursive);
+		// ROOTの場合はdelimiter="/"
+		if (req.getScope() == S3PrefixScope.ROOT) {
+			recursive = false;
+		}
 
-        if (cfg.getBucket() == null || cfg.getBucket().isBlank()) {
-            res.setMessage("bucketが未設定です");
-            res.setItems(List.of());
-            res.setReturnedCount(0);
-            return res;
-        }
+		S3FileListResponse res = new S3FileListResponse();
+		res.setBatchCode(req.getBatchCode());
+		res.setBucket(cfg.getBucket());
+		res.setPrefix(effectivePrefix);
+		res.setRecursive(recursive);
 
-        try {
-            List<S3FileListResponse.Item> items = listObjects(cfg.getBucket(), effectivePrefix, recursive, limit);
-            res.setItems(items);
-            res.setReturnedCount(items.size());
-            res.setMessage("OK");
-            return res;
-        } catch (Exception e) {
-        	String messageCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
-        	this.manageLoggerComponent.debugErrorLog(
+		if (cfg.getBucket() == null || cfg.getBucket().isBlank()) {
+			res.setMessage("bucketが未設定です");
+			res.setItems(List.of());
+			res.setReturnedCount(0);
+			return res;
+		}
+
+		try {
+			List<S3FileListResponse.Item> items = listObjects(cfg.getBucket(), effectivePrefix, recursive, limit);
+			res.setItems(items);
+			res.setReturnedCount(items.size());
+			res.setMessage("OK");
+			return res;
+		} catch (Exception e) {
+			String messageCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
+			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
 					e);
-            res.setItems(List.of());
-            res.setReturnedCount(0);
-            res.setMessage(FALLBACK_MESSAGE + " (" + e.getClass().getSimpleName() + ")");
-            return res;
-        }
-    }
+			res.setItems(List.of());
+			res.setReturnedCount(0);
+			res.setMessage(FALLBACK_MESSAGE + " (" + e.getClass().getSimpleName() + ")");
+			return res;
+		}
+	}
 
-    // ===== prefix 解決 =====
+	// ===== prefix 解決 =====
 
-    private String resolvePrefix(String configuredPrefix, S3PrefixScope scope, String prefixOverride) {
-        S3PrefixScope s = (scope != null) ? scope : S3PrefixScope.DEFAULT;
-        switch (s) {
-            case ROOT:
-                return null;
-            case PARENT:
-                return parentPrefix(configuredPrefix);
-            case CUSTOM:
-                return normalizePrefix(prefixOverride);
-            case DEFAULT:
-            default:
-                return normalizePrefix(configuredPrefix);
-        }
-    }
+	private String resolvePrefix(String configuredPrefix, S3PrefixScope scope, String prefixOverride) {
+		S3PrefixScope s = (scope != null) ? scope : S3PrefixScope.DEFAULT;
+		switch (s) {
+		case ROOT:
+			return null;
+		case PARENT:
+			return parentPrefix(configuredPrefix);
+		case CUSTOM:
+			return normalizePrefix(prefixOverride);
+		case DEFAULT:
+		default:
+			return normalizePrefix(configuredPrefix);
+		}
+	}
 
-    private String parentPrefix(String prefix) {
-        String p = normalizePrefix(prefix);
-        if (p == null) return null;
+	private String parentPrefix(String prefix) {
+		String p = normalizePrefix(prefix);
+		if (p == null)
+			return null;
 
-        // "json/" -> null, "a/b/" -> "a/"
-        String trimmed = p.endsWith("/") ? p.substring(0, p.length() - 1) : p;
-        int idx = trimmed.lastIndexOf('/');
-        if (idx < 0) return null;
-        return trimmed.substring(0, idx + 1);
-    }
+		// "json/" -> null, "a/b/" -> "a/"
+		String trimmed = p.endsWith("/") ? p.substring(0, p.length() - 1) : p;
+		int idx = trimmed.lastIndexOf('/');
+		if (idx < 0)
+			return null;
+		return trimmed.substring(0, idx + 1);
+	}
 
-    private static String normalizePrefix(String prefix) {
-        if (prefix == null || prefix.isBlank()) return null;
-        return prefix.endsWith("/") ? prefix : (prefix + "/");
-    }
+	private static String normalizePrefix(String prefix) {
+		if (prefix == null || prefix.isBlank())
+			return null;
+		return prefix.endsWith("/") ? prefix : (prefix + "/");
+	}
 
-    private static int clamp(Integer v, int min, int max) {
-        if (v == null) return min;
-        return Math.max(min, Math.min(max, v));
-    }
+	private static int clamp(Integer v, int min, int max) {
+		if (v == null)
+			return min;
+		return Math.max(min, Math.min(max, v));
+	}
 
-    // ===== count（既存のまま） =====
+	// ===== count（既存のまま） =====
 
-    private CountResult countObjects(String bucket, String prefix, boolean recursive, Instant start, Instant end) {
-        String token = null;
-        long total = 0;
-        long onDay = 0;
+	private CountResult countObjects(String bucket, String prefix, boolean recursive, Instant start, Instant end) {
+		String token = null;
+		long total = 0;
+		long onDay = 0;
 
-        do {
-            ListObjectsV2Request.Builder req = ListObjectsV2Request.builder()
-                    .bucket(bucket)
-                    .prefix(prefix)
-                    .continuationToken(token)
-                    .maxKeys(1000);
+		do {
+			ListObjectsV2Request.Builder req = ListObjectsV2Request.builder()
+					.bucket(bucket)
+					.prefix(prefix)
+					.continuationToken(token)
+					.maxKeys(1000);
 
-            if (!recursive) req.delimiter("/");
+			if (!recursive)
+				req.delimiter("/");
 
-            ListObjectsV2Response resp = s3.listObjectsV2(req.build());
+			ListObjectsV2Response resp = s3.listObjectsV2(req.build());
 
-            if (resp.contents() != null) {
-                for (S3Object obj : resp.contents()) {
-                    // フォルダプレースホルダ除外したい場合（例: prefix自体のキー）
-                    if (prefix != null && Objects.equals(obj.key(), prefix)) continue;
+			if (resp.contents() != null) {
+				for (S3Object obj : resp.contents()) {
+					// フォルダプレースホルダ除外したい場合（例: prefix自体のキー）
+					if (prefix != null && Objects.equals(obj.key(), prefix))
+						continue;
 
-                    total++;
+					total++;
 
-                    if (obj.lastModified() != null) {
-                        Instant lm = obj.lastModified();
-                        if (!lm.isBefore(start) && lm.isBefore(end)) {
-                            onDay++;
-                        }
-                    }
-                }
-            }
+					if (obj.lastModified() != null) {
+						Instant lm = obj.lastModified();
+						if (!lm.isBefore(start) && lm.isBefore(end)) {
+							onDay++;
+						}
+					}
+				}
+			}
 
-            token = resp.isTruncated() ? resp.nextContinuationToken() : null;
-        } while (token != null);
+			token = resp.isTruncated() ? resp.nextContinuationToken() : null;
+		} while (token != null);
 
-        return new CountResult(total, onDay);
-    }
+		return new CountResult(total, onDay);
+	}
 
-    // ===== list（追加） =====
+	// ===== list（追加） =====
 
-    private List<S3FileListResponse.Item> listObjects(String bucket, String prefix, boolean recursive, int limit) {
-        String token = null;
-        List<S3FileListResponse.Item> out = new ArrayList<>();
+	private List<S3FileListResponse.Item> listObjects(String bucket, String prefix, boolean recursive, int limit) {
+		String token = null;
+		List<S3FileListResponse.Item> out = new ArrayList<>();
 
-        do {
-            int remaining = limit - out.size();
-            if (remaining <= 0) break;
+		do {
+			int remaining = limit - out.size();
+			if (remaining <= 0)
+				break;
 
-            ListObjectsV2Request.Builder req = ListObjectsV2Request.builder()
-                    .bucket(bucket)
-                    .prefix(prefix)
-                    .continuationToken(token)
-                    .maxKeys(Math.min(1000, remaining));
+			ListObjectsV2Request.Builder req = ListObjectsV2Request.builder()
+					.bucket(bucket)
+					.prefix(prefix)
+					.continuationToken(token)
+					.maxKeys(Math.min(1000, remaining));
 
-            if (!recursive) req.delimiter("/");
+			if (!recursive)
+				req.delimiter("/");
 
-            ListObjectsV2Response resp = s3.listObjectsV2(req.build());
+			ListObjectsV2Response resp = s3.listObjectsV2(req.build());
 
-            if (resp.contents() != null) {
-                for (S3Object obj : resp.contents()) {
-                    if (prefix != null && Objects.equals(obj.key(), prefix)) continue;
+			if (resp.contents() != null) {
+				for (S3Object obj : resp.contents()) {
+					if (prefix != null && Objects.equals(obj.key(), prefix))
+						continue;
 
-                    S3FileListResponse.Item item = new S3FileListResponse.Item();
-                    item.setKey(obj.key());
-                    item.setSize(obj.size() == null ? 0L : obj.size());
-                    item.setLastModifiedIso(obj.lastModified() == null ? null : obj.lastModified().toString());
-                    out.add(item);
+					S3FileListResponse.Item item = new S3FileListResponse.Item();
+					item.setKey(obj.key());
+					item.setSize(obj.size() == null ? 0L : obj.size());
+					item.setLastModifiedIso(obj.lastModified() == null ? null : obj.lastModified().toString());
+					out.add(item);
 
-                    if (out.size() >= limit) break;
-                }
-            }
+					if (out.size() >= limit)
+						break;
+				}
+			}
 
-            token = resp.isTruncated() ? resp.nextContinuationToken() : null;
-        } while (token != null);
+			token = resp.isTruncated() ? resp.nextContinuationToken() : null;
+		} while (token != null);
 
-        return out;
-    }
+		return out;
+	}
 
-    private static class CountResult {
-        final long total;
-        final long onDay;
-        CountResult(long total, long onDay) { this.total = total; this.onDay = onDay; }
-    }
+	private static class CountResult {
+		final long total;
+		final long onDay;
+
+		CountResult(long total, long onDay) {
+			this.total = total;
+			this.onDay = onDay;
+		}
+	}
 }
