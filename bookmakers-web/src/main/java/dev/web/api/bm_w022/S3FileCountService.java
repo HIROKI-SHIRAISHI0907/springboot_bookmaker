@@ -177,7 +177,7 @@ public class S3FileCountService {
 		S3PrefixScope s = (scope != null) ? scope : S3PrefixScope.DEFAULT;
 		switch (s) {
 		case ROOT:
-			return null;
+			return "";
 		case PARENT:
 			return parentPrefix(configuredPrefix);
 		case CUSTOM:
