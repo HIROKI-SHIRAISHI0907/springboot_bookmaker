@@ -97,7 +97,7 @@ public class S3FileCountService {
             res.setMessage("OK");
             return res;
         } catch (Exception e) {
-            res.setMessage(FALLBACK_MESSAGE + " (" + e.getClass().getSimpleName() + ")");
+            res.setMessage(FALLBACK_MESSAGE + " (" + e.getClass().getSimpleName() + ", " + e + ")");
             return res;
         }
     }
