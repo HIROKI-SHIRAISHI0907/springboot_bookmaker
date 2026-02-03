@@ -1,16 +1,15 @@
 package dev.web.controller;
 
-import java.time.LocalDate;
-
-import org.springframework.format.annotation.DateTimeFormat;
-import org.springframework.web.bind.annotation.GetMapping;
-import org.springframework.web.bind.annotation.PathVariable;
+import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
+import dev.web.api.bm_w022.S3FileCountRequest;
 import dev.web.api.bm_w022.S3FileCountResponse;
 import dev.web.api.bm_w022.S3FileCountService;
+import dev.web.api.bm_w022.S3FileListRequest;
+import dev.web.api.bm_w022.S3FileListResponse;
 
 /**
  * S3 に出力されたバッチ成果物の件数取得 API。
@@ -49,38 +48,33 @@ public class S3FileCountController {
      *
      * <h3>リクエスト例</h3>
      * <pre>{@code
-     * GET /api/s3/files/B002
+     * POST /api/s3/files/count
      * }</pre>
      *
-     * @param batchCode バッチコード（例: B002）
-     * @return 全件数および今日(JST)の件数
+     * @param S3FileCountRequest
+     * @return S3FileCountResponse
      */
-    @GetMapping("/{batchCode}")
-    public S3FileCountResponse getFileCountToday(
-            @PathVariable String batchCode) {
+    @PostMapping("/count")
+    public S3FileCountResponse getFileCount(
+    		@RequestBody S3FileCountRequest req) {
 
-        return service.getFileCountWithToday(batchCode);
+        return service.count(req);
     }
 
     /**
-     * S3 prefix 配下の全件数と、指定日（JST）の作成・更新件数を取得する。
+     * S3 prefix 配下の全リストを取得する。
      *
      * <h3>リクエスト例</h3>
      * <pre>{@code
-     * GET /api/s3/files/B002?day=2026-01-30
+     * POST /api/s3/files/list
      * }</pre>
      *
-     * @param batchCode バッチコード（例: B002）
-     * @param day 件数を算出する日付（JST, yyyy-MM-dd）
-     * @return 全件数および指定日(JST)の件数
+     * @param S3FileListRequest
+     * @return S3FileCountResponse
      */
-    @GetMapping("/{batchCode}/by-day")
-    public S3FileCountResponse getFileCountByDay(
-            @PathVariable String batchCode,
-            @RequestParam("day")
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE)
-            LocalDate day) {
+    @PostMapping("/list")
+    public S3FileListResponse getFileList(@RequestBody S3FileListRequest req) {
 
-        return service.getFileCountWithDay(batchCode, day);
+        return service.list(req);
     }
 }
