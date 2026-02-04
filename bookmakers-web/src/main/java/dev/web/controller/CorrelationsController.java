@@ -15,20 +15,20 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api/leagues/correlations")
 public class CorrelationsController {
 
-    private final CorrelationsAPIService service;
+	private final CorrelationsAPIService service;
 
-    @GetMapping("/{country}/{league}/{team}")
-    public ResponseEntity<?> getCorrelations(
-            @PathVariable String country,
-            @PathVariable String league,
-            @PathVariable String team,
-            @RequestParam(required = false) String opponent) {
+	@GetMapping("/{country}/{league}/{team}")
+	public ResponseEntity<?> getCorrelations(
+			@PathVariable String country,
+			@PathVariable String league,
+			@PathVariable String team,
+			@RequestParam(required = false) String opponent) {
 
-        var dto = service.getCorrelations(country, league, team, opponent);
-        if (dto == null) {
-            return ResponseEntity.status(404)
-                    .body(java.util.Map.of("message", "team not found"));
-        }
-        return ResponseEntity.ok(dto);
-    }
+		var dto = service.getCorrelations(country, league, team, opponent);
+		if (dto == null) {
+			return ResponseEntity.status(404)
+					.body(java.util.Map.of("message", "team not found"));
+		}
+		return ResponseEntity.ok(dto);
+	}
 }
