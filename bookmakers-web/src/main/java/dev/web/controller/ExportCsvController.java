@@ -16,10 +16,10 @@ public class ExportCsvController {
     private final ExportCsvService service;
 
     /**
-     * POST /api/export/csv
+     * POST /api/export/statCsv
      *
      */
-    @PostMapping("/csv")
+    @PostMapping("/statCsv")
     public ExportCsvResponse createCsv() {
         return service.createCsv();
     }
