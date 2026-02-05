@@ -106,12 +106,6 @@ ecs:
       container: ${ECS_B005_CONTAINER:future-scraper}
       logGroup: ${ECS_B005_LOG_GROUP:/ecs/future-batch}
       
-    B006:
-      cluster: ${ECS_B006_CLUSTER:stats-backend}
-      taskDefinition: ${ECS_B006_TASK_DEF:bookmakers-app}
-      container: ${ECS_B006_CONTAINER:bookmakers-app}
-      logGroup: ${ECS_B006_LOG_GROUP:/ecs/bookmakers-app}
-
     B008:
       cluster: ${ECS_B008_CLUSTER:bm-cluster}
       taskDefinition: ${ECS_B008_TASK_DEF:bm-batch}
@@ -129,7 +123,11 @@ ecs:
     B003: {}
     B004: {}
     B005: {}
-    B006: {}
+    B006: 
+      cluster: ${ECS_B006_CLUSTER:stats-backend}
+      taskDefinition: ${ECS_B006_TASK_DEF:bookmakers-app}
+      container: ${ECS_B006_CONTAINER:bookmakers-app}
+      logGroup: ${ECS_B006_LOG_GROUP:/ecs/bookmakers-app}
 
 s3-job:
   jobs:
