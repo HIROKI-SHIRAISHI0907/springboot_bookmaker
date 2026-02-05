@@ -15,11 +15,11 @@ import lombok.Data;
  */
 @Data
 @Configuration
-@ConfigurationProperties(prefix = "scraper")
+@ConfigurationProperties(prefix = "ecs")
 public class EcsScrapePropertiesConfig {
 
     private DefaultConfig defaults = new DefaultConfig();
-    private Map<String, ScrapeConfig> scrape = new HashMap<>();
+    private Map<String, ScrapeConfig> scraper = new HashMap<>();
 
     @Data
     public static class DefaultConfig {
@@ -39,7 +39,7 @@ public class EcsScrapePropertiesConfig {
     }
 
     public ScrapeConfig require(String batchCode) {
-    	ScrapeConfig c = scrape.get(batchCode);
+    	ScrapeConfig c = scraper.get(batchCode);
         if (c == null) {
             throw new IllegalArgumentException("ECS scraper config not found for batchCode=" + batchCode);
         }
