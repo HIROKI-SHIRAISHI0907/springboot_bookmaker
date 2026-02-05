@@ -20,10 +20,15 @@ import dev.web.api.bm_w017.CountryLeagueUpdateResponse;
 import dev.web.api.bm_w017.CountryLeagueUpdateService;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * countryLeague取得用
+ * @author shiraishitoshio
+ *
+ */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api")
-public class CountryLeagueController {
+public class CountryLeagueWebController {
 
 	private final CountryLeagueUpdateService service;
 

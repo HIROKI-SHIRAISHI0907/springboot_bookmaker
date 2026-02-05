@@ -20,10 +20,15 @@ import dev.web.api.bm_w018.TeamMemberUpdateResponse;
 import dev.web.api.bm_w018.TeamMemberUpdateService;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * TeamMember取得用
+ * @author shiraishitoshio
+ *
+ */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api")
-public class TeamMemberController {
+public class TeamMemberWebController {
 
     private final TeamMemberUpdateService service;
 

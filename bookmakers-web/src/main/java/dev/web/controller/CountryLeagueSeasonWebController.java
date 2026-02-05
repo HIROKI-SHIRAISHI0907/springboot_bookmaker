@@ -21,14 +21,14 @@ import dev.web.api.bm_w019.CountryLeagueSeasonUpdateService;
 import lombok.RequiredArgsConstructor;
 
 /**
- * CountryLeagueSeasonController
+ * countryLeagueSeason取得用
  * @author shiraishitoshio
  *
  */
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api")
-public class CountryLeagueSeasonController {
+public class CountryLeagueSeasonWebController {
 
     private final CountryLeagueSeasonUpdateService service;
 
