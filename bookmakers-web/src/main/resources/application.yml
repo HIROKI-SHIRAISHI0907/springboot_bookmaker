@@ -27,19 +27,19 @@ server:
 spring:
   datasource:
     bm:
-      url: ${BM_DB_URL:jdbc:postgresql://localhost:54320/soccer_bm?currentSchema=public}
-      username: ${BM_DB_USER:postgres}
-      password: ${BM_DB_PASS:sonic3717}
+      url: ${BM_DB_URL}
+      username: ${BM_DB_USER}
+      password: ${BM_DB_PASS}
       driver-class-name: org.postgresql.Driver
     master:
-      url: ${MASTER_DB_URL:jdbc:postgresql://localhost:54320/soccer_bm_master?currentSchema=public}
-      username: ${MASTER_DB_USER:postgres}
-      password: ${MASTER_DB_PASS:sonic3717}
+      url: ${MASTER_DB_URL}
+      username: ${MASTER_DB_USER}
+      password: ${MASTER_DB_PASS}
       driver-class-name: org.postgresql.Driver
     user:
-      url: ${USER_DB_URL:jdbc:postgresql://localhost:54320/soccer_bm_user?currentSchema=public}
-      username: ${USER_DB_USER:postgres}
-      password: ${USER_DB_PASS:sonic3717}
+      url: ${USER_DB_URL}
+      username: ${USER_DB_USER}
+      password: ${USER_DB_PASS}
       driver-class-name: org.postgresql.Driver
 
   flyway:
@@ -81,7 +81,7 @@ ecs:
       - sg-024711907f71edd57
     assignPublicIp: true
 
-  jobs:
+  scraper:
     B002:
       cluster: ${ECS_B002_CLUSTER:team-member-cluster}
       taskDefinition: ${ECS_B002_TASK_DEF:team-member-batch}
@@ -117,6 +117,19 @@ ecs:
       taskDefinition: ${ECS_B008_TASK_DEF:bm-batch}
       container: ${ECS_B008_CONTAINER:timely-data-outputs-scraper}
       logGroup: ${ECS_B008_LOG_GROUP:/ecs/bm-batch}
+    
+  defaults:
+    cluster: ${ECS_BATCH_CLUSTER:batch-backend}
+    taskDefinition: ${ECS_BATCH_TASK_DEF:bookmakers-batch}
+    container: ${ECS_BATCH_CONTAINER:bookmakers-batch}
+    logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
+
+  jobs:
+    B002: {}
+    B003: {}
+    B004: {}
+    B005: {}
+    B006: {}
 
 s3-job:
   jobs:
