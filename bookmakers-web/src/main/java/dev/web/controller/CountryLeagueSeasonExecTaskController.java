@@ -27,9 +27,9 @@ public class CountryLeagueSeasonExecTaskController {
     private final EcsBatchTaskRunner runner;
 
     /**
-     * /stat を叩いたら B006 のFargateタスクを起動する
+     * /country-league-season-exec-task を叩いたら B003 のFargateタスクを起動する
      */
-    @PostMapping("/stat")
+    @PostMapping("/country-league-season-exec-task")
     public ResponseEntity<StatResponseResource> execute(@RequestBody StatRequestResource req) {
 
         // 必要ならリクエスト内容を env で渡す（nullは入れない）
@@ -37,7 +37,7 @@ public class CountryLeagueSeasonExecTaskController {
         // 例: env.put("COUNTRY", req.getCountry());
         // 例: env.put("LEAGUE", req.getLeague());
 
-        String taskArn = runner.runBatch("B006", env);
+        String taskArn = runner.runBatch("B003", env);
 
         StatResponseResource res = new StatResponseResource();
         // あなたのDTO設計に合わせて詰めてOK
