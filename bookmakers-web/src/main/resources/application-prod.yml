@@ -71,6 +71,15 @@ management:
 ecs:
   default:
     region: ${AWS_REGION:ap-northeast-1}
+    
+  network:
+    subnets:
+      - subnet-067d3d5d9d5ea2e17
+      - subnet-008cd7c2beab18e5c
+      - subnet-0bb92140d18f13851
+    securityGroups:
+      - sg-024711907f71edd57
+    assignPublicIp: true
 
   jobs:
     B002:
@@ -108,11 +117,6 @@ ecs:
       taskDefinition: ${ECS_B008_TASK_DEF:bm-batch}
       container: ${ECS_B008_CONTAINER:timely-data-outputs-scraper}
       logGroup: ${ECS_B008_LOG_GROUP:/ecs/bm-batch}
-
-    network:
-      subnets: ${ECS_SUBNETS:subnet-067d3d5d9d5ea2e17,subnet-008cd7c2beab18e5c,subnet-0bb92140d18f13851}
-      securityGroups: ${ECS_SGS:sg-024711907f71edd57}
-      assignPublicIp: true
 
 s3-job:
   jobs:
