@@ -54,11 +54,11 @@ public class EcsBatchTaskRunner {
 		// バッチコードに紐づく環境yml情報を取得
 		EcsJobPropertiesConfig.JobConfig cfg = props.require(batchCode);
 
-		// BATCH_CODE は必須
+		// BM_JOB は必須
 		List<KeyValuePair> envs = new ArrayList<>();
-		envs.add(KeyValuePair.builder().name("BATCH_CODE").value(batchCode).build());
+		envs.add(KeyValuePair.builder().name("BM_JOB").value(batchCode).build());
 
-		// 追加env（null/blank除外、BATCH_CODE は拒否）
+		// 追加env（null/blank除外、BM_JOB は拒否）
 		if (extraEnv != null && !extraEnv.isEmpty()) {
 			for (Map.Entry<String, String> e : extraEnv.entrySet()) {
 				String k = e.getKey();
@@ -67,7 +67,7 @@ public class EcsBatchTaskRunner {
 					continue;
 				if (v == null || v.isBlank())
 					continue;
-				if ("BATCH_CODE".equals(k))
+				if ("BM_JOB".equals(k))
 					continue; // 保護
 				envs.add(KeyValuePair.builder().name(k).value(v).build());
 			}

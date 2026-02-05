@@ -81,7 +81,7 @@ ecs:
       - sg-024711907f71edd57
     assignPublicIp: true
 
-  jobs:
+  scraper:
     B002:
       cluster: ${ECS_B002_CLUSTER:team-member-cluster}
       taskDefinition: ${ECS_B002_TASK_DEF:team-member-batch}
@@ -117,6 +117,19 @@ ecs:
       taskDefinition: ${ECS_B008_TASK_DEF:bm-batch}
       container: ${ECS_B008_CONTAINER:timely-data-outputs-scraper}
       logGroup: ${ECS_B008_LOG_GROUP:/ecs/bm-batch}
+    
+  defaults:
+    cluster: ${ECS_BATCH_CLUSTER:batch-backend}
+    taskDefinition: ${ECS_BATCH_TASK_DEF:bookmakers-batch}
+    container: ${ECS_BATCH_CONTAINER:bookmakers-batch}
+    logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
+
+  jobs:
+    B002: {}
+    B003: {}
+    B004: {}
+    B005: {}
+    B006: {}
 
 s3-job:
   jobs:

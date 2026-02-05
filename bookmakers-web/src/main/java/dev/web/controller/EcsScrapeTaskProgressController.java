@@ -6,32 +6,32 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.web.api.bm_w021.EcsTaskProgressResponse;
-import dev.web.api.bm_w021.EcsTaskProgressService;
+import dev.web.api.bm_w021.EcsScrapeTaskProgressService;
+import dev.web.api.bm_w021.EcsScrapeTaskProgressResponse;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/ecs/tasks")
+@RequestMapping("/api/scrape")
 @RequiredArgsConstructor
-public class EcsTaskProgressController {
+public class EcsScrapeTaskProgressController {
 
-    private final EcsTaskProgressService service;
+    private final EcsScrapeTaskProgressService service;
 
     /**
      * 最新RUNNINGタスクの進捗
-     * GET /api/ecs/{batchCode}/latest/progress
+     * GET /api/scrape/ecs/{batchCode}/latest/progress
      */
     @GetMapping("/ecs/{batchCode}/latest/progress")
-    public ResponseEntity<EcsTaskProgressResponse> latest(@PathVariable String batchCode) {
+    public ResponseEntity<EcsScrapeTaskProgressResponse> latest(@PathVariable String batchCode) {
         return ResponseEntity.ok(service.getLatestProgress(batchCode));
     }
 
     /**
      * 指定タスクの進捗
-     * GET /api/ecs/{batchCode}/tasks/{taskId}/progress
+     * GET /api/scrape/ecs/{batchCode}/tasks/{taskId}/progress
      */
     @GetMapping("/ecs/{batchCode}/tasks/{taskId}/progress")
-    public ResponseEntity<EcsTaskProgressResponse> byTask(
+    public ResponseEntity<EcsScrapeTaskProgressResponse> byTask(
             @PathVariable String batchCode,
             @PathVariable String taskId) {
         return ResponseEntity.ok(service.getProgress(batchCode, taskId));

@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
 
-import dev.web.config.EcsJobPropertiesConfig;
+import dev.web.config.EcsScrapePropertiesConfig;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.cloudwatchlogs.model.GetLogEventsRequest;
 import software.amazon.awssdk.services.cloudwatchlogs.model.GetLogEventsResponse;
@@ -28,11 +28,11 @@ import software.amazon.awssdk.services.ecs.model.Task;
 import software.amazon.awssdk.services.ecs.model.TaskField;
 
 /**
- * ECSタスク進捗取得サービス
+ * ECSスクレイピングタスク進捗取得サービス
  * - batchCode(B002など)でクラスター/タスク定義/コンテナ/ロググループを切り替える
  */
 @Service
-public class EcsTaskProgressService {
+public class EcsScrapeTaskProgressService {
 
     /** 正規表現 */
     private static final Pattern PROGRESS_PATTERN =
@@ -40,14 +40,14 @@ public class EcsTaskProgressService {
 
     /** エラーメッセージ */
     private static final String FALLBACK_MESSAGE =
-            "進捗率を算出できませんでした。ECSタスクが止まっている可能性があります。";
+            "進捗率を算出できませんでした。ECSスクレイピング用タスクが止まっている可能性があります。";
 
     /** 設定関連 */
     private final EcsClient ecs;
     private final CloudWatchLogsClient logs;
-    private final EcsJobPropertiesConfig props;
+    private final EcsScrapePropertiesConfig props;
 
-    public EcsTaskProgressService(EcsClient ecs, CloudWatchLogsClient logs, EcsJobPropertiesConfig props) {
+    public EcsScrapeTaskProgressService(EcsClient ecs, CloudWatchLogsClient logs, EcsScrapePropertiesConfig props) {
         this.ecs = ecs;
         this.logs = logs;
         this.props = props;
@@ -57,8 +57,8 @@ public class EcsTaskProgressService {
      * 実行中（RUNNING）の最新タスクの進捗率を取得する（taskId指定不要）
      * @param batchCode 例: B002
      */
-    public EcsTaskProgressResponse getLatestProgress(String batchCode) {
-    	EcsJobPropertiesConfig.JobConfig cfg = props.require(batchCode);
+    public EcsScrapeTaskProgressResponse getLatestProgress(String batchCode) {
+    	EcsScrapePropertiesConfig.ScrapeConfig cfg = props.require(batchCode);
 
         ListTasksResponse list = ecs.listTasks(ListTasksRequest.builder()
                 .cluster(cfg.getCluster())
@@ -70,7 +70,7 @@ public class EcsTaskProgressService {
                 .build());
 
         if (list.taskArns() == null || list.taskArns().isEmpty()) {
-            EcsTaskProgressResponse res = new EcsTaskProgressResponse();
+            EcsScrapeTaskProgressResponse res = new EcsScrapeTaskProgressResponse();
             res.setMessage("実行中のECSタスクが見つかりません。");
             return res;
         }
@@ -85,15 +85,15 @@ public class EcsTaskProgressService {
      * @param batchCode 例: B002
      * @param taskIdOrArn taskArn または taskId
      */
-    public EcsTaskProgressResponse getProgress(String batchCode, String taskIdOrArn) {
-    	EcsJobPropertiesConfig.JobConfig cfg = props.require(batchCode);
+    public EcsScrapeTaskProgressResponse getProgress(String batchCode, String taskIdOrArn) {
+    	EcsScrapePropertiesConfig.ScrapeConfig sfg = props.require(batchCode);
 
-        EcsTaskProgressResponse res = new EcsTaskProgressResponse();
+        EcsScrapeTaskProgressResponse res = new EcsScrapeTaskProgressResponse();
         res.setTaskId(taskIdOrArn);
 
         // 1) DescribeTasks
         DescribeTasksResponse dt = ecs.describeTasks(DescribeTasksRequest.builder()
-                .cluster(cfg.getCluster())
+                .cluster(sfg.getCluster())
                 .tasks(taskIdOrArn)
                 .include(TaskField.TAGS)
                 .build());
@@ -116,18 +116,18 @@ public class EcsTaskProgressService {
         }
 
         // 3) awslogs-stream-prefix 取得
-        String streamPrefix = resolveAwslogsStreamPrefix(task.taskDefinitionArn(), cfg.getContainer());
+        String streamPrefix = resolveAwslogsStreamPrefix(task.taskDefinitionArn(), sfg.getContainer());
         if (streamPrefix == null || streamPrefix.isBlank()) {
             res.setMessage(FALLBACK_MESSAGE);
             return res;
         }
 
         // 例: ecs/team-member-scraper/<taskId>
-        String logStreamName = streamPrefix + "/" + cfg.getContainer() + "/" + taskId;
+        String logStreamName = streamPrefix + "/" + sfg.getContainer() + "/" + taskId;
 
         // 4) CloudWatch Logs
         GetLogEventsResponse gl = logs.getLogEvents(GetLogEventsRequest.builder()
-                .logGroupName(cfg.getLogGroup())
+                .logGroupName(sfg.getLogGroup())
                 .logStreamName(logStreamName)
                 .startFromHead(false)
                 .limit(300)

@@ -8,7 +8,7 @@ import lombok.Data;
  * @author shiraishitoshio
  */
 @Data
-public class EcsTaskProgressResponse {
+public class EcsScrapeTaskProgressResponse {
 
 	/** タスクID */
 	private String taskId;

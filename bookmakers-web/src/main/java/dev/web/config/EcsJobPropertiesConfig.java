@@ -9,7 +9,7 @@ import org.springframework.context.annotation.Configuration;
 import lombok.Data;
 
 /**
- * ECSジョブ設定クラス
+ * ECSバッチジョブ設定クラス
  * @author shiraishitoshio
  *
  */
@@ -24,17 +24,17 @@ public class EcsJobPropertiesConfig {
     @Data
     public static class DefaultConfig {
         private String region;
+        private String cluster;
+        private String taskDefinition;
+        private String container;
+        private String logGroup;
     }
 
     @Data
     public static class JobConfig {
-    	/** クラスター */
         private String cluster;
-        /** タスク定義 */
         private String taskDefinition;
-        /** コンテナ */
         private String container;
-        /** ロググループ */
         private String logGroup;
     }
 
@@ -43,6 +43,22 @@ public class EcsJobPropertiesConfig {
         if (c == null) {
             throw new IllegalArgumentException("ECS job config not found for batchCode=" + batchCode);
         }
-        return c;
+
+        // defaults で補完
+        JobConfig merged = new JobConfig();
+        merged.setCluster(
+            c.getCluster() != null ? c.getCluster() : defaults.getCluster()
+        );
+        merged.setTaskDefinition(
+            c.getTaskDefinition() != null ? c.getTaskDefinition() : defaults.getTaskDefinition()
+        );
+        merged.setContainer(
+            c.getContainer() != null ? c.getContainer() : defaults.getContainer()
+        );
+        merged.setLogGroup(
+            c.getLogGroup() != null ? c.getLogGroup() : defaults.getLogGroup()
+        );
+
+        return merged;
     }
 }
