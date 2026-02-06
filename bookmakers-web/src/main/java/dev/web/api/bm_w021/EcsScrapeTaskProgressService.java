@@ -71,13 +71,18 @@ public class EcsScrapeTaskProgressService {
 
         if (list.taskArns() == null || list.taskArns().isEmpty()) {
             EcsScrapeTaskProgressResponse res = new EcsScrapeTaskProgressResponse();
+            res.setStatus("NOT_FOUND");
             res.setMessage("実行中のECSタスクが見つかりません。");
             return res;
         }
 
         // 一旦先頭を使う（確実に「最新」にしたいなら下の getLatestTaskArnByStartedAt を使う）
         String taskArn = getLatestTaskArnByStartedAt(cfg.getCluster(), list.taskArns()).orElse(list.taskArns().get(0));
-        return getProgress(batchCode, taskArn);
+        EcsScrapeTaskProgressResponse res = getProgress(batchCode, taskArn);
+        if (res.getStatus() == null) {
+            res.setStatus("RUNNING");
+        }
+        return res;
     }
 
     /**
@@ -99,10 +104,17 @@ public class EcsScrapeTaskProgressService {
                 .build());
 
         if (dt.tasks() == null || dt.tasks().isEmpty()) {
+        	res.setStatus("NOT_FOUND");
             res.setMessage(FALLBACK_MESSAGE);
             return res;
         }
         Task task = dt.tasks().get(0);
+        res.setStatus(task.lastStatus()); // RUNNING / STOPPED / PROVISIONING など
+
+        if (!"RUNNING".equals(task.lastStatus())) {
+            res.setMessage("タスクは RUNNING ではありません: " + task.lastStatus());
+            return res;
+        }
 
         // 2) taskId 抽出
         String taskArn = task.taskArn();
@@ -158,6 +170,7 @@ public class EcsScrapeTaskProgressService {
         }
 
         double percent = (h.done * 100.0) / h.total;
+        res.setStatus("RUNNING");
         res.setPercent(round1(percent));
         return res;
     }

@@ -20,7 +20,7 @@ import lombok.RequiredArgsConstructor;
  *
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/admin/exec/task")
 @RequiredArgsConstructor
 public class CountryLeagueExecTaskController {
 
@@ -29,7 +29,7 @@ public class CountryLeagueExecTaskController {
     /**
      * /country-league-exec-task を叩いたら B004 のFargateタスクを起動する
      */
-    @PostMapping("/country-league-exec-task")
+    @PostMapping("/country-league")
     public ResponseEntity<StatResponseResource> execute(@RequestBody StatRequestResource req) {
 
         // 必要ならリクエスト内容を env で渡す（nullは入れない）

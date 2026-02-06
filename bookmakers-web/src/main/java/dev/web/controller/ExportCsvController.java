@@ -9,14 +9,14 @@ import dev.web.api.bm_w020.ExportCsvService;
 import lombok.RequiredArgsConstructor;
 
 @RestController
-@RequestMapping("/api/export")
+@RequestMapping("/api/admin/export")
 @RequiredArgsConstructor
 public class ExportCsvController {
 
     private final ExportCsvService service;
 
     /**
-     * POST /api/export/statCsv
+     * POST /api/admin/export/statCsv
      *
      */
     @PostMapping("/statCsv")

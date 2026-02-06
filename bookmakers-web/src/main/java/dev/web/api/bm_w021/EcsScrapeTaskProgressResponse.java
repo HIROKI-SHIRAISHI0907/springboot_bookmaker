@@ -13,6 +13,9 @@ public class EcsScrapeTaskProgressResponse {
 	/** タスクID */
 	private String taskId;
 
+	/** ステータス */
+    private String status; // RUNNING / STOPPED / NOT_FOUND
+
 	/** 進捗率 */
     private Double percent;      // 算出できたら値、できなければ null
 

@@ -34,7 +34,7 @@ import dev.web.api.bm_w022.S3FileListResponse;
  * </ul>
  */
 @RestController
-@RequestMapping("/api/s3/files")
+@RequestMapping("/api/admin/s3/files")
 public class S3FileCountController {
 
     private final S3FileCountService service;
@@ -48,7 +48,7 @@ public class S3FileCountController {
      *
      * <h3>リクエスト例</h3>
      * <pre>{@code
-     * POST /api/s3/files/count
+     * POST /api/admin/s3/files/count
      * }</pre>
      *
      * @param S3FileCountRequest
@@ -66,7 +66,7 @@ public class S3FileCountController {
      *
      * <h3>リクエスト例</h3>
      * <pre>{@code
-     * POST /api/s3/files/list
+     * POST /api/admin/s3/files/list
      * }</pre>
      *
      * @param S3FileListRequest
