@@ -193,5 +193,29 @@ public class CountryLeagueMasterWebRepository {
 	    return s != null && !s.isBlank();
 	}
 
+	// --------------------------------------------------------
+	// 画面用: 有効データのみ（del_flg='0'）
+	// --------------------------------------------------------
+	public List<CountryLeagueDTO> findAllActive() {
+	    String sql = """
+	        SELECT
+	          id, country, league, team, link, del_flg
+	        FROM country_league_master
+	        WHERE del_flg = '0'
+	        ORDER BY country, league, team
+	    """;
+
+	    return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {
+	        CountryLeagueDTO dto = new CountryLeagueDTO();
+	        dto.setId(rs.getString("id"));
+	        dto.setCountry(rs.getString("country"));
+	        dto.setLeague(rs.getString("league"));
+	        dto.setTeam(rs.getString("team"));
+	        dto.setLink(rs.getString("link"));
+	        dto.setDelFlg(rs.getString("del_flg"));
+	        return dto;
+	    });
+	}
+
 
 }

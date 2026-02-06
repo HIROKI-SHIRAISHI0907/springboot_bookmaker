@@ -8,9 +8,11 @@ import java.util.Map;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import dev.web.api.bm_u003.FavoriteItem;
 import dev.web.api.bm_u003.FavoriteScope;
 
 /**
@@ -168,4 +170,26 @@ public class FavoriteRepository {
         scope.setAllowedTeamsByCountryLeague(teamsByCountryLeague);
         return scope;
     }
+
+    public List<FavoriteItem> findSelectedItems(Long userId) {
+        String sql = """
+            SELECT country, league, team
+            FROM favorite
+            WHERE user_id = :userId
+              AND del_flg = '0'
+            ORDER BY level, country, league, team
+        """;
+
+        return userJdbcTemplate.query(sql,
+            new MapSqlParameterSource().addValue("userId", userId),
+            (rs, n) -> {
+                FavoriteItem item = new FavoriteItem();
+                item.setCountry(rs.getString("country"));
+                item.setLeague(rs.getString("league"));
+                item.setTeam(rs.getString("team"));
+                return item;
+            }
+        );
+    }
+
 }

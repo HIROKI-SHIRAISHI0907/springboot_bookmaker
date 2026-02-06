@@ -5,7 +5,7 @@ import java.util.List;
 import lombok.Data;
 
 /**
- * CountryScope
+ * TeamScope
  * @author shiraishitoshio
  *
  */
