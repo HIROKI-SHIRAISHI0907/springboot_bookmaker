@@ -123,6 +123,12 @@ ecs:
       taskDefinition: ${ECS_B008_TASK_DEF:bm-batch}
       container: ${ECS_B008_CONTAINER:timely-data-outputs-scraper}
       logGroup: ${ECS_B008_LOG_GROUP:/ecs/bm-batch}
+      
+    B009:
+      cluster: ${ECS_B009_CLUSTER:no-game-ecs-task-cluster}
+      taskDefinition: ${ECS_B009_TASK_DEF:no-game-batch}
+      container: ${ECS_B009_CONTAINER:no-game-scraper}
+      logGroup: ${ECS_B009_LOG_GROUP:/ecs/no-game-batch}
     
   defaults:
     cluster: ${ECS_BATCH_CLUSTER:batch-backend}
