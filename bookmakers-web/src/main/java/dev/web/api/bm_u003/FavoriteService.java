@@ -217,9 +217,7 @@ public class FavoriteService {
 	    res.setAllowedCountries(countryScopes);
 	    res.setAllowedLeaguesByCountry(leagueScopes);
 	    res.setAllowedTeamsByCountryLeague(teamScopes);
-
-	    // ★推奨：FavoriteScopeResponse に selectedItems を追加して返す（フロントでチェック復元）
-	    // res.setSelectedItems(selected);
+	    res.setSelectedItems(selected);
 
 	    res.setResponseCode("0");
 	    res.setMessage("OK");

@@ -18,6 +18,12 @@ process:
       outputs: ${S3_OUTPUTS:aws-s3-outputs-csv}
       future: ${S3_FUTURE:aws-s3-future-csv}
       stats: ${S3_STATS:aws-s3-stat-csv}
+      
+logging:
+  level:
+    com.zaxxer.hikari: DEBUG
+    org.springframework.jdbc.datasource: DEBUG
+    org.springframework.transaction: DEBUG
 
 server:
   port: 8080
@@ -29,17 +35,17 @@ spring:
     bm:
       url: ${BM_DB_URL:jdbc:postgresql://localhost:54320/soccer_bm?currentSchema=public}
       username: ${BM_DB_USER:postgres}
-      password: ${BM_DB_PASS}
+      password: ${BM_DB_PASS:sonic3717}
       driver-class-name: org.postgresql.Driver
     master:
       url: ${MASTER_DB_URL:jdbc:postgresql://localhost:54320/soccer_bm_master?currentSchema=public}
       username: ${MASTER_DB_USER:postgres}
-      password: ${MASTER_DB_PASS}
+      password: ${MASTER_DB_PASS:sonic3717}
       driver-class-name: org.postgresql.Driver
     user:
       url: ${USER_DB_URL:jdbc:postgresql://localhost:54320/soccer_bm_user?currentSchema=public}
       username: ${USER_DB_USER:postgres}
-      password: ${USER_DB_PASS}
+      password: ${USER_DB_PASS:sonic3717}
       driver-class-name: org.postgresql.Driver
 
   flyway:

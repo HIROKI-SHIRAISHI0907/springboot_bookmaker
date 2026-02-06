@@ -29,4 +29,9 @@ public class FavoriteScope {
      * key = country|league
      */
     private Map<String, List<String>> allowedTeamsByCountryLeague;
+
+    /**
+     * お気に入り選択済み取得
+     */
+    private List<FavoriteItem> selectedItems;
 }
