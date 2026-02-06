@@ -174,7 +174,7 @@ public class FavoriteRepository {
     public List<FavoriteItem> findSelectedItems(Long userId) {
         String sql = """
             SELECT country, league, team
-            FROM favorite
+            FROM favorites
             WHERE user_id = :userId
               AND del_flg = '0'
             ORDER BY "level", country, league, team
