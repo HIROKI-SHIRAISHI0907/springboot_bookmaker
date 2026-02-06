@@ -177,7 +177,7 @@ public class FavoriteRepository {
             FROM favorite
             WHERE user_id = :userId
               AND del_flg = '0'
-            ORDER BY level, country, league, team
+            ORDER BY "level", country, league, team
         """;
 
         return userJdbcTemplate.query(sql,
