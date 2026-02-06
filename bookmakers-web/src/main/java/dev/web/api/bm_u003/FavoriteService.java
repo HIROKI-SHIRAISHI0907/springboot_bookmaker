@@ -30,7 +30,7 @@ public class FavoriteService {
 	 * お気に入りをまとめて登録（country / league / team を item の内容で判定）
 	 */
 	@Transactional
-	public FavoriteResponse upsert(FavoriteRequest req) {
+	public FavoriteResponse upsert(FavoriteInsertRequest req) {
 		FavoriteResponse res = new FavoriteResponse();
 
 		try {
@@ -265,7 +265,7 @@ public class FavoriteService {
 	// -------------------
 	// validation helpers
 	// -------------------
-	private static void requireUser(FavoriteRequest req) {
+	private static void requireUser(FavoriteInsertRequest req) {
 		if (req == null || req.getUserId() == null) {
 			throw new IllegalArgumentException("userId is required");
 		}

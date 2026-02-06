@@ -10,7 +10,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.web.api.bm_u003.FavoriteRequest;
+import dev.web.api.bm_u003.FavoriteInsertRequest;
 import dev.web.api.bm_u003.FavoriteResponse;
 import dev.web.api.bm_u003.FavoriteScope;
 import dev.web.api.bm_u003.FavoriteScopeResponse;
@@ -49,7 +49,7 @@ public class FavoriteController {
      * POST /api/favorites
      */
     @PostMapping
-    public ResponseEntity<FavoriteResponse> upsert(@RequestBody FavoriteRequest req) {
+    public ResponseEntity<FavoriteResponse> upsert(@RequestBody FavoriteInsertRequest req) {
         FavoriteResponse res = null;
         try {
             res = favoriteService.upsert(req);

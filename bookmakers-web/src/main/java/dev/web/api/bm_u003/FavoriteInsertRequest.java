@@ -10,7 +10,7 @@ import lombok.Data;
  *
  */
 @Data
-public class FavoriteRequest {
+public class FavoriteInsertRequest {
 
 	/** ユーザーID（共通） */
     private Long userId;
