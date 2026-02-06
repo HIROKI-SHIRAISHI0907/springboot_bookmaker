@@ -176,7 +176,6 @@ public class FavoriteRepository {
             SELECT country, league, team
             FROM favorites
             WHERE user_id = :userId
-              AND del_flg = '0'
             ORDER BY "level", country, league, team
         """;
 
