@@ -26,14 +26,14 @@ public class ForceAdminAPIService {
 	@Transactional
     public ForceAdminResponse upsert(String country, String league, String team, String delFlg) {
 		ForceAdminResponse res = new ForceAdminResponse();
-		int result1 = repoSeason.updateDelFlgOne(country, league, delFlg);
+		int result1 = repoSeason.updateDelFlg(country, league, delFlg);
         if (result1 == 0) {
         	res.setResponseCode("9");
     	    res.setMessage("更新エラー");
     	    return res;
         }
 
-        int result2 = repoMaster.updateDelFlgOne(country, league, team, delFlg);
+        int result2 = repoMaster.updateDelFlg(country, league, team, delFlg);
         if (result2 == 0) {
         	res.setResponseCode("9");
     	    res.setMessage("更新エラー");

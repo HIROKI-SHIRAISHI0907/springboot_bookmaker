@@ -167,7 +167,7 @@ public class CountryLeagueSeasonMasterWebRepository {
 	 *           <li>0 : 対象データなし（該当レコードが存在しない）</li>
 	 *         </ul>
 	 */
-	public int updateDelFlgOne(String country, String league, String del_flg) {
+	public int updateDelFlg(String country, String league, String del_flg) {
 		String sql = """
 	            UPDATE country_league_season_master
 	            SET
