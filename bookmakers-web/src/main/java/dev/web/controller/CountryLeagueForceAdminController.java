@@ -29,7 +29,8 @@ public class CountryLeagueForceAdminController {
      */
     @PostMapping("/update/control")
     public ResponseEntity<ForceAdminResponse> upsert(@RequestBody ForceAdminRequest req) {
-        return ResponseEntity.ok(service.upsert(req.getCountry(), req.getLeague(), req.getTeam()));
+        return ResponseEntity.ok(service.upsert(req.getCountry(), req.getLeague(),
+        		req.getTeam(), req.getDelFlg()));
     }
 
 }

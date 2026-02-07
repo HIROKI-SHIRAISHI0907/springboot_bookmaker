@@ -19,4 +19,7 @@ public class ForceAdminRequest {
     /** チーム */
     private String team;
 
+    /** 削除フラグ */
+    private String delFlg;
+
 }

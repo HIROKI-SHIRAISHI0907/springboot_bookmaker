@@ -160,17 +160,18 @@ public class CountryLeagueSeasonMasterWebRepository {
 	 *
 	 * @param country 国名（例: 日本）
 	 * @param league  リーグ名（例: J1 リーグ）
+	 * @param del_flg 削除フラグ
 	 * @return 更新件数
 	 *         <ul>
 	 *           <li>1 : 更新成功</li>
 	 *           <li>0 : 対象データなし（該当レコードが存在しない）</li>
 	 *         </ul>
 	 */
-	public int updateDelFlgOne(String country, String league) {
+	public int updateDelFlgOne(String country, String league, String del_flg) {
 		String sql = """
 	            UPDATE country_league_season_master
 	            SET
-	              del_flg = '1'
+	              del_flg = :del_flg
 	            WHERE
 	              country = :country
 	              AND league = :league
@@ -180,7 +181,8 @@ public class CountryLeagueSeasonMasterWebRepository {
 				sql,
 				new MapSqlParameterSource()
 						.addValue("country", country)
-						.addValue("league", league));
+						.addValue("league", league)
+						.addValue("del_flg", del_flg));
 	}
 
 
