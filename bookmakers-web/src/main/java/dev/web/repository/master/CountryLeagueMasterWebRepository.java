@@ -217,5 +217,39 @@ public class CountryLeagueMasterWebRepository {
 	    });
 	}
 
+	/**
+	 * del_flgを1に更新する。
+	 *
+	 * <pre>
+	 * 更新対象が存在しない場合、更新件数は 0 を返却する。
+	 * </pre>
+	 *
+	 * @param country 国名（例: 日本）
+	 * @param league  リーグ名（例: J1 リーグ）
+	 * @param team    チーム名（例: 鹿島アントラーズ）
+	 * @return 更新件数
+	 *         <ul>
+	 *           <li>1 : 更新成功</li>
+	 *           <li>0 : 対象データなし（該当レコードが存在しない）</li>
+	 *         </ul>
+	 */
+	public int updateDelFlgOne(String country, String league, String team) {
+		String sql = """
+				    UPDATE country_league_master
+				    SET
+				      del_flg = '1'
+				    WHERE
+				      country = :country
+				      AND league = :league
+				      AND team = :team
+				""";
+
+		return masterJdbcTemplate.update(
+				sql,
+				new MapSqlParameterSource()
+						.addValue("country", country)
+						.addValue("league", league)
+						.addValue("team", team));
+	}
 
 }

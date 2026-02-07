@@ -151,6 +151,39 @@ public class CountryLeagueSeasonMasterWebRepository {
         return cnt != null && cnt > 0;
     }
 
+    /**
+	 * del_flgを1に更新する。
+	 *
+	 * <pre>
+	 * 更新対象が存在しない場合、更新件数は 0 を返却する。
+	 * </pre>
+	 *
+	 * @param country 国名（例: 日本）
+	 * @param league  リーグ名（例: J1 リーグ）
+	 * @return 更新件数
+	 *         <ul>
+	 *           <li>1 : 更新成功</li>
+	 *           <li>0 : 対象データなし（該当レコードが存在しない）</li>
+	 *         </ul>
+	 */
+	public int updateDelFlgOne(String country, String league) {
+		String sql = """
+	            UPDATE country_league_season_master
+	            SET
+	              del_flg = '1'
+	            WHERE
+	              country = :country
+	              AND league = :league
+	        """;
+
+		return masterJdbcTemplate.update(
+				sql,
+				new MapSqlParameterSource()
+						.addValue("country", country)
+						.addValue("league", league));
+	}
+
+
     private boolean hasText(String s) {
         return s != null && !s.isBlank();
     }
