@@ -31,6 +31,7 @@ public class GlobalExceptionHandler {
     public ResponseEntity<ApiError> handleException(
             Exception ex,
             HttpServletRequest request) {
+    	ex.printStackTrace();
 
         ApiError error = new ApiError(
         		LocalDateTime.parse(DateUtil.getSysDate(), JAPANESE_FORMAT),

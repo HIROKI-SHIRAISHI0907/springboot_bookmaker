@@ -1,6 +1,7 @@
 package dev.web.repository.user;
 
 import java.time.OffsetDateTime;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -21,7 +22,7 @@ public class NoticeRepository {
 		String sql = """
 				    SELECT
 				      id,
-				      featured_match_id,
+				      feature_match_id,
 				      title,
 				      body,
 				      status,
@@ -35,13 +36,13 @@ public class NoticeRepository {
 		var list = jdbc.query(sql, Map.of("id", noticeId), (rs, rowNum) -> {
 			NoticeRow n = new NoticeRow();
 			n.noticeId = rs.getLong("id");
-			n.featureMatchId = rs.getLong("feature_match_id");
+			n.featureMatchId = (Long) rs.getObject("feature_match_id");
 			n.title = rs.getString("title");
 			n.body = rs.getString("body");
 			n.status = rs.getString("status");
-			n.displayFrom = (OffsetDateTime) rs.getObject("display_from");
-			n.displayTo = (OffsetDateTime) rs.getObject("display_to");
-			n.publishedAt = (OffsetDateTime) rs.getObject("published_at");
+			n.displayFrom = rs.getObject("display_from", OffsetDateTime.class);
+			n.displayTo   = rs.getObject("display_to", OffsetDateTime.class);
+			n.publishedAt = rs.getObject("published_at", OffsetDateTime.class);
 			return n;
 		});
 
@@ -51,7 +52,7 @@ public class NoticeRepository {
 	public Optional<NoticeRow> findPublishedById(Long noticeId) {
 		String sql = """
 				    SELECT
-				      id, featured_match_id, title, body, status, display_from, display_to, published_at
+				      id, feature_match_id, title, body, status, display_from, display_to, published_at
 				    FROM notices
 				    WHERE id = :id
 				      AND status = 'PUBLISHED'
@@ -60,13 +61,13 @@ public class NoticeRepository {
 		var list = jdbc.query(sql, Map.of("id", noticeId), (rs, rowNum) -> {
 			NoticeRow n = new NoticeRow();
 			n.noticeId = rs.getLong("id");
-			n.featureMatchId = rs.getLong("feature_match_id");
+			n.featureMatchId = (Long) rs.getObject("feature_match_id");
 			n.title = rs.getString("title");
 			n.body = rs.getString("body");
 			n.status = rs.getString("status");
-			n.displayFrom = (OffsetDateTime) rs.getObject("display_from");
-			n.displayTo = (OffsetDateTime) rs.getObject("display_to");
-			n.publishedAt = (OffsetDateTime) rs.getObject("published_at");
+			n.displayFrom = rs.getObject("display_from", OffsetDateTime.class);
+			n.displayTo   = rs.getObject("display_to", OffsetDateTime.class);
+			n.publishedAt = rs.getObject("published_at", OffsetDateTime.class);
 			return n;
 		});
 
@@ -76,7 +77,7 @@ public class NoticeRepository {
 	public List<NoticeRow> findAllOrderByUpdateTimeDesc() {
 		String sql = """
 				    SELECT
-				      id, featured_match_id, title, body, status, display_from, display_to, published_at
+				      id, feature_match_id, title, body, status, display_from, display_to, published_at
 				    FROM notices
 				    ORDER BY update_time DESC
 				""";
@@ -84,13 +85,13 @@ public class NoticeRepository {
 		return jdbc.query(sql, Map.of(), (rs, rowNum) -> {
 			NoticeRow n = new NoticeRow();
 			n.noticeId = rs.getLong("id");
-			n.featureMatchId = rs.getLong("feature_match_id");
+			n.featureMatchId = (Long) rs.getObject("feature_match_id");
 			n.title = rs.getString("title");
 			n.body = rs.getString("body");
 			n.status = rs.getString("status");
-			n.displayFrom = (OffsetDateTime) rs.getObject("display_from");
-			n.displayTo = (OffsetDateTime) rs.getObject("display_to");
-			n.publishedAt = (OffsetDateTime) rs.getObject("published_at");
+			n.displayFrom = rs.getObject("display_from", OffsetDateTime.class);
+			n.displayTo   = rs.getObject("display_to", OffsetDateTime.class);
+			n.publishedAt = rs.getObject("published_at", OffsetDateTime.class);
 			return n;
 		});
 	}
@@ -98,22 +99,22 @@ public class NoticeRepository {
 	public List<NoticeRow> findPublishedOrderByPublishedAtDesc() {
 		String sql = """
 				    SELECT
-				      id, featured_match_id, title, body, status, display_from, display_to, published_at
+				      id, feature_match_id, title, body, status, display_from, display_to, published_at
 				    FROM notices
 				    WHERE status = 'PUBLISHED'
-				    ORDER BY published_at DESC NULLS LAST, notice_id DESC
+				    ORDER BY published_at DESC NULLS LAST, id DESC
 				""";
 
 		return jdbc.query(sql, Map.of(), (rs, rowNum) -> {
 			NoticeRow n = new NoticeRow();
 			n.noticeId = rs.getLong("id");
-			n.featureMatchId = rs.getLong("feature_match_id");
+			n.featureMatchId = (Long) rs.getObject("feature_match_id");
 			n.title = rs.getString("title");
 			n.body = rs.getString("body");
 			n.status = rs.getString("status");
-			n.displayFrom = (OffsetDateTime) rs.getObject("display_from");
-			n.displayTo = (OffsetDateTime) rs.getObject("display_to");
-			n.publishedAt = (OffsetDateTime) rs.getObject("published_at");
+			n.displayFrom = rs.getObject("display_from", OffsetDateTime.class);
+			n.displayTo   = rs.getObject("display_to", OffsetDateTime.class);
+			n.publishedAt = rs.getObject("published_at", OffsetDateTime.class);
 			return n;
 		});
 	}
@@ -121,7 +122,8 @@ public class NoticeRepository {
 	public List<NoticeRow> findActiveForFront(OffsetDateTime now) {
 		String sql = """
 				    SELECT
-				      id, featured_match_id, title, body, status, display_from, display_to, published_at
+				      id, notice_type, feature_match_id, title, body, status,
+				      display_from, display_to, published_at
 				    FROM notices
 				    WHERE status = 'PUBLISHED'
 				      AND (display_from IS NULL OR display_from <= :now)
@@ -132,82 +134,103 @@ public class NoticeRepository {
 		return jdbc.query(sql, Map.of("now", now), (rs, rowNum) -> {
 			NoticeRow n = new NoticeRow();
 			n.noticeId = rs.getLong("id");
-			n.featureMatchId = rs.getLong("feature_match_id");
+			n.noticeType = rs.getString("notice_type");
+			n.featureMatchId = (Long) rs.getObject("feature_match_id");
 			n.title = rs.getString("title");
 			n.body = rs.getString("body");
 			n.status = rs.getString("status");
-			n.displayFrom = (OffsetDateTime) rs.getObject("display_from");
-			n.displayTo = (OffsetDateTime) rs.getObject("display_to");
-			n.publishedAt = (OffsetDateTime) rs.getObject("published_at");
+			n.displayFrom = rs.getObject("display_from", OffsetDateTime.class);
+			n.displayTo   = rs.getObject("display_to", OffsetDateTime.class);
+			n.publishedAt = rs.getObject("published_at", OffsetDateTime.class);
 			return n;
 		});
 	}
 
-	/**
-	 * 登録処理
-	 * @param feature_match_id
-	 * @param title
-	 * @param body
-	 * @param displayFrom
-	 * @param displayTo
-	 * @param operatorId
-	 * @return
-	 */
-	public Long insert(Long feature_match_id, String title, String body, OffsetDateTime displayFrom, OffsetDateTime displayTo,
-			String operatorId) {
-		String sql = """
-				    INSERT INTO notices
-				      (featured_match_id, title, body, status, display_from, display_to, published_at,
-				       register_id, register_time, update_id, update_time)
-				    VALUES
-				      (:feature_match_id, :title, :body, 'DRAFT', :displayFrom, :displayTo, NULL,
-				       :op, now(), :op, now())
-				    RETURNING notice_id
-				""";
+	// ----------------------------
+    // INSERT（DRAFTで登録）
+    // ----------------------------
+    public Long insert(Long featureMatchId, String title, String body,
+                       OffsetDateTime displayFrom, OffsetDateTime displayTo,
+                       String operatorId) {
 
-		return jdbc.queryForObject(sql, Map.of(
-				"feature_match_id", feature_match_id,
-				"title", title,
-				"body", body,
-				"displayFrom", displayFrom,
-				"displayTo", displayTo,
-				"op", operatorId), Long.class);
-	}
+        String noticeType = (featureMatchId != null) ? "FEATURED_MATCH" : "NORMAL";
 
-	/**
-	 * 更新処理
-	 * @param noticeId
-	 * @param title
-	 * @param body
-	 * @param displayFrom
-	 * @param displayTo
-	 * @param operatorId
-	 * @return
-	 */
-	public int update(Long noticeId, String title, String body,
-			OffsetDateTime displayFrom, OffsetDateTime displayTo,
-			String operatorId) {
-		String sql = """
-				  UPDATE notices
-				  SET
-				    title        = COALESCE(:title, title),
-				    body         = COALESCE(:body, body),
-				    display_from = COALESCE(:displayFrom, display_from),
-				    display_to   = COALESCE(:displayTo, display_to),
-				    update_id    = :op,
-				    update_time  = now()
-				  WHERE id = :id
-				""";
+        String sql = """
+            INSERT INTO notices (
+              notice_type,
+              title,
+              body,
+              feature_match_id,
+              display_from,
+              display_to,
+              status,
+              published_at,
+              register_id,
+              register_time,
+              update_id,
+              update_time
+            )
+            VALUES (
+              :noticeType,
+              :title,
+              :body,
+              :featureMatchId,
+              :displayFrom,
+              :displayTo,
+              'DRAFT',
+              NULL,
+              :op,
+              now(),
+              :op,
+              now()
+            )
+            RETURNING id
+        """;
 
-		return jdbc.update(sql, Map.of(
-				"id", noticeId,
-				"title", title,
-				"body", body,
-				"displayFrom", displayFrom,
-				"displayTo", displayTo,
-				"op", operatorId));
-	}
+        Map<String, Object> params = new HashMap<>();
+        params.put("noticeType", noticeType);
+        params.put("title", title);
+        params.put("body", body);
+        params.put("featureMatchId", featureMatchId); // null OK
+        params.put("displayFrom", displayFrom);       // null OK
+        params.put("displayTo", displayTo);           // null OK
+        params.put("op", operatorId);
 
+        return jdbc.queryForObject(sql, params, Long.class);
+    }
+
+    // ----------------------------
+    // UPDATE（部分更新：nullは維持）
+    // ----------------------------
+    public int update(Long id, String title, String body,
+                      OffsetDateTime displayFrom, OffsetDateTime displayTo,
+                      String operatorId) {
+
+        String sql = """
+            UPDATE notices
+            SET
+              title        = COALESCE(:title, title),
+              body         = COALESCE(:body, body),
+              display_from = COALESCE(:displayFrom, display_from),
+              display_to   = COALESCE(:displayTo, display_to),
+              update_id    = :op,
+              update_time  = now()
+            WHERE id = :id
+        """;
+
+        Map<String, Object> params = new HashMap<>();
+        params.put("id", id);
+        params.put("title", title);
+        params.put("body", body);
+        params.put("displayFrom", displayFrom);       // null OK
+        params.put("displayTo", displayTo);           // null OK
+        params.put("op", operatorId);
+        return jdbc.queryForObject(sql, params, Integer.class);
+    }
+
+    // ----------------------------
+    // PUBLISH / ARCHIVE
+    // ----------------------------
 	public int publish(Long noticeId, String operatorId) {
 		String sql = """
 				    UPDATE notices
@@ -216,7 +239,7 @@ public class NoticeRepository {
 				      published_at = COALESCE(published_at, now()),
 				      update_id    = :op,
 				      update_time  = now()
-				    WHERE notice_id = :id
+				    WHERE id = :id
 				""";
 
 		return jdbc.update(sql, Map.of("id", noticeId, "op", operatorId));
@@ -229,7 +252,7 @@ public class NoticeRepository {
 				      status      = 'ARCHIVED',
 				      update_id   = :op,
 				      update_time = now()
-				    WHERE notice_id = :id
+				    WHERE id = :id
 				""";
 
 		return jdbc.update(sql, Map.of("id", noticeId, "op", operatorId));

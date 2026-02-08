@@ -10,6 +10,9 @@ public class NoticeRequest {
 	/** ID */
 	private Long id;
 
+	/** 通知種類 */
+	private String notice_type;
+
 	/** 未来データID */
 	private Long featureMatchId;
 

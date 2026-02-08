@@ -68,7 +68,7 @@ public class FuturesRepository {
 
         String sql = """
             SELECT
-              (f.seq)::text AS seq,
+              f.seq,
               f.game_team_category,
               f.future_time,
               f.home_team_name AS home_team,
@@ -127,7 +127,7 @@ public class FuturesRepository {
 
         String sql = """
             SELECT
-              id,
+              seq,
               home_team_name,
               away_team_name,
               future_time
@@ -137,7 +137,7 @@ public class FuturesRepository {
 
         return masterJdbcTemplate.query(sql, Map.of("ids", ids), (rs, rowNum) -> {
             FutureMatchRow r = new FutureMatchRow();
-            r.id = rs.getLong("id");
+            r.id = rs.getLong("seq");
             r.homeTeamName = rs.getString("home_team_name");
             r.awayTeamName = rs.getString("away_team_name");
             Timestamp ts = rs.getTimestamp("future_time");
@@ -173,8 +173,7 @@ public class FuturesRepository {
 
         String sql = """
             SELECT
-              f.id,
-              (f.seq)::text AS seq,
+              f.seq,
               f.game_team_category,
               f.future_time,
               f.home_team_name AS home_team,
@@ -202,9 +201,6 @@ public class FuturesRepository {
             FuturesResponseDTO m = new FuturesResponseDTO();
 
             // ★管理画面で必要：future_master.id を DTO に入れる
-            // DTOに setId(Long) が無いなら追加してください
-            m.setId(rs.getString("id"));
-
             m.setSeq(Long.parseLong(rs.getString("seq")));
             m.setGameTeamCategory(rs.getString("game_team_category"));
 
