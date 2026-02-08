@@ -20,7 +20,8 @@ public class NoticeRepository {
 	public Optional<NoticeRow> findById(Long noticeId) {
 		String sql = """
 				    SELECT
-				      notice_id,
+				      id,
+				      featured_match_id,
 				      title,
 				      body,
 				      status,
@@ -33,7 +34,8 @@ public class NoticeRepository {
 
 		var list = jdbc.query(sql, Map.of("id", noticeId), (rs, rowNum) -> {
 			NoticeRow n = new NoticeRow();
-			n.noticeId = rs.getLong("notice_id");
+			n.noticeId = rs.getLong("id");
+			n.featureMatchId = rs.getLong("feature_match_id");
 			n.title = rs.getString("title");
 			n.body = rs.getString("body");
 			n.status = rs.getString("status");
@@ -49,7 +51,7 @@ public class NoticeRepository {
 	public Optional<NoticeRow> findPublishedById(Long noticeId) {
 		String sql = """
 				    SELECT
-				      id, title, body, status, display_from, display_to, published_at
+				      id, featured_match_id, title, body, status, display_from, display_to, published_at
 				    FROM notices
 				    WHERE id = :id
 				      AND status = 'PUBLISHED'
@@ -57,7 +59,8 @@ public class NoticeRepository {
 
 		var list = jdbc.query(sql, Map.of("id", noticeId), (rs, rowNum) -> {
 			NoticeRow n = new NoticeRow();
-			n.noticeId = rs.getLong("notice_id");
+			n.noticeId = rs.getLong("id");
+			n.featureMatchId = rs.getLong("feature_match_id");
 			n.title = rs.getString("title");
 			n.body = rs.getString("body");
 			n.status = rs.getString("status");
@@ -73,14 +76,15 @@ public class NoticeRepository {
 	public List<NoticeRow> findAllOrderByUpdateTimeDesc() {
 		String sql = """
 				    SELECT
-				      id, title, body, status, display_from, display_to, published_at
+				      id, featured_match_id, title, body, status, display_from, display_to, published_at
 				    FROM notices
 				    ORDER BY update_time DESC
 				""";
 
 		return jdbc.query(sql, Map.of(), (rs, rowNum) -> {
 			NoticeRow n = new NoticeRow();
-			n.noticeId = rs.getLong("notice_id");
+			n.noticeId = rs.getLong("id");
+			n.featureMatchId = rs.getLong("feature_match_id");
 			n.title = rs.getString("title");
 			n.body = rs.getString("body");
 			n.status = rs.getString("status");
@@ -94,7 +98,7 @@ public class NoticeRepository {
 	public List<NoticeRow> findPublishedOrderByPublishedAtDesc() {
 		String sql = """
 				    SELECT
-				      id, title, body, status, display_from, display_to, published_at
+				      id, featured_match_id, title, body, status, display_from, display_to, published_at
 				    FROM notices
 				    WHERE status = 'PUBLISHED'
 				    ORDER BY published_at DESC NULLS LAST, notice_id DESC
@@ -102,7 +106,8 @@ public class NoticeRepository {
 
 		return jdbc.query(sql, Map.of(), (rs, rowNum) -> {
 			NoticeRow n = new NoticeRow();
-			n.noticeId = rs.getLong("notice_id");
+			n.noticeId = rs.getLong("id");
+			n.featureMatchId = rs.getLong("feature_match_id");
 			n.title = rs.getString("title");
 			n.body = rs.getString("body");
 			n.status = rs.getString("status");
@@ -116,7 +121,7 @@ public class NoticeRepository {
 	public List<NoticeRow> findActiveForFront(OffsetDateTime now) {
 		String sql = """
 				    SELECT
-				      id, title, body, status, display_from, display_to, published_at
+				      id, featured_match_id, title, body, status, display_from, display_to, published_at
 				    FROM notices
 				    WHERE status = 'PUBLISHED'
 				      AND (display_from IS NULL OR display_from <= :now)
@@ -126,7 +131,8 @@ public class NoticeRepository {
 
 		return jdbc.query(sql, Map.of("now", now), (rs, rowNum) -> {
 			NoticeRow n = new NoticeRow();
-			n.noticeId = rs.getLong("notice_id");
+			n.noticeId = rs.getLong("id");
+			n.featureMatchId = rs.getLong("feature_match_id");
 			n.title = rs.getString("title");
 			n.body = rs.getString("body");
 			n.status = rs.getString("status");
@@ -139,6 +145,7 @@ public class NoticeRepository {
 
 	/**
 	 * 登録処理
+	 * @param feature_match_id
 	 * @param title
 	 * @param body
 	 * @param displayFrom
@@ -146,19 +153,20 @@ public class NoticeRepository {
 	 * @param operatorId
 	 * @return
 	 */
-	public Long insert(String title, String body, OffsetDateTime displayFrom, OffsetDateTime displayTo,
+	public Long insert(Long feature_match_id, String title, String body, OffsetDateTime displayFrom, OffsetDateTime displayTo,
 			String operatorId) {
 		String sql = """
 				    INSERT INTO notices
-				      (title, body, status, display_from, display_to, published_at,
+				      (featured_match_id, title, body, status, display_from, display_to, published_at,
 				       register_id, register_time, update_id, update_time)
 				    VALUES
-				      (:title, :body, 'DRAFT', :displayFrom, :displayTo, NULL,
+				      (:feature_match_id, :title, :body, 'DRAFT', :displayFrom, :displayTo, NULL,
 				       :op, now(), :op, now())
 				    RETURNING notice_id
 				""";
 
 		return jdbc.queryForObject(sql, Map.of(
+				"feature_match_id", feature_match_id,
 				"title", title,
 				"body", body,
 				"displayFrom", displayFrom,
@@ -188,7 +196,7 @@ public class NoticeRepository {
 				    display_to   = COALESCE(:displayTo, display_to),
 				    update_id    = :op,
 				    update_time  = now()
-				  WHERE notice_id = :id
+				  WHERE id = :id
 				""";
 
 		return jdbc.update(sql, Map.of(
@@ -229,9 +237,11 @@ public class NoticeRepository {
 
 	public static class NoticeRow {
 		public Long noticeId;
+		public Long featureMatchId;
 		public String title;
 		public String body;
 		public String status; // DRAFT/PUBLISHED/ARCHIVED
+		public String noticeType;// 通知種
 		public OffsetDateTime displayFrom;
 		public OffsetDateTime displayTo;
 		public OffsetDateTime publishedAt;

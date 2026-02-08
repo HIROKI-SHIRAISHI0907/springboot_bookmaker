@@ -3,8 +3,11 @@ package dev.web.repository.master;
 import java.sql.ResultSet;
 import java.sql.Timestamp;
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.ZoneOffset;
+import java.time.ZonedDateTime;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.RowMapper;
@@ -117,5 +120,120 @@ public class FuturesRepository {
         };
 
         return masterJdbcTemplate.query(sql, params, rowMapper);
+    }
+
+    public List<FutureMatchRow> findByIds(List<Long> ids) {
+        if (ids == null || ids.isEmpty()) return List.of();
+
+        String sql = """
+            SELECT
+              id,
+              home_team_name,
+              away_team_name,
+              future_time
+            FROM future_master
+            WHERE id IN (:ids)
+        """;
+
+        return masterJdbcTemplate.query(sql, Map.of("ids", ids), (rs, rowNum) -> {
+            FutureMatchRow r = new FutureMatchRow();
+            r.id = rs.getLong("id");
+            r.homeTeamName = rs.getString("home_team_name");
+            r.awayTeamName = rs.getString("away_team_name");
+            Timestamp ts = rs.getTimestamp("future_time");
+            if (ts != null) {
+                r.matchStartTime = ts.toInstant().atOffset(ZoneOffset.UTC);
+            } else {
+                r.matchStartTime = null;
+            }
+            return r;
+        });
+    }
+
+    /**
+     * 管理画面向け：次の日以降（JST 기준）の試合候補を返す
+     * - country/league は任意（nullなら全件）
+     * - limit 件だけ返す
+     */
+    public List<FuturesResponseDTO> findFutureMatchesFromNextDay(String country, String league, int limit) {
+        // JST 기준で「明日の00:00」
+        ZonedDateTime tomorrowStartJst = ZonedDateTime.now(ZoneId.of("Asia/Tokyo"))
+                .plusDays(1)
+                .toLocalDate()
+                .atStartOfDay(ZoneId.of("Asia/Tokyo"));
+
+        OffsetDateTime from = tomorrowStartJst.toOffsetDateTime();
+
+        String likeCond = null;
+        if (country != null && !country.isBlank() && league != null && !league.isBlank()) {
+            likeCond = country + ": " + league + "%";
+        } else if (country != null && !country.isBlank()) {
+            likeCond = country + ":%";
+        }
+
+        String sql = """
+            SELECT
+              f.id,
+              (f.seq)::text AS seq,
+              f.game_team_category,
+              f.future_time,
+              f.home_team_name AS home_team,
+              f.away_team_name AS away_team,
+              NULLIF(TRIM(f.game_link), '') AS link,
+              CASE
+                WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
+                ELSE CAST( (regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT )
+              END AS round_no
+            FROM future_master f
+            WHERE f.start_flg = '1'
+              AND f.future_time >= :from
+              AND (:likeCond IS NULL OR f.game_team_category LIKE :likeCond)
+            ORDER BY
+              f.future_time ASC
+            LIMIT :limit
+        """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("from", from)
+                .addValue("likeCond", likeCond)
+                .addValue("limit", limit);
+
+        RowMapper<FuturesResponseDTO> rowMapper = (ResultSet rs, int rowNum) -> {
+            FuturesResponseDTO m = new FuturesResponseDTO();
+
+            // ★管理画面で必要：future_master.id を DTO に入れる
+            // DTOに setId(Long) が無いなら追加してください
+            m.setId(rs.getString("id"));
+
+            m.setSeq(Long.parseLong(rs.getString("seq")));
+            m.setGameTeamCategory(rs.getString("game_team_category"));
+
+            Timestamp ts = rs.getTimestamp("future_time");
+            if (ts != null) {
+                OffsetDateTime odt = ts.toInstant().atOffset(ZoneOffset.UTC);
+                m.setFutureTime(odt.toString());
+            } else {
+                m.setFutureTime(null);
+            }
+
+            m.setHomeTeam(rs.getString("home_team"));
+            m.setAwayTeam(rs.getString("away_team"));
+            m.setLink(rs.getString("link"));
+
+            int roundNo = rs.getInt("round_no");
+            m.setRoundNo(rs.wasNull() ? null : roundNo);
+
+            m.setStatus("SCHEDULED");
+            return m;
+        };
+
+        return masterJdbcTemplate.query(sql, params, rowMapper);
+    }
+
+    public static class FutureMatchRow {
+        public Long id;
+        public String homeTeamName;
+        public String awayTeamName;
+        public java.time.OffsetDateTime matchStartTime;
     }
 }

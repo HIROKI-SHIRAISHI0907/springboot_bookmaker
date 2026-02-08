@@ -30,4 +30,16 @@ public class FuturesAPIService {
         return futuresRepository.findFutureMatches(teamJa, country, league);
     }
 
+    /**
+     * 管理画面用
+     * @param country
+     * @param league
+     * @param limit
+     * @return
+     */
+    @Transactional(readOnly = true)
+    public List<FuturesResponseDTO> getFutureMatchesForAdmin(String country, String league, int limit) {
+        return futuresRepository.findFutureMatchesFromNextDay(country, league, limit);
+    }
+
 }

@@ -10,6 +10,9 @@ import lombok.Data;
 @Data
 public class FuturesResponseDTO {
 
+	/** ID */
+	private String id;
+
 	/** 通番 */
 	private long seq;
 
