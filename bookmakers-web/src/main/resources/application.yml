@@ -139,12 +139,17 @@ ecs:
     container: ${ECS_BATCH_CONTAINER:bookmakers-batch}
     logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
 
-  jobs:
+  job:
     B002: {}
     B003: {}
     B004: {}
     B005: {}
-    B006: {}
+    B008: {}
+    B006:
+      cluster: ${ECS_B006_CLUSTER:stats-backend}
+      taskDefinition: ${ECS_B006_TASK_DEF:bookmakers-app}
+      container: ${ECS_B006_CONTAINER:bookmakers-app}
+      logGroup: ${ECS_B006_LOG_GROUP:/ecs/bookmakers-app}
 
 s3-job:
   jobs:
