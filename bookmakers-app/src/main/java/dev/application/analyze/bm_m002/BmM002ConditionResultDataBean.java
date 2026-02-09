@@ -131,7 +131,7 @@ public class BmM002ConditionResultDataBean {
 		if (conditionData != null) {
 			return conditionData;
 		}
-		return null;
+		return "dummy"; // TODO: ここをS3から取得するように帰る
 	}
 
 	/**
