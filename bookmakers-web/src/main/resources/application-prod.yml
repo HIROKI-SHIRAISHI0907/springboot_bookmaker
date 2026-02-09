@@ -130,10 +130,10 @@ ecs:
     B004: {}
     B005: {}
     B008: 
-      cluster: ${ECS_B006_CLUSTER:stats-backend}
-      taskDefinition: ${ECS_B006_TASK_DEF:bookmakers-app}
-      container: ${ECS_B006_CONTAINER:bookmakers-app}
-      logGroup: ${ECS_B006_LOG_GROUP:/ecs/bookmakers-app}
+      cluster: ${ECS_B008_CLUSTER:stats-backend}
+      taskDefinition: ${ECS_B008_TASK_DEF:bookmakers-app}
+      container: ${ECS_B008_CONTAINER:bookmakers-app}
+      logGroup: ${ECS_B008_LOG_GROUP:/ecs/bookmakers-app}
     B006:
       cluster: ${ECS_B006_CLUSTER:stats-backend}
       taskDefinition: ${ECS_B006_TASK_DEF:bookmakers-app}

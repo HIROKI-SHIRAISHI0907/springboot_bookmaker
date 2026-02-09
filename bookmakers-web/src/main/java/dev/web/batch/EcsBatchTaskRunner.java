@@ -26,7 +26,7 @@ import software.amazon.awssdk.services.ecs.model.TaskOverride;
  * <p>
  * launchType=FARGATE
  * networkConfiguration（subnets, securityGroups, assignPublicIp）
- * overrides で BATCH_CODE=B006 を環境変数で渡す
+ * overrides で BM_JOB=B006 を環境変数で渡す
  * </p>
  * @author shiraishitoshio
  *
@@ -57,6 +57,7 @@ public class EcsBatchTaskRunner {
 		// BM_JOB は必須
 		List<KeyValuePair> envs = new ArrayList<>();
 		envs.add(KeyValuePair.builder().name("BM_JOB").value(batchCode).build());
+		envs.add(KeyValuePair.builder().name("BATCH_MODE").value("worker").build());
 
 		// 追加env（null/blank除外、BM_JOB は拒否）
 		if (extraEnv != null && !extraEnv.isEmpty()) {
