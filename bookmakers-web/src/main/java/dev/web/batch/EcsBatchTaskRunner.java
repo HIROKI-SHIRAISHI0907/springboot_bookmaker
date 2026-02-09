@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 
 import dev.web.config.EcsJobPropertiesConfig;
 import dev.web.config.EcsNetworkPropertiesConfig;
+import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.services.ecs.EcsClient;
 import software.amazon.awssdk.services.ecs.model.AssignPublicIp;
 import software.amazon.awssdk.services.ecs.model.AwsVpcConfiguration;
@@ -32,6 +33,7 @@ import software.amazon.awssdk.services.ecs.model.TaskOverride;
  *
  */
 @Service
+@Slf4j
 public class EcsBatchTaskRunner {
 
 	private final EcsClient ecs;
@@ -53,6 +55,8 @@ public class EcsBatchTaskRunner {
 	public String runBatch(String batchCode, Map<String, String> extraEnv) {
 		// バッチコードに紐づく環境yml情報を取得
 		EcsJobPropertiesConfig.JobConfig cfg = props.require(batchCode);
+		log.info("[ECS RUN] code={} cluster={} taskDef={} container={}",
+		        batchCode, cfg.getCluster(), cfg.getTaskDefinition(), cfg.getContainer());
 
 		// BM_JOB は必須
 		List<KeyValuePair> envs = new ArrayList<>();

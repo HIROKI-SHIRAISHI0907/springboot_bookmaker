@@ -69,9 +69,6 @@ management:
         enabled: true
         
 ecs:
-  default:
-    region: ${AWS_REGION:ap-northeast-1}
-    
   network:
     subnets:
       - subnet-067d3d5d9d5ea2e17
@@ -119,6 +116,7 @@ ecs:
       logGroup: ${ECS_B009_LOG_GROUP:/ecs/no-game-batch}
     
   defaults:
+    region: ${AWS_REGION:ap-northeast-1}
     cluster: ${ECS_BATCH_CLUSTER:batch-backend}
     taskDefinition: ${ECS_BATCH_TASK_DEF:bookmakers-batch}
     container: ${ECS_BATCH_CONTAINER:bookmakers-batch}
