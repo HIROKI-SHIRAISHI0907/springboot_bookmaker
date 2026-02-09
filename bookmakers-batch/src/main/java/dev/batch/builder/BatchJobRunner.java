@@ -3,6 +3,7 @@ package dev.batch.builder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
 
@@ -17,6 +18,7 @@ import dev.common.logger.ManageLoggerComponent;
  *
  */
 @Component
+@ConditionalOnProperty(name="batch.mode", havingValue="worker")
 public class BatchJobRunner implements CommandLineRunner {
 
 	/** プロジェクト名 */
