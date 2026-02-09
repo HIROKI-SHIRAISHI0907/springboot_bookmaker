@@ -14,6 +14,7 @@ import java.util.Map;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -129,6 +130,7 @@ public class B001AsyncMasterPythonWorker {
 
 	/** ジョブ実行管理IF */
 	@Autowired
+	@Qualifier("batchJobExecControl")
 	private jobExecControlIF jobExecControl;
 
 	/**
