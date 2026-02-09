@@ -1,6 +1,7 @@
 package dev.batch.bm_b001;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import dev.batch.interf.BatchIF;
@@ -32,6 +33,7 @@ public class UpdateTimesCountryLeagueMasterBatch implements BatchIF {
 
 	/** ジョブ実行制御 */
 	@Autowired
+	@Qualifier("batchJobExecControl")
 	private jobExecControlIF jobExecControl;
 
 	/** 非同期ワーカー */

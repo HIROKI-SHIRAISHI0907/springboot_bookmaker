@@ -1,6 +1,7 @@
 package dev.batch.bm_b099;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Primary;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -11,7 +12,13 @@ import dev.batch.interf.jobExecControlIF;
 import dev.batch.repository.master.BatchJobExecRepository;
 import dev.common.logger.ManageLoggerComponent;
 
-@Service
+/**
+ * ジョブ実行管理クラス
+ * @author shiraishitoshio
+ *
+ */
+@Service("batchJobExecControl")
+@Primary
 public class BatchJobExecControl implements jobExecControlIF {
 
 	 /** 実行ログに出力するプロジェクト識別子（クラスの配置パス）。 */
