@@ -59,6 +59,9 @@ public class ConditionResultDataStat implements AnalyzeEntityIF {
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
+		// 初期化
+		bean.init();
+
 		// condition_result_data bean
 		Integer[] conditionCountIntList = Arrays.stream(bean.getConditionCountList())
 				.map(s -> {

@@ -13,7 +13,6 @@ import dev.application.domain.repository.bm.ConditionResultDataRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.ReadStat;
-import jakarta.annotation.PostConstruct;
 
 /**
  * condition_result_dataのbeanロジック
@@ -63,7 +62,6 @@ public class BmM002ConditionResultDataBean {
 	private String[] conditionCountList;
 
 	/** 初期化 */
-	@PostConstruct
 	public void init() {
 		final String METHOD_NAME = "init";
 		// hashデータを取得
