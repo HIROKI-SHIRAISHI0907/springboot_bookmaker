@@ -36,7 +36,7 @@ public class BatchJobRunner implements CommandLineRunner {
 	private ManageLoggerComponent manageLoggerComponent;
 
     // 例: --bm.job=B006
-    @Value("${bm.job:}")
+	@Value("${bm.job:${BM_JOB:}}")
     private String jobCode;
 
     // SpringBoot の通常起動（web/server用途）と区別したいなら profile でもOK
