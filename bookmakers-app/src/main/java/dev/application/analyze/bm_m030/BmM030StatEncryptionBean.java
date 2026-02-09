@@ -27,7 +27,6 @@ import dev.application.domain.repository.bm.StatEncryptionRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
-import jakarta.annotation.PostConstruct;
 
 /**
  * stat_encryptionのbeanロジック
@@ -147,7 +146,6 @@ public class BmM030StatEncryptionBean {
 
 	/** 初期化
 	 * @throws Exception */
-	@PostConstruct
 	public void init() throws Exception {
 		final String METHOD_NAME = "init";
 		SecretKeySpec keySpec = null;

@@ -80,14 +80,17 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 
 	/**
 	 * {@inheritDoc}
+	 * @throws Exception
 	 */
 	@Override
-	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) {
+	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) throws Exception {
 		final String METHOD_NAME = "calcStat";
 		// ログ出力
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+
+		bmM030StatEncryptionBean.init();
 
 		// 保存データを取得
 		ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map = this.bmM030StatEncryptionBean.getEncMap();
