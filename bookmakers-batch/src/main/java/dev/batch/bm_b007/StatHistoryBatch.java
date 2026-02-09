@@ -1,6 +1,7 @@
 package dev.batch.bm_b007;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import dev.application.main.service.CoreHistoryStat;
@@ -22,6 +23,7 @@ import dev.batch.common.AbstractJobBatchTemplate;
  * @author shiraishitoshio
  */
 @Service("B007")
+@ConditionalOnProperty(name="batch.mode", havingValue="worker")
 public class StatHistoryBatch extends AbstractJobBatchTemplate {
 
 	/** プロジェクト名 */

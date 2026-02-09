@@ -1,6 +1,7 @@
 package dev.batch.bm_b008;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.stereotype.Service;
 
 import dev.application.analyze.bm_m001.OriginService;
@@ -22,6 +23,7 @@ import dev.batch.common.AbstractJobBatchTemplate;
  * @author shiraishitoshio
  */
 @Service("B008")
+@ConditionalOnProperty(name="batch.mode", havingValue="worker")
 public class RealTimeOutputsBatch extends AbstractJobBatchTemplate {
 
 	/** プロジェクト名 */
