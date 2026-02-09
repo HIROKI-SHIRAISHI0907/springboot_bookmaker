@@ -3,6 +3,7 @@ package dev.batch.builder;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.boot.CommandLineRunner;
+import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty;
 import org.springframework.context.ApplicationContext;
 import org.springframework.stereotype.Component;
@@ -60,6 +61,7 @@ public class BatchJobRunner implements CommandLineRunner {
         BatchIF batch = (BatchIF) ctx.getBean(jobCode);
 
         int result = batch.execute();
+        SpringApplication.exit(ctx, () -> result == BatchConstant.BATCH_SUCCESS ? 0 : 1);
         if (result != BatchConstant.BATCH_SUCCESS) {
         	String messageCd = MessageCdConst.MCD00002E_BATCH_EXECUTION_SKIP;
         	this.manageLoggerComponent.debugErrorLog(
