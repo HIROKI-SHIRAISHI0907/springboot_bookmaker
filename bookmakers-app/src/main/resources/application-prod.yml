@@ -20,7 +20,7 @@ process:
       stats: ${S3_STATS:aws-s3-stat-csv}
       
 batch:
-  mode: worker
+  mode: ${BATCH_MODE:worker}
 
 server:
   port: 8080
