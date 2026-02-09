@@ -24,7 +24,7 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			        end_season_date < CAST(#{date} AS DATE) AND
 			        del_flg = '0'
 			""")
-	List<CountryLeagueSeasonMasterEntity> findExpiredByEndDate(String date);
+	List<CountryLeagueSeasonMasterEntity> findExpiredByEndDate(@Param("date") String date);
 
 	@Select("""
 			    SELECT

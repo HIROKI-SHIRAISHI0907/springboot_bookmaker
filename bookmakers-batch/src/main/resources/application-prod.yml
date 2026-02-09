@@ -1,0 +1,169 @@
+app:
+  csv-folder: /tmp/csv/
+  output-csv-folder: /tmp/outputs/
+  team-csv-folder: /tmp/teams_by_league/
+  future-csv-folder: /tmp/future/
+  b001-json-folder: /tmp/json/b001/
+  
+process:
+  python:
+    root: ${PY_ROOT:/opt/team_master_python}
+    pythonBin: ${PY_BIN:python3}
+  s3:
+    region: ${AWS_REGION:ap-northeast-1}
+    buckets:
+      teamSeasonDateData: ${S3_TEAM_SEASON_DATE_DATA:aws-s3-season-csv}
+      teamData: ${S3_TEAM_DATA:aws-s3-team-csv}
+      teamMemberData: ${S3_TEAM_MEMBER_DATA:aws-s3-team-member-csv}
+      outputs: ${S3_OUTPUTS:aws-s3-outputs-csv}
+      future: ${S3_FUTURE:aws-s3-future-csv}
+      stats: ${S3_STATS:aws-s3-stat-csv}
+
+server:
+  port: 8080
+  servlet:
+    context-path: /v1
+
+spring:
+  main:
+    web-application-type: none
+    
+  datasource:
+    master:
+      url: ${MASTER_DB_URL}
+      username: ${MASTER_DB_USER}
+      password: ${MASTER_DB_PASS}
+      driver-class-name: org.postgresql.Driver
+
+  flyway:
+    enabled: false
+
+mybatis:
+  type-handlers-package: dev.application.mybatis
+  configuration:
+    map-underscore-to-camel-case: true
+
+security:
+  jwt:
+    issuer: bookmakers-web
+    secret: ${JWT_SECRET:test}
+    expires-in: 3600
+    
+management:
+  endpoints:
+    web:
+      base-path: /actuator
+      exposure:
+        include: health,info
+  endpoint:
+    health:
+      show-details: never
+      probes:
+        enabled: true
+        
+ecs:
+  default:
+    region: ${AWS_REGION:ap-northeast-1}
+    
+  network:
+    subnets:
+      - subnet-067d3d5d9d5ea2e17
+      - subnet-008cd7c2beab18e5c
+      - subnet-0bb92140d18f13851
+    securityGroups:
+      - sg-024711907f71edd57
+    assignPublicIp: true
+
+  scraper:
+    B002:
+      cluster: ${ECS_B002_CLUSTER:team-member-cluster}
+      taskDefinition: ${ECS_B002_TASK_DEF:team-member-batch}
+      container: ${ECS_B002_CONTAINER:team-member-scraper}
+      logGroup: ${ECS_B002_LOG_GROUP:/ecs/team-member-batch}
+      
+    B003:
+      cluster: ${ECS_B003_CLUSTER:season-cluster}
+      taskDefinition: ${ECS_B003_TASK_DEF:season-batch}
+      container: ${ECS_B003_CONTAINER:season-scraper}
+      logGroup: ${ECS_B003_LOG_GROUP:/ecs/season-batch}
+      
+    B004:
+      cluster: ${ECS_B004_CLUSTER:team-cluster}
+      taskDefinition: ${ECS_B004_TASK_DEF:team-batch}
+      container: ${ECS_B004_CONTAINER:team-scraper}
+      logGroup: ${ECS_B004_LOG_GROUP:/ecs/team-batch}
+      
+    B005:
+      cluster: ${ECS_B005_CLUSTER:future-cluster}
+      taskDefinition: ${ECS_B005_TASK_DEF:future-batch}
+      container: ${ECS_B005_CONTAINER:future-scraper}
+      logGroup: ${ECS_B005_LOG_GROUP:/ecs/future-batch}
+      
+    B008:
+      cluster: ${ECS_B008_CLUSTER:bm-cluster}
+      taskDefinition: ${ECS_B008_TASK_DEF:bm-batch}
+      container: ${ECS_B008_CONTAINER:timely-data-outputs-scraper}
+      logGroup: ${ECS_B008_LOG_GROUP:/ecs/bm-batch}
+      
+    B009:
+      cluster: ${ECS_B009_CLUSTER:no-game-ecs-task-cluster}
+      taskDefinition: ${ECS_B009_TASK_DEF:no-game-batch}
+      container: ${ECS_B009_CONTAINER:no-game-scraper}
+      logGroup: ${ECS_B009_LOG_GROUP:/ecs/no-game-batch}
+    
+  defaults:
+    cluster: ${ECS_BATCH_CLUSTER:batch-backend}
+    taskDefinition: ${ECS_BATCH_TASK_DEF:bookmakers-batch}
+    container: ${ECS_BATCH_CONTAINER:bookmakers-batch}
+    logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
+
+  job:
+    B002: {}
+    B003: {}
+    B004: {}
+    B005: {}
+    B008: {}
+    B006:
+      cluster: ${ECS_B006_CLUSTER:stats-backend}
+      taskDefinition: ${ECS_B006_TASK_DEF:bookmakers-app}
+      container: ${ECS_B006_CONTAINER:bookmakers-app}
+      logGroup: ${ECS_B006_LOG_GROUP:/ecs/bookmakers-app}
+
+s3-job:
+  jobs:
+    B002:
+      bucket: aws-s3-team-member-csv
+      prefix: json/
+      recursive: true
+      
+    B003:
+      bucket: aws-s3-season-csv
+      prefix: json/
+      recursive: true
+      
+    B004:
+      bucket: aws-s3-team-csv
+      prefix: json/
+      recursive: true
+      
+    B005:
+      bucket: aws-s3-future-csv
+      prefix: null
+      recursive: true
+      
+    B006:
+      bucket: aws-s3-stat-csv
+      prefix: null
+      recursive: true
+      
+    B008:
+      bucket: aws-s3-outputs-csv
+      prefix: null
+      recursive: true
+      
+    B009:
+      bucket: aws-s3-no-ecs-task-time-csv
+      prefix: null
+      recursive: true
+      
+      

@@ -51,7 +51,10 @@ public interface CountryLeagueMasterBatchRepository {
 			        team = #{team} AND
 			        del_flg = '0';
 			""")
-	CountryLeagueMasterEntity findByCountryLeague(String country, String league, String team);
+	CountryLeagueMasterEntity findByCountryLeague(
+			@Param("country") String country,
+			@Param("league") String league,
+			@Param("team") String team);
 
 	@Select("""
 			    SELECT
