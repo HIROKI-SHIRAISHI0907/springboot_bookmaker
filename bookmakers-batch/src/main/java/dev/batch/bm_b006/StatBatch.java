@@ -4,6 +4,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.context.annotation.Profile;
 import org.springframework.stereotype.Service;
 
 import dev.application.main.service.CoreStat;
@@ -26,6 +27,7 @@ import dev.common.getinfo.GetStatInfo;
  *
  * @author shiraishitoshio
  */
+@Profile("app") // ← appプロファイルのときだけ有効
 @Service("B006")
 public class StatBatch extends AbstractJobBatchTemplate {
 
