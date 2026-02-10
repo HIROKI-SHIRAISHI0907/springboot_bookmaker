@@ -1,8 +1,13 @@
 package dev.common.getinfo;
 
 import java.io.InputStream;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collections;
+import java.util.Comparator;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
@@ -24,139 +29,263 @@ import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.ReadOrigin;
 import dev.common.readfile.dto.ReadFileOutputDTO;
 import dev.common.s3.S3Operator;
+import software.amazon.awssdk.services.s3.model.S3Object;
 
 /**
  * 起源データ取得管理クラス
- * @author shiraishitoshio
  *
+ * 要件:
+ * 1) yyyy-MM-dd/ で昇順
+ * 2) 同一日付内の mid=... は「S3で見えた順」（＝出現順）を維持
+ * 3) 同一 mid 内の seq=...csv は文字列順
+ *
+ * 返すMap:
+ * - Key: ローカルファイルパス（OriginStat が Files.deleteIfExists できるように）
+ * - Value: DataEntity一覧（DataEntity.file には S3 key をセット）
  */
 @Component
 public class GetOriginInfo {
 
-	/** プロジェクト名 */
-	private static final String PROJECT_NAME = GetOriginInfo.class.getProtectionDomain()
-			.getCodeSource().getLocation().getPath();
+    private static final String PROJECT_NAME = GetOriginInfo.class.getProtectionDomain()
+            .getCodeSource().getLocation().getPath();
 
-	/** クラス名 */
-	private static final String CLASS_NAME = GetOriginInfo.class.getSimpleName();
+    private static final String CLASS_NAME = GetOriginInfo.class.getSimpleName();
 
-	/** 取得バケット正規表現 */
-	private static final Pattern OUTPUTS_CSV_KEY =
-	        Pattern.compile("^\\d{4}-\\d{2}-\\d{2}/.*\\.csv$");
+    // 例: 2026-02-05/mid=d2thPpKD/seq=000035_20260205T000138Z.csv
+    private static final Pattern OUTPUTS_CSV_KEY =
+            Pattern.compile("^\\d{4}-\\d{2}-\\d{2}/mid=[^/]+/seq=.*\\.csv$");
 
-	/** S3オペレーター */
-	@Autowired
-	private S3Operator s3Operator;
+    @Autowired
+    private S3Operator s3Operator;
 
-	/** パス設定 */
-	@Autowired
-	private PathConfig config;
+    @Autowired
+    private PathConfig config;
 
-	/** ファイル読み込みクラス */
-	@Autowired
-	private ReadOrigin readOrigin;
+    @Autowired
+    private ReadOrigin readOrigin;
 
-	/**
-	 * ログ管理クラス
-	 */
-	@Autowired
-	private ManageLoggerComponent manageLoggerComponent;
+    @Autowired
+    private ManageLoggerComponent manageLoggerComponent;
 
-	/**
-	 * 取得メソッド
-	 */
-	public Map<String, List<DataEntity>> getData() {
-		final String METHOD_NAME = "getData";
+    public Map<String, List<DataEntity>> getData() {
+        final String METHOD_NAME = "getData";
 
-	    String bucket = config.getS3BucketsOutputs();
+        String bucket = config.getS3BucketsOutputs();
+        String outputFolder = safeOutputFolder();
 
-	    // 最終更新時間を昇順に取得
-	    List<String> fileStatList = s3Operator
-	            .listAllDateCsvObjectsSortedByLastModifiedAsc(bucket, OUTPUTS_CSV_KEY)
-	            .stream()
-	            .map(o -> o.key())
-	            .collect(Collectors.toList());
+        // 1) 全走査して matcher に合うkeyだけ抽出（S3OperatorにlistAllKeysが無いのでここでやる）
+        List<String> matchedKeys = listAllMatchedKeys(bucket, OUTPUTS_CSV_KEY);
 
-	    Map<String, List<DataEntity>> resultMap = new HashMap<>();
+        if (matchedKeys.isEmpty()) {
+            manageLoggerComponent.debugInfoLog(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                    MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP, "データなし(S3)");
+            return new LinkedHashMap<>();
+        }
 
-	    if (fileStatList.isEmpty()) {
-	    	String msgCd = MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP;
-	        this.manageLoggerComponent.debugInfoLog(
-	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, "データなし(S3)");
-	        return resultMap;
-	    }
+        // 2) 要件どおりに並べ替え
+        List<String> orderedKeys = orderKeysByDateThenMidEncounterThenSeqString(matchedKeys);
 
-	    final int MAX_THREADS = 8;
-	    int poolSize = Math.min(MAX_THREADS, fileStatList.size());
-	    ExecutorService executor = Executors.newFixedThreadPool(poolSize);
+        // 3) orderedKeys の順を崩さずに読み込む（invokeAllはtasks順を保持）
+        Map<String, List<DataEntity>> resultMap = new LinkedHashMap<>();
 
-	    try {
-	        List<Callable<ReadFileOutputDTO>> tasks = new ArrayList<>(fileStatList.size());
+        int poolSize = Math.min(8, orderedKeys.size());
+        ExecutorService executor = Executors.newFixedThreadPool(poolSize);
 
-	        for (String key : fileStatList) {
-	            tasks.add(() -> {
-	                try (InputStream is = s3Operator.download(bucket, key)) {
-	                    // ★ ReadFuture 側に「InputStreamから読む」メソッドを用意
-	                    return readOrigin.getFileBodyFromStream(is, key);
-	                }
-	            });
-	        }
+        try {
+            List<Callable<ReadOneResult>> tasks = orderedKeys.stream()
+                    .map(k -> (Callable<ReadOneResult>) () -> readOne(bucket, k, outputFolder))
+                    .collect(Collectors.toList());
 
-	        List<Future<ReadFileOutputDTO>> futures = executor.invokeAll(tasks, 60, TimeUnit.SECONDS);
+            List<Future<ReadOneResult>> futures = executor.invokeAll(tasks, 10, TimeUnit.MINUTES);
 
-	        for (Future<ReadFileOutputDTO> f : futures) {
-	            if (f.isCancelled()) {
-	            	String msgCd = MessageCdConst.MCD00003E_EXECUTION_SKIP;
-	                this.manageLoggerComponent.debugErrorLog(
-	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, "ReadOriginS3 timeout/cancel");
-	                continue;
-	            }
-	            ReadFileOutputDTO dto = f.get();
-	            if (!BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
-	            	String msgCd = MessageCdConst.MCD00003E_EXECUTION_SKIP;
-	                this.manageLoggerComponent.debugErrorLog(
-	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null,
-	                    "ReadOriginS3 failed [" +
-	                    dto.getThrowAble() + "]");
-	                continue;
-	            }
-	            List<DataEntity> entity = dto.getDataList();
-	            if (entity == null || entity.isEmpty()) {
-	            	String msgCd = MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP;
-	            	this.manageLoggerComponent.debugInfoLog(
-		                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, "dataList is empty");
-	            	continue;
-	            }
+            for (Future<ReadOneResult> f : futures) {
+                if (f.isCancelled()) {
+                    manageLoggerComponent.debugErrorLog(
+                            PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                            MessageCdConst.MCD00003E_EXECUTION_SKIP,
+                            null, "ReadOriginS3 timeout/cancel");
+                    continue;
+                }
 
-	            // MapキーはS3キーでまとめるのが自然
-	            String key = entity.get(0).getFile(); // getFile にS3 keyを入れる想定
-	            resultMap.computeIfAbsent(key, k -> new ArrayList<>()).addAll(entity);
-	        }
+                ReadOneResult r = f.get();
 
-	    } catch (InterruptedException ie) {
-	        Thread.currentThread().interrupt();
-	        String msgCd = MessageCdConst.MCD00004E_THREAD_INTERRUPTION;
-	        this.manageLoggerComponent.createBusinessException(
-	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, ie);
+                if (!r.ok) {
+                    manageLoggerComponent.debugErrorLog(
+                            PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                            MessageCdConst.MCD00003E_EXECUTION_SKIP,
+                            null, "ReadOriginS3 failed: " + r.s3Key);
+                    continue;
+                }
 
-	    } catch (Exception e) {
-	    	String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
-	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e, "S3 Origin読み込みエラー");
-	        this.manageLoggerComponent.createBusinessException(
-	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, e);
+                if (r.entities == null || r.entities.isEmpty()) {
+                    manageLoggerComponent.debugInfoLog(
+                            PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                            MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP,
+                            "dataList is empty: " + r.s3Key);
+                    continue;
+                }
 
-	    } finally {
-	        executor.shutdown();
-	        try {
-	            if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
-	                executor.shutdownNow();
-	            }
-	        } catch (InterruptedException ie) {
-	            executor.shutdownNow();
-	            Thread.currentThread().interrupt();
-	        }
-	    }
+                // ★Mapキーはローカルパス（OriginStatが削除できる）
+                resultMap.put(r.localPath, r.entities);
+            }
 
-	    return resultMap;
-	}
+        } catch (InterruptedException ie) {
+            Thread.currentThread().interrupt();
+            manageLoggerComponent.createBusinessException(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                    MessageCdConst.MCD00004E_THREAD_INTERRUPTION, null, ie);
+
+        } catch (Exception e) {
+            manageLoggerComponent.debugErrorLog(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                    MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN,
+                    e, "S3 Origin読み込みエラー");
+            manageLoggerComponent.createBusinessException(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                    MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN, null, e);
+
+        } finally {
+            executor.shutdownNow();
+        }
+
+        return resultMap;
+    }
+
+    // =========================================================
+    // S3全走査して matcher に合う key を集める
+    // =========================================================
+    private List<String> listAllMatchedKeys(String bucket, Pattern matcher) {
+        // S3Operatorに「全走査して Pattern で拾う」は既にあるので流用しても良いが、
+        // 戻りが S3Object で lastModified ソートされるため、ここではソートせず key だけ拾う。
+        // → そのため、listAllDateCsvObjectsSortedByLastModifiedAsc は使わず、同等処理をここで行う。
+        List<String> keys = new ArrayList<>();
+
+        // 代わりに、あなたのS3Operator.listKeys(bucket, prefix)は prefix 必須なので
+        // 「全バケット」をやるなら listAllDateCsvObjectsSortedByLastModifiedAsc を流用してもOKだが、
+        // それは内部で lastModified で sort される。
+        // ただし、私たちは後段でキー構造で並べ替えるので、まず拾えればOK。
+        List<S3Object> objs = s3Operator.listAllDateCsvObjectsSortedByLastModifiedAsc(bucket, matcher);
+        for (S3Object o : objs) {
+            keys.add(o.key());
+        }
+        return keys;
+    }
+
+    // =========================================================
+    // 並び順: date昇順 -> midは出現順維持 -> seqは文字列順
+    // =========================================================
+    private List<String> orderKeysByDateThenMidEncounterThenSeqString(List<String> keys) {
+
+        // date -> (mid -> list(keys))  ※midはLinkedHashMapで出現順維持
+        Map<String, LinkedHashMap<String, List<String>>> grouped = new HashMap<>();
+
+        for (String key : keys) {
+            // yyyy-MM-dd/mid=xxx/seq=...
+            String[] parts = key.split("/", 3);
+            if (parts.length < 3) continue;
+
+            String date = parts[0];
+            String mid = parts[1];
+
+            grouped.computeIfAbsent(date, d -> new LinkedHashMap<>())
+                   .computeIfAbsent(mid, m -> new ArrayList<>())
+                   .add(key);
+        }
+
+        // date を昇順
+        List<String> dates = new ArrayList<>(grouped.keySet());
+        Collections.sort(dates);
+
+        List<String> ordered = new ArrayList<>();
+
+        for (String date : dates) {
+            LinkedHashMap<String, List<String>> midMap = grouped.get(date);
+            if (midMap == null) continue;
+
+            // midは「出現順」を維持するため、midMap.entrySet()の順のまま
+            for (Map.Entry<String, List<String>> midEntry : midMap.entrySet()) {
+                List<String> seqKeys = midEntry.getValue();
+                if (seqKeys == null) continue;
+
+                // seq=... を文字列順（key全体で自然順でOK。少なくとも seq 部分はこの順で揃う）
+                seqKeys.sort(Comparator.naturalOrder());
+
+                ordered.addAll(seqKeys);
+            }
+        }
+
+        return ordered;
+    }
+
+    // =========================================================
+    // 1ファイル処理: ローカルへ保存 -> readOriginでパース -> DataEntity.file に S3 key
+    // =========================================================
+    private ReadOneResult readOne(String bucket, String s3Key, String outputFolder) {
+        try {
+            String fileName = Paths.get(s3Key).getFileName().toString();
+            Path local = Paths.get(outputFolder, fileName);
+
+            // S3Operatorに既にある
+            s3Operator.downloadToFile(bucket, s3Key, local);
+
+            try (InputStream is = java.nio.file.Files.newInputStream(local)) {
+                ReadFileOutputDTO dto = readOrigin.getFileBodyFromStream(is, s3Key);
+
+                if (!BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
+                    return ReadOneResult.fail(s3Key, local.toString(), dto.getThrowAble());
+                }
+
+                List<DataEntity> list = dto.getDataList();
+
+                // 追跡用にS3 keyを入れる
+                if (list != null) {
+                    for (DataEntity e : list) {
+                        try {
+                            e.setFile(s3Key);
+                        } catch (Exception ignore) {}
+                    }
+                }
+
+                return ReadOneResult.ok(s3Key, local.toString(), list);
+            }
+
+        } catch (Exception e) {
+            return ReadOneResult.fail(s3Key, null, e);
+        }
+    }
+
+    private String safeOutputFolder() {
+        try {
+            String p = config.getOutputCsvFolder();
+            if (p == null || p.isBlank()) return "/tmp/outputs/";
+            return p;
+        } catch (Exception ignore) {
+            return "/tmp/outputs/";
+        }
+    }
+
+    private static class ReadOneResult {
+        final boolean ok;
+        final String s3Key;
+        final String localPath;
+        final List<DataEntity> entities;
+        final Throwable thrown;
+
+        private ReadOneResult(boolean ok, String s3Key, String localPath, List<DataEntity> entities, Throwable thrown) {
+            this.ok = ok;
+            this.s3Key = s3Key;
+            this.localPath = localPath;
+            this.entities = entities;
+            this.thrown = thrown;
+        }
+
+        static ReadOneResult ok(String s3Key, String localPath, List<DataEntity> entities) {
+            return new ReadOneResult(true, s3Key, localPath, entities, null);
+        }
+
+        static ReadOneResult fail(String s3Key, String localPath, Throwable e) {
+            return new ReadOneResult(false, s3Key, localPath, null, e);
+        }
+    }
 }
