@@ -14,8 +14,8 @@ import org.mybatis.spring.SqlSessionTemplate;
 import org.mybatis.spring.annotation.MapperScan;
 import org.mybatis.spring.annotation.MapperScans;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
-import org.springframework.boot.jdbc.DataSourceBuilder;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
 import org.springframework.context.annotation.Configuration;
@@ -24,10 +24,9 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 
 /**
  * アプリ共通設定。
- * <ul>
- *   <li>Component / Mapper のスキャン</li>
- *   <li>BM_M024 相関登録用スレッドプールの提供（calcCorrelationExecutor）</li>
- * </ul>
+ * - Component / Mapper のスキャン
+ * - 2 DataSource（bm / master） + MyBatis / TxManager を明示構成
+ * - BM_M024 相関登録用スレッドプールの提供（calcCorrelationExecutor）
  */
 @Configuration
 @ComponentScan(basePackages = {
@@ -46,51 +45,39 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 @MapperScans({
         @MapperScan(
                 basePackages = "dev.application.domain.repository.bm",
-                annotationClass = org.apache.ibatis.annotations.Mapper.class,
                 sqlSessionTemplateRef = "bmSqlSessionTemplate"
         ),
         @MapperScan(
                 basePackages = "dev.application.domain.repository.master",
-                annotationClass = org.apache.ibatis.annotations.Mapper.class,
                 sqlSessionTemplateRef = "masterSqlSessionTemplate"
         )
 })
 public class BookMakersConfig {
 
-    /**
-     * BM_M024 の登録処理で使用する共有 ExecutorService。
-     *
-     * <p>特長:</p>
-     * <ul>
-     *   <li>CPU コア数×2 の最大スレッド</li>
-     *   <li>キューは適度に制限（バックプレッシャをかけて OOM を回避）</li>
-     *   <li>アイドル 60 秒でコア超のスレッドは終了</li>
-     *   <li>拒否時は呼び出しスレッドで実行（最終安全策）</li>
-     * </ul>
-     *
-     * <p>CalcCorrelationStat 側では
-     * {@code @Qualifier("calcCorrelationExecutor")} で注入して利用します。</p>
-     */
+    // =========================================================
+    // Executor
+    // =========================================================
+
     @Bean(destroyMethod = "shutdown")
     @Qualifier("calcCorrelationExecutor")
     public ExecutorService calcCorrelationExecutor() {
         int cores = Runtime.getRuntime().availableProcessors();
-        int corePoolSize = Math.max(2, cores);          // 最低2
+        int corePoolSize = Math.max(2, cores);
         int maxPoolSize  = Math.max(corePoolSize, cores * 2);
-        int queueCapacity = 1024;                        // 必要に応じて調整
+        int queueCapacity = 1024;
 
         ThreadFactory factory = new ThreadFactory() {
             private final ThreadFactory defaultFactory = java.util.concurrent.Executors.defaultThreadFactory();
             private int seq = 0;
+
             @Override
             public Thread newThread(Runnable r) {
                 Thread t = defaultFactory.newThread(r);
                 t.setName("bm-m024-db-" + (++seq));
                 t.setDaemon(false);
-                t.setUncaughtExceptionHandler((th, ex) -> {
-                    // ここでログ基盤に流すなら、Static ロガー等で対応
-                    System.err.println("[bm-m024-db] Uncaught: " + ex.getMessage());
-                });
+                t.setUncaughtExceptionHandler((th, ex) ->
+                        System.err.println("[bm-m024-db] Uncaught: " + ex.getMessage())
+                );
                 return t;
             }
         };
@@ -101,73 +88,114 @@ public class BookMakersConfig {
                 60L, TimeUnit.SECONDS,
                 new ArrayBlockingQueue<>(queueCapacity),
                 factory,
-                new ThreadPoolExecutor.CallerRunsPolicy() // 飽和時は呼び出しスレッドで実行
+                new ThreadPoolExecutor.CallerRunsPolicy()
         );
         exec.allowCoreThreadTimeOut(true);
         return exec;
     }
 
- // ===== メインDB (soccer_bm) =====
+    // =========================================================
+    // DataSourceProperties（bm / master）
+    // application-prod.yml:
+    // spring.datasource.bm.url / username / password / driver-class-name
+    // spring.datasource.master.url / username / password / driver-class-name
+    // =========================================================
+
+    @Bean(name = "bmDataSourceProperties")
     @Primary
-    @Bean(name = "bmDataSource")
     @ConfigurationProperties(prefix = "spring.datasource.bm")
-    public DataSource bmDataSource() {
-        return DataSourceBuilder.create().build();
+    public DataSourceProperties bmDataSourceProperties() {
+        return new DataSourceProperties();
     }
 
-    // ===== マスターDB (soccer_bm_master) =====
-    @Bean(name = "masterDataSource")
+    @Bean(name = "masterDataSourceProperties")
     @ConfigurationProperties(prefix = "spring.datasource.master")
-    public DataSource masterDataSource() {
-        return DataSourceBuilder.create().build();
+    public DataSourceProperties masterDataSourceProperties() {
+        return new DataSourceProperties();
     }
 
-    // ===== SqlSessionFactory (bm) =====
+    // =========================================================
+    // DataSource（bm / master）
+    // =========================================================
+
+    @Bean(name = "bmDataSource")
     @Primary
-    @Bean(name = "bmSqlSessionFactory")
-    public SqlSessionFactory bmSqlSessionFactory(
-            @Qualifier("bmDataSource") DataSource dataSource) throws Exception {
-        SqlSessionFactoryBean factory = new SqlSessionFactoryBean();
-        factory.setDataSource(dataSource);
-        return factory.getObject();
+    public DataSource bmDataSource(
+            @Qualifier("bmDataSourceProperties") DataSourceProperties props
+    ) {
+        // url/username/password/driver-class-name を確実に反映
+        return props.initializeDataSourceBuilder().build();
     }
 
-    // ===== SqlSessionFactory (master) =====
-    @Bean(name = "masterSqlSessionFactory")
-    public SqlSessionFactory masterSqlSessionFactory(
-            @Qualifier("masterDataSource") DataSource dataSource) throws Exception {
-        SqlSessionFactoryBean factory = new SqlSessionFactoryBean();
-        factory.setDataSource(dataSource);
-        return factory.getObject();
+    @Bean(name = "masterDataSource")
+    public DataSource masterDataSource(
+            @Qualifier("masterDataSourceProperties") DataSourceProperties props
+    ) {
+        return props.initializeDataSourceBuilder().build();
     }
 
-    // ===== TransactionManager (bm) =====
-    @Primary
+    // =========================================================
+    // TransactionManager（bm / master）
+    // =========================================================
+
     @Bean(name = "bmTxManager")
+    @Primary
     public DataSourceTransactionManager bmTxManager(
-            @Qualifier("bmDataSource") DataSource dataSource) {
-        return new DataSourceTransactionManager(dataSource);
+            @Qualifier("bmDataSource") DataSource ds
+    ) {
+        return new DataSourceTransactionManager(ds);
     }
 
-    // ===== TransactionManager (master) =====
     @Bean(name = "masterTxManager")
     public DataSourceTransactionManager masterTxManager(
-            @Qualifier("masterDataSource") DataSource dataSource) {
-        return new DataSourceTransactionManager(dataSource);
+            @Qualifier("masterDataSource") DataSource ds
+    ) {
+        return new DataSourceTransactionManager(ds);
     }
 
-    // ===== SqlSessionTemplate (bm) =====
+    // =========================================================
+    // MyBatis: SqlSessionFactory（bm / master）
+    // ※ mybatis.configuration(map-underscore-to-camel-case等)は
+    //   application.yml 側の MyBatisAutoConfiguration が拾ってくれる構成もありますが、
+    //   2 factory を自前で作る場合は必要に応じてここで setConfiguration してください。
+    //   （現状、Mapperは注釈SQL中心なので最低限でOK）
+    // =========================================================
+
+    @Bean(name = "bmSqlSessionFactory")
     @Primary
-    @Bean(name = "bmSqlSessionTemplate")
-    public SqlSessionTemplate bmSqlSessionTemplate(
-            @Qualifier("bmSqlSessionFactory") SqlSessionFactory factory) {
-        return new SqlSessionTemplate(factory);
+    public SqlSessionFactory bmSqlSessionFactory(
+            @Qualifier("bmDataSource") DataSource ds
+    ) throws Exception {
+        SqlSessionFactoryBean factory = new SqlSessionFactoryBean();
+        factory.setDataSource(ds);
+        return factory.getObject();
     }
 
-    // ===== SqlSessionTemplate (master) =====
+    @Bean(name = "masterSqlSessionFactory")
+    public SqlSessionFactory masterSqlSessionFactory(
+            @Qualifier("masterDataSource") DataSource ds
+    ) throws Exception {
+        SqlSessionFactoryBean factory = new SqlSessionFactoryBean();
+        factory.setDataSource(ds);
+        return factory.getObject();
+    }
+
+    // =========================================================
+    // MyBatis: SqlSessionTemplate（bm / master）
+    // =========================================================
+
+    @Bean(name = "bmSqlSessionTemplate")
+    @Primary
+    public SqlSessionTemplate bmSqlSessionTemplate(
+            @Qualifier("bmSqlSessionFactory") SqlSessionFactory sf
+    ) {
+        return new SqlSessionTemplate(sf);
+    }
+
     @Bean(name = "masterSqlSessionTemplate")
     public SqlSessionTemplate masterSqlSessionTemplate(
-            @Qualifier("masterSqlSessionFactory") SqlSessionFactory factory) {
-        return new SqlSessionTemplate(factory);
+            @Qualifier("masterSqlSessionFactory") SqlSessionFactory sf
+    ) {
+        return new SqlSessionTemplate(sf);
     }
 }

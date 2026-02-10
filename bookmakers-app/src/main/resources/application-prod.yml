@@ -37,6 +37,11 @@ spring:
       username: ${BM_DB_USER}
       password: ${BM_DB_PASS}
       driver-class-name: org.postgresql.Driver
+    master:
+      url: ${MASTER_DB_URL}
+      username: ${MASTER_DB_USER}
+      password: ${MASTER_DB_PASS}
+      driver-class-name: org.postgresql.Driver
 
   flyway:
     enabled: false
