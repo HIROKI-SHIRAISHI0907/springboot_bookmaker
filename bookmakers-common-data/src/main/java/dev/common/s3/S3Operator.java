@@ -237,6 +237,15 @@ public class S3Operator {
 	}
 
 	/**
+	 * 削除
+	 * @param bucket
+	 * @param key
+	 */
+	public void delete(String bucket, String key) {
+	    s3.deleteObject(b -> b.bucket(bucket).key(key));
+	}
+
+	/**
 	 * statsバケット直下（or prefix配下）の特定ファイルを読む用：prefixを安全に連結してkey化する
 	 * prefixは "" でもOK。 "stats" でも "stats/" でもOK。
 	 */
