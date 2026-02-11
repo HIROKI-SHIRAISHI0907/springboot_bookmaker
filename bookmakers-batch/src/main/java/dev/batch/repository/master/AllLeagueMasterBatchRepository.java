@@ -18,7 +18,6 @@ public interface AllLeagueMasterBatchRepository {
 			    "INSERT INTO all_league_scrape_master (",
 			    "    country,",
 			    "    league,",
-			    "    team,",
 			    "    logic_flg,",
 			    "    register_id,",
 			    "    register_time,",
