@@ -10,6 +10,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import dev.web.api.bm_a005.AllLeagueBatchRequest;
+import dev.web.api.bm_a005.AllLeagueBatchResponse;
 import dev.web.api.bm_a005.AllLeagueDTO;
 import dev.web.api.bm_a005.AllLeagueRequest;
 import dev.web.api.bm_a005.AllLeagueResponse;
@@ -23,45 +25,74 @@ import lombok.RequiredArgsConstructor;
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api")
+@RequestMapping("/v1/api")
 public class AllLeagueWebController {
 
-    private final AllLeagueService service;
+	private final AllLeagueService service;
 
-    /**
-     * all_league_scrape_master の link を更新する。
-     *
-     * PATCH /api/all-league-master
-     */
-    @PatchMapping("/all-league-master")
-    public ResponseEntity<AllLeagueResponse> patch(
-            @RequestBody AllLeagueRequest req) {
+	@PatchMapping("/all-league-master")
+	public ResponseEntity<AllLeagueResponse> patch(@RequestBody AllLeagueRequest req) {
+		AllLeagueResponse res = service.upsert(req.getCountry(), req.getLeague(), req.getLogicFlg(), req.getDispFlg());
 
-    	AllLeagueResponse res = service.upsert(
-        		req.getCountry(),
-        		req.getLeague(),
-        		req.getLogicFlg(),
-        		req.getDispFlg());
+		HttpStatus status = switch (res.getResponseCode()) {
+		case "200" -> HttpStatus.OK;
+		case "400" -> HttpStatus.BAD_REQUEST;
+		case "404" -> HttpStatus.NOT_FOUND;
+		case "409" -> HttpStatus.CONFLICT;
+		default -> HttpStatus.INTERNAL_SERVER_ERROR;
+		};
 
-        HttpStatus status = switch (res.getResponseCode()) {
-            case "200" -> HttpStatus.OK;                    // SUCCESS
-            case "400" -> HttpStatus.BAD_REQUEST;           // 必須不足
-            case "404" -> HttpStatus.NOT_FOUND;             // NOT_FOUND
-            case "409" -> HttpStatus.CONFLICT;              // LINK_ALREADY_USED
-            default -> HttpStatus.INTERNAL_SERVER_ERROR;    // ERROR
-        };
+		return ResponseEntity.status(status).body(res);
+	}
 
-        return ResponseEntity.status(status).body(res);
-    }
+	@PatchMapping("/all-league-master/batch")
+	public ResponseEntity<AllLeagueBatchResponse> patchBatch(@RequestBody AllLeagueBatchRequest req) {
+		if (req.getItems() == null || req.getItems().isEmpty()) {
+			return ResponseEntity.badRequest().body(
+					new AllLeagueBatchResponse("400", 0, 0, 0, List.of()));
+		}
 
-    /**
-     * all_league_scrape_master を全件取得する。
-     *
-     * GET /api/all-league-master
-     */
-    @GetMapping("/all-league-master")
-    public ResponseEntity<List<AllLeagueDTO>> findAll() {
-        return ResponseEntity.ok(service.findAll());
-    }
+		int total = req.getItems().size();
+		int success = 0;
 
+		var results = new java.util.ArrayList<AllLeagueBatchResponse.ItemResult>();
+
+		for (AllLeagueRequest item : req.getItems()) {
+			try {
+				AllLeagueResponse r = service.upsert(
+						item.getCountry(),
+						item.getLeague(),
+						item.getLogicFlg(),
+						item.getDispFlg());
+
+				if ("200".equals(r.getResponseCode()))
+					success++;
+
+				results.add(new AllLeagueBatchResponse.ItemResult(
+						item.getCountry(),
+						item.getLeague(),
+						r.getResponseCode(),
+						r.getMessage()));
+			} catch (Exception e) {
+				results.add(new AllLeagueBatchResponse.ItemResult(
+						item.getCountry(),
+						item.getLeague(),
+						"500",
+						e.getMessage()));
+			}
+		}
+
+		int failed = total - success;
+		// 全部成功=200、失敗混在=207(マルチステータス)、全部失敗でも 207/500 どちらでもOK
+		String code = (failed == 0) ? "200" : "207";
+		HttpStatus status = (failed == 0) ? HttpStatus.OK : HttpStatus.MULTI_STATUS;
+
+		return ResponseEntity.status(status).body(
+				new AllLeagueBatchResponse(code, total, success, failed, results));
+	}
+
+	@GetMapping("/all-league-master")
+	public ResponseEntity<List<AllLeagueDTO>> findAll() {
+		return ResponseEntity.ok(service.findAll());
+	}
 }
