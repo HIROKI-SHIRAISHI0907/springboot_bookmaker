@@ -32,15 +32,12 @@ public class ReadAllLeague implements ReadFileBodyIF {
     /** 実行モード */
     private static final String EXEC_MODE = "ALL_LEAGUE";
 
-    /** ログ管理クラス */
+    /** 期待するCSV列数（country, league） */
+    private static final int EXPECT_COLS = 2;
+
     @Autowired
     private ManageLoggerComponent manageLoggerComponent;
 
-    /**
-     * CSVファイルの中身を取得する
-     * @param fileFullPath ファイル名（フルパス）
-     * @return readFileOutputDTO
-     */
     @Override
     public ReadFileOutputDTO getFileBodyFromStream(InputStream is, String key) {
         final String METHOD_NAME = "getFileBodyFromStream";
@@ -54,24 +51,35 @@ public class ReadAllLeague implements ReadFileBodyIF {
         try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
 
             String line;
-            int rowNo = 0;
+            boolean headerSkipped = false;
 
             while ((line = br.readLine()) != null) {
-                rowNo++;
-                // 1行目ヘッダーはスキップ
-                if (rowNo == 1) continue;
-                if (line.trim().isEmpty()) continue;
-                List<String> cols = parseCsvLine(line);
 
-                if (cols.size() < 3) continue;
-                String country = getCol(cols, 0);
-                String league  = getCol(cols, 1);
-                if (country.isBlank() && league.isBlank()) continue;
+                // BOM除去（先頭行のみ想定だが、念のため毎回）
+                if (!headerSkipped && !line.isEmpty() && line.charAt(0) == '\uFEFF') {
+                    line = line.substring(1);
+                }
+
+                // 完全空行だけスキップ（空白は文字列として残したい方針）
+                if (line.isEmpty()) continue;
+
+                List<String> cols = parseCsvLine(line);
+                while (cols.size() < EXPECT_COLS) cols.add("");
+
+                // 1行目ヘッダーはスキップ
+                if (!headerSkipped) {
+                    headerSkipped = true;
+                    continue;
+                }
+
+                // 全列 "" の行はスキップ
+                if (isAllEmpty(cols)) continue;
 
                 AllLeagueMasterEntity e = new AllLeagueMasterEntity();
-                e.setCountry(country);
-                e.setLeague(league);
+                e.setCountry(safeGet(cols, 0));
+                e.setLeague(safeGet(cols, 1));
                 e.setLogicFlg("0");
+
                 entityList.add(e);
             }
 
@@ -94,63 +102,53 @@ public class ReadAllLeague implements ReadFileBodyIF {
         }
     }
 
-    /** cols[i] を安全に取得してtrimして返す */
-    private static String getCol(List<String> cols, int idx) {
-        if (idx < 0 || idx >= cols.size()) return "";
-        String s = cols.get(idx);
-        return s == null ? "" : s.trim();
-    }
-
     /**
-     * CSV 1行パース（カンマ、ダブルクォート対応）
-     * - "a,b" のようにカンマを含む列OK
-     * - "" は " のエスケープとして扱う
+     * CSV 1行を簡易パース（ダブルクォート対応、"" は " に展開）
+     * ※ trimしない：空欄/空白も「文字列」として保持
      */
     private static List<String> parseCsvLine(String line) {
-        List<String> out = new ArrayList<>();
+        List<String> cols = new ArrayList<>();
         StringBuilder sb = new StringBuilder();
-
         boolean inQuotes = false;
-        int i = 0;
 
-        while (i < line.length()) {
+        for (int i = 0; i < line.length(); i++) {
             char c = line.charAt(i);
 
-            if (inQuotes) {
-                if (c == '"') {
-                    // "" -> " として扱う
-                    if (i + 1 < line.length() && line.charAt(i + 1) == '"') {
-                        sb.append('"');
-                        i += 2;
-                        continue;
-                    } else {
-                        inQuotes = false;
-                        i++;
-                        continue;
-                    }
+            if (c == '"') {
+                // "" -> "
+                if (inQuotes && i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                    sb.append('"');
+                    i++;
                 } else {
-                    sb.append(c);
-                    i++;
-                    continue;
+                    inQuotes = !inQuotes;
                 }
-            } else {
-                if (c == '"') {
-                    inQuotes = true;
-                    i++;
-                    continue;
-                }
-                if (c == ',') {
-                    out.add(sb.toString());
-                    sb.setLength(0);
-                    i++;
-                    continue;
-                }
-                sb.append(c);
-                i++;
+                continue;
             }
+
+            if (c == ',' && !inQuotes) {
+                cols.add(sb.toString());
+                sb.setLength(0);
+                continue;
+            }
+
+            sb.append(c);
         }
 
-        out.add(sb.toString());
-        return out;
+        cols.add(sb.toString());
+        return cols;
+    }
+
+    /** 全列が "" のときだけ true（空白スペースのみは文字列として扱う） */
+    private static boolean isAllEmpty(List<String> cols) {
+        for (String v : cols) {
+            if (v != null && !v.isEmpty()) return false;
+        }
+        return true;
+    }
+
+    private static String safeGet(List<String> cols, int idx) {
+        if (cols == null || idx < 0 || idx >= cols.size()) return "";
+        String v = cols.get(idx);
+        return v == null ? "" : v;
     }
 }
