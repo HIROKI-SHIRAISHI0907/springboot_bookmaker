@@ -6,9 +6,9 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.web.api.bm_a005.ForceAdminAPIService;
-import dev.web.api.bm_a005.ForceAdminRequest;
-import dev.web.api.bm_a005.ForceAdminResponse;
+import dev.web.api.bm_a006.ForceAdminAPIService;
+import dev.web.api.bm_a006.ForceAdminRequest;
+import dev.web.api.bm_a006.ForceAdminResponse;
 import lombok.RequiredArgsConstructor;
 
 /**

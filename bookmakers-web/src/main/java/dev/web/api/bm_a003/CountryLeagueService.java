@@ -1,5 +1,7 @@
 package dev.web.api.bm_a003;
 
+import java.util.List;
+
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -14,13 +16,23 @@ import lombok.RequiredArgsConstructor;
  */
 @Service
 @RequiredArgsConstructor
-public class CountryLeagueUpdateService {
+public class CountryLeagueService {
 
 	private final CountryLeagueMasterWebRepository repo;
 
+	@Transactional(readOnly = true)
+    public List<CountryLeagueDTO> findAll() {
+        return repo.findAll();
+    }
+
+	@Transactional(readOnly = true)
+    public List<CountryLeagueDTO> search(CountryLeagueSearchCondition cond) {
+        return repo.search(cond);
+    }
+
 	@Transactional
-	public CountryLeagueUpdateResponse patchLink(CountryLeagueUpdateRequest req) {
-		CountryLeagueUpdateResponse res = new CountryLeagueUpdateResponse();
+	public CountryLeagueResponse patchLink(CountryLeagueRequest req) {
+		CountryLeagueResponse res = new CountryLeagueResponse();
 
 		// -------------------------
 		// 必須チェック

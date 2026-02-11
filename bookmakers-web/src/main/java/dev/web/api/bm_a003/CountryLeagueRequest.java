@@ -8,7 +8,7 @@ import lombok.Data;
  * @author shiraishitoshio
  */
 @Data
-public class CountryLeagueUpdateRequest {
+public class CountryLeagueRequest {
 
 	/** 国 */
 	private String country;

@@ -15,9 +15,9 @@ import dev.web.api.bm_a002.CountryLeagueSeasonDTO;
 import dev.web.api.bm_a002.CountryLeagueSeasonFindAllService;
 import dev.web.api.bm_a002.CountryLeagueSeasonSearchCondition;
 import dev.web.api.bm_a002.CountryLeagueSeasonSearchService;
-import dev.web.api.bm_a002.CountryLeagueSeasonUpdateRequest;
-import dev.web.api.bm_a002.CountryLeagueSeasonUpdateResponse;
-import dev.web.api.bm_a002.CountryLeagueSeasonUpdateService;
+import dev.web.api.bm_a002.CountryLeagueSeasonRequest;
+import dev.web.api.bm_a002.CountryLeagueSeasonResponse;
+import dev.web.api.bm_a002.CountryLeagueSeasonService;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -30,7 +30,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api")
 public class CountryLeagueSeasonWebController {
 
-    private final CountryLeagueSeasonUpdateService service;
+    private final CountryLeagueSeasonService service;
 
     private final CountryLeagueSeasonFindAllService allService;
 
@@ -42,10 +42,10 @@ public class CountryLeagueSeasonWebController {
      * PATCH /api/country-league-season-master
      */
     @PatchMapping("/country-league-season-master")
-    public ResponseEntity<CountryLeagueSeasonUpdateResponse> patchCountryLeagueSeasonMaster(
-            @RequestBody CountryLeagueSeasonUpdateRequest req) {
+    public ResponseEntity<CountryLeagueSeasonResponse> patchCountryLeagueSeasonMaster(
+            @RequestBody CountryLeagueSeasonRequest req) {
 
-        CountryLeagueSeasonUpdateResponse res = service.patchLink(req);
+        CountryLeagueSeasonResponse res = service.patchLink(req);
 
         HttpStatus status = switch (res.getResponseCode()) {
             case "200" -> HttpStatus.OK;                    // SUCCESS

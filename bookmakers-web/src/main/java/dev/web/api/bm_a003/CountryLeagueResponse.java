@@ -8,7 +8,7 @@ import lombok.Data;
  * @author shiraishitoshio
  */
 @Data
-public class CountryLeagueUpdateResponse {
+public class CountryLeagueResponse {
 
 	/** レスポンスコード */
 	private String responseCode; // "0"=成功, "9"=失敗 など運用に合わせて

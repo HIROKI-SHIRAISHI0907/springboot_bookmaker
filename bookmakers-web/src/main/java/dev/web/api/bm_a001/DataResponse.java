@@ -1,12 +1,16 @@
-package dev.web.api.bm_a005;
+package dev.web.api.bm_a001;
 
 import lombok.Data;
 
-//返却DTO（フィルタ用）
+/**
+ * DataResponse
+ *
+ * @author shiraishitoshio
+ */
 @Data
-public class ForceAdminResponse {
+public class DataResponse {
 
-    /** レスポンスコード */
+	/** レスポンスコード */
 	private String responseCode; // "0"=成功, "9"=失敗 など運用に合わせて
 
 	/** メッセージ */

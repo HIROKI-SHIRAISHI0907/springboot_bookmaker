@@ -112,7 +112,7 @@ ecs:
     B007:
       cluster: ${ECS_B007_CLUSTER:all-league-cluster}
       taskDefinition: ${ECS_B007_TASK_DEF:all-league-batch}
-      container: ${ECS_B007_CONTAINER:all-league-cluster}
+      container: ${ECS_B007_CONTAINER:all-league-scraper}
       logGroup: ${ECS_B007_LOG_GROUP:/ecs/all-league-batch}
       
     B008:

@@ -1,4 +1,4 @@
-package dev.web.api.bm_a006;
+package dev.web.api.bm_a007;
 
 public enum S3PrefixScope {
     /** 設定ファイルのprefixを使う */

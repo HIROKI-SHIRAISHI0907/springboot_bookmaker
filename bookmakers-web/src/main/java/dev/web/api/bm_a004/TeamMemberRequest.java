@@ -8,7 +8,7 @@ import lombok.Data;
  *
  */
 @Data
-public class TeamMemberUpdateRequest {
+public class TeamMemberRequest {
 
 	/** 国 */ //設定あり
 	private String country;

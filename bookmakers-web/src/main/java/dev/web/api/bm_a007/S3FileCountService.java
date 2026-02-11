@@ -1,4 +1,4 @@
-package dev.web.api.bm_a006;
+package dev.web.api.bm_a007;
 
 import java.time.Instant;
 import java.time.LocalDate;

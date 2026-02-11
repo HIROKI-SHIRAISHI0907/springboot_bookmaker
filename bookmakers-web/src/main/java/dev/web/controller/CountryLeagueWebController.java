@@ -14,10 +14,10 @@ import org.springframework.web.bind.annotation.RestController;
 import dev.web.api.bm_a003.CountryLeagueDTO;
 import dev.web.api.bm_a003.CountryLeagueFindAllService;
 import dev.web.api.bm_a003.CountryLeagueSearchCondition;
-import dev.web.api.bm_a003.CountryLeagueSearchService;
-import dev.web.api.bm_a003.CountryLeagueUpdateRequest;
-import dev.web.api.bm_a003.CountryLeagueUpdateResponse;
-import dev.web.api.bm_a003.CountryLeagueUpdateService;
+import dev.web.api.bm_a003.CountryLeagueService;
+import dev.web.api.bm_a003.CountryLeagueRequest;
+import dev.web.api.bm_a003.CountryLeagueResponse;
+import dev.web.api.bm_a003.CountryLeagueService;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -30,11 +30,11 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api")
 public class CountryLeagueWebController {
 
-	private final CountryLeagueUpdateService service;
+	private final CountryLeagueService service;
 
     private final CountryLeagueFindAllService allService;
 
-    private final CountryLeagueSearchService searchService;
+    private final CountryLeagueService searchService;
 
     /**
      * team_member_master の未登録項目を更新する（未登録項目のみ反映）。
@@ -42,10 +42,10 @@ public class CountryLeagueWebController {
      * PATCH /api/country-league-master
      */
     @PatchMapping("/country-league-master")
-    public ResponseEntity<CountryLeagueUpdateResponse> patchTeam(
-            @RequestBody CountryLeagueUpdateRequest req) {
+    public ResponseEntity<CountryLeagueResponse> patchTeam(
+            @RequestBody CountryLeagueRequest req) {
 
-    	CountryLeagueUpdateResponse res = service.patchLink(req);
+    	CountryLeagueResponse res = service.patchLink(req);
 
         HttpStatus status = switch (res.getResponseCode()) {
             case "200" -> HttpStatus.OK;

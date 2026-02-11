@@ -1,4 +1,4 @@
-package dev.web.api.bm_a007;
+package dev.web.api.bm_a008;
 
 /**
  * NotFoundExceptionクラス

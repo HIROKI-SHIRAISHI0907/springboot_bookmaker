@@ -1,5 +1,7 @@
 package dev.web.api.bm_a004;
 
+import java.util.List;
+
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -13,9 +15,19 @@ public class TeamMemberUpdateService {
 
     private final TeamMemberMasterWebRepository repo;
 
+    @Transactional(readOnly = true)
+    public List<TeamMemberDTO> getAll() {
+        return repo.findAll();
+    }
+
+    @Transactional(readOnly = true)
+    public List<TeamMemberDTO> search(TeamMemberSearchCondition cond) {
+        return repo.search(cond);
+    }
+
     @Transactional
-    public TeamMemberUpdateResponse patchTeamMember(TeamMemberUpdateRequest req) {
-    	TeamMemberUpdateResponse res = new TeamMemberUpdateResponse();
+    public TeamMemberResponse patchTeamMember(TeamMemberRequest req) {
+    	TeamMemberResponse res = new TeamMemberResponse();
 
         // 必須（キー）
         if (isBlank(req.getTeam()) || isBlank(req.getJersey())

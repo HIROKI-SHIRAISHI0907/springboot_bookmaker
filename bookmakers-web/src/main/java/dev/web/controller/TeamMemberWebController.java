@@ -15,8 +15,8 @@ import dev.web.api.bm_a004.TeamMemberDTO;
 import dev.web.api.bm_a004.TeamMemberFindAllService;
 import dev.web.api.bm_a004.TeamMemberSearchCondition;
 import dev.web.api.bm_a004.TeamMemberSearchService;
-import dev.web.api.bm_a004.TeamMemberUpdateRequest;
-import dev.web.api.bm_a004.TeamMemberUpdateResponse;
+import dev.web.api.bm_a004.TeamMemberRequest;
+import dev.web.api.bm_a004.TeamMemberResponse;
 import dev.web.api.bm_a004.TeamMemberUpdateService;
 import lombok.RequiredArgsConstructor;
 
@@ -42,10 +42,10 @@ public class TeamMemberWebController {
      * PATCH /api/team-member-master
      */
     @PatchMapping("/team-member-master")
-    public ResponseEntity<TeamMemberUpdateResponse> patchTeamMember(
-            @RequestBody TeamMemberUpdateRequest req) {
+    public ResponseEntity<TeamMemberResponse> patchTeamMember(
+            @RequestBody TeamMemberRequest req) {
 
-    	TeamMemberUpdateResponse res = service.patchTeamMember(req);
+    	TeamMemberResponse res = service.patchTeamMember(req);
 
         HttpStatus status = switch (res.getResponseCode()) {
             case "200" -> HttpStatus.OK;
