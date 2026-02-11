@@ -94,6 +94,35 @@ public class S3Operator {
 	}
 
 	/**
+	 * 末尾ファイル名を使って取得
+	 * @param bucket
+	 * @param suffix
+	 * @return
+	 */
+	public List<String> listKeysBySuffix(String bucket, String suffix) {
+		  List<String> keys = new ArrayList<>();
+		  String token = null;
+
+		  do {
+		    ListObjectsV2Response res = s3.listObjectsV2(ListObjectsV2Request.builder()
+		      .bucket(bucket)
+		      .continuationToken(token)
+		      .build());
+
+		    for (S3Object obj : res.contents()) {
+		      String key = obj.key();
+		      if (key != null && key.endsWith(suffix)) {
+		        keys.add(key);
+		      }
+		    }
+		    token = res.nextContinuationToken();
+		  } while (token != null);
+
+		  return keys;
+		}
+
+
+	/**
 	 * S3オブジェクトをInputStreamで取得する
 	 */
 	public InputStream download(String bucket, String key) {

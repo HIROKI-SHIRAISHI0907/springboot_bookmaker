@@ -60,7 +60,7 @@ public class GetAllLeagueInfo {
 	    final String METHOD_NAME = "getData";
 
 	    String bucket = config.getS3BucketsAllLeagueData();
-	    List<String> keys = s3Operator.listKeys(bucket, ALLLEAGUEDATA_CSV);
+	    List<String> keys = s3Operator.listKeysBySuffix(bucket, ALLLEAGUEDATA_CSV);
 
 	    if (keys == null || keys.isEmpty()) {
 	    	String msgCd = MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP;
