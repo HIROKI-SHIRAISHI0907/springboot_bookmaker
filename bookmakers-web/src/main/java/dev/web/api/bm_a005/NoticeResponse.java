@@ -1,4 +1,4 @@
-package dev.web.api.bm_w015;
+package dev.web.api.bm_a005;
 
 import java.time.OffsetDateTime;
 

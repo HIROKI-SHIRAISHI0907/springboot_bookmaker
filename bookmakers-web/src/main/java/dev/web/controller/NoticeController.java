@@ -11,10 +11,10 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.web.api.bm_w015.NotFoundException;
-import dev.web.api.bm_w015.NoticeAPIService;
-import dev.web.api.bm_w015.NoticeRequest;
-import dev.web.api.bm_w015.NoticeResponse;
+import dev.web.api.bm_a005.NotFoundException;
+import dev.web.api.bm_a005.NoticeAPIService;
+import dev.web.api.bm_a005.NoticeRequest;
+import dev.web.api.bm_a005.NoticeResponse;
 import lombok.RequiredArgsConstructor;
 
 /**

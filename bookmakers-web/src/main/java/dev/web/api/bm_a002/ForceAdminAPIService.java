@@ -1,4 +1,4 @@
-package dev.web.api.bm_w014;
+package dev.web.api.bm_a002;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;

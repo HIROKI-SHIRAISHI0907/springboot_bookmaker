@@ -5,11 +5,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.web.api.bm_w022.S3FileCountRequest;
-import dev.web.api.bm_w022.S3FileCountResponse;
-import dev.web.api.bm_w022.S3FileCountService;
-import dev.web.api.bm_w022.S3FileListRequest;
-import dev.web.api.bm_w022.S3FileListResponse;
+import dev.web.api.bm_a004.S3FileCountRequest;
+import dev.web.api.bm_a004.S3FileCountResponse;
+import dev.web.api.bm_a004.S3FileCountService;
+import dev.web.api.bm_a004.S3FileListRequest;
+import dev.web.api.bm_a004.S3FileListResponse;
 
 /**
  * S3 に出力されたバッチ成果物の件数取得 API。

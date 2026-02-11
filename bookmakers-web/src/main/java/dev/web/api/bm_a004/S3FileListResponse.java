@@ -1,4 +1,4 @@
-package dev.web.api.bm_w022;
+package dev.web.api.bm_a004;
 
 import java.util.List;
 
