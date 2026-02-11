@@ -177,5 +177,13 @@ s3-job:
       bucket: aws-s3-no-ecs-task-time-csv
       prefix: null
       recursive: true
-      
+     
+logging:
+  level:
+    root: INFO
+    dev.application: DEBUG
+    dev.common: DEBUG
+  pattern:
+    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n%ex{full}"
+
       
