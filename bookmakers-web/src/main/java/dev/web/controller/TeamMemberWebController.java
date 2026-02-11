@@ -15,7 +15,7 @@ import dev.web.api.bm_a004.TeamMemberDTO;
 import dev.web.api.bm_a004.TeamMemberRequest;
 import dev.web.api.bm_a004.TeamMemberResponse;
 import dev.web.api.bm_a004.TeamMemberSearchCondition;
-import dev.web.api.bm_a004.TeamMemberUpdateService;
+import dev.web.api.bm_a004.TeamMemberService;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -28,7 +28,7 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api")
 public class TeamMemberWebController {
 
-    private final TeamMemberUpdateService service;
+    private final TeamMemberService service;
 
     /**
      * team_member_master の未登録項目を更新する（未登録項目のみ反映）。

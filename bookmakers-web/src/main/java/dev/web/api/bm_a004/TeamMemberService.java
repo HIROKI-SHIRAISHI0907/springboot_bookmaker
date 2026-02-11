@@ -11,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
-public class TeamMemberUpdateService {
+public class TeamMemberService {
 
     private final TeamMemberMasterWebRepository repo;
 
