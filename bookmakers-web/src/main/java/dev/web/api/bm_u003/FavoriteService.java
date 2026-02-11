@@ -5,8 +5,8 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.web.api.bm_w017.CountryLeagueDTO;
-import dev.web.api.bm_w019.CountryLeagueSeasonDTO;
+import dev.web.api.bm_a002.CountryLeagueSeasonDTO;
+import dev.web.api.bm_a003.CountryLeagueDTO;
 import dev.web.repository.master.CountryLeagueMasterWebRepository;
 import dev.web.repository.master.CountryLeagueSeasonMasterWebRepository;
 import dev.web.repository.user.FavoriteRepository;

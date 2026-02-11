@@ -5,11 +5,11 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.web.api.bm_a004.S3FileCountRequest;
-import dev.web.api.bm_a004.S3FileCountResponse;
-import dev.web.api.bm_a004.S3FileCountService;
-import dev.web.api.bm_a004.S3FileListRequest;
-import dev.web.api.bm_a004.S3FileListResponse;
+import dev.web.api.bm_a006.S3FileCountRequest;
+import dev.web.api.bm_a006.S3FileCountResponse;
+import dev.web.api.bm_a006.S3FileCountService;
+import dev.web.api.bm_a006.S3FileListRequest;
+import dev.web.api.bm_a006.S3FileListResponse;
 
 /**
  * S3 に出力されたバッチ成果物の件数取得 API。
@@ -69,7 +69,7 @@ public class S3FileCountController {
      * POST /api/admin/s3/files/list
      * }</pre>
      *
-     * @param S3FileListRequest
+     * @param AllLeagueRequest
      * @return S3FileCountResponse
      */
     @PostMapping("/list")

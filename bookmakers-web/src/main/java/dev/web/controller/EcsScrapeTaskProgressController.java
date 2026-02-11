@@ -9,8 +9,8 @@ import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.web.api.bm_w021.EcsScrapeTaskProgressResponse;
-import dev.web.api.bm_w021.EcsScrapeTaskProgressService;
+import dev.web.api.bm_a008.EcsScrapeTaskProgressResponse;
+import dev.web.api.bm_a008.EcsScrapeTaskProgressService;
 import dev.web.batch.EcsScrapeTaskRunner;
 import lombok.RequiredArgsConstructor;
 

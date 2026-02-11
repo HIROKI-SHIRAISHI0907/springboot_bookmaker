@@ -11,13 +11,13 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.web.api.bm_w018.TeamMemberDTO;
-import dev.web.api.bm_w018.TeamMemberFindAllService;
-import dev.web.api.bm_w018.TeamMemberSearchCondition;
-import dev.web.api.bm_w018.TeamMemberSearchService;
-import dev.web.api.bm_w018.TeamMemberUpdateRequest;
-import dev.web.api.bm_w018.TeamMemberUpdateResponse;
-import dev.web.api.bm_w018.TeamMemberUpdateService;
+import dev.web.api.bm_a004.TeamMemberDTO;
+import dev.web.api.bm_a004.TeamMemberFindAllService;
+import dev.web.api.bm_a004.TeamMemberSearchCondition;
+import dev.web.api.bm_a004.TeamMemberSearchService;
+import dev.web.api.bm_a004.TeamMemberUpdateRequest;
+import dev.web.api.bm_a004.TeamMemberUpdateResponse;
+import dev.web.api.bm_a004.TeamMemberUpdateService;
 import lombok.RequiredArgsConstructor;
 
 /**
