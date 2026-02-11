@@ -26,8 +26,8 @@ public class SystemException extends RuntimeException {
 	 * @param errMethodName エラーメソッド名
 	 * @param message メッセージ
 	 */
-	public SystemException(String errProjectName, String errClassName, String errMethodName, String message) {
-		super(message);
+	public SystemException(String errProjectName, String errClassName, String errMethodName, String errCode) {
+		super(errCode);
 		this.errProjectName = errProjectName;
 		this.errClassName = errClassName;
 		this.errMethodName = errMethodName;
@@ -41,8 +41,8 @@ public class SystemException extends RuntimeException {
 	 * @param message メッセージ
 	 * @param throwable 例外クラス
 	 */
-	public SystemException(String errProjectName, String errClassName, String errMethodName, String message, Throwable throwable, Exception exceptionExp) {
-		super(message, throwable);
+	public SystemException(String errProjectName, String errClassName, String errMethodName, String errCode, Throwable throwable, Exception exceptionExp) {
+		super(errCode, throwable);
 		this.errProjectName = errProjectName;
 		this.errClassName = errClassName;
 		this.errMethodName = errMethodName;

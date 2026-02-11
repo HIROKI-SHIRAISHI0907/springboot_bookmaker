@@ -88,6 +88,15 @@ public class ManageLoggerComponentImpl implements ManageLoggerComponent {
 	@Override
 	public void createBusinessException(String projectName, String className, String methodName, String errorCode,
 			Throwable exception, Exception exceptionExp) {
+
+		// ★ログに必ず吐く（exceptionExpがあればそれ、無ければThrowableをException化）
+	    Exception toLog =
+	            (exceptionExp != null) ? exceptionExp
+	            : (exception instanceof Exception) ? (Exception) exception
+	            : new Exception(exception);
+
+	    BookMakerLogger.error(projectName, className, methodName, errorCode, toLog);
+
 		throw new BusinessException(
 				projectName,
 				className,
@@ -103,6 +112,15 @@ public class ManageLoggerComponentImpl implements ManageLoggerComponent {
 	@Override
 	public void createSystemException(String projectName, String className, String methodName, String errorCode,
 			Throwable exception, Exception exceptionExp) {
+
+		// ★ログに必ず吐く（exceptionExpがあればそれ、無ければThrowableをException化）
+	    Exception toLog =
+	            (exceptionExp != null) ? exceptionExp
+	            : (exception instanceof Exception) ? (Exception) exception
+	            : new Exception(exception);
+
+	    BookMakerLogger.error(projectName, className, methodName, errorCode, toLog);
+
 		throw new SystemException(
 				projectName,
 				className,
