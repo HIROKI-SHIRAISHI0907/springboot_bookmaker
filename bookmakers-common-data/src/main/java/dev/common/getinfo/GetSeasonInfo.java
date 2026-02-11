@@ -3,6 +3,8 @@ package dev.common.getinfo;
 import java.io.InputStream;
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -29,6 +31,9 @@ public class GetSeasonInfo {
 
 	/** クラス名 */
 	private static final String CLASS_NAME = GetSeasonInfo.class.getSimpleName();
+
+	/** LoggerFactory */
+	private static final Logger log = LoggerFactory.getLogger(GetSeasonInfo.class);
 
 	/** S3オペレーター */
 	@Autowired
@@ -57,6 +62,9 @@ public class GetSeasonInfo {
         String bucket = config.getS3BucketsTeamSeasonDateData();
         String key = "season_data.csv";                 // ★ バケット直下にある前提
         // もし "YYYY-mm-dd/season_data.csv" なら key をそれに合わせる
+        log.info("[B004] S3 bucket={} prefix={} ",
+	    		  bucket, key
+	    		);
 
         try (InputStream is = s3Operator.download(bucket, key)) {
             ReadFileOutputDTO dto = readSeason.getFileBodyFromStream(is, key);

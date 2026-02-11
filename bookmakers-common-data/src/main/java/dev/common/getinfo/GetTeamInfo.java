@@ -5,7 +5,10 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -32,6 +35,9 @@ public class GetTeamInfo {
 
 	/** クラス名 */
 	private static final String CLASS_NAME = GetTeamInfo.class.getSimpleName();
+
+	/** LoggerFactory */
+	private static final Logger log = LoggerFactory.getLogger(GetTeamInfo.class);
 
 	/** 取得バケット正規表現：teamData_X.csv */
 	private static final Pattern TEAMDATA_SEQ_CSV =
@@ -63,6 +69,12 @@ public class GetTeamInfo {
 
 	    String bucket = config.getS3BucketsTeamData();
 	    List<String> keys = s3Operator.listTeamDataKeysSortedBySeqAsc(bucket, TEAMDATA_SEQ_CSV);
+
+	    log.info("[B003] S3 bucket={} prefix={} keys.size={} keys(sample)={}",
+	    		  bucket, TEAMDATA_SEQ_CSV,
+	    		  (keys==null ? -1 : keys.size()),
+	    		  (keys==null ? null : keys.stream().limit(5).collect(Collectors.toList()))
+	    		);
 
 	    if (keys == null || keys.isEmpty()) {
 	    	String msgCd = MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP;

@@ -4,7 +4,10 @@ import java.io.InputStream;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -31,6 +34,9 @@ public class GetAllLeagueInfo {
 
 	/** クラス名 */
 	private static final String CLASS_NAME = GetAllLeagueInfo.class.getSimpleName();
+
+	/** LoggerFactory */
+	private static final Logger log = LoggerFactory.getLogger(GetAllLeagueInfo.class);
 
 	/** 取得バケット正規表現：all_league_master.csv */
 	private static final String ALLLEAGUEDATA_CSV = "all_league_master.csv";
@@ -61,6 +67,12 @@ public class GetAllLeagueInfo {
 
 	    String bucket = config.getS3BucketsAllLeagueData();
 	    List<String> keys = s3Operator.listKeysBySuffix(bucket, ALLLEAGUEDATA_CSV);
+
+	    log.info("[B007] S3 bucket={} prefix={} keys.size={} keys(sample)={}",
+	    		  bucket, ALLLEAGUEDATA_CSV,
+	    		  (keys==null ? -1 : keys.size()),
+	    		  (keys==null ? null : keys.stream().limit(5).collect(Collectors.toList()))
+	    		);
 
 	    if (keys == null || keys.isEmpty()) {
 	    	String msgCd = MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP;

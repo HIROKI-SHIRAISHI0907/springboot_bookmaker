@@ -10,6 +10,8 @@ import java.util.concurrent.Semaphore;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
@@ -38,6 +40,9 @@ public class GetStatInfo {
 
 	/** クラス名 */
 	private static final String CLASS_NAME = GetStatInfo.class.getSimpleName();
+
+	/** LoggerFactory */
+	private static final Logger log = LoggerFactory.getLogger(GetStatInfo.class);
 
 	/** 取得バケット正規表現：X.csv */
 	private static final Pattern SEQ_CSV_KEY =
@@ -73,6 +78,12 @@ public class GetStatInfo {
 
 	    String bucket = config.getS3BucketsStats();
 	    List<String> fileStatList = s3Operator.listSeqCsvKeysInRoot(bucket, SEQ_CSV_KEY);
+
+	    log.info("[B006] S3 bucket={} prefix={} keys.size={} keys(sample)={}",
+	    		  bucket, SEQ_CSV_KEY,
+	    		  (fileStatList==null ? -1 : fileStatList.size()),
+	    		  (fileStatList==null ? null : fileStatList.stream().limit(5).collect(Collectors.toList()))
+	    		);
 
 	    // csvNumber/csvBackNumber で連番範囲フィルタ
 	    fileStatList = filterKeysBySeqRange(fileStatList, csvNumber, csvBackNumber);

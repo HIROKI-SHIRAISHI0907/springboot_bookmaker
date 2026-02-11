@@ -13,6 +13,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -39,6 +41,9 @@ public class GetFutureInfo {
 
 	/** クラス名 */
 	private static final String CLASS_NAME = GetFutureInfo.class.getSimpleName();
+
+	/** LoggerFactory */
+	private static final Logger log = LoggerFactory.getLogger(GetFutureInfo.class);
 
 	/** 取得バケット正規表現：YYYY-mm-dd/.../future_X.csv */
 	private static final Pattern DATE_FUTURE_CSV_KEY =
@@ -76,6 +81,12 @@ public class GetFutureInfo {
 	            .stream()
 	            .map(o -> o.key())
 	            .collect(Collectors.toList());
+
+	    log.info("[B005] S3 bucket={} prefix={} keys.size={} keys(sample)={}",
+	    		  bucket, DATE_FUTURE_CSV_KEY,
+	    		  (fileStatList==null ? -1 : fileStatList.size()),
+	    		  (fileStatList==null ? null : fileStatList.stream().limit(5).collect(Collectors.toList()))
+	    		);
 
 	    Map<String, List<FutureEntity>> resultMap = new HashMap<>();
 

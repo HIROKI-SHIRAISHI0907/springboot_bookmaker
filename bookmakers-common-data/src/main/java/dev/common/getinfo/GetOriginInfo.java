@@ -18,6 +18,8 @@ import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -51,6 +53,9 @@ public class GetOriginInfo {
 
     private static final String CLASS_NAME = GetOriginInfo.class.getSimpleName();
 
+	/** LoggerFactory */
+	private static final Logger log = LoggerFactory.getLogger(GetOriginInfo.class);
+
     // 例: 2026-02-05/mid=d2thPpKD/seq=000035_20260205T000138Z.csv
     private static final Pattern OUTPUTS_CSV_KEY =
             Pattern.compile("^\\d{4}-\\d{2}-\\d{2}/mid=[^/]+/seq=.*\\.csv$");
@@ -75,6 +80,12 @@ public class GetOriginInfo {
 
         // 1) 全走査して matcher に合うkeyだけ抽出（S3OperatorにlistAllKeysが無いのでここでやる）
         List<String> matchedKeys = listAllMatchedKeys(bucket, OUTPUTS_CSV_KEY);
+
+	    log.info("[B001] S3 bucket={} prefix={} keys.size={} keys(sample)={}",
+	    		  bucket, OUTPUTS_CSV_KEY,
+	    		  (matchedKeys==null ? -1 : matchedKeys.size()),
+	    		  (matchedKeys==null ? null : matchedKeys.stream().limit(5).collect(Collectors.toList()))
+	    		);
 
         if (matchedKeys.isEmpty()) {
             manageLoggerComponent.debugInfoLog(

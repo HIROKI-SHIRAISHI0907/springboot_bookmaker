@@ -11,7 +11,10 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -37,6 +40,9 @@ public class GetTeamMemberInfo {
 
 	/** クラス名 */
 	private static final String CLASS_NAME = GetTeamMemberInfo.class.getSimpleName();
+
+	/** LoggerFactory */
+	private static final Logger log = LoggerFactory.getLogger(GetTeamMemberInfo.class);
 
 	/** 取得バケット正規表現：teamMemberData_X.csv */
 	private static final Pattern TEAM_MEMBER_SEQ =
@@ -68,6 +74,12 @@ public class GetTeamMemberInfo {
         String bucket = config.getS3BucketsTeamMemberData();
         // ✅ 連番昇順でキー取得（あなたのS3Operator実装でソート済み）
         List<String> keys = s3Operator.listSeqCsvKeysInRoot(bucket, TEAM_MEMBER_SEQ);
+
+	    log.info("[B002] S3 bucket={} prefix={} keys.size={} keys(sample)={}",
+	    		  bucket, TEAM_MEMBER_SEQ,
+	    		  (keys==null ? -1 : keys.size()),
+	    		  (keys==null ? null : keys.stream().limit(5).collect(Collectors.toList()))
+	    		);
 
         Map<String, List<TeamMemberMasterEntity>> resultMap = new HashMap<>();
 
