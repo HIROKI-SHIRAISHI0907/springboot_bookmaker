@@ -12,11 +12,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import dev.web.api.bm_a004.TeamMemberDTO;
-import dev.web.api.bm_a004.TeamMemberFindAllService;
-import dev.web.api.bm_a004.TeamMemberSearchCondition;
-import dev.web.api.bm_a004.TeamMemberSearchService;
 import dev.web.api.bm_a004.TeamMemberRequest;
 import dev.web.api.bm_a004.TeamMemberResponse;
+import dev.web.api.bm_a004.TeamMemberSearchCondition;
 import dev.web.api.bm_a004.TeamMemberUpdateService;
 import lombok.RequiredArgsConstructor;
 
@@ -31,10 +29,6 @@ import lombok.RequiredArgsConstructor;
 public class TeamMemberWebController {
 
     private final TeamMemberUpdateService service;
-
-    private final TeamMemberFindAllService allService;
-
-    private final TeamMemberSearchService searchService;
 
     /**
      * team_member_master の未登録項目を更新する（未登録項目のみ反映）。
@@ -67,7 +61,7 @@ public class TeamMemberWebController {
      */
     @GetMapping("/team-member-master")
     public ResponseEntity<List<TeamMemberDTO>> getAllTeamMembers() {
-        return ResponseEntity.ok(allService.getAll());
+        return ResponseEntity.ok(service.getAll());
     }
 
     /**
@@ -79,6 +73,6 @@ public class TeamMemberWebController {
     public ResponseEntity<List<TeamMemberDTO>> search(
             @ModelAttribute TeamMemberSearchCondition cond) {
 
-        return ResponseEntity.ok(searchService.search(cond));
+        return ResponseEntity.ok(service.search(cond));
     }
 }

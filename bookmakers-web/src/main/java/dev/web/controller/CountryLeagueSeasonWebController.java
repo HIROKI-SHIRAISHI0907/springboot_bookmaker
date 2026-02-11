@@ -12,11 +12,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import dev.web.api.bm_a002.CountryLeagueSeasonDTO;
-import dev.web.api.bm_a002.CountryLeagueSeasonFindAllService;
-import dev.web.api.bm_a002.CountryLeagueSeasonSearchCondition;
-import dev.web.api.bm_a002.CountryLeagueSeasonSearchService;
 import dev.web.api.bm_a002.CountryLeagueSeasonRequest;
 import dev.web.api.bm_a002.CountryLeagueSeasonResponse;
+import dev.web.api.bm_a002.CountryLeagueSeasonSearchCondition;
 import dev.web.api.bm_a002.CountryLeagueSeasonService;
 import lombok.RequiredArgsConstructor;
 
@@ -31,10 +29,6 @@ import lombok.RequiredArgsConstructor;
 public class CountryLeagueSeasonWebController {
 
     private final CountryLeagueSeasonService service;
-
-    private final CountryLeagueSeasonFindAllService allService;
-
-    private final CountryLeagueSeasonSearchService searchService;
 
     /**
      * country_league_season_master の link を更新する。
@@ -65,7 +59,7 @@ public class CountryLeagueSeasonWebController {
      */
     @GetMapping("/country-league-season-master")
     public ResponseEntity<List<CountryLeagueSeasonDTO>> findAll() {
-        return ResponseEntity.ok(allService.findAll());
+        return ResponseEntity.ok(service.findAll());
     }
 
     /**
@@ -76,6 +70,6 @@ public class CountryLeagueSeasonWebController {
     @GetMapping("/country-league-season-master/search")
     public ResponseEntity<List<CountryLeagueSeasonDTO>> search(
             @ModelAttribute CountryLeagueSeasonSearchCondition cond) {
-        return ResponseEntity.ok(searchService.search(cond));
+        return ResponseEntity.ok(service.search(cond));
     }
 }

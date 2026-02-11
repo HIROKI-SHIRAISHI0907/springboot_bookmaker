@@ -12,11 +12,9 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import dev.web.api.bm_a003.CountryLeagueDTO;
-import dev.web.api.bm_a003.CountryLeagueFindAllService;
-import dev.web.api.bm_a003.CountryLeagueSearchCondition;
-import dev.web.api.bm_a003.CountryLeagueService;
 import dev.web.api.bm_a003.CountryLeagueRequest;
 import dev.web.api.bm_a003.CountryLeagueResponse;
+import dev.web.api.bm_a003.CountryLeagueSearchCondition;
 import dev.web.api.bm_a003.CountryLeagueService;
 import lombok.RequiredArgsConstructor;
 
@@ -31,10 +29,6 @@ import lombok.RequiredArgsConstructor;
 public class CountryLeagueWebController {
 
 	private final CountryLeagueService service;
-
-    private final CountryLeagueFindAllService allService;
-
-    private final CountryLeagueService searchService;
 
     /**
      * team_member_master の未登録項目を更新する（未登録項目のみ反映）。
@@ -65,7 +59,7 @@ public class CountryLeagueWebController {
      */
     @GetMapping("/country-league-master")
     public ResponseEntity<List<CountryLeagueDTO>> findAll() {
-        return ResponseEntity.ok(allService.findAll());
+        return ResponseEntity.ok(service.findAll());
     }
 
     /**
@@ -76,6 +70,6 @@ public class CountryLeagueWebController {
     @GetMapping("/country-league-master/search")
     public ResponseEntity<List<CountryLeagueDTO>> search(
             @ModelAttribute CountryLeagueSearchCondition cond) {
-        return ResponseEntity.ok(searchService.search(cond));
+        return ResponseEntity.ok(service.search(cond));
     }
 }
