@@ -17,7 +17,8 @@ public interface TeamColorMasterRepository {
 			        country,
 			        league,
 			        team,
-			        team_color_hex,
+			        team_color_main_hex,
+			        team_color_sub_hex,
 			        register_id,
 			        register_time,
 			        update_id,
@@ -26,8 +27,12 @@ public interface TeamColorMasterRepository {
 			        #{country},
 			        #{league},
 			        #{team},
-			        #{teamColorHex},
-			        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)
+			        #{teamColorMainHex},
+			        #{teamColorSubHex},
+			        "SYSTEM",
+			        CURRENT_TIMESTAMP,
+			        "SYSTEM",
+			        CURRENT_TIMESTAMP
 			    );
 			""")
 	int insert(TeamColorMasterEntity entity);

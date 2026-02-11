@@ -25,7 +25,10 @@ public class TeamColorMasterEntity extends MetaEntity {
 	/** チーム */
 	private String team;
 
-	/** カラーコード */
-	private String teamColorHex;
+	/** メインカラーコード */
+	private String teamColorMainHex;
+
+	/** サブカラーコード */
+	private String teamColorSubHex;
 
 }
