@@ -29,9 +29,9 @@ public interface TeamColorMasterRepository {
 			        #{team},
 			        #{teamColorMainHex},
 			        #{teamColorSubHex},
-			        "SYSTEM",
+			        'SYSTEM',
 			        CURRENT_TIMESTAMP,
-			        "SYSTEM",
+			        'SYSTEM',
 			        CURRENT_TIMESTAMP
 			    );
 			""")
@@ -43,13 +43,14 @@ public interface TeamColorMasterRepository {
 			        country,
 			        league,
 			        team,
-			        team_color_hex
+			        team_color_main_hex,
+			        team_color_sub_hex
 			    FROM
 			    	team_color_master
 			    WHERE
 			        country = #{country} AND
 			        league = #{league} AND
-			        team = #{team};
+			        team = #{team} AND del_flg = '0';
 			""")
 	TeamColorMasterEntity findByCountryLeague(
 			@Param("country") String country,
@@ -63,7 +64,8 @@ public interface TeamColorMasterRepository {
 			        league,
 			        team
 			    FROM
-			    	team_color_master;
+			    	team_color_master
+			    WHERE del_flg = '0';
 			""")
 	List<TeamColorMasterEntity> findData();
 
