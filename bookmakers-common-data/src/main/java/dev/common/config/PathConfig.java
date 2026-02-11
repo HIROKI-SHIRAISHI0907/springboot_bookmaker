@@ -96,6 +96,12 @@ public class PathConfig {
 	private String s3BucketsStats;
 
 	/**
+	 * S3バケット（allLeague）
+	 */
+	@Value("${process.s3.buckets.allLeague}")
+	private String s3BucketsAllLeagueData;
+
+	/**
 	 * JSONフォルダ作成パスを返す
 	 * @return
 	 */
@@ -217,6 +223,15 @@ public class PathConfig {
 	 */
 	public String getS3BucketsStats() {
 	    return s3BucketsStats;
+	}
+
+	/**
+	 * AllLeagueData用のS3バケット名を取得する。
+	 *
+	 * @return AllLeagueData用S3バケット名
+	 */
+	public String getS3BucketsAllLeagueData() {
+	    return s3BucketsAllLeagueData;
 	}
 
 }

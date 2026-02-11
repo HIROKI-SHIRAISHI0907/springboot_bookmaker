@@ -18,6 +18,7 @@ process:
       outputs: aws-s3-outputs-csv
       future: aws-s3-future-csv
       stats: aws-s3-stat-csv
+      allLeague: aws-s3-all-league-csv
   
 spring:
   flyway:
