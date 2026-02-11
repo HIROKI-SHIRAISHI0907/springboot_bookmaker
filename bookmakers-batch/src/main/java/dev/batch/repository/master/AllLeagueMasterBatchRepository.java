@@ -28,7 +28,10 @@ public interface AllLeagueMasterBatchRepository {
 			    "    #{country},",
 			    "    #{league},",
 			    "    #{logicFlg},",
-			    "    #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz))",
+			    "    'SYSTEM', ",
+			    "    CURRENT_TIMESTAMP, ",
+			    "    'SYSTEM', ",
+			    "    CURRENT_TIMESTAMP)",
 			    //"#{registerId}, #{registerTime}, #{updateId}, #{updateTime});"
 	})
 	int insert(AllLeagueMasterEntity entity);

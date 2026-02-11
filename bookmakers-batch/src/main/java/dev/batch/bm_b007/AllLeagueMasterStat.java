@@ -52,21 +52,27 @@ public class AllLeagueMasterStat implements AllMasterEntityIF {
 
 		List<String> insertPath = new ArrayList<String>();
 		// 今後の全容マスタ情報を登録する
+		int skipped = 0;
+		int inserted = 0;
 		for (AllLeagueMasterEntity entity : entities) {
 			try {
 				AllLeagueMasterEntity insertEntities = this.allLeagueDBService
 						.selectInBatch(entity);
-				if (insertEntities == null) continue;
+				if (insertEntities == null) { skipped++; continue; }
 				int result = this.allLeagueDBService.insertInBatch(insertEntities);
 				if (result == 9) {
 					String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 					throw new Exception(messageCd);
 				}
+				inserted++;
 			} catch (Exception e) {
 				String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 				throw new Exception(messageCd, e);
 			}
 		}
+		manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
+			    "B007 summary: total=" + entities.size() + " skipped(existing)=" + skipped + " inserted=" + inserted);
+
 		// ファイル追加
 		insertPath.add(file);
 
