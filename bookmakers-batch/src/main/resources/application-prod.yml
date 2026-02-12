@@ -3,7 +3,7 @@ app:
   output-csv-folder: /tmp/outputs/
   team-csv-folder: /tmp/teams_by_league/
   future-csv-folder: /tmp/future/
-  b001-json-folder: /tmp/json/b001/
+  b001-json-folder: /tmp/json/
   
 process:
   python:

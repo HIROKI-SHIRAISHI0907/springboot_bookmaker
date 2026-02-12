@@ -9,7 +9,6 @@ import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import dev.common.entity.AllLeagueMasterEntity;
-import dev.common.entity.CountryLeagueMasterEntity;
 
 @Mapper
 public interface AllLeagueMasterBatchRepository {
@@ -80,9 +79,26 @@ public interface AllLeagueMasterBatchRepository {
 			    	league  = #{league} AND
 			    	logic_flg = '0';
 			""")
-	List<CountryLeagueMasterEntity> findActiveByCountryAndLeague(
+	List<AllLeagueMasterEntity> findActiveByCountryAndLeague(
 			@Param("country") String country,
 			@Param("league") String league);
+
+	/**
+	 * 指定した国・リーグの「論理削除（logic_flg=0）」一覧を取得(JSON用)
+	 */
+	@Select("""
+			    SELECT
+			    	id,
+			        country,
+			        league,
+			        logic_flg,
+			        disp_flg
+			    FROM
+			    	all_league_scrape_master
+			    WHERE
+			    	disp_flg = '0';
+			""")
+	List<AllLeagueMasterEntity> findActiveByCountryAndLeagueAtJson();
 
 	@Update("""
 			    UPDATE all_league_scrape_master
