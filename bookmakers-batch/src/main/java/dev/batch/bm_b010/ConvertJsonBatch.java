@@ -96,6 +96,7 @@ public class ConvertJsonBatch extends AbstractJobBatchTemplate {
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		// バケット名取得
+		String outputBucket = pathConfig.getS3BucketsOutputs();
 		String seasonBucket = pathConfig.getS3BucketsTeamSeasonDateData();
 		String teamBucket = pathConfig.getS3BucketsTeamData();
 		String teamMemberBucket = pathConfig.getS3BucketsTeamMemberData();
@@ -117,6 +118,7 @@ public class ConvertJsonBatch extends AbstractJobBatchTemplate {
 		makeJson(jsonPath, countryLeagueMap);
 
 		// upload
+		upload(outputBucket, s3Key, jsonFilePath);
 		upload(seasonBucket, s3Key, jsonFilePath);
 		upload(teamBucket, s3Key, jsonFilePath);
 		upload(teamMemberBucket, s3Key, jsonFilePath);
