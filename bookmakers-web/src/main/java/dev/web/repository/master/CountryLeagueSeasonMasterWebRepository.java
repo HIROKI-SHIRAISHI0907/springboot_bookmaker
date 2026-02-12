@@ -185,6 +185,29 @@ public class CountryLeagueSeasonMasterWebRepository {
 						.addValue("del_flg", del_flg));
 	}
 
+	/** 更新 */
+	public int updateById(String id, String country, String league, String seasonYear, String path, String delFlg) {
+	    String sql = """
+	        UPDATE country_league_season_master
+	        SET
+	          country = :country,
+	          league = :league,
+	          season_year = :seasonYear,
+	          path = :path,
+	          del_flg = :delFlg
+	        WHERE id = :id
+	    """;
+
+	    return masterJdbcTemplate.update(sql,
+	        new MapSqlParameterSource()
+	            .addValue("id", id)
+	            .addValue("country", country)
+	            .addValue("league", league)
+	            .addValue("seasonYear", seasonYear)
+	            .addValue("path", path)
+	            .addValue("delFlg", delFlg)
+	    );
+	}
 
     private boolean hasText(String s) {
         return s != null && !s.isBlank();

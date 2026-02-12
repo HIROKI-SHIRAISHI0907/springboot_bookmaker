@@ -92,6 +92,26 @@ public class CountryLeagueService {
 		}
 	}
 
+	/** 更新 */
+	public CountryLeagueResponse update(CountryLeagueRequest dto) {
+		CountryLeagueResponse res = new CountryLeagueResponse();
+
+		try {
+			int updated = repo.updateById(dto.getId(), dto.getCountry(),
+					dto.getLeague(), dto.getTeam(), dto.getLink());
+			if (updated == 1) {
+				res.setResponseCode("200");
+				res.setMessage("更新成功しました。");
+				return res;
+			}
+		} catch (Exception e) {
+			res.setResponseCode("500");
+			res.setMessage("システムエラーが発生しました。");
+			return res;
+		}
+		return res;
+	}
+
 	private boolean isBlank(String s) {
 		return s == null || s.trim().isEmpty();
 	}

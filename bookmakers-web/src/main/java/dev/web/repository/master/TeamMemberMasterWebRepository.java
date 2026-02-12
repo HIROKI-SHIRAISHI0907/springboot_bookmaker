@@ -8,6 +8,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.web.api.bm_a004.TeamMemberDTO;
+import dev.web.api.bm_a004.TeamMemberRequest;
 import dev.web.api.bm_a004.TeamMemberSearchCondition;
 
 /**
@@ -18,12 +19,12 @@ import dev.web.api.bm_a004.TeamMemberSearchCondition;
 @Repository
 public class TeamMemberMasterWebRepository {
 
-    private final NamedParameterJdbcTemplate bmJdbcTemplate;
+    private final NamedParameterJdbcTemplate masterJdbcTemplate;
 
     public TeamMemberMasterWebRepository(
-            @Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate
+            @Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate
     ) {
-        this.bmJdbcTemplate = bmJdbcTemplate;
+        this.masterJdbcTemplate = masterJdbcTemplate;
     }
 
  // --------------------------------------------------------
@@ -60,7 +61,7 @@ public class TeamMemberMasterWebRepository {
             ORDER BY id
         """;
 
-        return bmJdbcTemplate.query(sql, (rs, n) -> {
+        return masterJdbcTemplate.query(sql, (rs, n) -> {
         	TeamMemberDTO dto = new TeamMemberDTO();
             dto.setId(rs.getString("id"));
             dto.setCountry(rs.getString("country"));
@@ -154,7 +155,7 @@ public class TeamMemberMasterWebRepository {
         }
         sql.append(" ORDER BY id ");
 
-        return bmJdbcTemplate.query(sql.toString(), params, (rs, n) -> {
+        return masterJdbcTemplate.query(sql.toString(), params, (rs, n) -> {
             TeamMemberDTO dto = new TeamMemberDTO();
             dto.setId(rs.getString("id"));
             dto.setCountry(rs.getString("country"));
@@ -198,7 +199,7 @@ public class TeamMemberMasterWebRepository {
             LIMIT 1
         """;
 
-        List<Integer> list = bmJdbcTemplate.query(
+        List<Integer> list = masterJdbcTemplate.query(
             sql,
             new MapSqlParameterSource()
                 .addValue("team", team)
@@ -241,7 +242,7 @@ public class TeamMemberMasterWebRepository {
             WHERE id = :id
         """;
 
-        return bmJdbcTemplate.update(
+        return masterJdbcTemplate.update(
             sql,
             new MapSqlParameterSource()
                 .addValue("id", id)
@@ -253,6 +254,65 @@ public class TeamMemberMasterWebRepository {
                 .addValue("marketValue", marketValue)
                 .addValue("injury", injury)
                 .addValue("deadContractLine", deadContractLine)
+        );
+    }
+
+    /** 更新 */
+    public int updateById(TeamMemberRequest dto) {
+        String sql = """
+            UPDATE team_member_master
+            SET
+              country = :country,
+              league = :league,
+              team = :team,
+              score = :score,
+              loan_belong = :loanBelong,
+              jersey = :jersey,
+              member = :member,
+              face_pic_path = :facePicPath,
+              belong_list = :belongList,
+              height = :height,
+              weight = :weight,
+              position = :position,
+              birth = :birth,
+              age = :age,
+              market_value = :marketValue,
+              injury = :injury,
+              versus_team_score_data = :versusTeamScoreData,
+              retire_flg = :retireFlg,
+              deadline = :deadline,
+              deadline_contract_date = :deadlineContractDate,
+              latest_info_date = :latestInfoDate,
+              upd_stamp = :updStamp,
+              del_flg = :delFlg
+            WHERE id = :id
+        """;
+
+        return masterJdbcTemplate.update(sql, new MapSqlParameterSource()
+            .addValue("id", dto.getId())
+            .addValue("country", dto.getCountry())
+            .addValue("league", dto.getLeague())
+            .addValue("team", dto.getTeam())
+            .addValue("score", dto.getScore())
+            .addValue("loanBelong", dto.getLoanBelong())
+            .addValue("jersey", dto.getJersey())
+            .addValue("member", dto.getMember())
+            .addValue("facePicPath", dto.getFacePicPath())
+            .addValue("belongList", dto.getBelongList())
+            .addValue("height", dto.getHeight())
+            .addValue("weight", dto.getWeight())
+            .addValue("position", dto.getPosition())
+            .addValue("birth", dto.getBirth())
+            .addValue("age", dto.getAge())
+            .addValue("marketValue", dto.getMarketValue())
+            .addValue("injury", dto.getInjury())
+            .addValue("versusTeamScoreData", dto.getVersusTeamScoreData())
+            .addValue("retireFlg", dto.getRetireFlg())
+            .addValue("deadline", dto.getDeadline())
+            .addValue("deadlineContractDate", dto.getDeadlineContractDate())
+            .addValue("latestInfoDate", dto.getLatestInfoDate())
+            .addValue("updStamp", dto.getUpdStamp())
+            .addValue("delFlg", dto.getDelFlg())
         );
     }
 

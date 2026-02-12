@@ -217,6 +217,28 @@ public class CountryLeagueMasterWebRepository {
 	    });
 	}
 
+	/** 更新 */
+	public int updateById(String id, String country, String league, String team, String link) {
+	    String sql = """
+	        UPDATE country_league_master
+	        SET
+	          country = :country,
+	          league = :league,
+	          team = :team,
+	          link = :link
+	        WHERE id = :id
+	    """;
+
+	    return masterJdbcTemplate.update(sql,
+	        new MapSqlParameterSource()
+	            .addValue("id", id)
+	            .addValue("country", country)
+	            .addValue("league", league)
+	            .addValue("team", team)
+	            .addValue("link", link)
+	    );
+	}
+
 	/**
 	 * del_flgを1に更新する。
 	 *

@@ -10,6 +10,9 @@ import lombok.Data;
 @Data
 public class TeamMemberRequest {
 
+	/** ID */ //設定あり
+	private String id;
+
 	/** 国 */ //設定あり
 	private String country;
 
@@ -69,5 +72,14 @@ public class TeamMemberRequest {
 
 	/** 期限付き契約期限 */ //設定あり
 	private String deadlineContractDate;
+
+	/** 最新情報断面日付 */ //設定あり
+	private String latestInfoDate;
+
+	/** 更新済みスタンプ */
+	private String updStamp;
+
+	/** 削除フラグ */
+	private String delFlg;
 
 }

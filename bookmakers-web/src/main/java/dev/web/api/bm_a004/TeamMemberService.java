@@ -79,6 +79,24 @@ public class TeamMemberService {
         }
     }
 
+    /** 更新 */
+	public TeamMemberResponse update(TeamMemberRequest dto) {
+		TeamMemberResponse res = new TeamMemberResponse();
+		try {
+			int updated = repo.updateById(dto);
+			if (updated == 1) {
+				res.setResponseCode("200");
+				res.setMessage("更新成功しました。");
+				return res;
+			}
+		} catch (Exception e) {
+			res.setResponseCode("500");
+			res.setMessage("システムエラーが発生しました。");
+			return res;
+		}
+		return res;
+	}
+
     private boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
     }

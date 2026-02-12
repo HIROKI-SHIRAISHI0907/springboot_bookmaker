@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -28,48 +29,53 @@ import lombok.RequiredArgsConstructor;
 @RequestMapping("/api")
 public class CountryLeagueSeasonWebController {
 
-    private final CountryLeagueSeasonService service;
+	private final CountryLeagueSeasonService service;
 
-    /**
-     * country_league_season_master の link を更新する。
-     *
-     * PATCH /api/country-league-season-master
-     */
-    @PatchMapping("/country-league-season-master")
-    public ResponseEntity<CountryLeagueSeasonResponse> patchCountryLeagueSeasonMaster(
-            @RequestBody CountryLeagueSeasonRequest req) {
+	/**
+	 * country_league_season_master の link を更新する。
+	 *
+	 * PATCH /api/country-league-season-master
+	 */
+	@PatchMapping("/country-league-season-master")
+	public ResponseEntity<CountryLeagueSeasonResponse> patchCountryLeagueSeasonMaster(
+			@RequestBody CountryLeagueSeasonRequest req) {
 
-        CountryLeagueSeasonResponse res = service.patchLink(req);
+		CountryLeagueSeasonResponse res = service.patchLink(req);
 
-        HttpStatus status = switch (res.getResponseCode()) {
-            case "200" -> HttpStatus.OK;                    // SUCCESS
-            case "400" -> HttpStatus.BAD_REQUEST;           // 必須不足
-            case "404" -> HttpStatus.NOT_FOUND;             // NOT_FOUND
-            case "409" -> HttpStatus.CONFLICT;              // LINK_ALREADY_USED
-            default -> HttpStatus.INTERNAL_SERVER_ERROR;    // ERROR
-        };
+		HttpStatus status = switch (res.getResponseCode()) {
+		case "200" -> HttpStatus.OK; // SUCCESS
+		case "400" -> HttpStatus.BAD_REQUEST; // 必須不足
+		case "404" -> HttpStatus.NOT_FOUND; // NOT_FOUND
+		case "409" -> HttpStatus.CONFLICT; // LINK_ALREADY_USED
+		default -> HttpStatus.INTERNAL_SERVER_ERROR; // ERROR
+		};
 
-        return ResponseEntity.status(status).body(res);
-    }
+		return ResponseEntity.status(status).body(res);
+	}
 
-    /**
-     * country_league_season_master を全件取得する。
-     *
-     * GET /api/country-league-season-master
-     */
-    @GetMapping("/country-league-season-master")
-    public ResponseEntity<List<CountryLeagueSeasonDTO>> findAll() {
-        return ResponseEntity.ok(service.findAll());
-    }
+	/**
+	 * country_league_season_master を全件取得する。
+	 *
+	 * GET /api/country-league-season-master
+	 */
+	@GetMapping("/country-league-season-master")
+	public ResponseEntity<List<CountryLeagueSeasonDTO>> findAll() {
+		return ResponseEntity.ok(service.findAll());
+	}
 
-    /**
-     * country_league_season_master を条件検索する（指定された条件のみ WHERE に効く）。
-     *
-     * GET /api/country-league-season-master/search
-     */
-    @GetMapping("/country-league-season-master/search")
-    public ResponseEntity<List<CountryLeagueSeasonDTO>> search(
-            @ModelAttribute CountryLeagueSeasonSearchCondition cond) {
-        return ResponseEntity.ok(service.search(cond));
-    }
+	/**
+	 * country_league_season_master を条件検索する（指定された条件のみ WHERE に効く）。
+	 *
+	 * GET /api/country-league-season-master/search
+	 */
+	@GetMapping("/country-league-season-master/search")
+	public ResponseEntity<List<CountryLeagueSeasonDTO>> search(
+			@ModelAttribute CountryLeagueSeasonSearchCondition cond) {
+		return ResponseEntity.ok(service.search(cond));
+	}
+
+	@PostMapping("/country-league-season-master/update")
+	public ResponseEntity<CountryLeagueSeasonResponse> update(@RequestBody CountryLeagueSeasonDTO dto) {
+		return ResponseEntity.ok(service.update(dto));
+	}
 }

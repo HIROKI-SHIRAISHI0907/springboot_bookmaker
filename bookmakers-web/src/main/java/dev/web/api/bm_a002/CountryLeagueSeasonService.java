@@ -18,74 +18,94 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CountryLeagueSeasonService {
 
-    private final CountryLeagueSeasonMasterWebRepository repo;
+	private final CountryLeagueSeasonMasterWebRepository repo;
 
-    @Transactional(readOnly = true)
-    public List<CountryLeagueSeasonDTO> findAll() {
-        return repo.findAll();
-    }
+	@Transactional(readOnly = true)
+	public List<CountryLeagueSeasonDTO> findAll() {
+		return repo.findAll();
+	}
 
-    @Transactional(readOnly = true)
-    public List<CountryLeagueSeasonDTO> search(CountryLeagueSeasonSearchCondition cond) {
-        return repo.search(cond);
-    }
+	@Transactional(readOnly = true)
+	public List<CountryLeagueSeasonDTO> search(CountryLeagueSeasonSearchCondition cond) {
+		return repo.search(cond);
+	}
 
-    @Transactional
-    public CountryLeagueSeasonResponse patchLink(CountryLeagueSeasonRequest req) {
-        CountryLeagueSeasonResponse res = new CountryLeagueSeasonResponse();
+	@Transactional
+	public CountryLeagueSeasonResponse patchLink(CountryLeagueSeasonRequest req) {
+		CountryLeagueSeasonResponse res = new CountryLeagueSeasonResponse();
 
-        // 必須チェック
-        if (isBlank(req.getCountry())
-                || isBlank(req.getLeague())
-                || isBlank(req.getSeasonYear())
-                || isBlank(req.getPath())) {
+		// 必須チェック
+		if (isBlank(req.getCountry())
+				|| isBlank(req.getLeague())
+				|| isBlank(req.getSeasonYear())
+				|| isBlank(req.getPath())) {
 
-            res.setResponseCode("400");
-            res.setMessage("必須項目が未入力です。");
-            return res;
-        }
+			res.setResponseCode("400");
+			res.setMessage("必須項目が未入力です。");
+			return res;
+		}
 
-        // link重複チェック（自分自身は除外）
-        if (repo.existsPathOtherThanKey(
-                req.getCountry(),
-                req.getLeague(),
-                req.getSeasonYear(),
-                req.getPath())) {
-            res.setResponseCode("409");
-            res.setMessage("すでに使用されているリンクです。");
-            return res;
-        }
+		// link重複チェック（自分自身は除外）
+		if (repo.existsPathOtherThanKey(
+				req.getCountry(),
+				req.getLeague(),
+				req.getSeasonYear(),
+				req.getPath())) {
+			res.setResponseCode("409");
+			res.setMessage("すでに使用されているリンクです。");
+			return res;
+		}
 
-        try {
-        	int updated = repo.updatePath(
-                    req.getCountry(),
-                    req.getLeague(),
-                    req.getSeasonYear(),
-                    req.getPath());
+		try {
+			int updated = repo.updatePath(
+					req.getCountry(),
+					req.getLeague(),
+					req.getSeasonYear(),
+					req.getPath());
 
-            if (updated == 1) {
-                res.setResponseCode("200");
-                res.setMessage("更新成功しました。");
-            } else {
-                res.setResponseCode("404");
-                res.setMessage("更新対象が存在しません。");
-            }
-            return res;
+			if (updated == 1) {
+				res.setResponseCode("200");
+				res.setMessage("更新成功しました。");
+			} else {
+				res.setResponseCode("404");
+				res.setMessage("更新対象が存在しません。");
+			}
+			return res;
 
-        } catch (DataIntegrityViolationException e) {
-            // DBユニーク制約がある場合の最終防衛線
-            res.setResponseCode("409");
-            res.setMessage("すでに使用されているリンクです。");
-            return res;
+		} catch (DataIntegrityViolationException e) {
+			// DBユニーク制約がある場合の最終防衛線
+			res.setResponseCode("409");
+			res.setMessage("すでに使用されているリンクです。");
+			return res;
 
-        } catch (Exception e) {
-            res.setResponseCode("500");
-            res.setMessage("システムエラーが発生しました。");
-            return res;
-        }
-    }
+		} catch (Exception e) {
+			res.setResponseCode("500");
+			res.setMessage("システムエラーが発生しました。");
+			return res;
+		}
+	}
 
-    private boolean isBlank(String s) {
-        return s == null || s.trim().isEmpty();
-    }
+	/** 更新 */
+	public CountryLeagueSeasonResponse update(CountryLeagueSeasonDTO dto) {
+		CountryLeagueSeasonResponse res = new CountryLeagueSeasonResponse();
+
+		try {
+			int updated = repo.updateById(dto.getId(), dto.getCountry(), dto.getLeague(), dto.getSeasonYear(), dto.getPath(),
+					dto.getDelFlg());
+			if (updated == 1) {
+				res.setResponseCode("200");
+				res.setMessage("更新成功しました。");
+				return res;
+			}
+		} catch (Exception e) {
+			res.setResponseCode("500");
+			res.setMessage("システムエラーが発生しました。");
+			return res;
+		}
+		return res;
+	}
+
+	private boolean isBlank(String s) {
+		return s == null || s.trim().isEmpty();
+	}
 }

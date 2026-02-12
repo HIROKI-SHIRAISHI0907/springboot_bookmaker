@@ -10,6 +10,9 @@ import lombok.Data;
 @Data
 public class CountryLeagueSeasonDTO {
 
+	/** ID */
+	private String id;
+
 	/** 国 */
 	private String country;
 
