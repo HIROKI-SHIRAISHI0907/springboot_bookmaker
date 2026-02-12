@@ -17,31 +17,32 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class AllLeagueService {
 
-    private final AllLeagueMasterWebRepository repo;
+	private final AllLeagueMasterWebRepository repo;
 
-    /**
+	/**
 	 * 全選択
 	 */
 	@Transactional(readOnly = true)
-    public List<AllLeagueDTO> findAll() {
+	public List<AllLeagueDTO> findAll() {
 		List<AllLeagueDTO> result = repo.findAll();
-        return result;
-    }
+		return result;
+	}
 
-    /**
+	/**
 	 * 更新
 	 */
 	@Transactional
-    public AllLeagueResponse upsert(String country, String league, String logicFlg, String dispFlg) {
+	public AllLeagueResponse upsert(String country, String league, String logicFlg, String dispFlg) {
 		AllLeagueResponse res = new AllLeagueResponse();
 		int result = repo.update(country, league, logicFlg, dispFlg);
-        if (result == 0) {
-        	res.setResponseCode("9");
-    	    res.setMessage("更新エラー");
-    	    return res;
-        }
-        res.setResponseCode("0");
-	    res.setMessage("OK");
-        return res;
-    }
+		if (result == 0) {
+			res.setResponseCode("9");
+			res.setMessage("更新エラー");
+			return res;
+		}
+		res.setResponseCode("0");
+		res.setMessage("OK");
+		return res;
+	}
+
 }

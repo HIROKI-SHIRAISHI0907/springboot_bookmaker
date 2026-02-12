@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -25,7 +26,7 @@ import lombok.RequiredArgsConstructor;
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/v1/api")
+@RequestMapping("/api")
 public class AllLeagueWebController {
 
 	private final AllLeagueService service;
@@ -93,6 +94,11 @@ public class AllLeagueWebController {
 
 	@GetMapping("/all-league-master")
 	public ResponseEntity<List<AllLeagueDTO>> findAll() {
+		return ResponseEntity.ok(service.findAll());
+	}
+
+	@PostMapping("/all-league-master/json")
+	public ResponseEntity<List<AllLeagueDTO>> execJson() {
 		return ResponseEntity.ok(service.findAll());
 	}
 }
