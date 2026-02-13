@@ -45,9 +45,9 @@ public class GetFutureInfo {
 	/** LoggerFactory */
 	private static final Logger log = LoggerFactory.getLogger(GetFutureInfo.class);
 
-	/** 取得バケット正規表現：YYYY-mm-dd/.../future_X.csv */
+	/** 取得バケット正規表現：future_X.csv */
 	private static final Pattern DATE_FUTURE_CSV_KEY =
-	        Pattern.compile("^\\d{4}-\\d{2}-\\d{2}/.*future_[^/]+\\.csv$");
+			Pattern.compile("^.*future_[^/]+\\.csv$");
 
 	/** S3オペレーター */
 	@Autowired
