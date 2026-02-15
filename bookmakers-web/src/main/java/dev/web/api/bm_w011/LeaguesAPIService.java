@@ -59,6 +59,7 @@ public class LeaguesAPIService {
             info.setName(r.league);
             info.setTeamCount(r.getTeamCount() != null ? r.getTeamCount().intValue() : 0);
             info.setPath("/" + repo.toPath(r.country) + "/" + repo.toPath(r.league));
+            info.setRoutingPath(r.path);
 
             group.getLeagues().add(info);
         }
@@ -89,6 +90,8 @@ public class LeaguesAPIService {
             t.setPath(path);
             String apiPath = "/api/leagues/" + repo.toPath(r.country) + "/" + repo.toPath(r.league) + "/" + english;
             t.setApiPath(apiPath);
+            // ルーティングをlinkにする
+            t.setRoutingPath(r.link);
 
             teams.add(t);
         }

@@ -36,6 +36,7 @@ public class LeaguesRepository {
         public String country;
         public String league;
         public Long teamCount;
+        public String path;
     }
 
     @Data
@@ -70,12 +71,21 @@ public class LeaguesRepository {
 
     /** country, league ごとのチーム数 */
     public List<LeagueCountRow> findLeagueCounts() {
-        String sql = """
-            SELECT country, league, COUNT(*) AS team_count
-            FROM country_league_master
-            GROUP BY country, league
-            ORDER BY country, league
-            """;
+    	String sql = """
+    	        SELECT
+    	            s.country,
+    	            s.league,
+    	            s.path,
+    	            COUNT(c.*) AS team_count
+    	        FROM country_league_season_master s
+    	        LEFT JOIN country_league_master c
+    	          ON c.country = s.country
+    	         AND c.league  = s.league
+    	        GROUP BY
+    	            s.country, s.league, s.path
+    	        ORDER BY
+    	            s.country, s.league, s.path
+    	        """;
 
         return masterJdbcTemplate.query(
                 sql,

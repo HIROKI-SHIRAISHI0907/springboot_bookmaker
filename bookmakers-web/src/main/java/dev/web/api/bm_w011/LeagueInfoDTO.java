@@ -16,4 +16,8 @@ public class LeagueInfoDTO {
 
     /** パス */
     private String path; // "/<country>/<league>"
+
+    /** ルーティングパス */
+    private String routingPath;
+
 }

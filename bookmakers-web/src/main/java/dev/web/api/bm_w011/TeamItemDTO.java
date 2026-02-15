@@ -26,4 +26,7 @@ public class TeamItemDTO {
 
     /** APIパス */
     private String apiPath;   // /api/leagues/<country>/<league>/<english>
+
+    /** ルーティングパス */
+    private String routingPath;   // /team/xxxx/XXXXXX
 }
