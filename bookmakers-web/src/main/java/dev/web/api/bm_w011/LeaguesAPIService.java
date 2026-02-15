@@ -67,9 +67,10 @@ public class LeaguesAPIService {
         return new ArrayList<>(map.values());
     }
 
-    /** GET /api/leagues/{country}/{league} */
+    /** GET /api/leagues/{country}/{league} country:england, league:premier-league*/
     public TeamsInLeagueResponse getTeamsInLeague(String country, String league) {
-        List<TeamRow> rows = repo.findTeamsInLeague(country, league);
+        List<TeamRow> rows = repo.findTeamsInLeagueOnSlug(country, league);
+        System.out.println(rows);
 
         TeamsInLeagueResponse res = new TeamsInLeagueResponse();
         res.setCountry(country);

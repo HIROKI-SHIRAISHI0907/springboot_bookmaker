@@ -112,6 +112,24 @@ public class LeaguesRepository {
         );
     }
 
+    /** 国＋リーグのチーム一覧(英語名) */
+    public List<TeamRow> findTeamsInLeagueOnSlug(String country, String league) {
+        String sql = """
+            SELECT clm.id, clm.country, clm.league, clm.team, clm.link
+            FROM country_league_master clm
+            INNER JOIN country_league_season_master clsm
+              ON clm.country = clsm.country
+             AND clm.league  = clsm.league
+             WHERE clsm.path = :path
+            ORDER BY clm.team
+            """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+        		.addValue("path", "/soccer/" + country + "/" + league + "/");
+
+        return masterJdbcTemplate.query(sql, params, new BeanPropertyRowMapper<>(TeamRow.class));
+    }
+
     /** 指定チーム詳細 (1件のみ) */
     public TeamRow findTeamDetail(String country, String league, String teamEnglish) {
         String sql = """
