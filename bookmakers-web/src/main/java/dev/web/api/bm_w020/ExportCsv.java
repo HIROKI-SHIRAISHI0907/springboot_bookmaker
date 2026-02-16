@@ -142,6 +142,13 @@ public class ExportCsv {
 		List<List<Integer>> textGroups;
 
 		boolean firstRun = !Files.exists(seqListPath);
+		this.manageLoggerComponent.debugInfoLog(
+			    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+			    MessageCdConst.MCD00099I_LOG,
+			    "firstRun=" + firstRun
+			      + ", seqListExists=" + Files.exists(seqListPath)
+			      + ", hasLocalCsv=" + (!firstRun ? "unknown" : "maybe false")
+			);
 		if (firstRun) {
 			// 初回：全て新規対象。先に現在の定義を書き出しておく（異常終了でも痕跡が残る）
 			fileIO.write(SEQ_LIST, currentGroups.toString());
@@ -155,6 +162,12 @@ public class ExportCsv {
 
 		// 既存CSV(すでに作成されている対戦チーム-CSV番号キー,通番リスト)
 		Map<String, List<Integer>> csvInfoRow = (bean != null ? bean.getCsvInfo() : null);
+
+		this.manageLoggerComponent.debugInfoLog(
+			    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+			    MessageCdConst.MCD00099I_LOG,
+			    "calling matchSeqCombPlan"
+			);
 
 		// 3) 照合して「完全一致なら終了」/「新規・再作成」に分類
 		CsvBuildPlan plan = null;
