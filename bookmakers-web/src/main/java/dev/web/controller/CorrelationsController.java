@@ -17,14 +17,13 @@ public class CorrelationsController {
 
 	private final CorrelationsAPIService service;
 
-	@GetMapping("/{country}/{league}/{team}")
+	@GetMapping("/{teamEnglish}/{teamHash}")
 	public ResponseEntity<?> getCorrelations(
-			@PathVariable String country,
-			@PathVariable String league,
-			@PathVariable String team,
+            @PathVariable String teamEnglish,
+            @PathVariable String teamHash,
 			@RequestParam(required = false) String opponent) {
 
-		var dto = service.getCorrelations(country, league, team, opponent);
+		var dto = service.getCorrelations(teamEnglish, teamHash, opponent);
 		if (dto == null) {
 			return ResponseEntity.status(404)
 					.body(java.util.Map.of("message", "team not found"));

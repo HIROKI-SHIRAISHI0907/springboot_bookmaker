@@ -17,12 +17,12 @@ public class RankHistoryController {
     private final RankHistoryAPIService service;
 
     /**
-     * GET /api/rank-history/{country}/{league}
+     * GET /api/rank-history/{teamEnglish}/{teamHash}
      */
-    @GetMapping("/rank-history/{country}/{league}")
+    @GetMapping("/rank-history/{teamEnglish}/{teamHash}")
     public RankHistoryResponse getRankHistory(
-            @PathVariable String country,
-            @PathVariable String league) {
-        return service.getRankHistory(country, league);
+            @PathVariable String teamEnglish,
+            @PathVariable String teamHash) {
+        return service.getRankHistory(teamEnglish, teamHash);
     }
 }

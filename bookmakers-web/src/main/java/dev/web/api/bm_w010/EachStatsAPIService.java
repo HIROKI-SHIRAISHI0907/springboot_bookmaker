@@ -14,6 +14,8 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import dev.web.repository.bm.EachStatsRepository;
+import dev.web.repository.bm.LeaguesRepository;
+import dev.web.repository.bm.LeaguesRepository.TeamRow;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -25,16 +27,20 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class EachStatsAPIService {
 
+	private final LeaguesRepository leagueRepo;
+
     private final EachStatsRepository repo;
 
-    public TeamStatsResponse getStats(String country, String league, String teamSlug) {
+    public TeamStatsResponse getStats(String teamEnglish, String teamHash) {
 
         // 1) スラッグ → 日本語チーム名
-        String teamJa = repo.findTeamName(country, league, teamSlug);
+    	TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
+        if (teamInfo == null) return null;
 
         // 2) 生の行を取得
         List<Map<String, Object>> rows =
-                repo.findStatsRows(country, league, teamJa);
+                repo.findStatsRows(teamInfo.getCountry(), teamInfo.getLeague(),
+                		teamInfo.getTeam());
 
         // 3) HOME / AWAY の Map を構築
         Map<String, Map<String, String>> home = new LinkedHashMap<>();
@@ -97,7 +103,7 @@ public class EachStatsAPIService {
         rawStats.setAWAY(away);
 
         TeamStatsMetaDTO meta = new TeamStatsMetaDTO();
-        meta.setTeamJa(teamJa);
+        meta.setTeamJa(teamInfo.getTeam());
         meta.setSituations(new ArrayList<>(situationsSet));
         meta.setScores(scores);
 

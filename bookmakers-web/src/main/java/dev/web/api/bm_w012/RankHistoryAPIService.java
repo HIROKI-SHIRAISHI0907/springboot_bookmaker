@@ -5,6 +5,8 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import dev.web.repository.bm.LeaguesRepository;
+import dev.web.repository.bm.LeaguesRepository.TeamRow;
 import dev.web.repository.bm.RankHistoryRepository;
 import dev.web.repository.bm.RankHistoryRepository.RankHistoryRow;
 import lombok.RequiredArgsConstructor;
@@ -18,10 +20,15 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class RankHistoryAPIService {
 
+	private final LeaguesRepository leagueRepo;
+
     private final RankHistoryRepository repo;
 
-    public RankHistoryResponse getRankHistory(String country, String league) {
-        List<RankHistoryRow> rows = repo.findRankHistory(country, league);
+    public RankHistoryResponse getRankHistory(String teamEnglish, String teamHash) {
+    	TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
+        if (teamInfo == null) return null;
+
+        List<RankHistoryRow> rows = repo.findRankHistory(teamInfo.getCountry(), teamInfo.getLeague());
 
         List<RankHistoryPointResponse> items = new ArrayList<>();
         for (RankHistoryRow r : rows) {

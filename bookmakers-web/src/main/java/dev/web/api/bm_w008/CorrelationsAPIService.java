@@ -9,6 +9,8 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import dev.web.repository.bm.CorrelationsRepository;
+import dev.web.repository.bm.LeaguesRepository;
+import dev.web.repository.bm.LeaguesRepository.TeamRow;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -20,16 +22,19 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class CorrelationsAPIService {
 
+	private final LeaguesRepository leagueRepo;
+
     private final CorrelationsRepository repo;
 
     public TeamCorrelationsResponse getCorrelations(
-            String country, String league, String teamSlug, String opponentFilter) {
+            String teamEnglish, String teamHash, String opponentFilter) {
 
-        String teamName = repo.findTeamName(country, league, teamSlug);
-        if (teamName == null) return null;
+        TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
+        if (teamInfo == null) return null;
 
         List<Map<String, Object>> rows =
-                repo.findCorrelationRows(country, league, teamName, opponentFilter);
+                repo.findCorrelationRows(teamInfo.getCountry(), teamInfo.getLeague(),
+                		teamInfo.getTeam(), opponentFilter);
 
         // opponent 候補
         List<String> opponents = rows.stream()
@@ -43,9 +48,9 @@ public class CorrelationsAPIService {
         CorrelationsBySideDTO bySide = buildCorrelations(rows);
 
         TeamCorrelationsResponse res = new TeamCorrelationsResponse();
-        res.setTeam(teamName);
-        res.setCountry(country);
-        res.setLeague(league);
+        res.setTeam(teamInfo.getTeam());
+        res.setCountry(teamInfo.getCountry());
+        res.setLeague(teamInfo.getLeague());
         res.setOpponent(opponentFilter);
         res.setOpponents(opponents);
         res.setCorrelations(bySide);

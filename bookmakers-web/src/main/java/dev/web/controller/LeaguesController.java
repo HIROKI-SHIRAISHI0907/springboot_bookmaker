@@ -44,14 +44,13 @@ public class LeaguesController {
         return service.getTeamsInLeague(country, league);
     }
 
-    /** GET /api/leagues/{country}/{league}/{team} - チーム詳細 */
-    @GetMapping("/leagues/{country}/{league}/{team}")
+    /** GET /api/leagues/{teamEnglish}/{teamHash}/teamDetail - チーム詳細 */
+    @GetMapping("/leagues/{teamEnglish}/{teamHash}/teamDetail")
     public TeamDetailResponse getTeamDetail(
-            @PathVariable String country,
-            @PathVariable String league,
-            @PathVariable("team") String teamEnglish) {
+            @PathVariable String teamEnglish,
+            @PathVariable String teamHash) {
 
-        TeamDetailResponse res = service.getTeamDetail(country, league, teamEnglish);
+        TeamDetailResponse res = service.getTeamDetail(teamEnglish, teamHash);
         if (res == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "team not found");
         }

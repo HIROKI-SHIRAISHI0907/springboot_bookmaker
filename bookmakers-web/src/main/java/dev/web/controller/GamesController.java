@@ -1,19 +1,17 @@
 // src/main/java/dev/web/controller/GamesController.java
 package dev.web.controller;
 
-import java.util.ArrayList;
-import java.util.List;
-
-import org.springframework.http.ResponseEntity;
+import org.springframework.http.HttpStatus;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
-import dev.web.api.bm_w005.GameMatchDTO;
+import dev.web.api.bm_w005.GameAPIService;
 import dev.web.api.bm_w005.GameMatchesResponse;
-import dev.web.repository.bm.GamesRepository;
+import lombok.RequiredArgsConstructor;
 
 /**
  * GamesAPI コントローラー
@@ -27,52 +25,23 @@ import dev.web.repository.bm.GamesRepository;
  */
 @RestController
 @RequestMapping("/api/games")
+@RequiredArgsConstructor
 public class GamesController {
 
-    private final GamesRepository gamesRepository;
+	private final GameAPIService service;
 
-    public GamesController(GamesRepository gamesRepository) {
-        this.gamesRepository = gamesRepository;
-    }
-
-    @GetMapping("/{country}/{league}/{team}")
-    public ResponseEntity<?> getTeamGames(
-            @PathVariable("country") String country,
-            @PathVariable("league") String league,
-            @PathVariable("team") String teamSlug
+    @GetMapping("/{teamEnglish}/{teamHash}")
+    public GameMatchesResponse getTeamGames(
+            @PathVariable String teamEnglish,
+            @PathVariable String teamHash
     ) {
 
-        if (!StringUtils.hasText(country) || !StringUtils.hasText(league) || !StringUtils.hasText(teamSlug)) {
-            return ResponseEntity.badRequest()
-                    .body(new SimpleMessage("country/league/team are required"));
+        if (!StringUtils.hasText(teamEnglish) || !StringUtils.hasText(teamHash)) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND,
+            		"country/league/team are required");
         }
 
-        try {
-            // スラッグ -> 日本語名
-            String teamJa = gamesRepository.findTeamJa(country, league, teamSlug);
-
-            // 試合一覧取得（LIVE/FINISHED 混在）
-            List<GameMatchDTO> all = gamesRepository.findGamesForTeam(country, league, teamJa);
-
-            List<GameMatchDTO> live = new ArrayList<>();
-            List<GameMatchDTO> finished = new ArrayList<>();
-
-            for (GameMatchDTO dto : all) {
-                if ("FINISHED".equalsIgnoreCase(dto.getStatus())) {
-                    finished.add(dto);
-                } else {
-                    live.add(dto);
-                }
-            }
-
-            GameMatchesResponse body = new GameMatchesResponse(live, finished);
-            return ResponseEntity.ok(body);
-
-        } catch (Exception e) {
-            e.printStackTrace();
-            return ResponseEntity.internalServerError()
-                    .body(new SimpleMessage("server error: " + e.getMessage()));
-        }
+        return service.getTeamGames(teamEnglish, teamHash);
     }
 
     // ---------- private helpers ----------

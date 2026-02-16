@@ -17,18 +17,17 @@ public class EachStatsController {
     private final EachStatsAPIService service;
 
     /**
-     * GET /api/stats/{country}/{league}/{team}
+     * GET /api/stats/{teamEnglish}/{teamHash}
      *
-     * frontend: fetchTeamFeatureStats(country, league, teamSlug)
+     * frontend: fetchTeamFeatureStats(teamEnglish, teamHash)
      */
-    @GetMapping("/{country}/{league}/{team}")
+    @GetMapping("/{teamEnglish}/{teamHash}")
     public TeamStatsResponse getStats(
-            @PathVariable String country,
-            @PathVariable String league,
-            @PathVariable("team") String teamSlug) {
+            @PathVariable String teamEnglish,
+            @PathVariable String teamHash) {
 
         // Spring が decodeURIComponent 相当をやってくれるので、
         // Node 側と同じく生の文字列で OK
-        return service.getStats(country, league, teamSlug);
+        return service.getStats(teamEnglish, teamHash);
     }
 }

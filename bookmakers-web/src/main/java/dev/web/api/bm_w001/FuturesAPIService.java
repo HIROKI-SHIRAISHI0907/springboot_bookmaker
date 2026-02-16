@@ -5,7 +5,10 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.web.repository.bm.LeaguesRepository;
+import dev.web.repository.bm.LeaguesRepository.TeamRow;
 import dev.web.repository.master.FuturesRepository;
+import lombok.AllArgsConstructor;
 
 /**
  * FuturesAPI用サービス
@@ -13,21 +16,22 @@ import dev.web.repository.master.FuturesRepository;
  *
  */
 @Service
+@AllArgsConstructor
 public class FuturesAPIService {
 
-	private final FuturesRepository futuresRepository;
+	private final LeaguesRepository leagueRepo;
 
-    public FuturesAPIService(FuturesRepository futuresRepository) {
-        this.futuresRepository = futuresRepository;
-    }
+	private final FuturesRepository futuresRepository;
 
     /**
      * 国・リーグ・チーム(slug)から、予定試合（SCHEDULED）一覧を返す
      */
     @Transactional(readOnly = true)
-    public List<FuturesResponseDTO> getFutureMatches(String country, String league, String teamSlug) {
-        String teamJa = futuresRepository.findTeamJa(country, league, teamSlug);
-        return futuresRepository.findFutureMatches(teamJa, country, league);
+    public List<FuturesResponseDTO> getFutureMatches(String teamEnglish, String teamHash) {
+    	TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
+        if (teamInfo == null) return null;
+        return futuresRepository.findFutureMatches(teamInfo.getCountry(), teamInfo.getLeague(),
+        		teamInfo.getTeam());
     }
 
     /**

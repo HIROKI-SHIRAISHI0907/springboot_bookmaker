@@ -29,13 +29,12 @@ public class FuturesController {
      * @param team
      * @return
      */
-    @GetMapping("/{country}/{league}/{team}")
+    @GetMapping("/{teamEnglish}/{teamHash}")
     public Map<String, Object> getFuture(
-            @PathVariable String country,
-            @PathVariable String league,
-            @PathVariable String team
+            @PathVariable String teamEnglish,
+            @PathVariable String teamHash
     ) {
-        List<FuturesResponseDTO> matches = futuresAPIService.getFutureMatches(country, league, team);
+        List<FuturesResponseDTO> matches = futuresAPIService.getFutureMatches(teamEnglish, teamHash);
         return Map.of("matches", matches);
     }
 

@@ -7,6 +7,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.util.StringUtils;
 
 import dev.web.repository.bm.GamesRepository;
+import dev.web.repository.bm.LeaguesRepository;
+import dev.web.repository.bm.LeaguesRepository.TeamRow;
+import lombok.RequiredArgsConstructor;
 
 /**
  * GameAPI用サービス
@@ -14,33 +17,34 @@ import dev.web.repository.bm.GamesRepository;
  *
  */
 @Service
+@RequiredArgsConstructor
 public class GameAPIService {
 
-    private final GamesRepository gamesRepository;
+	private final LeaguesRepository leagueRepo;
 
-    public GameAPIService(GamesRepository gamesRepository) {
-        this.gamesRepository = gamesRepository;
-    }
+    private final GamesRepository gamesRepository;
 
     /**
      * チームの試合一覧を取得し、LIVE / FINISHED に振り分けて返す
      *
-     * @param country 国名（デコード済み推奨）
-     * @param league  リーグ名（デコード済み推奨）
+     * @param teamEnglish チーム名英語
+     * @param teamHash  チーム名ハッシュ
      * @param teamSlug チームスラッグ
      */
-    public GameMatchesResponse getTeamGames(String country, String league, String teamSlug) {
+    public GameMatchesResponse getTeamGames(String teamEnglish, String teamHash) {
 
         // Controller でもチェックする前提でも、最低限のガード
-        if (!StringUtils.hasText(country) || !StringUtils.hasText(league) || !StringUtils.hasText(teamSlug)) {
+        if (!StringUtils.hasText(teamEnglish) || !StringUtils.hasText(teamHash)) {
             return new GameMatchesResponse(List.of(), List.of());
         }
 
-        // スラッグ -> 日本語名
-        String teamJa = gamesRepository.findTeamJa(country, league, teamSlug);
+        TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
+        if (teamInfo == null) return null;
 
         // 試合一覧（LIVE/FINISHED 混在）
-        List<GameMatchDTO> all = gamesRepository.findGamesForTeam(country, league, teamJa);
+        List<GameMatchDTO> all = gamesRepository.findGamesForTeam(
+        		teamInfo.getCountry(), teamInfo.getLeague(),
+        		teamInfo.getTeam());
 
         List<GameMatchDTO> live = new ArrayList<>();
         List<GameMatchDTO> finished = new ArrayList<>();
@@ -54,5 +58,20 @@ public class GameAPIService {
         }
 
         return new GameMatchesResponse(live, finished);
+    }
+
+    /**
+     * フロント側の { message: string } と互換の簡易 DTO
+     */
+    public static class SimpleMessage {
+        private final String message;
+
+        public SimpleMessage(String message) {
+            this.message = message;
+        }
+
+        public String getMessage() {
+            return message;
+        }
     }
 }

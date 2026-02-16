@@ -17,16 +17,15 @@ public class PlayersController {
     private final PlayersAPIService service;
 
     /**
-     * GET /api/players/{country}/{league}/{team}/
+     * GET /api/players/{teamEnglish}/{teamHash}
      */
-    @GetMapping("/{country}/{league}/{team}")
+    @GetMapping("/{teamEnglish}/{teamHash}")
     public PlayersResponse getPlayers(
-            @PathVariable String country,
-            @PathVariable String league,
-            @PathVariable("team") String teamSlug) {
+            @PathVariable String teamEnglish,
+            @PathVariable String teamHash) {
 
         // Spring 側で decodeURIComponent 相当はやってくれるので、
         // フロント側と同じ encodeURIComponent で OK
-        return service.getPlayers(country, league, teamSlug);
+        return service.getPlayers(teamEnglish, teamHash);
     }
 }
