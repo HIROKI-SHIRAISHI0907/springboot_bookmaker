@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.io.OutputStream;
+import java.net.URLEncoder;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -23,6 +24,7 @@ import dev.common.constant.S3Const;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
@@ -268,6 +270,26 @@ public class S3Operator {
 		}
 
 		return out;
+	}
+
+	/**
+	 * コピー
+	 * @param srcBucket
+	 * @param srcKey
+	 * @param dstBucket
+	 * @param dstKey
+	 */
+	@SuppressWarnings("deprecation")
+	public void copy(String srcBucket, String srcKey, String dstBucket, String dstKey) {
+	    String copySource = URLEncoder.encode(srcBucket + "/" + srcKey, StandardCharsets.UTF_8);
+
+	    CopyObjectRequest req = CopyObjectRequest.builder()
+	            .copySource(copySource)   // コピー元（bucket/key）
+	            .bucket(dstBucket)        // コピー先バケット
+	            .key(dstKey)              // コピー先キー
+	            .build();
+
+	    s3.copyObject(req);
 	}
 
 	/**
