@@ -30,6 +30,7 @@ public class RankHistoryRepository {
         public Long id;
         public String country;
         public String league;
+        public String seasonYear;
         public Integer match;
         public String team;
         public Integer rank;
@@ -42,6 +43,7 @@ public class RankHistoryRepository {
             r.id = rs.getLong("id");
             r.country = rs.getString("country");
             r.league = rs.getString("league");
+            r.seasonYear = rs.getString("season_year");
 
             // aliasで取得（match_no）
             int m = rs.getInt("match_no");
@@ -56,14 +58,14 @@ public class RankHistoryRepository {
         }
     }
 
-    public List<RankHistoryRow> findRankHistory(String country, String league) {
+    public List<RankHistoryRow> findRankHistory(String country, String league, String seasonYear) {
 
-        // ★ DBに合わせてここだけ切り替え（下に MySQL版も載せます）
-        final String sql = """
+        String sql = """
             SELECT
               id,
               country,
               league,
+              season_year,
               "match" AS match_no,
               team,
               rank
@@ -76,6 +78,13 @@ public class RankHistoryRepository {
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("country", country)
                 .addValue("league", league);
+
+        if (seasonYear != null && !seasonYear.isBlank()) {
+            sql += " AND season_year = :seasonYear ";
+            params.addValue("seasonYear", seasonYear);
+        }
+
+        sql += " ORDER BY match_no ASC, rank ASC ";
 
         return bmJdbcTemplate.query(sql, params, new RankHistoryRowMapper());
     }

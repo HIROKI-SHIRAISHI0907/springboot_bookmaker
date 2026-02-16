@@ -9,6 +9,7 @@ import dev.web.repository.bm.LeaguesRepository;
 import dev.web.repository.bm.LeaguesRepository.TeamRow;
 import dev.web.repository.bm.RankHistoryRepository;
 import dev.web.repository.bm.RankHistoryRepository.RankHistoryRow;
+import dev.web.repository.master.CountryLeagueSeasonMasterWebRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -24,10 +25,20 @@ public class RankHistoryAPIService {
 
     private final RankHistoryRepository repo;
 
-    public RankHistoryResponse getRankHistory(String teamEnglish, String teamHash) {
+    private final CountryLeagueSeasonMasterWebRepository countryLeagueSeasonRepository;
+
+    public RankHistoryResponse getRankHistory(String teamEnglish, String teamHash, boolean includePast) {
     	TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
     	if (teamInfo == null) return null;
-        List<RankHistoryRow> rows = repo.findRankHistory(teamInfo.getCountry(), teamInfo.getLeague());
+
+    	String seasonYear = null;
+        if (!includePast) {
+            seasonYear = countryLeagueSeasonRepository.findCurrentSeasonYear(teamInfo.getCountry(), teamInfo.getLeague());
+            if (seasonYear == null) return null; // 今シーズンが取れないなら 404 扱いなど
+        }
+
+        List<RankHistoryRow> rows = repo.findRankHistory(
+        		teamInfo.getCountry(), teamInfo.getLeague(), seasonYear);
 
         List<RankHistoryPointResponse> items = new ArrayList<>();
         for (RankHistoryRow r : rows) {

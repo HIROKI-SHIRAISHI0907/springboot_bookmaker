@@ -4,6 +4,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -24,8 +25,9 @@ public class RankHistoryController {
     @GetMapping("/rank-history/{teamEnglish}/{teamHash}")
     public RankHistoryResponse getRankHistory(
             @PathVariable String teamEnglish,
-            @PathVariable String teamHash) {
-    	RankHistoryResponse res = service.getRankHistory(teamEnglish, teamHash);
+            @PathVariable String teamHash,
+            @RequestParam(name = "includePast", defaultValue = "false") boolean includePast) {
+    	RankHistoryResponse res = service.getRankHistory(teamEnglish, teamHash, includePast);
     	if (res == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "rankHistory not found");
         }
