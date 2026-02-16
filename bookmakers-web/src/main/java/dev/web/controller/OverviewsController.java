@@ -12,7 +12,7 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
 import dev.web.api.bm_w003.OverviewAPIService;
-import dev.web.api.bm_w003.OverviewResponseDTO;
+import dev.web.api.bm_w003.OverviewResponse;
 import dev.web.api.bm_w003.ScheduleOverviewResponse;
 
 /**
@@ -37,7 +37,7 @@ public class OverviewsController {
       @PathVariable("team") String teamSlug
   ) throws BadRequestException, NotFoundException {
 
-    List<OverviewResponseDTO> items = overviewAPIService.getMonthlyOverview(country, league, teamSlug);
+    List<OverviewResponse> items = overviewAPIService.getMonthlyOverview(country, league, teamSlug);
     return ResponseEntity.ok(new OverviewListResponse(items));
   }
 
@@ -53,9 +53,9 @@ public class OverviewsController {
   }
 
   static class OverviewListResponse {
-    private List<OverviewResponseDTO> items;
-    public OverviewListResponse(List<OverviewResponseDTO> items) { this.items = items; }
-    public List<OverviewResponseDTO> getItems() { return items; }
-    public void setItems(List<OverviewResponseDTO> items) { this.items = items; }
+    private List<OverviewResponse> items;
+    public OverviewListResponse(List<OverviewResponse> items) { this.items = items; }
+    public List<OverviewResponse> getItems() { return items; }
+    public void setItems(List<OverviewResponse> items) { this.items = items; }
   }
 }

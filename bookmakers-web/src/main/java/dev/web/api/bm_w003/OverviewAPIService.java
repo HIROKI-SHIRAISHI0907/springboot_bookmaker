@@ -27,7 +27,7 @@ public class OverviewAPIService {
      * @throws BadRequestException
      * @throws NotFoundException
      */
-    public List<OverviewResponseDTO> getMonthlyOverview(
+    public List<OverviewResponse> getMonthlyOverview(
             String country,
             String league,
             String teamSlug

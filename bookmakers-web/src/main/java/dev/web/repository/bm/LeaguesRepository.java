@@ -130,25 +130,22 @@ public class LeaguesRepository {
         return masterJdbcTemplate.query(sql, params, new BeanPropertyRowMapper<>(TeamRow.class));
     }
 
-    /** 指定チーム詳細 (1件のみ) */
-    public TeamRow findTeamDetail(String country, String league, String teamEnglish) {
+    /** 指定チーム詳細 (1件のみ) teamEnglish + teamHash */
+    public TeamRow findTeamDetailByTeamAndHash(String teamEnglish, String teamHash) {
         String sql = """
             SELECT id, country, league, team, link
             FROM country_league_master
-            WHERE country = :country
-              AND league  = :league
-              AND link LIKE :link
+            WHERE link = :link
             LIMIT 1
             """;
+
         MapSqlParameterSource params = new MapSqlParameterSource()
-                .addValue("country", country)
-                .addValue("league", league)
-                .addValue("link", "/team/" + teamEnglish + "/%");
+            .addValue("link", "/team/" + teamEnglish + "/" + teamHash + "/");
 
         List<TeamRow> list = masterJdbcTemplate.query(
-                sql,
-                params,
-                new BeanPropertyRowMapper<>(TeamRow.class)
+            sql,
+            params,
+            new BeanPropertyRowMapper<>(TeamRow.class)
         );
         return list.isEmpty() ? null : list.get(0);
     }

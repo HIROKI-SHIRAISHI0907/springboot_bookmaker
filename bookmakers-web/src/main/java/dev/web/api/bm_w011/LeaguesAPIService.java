@@ -99,27 +99,23 @@ public class LeaguesAPIService {
         return res;
     }
 
-    /** GET /api/leagues/{country}/{league}/{team} */
-    public TeamDetailResponse getTeamDetail(String country, String league, String teamEnglish) {
-        TeamRow row = repo.findTeamDetail(country, league, teamEnglish);
+    /** GET /api/leagues/{teamEnglish}/{teamHash} */
+    public TeamDetailResponse getTeamDetail(String teamEnglish, String teamHash) {
+        TeamRow row = repo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
         if (row == null) return null;
-
-        String[] parsed = repo.parseTeamLink(row.link);
-        String english = parsed[0];
-        String hash = parsed[1];
 
         TeamDetailResponse res = new TeamDetailResponse();
         res.setId(row.id);
         res.setCountry(row.country);
         res.setLeague(row.league);
         res.setName(row.team);
-        res.setEnglish(english);
-        res.setHash(hash);
+        res.setEnglish(teamEnglish);
+        res.setHash(teamHash);
         res.setLink(row.link);
 
         TeamPathsDTO paths = new TeamPathsDTO();
         String leaguePage = "/" + repo.toPath(row.country) + "/" + repo.toPath(row.league);
-        String apiSelf = "/api/leagues/" + repo.toPath(row.country) + "/" + repo.toPath(row.league) + "/" + english;
+        String apiSelf = "/api/leagues/" + repo.toPath(row.country) + "/" + repo.toPath(row.league) + "/" + teamEnglish;
         paths.setLeaguePage(leaguePage);
         paths.setApiSelf(apiSelf);
 

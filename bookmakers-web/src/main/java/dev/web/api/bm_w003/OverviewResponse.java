@@ -8,7 +8,7 @@ import lombok.Data;
  *
  */
 @Data
-public class OverviewResponseDTO {
+public class OverviewResponse {
 
 	/** 年月 */
 	private String ym;

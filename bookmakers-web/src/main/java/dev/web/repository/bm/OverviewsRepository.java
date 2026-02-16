@@ -9,7 +9,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import dev.web.api.bm_w003.OverviewResponseDTO;
+import dev.web.api.bm_w003.OverviewResponse;
 import dev.web.api.bm_w003.ScheduleMatchDTO;
 import dev.web.api.bm_w003.SurfaceSnapshotDTO;
 
@@ -62,7 +62,7 @@ public class OverviewsRepository {
     // --------------------------------------------------------
     // 取得: GET /api/:country/:league/match/:seq（概要詳細データ）
     // --------------------------------------------------------
-    public List<OverviewResponseDTO> findMonthlyOverview(String country, String league, String teamJa) {
+    public List<OverviewResponse> findMonthlyOverview(String country, String league, String teamJa) {
 
         String sql = """
         WITH base AS (
@@ -123,8 +123,8 @@ public class OverviewsRepository {
                 .addValue("league", league)
                 .addValue("team", teamJa);
 
-        RowMapper<OverviewResponseDTO> rowMapper = (rs, rowNum) -> {
-        	OverviewResponseDTO dto = new OverviewResponseDTO();
+        RowMapper<OverviewResponse> rowMapper = (rs, rowNum) -> {
+        	OverviewResponse dto = new OverviewResponse();
             int year = rs.getInt("year");
             int month = rs.getInt("month");
 
