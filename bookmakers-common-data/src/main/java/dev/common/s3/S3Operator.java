@@ -13,6 +13,7 @@ import java.time.Instant;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -34,6 +35,10 @@ import software.amazon.awssdk.services.s3.model.S3Object;
  */
 @Component
 public class S3Operator {
+
+	/** 統計CSVパターン */
+	private static final Pattern TEAM_SEQ_PATTERN =
+		    Pattern.compile("^.*?(\\d+)\\.csv$", Pattern.CASE_INSENSITIVE);
 
 	private final S3Client s3;
 
@@ -293,13 +298,18 @@ public class S3Operator {
 	 * @return
 	 */
 	private static int extractTeamSeq(String key, Pattern matcher) {
-		var m = matcher.matcher(key);
-		if (!m.find())
-			return Integer.MAX_VALUE;
-		try {
-			return Integer.parseInt(m.group(1));
-		} catch (NumberFormatException e) {
-			return Integer.MAX_VALUE;
-		}
+		if (key == null) return Integer.MAX_VALUE;
+
+	    Matcher m = TEAM_SEQ_PATTERN.matcher(key);
+	    if (!m.find()) {
+	        // CSV以外（seqList.txt など）は末尾へ
+	        return Integer.MAX_VALUE;
+	    }
+
+	    try {
+	        return Integer.parseInt(m.group(1));
+	    } catch (NumberFormatException e) {
+	        return Integer.MAX_VALUE;
+	    }
 	}
 }
