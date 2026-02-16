@@ -54,4 +54,17 @@ public interface CountryLeagueSeasonMasterRepository {
 	})
 	List<CountryLeagueSeasonMasterEntity> findRoundValidFlg(String validFlg);
 
+	@Select({
+	    "SELECT season_year ",
+	    "FROM country_league_season_master ",
+	    "WHERE country = #{country} ",
+	    "  AND league  = #{league} ",
+	    "  AND disp_valid_flg = '0' ",
+	    "  AND del_flg = '0' ",
+	    "  AND NOW() BETWEEN start_season_date AND end_season_date ",
+	    "ORDER BY start_season_date DESC ",
+	    "LIMIT 1"
+	})
+	String findCurrentSeasonYear(String country, String league);
+
 }

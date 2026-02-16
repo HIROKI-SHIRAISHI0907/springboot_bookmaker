@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.bm.BookDataRepository;
 import dev.application.domain.repository.bm.RankHistoryStatRepository;
+import dev.application.domain.repository.master.CountryLeagueSeasonMasterRepository;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
@@ -46,6 +47,10 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 	/** RankHistoryStatRepositoryレポジトリクラス */
 	@Autowired
 	private RankHistoryStatRepository rankHistoryStatRepository;
+
+	/** CountryLeagueSeasonMasterRepositoryレポジトリクラス */
+	@Autowired
+	private CountryLeagueSeasonMasterRepository countryLeagueSeasonMasterRepository;
 
 	/** ログ管理ラッパー*/
 	@Autowired
@@ -103,6 +108,21 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 						continue;
 					}
 
+					String country = countryLeague.get(0);
+					String league  = countryLeague.get(1);
+
+					String seasonYear = countryLeagueSeasonMasterRepository.findCurrentSeasonYear(country, league);
+					if (seasonYear == null || seasonYear.isBlank()) {
+					    // 今シーズンが未登録ならスキップ or 警告
+					    this.manageLoggerComponent.debugWarnLog(
+					        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					        MessageCdConst.MCD00001W_COUNTRY_LEAGUE_SPLIT_FAIL_WARNING,
+					        null,
+					        "season_year not found: " + country + " / " + league
+					    );
+					    continue;
+					}
+
 					// 試合ごとに homeRank / awayRank をリセット
 					int homeRank = -1;
 					int awayRank = -1;
@@ -114,12 +134,13 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 					if (homeRankStr != null && !homeRankStr.isBlank()) {
 						RankHistoryEntity rankHistoryEntity = new RankHistoryEntity();
 						homeRank = Integer.parseInt(homeRankStr.replace(".0", "").replace(".", ""));
-						rankHistoryEntity.setCountry(countryLeague.get(0));
-						rankHistoryEntity.setLeague(countryLeague.get(1));
+						rankHistoryEntity.setCountry(country);
+						rankHistoryEntity.setLeague(league);
+						rankHistoryEntity.setSeasonYear(seasonYear);
 						rankHistoryEntity.setTeam(entity.getHomeTeamName());
 						rankHistoryEntity.setMatch(match);
 						rankHistoryEntity.setRank(homeRank);
-						String key = countryLeague.get(0) + ": " + countryLeague.get(1) + ": "
+						String key = country + ": " + league + ": "
 								+ entity.getHomeTeamName();
 
 						if (this.rankHistoryStatRepository.select(rankHistoryEntity) > 0) {
@@ -160,12 +181,13 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 					if (awayRankStr != null && !awayRankStr.isBlank()) {
 						RankHistoryEntity rankHistoryEntity2 = new RankHistoryEntity();
 						awayRank = Integer.parseInt(awayRankStr.replace(".0", "").replace(".", ""));
-						rankHistoryEntity2.setCountry(countryLeague.get(0));
-						rankHistoryEntity2.setLeague(countryLeague.get(1));
+						rankHistoryEntity2.setCountry(country);
+						rankHistoryEntity2.setLeague(league);
+						rankHistoryEntity2.setSeasonYear(seasonYear);
 						rankHistoryEntity2.setTeam(entity.getAwayTeamName());
 						rankHistoryEntity2.setMatch(match);
 						rankHistoryEntity2.setRank(awayRank);
-						String key = countryLeague.get(0) + ": " + countryLeague.get(1) + ": "
+						String key = country + ": " + league + ": "
 								+ entity.getAwayTeamName();
 
 						if (this.rankHistoryStatRepository.select(rankHistoryEntity2) > 0) {
@@ -205,19 +227,20 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 					if (homeRank == -1 || awayRank == -1) {
 						try {
 							List<TeamPoints> teamPoints = getOriginRank(
-									countryLeague.get(0),
-									countryLeague.get(1),
+									country,
+									league,
 									String.valueOf(match));
 							List<RankedTeamPoints> ranks = rankTeams(teamPoints);
 
 							for (RankedTeamPoints pointDTO : ranks) {
 								RankHistoryEntity rankHistoryEntity = new RankHistoryEntity();
-								rankHistoryEntity.setCountry(countryLeague.get(0));
-								rankHistoryEntity.setLeague(countryLeague.get(1));
+								rankHistoryEntity.setCountry(country);
+								rankHistoryEntity.setLeague(league);
+								rankHistoryEntity.setSeasonYear(seasonYear);
 								rankHistoryEntity.setTeam(pointDTO.getTeam());
 								rankHistoryEntity.setMatch(match);
 								rankHistoryEntity.setRank(pointDTO.getRank());
-								String key = countryLeague.get(0) + ": " + countryLeague.get(1) + ": "
+								String key = country + ": " + league + ": "
 										+ pointDTO.getTeam();
 
 								if (this.rankHistoryStatRepository.select(rankHistoryEntity) > 0) {
@@ -228,7 +251,7 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 												PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 												messageCd,
 												1, result,
-												String.join(",", countryLeague.get(0), countryLeague.get(1),
+												String.join(",", country, league,
 														pointDTO.getTeam()),
 												String.valueOf(match),
 												String.valueOf(pointDTO.getRank()));
@@ -246,7 +269,7 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 												PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 												messageCd,
 												1, result,
-												String.join(",", countryLeague.get(0), countryLeague.get(1),
+												String.join(",", country, league,
 														pointDTO.getTeam()),
 												String.valueOf(match),
 												String.valueOf(pointDTO.getRank()));

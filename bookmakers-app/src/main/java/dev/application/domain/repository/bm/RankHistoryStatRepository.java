@@ -18,6 +18,7 @@ public interface RankHistoryStatRepository {
 			    INSERT INTO rank_history (
 			        country,
 			        league,
+			        season_year,
 			        match,
 			        team,
 			        rank,
@@ -28,6 +29,7 @@ public interface RankHistoryStatRepository {
 			    ) VALUES (
 			        #{country},
 			        #{league},
+			        #{seasonYear},
 			        #{match},
 			        #{team},
 			        #{rank},
@@ -39,10 +41,12 @@ public interface RankHistoryStatRepository {
 	@Update("""
 		    UPDATE rank_history
 		    SET
-		    	rank = #{rank}
+		    	rank = #{rank},
+		    	update_time = CURRENT_TIMESTAMP
 		    WHERE
 		        country = #{country} AND
 		        league = #{league} AND
+		        season_year = #{seasonYear} AND
 		        match = #{match} AND
 		        team = #{team};
 		""")
@@ -54,6 +58,7 @@ public interface RankHistoryStatRepository {
 		    WHERE
 		        country = #{country} AND
 		        league = #{league} AND
+		        season_year = #{seasonYear} AND
 		        match = #{match} AND
 		        team = #{team};
 		""")

@@ -22,6 +22,9 @@ public class RankHistoryEntity extends MetaEntity {
 	/** リーグ */
 	private String league;
 
+	/** シーズン年 */
+	private String seasonYear;
+
 	/** 節 */
 	private Integer match;
 
