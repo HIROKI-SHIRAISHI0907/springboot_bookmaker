@@ -103,7 +103,6 @@ public class LeaguesAPIService {
     public TeamDetailResponse getTeamDetail(String teamEnglish, String teamHash) {
         TeamRow row = repo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
         if (row == null) return null;
-
         TeamDetailResponse res = new TeamDetailResponse();
         res.setId(row.id);
         res.setCountry(row.country);

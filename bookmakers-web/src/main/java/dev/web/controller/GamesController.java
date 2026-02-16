@@ -41,7 +41,11 @@ public class GamesController {
             		"country/league/team are required");
         }
 
-        return service.getTeamGames(teamEnglish, teamHash);
+        GameMatchesResponse res = service.getTeamGames(teamEnglish, teamHash);
+        if (res == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "matches not found");
+        }
+        return res;
     }
 
     // ---------- private helpers ----------

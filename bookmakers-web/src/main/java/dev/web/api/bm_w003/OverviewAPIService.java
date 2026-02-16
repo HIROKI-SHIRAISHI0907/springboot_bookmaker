@@ -6,7 +6,10 @@ import org.apache.coyote.BadRequestException;
 import org.apache.ibatis.javassist.NotFoundException;
 import org.springframework.stereotype.Service;
 
+import dev.web.repository.bm.LeaguesRepository;
+import dev.web.repository.bm.LeaguesRepository.TeamRow;
 import dev.web.repository.bm.OverviewsRepository;
+import lombok.RequiredArgsConstructor;
 
 /**
  * OverviewAPI用サービス
@@ -14,13 +17,12 @@ import dev.web.repository.bm.OverviewsRepository;
  *
  */
 @Service
+@RequiredArgsConstructor
 public class OverviewAPIService {
 
-    private final OverviewsRepository overviewsRepository;
+	private final LeaguesRepository leagueRepo;
 
-    public OverviewAPIService(OverviewsRepository overviewsRepository) {
-        this.overviewsRepository = overviewsRepository;
-    }
+    private final OverviewsRepository overviewsRepository;
 
     /**
      * 月次サマリ取得
@@ -28,20 +30,16 @@ public class OverviewAPIService {
      * @throws NotFoundException
      */
     public List<OverviewResponse> getMonthlyOverview(
-            String country,
-            String league,
-            String teamSlug
+    		String teamEnglish, String teamHash
     ) throws BadRequestException, NotFoundException {
-        if (isBlank(country) || isBlank(league) || isBlank(teamSlug)) {
+        if (isBlank(teamEnglish) || isBlank(teamHash)) {
             throw new BadRequestException("country, league, team are required");
         }
 
-        String teamJa = overviewsRepository.findTeamJa(country, league, teamSlug);
-        if (isBlank(teamJa)) {
-            throw new NotFoundException("team not found: " + teamSlug);
-        }
-
-        return overviewsRepository.findMonthlyOverview(country, league, teamJa);
+        TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
+        if (teamInfo == null) return null;
+        return overviewsRepository.findMonthlyOverview(teamInfo.getCountry(),
+        		teamInfo.getLeague(), teamInfo.getTeam());
     }
 
     /**

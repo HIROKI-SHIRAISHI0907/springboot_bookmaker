@@ -1,5 +1,6 @@
 package dev.web.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -25,7 +26,7 @@ public class CorrelationsController {
 
 		var dto = service.getCorrelations(teamEnglish, teamHash, opponent);
 		if (dto == null) {
-			return ResponseEntity.status(404)
+			return ResponseEntity.status(HttpStatus.NOT_FOUND)
 					.body(java.util.Map.of("message", "team not found"));
 		}
 		return ResponseEntity.ok(dto);

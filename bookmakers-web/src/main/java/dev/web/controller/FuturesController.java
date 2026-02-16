@@ -3,11 +3,13 @@ package dev.web.controller;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import dev.web.api.bm_w001.FuturesAPIService;
 import dev.web.api.bm_w001.FuturesResponseDTO;
@@ -35,6 +37,9 @@ public class FuturesController {
             @PathVariable String teamHash
     ) {
         List<FuturesResponseDTO> matches = futuresAPIService.getFutureMatches(teamEnglish, teamHash);
+        if (matches == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "matches not found");
+        }
         return Map.of("matches", matches);
     }
 

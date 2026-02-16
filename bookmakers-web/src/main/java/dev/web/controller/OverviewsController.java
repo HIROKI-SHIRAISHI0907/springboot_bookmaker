@@ -14,30 +14,27 @@ import org.springframework.web.bind.annotation.RestController;
 import dev.web.api.bm_w003.OverviewAPIService;
 import dev.web.api.bm_w003.OverviewResponse;
 import dev.web.api.bm_w003.ScheduleOverviewResponse;
+import lombok.AllArgsConstructor;
 
 /**
  * OverviewsControllerクラス
- *  - 月次サマリ: GET /api/overview/{country}/{league}/{team}
+ *  - 月次サマリ: GET /api/overview/{teamEnglish}/{teamHash}
  *  - 試合概要:   GET /api/{country}/{league}/match/{seq}
  */
 @RestController
 @RequestMapping("/api/overview")
+@AllArgsConstructor
 public class OverviewsController {
 
   private final OverviewAPIService overviewAPIService;
 
-  public OverviewsController(OverviewAPIService overviewAPIService) {
-    this.overviewAPIService = overviewAPIService;
-  }
-
-  @GetMapping("/{country}/{league}/{team}")
+  @GetMapping("/{teamEnglish}/{teamHash}")
   public ResponseEntity<?> getMonthlyOverview(
-      @PathVariable String country,
-      @PathVariable String league,
-      @PathVariable("team") String teamSlug
+          @PathVariable String teamEnglish,
+          @PathVariable String teamHash
   ) throws BadRequestException, NotFoundException {
 
-    List<OverviewResponse> items = overviewAPIService.getMonthlyOverview(country, league, teamSlug);
+    List<OverviewResponse> items = overviewAPIService.getMonthlyOverview(teamEnglish, teamHash);
     return ResponseEntity.ok(new OverviewListResponse(items));
   }
 

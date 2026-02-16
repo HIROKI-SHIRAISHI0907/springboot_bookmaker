@@ -29,7 +29,7 @@ public class FuturesAPIService {
     @Transactional(readOnly = true)
     public List<FuturesResponseDTO> getFutureMatches(String teamEnglish, String teamHash) {
     	TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
-        if (teamInfo == null) return null;
+    	if (teamInfo == null) return null;
         return futuresRepository.findFutureMatches(teamInfo.getCountry(), teamInfo.getLeague(),
         		teamInfo.getTeam());
     }

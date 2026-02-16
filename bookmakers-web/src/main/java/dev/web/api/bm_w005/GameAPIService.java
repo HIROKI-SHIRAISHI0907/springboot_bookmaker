@@ -40,7 +40,6 @@ public class GameAPIService {
 
         TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
         if (teamInfo == null) return null;
-
         // 試合一覧（LIVE/FINISHED 混在）
         List<GameMatchDTO> all = gamesRepository.findGamesForTeam(
         		teamInfo.getCountry(), teamInfo.getLeague(),

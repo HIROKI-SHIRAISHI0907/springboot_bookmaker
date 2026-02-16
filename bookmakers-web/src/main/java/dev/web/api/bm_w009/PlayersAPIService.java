@@ -26,8 +26,7 @@ public class PlayersAPIService {
 
         // スラッグ → 日本語チーム名
     	TeamRow row = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
-        if (row == null) return null;
-
+    	if (row == null) return null;
         List<PlayerDTO> players = repo.findPlayers(row.getCountry(), row.getLeague(),
         		row.getTeam());
 
@@ -35,4 +34,5 @@ public class PlayersAPIService {
         res.setPlayers(players);
         return res;
     }
+
 }

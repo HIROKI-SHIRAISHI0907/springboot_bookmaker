@@ -26,8 +26,7 @@ public class RankHistoryAPIService {
 
     public RankHistoryResponse getRankHistory(String teamEnglish, String teamHash) {
     	TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
-        if (teamInfo == null) return null;
-
+    	if (teamInfo == null) return null;
         List<RankHistoryRow> rows = repo.findRankHistory(teamInfo.getCountry(), teamInfo.getLeague());
 
         List<RankHistoryPointResponse> items = new ArrayList<>();

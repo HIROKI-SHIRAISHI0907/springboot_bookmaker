@@ -31,7 +31,6 @@ public class CorrelationsAPIService {
 
         TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
         if (teamInfo == null) return null;
-
         List<Map<String, Object>> rows =
                 repo.findCorrelationRows(teamInfo.getCountry(), teamInfo.getLeague(),
                 		teamInfo.getTeam(), opponentFilter);

@@ -1,9 +1,11 @@
 package dev.web.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import dev.web.api.bm_w012.RankHistoryAPIService;
 import dev.web.api.bm_w012.RankHistoryResponse;
@@ -23,6 +25,10 @@ public class RankHistoryController {
     public RankHistoryResponse getRankHistory(
             @PathVariable String teamEnglish,
             @PathVariable String teamHash) {
-        return service.getRankHistory(teamEnglish, teamHash);
+    	RankHistoryResponse res = service.getRankHistory(teamEnglish, teamHash);
+    	if (res == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "rankHistory not found");
+        }
+        return res;
     }
 }

@@ -35,8 +35,7 @@ public class EachStatsAPIService {
 
         // 1) スラッグ → 日本語チーム名
     	TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
-        if (teamInfo == null) return null;
-
+    	if (teamInfo == null) return null;
         // 2) 生の行を取得
         List<Map<String, Object>> rows =
                 repo.findStatsRows(teamInfo.getCountry(), teamInfo.getLeague(),
