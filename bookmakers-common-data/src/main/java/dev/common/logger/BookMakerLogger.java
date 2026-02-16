@@ -27,18 +27,13 @@ public class BookMakerLogger {
 	private static final String LOG_INFO = "INFO";
 
 	/** コンストラクタ生成禁止 */
-	private BookMakerLogger() {
-	}
+	private BookMakerLogger() {}
 
-	/**
-	 * ログ共通項目設定処理
-	 * @param exeMode 実行モード
-	 * @param logicCd ロジックコード
-	 * @param country 国
-	 * @param league リーグ
-	 */
-	public static void init(String exeMode, String logicCd,
-			String country, String league) {
+	// ======================
+	// ThreadContext
+	// ======================
+
+	public static void init(String exeMode, String logicCd, String country, String league) {
 		clear();
 		ThreadContext.put(LOG_STAT, exeMode);
 		ThreadContext.put(LOG_LOGIC_CD, logicCd);
@@ -46,21 +41,12 @@ public class BookMakerLogger {
 		ThreadContext.put(LOG_LEAGUE, league);
 	}
 
-	/**
-	 * ログ共通項目設定処理
-	 * @param exeMode 実行モード
-	 * @param info 補足情報
-	 */
-	public static void init(String exeMode,
-			String info) {
+	public static void init(String exeMode, String info) {
 		clear();
 		ThreadContext.put(LOG_STAT, exeMode);
 		ThreadContext.put(LOG_INFO, info);
 	}
 
-	/**
-	 * ログ共通項目削除処理
-	 */
 	public static void remove() {
 		ThreadContext.remove(LOG_STAT);
 		ThreadContext.remove(LOG_LOGIC_CD);
@@ -69,94 +55,115 @@ public class BookMakerLogger {
 		ThreadContext.remove(LOG_INFO);
 	}
 
-	/**
-	 * ThreadContextの初期化
-	 */
 	public static void clear() {
 		ThreadContext.clearMap();
 	}
 
-	/**
-	 * 正常メッセージ
-	 * @param projectName プロジェクト名
-	 * @param className クラス名
-	 * @param methodName メソッド名
-	 * @param messageCd メッセージコード
-	 * @param fillChar 埋め字
-	 */
+	// ======================
+	// Log APIs
+	// ======================
+
 	public static void info(String projectName, String className, String methodName, String messageCd,
 			String... fillChar) {
 		Logger logger = LoggerFactory.getLogger(className);
-		String msg = buildMessage(projectName, className, methodName, "INFO:" + messageCd, null, fillChar);
+		String msg = buildMessage(projectName, className, methodName, "INFO", messageCd, null, fillChar);
 		logger.info(msg);
 	}
 
-	/**
-	 * 警告メッセージ
-	 * @param projectName プロジェクト名
-	 * @param className クラス名
-	 * @param methodName メソッド名
-	 * @param messageCd メッセージコード
-	 * @param fillChar 埋め字
-	 */
 	public static void warn(String projectName, String className, String methodName, String messageCd,
 			String... fillChar) {
 		Logger logger = LoggerFactory.getLogger(className);
-		String msg = buildMessage(projectName, className, methodName, "WARN:" + messageCd, null, fillChar);
+		String msg = buildMessage(projectName, className, methodName, "WARN", messageCd, null, fillChar);
 		logger.warn(msg);
 	}
 
-	/**
-	 * エラーメッセージ
-	 * @param projectName プロジェクト名
-	 * @param className クラス名
-	 * @param methodName メソッド名
-	 * @param messageCd メッセージコード
-	 * @param e 例外
-	 * @param fillChar 埋め字
-	 */
 	public static void error(String projectName, String className, String methodName, String errorCode, Exception e,
 			String... fillChar) {
 		Logger logger = LoggerFactory.getLogger(className);
-		String msg = buildMessage(projectName, className, methodName, "ERROR:" + errorCode, e, fillChar);
+		String msg = buildMessage(projectName, className, methodName, "ERROR", errorCode, e, fillChar);
 		logger.error(msg, e);
 	}
 
+	// ======================
+	// Build message
+	// ======================
+
 	/**
-	 * 共通メッセージ
-	 * @param projectName プロジェクト名
-	 * @param className クラス名
-	 * @param methodName メソッド名
-	 * @param messageCd メッセージコード
-	 * @param e 例外
-	 * @param fillChar 埋め字
-	 * @return
+	 * 期待する出力:
+	 * [project][Class#method][INFO:MCD00001:メッセージ本文] - Exception...
+	 *
+	 * messageCd が null/blank のときは:
+	 * [project][Class#method][INFO] もしくは [..][..][INFO:埋め字...]（必要なら）
 	 */
-	private static String buildMessage(String projectName, String className, String methodName, String messageCd,
-			Exception e, String... fillChar) {
-		// ★ 最後の名前だけ取得
-	    String project = lastName(projectName);
-	    String clazz   = lastName(className);
-	    String method  = lastName(methodName);
+	private static String buildMessage(String projectName, String className, String methodName,
+			String level, String messageCd, Exception e, String... fillChar) {
 
-		// ★ メッセージコード → 文言へ変換
-	    String messageText = MessageSourceProvider.getMessage(messageCd, fillChar);
+		// MessageSource のキーは "MCDxxxx" のみを渡す（INFO: などを混ぜない）
+		String key = normalizeMessageKey(messageCd);
 
-	    StringBuilder sb = new StringBuilder();
-	    sb.append("[").append(project).append("]");
-	    sb.append("[").append(clazz).append("#").append(method).append("]");
-	    sb.append("[").append(messageCd);
+		String messageText = null;
+		if (key != null && !key.isBlank()) {
+			messageText = MessageSourceProvider.getMessage(key, fillChar);
+		}
 
-	    // メッセージ本文を追加
-	    if (!messageCd.equals(messageText)) {
-	        sb.append(":").append(messageText);
-	    }
-	    sb.append("]");
+		StringBuilder sb = new StringBuilder();
+		sb.append("[").append(lastName(projectName)).append("]");
+		sb.append("[").append(lastName(className)).append("#").append(lastName(methodName)).append("]");
 
-	    if (e != null && e.toString().length() > 0) {
-	        sb.append(" - ").append(e.toString());
-	    }
-	    return sb.toString();
+		// 先にレベル
+		sb.append("[").append(level);
+
+		// messageCd（キー）は表示したいので key を出す（messageCd が INFO:付きで来ても key を表示）
+		if (key != null && !key.isBlank()) {
+			sb.append(":").append(key);
+
+			// 文言が取れたときだけ表示（取れない場合はコードのみ）
+			if (messageText != null && !messageText.isBlank() && !messageText.equals(key)) {
+				sb.append(":").append(messageText);
+			}
+		}
+
+		// 埋め字だけ出したいケース（messageCd が空で fillChar がある時）
+		// 例: debugStartInfoLog / debugEndInfoLog の fillChar を見たい
+		if ((key == null || key.isBlank()) && fillChar != null && fillChar.length > 0) {
+			String joined = joinFillChars(fillChar);
+			if (!joined.isBlank()) {
+				sb.append(":").append(joined);
+			}
+		}
+
+		sb.append("]");
+
+		if (e != null) {
+			sb.append(" - ").append(e);
+		}
+		return sb.toString();
+	}
+
+	/**
+	 * MessageSource lookup 用のキーを正規化
+	 * - "INFO:MCDxxxx" / "WARN:MCDxxxx" / "ERROR:MCDxxxx" が来ても "MCDxxxx" に直す
+	 * - null/blank はそのまま
+	 */
+	private static String normalizeMessageKey(String messageCd) {
+		if (messageCd == null) return null;
+		String s = messageCd.trim();
+		if (s.isEmpty()) return "";
+		// 先頭の LEVEL: を剥がす
+		return s.replaceFirst("^(?i)(INFO|WARN|ERROR)\\s*:\\s*", "");
+	}
+
+	private static String joinFillChars(String... fillChar) {
+		if (fillChar == null || fillChar.length == 0) return "";
+		StringBuilder sb = new StringBuilder();
+		for (String c : fillChar) {
+			if (c == null) continue;
+			String t = c.trim();
+			if (t.isEmpty()) continue;
+			if (sb.length() > 0) sb.append(", ");
+			sb.append(t);
+		}
+		return sb.toString();
 	}
 
 	/**
@@ -167,23 +174,20 @@ public class BookMakerLogger {
 	 *  - /usr/local/bin/app → app
 	 */
 	private static String lastName(String value) {
-	    if (value == null || value.isEmpty()) {
-	        return value;
-	    }
+		if (value == null || value.isEmpty()) {
+			return value;
+		}
 
-	    // / 区切り対応
-	    int slashIndex = value.lastIndexOf('/');
-	    if (slashIndex >= 0) {
-	        value = value.substring(slashIndex + 1);
-	    }
+		int slashIndex = value.lastIndexOf('/');
+		if (slashIndex >= 0) {
+			value = value.substring(slashIndex + 1);
+		}
 
-	    // . 区切り対応
-	    int dotIndex = value.lastIndexOf('.');
-	    if (dotIndex >= 0) {
-	        value = value.substring(dotIndex + 1);
-	    }
+		int dotIndex = value.lastIndexOf('.');
+		if (dotIndex >= 0) {
+			value = value.substring(dotIndex + 1);
+		}
 
-	    return value;
+		return value;
 	}
-
 }
