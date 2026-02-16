@@ -175,10 +175,8 @@ s3-job:
 logging:
   level:
     root: INFO
-    dev.batch: DEBUG
-    dev.common: DEBUG
-  pattern:
-    console: "%d{yyyy-MM-dd HH:mm:ss.SSS} %-5level [%thread] %logger{36} - %msg%n%ex{full}"
+    dev.batch: INFO
+    dev.common: INFO
 
       
       
