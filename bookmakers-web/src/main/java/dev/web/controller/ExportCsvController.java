@@ -1,5 +1,7 @@
 package dev.web.controller;
 
+import java.io.IOException;
+
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -17,10 +19,11 @@ public class ExportCsvController {
 
     /**
      * POST /api/admin/export/statCsv
+     * @throws IOException
      *
      */
     @PostMapping("/statCsv")
-    public ExportCsvResponse createCsv() {
+    public ExportCsvResponse createCsv() throws IOException {
         return service.createCsv();
     }
 }

@@ -23,7 +23,6 @@ import java.util.stream.Stream;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
-import org.springframework.transaction.annotation.Transactional;
 
 import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
@@ -43,7 +42,6 @@ import dev.web.util.CsvArtifactHelper;
  * - 生成は並列、書き込みは順序保証で直列
  */
 @Component
-@Transactional
 public class ExportCsv {
 
 	/** プロジェクト名 */
@@ -178,8 +176,7 @@ public class ExportCsv {
 			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
-			this.manageLoggerComponent.createSystemException(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, null);
+			throw e;
 		}
 
 		// ここまでで作成するCSVグルーピングとものによっては再作成するCSVの番号が確定しているはず
@@ -202,8 +199,7 @@ public class ExportCsv {
 					this.manageLoggerComponent.debugErrorLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e,
 							"生成キューを作成(this.bookCsvDataRepository.findByData)");
-					this.manageLoggerComponent.createSystemException(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, null);
+					throw e;
 				}
 				if (!this.helper.csvCondition(result, csvArtifactResource)) {
 					continue;
@@ -239,8 +235,7 @@ public class ExportCsv {
 					this.manageLoggerComponent.debugErrorLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
 							e, "csv番号を最大採番から連番でつける(this.bookCsvDataRepository.findByData)");
-					this.manageLoggerComponent.createSystemException(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, null);
+					throw e;
 				}
 				if (!this.helper.csvCondition(result, csvArtifactResource)) {
 					continue;
@@ -344,8 +339,7 @@ public class ExportCsv {
 				messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex, "data_team_list.txt 更新失敗");
-				this.manageLoggerComponent.createSystemException(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex, null);
+				throw ex;
 			}
 
 		}

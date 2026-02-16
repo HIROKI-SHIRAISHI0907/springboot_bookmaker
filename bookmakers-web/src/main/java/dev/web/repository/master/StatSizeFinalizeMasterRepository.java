@@ -20,11 +20,11 @@ import dev.web.api.bm_u001.StatSizeFinalizeDTO;
 @Repository
 public class StatSizeFinalizeMasterRepository {
 
-	private final NamedParameterJdbcTemplate bmJdbcTemplate;
+	private final NamedParameterJdbcTemplate masterJdbcTemplate;
 
 	public StatSizeFinalizeMasterRepository(
-			@Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate) {
-		this.bmJdbcTemplate = bmJdbcTemplate;
+			@Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate) {
+		this.masterJdbcTemplate = masterJdbcTemplate;
 	}
 
 	public int insert(StatSizeFinalizeDTO entity) {
@@ -47,7 +47,7 @@ public class StatSizeFinalizeMasterRepository {
 		params.put("updateId", entity.getUpdateId());
 		params.put("updateTime", entity.getUpdateTime());
 
-		return bmJdbcTemplate.update(sql, params);
+		return masterJdbcTemplate.update(sql, params);
 	}
 
 	public List<StatSizeFinalizeDTO> findFlgData(String flg) {
@@ -61,7 +61,7 @@ public class StatSizeFinalizeMasterRepository {
 
 		Map<String, Object> params = Map.of("validFlg", flg);
 
-		return bmJdbcTemplate.query(
+		return masterJdbcTemplate.query(
 				sql,
 				params,
 				(rs, rowNum) -> {
@@ -87,7 +87,7 @@ public class StatSizeFinalizeMasterRepository {
 				"optionNum", optionNum,
 				"options", options);
 
-		return bmJdbcTemplate.query(
+		return masterJdbcTemplate.query(
 				sql,
 				params,
 				(rs, rowNum) -> {
@@ -113,7 +113,7 @@ public class StatSizeFinalizeMasterRepository {
 		params.put("options", entity.getOptions());
 		params.put("valid_flg", entity.getValidFlg());
 
-		return bmJdbcTemplate.update(sql, params);
+		return masterJdbcTemplate.update(sql, params);
 	}
 
 }
