@@ -20,6 +20,10 @@ process:
       stats: aws-s3-stat-csv
       allLeague: aws-s3-all-league-csv
   
+logging:
+  level:
+    root: INFO
+
 spring:
   flyway:
     enabled: true
