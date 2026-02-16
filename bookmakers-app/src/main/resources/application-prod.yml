@@ -18,6 +18,7 @@ process:
       outputs: ${S3_OUTPUTS:aws-s3-outputs-csv}
       future: ${S3_FUTURE:aws-s3-future-csv}
       stats: ${S3_STATS:aws-s3-stat-csv}
+      allLeague: ${S3_STATS:aws-s3-all-league-csv}
       
 batch:
   mode: ${BATCH_MODE:worker}
