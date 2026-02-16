@@ -199,4 +199,9 @@ s3-job:
       prefix: null
       recursive: true
       
+logging:
+  level:
+    root: INFO
+    dev.web: INFO
+    dev.common: INFO
       
