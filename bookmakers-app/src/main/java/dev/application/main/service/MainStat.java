@@ -7,11 +7,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import dev.application.analyze.bm_m027.RankingService;
+import dev.application.analyze.bm_m098.CsvSeqManageService;
 import dev.application.analyze.interf.ServiceIF;
 import dev.common.constant.BatchResultConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.getinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * 統計バッチ実行クラス
@@ -19,6 +21,7 @@ import dev.common.logger.ManageLoggerComponent;
  *
  */
 @Service
+@Slf4j
 public class MainStat implements ServiceIF {
 
 	/** プロジェクト名 */
@@ -33,6 +36,12 @@ public class MainStat implements ServiceIF {
 	 */
 	@Autowired
 	private GetStatInfo getStatInfo;
+
+	/**
+	 * CSV管理クラス
+	 */
+	@Autowired
+	private CsvSeqManageService csvSeqManageService;
 
 	/** StatService */
 	@Autowired
@@ -51,39 +60,39 @@ public class MainStat implements ServiceIF {
 	 */
 	@Override
 	public int execute() throws Exception {
-		final String METHOD_NAME = "execute";
-		// ログ出力
-		this.manageLoggerComponent.debugStartInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	    final String METHOD_NAME = "execute";
+	    this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// シーケンスデータから取得(最大値情報取得)
-		String csvNumber = "0";
-		String csvBackNumber = null;
+	    // ★ 読み取り範囲を決める（DBのlast_success_csv + S3最大から算出）
+	    CsvSeqManageService.CsvSeqRange range = csvSeqManageService.decideRangeOrNull();
+	    if (range == null) {
+	    	log.info("[CsvSeqManageService END] range == null");
+	        // 追いついている
+	        this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	        return BatchResultConst.BATCH_OK;
+	    }
+	    log.info("[CsvSeqManageService INFO] range = {}:{}",range.getFrom(),range.getTo());
 
-		// 直近のCSVデータ情報を取得
-		Map<String, Map<String, List<BookDataEntity>>> getStatMap =
-		        this.getStatInfo.getStatMap(csvNumber, csvBackNumber);
+	    String csvNumber = String.valueOf(range.getFrom());
+	    String csvBackNumber = String.valueOf(range.getTo());
 
-		// BM_M027以外登録(Transactional)
-		try {
-			this.statService.execute(getStatMap);
-		} catch (Exception e) {
-			// エラー
-			return BatchResultConst.BATCH_ERR;
-		}
+	    // ★ その範囲だけ読む
+	    Map<String, Map<String, List<BookDataEntity>>> getStatMap =
+	            this.getStatInfo.getStatMap(csvNumber, csvBackNumber);
 
-		// BM_M027登録(Transactional)
-		try {
-			this.rankingService.execute(getStatMap);
-		} catch (Exception e) {
-			// エラー
-			return BatchResultConst.BATCH_ERR;
-		}
+	    try {
+	        this.statService.execute(getStatMap);
+	        this.rankingService.execute(getStatMap);
 
-		// endLog
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		return BatchResultConst.BATCH_OK;
+	        // ★ 全部成功したら最後に成功した番号を進める
+	        csvSeqManageService.markSuccess(range.getTo());
+
+	    } catch (Exception e) {
+	        return BatchResultConst.BATCH_ERR;
+	    }
+
+	    this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	    return BatchResultConst.BATCH_OK;
 	}
 
 }
