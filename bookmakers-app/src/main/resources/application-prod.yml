@@ -182,7 +182,16 @@ s3-job:
 logging:
   level:
     root: INFO
+
+    # アプリのパッケージ（使っているもの全部まとめる）
     dev.application: INFO
+    dev.batch: INFO
+    dev.web: INFO
     dev.common: INFO
+
+    # ノイズ抑制
+    com.zaxxer.hikari: OFF
+    org.springframework.jdbc: WARN
+    org.mybatis: WARN
 
       
