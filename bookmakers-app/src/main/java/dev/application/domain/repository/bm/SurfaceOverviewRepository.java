@@ -5,6 +5,7 @@ import java.util.List;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Lang;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 import org.apache.ibatis.scripting.xmltags.XMLLanguageDriver;
@@ -176,7 +177,9 @@ public interface SurfaceOverviewRepository {
 							AND game_month = CAST(#{gameMonth} AS integer)
 						    </script>
 						""")
-	List<SurfaceOverviewEntity> select(String country, String league, String gameYear, String gameMonth, String team);
+	List<SurfaceOverviewEntity> select(@Param("country") String country, @Param("league") String league,
+			@Param("gameYear") String gameYear, @Param("gameMonth") String gameMonth,
+			@Param("team") String team);
 
 	@Lang(XMLLanguageDriver.class)
 	@Update("""
@@ -346,7 +349,8 @@ public interface SurfaceOverviewRepository {
 			    game_month
 			</script>
 			""")
-	List<SurfaceOverviewEntity> selectAllMonthsByTeam(String country, String league, String team);
+	List<SurfaceOverviewEntity> selectAllMonthsByTeam(@Param("country") String country, @Param("league") String league,
+			@Param("team") String team);
 
 	@Select("""
 			SELECT *
