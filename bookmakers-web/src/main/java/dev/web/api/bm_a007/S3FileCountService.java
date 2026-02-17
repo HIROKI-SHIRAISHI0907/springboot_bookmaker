@@ -57,7 +57,7 @@ public class S3FileCountService {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = S3FileCountService.class.getSimpleName();
+	private static final String CLASS_NAME = S3FileCountService.class.getName();
 
 	private static final String FALLBACK_MESSAGE = "件数を算出できませんでした。bucket/prefix や権限をご確認ください。";
 
@@ -121,7 +121,7 @@ public class S3FileCountService {
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
 					e);
-			res.setMessage(FALLBACK_MESSAGE + " (" + e.getClass().getSimpleName() + ")");
+			res.setMessage(FALLBACK_MESSAGE + " (" + e.getClass().getName() + ")");
 			return res;
 		}
 	}
@@ -166,7 +166,7 @@ public class S3FileCountService {
 					e);
 			res.setItems(List.of());
 			res.setReturnedCount(0);
-			res.setMessage(FALLBACK_MESSAGE + " (" + e.getClass().getSimpleName() + ")");
+			res.setMessage(FALLBACK_MESSAGE + " (" + e.getClass().getName() + ")");
 			return res;
 		}
 	}
