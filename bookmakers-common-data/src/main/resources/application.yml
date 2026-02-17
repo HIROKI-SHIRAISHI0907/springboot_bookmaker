@@ -20,10 +20,6 @@ process:
       stats: aws-s3-stat-csv
       allLeague: aws-s3-all-league-csv
   
-logging:
-  level:
-    root: INFO
-
 spring:
   flyway:
     enabled: true
@@ -35,3 +31,15 @@ spring:
 mybatis:
   configuration:
     map-underscore-to-camel-case: true
+    
+logging:
+  level:
+    root: INFO
+
+    # アプリのパッケージ（使っているもの全部まとめる）
+    dev.common: INFO
+
+    # ノイズ抑制
+    com.zaxxer.hikari: OFF
+    org.springframework.jdbc: WARN
+    org.mybatis: WARN
