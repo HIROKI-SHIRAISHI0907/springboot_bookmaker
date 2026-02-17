@@ -65,15 +65,37 @@ public class BmM031SurfaceOverviewBean {
 			List<CountryLeagueSeasonMasterEntity> rows = this.countryLeagueSeasonMasterRepository
 					.findRoundValidFlg(ValidFlgConst.VALID_FLG_0);
 			if (rows != null) {
-				for (CountryLeagueSeasonMasterEntity e : rows) {
-					String country = e.getCountry();
-					String league = e.getLeague();
+				for (CountryLeagueSeasonMasterEntity row : rows) {
+					String country = row.getCountry();
+					String league = row.getLeague();
+					String roundStr = row.getRound();
+
+					// league 正規化（nullセーフ必須）
 					league = getRegexLeague(league);
-					if (country != null && league != null) {
-						key = country.trim() + ": " + league.trim();
-						countryLeagueList.add(key);
-						countryLeagueRoundMap.put(key, Integer.parseInt(e.getRound().trim()));
+
+					if (country == null || league == null) {
+						loggerComponent.debugWarnLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+								"M031 skip: country/league null");
+						continue;
 					}
+					if (roundStr == null || roundStr.trim().isEmpty()) {
+						loggerComponent.debugWarnLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+								"M031 skip: round null/blank", country, league);
+						continue;
+					}
+
+					int round;
+					try {
+						round = Integer.parseInt(roundStr.trim());
+					} catch (NumberFormatException ex) {
+						loggerComponent.debugWarnLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "M031 skip: round not int",
+								roundStr, country, league);
+						continue;
+					}
+
+					key = country.trim() + ": " + league.trim();
+					countryLeagueList.add(key);
+					countryLeagueRoundMap.put(key, round);
 				}
 			}
 		} catch (Exception e) {

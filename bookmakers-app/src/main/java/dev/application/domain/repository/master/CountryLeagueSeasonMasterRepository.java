@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -14,9 +15,9 @@ public interface CountryLeagueSeasonMasterRepository {
 
 	@Insert({
 			"INSERT INTO country_league_season_master (",
-			"country, league, start_season_date, end_season_date, round, path, icon, valid_flg, del_flg,",
+			"country, league, season_year, start_season_date, end_season_date, round, path, icon, valid_flg, del_flg,",
 			"register_id, register_time, update_id, update_time) VALUES (",
-			"#{country}, #{league}, CAST(#{startSeasonDate} AS timestamptz), "
+			"#{country}, #{league}, #{seasonYear}, CAST(#{startSeasonDate} AS timestamptz), "
 					+ "CAST(#{endSeasonDate} AS timestamptz), #{round}, #{path}, #{icon}, #{validFlg}, #{delFlg}",
 			"#{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz));"
 	})
@@ -26,6 +27,7 @@ public interface CountryLeagueSeasonMasterRepository {
 			"UPDATE country_league_season_master SET",
 			"country = #{country},",
 			"league = #{league},",
+			"season_year = #{seasonYear},",
 			"start_season_date = CAST(#{startSeasonDate} AS timestamptz),",
 			"end_season_date = CAST(#{endSeasonDate} AS timestamptz) ",
 			"WHERE id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER);"
@@ -46,13 +48,14 @@ public interface CountryLeagueSeasonMasterRepository {
 					+ "FROM country_league_season_master ",
 			"WHERE country = #{country} AND league = #{league}"
 	})
-	List<CountryLeagueSeasonMasterEntity> findByCountryAndLeague(String country, String league);
+	List<CountryLeagueSeasonMasterEntity> findByCountryAndLeague(@Param("country") String country,
+			  @Param("league") String league);
 
 	@Select({
 			"SELECT country, league, round FROM country_league_season_master ",
 			"WHERE disp_valid_flg = #{validFlg}"
 	})
-	List<CountryLeagueSeasonMasterEntity> findRoundValidFlg(String validFlg);
+	List<CountryLeagueSeasonMasterEntity> findRoundValidFlg(@Param("validFlg") String validFlg);
 
 	@Select({
 	    "SELECT season_year ",
@@ -65,6 +68,7 @@ public interface CountryLeagueSeasonMasterRepository {
 	    "ORDER BY start_season_date DESC ",
 	    "LIMIT 1"
 	})
-	String findCurrentSeasonYear(String country, String league);
+	String findCurrentSeasonYear(@Param("country") String country,
+			  @Param("league") String league);
 
 }
