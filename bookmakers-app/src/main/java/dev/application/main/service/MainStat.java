@@ -61,38 +61,70 @@ public class MainStat implements ServiceIF {
 	@Override
 	public int execute() throws Exception {
 	    final String METHOD_NAME = "execute";
-	    this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	    manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-	    // ★ 読み取り範囲を決める（DBのlast_success_csv + S3最大から算出）
 	    CsvSeqManageService.CsvSeqRange range = csvSeqManageService.decideRangeOrNull();
 	    if (range == null) {
-	    	log.info("[CsvSeqManageService END] range == null");
-	        // 追いついている
-	        this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	        log.info("[CsvSeqManageService END] range == null");
+	        manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 	        return BatchResultConst.BATCH_OK;
 	    }
-	    log.info("[CsvSeqManageService INFO] range = {}:{}",range.getFrom(),range.getTo());
+	    log.info("[CsvSeqManageService INFO] range = {}:{}", range.getFrom(), range.getTo());
 
-	    String csvNumber = String.valueOf(range.getFrom());
-	    String csvBackNumber = String.valueOf(range.getTo());
+	    String from = String.valueOf(range.getFrom());
+	    String to = String.valueOf(range.getTo());
 
-	    // ★ その範囲だけ読む
-	    Map<String, Map<String, List<BookDataEntity>>> getStatMap =
-	            this.getStatInfo.getStatMap(csvNumber, csvBackNumber);
+	    // ✅ まずキーだけ取る（軽い）
+	    List<String> keys = getStatInfo.listCsvKeysInRange(from, to);
+	    if (keys.isEmpty()) {
+	        manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	        return BatchResultConst.BATCH_OK;
+	    }
 
 	    try {
-	        this.statService.execute(getStatMap);
-	        this.rankingService.execute(getStatMap);
+	        int lastProcessed = range.getFrom() - 1;
 
-	        // ★ 全部成功したら最後に成功した番号を進める
+	        for (String key : keys) {
+	            // ✅ 1CSVだけ読む（重いのはここだけ）
+	            Map<String, Map<String, List<BookDataEntity>>> oneMap =
+	                getStatInfo.getStatMapForSingleKey(key);
+
+	            // 空ならスキップ
+	            if (oneMap.isEmpty()) {
+	                lastProcessed = Math.max(lastProcessed, extractSeq(key));
+	                continue;
+	            }
+
+	            // ✅ 1CSV分だけ処理（メモリ溜めない）
+	            statService.execute(oneMap);
+	            rankingService.execute(oneMap);
+
+	            // ✅ “このCSVまでは成功” を進める（途中成功を確定）
+	            int seq = extractSeq(key);
+	            lastProcessed = Math.max(lastProcessed, seq);
+	            csvSeqManageService.markSuccess(lastProcessed);
+
+	            // ✅ 念のためヒント（JPA使ってるなら statService 側で flush/clear 推奨）
+	            oneMap.clear();
+	        }
+
+	        // 最後まで成功したら range.to() まで進んでいるはず
 	        csvSeqManageService.markSuccess(range.getTo());
 
 	    } catch (Exception e) {
+	        log.error("[MainStat] failed", e);
 	        return BatchResultConst.BATCH_ERR;
 	    }
 
-	    this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	    manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 	    return BatchResultConst.BATCH_OK;
+	}
+
+	private static int extractSeq(String key) {
+	    // "6819.csv" -> 6819
+	    int dot = key.indexOf('.');
+	    if (dot <= 0) return -1;
+	    try { return Integer.parseInt(key.substring(0, dot)); } catch (Exception e) { return -1; }
 	}
 
 }
