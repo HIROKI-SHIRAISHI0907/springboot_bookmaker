@@ -3,6 +3,7 @@ package dev.common.getinfo;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Comparator;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -20,6 +21,7 @@ import org.springframework.scheduling.concurrent.ThreadPoolTaskExecutor;
 import org.springframework.stereotype.Component;
 
 import dev.common.config.PathConfig;
+import dev.common.entity.BookDataEntity;
 import dev.common.readfile.ReadStat;
 import dev.common.readfile.StatCsvIndexDTO;
 import dev.common.s3.S3Operator;
@@ -45,8 +47,65 @@ public class GetStatInfo {
     private ThreadPoolTaskExecutor csvTaskExecutor;
 
     /**
+     * ★ CoreStat 用：S3 CSVを読み込んで従来型で返す
+     * key: category, value: (home-away -> entities)
+     */
+    public Map<String, Map<String, List<BookDataEntity>>> getStatMap(String csvNumber, String csvBackNumber) {
+
+        String bucket = config.getS3BucketsStats();
+
+        List<String> keys = s3Operator.listSeqCsvKeysInRoot(bucket, SEQ_CSV_KEY);
+        keys = filterKeysBySeqRange(keys, csvNumber, csvBackNumber);
+
+        log.info("[GetStatMap] bucket={} keys.size={}", bucket, (keys == null ? -1 : keys.size()));
+
+        Map<String, Map<String, List<BookDataEntity>>> result = new HashMap<>();
+        if (keys == null || keys.isEmpty()) return result;
+
+        // OOM対策：同時実行を小さく（まず2推奨）
+        final int concurrency = 2;
+        final Semaphore gate = new Semaphore(concurrency);
+
+        List<CompletableFuture<Void>> futures = new ArrayList<>(keys.size());
+
+        for (String key : keys) {
+            try { gate.acquire(); }
+            catch (InterruptedException e) { Thread.currentThread().interrupt(); break; }
+
+            futures.add(CompletableFuture.runAsync(() -> {
+                try (InputStream is = s3Operator.download(bucket, key)) {
+
+                    List<BookDataEntity> list = readStat.readEntities(is, key);
+                    if (list == null || list.isEmpty()) return;
+
+                    BookDataEntity first = list.get(0);
+                    String category = first.getGameTeamCategory();
+                    String home = first.getHomeTeamName();
+                    String away = first.getAwayTeamName();
+                    if (category == null || home == null || away == null) return;
+
+                    String versus = home + "-" + away;
+
+                    synchronized (result) {
+                        result.computeIfAbsent(category, k -> new HashMap<>())
+                              .computeIfAbsent(versus, k -> new ArrayList<>())
+                              .addAll(list);
+                    }
+
+                } catch (Exception ignore) {
+                    // 読めないCSVはスキップ（必要ならwarn）
+                }
+            }, csvTaskExecutor).whenComplete((r, t) -> gate.release()));
+        }
+
+        for (CompletableFuture<Void> f : futures) f.join();
+        return result;
+    }
+
+    /**
+     * ★ ExportCsv / ReaderCurrentCsvInfoBean 用：
      * 既存CSVの「組み合わせ復元」専用
-     * @return key: category_versus_fileNo, value: seq(昇順・重複なし)
+     * @return key: category_home-away_fileNo, value: seq(昇順・重複なし)
      */
     public Map<String, List<Integer>> getCsvInfo(String csvNumber, String csvBackNumber) {
 
@@ -55,12 +114,14 @@ public class GetStatInfo {
         List<String> keys = s3Operator.listSeqCsvKeysInRoot(bucket, SEQ_CSV_KEY);
         keys = filterKeysBySeqRange(keys, csvNumber, csvBackNumber);
 
-        log.info("[GetCsvInfo] bucket={} keys={}", bucket, (keys == null ? -1 : keys.size()));
+        log.info("[GetCsvInfo] bucket={} keys.size={}", bucket, (keys == null ? -1 : keys.size()));
 
-        // 集約：key -> seqSet
+        if (keys == null || keys.isEmpty()) return new LinkedHashMap<>();
+
+        // 集約：key -> seqSet（TreeSetで重複除外＋昇順）
         Map<String, Set<Integer>> acc = new LinkedHashMap<>();
 
-        // ここが重いので「同時数」を絞る（8でもいいが、まず2～4推奨）
+        // OOM対策：同時実行を絞る（2〜4推奨）
         final int concurrency = 2;
         final Semaphore gate = new Semaphore(concurrency);
 
@@ -71,10 +132,14 @@ public class GetStatInfo {
 
             futures.add(CompletableFuture.runAsync(() -> {
                 try (InputStream is = s3Operator.download(bucket, key)) {
-                    StatCsvIndexDTO idx = readStat.readIndex(is, key);
 
-                    if (idx.getFileNo() == null || idx.getCategory() == null
-                            || idx.getHome() == null || idx.getAway() == null) {
+                    StatCsvIndexDTO idx = readStat.readIndex(is, key);
+                    if (idx == null) return;
+
+                    if (idx.getFileNo() == null
+                            || idx.getCategory() == null
+                            || idx.getHome() == null
+                            || idx.getAway() == null) {
                         return;
                     }
 
@@ -86,14 +151,14 @@ public class GetStatInfo {
                     }
 
                 } catch (Exception ignore) {
-                    // 読めないCSVはスキップ（ログ増やすならここでwarn）
+                    // 読めないCSVはスキップ
                 }
             }, csvTaskExecutor).whenComplete((r, t) -> gate.release()));
         }
 
         for (CompletableFuture<Void> f : futures) f.join();
 
-        // TreeSet → List に確定（昇順）
+        // TreeSet -> List へ確定（fileNoの昇順でLinkedHashMapに）
         return acc.entrySet().stream()
                 .sorted(Comparator.comparingInt(e -> fileNoFromKey(e.getKey())))
                 .collect(Collectors.toMap(
@@ -111,7 +176,8 @@ public class GetStatInfo {
         catch (NumberFormatException e) { return Integer.MAX_VALUE; }
     }
 
-    // 既存の filterKeysBySeqRange / extractSeqFromKey はそのまま使ってOK
+    // ===== 既存の filter はそのまま =====
+
     public static List<String> filterKeysBySeqRange(List<String> keys, String csvNumber, String csvBackNumber) {
         Integer from = null;
         Integer to = null;
