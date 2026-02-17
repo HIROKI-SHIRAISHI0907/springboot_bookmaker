@@ -61,7 +61,8 @@ public class MainStat implements ServiceIF {
 		String csvBackNumber = null;
 
 		// 直近のCSVデータ情報を取得
-		Map<String, Map<String, List<BookDataEntity>>> getStatMap = this.getStatInfo.getData(csvNumber, csvBackNumber);
+		Map<String, Map<String, List<BookDataEntity>>> getStatMap =
+		        this.getStatInfo.getStatMap(csvNumber, csvBackNumber);
 
 		// BM_M027以外登録(Transactional)
 		try {
