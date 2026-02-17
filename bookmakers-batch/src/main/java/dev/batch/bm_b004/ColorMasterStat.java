@@ -24,7 +24,7 @@ public class ColorMasterStat implements MasterEntityIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = ColorMasterStat.class.getSimpleName();
+	private static final String CLASS_NAME = ColorMasterStat.class.getName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M089_COLOR_MASTER";

@@ -73,7 +73,7 @@ public class CsvEntityLoader {
             return result;
 
         } catch (ReflectiveOperationException e) {
-            throw new RuntimeException("Failed to create entity: " + entityClass.getSimpleName(), e);
+            throw new RuntimeException("Failed to create entity: " + entityClass.getName(), e);
         }
     }
 

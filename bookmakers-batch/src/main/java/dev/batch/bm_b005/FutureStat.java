@@ -26,7 +26,7 @@ public class FutureStat implements FutureEntityIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = FutureStat.class.getSimpleName();
+	private static final String CLASS_NAME = FutureStat.class.getName();
 
 	/** FutureDBService部品 */
 	@Autowired

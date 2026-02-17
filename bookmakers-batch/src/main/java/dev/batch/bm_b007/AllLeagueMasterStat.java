@@ -25,7 +25,7 @@ public class AllLeagueMasterStat implements AllMasterEntityIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = AllLeagueMasterStat.class.getSimpleName();
+	private static final String CLASS_NAME = AllLeagueMasterStat.class.getName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "ALL_LEAGUE_MASTER";

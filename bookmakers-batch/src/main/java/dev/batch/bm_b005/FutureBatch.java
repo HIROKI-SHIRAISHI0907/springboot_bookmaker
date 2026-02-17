@@ -33,7 +33,7 @@ public class FutureBatch extends AbstractJobBatchTemplate {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = FutureBatch.class.getSimpleName();
+	private static final String CLASS_NAME = FutureBatch.class.getName();
 
 	/** エラーコード（運用ルールに合わせて変更） */
 	private static final String ERROR_CODE = "BM_B005_ERROR";

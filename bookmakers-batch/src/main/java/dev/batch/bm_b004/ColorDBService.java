@@ -24,7 +24,7 @@ public class ColorDBService {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = ColorDBService.class.getSimpleName();
+	private static final String CLASS_NAME = ColorDBService.class.getName();
 
 	/** BM_BATCH_NUMBER */
 	private static final String BM_NUMBER = "BM_B006";

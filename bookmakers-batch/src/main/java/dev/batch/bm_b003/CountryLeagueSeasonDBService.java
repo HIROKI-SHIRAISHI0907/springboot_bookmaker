@@ -25,7 +25,7 @@ public class CountryLeagueSeasonDBService {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = CountryLeagueSeasonDBService.class.getSimpleName();
+	private static final String CLASS_NAME = CountryLeagueSeasonDBService.class.getName();
 
 	/** BM_BATCH_NUMBER */
 	private static final String BM_NUMBER = "BM_B003";

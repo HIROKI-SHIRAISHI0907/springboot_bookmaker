@@ -38,7 +38,7 @@ public class ConvertJsonBatch extends AbstractJobBatchTemplate {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = ConvertJsonBatch.class.getSimpleName();
+	private static final String CLASS_NAME = ConvertJsonBatch.class.getName();
 
 	/** エラーコード（運用ルールに合わせて変更） */
 	private static final String ERROR_CODE = "BM_B010_ERROR";

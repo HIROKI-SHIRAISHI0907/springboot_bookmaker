@@ -19,7 +19,7 @@ public class UpdateTimesCountryLeagueMasterBatch implements BatchIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** 実行ログに出力するクラス名。 */
-	private static final String CLASS_NAME = UpdateTimesCountryLeagueMasterBatch.class.getSimpleName();
+	private static final String CLASS_NAME = UpdateTimesCountryLeagueMasterBatch.class.getName();
 
 	/** 運用向けのエラーコード。 */
 	private static final String ERROR_CODE = "BM_B001_ERROR";

@@ -32,7 +32,7 @@ public class CountryLeagueSeasonMasterBatch extends AbstractJobBatchTemplate {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = CountryLeagueSeasonMasterBatch.class.getSimpleName();
+	private static final String CLASS_NAME = CountryLeagueSeasonMasterBatch.class.getName();
 
 	/** エラーコード（運用ルールに合わせて変更） */
 	private static final String ERROR_CODE = "BM_B003_ERROR";

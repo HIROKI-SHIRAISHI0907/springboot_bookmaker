@@ -29,7 +29,7 @@ public class BmB002TeamMemberMasterBean {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = BmB002TeamMemberMasterBean.class.getSimpleName();
+	private static final String CLASS_NAME = BmB002TeamMemberMasterBean.class.getName();
 
 	/** ZONEID */
 	private static final ZoneId JST = ZoneId.of("Asia/Tokyo");

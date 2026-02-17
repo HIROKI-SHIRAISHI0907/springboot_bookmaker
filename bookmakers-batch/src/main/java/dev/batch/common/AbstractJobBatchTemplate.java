@@ -53,7 +53,7 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 
     /** クラス名（既存ログ仕様に合わせる） */
     protected String className() {
-        return this.getClass().getSimpleName();
+        return this.getClass().getName();
     }
 
     @Override

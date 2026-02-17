@@ -28,7 +28,7 @@ public class CountryLeagueSeasonMasterStat implements SeasonEntityIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = CountryLeagueSeasonMasterStat.class.getSimpleName();
+	private static final String CLASS_NAME = CountryLeagueSeasonMasterStat.class.getName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "COUNTRY_LEAGUE_SEASON";

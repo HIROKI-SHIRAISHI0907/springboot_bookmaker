@@ -20,7 +20,7 @@ public class TeamMemberDBPart {
 			.getCodeSource().getLocation().getPath();
 
 	/** 実行ログに出力するクラス名。 */
-	private static final String CLASS_NAME = TeamMemberDBPart.class.getSimpleName();
+	private static final String CLASS_NAME = TeamMemberDBPart.class.getName();
 
 	/** 運用向けのエラーコード。 */
 	private static final String ERROR_CODE = "DBPART";

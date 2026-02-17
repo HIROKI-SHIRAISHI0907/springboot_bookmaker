@@ -27,7 +27,7 @@ public class BatchJobRunner implements CommandLineRunner {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = BatchJobRunner.class.getSimpleName();
+	private static final String CLASS_NAME = BatchJobRunner.class.getName();
 
 	/** コンテキスト */
     private final ApplicationContext ctx;

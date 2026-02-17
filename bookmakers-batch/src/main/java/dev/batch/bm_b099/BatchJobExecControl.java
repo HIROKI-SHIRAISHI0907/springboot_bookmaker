@@ -24,7 +24,7 @@ public class BatchJobExecControl implements jobExecControlIF {
             .getCodeSource().getLocation().getPath();
 
     /** 実行ログに出力するクラス名。 */
-    private static final String CLASS_NAME = BatchJobExecControl.class.getSimpleName();
+    private static final String CLASS_NAME = BatchJobExecControl.class.getName();
 
     /** 運用向けのエラーコード。 */
     private static final String ERROR_CODE = "JOB_CONTROL";

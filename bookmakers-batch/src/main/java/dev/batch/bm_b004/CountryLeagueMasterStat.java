@@ -25,7 +25,7 @@ public class CountryLeagueMasterStat implements MasterEntityIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = CountryLeagueMasterStat.class.getSimpleName();
+	private static final String CLASS_NAME = CountryLeagueMasterStat.class.getName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "COUNTRY_LEAGUE_MASTER";
