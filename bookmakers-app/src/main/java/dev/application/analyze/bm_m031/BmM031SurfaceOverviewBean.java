@@ -27,7 +27,7 @@ public class BmM031SurfaceOverviewBean {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = BmM031SurfaceOverviewBean.class.getSimpleName();
+	private static final String CLASS_NAME = BmM031SurfaceOverviewBean.class.getName();
 
 	/** イタリアセリエA */
 	private static final String ITALY_SERIEA = "イタリア／セリエ A";
@@ -85,7 +85,7 @@ public class BmM031SurfaceOverviewBean {
 					CLASS_NAME,
 					METHOD_NAME,
 					messageCd,
-					null,
+					e,
 					null);
 		}
 	}

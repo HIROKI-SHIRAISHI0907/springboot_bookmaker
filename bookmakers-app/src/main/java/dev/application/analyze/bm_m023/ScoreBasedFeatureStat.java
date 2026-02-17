@@ -39,7 +39,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = ScoreBasedFeatureStat.class.getSimpleName();
+	private static final String CLASS_NAME = ScoreBasedFeatureStat.class.getName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M023_SCORE_BASED_FEATURE";

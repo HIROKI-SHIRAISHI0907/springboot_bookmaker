@@ -43,7 +43,7 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = AnalyzeRankingStat.class.getSimpleName();
+	private static final String CLASS_NAME = AnalyzeRankingStat.class.getName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M027_ANALYZE_RANKING";

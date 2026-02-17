@@ -45,7 +45,7 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = SurfaceOverviewStat.class.getSimpleName();
+	private static final String CLASS_NAME = SurfaceOverviewStat.class.getName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M031_SURFACE_OVERVIEW";

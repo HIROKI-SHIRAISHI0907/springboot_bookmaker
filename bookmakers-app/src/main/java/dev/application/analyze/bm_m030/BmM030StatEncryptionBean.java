@@ -41,7 +41,7 @@ public class BmM030StatEncryptionBean {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = BmM030StatEncryptionBean.class.getSimpleName();
+	private static final String CLASS_NAME = BmM030StatEncryptionBean.class.getName();
 
 	/** アルゴリズム */
 	@Value("${bmbusiness.hashAlgorithm:AES}")

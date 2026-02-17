@@ -27,7 +27,7 @@ public class BmM002ConditionResultDataBean {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = BmM002ConditionResultDataBean.class.getSimpleName();
+	private static final String CLASS_NAME = BmM002ConditionResultDataBean.class.getName();
 
 	/** アルゴリズム */
 	@Value("${bmbusiness.hashAlgorithm:SHA-256}")

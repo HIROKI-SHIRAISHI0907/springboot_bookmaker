@@ -31,7 +31,7 @@ public class CountryLeagueSummaryStat implements AnalyzeEntityIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = CountryLeagueSummaryStat.class.getSimpleName();
+	private static final String CLASS_NAME = CountryLeagueSummaryStat.class.getName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M006_COUNTRY_LEAGUE_SUMMARY";

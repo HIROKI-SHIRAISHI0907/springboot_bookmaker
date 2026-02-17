@@ -36,7 +36,7 @@ public class TimeRangeFeatureQueueService {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = TimeRangeFeatureQueueService.class.getSimpleName();
+	private static final String CLASS_NAME = TimeRangeFeatureQueueService.class.getName();
 
 	/** executorService */
 	private final ThreadPoolExecutor executorService = new ThreadPoolExecutor(

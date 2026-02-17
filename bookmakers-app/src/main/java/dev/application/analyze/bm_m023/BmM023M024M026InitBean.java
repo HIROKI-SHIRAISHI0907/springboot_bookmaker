@@ -25,7 +25,7 @@ public class BmM023M024M026InitBean {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = BmM023M024M026InitBean.class.getSimpleName();
+	private static final String CLASS_NAME = BmM023M024M026InitBean.class.getName();
 
 	/** 最小値 */
 	private String[] minList = new String[AverageStatisticsSituationConst.COUNTER];

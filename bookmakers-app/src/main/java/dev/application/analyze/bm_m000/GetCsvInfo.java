@@ -34,7 +34,7 @@ public class GetCsvInfo {
             .getCodeSource().getLocation().getPath();
 
     /** クラス名 */
-    private static final String CLASS_NAME = GetStatInfo.class.getSimpleName();
+    private static final String CLASS_NAME = GetStatInfo.class.getName();
 
     /** Configクラス */
     @Autowired

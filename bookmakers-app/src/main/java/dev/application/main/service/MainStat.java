@@ -29,7 +29,7 @@ public class MainStat implements ServiceIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = MainStat.class.getSimpleName();
+	private static final String CLASS_NAME = MainStat.class.getName();
 
 	/**
 	 * 統計情報取得管理クラス

@@ -28,7 +28,7 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = TeamMatchFinalStat.class.getSimpleName();
+	private static final String CLASS_NAME = TeamMatchFinalStat.class.getName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M021_TEAM_MATCH_FINAL";

@@ -25,7 +25,7 @@ public class OriginDBService {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = OriginDBService.class.getSimpleName();
+	private static final String CLASS_NAME = OriginDBService.class.getName();
 
 	/** BookDataRepositoryレポジトリクラス */
 	@Autowired

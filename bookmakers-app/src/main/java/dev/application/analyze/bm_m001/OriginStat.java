@@ -32,7 +32,7 @@ public class OriginStat implements OriginEntityIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = OriginStat.class.getSimpleName();
+	private static final String CLASS_NAME = OriginStat.class.getName();
 
 	/** DBサービス */
 	@Autowired

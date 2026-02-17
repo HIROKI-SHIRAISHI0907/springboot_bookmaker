@@ -34,7 +34,7 @@ public class TimeRangeFeatureStat implements AnalyzeEntityIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = TimeRangeFeatureStat.class.getSimpleName();
+	private static final String CLASS_NAME = TimeRangeFeatureStat.class.getName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M007_BM_M016_WITH_IN";

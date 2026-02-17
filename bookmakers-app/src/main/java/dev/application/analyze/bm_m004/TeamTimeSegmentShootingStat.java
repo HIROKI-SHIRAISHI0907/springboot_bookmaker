@@ -28,7 +28,7 @@ public class TeamTimeSegmentShootingStat implements AnalyzeEntityIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = TeamTimeSegmentShootingStat.class.getSimpleName();
+	private static final String CLASS_NAME = TeamTimeSegmentShootingStat.class.getName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M004_TEAM_TIME_SEGMENT_SHOOTING";

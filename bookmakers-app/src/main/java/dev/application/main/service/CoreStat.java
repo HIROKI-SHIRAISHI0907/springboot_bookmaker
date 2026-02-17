@@ -40,7 +40,7 @@ public class CoreStat implements StatIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = CoreStat.class.getSimpleName();
+	private static final String CLASS_NAME = CoreStat.class.getName();
 
 	/**
 	 * BM_M002統計分析ロジッククラス

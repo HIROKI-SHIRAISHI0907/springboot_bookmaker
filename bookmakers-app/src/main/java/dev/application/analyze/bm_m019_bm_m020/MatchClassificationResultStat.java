@@ -37,7 +37,7 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = MatchClassificationResultStat.class.getSimpleName();
+	private static final String CLASS_NAME = MatchClassificationResultStat.class.getName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M019_BM_M020_MATCH_CLASSIFICATION_RESULT";

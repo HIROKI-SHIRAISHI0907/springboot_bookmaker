@@ -28,7 +28,7 @@ public class OriginCsvService implements OriginIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = OriginCsvService.class.getSimpleName();
+	private static final String CLASS_NAME = OriginCsvService.class.getName();
 
 	/**
 	 * CSVデータ取得管理クラス

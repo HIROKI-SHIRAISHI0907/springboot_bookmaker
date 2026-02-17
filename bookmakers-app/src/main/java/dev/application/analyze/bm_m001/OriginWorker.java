@@ -23,7 +23,7 @@ public class OriginWorker {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = OriginStat.class.getSimpleName();
+	private static final String CLASS_NAME = OriginStat.class.getName();
 
 	@Autowired
 	private OriginDBService originDBService;

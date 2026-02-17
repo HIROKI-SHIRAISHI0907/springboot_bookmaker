@@ -25,7 +25,7 @@ public class OriginService implements OriginIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = OriginService.class.getSimpleName();
+	private static final String CLASS_NAME = OriginService.class.getName();
 
 	/**
 	 * 起源データ取得管理クラス

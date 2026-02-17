@@ -29,7 +29,7 @@ public class BmM023M026InitStatRankingBean {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = BmM023M026InitStatRankingBean.class.getSimpleName();
+	private static final String CLASS_NAME = BmM023M026InitStatRankingBean.class.getName();
 
 	/** ScoreBasedFeatureStatsRepositoryレポジトリクラス */
 	@Autowired

@@ -35,7 +35,7 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = LeagueScoreTimeBandStat.class.getSimpleName();
+	private static final String CLASS_NAME = LeagueScoreTimeBandStat.class.getName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M017_BM_M018_LEAGUE_SCORE_TIME_BAND";

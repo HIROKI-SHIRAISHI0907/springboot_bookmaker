@@ -31,7 +31,7 @@ public class BasedFeatureHistoryStat {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = BasedFeatureHistoryStat.class.getSimpleName();
+	private static final String CLASS_NAME = BasedFeatureHistoryStat.class.getName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M023H_BM_M026H_METRIC_DELTA";

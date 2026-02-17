@@ -25,7 +25,7 @@ public class RankingService implements StatIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = RankingService.class.getSimpleName();
+	private static final String CLASS_NAME = RankingService.class.getName();
 
 	/**
 	 * BM_M027統計分析ロジッククラス

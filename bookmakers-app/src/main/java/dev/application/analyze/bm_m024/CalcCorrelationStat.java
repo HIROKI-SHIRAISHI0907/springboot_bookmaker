@@ -55,7 +55,7 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
             .getCodeSource().getLocation().getPath();
 
     /** クラス名（ログ用） */
-    private static final String CLASS_NAME = CalcCorrelationStat.class.getSimpleName();
+    private static final String CLASS_NAME = CalcCorrelationStat.class.getName();
 
     /** 実行モード（ログ用） */
     private static final String EXEC_MODE = "BM_M024_CALC_CORRELATION";

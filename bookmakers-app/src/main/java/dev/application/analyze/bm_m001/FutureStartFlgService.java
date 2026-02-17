@@ -27,7 +27,7 @@ public class FutureStartFlgService {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = FutureStartFlgService.class.getSimpleName();
+	private static final String CLASS_NAME = FutureStartFlgService.class.getName();
 
 	/** 有効 */
 	private static final String STRAT_FLG_0 = "0";

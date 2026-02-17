@@ -23,7 +23,7 @@ public class CoreHistoryStat implements HistoryStatIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = CoreHistoryStat.class.getSimpleName();
+	private static final String CLASS_NAME = CoreHistoryStat.class.getName();
 
 	/**
 	 * BM_M023H_BM_M026H統計分析ロジッククラス
