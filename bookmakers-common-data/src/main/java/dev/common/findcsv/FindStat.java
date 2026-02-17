@@ -32,7 +32,7 @@ public class FindStat {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = FindStat.class.getSimpleName();
+	private static final String CLASS_NAME = FindStat.class.getName();
 
 	/** ログ管理クラス */
 	@Autowired

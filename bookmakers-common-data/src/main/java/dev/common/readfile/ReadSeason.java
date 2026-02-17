@@ -27,7 +27,7 @@ public class ReadSeason implements ReadFileBodyIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = ReadSeason.class.getSimpleName();
+	private static final String CLASS_NAME = ReadSeason.class.getName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "READ_SEASON";

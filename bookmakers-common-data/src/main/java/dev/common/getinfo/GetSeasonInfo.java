@@ -30,7 +30,7 @@ public class GetSeasonInfo {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = GetSeasonInfo.class.getSimpleName();
+	private static final String CLASS_NAME = GetSeasonInfo.class.getName();
 
 	/** LoggerFactory */
 	private static final Logger log = LoggerFactory.getLogger(GetSeasonInfo.class);

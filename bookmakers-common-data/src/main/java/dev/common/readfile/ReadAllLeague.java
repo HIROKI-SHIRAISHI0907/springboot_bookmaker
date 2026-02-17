@@ -27,7 +27,7 @@ public class ReadAllLeague implements ReadFileBodyIF {
             .getCodeSource().getLocation().getPath();
 
     /** クラス名 */
-    private static final String CLASS_NAME = ReadAllLeague.class.getSimpleName();
+    private static final String CLASS_NAME = ReadAllLeague.class.getName();
 
     /** 実行モード */
     private static final String EXEC_MODE = "ALL_LEAGUE";

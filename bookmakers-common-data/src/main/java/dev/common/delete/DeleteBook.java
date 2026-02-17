@@ -24,7 +24,7 @@ public class DeleteBook {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = DeleteBook.class.getSimpleName();
+	private static final String CLASS_NAME = DeleteBook.class.getName();
 
 	/**
 	 * 削除するパスに存在するブックの情報を読み取る

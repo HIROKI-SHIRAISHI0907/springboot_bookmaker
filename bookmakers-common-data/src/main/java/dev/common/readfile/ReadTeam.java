@@ -27,7 +27,7 @@ public class ReadTeam implements ReadFileBodyIF {
             .getCodeSource().getLocation().getPath();
 
     /** クラス名 */
-    private static final String CLASS_NAME = ReadTeam.class.getSimpleName();
+    private static final String CLASS_NAME = ReadTeam.class.getName();
 
 
 

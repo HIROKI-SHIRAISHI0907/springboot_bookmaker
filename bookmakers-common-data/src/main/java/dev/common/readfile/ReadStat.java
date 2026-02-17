@@ -21,7 +21,7 @@ public class ReadStat {
     private static final String PROJECT_NAME = ReadStat.class.getProtectionDomain()
             .getCodeSource().getLocation().getPath();
 
-    private static final String CLASS_NAME = ReadStat.class.getSimpleName();
+    private static final String CLASS_NAME = ReadStat.class.getName();
 
     private static final String EXEC_MODE = "READ_FILE";
 

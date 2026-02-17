@@ -31,7 +31,7 @@ public class ReadFuture implements ReadFileBodyIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = ReadFuture.class.getSimpleName();
+	private static final String CLASS_NAME = ReadFuture.class.getName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "READ_FILE";

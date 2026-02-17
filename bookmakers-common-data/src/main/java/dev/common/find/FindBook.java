@@ -34,7 +34,7 @@ public class FindBook {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = FindBook.class.getSimpleName();
+	private static final String CLASS_NAME = FindBook.class.getName();
 
 	/** 探索件数 */
 	@Value("${bmbusiness.findbookcounter:1}")

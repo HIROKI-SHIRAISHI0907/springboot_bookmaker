@@ -30,7 +30,7 @@ public class ReadTeamMember implements ReadFileBodyIF {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = ReadTeamMember.class.getSimpleName();
+	private static final String CLASS_NAME = ReadTeamMember.class.getName();
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "READ_TEAM_MEMBER";

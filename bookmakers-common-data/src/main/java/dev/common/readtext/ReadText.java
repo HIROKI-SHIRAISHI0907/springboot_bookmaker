@@ -20,7 +20,7 @@ public class ReadText {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = ReadText.class.getSimpleName();
+	private static final String CLASS_NAME = ReadText.class.getName();
 
 	/**
 	 * 統計データファイルの中身を取得する

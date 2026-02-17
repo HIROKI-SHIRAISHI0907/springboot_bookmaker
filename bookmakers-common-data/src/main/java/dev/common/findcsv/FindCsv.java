@@ -33,7 +33,7 @@ public class FindCsv {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = FindCsv.class.getSimpleName();
+	private static final String CLASS_NAME = FindCsv.class.getName();
 
 	///** 探索件数 */
 	//@Value("${bmbusiness.findbookcounter:1}")

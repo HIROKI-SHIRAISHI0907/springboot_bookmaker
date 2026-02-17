@@ -51,7 +51,7 @@ public class GetOriginInfo {
     private static final String PROJECT_NAME = GetOriginInfo.class.getProtectionDomain()
             .getCodeSource().getLocation().getPath();
 
-    private static final String CLASS_NAME = GetOriginInfo.class.getSimpleName();
+    private static final String CLASS_NAME = GetOriginInfo.class.getName();
 
 	/** LoggerFactory */
 	private static final Logger log = LoggerFactory.getLogger(GetOriginInfo.class);

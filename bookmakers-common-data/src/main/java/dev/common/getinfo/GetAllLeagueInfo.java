@@ -32,7 +32,7 @@ public class GetAllLeagueInfo {
             .getCodeSource().getLocation().getPath();
 
     /** クラス名 */
-    private static final String CLASS_NAME = GetAllLeagueInfo.class.getSimpleName();
+    private static final String CLASS_NAME = GetAllLeagueInfo.class.getName();
 
     /** Logger */
     private static final Logger log = LoggerFactory.getLogger(GetAllLeagueInfo.class);

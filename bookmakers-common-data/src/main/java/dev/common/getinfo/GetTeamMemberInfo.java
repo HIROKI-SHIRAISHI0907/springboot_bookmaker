@@ -39,7 +39,7 @@ public class GetTeamMemberInfo {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = GetTeamMemberInfo.class.getSimpleName();
+	private static final String CLASS_NAME = GetTeamMemberInfo.class.getName();
 
 	/** LoggerFactory */
 	private static final Logger log = LoggerFactory.getLogger(GetTeamMemberInfo.class);

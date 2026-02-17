@@ -182,6 +182,47 @@ public class GetStatInfo {
 						LinkedHashMap::new));
 	}
 
+	/** キー一覧を返す */
+	public List<String> listCsvKeysInRange(String csvNumber, String csvBackNumber) {
+	    String bucket = config.getS3BucketsStats();
+	    List<String> keys = s3Operator.listSeqCsvKeysInRoot(bucket, SEQ_CSV_KEY);
+	    keys = filterKeysBySeqRange(keys, csvNumber, csvBackNumber);
+	    keys.sort(Comparator.comparingInt(k -> {
+	        Integer n = extractSeqFromKey(k);
+	        return n == null ? Integer.MAX_VALUE : n;
+	    }));
+	    return keys;
+	}
+
+	/** 1ファイル分だけ Map を作る */
+	public Map<String, Map<String, List<BookDataEntity>>> getStatMapForSingleKey(String key) {
+	    String bucket = config.getS3BucketsStats();
+
+	    Map<String, Map<String, List<BookDataEntity>>> result = new HashMap<>();
+
+	    try (InputStream is = s3Operator.download(bucket, key)) {
+	        List<BookDataEntity> list = readStat.readEntities(is, key);
+	        if (list == null || list.isEmpty()) return result;
+
+	        BookDataEntity first = list.get(0);
+	        String category = first.getGameTeamCategory();
+	        String home = first.getHomeTeamName();
+	        String away = first.getAwayTeamName();
+	        if (category == null || home == null || away == null) return result;
+
+	        String versus = home + "-" + away;
+
+	        result.computeIfAbsent(category, k -> new HashMap<>())
+	              .computeIfAbsent(versus, k -> new ArrayList<>())
+	              .addAll(list);
+
+	    } catch (Exception e) {
+	        log.warn("[getStatMapForSingleKey] failed key={}", key, e);
+	    }
+
+	    return result;
+	}
+
 	// GetStatInfo に追加（S3のキー一覧だけ見て最大番号を返す）
 	public int getMaxCsvNo(String csvNumber, String csvBackNumber) {
 

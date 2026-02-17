@@ -34,7 +34,7 @@ public class GetTeamInfo {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = GetTeamInfo.class.getSimpleName();
+	private static final String CLASS_NAME = GetTeamInfo.class.getName();
 
 	/** LoggerFactory */
 	private static final Logger log = LoggerFactory.getLogger(GetTeamInfo.class);

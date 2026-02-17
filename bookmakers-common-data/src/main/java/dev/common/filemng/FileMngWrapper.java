@@ -38,7 +38,7 @@ public class FileMngWrapper {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = FileMngWrapper.class.getSimpleName();
+	private static final String CLASS_NAME = FileMngWrapper.class.getName();
 
 	/** ログ管理クラス */
 	@Autowired

@@ -33,7 +33,7 @@ public class FindThresHoldCsv {
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = FindThresHoldCsv.class.getSimpleName();
+	private static final String CLASS_NAME = FindThresHoldCsv.class.getName();
 
 	/** .xlsx */
 	private static final String CSV = ".csv";
