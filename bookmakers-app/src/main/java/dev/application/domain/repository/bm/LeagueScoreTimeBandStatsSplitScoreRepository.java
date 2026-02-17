@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -59,8 +60,8 @@ public interface LeagueScoreTimeBandStatsSplitScoreRepository {
 			        home_time_range_area = #{homeTimeRange} AND
 			        away_time_range_area = #{awayTimeRange};
 			""")
-	List<LeagueScoreTimeBandStatsSplitScoreEntity> findData(String country, String league,
-			String homeScoreValue, String awayScoreValue, String homeTimeRange, String awayTimeRange);
+	List<LeagueScoreTimeBandStatsSplitScoreEntity> findData(@Param("country") String country,@Param("league") String league,
+			@Param("homeScoreValue") String homeScoreValue, @Param("awayScoreValue") String awayScoreValue, @Param("homeTimeRange") String homeTimeRange,@Param("awayTimeRange") String awayTimeRange);
 
 	@Update("""
 		    UPDATE league_score_time_band_stats_split_score
@@ -70,5 +71,5 @@ public interface LeagueScoreTimeBandStatsSplitScoreRepository {
 		    WHERE
 		        id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER)
 		""")
-	int update(String id, String target, String search);
+	int update(@Param("id") String id,@Param("target") String target,@Param("search") String search);
 }

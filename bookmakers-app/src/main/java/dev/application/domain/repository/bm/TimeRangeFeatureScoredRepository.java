@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import dev.application.analyze.bm_m007_bm_m016.TimeRangeFeatureScoredEntity;
@@ -52,6 +53,6 @@ public interface TimeRangeFeatureScoredRepository {
 			        threshold = #{thresHold};
 			    )
 			""")
-	List<TimeRangeFeatureScoredEntity> findData(String country, String league,
-			String timeRange, String feature, String thresHold, String tableName);
+	List<TimeRangeFeatureScoredEntity> findData(@Param("country") String country, @Param("league") String league,
+			@Param("timeRange") String timeRange, @Param("feature") String feature,@Param("thresHold") String thresHold,@Param("tableName") String tableName);
 }

@@ -1,6 +1,7 @@
 package dev.application.domain.repository.bm;
 
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Update;
 
 @Mapper
@@ -14,5 +15,5 @@ public interface TimeRangeFeatureUpdateRepository {
 			    WHERE
 			    	id = #{id};
 			""")
-	int update(String id, String target, String search, String tableName);
+	int update(@Param("id") String id, @Param("target") String target, @Param("search") String search, @Param("tableName") String tableName);
 }

@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -60,8 +61,8 @@ public interface EachTeamScoreBasedFeatureStatsRepository {
         "WHERE situation = #{situation} AND score = #{score} AND country = #{country} AND league = #{league} AND "
         + "team = #{team};"
     })
-    List<EachTeamScoreBasedFeatureEntity> findStatData(String score, String situation,
-			String country, String league, String team);
+    List<EachTeamScoreBasedFeatureEntity> findStatData(@Param("score") String score, @Param("situation") String situation,
+    		@Param("country") String country, @Param("league") String league, @Param("team") String team);
 
     @Select({
         "SELECT id,",
@@ -82,7 +83,7 @@ public interface EachTeamScoreBasedFeatureStatsRepository {
         "WHERE country = #{country} AND league = #{league} AND "
         + "team = #{team};"
     })
-    List<EachTeamScoreBasedFeatureEntity> findData(String country, String league, String team);
+    List<EachTeamScoreBasedFeatureEntity> findData(@Param("country") String country, @Param("league") String league, @Param("team") String team);
 
     @Select({
         "SELECT id, score, country, league, team,",

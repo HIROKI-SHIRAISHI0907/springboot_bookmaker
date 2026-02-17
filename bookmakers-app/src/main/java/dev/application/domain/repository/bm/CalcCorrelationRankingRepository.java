@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import dev.application.analyze.bm_m025.CalcCorrelationRankingEntity;
@@ -54,6 +55,9 @@ public interface CalcCorrelationRankingRepository {
         "  AND score   = #{score}",
         "  AND chk_body = #{chkBody}"
     })
-    List<CalcCorrelationRankingEntity> selectByData(String country, String league, String home
-    		, String away, String score, String chkBody);
+    List<CalcCorrelationRankingEntity> selectByData(
+    		@Param("country") String country, @Param("league") String league,
+    		@Param("home") String home
+    		,@Param("away") String away,@Param("score") String score,
+    		@Param("chkBody") String chkBody);
 }

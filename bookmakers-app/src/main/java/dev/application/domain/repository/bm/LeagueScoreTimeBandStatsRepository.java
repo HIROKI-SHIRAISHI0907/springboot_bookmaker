@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -52,8 +53,8 @@ public interface LeagueScoreTimeBandStatsRepository {
 			        sum_score_value = #{sumScoreValue} AND
 			        time_range_area = #{timeRange};
 			""")
-	List<LeagueScoreTimeBandStatsEntity> findData(String country, String league,
-			String sumScoreValue, String timeRange);
+	List<LeagueScoreTimeBandStatsEntity> findData(@Param("country") String country, @Param("league") String league,
+			@Param("sumScoreValue") String sumScoreValue, @Param("timeRange") String timeRange);
 
 	@Update("""
 		    UPDATE league_score_time_band_stats
@@ -63,5 +64,5 @@ public interface LeagueScoreTimeBandStatsRepository {
 		    WHERE
 		        id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER)
 		""")
-	int update(String id, String target, String search);
+	int update(@Param("id") String id,@Param("target") String target,@Param("search") String search);
 }

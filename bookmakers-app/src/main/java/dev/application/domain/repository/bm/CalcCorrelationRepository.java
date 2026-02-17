@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -163,8 +164,10 @@ public interface CalcCorrelationRepository {
         + " score = #{score} AND"
         + " chk_body = #{chkBody};"
     })
-    List<CalcCorrelationEntity> findStatData(String country, String league, String home,
-    		String away, String score, String chkBody);
+    List<CalcCorrelationEntity> findStatData(@Param("country") String country, @Param("league") String league,
+    		@Param("home") String home
+    		,@Param("away") String away,@Param("score") String score,
+    		@Param("chkBody") String chkBody);
 
     @Update({
         "UPDATE calc_correlation SET",

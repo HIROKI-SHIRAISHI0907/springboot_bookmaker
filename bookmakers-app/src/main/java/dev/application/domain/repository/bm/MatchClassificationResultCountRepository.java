@@ -46,7 +46,7 @@ public interface MatchClassificationResultCountRepository {
 			        league = #{league} AND
 			        classify_mode = #{classifyMode};
 			""")
-	List<MatchClassificationResultCountEntity> findData(String country, String league, String classifyMode);
+	List<MatchClassificationResultCountEntity> findData(@Param("country") String country,@Param("league") String league, @Param("classifyMode") String classifyMode);
 
 	@Update("""
 			    UPDATE match_classification_result_count

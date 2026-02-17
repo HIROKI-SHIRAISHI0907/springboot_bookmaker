@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -45,7 +46,8 @@ public interface CountryLeagueSummaryRepository {
 			        country = #{country} AND
 			        league = #{league};
 			""")
-	List<CountryLeagueSummaryEntity> findByCountryLeague(String country, String league);
+	List<CountryLeagueSummaryEntity> findByCountryLeague(
+			@Param("country") String country, @Param("league") String league);
 
 	@Update("""
 			    UPDATE country_league_summary

@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -32,7 +33,7 @@ public interface ConditionResultDataRepository {
 			FROM public.condition_result_data
 			WHERE hash = #{hash}
 			""")
-	List<ConditionResultDataEntity> findByHash(String hash);
+	List<ConditionResultDataEntity> findByHash(@Param("hash") String hash);
 
 	// 2) 新規登録（UPSERT: hash 衝突時は更新）
 	@Insert("""
