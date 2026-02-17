@@ -53,7 +53,7 @@ public interface CountryLeagueSeasonMasterRepository {
 
 	@Select({
 			"SELECT country, league, round FROM country_league_season_master ",
-			"WHERE disp_valid_flg = #{validFlg}"
+			"WHERE valid_flg = #{validFlg}"
 	})
 	List<CountryLeagueSeasonMasterEntity> findRoundValidFlg(@Param("validFlg") String validFlg);
 
