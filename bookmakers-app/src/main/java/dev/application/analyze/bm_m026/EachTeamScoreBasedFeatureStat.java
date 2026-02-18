@@ -118,7 +118,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 					continue;
 				}
 				// 登録・更新
-				ExecutorService executor = Executors.newFixedThreadPool(Math.max(1, resultMap.size()));
+				ExecutorService executor = Executors.newFixedThreadPool(2);
 				List<CompletableFuture<Void>> futures = new ArrayList<>();
 				for (Map.Entry<String, List<EachTeamScoreBasedFeatureEntity>> entrys : resultMap.entrySet()) {
 					CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
@@ -216,7 +216,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 
 		// 各スコアの組み合わせ(例: ["0-0", "1-0", "1-1", ...])
 		List<String> allScores = extractExistingScorePatterns(entities);
-		ExecutorService executor = Executors.newFixedThreadPool(20); // スレッド数は状況に応じて調整
+		ExecutorService executor = Executors.newFixedThreadPool(4); // スレッド数は状況に応じて調整
 		List<CompletableFuture<Void>> futures = new ArrayList<>();
 		ConcurrentHashMap<String, List<EachTeamScoreBasedFeatureEntity>> allMap = new ConcurrentHashMap<>();
 		for (int i = 1; i <= 2; i++) {
@@ -341,31 +341,25 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 
 			// 保存データに保存(すでにmapにあればその続きに設定)
 			// country + "-" + league + "-" + team + "-" + chkBody
-			String containsKey = country + "-" + league + "-" + team + "-" + chkFinalBody;
-			StatEncryptionEntity entityToUse;
+			// ★ 常にこのキーだけ使う
+			String key = country + "-" + league + "-" + team + "-" + chkFinalBody;
 
-			if (bmM30Map.containsKey(containsKey)) {
-				// すでにMapにある → DBに存在する可能性が高い
-				StatEncryptionEntity exist = bmM30Map.get(containsKey);
-				// 存在するレコードのidを維持（上書きしない）
-				StatEncryptionEntity addPart = buildBmM30Form(filteredFinalList, country, league, ha, chkFinalBody,
-						fieldMap);
-				entityToUse = mergeStatEncryptionEntity(exist, addPart, ha);
-				entityToUse.setId(exist.getId());
-				entityToUse.setUpdFlg(true);
-				bmM30Map.put(containsKey, entityToUse);
+			if (bmM30Map.containsKey(key)) {
+			    StatEncryptionEntity exist = bmM30Map.get(key);
+			    StatEncryptionEntity addPart = buildBmM30Form(filteredFinalList, country, league, ha, chkFinalBody, fieldMap);
+			    StatEncryptionEntity merged = mergeStatEncryptionEntity(exist, addPart, ha);
+			    merged.setId(exist.getId());
+			    merged.setUpdFlg(true);
+			    bmM30Map.put(key, merged);
 			} else {
-				// 新規Entity（insert対象）
-				entityToUse = buildBmM30Form(filteredFinalList, country, league, ha,
-						chkFinalBody, fieldMap);
-				entityToUse.setId(null);
-				String insertKey = team + "-" + chkFinalBody;
-				bmM30Map.put(insertKey, entityToUse);
+			    StatEncryptionEntity fresh = buildBmM30Form(filteredFinalList, country, league, ha, chkFinalBody, fieldMap);
+			    fresh.setId(null);
+			    fresh.setUpdFlg(false);
+			    bmM30Map.put(key, fresh);
 			}
 
-			// 2通りのチェックを行う(country + "-" + league + "-" + team + "-" + chkBody)
-			// team + "-" + chkFinalBody
-			StatEncryptionEntity decidedEntity = bmM30Map.get(containsKey);
+			// decidedEntity も key で取れる
+			StatEncryptionEntity decidedEntity = bmM30Map.get(key);
 			if (decidedEntity == null) {
 				String insertKey = team + "-" + chkFinalBody;
 				decidedEntity = bmM30Map.get(insertKey);
@@ -507,17 +501,18 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	 */
 	private EachTeamScoreBasedFeatureOutputDTO getData(String score, String situation,
 			String country, String league, String team) {
-		EachTeamScoreBasedFeatureOutputDTO eachTeamScoreBasedFeatureOutputDTO = new EachTeamScoreBasedFeatureOutputDTO();
-		List<EachTeamScoreBasedFeatureEntity> datas = this.eachTeamScoreBasedFeatureStatsRepository
+		EachTeamScoreBasedFeatureOutputDTO dto = new EachTeamScoreBasedFeatureOutputDTO();
+
+		List<EachTeamScoreBasedFeatureEntity> data = this.eachTeamScoreBasedFeatureStatsRepository
 				.findStatData(score, situation, country, league, team);
-		if (!datas.isEmpty()) {
-			eachTeamScoreBasedFeatureOutputDTO.setUpdFlg(true);
-			eachTeamScoreBasedFeatureOutputDTO.setId(datas.get(0).getId());
-			eachTeamScoreBasedFeatureOutputDTO.setList(datas);
+		if (data != null && !data.isEmpty()) {
+			dto.setUpdFlg(true);
+	        dto.setId(data.get(0).getId());
+	        dto.setList(data);
 		} else {
-			eachTeamScoreBasedFeatureOutputDTO.setUpdFlg(false);
+			dto.setUpdFlg(false);
 		}
-		return eachTeamScoreBasedFeatureOutputDTO;
+		return dto;
 	}
 
 	/**
@@ -617,7 +612,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 					if (statValue == null || statValue.isBlank())
 						continue;
 					String[] values = statValue.split(",");
-					if (values.length >= 4) {
+					if (values.length >= 16) {
 						minList[idx] = values[0].trim();
 						minCntList[idx] = Integer.parseInt(values[1]);
 						maxList[idx] = values[2].trim();
@@ -1348,45 +1343,49 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	 * @return
 	 */
 	private synchronized StatEncryptionEntity buildBmM30Form(final List<BookDataEntity> entities,
-			String country, String league, String ha, String chkBody,
-			Map<String, Function<BookDataEntity, String>> fieldMap) {
-		final String METHOD_NAME = "buildBmM30Form";
-		StatEncryptionEntity result = new StatEncryptionEntity();
-		String prefix = "H".equals(ha) ? "home" : "away";
-		for (Map.Entry<String, Function<BookDataEntity, String>> entry : fieldMap.entrySet()) {
-			String fieldName = entry.getKey();
-			Function<BookDataEntity, String> getter = entry.getValue();
+	        String country, String league, String ha, String chkBody,
+	        Map<String, Function<BookDataEntity, String>> fieldMap) {
 
-			// homeまたはawayのprefixに一致しない場合はスキップ
-			if (!fieldName.startsWith(prefix)) {
-				continue;
-			}
-			// BookDataEntityリストから値を抽出してカンマ区切り文字列を作成
-			String joinedValue = entities.stream()
-					.map(e -> {
-						try {
-							return getter.apply(e);
-						} catch (Exception ex) {
-							return "";
-						}
-					})
-					.collect(Collectors.joining(","));
-			// StatEncryptionEntityのフィールドにリフレクションでセット
-			try {
-				Field field = StatEncryptionEntity.class.getDeclaredField(fieldName);
-				field.setAccessible(true);
-				field.set(result, joinedValue);
-			} catch (NoSuchFieldException | IllegalAccessException e) {
-				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fieldName);
-			}
-		}
-		// setterでセット
-		result.setCountry(country);
-		result.setLeague(league);
-		result.setChkBody(chkBody);
-		return result;
+	    final String METHOD_NAME = "buildBmM30Form";
+	    StatEncryptionEntity result = new StatEncryptionEntity();
+	    String prefix = "H".equals(ha) ? "home" : "away";
+
+	    for (Map.Entry<String, Function<BookDataEntity, String>> entry : fieldMap.entrySet()) {
+	        String fieldName = entry.getKey();
+	        Function<BookDataEntity, String> getter = entry.getValue();
+
+	        if (!fieldName.startsWith(prefix)) {
+	            continue;
+	        }
+
+	        // ★ joining をやめて逐次追加（巨大な中間Stringを作りにくくする）
+	        java.util.StringJoiner joiner = new java.util.StringJoiner(",");
+	        for (BookDataEntity e : entities) {
+	            String v;
+	            try {
+	                v = getter.apply(e);
+	            } catch (Exception ex) {
+	                v = "";
+	            }
+	            // nullは空として扱う
+	            joiner.add(v == null ? "" : v);
+	        }
+
+	        try {
+	            Field field = StatEncryptionEntity.class.getDeclaredField(fieldName);
+	            field.setAccessible(true);
+	            field.set(result, joiner.toString());
+	        } catch (NoSuchFieldException | IllegalAccessException ex) {
+	            String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
+	            this.manageLoggerComponent.debugErrorLog(
+	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex, fieldName);
+	        }
+	    }
+
+	    result.setCountry(country);
+	    result.setLeague(league);
+	    result.setChkBody(chkBody);
+	    return result;
 	}
 
 	/**
@@ -1395,40 +1394,48 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	 * @param source 追加データ
 	 * @param ha Home or Away
 	 */
-	private StatEncryptionEntity mergeStatEncryptionEntity(StatEncryptionEntity target, StatEncryptionEntity source,
-			String ha) {
-		final String METHOD_NAME = "mergeStatEncryptionEntity";
-		Field[] fields = StatEncryptionEntity.class.getDeclaredFields();
-		String prefix = ha.equals("H") ? "home" : "away";
-		int i = 0;
-		for (Field field : fields) {
-			String fieldName = field.getName();
-			if (!fieldName.startsWith(prefix) || i < 9) {
-				i++;
-				continue;
-			}
-			try {
-				field.setAccessible(true);
-				String targetValue = (String) field.get(target);
-				String sourceValue = (String) field.get(source);
-				if (sourceValue == null || sourceValue.isEmpty()) {
-					// sourceが空なら何もしない
-					continue;
-				}
-				if (targetValue == null) {
-					field.set(target, sourceValue);
-				} else {
-					// 空文字でも連結
-					field.set(target, targetValue + "," + sourceValue);
-				}
-			} catch (Exception e) {
-				String messageCd = MessageCdConst.MCD00018E_MERGE_ERROR;
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fieldName);
-			}
-			i++;
-		}
-		return target;
+	private StatEncryptionEntity mergeStatEncryptionEntity(StatEncryptionEntity target,
+	        StatEncryptionEntity source, String ha) {
+
+	    final String METHOD_NAME = "mergeStatEncryptionEntity";
+	    Field[] fields = StatEncryptionEntity.class.getDeclaredFields();
+	    String prefix = "H".equals(ha) ? "home" : "away";
+
+	    int i = 0;
+	    for (Field field : fields) {
+	        String fieldName = field.getName();
+	        if (!fieldName.startsWith(prefix) || i < 9) {
+	            i++;
+	            continue;
+	        }
+
+	        try {
+	            field.setAccessible(true);
+	            String targetValue = (String) field.get(target);
+	            String sourceValue = (String) field.get(source);
+
+	            if (sourceValue == null || sourceValue.isEmpty()) {
+	                i++;
+	                continue;
+	            }
+
+	            if (targetValue == null || targetValue.isEmpty()) {
+	                field.set(target, sourceValue);
+	            } else {
+	                // ★ 毎回コピー連結をやめて、必要最小限の1回のバッファで作る
+	                StringBuilder sb = new StringBuilder(targetValue.length() + 1 + sourceValue.length());
+	                sb.append(targetValue).append(',').append(sourceValue);
+	                field.set(target, sb.toString());
+	            }
+	        } catch (Exception e) {
+	            String messageCd = MessageCdConst.MCD00018E_MERGE_ERROR;
+	            this.manageLoggerComponent.debugErrorLog(
+	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fieldName);
+	        }
+
+	        i++;
+	    }
+	    return target;
 	}
 
 	/**

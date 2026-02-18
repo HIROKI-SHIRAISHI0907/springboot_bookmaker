@@ -189,7 +189,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 
 		// 各スコアの組み合わせ(例: ["0-0", "1-0", "1-1", ...])
 		List<String> allScores = extractExistingScorePatterns(entities);
-		ExecutorService executor = Executors.newFixedThreadPool(20); // スレッド数は状況に応じて調整
+		ExecutorService executor = Executors.newFixedThreadPool(6); // スレッド数は状況に応じて調整
 		List<CompletableFuture<Void>> futures = new ArrayList<>();
 		ConcurrentHashMap<String, List<ScoreBasedFeatureStatsEntity>> allMap = new ConcurrentHashMap<>();
 		for (String flg : flgs) {
@@ -439,18 +439,21 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	 * @return
 	 */
 	private ScoreBasedFeatureOutputDTO getData(String score, String situation,
-			String country, String league) {
-		ScoreBasedFeatureOutputDTO scoreBasedFeatureOutputDTO = new ScoreBasedFeatureOutputDTO();
-		List<ScoreBasedFeatureStatsEntity> datas = this.scoreBasedFeatureStatsRepository
-				.findStatData(score, situation, country, league);
-		if (!datas.isEmpty()) {
-			scoreBasedFeatureOutputDTO.setUpdFlg(true);
-			scoreBasedFeatureOutputDTO.setId(datas.get(0).getId());
-			scoreBasedFeatureOutputDTO.setList(datas);
-		} else {
-			scoreBasedFeatureOutputDTO.setUpdFlg(false);
-		}
-		return scoreBasedFeatureOutputDTO;
+	        String country, String league) {
+
+	    ScoreBasedFeatureOutputDTO dto = new ScoreBasedFeatureOutputDTO();
+
+	    List<ScoreBasedFeatureStatsEntity> data =
+	        this.scoreBasedFeatureStatsRepository.findStatData(score, situation, country, league);
+
+	    if (data != null && !data.isEmpty()) {
+	        dto.setUpdFlg(true);
+	        dto.setId(data.get(0).getId());
+	        dto.setList(data);
+	    } else {
+	        dto.setUpdFlg(false);
+	    }
+	    return dto;
 	}
 
 	/**
