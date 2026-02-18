@@ -61,7 +61,7 @@ public interface EachTeamScoreBasedFeatureStatsRepository {
         "WHERE situation = #{situation} AND score = #{score} AND country = #{country} AND league = #{league} AND "
         + "team = #{team} ORDER BY id DESC LIMIT 1;"
     })
-    List<EachTeamScoreBasedFeatureEntity> findStatData(@Param("score") String score, @Param("situation") String situation,
+    EachTeamScoreBasedFeatureEntity findStatData(@Param("score") String score, @Param("situation") String situation,
     		@Param("country") String country, @Param("league") String league, @Param("team") String team);
 
     @Select({
