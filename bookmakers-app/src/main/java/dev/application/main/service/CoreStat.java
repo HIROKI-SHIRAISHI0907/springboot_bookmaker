@@ -162,10 +162,10 @@ public class CoreStat implements StatIF {
 		this.leagueScoreTimeBandStat.calcStat(stat);
 		this.matchClassificationResultStat.calcStat(stat);
 		this.teamMatchFinalStat.calcStat(stat);
-		this.scoreBasedFeatureStat.calcStat(stat);
+		//this.scoreBasedFeatureStat.calcStat(stat);
 		this.calcCorrelationStat.calcStat(stat);
 		this.calcCorrelationRankingStat.calcStat(stat);
-		this.eachTeamScoreBasedFeatureStat.calcStat(stat);
+		//this.eachTeamScoreBasedFeatureStat.calcStat(stat);
 		this.surfaceOverviewStat.calcStat(stat);
 		this.rankHistoryStat.calcStat(stat);
 
