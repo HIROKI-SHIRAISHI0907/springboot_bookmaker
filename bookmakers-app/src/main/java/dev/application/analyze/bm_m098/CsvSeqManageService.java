@@ -6,6 +6,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.domain.repository.bm.CsvSeqManageRepository;
 import dev.common.getinfo.GetStatInfo;
+import lombok.Data;
 
 /**
  * CSV連番管理サービス
@@ -93,6 +94,7 @@ public class CsvSeqManageService {
     // DTO: このサービス内で使う「今回の読み取り範囲」
     // ============================================
 
+    @Data
     public static class CsvSeqRange {
         private final int from;
         private final int to;
@@ -105,11 +107,6 @@ public class CsvSeqManageService {
             this.lastOnDb = lastOnDb;
             this.maxOnS3 = maxOnS3;
         }
-
-        public int getFrom() { return from; }
-        public int getTo() { return to; }
-        public int getLastOnDb() { return lastOnDb; }
-        public int getMaxOnS3() { return maxOnS3; }
 
         @Override
         public String toString() {

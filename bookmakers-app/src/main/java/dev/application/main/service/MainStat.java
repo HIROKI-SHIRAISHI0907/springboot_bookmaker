@@ -80,10 +80,12 @@ public class MainStat implements ServiceIF {
 	        manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 	        return BatchResultConst.BATCH_OK;
 	    }
+	    log.info("[getStatInfo.listCsvKeysInRange size info] keys.size = {}", keys.size());
 
 	    try {
 	        int lastProcessed = range.getFrom() - 1;
 
+	        int process = 1;
 	        for (String key : keys) {
 	            // ✅ 1CSVだけ読む（重いのはここだけ）
 	            Map<String, Map<String, List<BookDataEntity>>> oneMap =
@@ -92,8 +94,12 @@ public class MainStat implements ServiceIF {
 	            // 空ならスキップ
 	            if (oneMap.isEmpty()) {
 	                lastProcessed = Math.max(lastProcessed, extractSeq(key));
+	                process++;
 	                continue;
 	            }
+
+	            log.info("[String key : keys "
+	            		+ "info] country-league = {}", oneMap.keySet());
 
 	            // ✅ 1CSV分だけ処理（メモリ溜めない）
 	            statService.execute(oneMap);
@@ -103,6 +109,9 @@ public class MainStat implements ServiceIF {
 	            int seq = extractSeq(key);
 	            lastProcessed = Math.max(lastProcessed, seq);
 	            csvSeqManageService.markSuccess(lastProcessed);
+
+	            log.info("[stat calc fin "
+	            		+ "info] csv situation: {}/{}", process, range.getLastOnDb());
 
 	            // ✅ 念のためヒント（JPA使ってるなら statService 側で flush/clear 推奨）
 	            oneMap.clear();
