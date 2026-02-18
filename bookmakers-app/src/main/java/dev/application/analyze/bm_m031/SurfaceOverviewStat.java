@@ -160,12 +160,22 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			List<BookDataEntity> entities,
 			String country, String league, String home, String away,
 			ConcurrentHashMap<String, SurfaceOverviewEntity> resultMap) {
+		final String METHOD_NAME = "basedMain";
 
 		BookDataEntity last = ExecuteMainUtil.getMaxSeqEntities(entities);
 		manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, null, null, last.getFilePath());
 		if (!BookMakersCommonConst.FIN.equals(last.getTime())) return;
 
-		BookDataEntity mid  = ExecuteMainUtil.getHalfEntities(entities);
+		BookDataEntity mid = ExecuteMainUtil.getHalfEntities(entities);
+		if (mid == null || mid.getSeq() == null) {
+            manageLoggerComponent.debugInfoLog(
+                PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
+                "half not found -> skip FIRST/SECOND. file=" + entities.get(0).getFilePath()
+                + ", size=" + entities.size()
+                + ", country=" + country + ", league=" + league
+            );
+            return; // ← FIRST/SECOND は計算不能なのでスキップ
+        }
 		BookDataEntity first = ExecuteMainUtil.getMinSeqEntities(entities);
 
 		// スコア推移（連続重複を除外）

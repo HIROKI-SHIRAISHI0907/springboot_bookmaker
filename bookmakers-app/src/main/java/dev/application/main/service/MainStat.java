@@ -113,6 +113,8 @@ public class MainStat implements ServiceIF {
 	            log.info("[stat calc fin "
 	            		+ "info] csv situation: {}/{}", process, range.getLastOnDb());
 
+	            process++;
+
 	            // ✅ 念のためヒント（JPA使ってるなら statService 側で flush/clear 推奨）
 	            oneMap.clear();
 	        }

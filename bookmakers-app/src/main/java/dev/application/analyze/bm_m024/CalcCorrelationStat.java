@@ -191,7 +191,18 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
         if (AverageStatisticsSituationConst.ALL_DATA.equals(flg)) {
             filteredList = entities;
         } else {
-            String halfTimeSeq = ExecuteMainUtil.getHalfEntities(entities).getSeq();
+            BookDataEntity half = ExecuteMainUtil.getHalfEntities(entities);
+            if (half == null || half.getSeq() == null) {
+                manageLoggerComponent.debugInfoLog(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
+                    "half not found -> skip FIRST/SECOND. file=" + entities.get(0).getFilePath()
+                    + ", size=" + entities.size()
+                    + ", country=" + country + ", league=" + league
+                    + ", home=" + home + ", away=" + away
+                );
+                return; // ← FIRST/SECOND は計算不能なのでスキップ
+            }
+            String halfTimeSeq = half.getSeq();
             if (AverageStatisticsSituationConst.FIRST_DATA.equals(flg)) {
                 filteredList = entities.stream()
                         .filter(e -> e.getSeq().compareTo(halfTimeSeq) <= 0)
