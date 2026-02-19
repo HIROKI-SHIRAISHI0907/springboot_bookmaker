@@ -21,6 +21,11 @@ process:
       allLeague: aws-s3-all-league-csv
   
 spring:
+  application:
+    name: bookmakers-common-data
+  messages:
+    basename: message
+    encoding: UTF-8
   flyway:
     enabled: true
     datasource:
