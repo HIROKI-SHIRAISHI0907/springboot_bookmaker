@@ -26,33 +26,40 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class OverviewsController {
 
-  private final OverviewAPIService overviewAPIService;
+	private final OverviewAPIService overviewAPIService;
 
-  @GetMapping("/{teamEnglish}/{teamHash}")
-  public ResponseEntity<?> getMonthlyOverview(
-          @PathVariable String teamEnglish,
-          @PathVariable String teamHash
-  ) throws BadRequestException, NotFoundException {
+	@GetMapping("/{teamEnglish}/{teamHash}")
+	public ResponseEntity<?> getMonthlyOverview(
+			@PathVariable String teamEnglish,
+			@PathVariable String teamHash) throws BadRequestException, NotFoundException {
 
-    List<OverviewResponse> items = overviewAPIService.getMonthlyOverview(teamEnglish, teamHash);
-    return ResponseEntity.ok(new OverviewListResponse(items));
-  }
+		List<OverviewResponse> items = overviewAPIService.getMonthlyOverview(teamEnglish, teamHash);
+		return ResponseEntity.ok(new OverviewListResponse(items));
+	}
 
-  @GetMapping("/{country}/{league}/match/{seq}")
-  public ResponseEntity<?> getScheduleOverview(
-      @PathVariable String country,
-      @PathVariable String league,
-      @PathVariable long seq
-  ) throws BadRequestException, NotFoundException {
+	@GetMapping("/{teamEnglish}/{teamHash}/match/{seq}")
+	public ResponseEntity<?> getScheduleOverview(
+			@PathVariable String teamEnglish,
+			@PathVariable String teamHash,
+			@PathVariable long seq) throws BadRequestException, NotFoundException {
 
-    ScheduleOverviewResponse result = overviewAPIService.getScheduleOverview(country, league, seq);
-    return ResponseEntity.ok(new ScheduleOverviewResponse(result.getMatch(), result.getSurfaces()));
-  }
+		ScheduleOverviewResponse result = overviewAPIService.getScheduleOverview(teamEnglish, teamHash, seq);
+		return ResponseEntity.ok(new ScheduleOverviewResponse(result.getMatch(), result.getSurfaces()));
+	}
 
-  static class OverviewListResponse {
-    private List<OverviewResponse> items;
-    public OverviewListResponse(List<OverviewResponse> items) { this.items = items; }
-    public List<OverviewResponse> getItems() { return items; }
-    public void setItems(List<OverviewResponse> items) { this.items = items; }
-  }
+	static class OverviewListResponse {
+		private List<OverviewResponse> items;
+
+		public OverviewListResponse(List<OverviewResponse> items) {
+			this.items = items;
+		}
+
+		public List<OverviewResponse> getItems() {
+			return items;
+		}
+
+		public void setItems(List<OverviewResponse> items) {
+			this.items = items;
+		}
+	}
 }

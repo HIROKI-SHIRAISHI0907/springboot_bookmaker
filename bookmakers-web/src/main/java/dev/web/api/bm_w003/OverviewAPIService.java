@@ -48,14 +48,19 @@ public class OverviewAPIService {
      * @throws NotFoundException
      */
     public ScheduleOverviewResponse getScheduleOverview(
-            String country,
-            String league,
+    		String teamEnglish, String teamHash,
             long seq
     ) throws BadRequestException, NotFoundException {
 
-        if (isBlank(country) || isBlank(league) || seq <= 0) {
-            throw new BadRequestException("country, league, valid seq are required");
+        if (isBlank(teamEnglish) || isBlank(teamHash) || seq <= 0) {
+            throw new BadRequestException("teamEnglish, teamHash, valid seq are required");
         }
+
+        TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
+    	if (teamInfo == null) return null;
+
+    	String country = teamInfo.getCountry();
+    	String league = teamInfo.getLeague();
 
         // ① 試合取得
         ScheduleMatchDTO match =

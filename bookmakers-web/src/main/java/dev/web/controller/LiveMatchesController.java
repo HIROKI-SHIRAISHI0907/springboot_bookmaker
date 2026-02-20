@@ -2,8 +2,8 @@ package dev.web.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
-import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import dev.web.api.bm_w007.LiveMatchesAPIService;
@@ -33,12 +33,12 @@ public class LiveMatchesController {
         this.liveMatchesService = liveMatchesService;
     }
 
-    @GetMapping("/live-matches")
+    @GetMapping("/live-matches/{teamEnglish}/{teamHash}")
     public ResponseEntity<?> getLiveMatches(
-            @RequestParam(name = "country", required = false) String country,
-            @RequestParam(name = "league",  required = false) String league
+            @PathVariable String teamEnglish,
+            @PathVariable String teamHash
     ) {
-        var list = liveMatchesService.getLiveMatches(country, league);
+        var list = liveMatchesService.getLiveMatches(teamEnglish, teamHash);
         return ResponseEntity.ok(list);
     }
 }
