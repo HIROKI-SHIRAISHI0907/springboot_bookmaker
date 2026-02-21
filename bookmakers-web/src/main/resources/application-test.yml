@@ -1,23 +1,8 @@
 spring:
-  flyway:
-    enabled: false
-
   datasource:
     bm:
       driver-class-name: org.h2.Driver
-      url: jdbc:h2:mem:bm;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;DATABASE_TO_LOWER=TRUE
-      username: sa
-      password:
-
-    master:
-      driver-class-name: org.h2.Driver
-      url: jdbc:h2:mem:master;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;DATABASE_TO_LOWER=TRUE
-      username: sa
-      password:
-
-    user:
-      driver-class-name: org.h2.Driver
-      url: jdbc:h2:mem:user;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;DATABASE_TO_LOWER=TRUE
+      url: jdbc:h2:mem:bm;MODE=PostgreSQL;DB_CLOSE_DELAY=-1;DB_CLOSE_ON_EXIT=FALSE;DATABASE_TO_LOWER=TRUE;INIT=CREATE SCHEMA IF NOT EXISTS soccer_bm\;SET SCHEMA soccer_bm
       username: sa
       password:
 
@@ -28,3 +13,6 @@ spring:
     properties:
       hibernate:
         format_sql: true
+
+exportcsv:
+  local-only: true
