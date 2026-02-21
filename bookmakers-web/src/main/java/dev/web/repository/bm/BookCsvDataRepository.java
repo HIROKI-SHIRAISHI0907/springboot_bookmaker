@@ -45,7 +45,7 @@ public class BookCsvDataRepository {
                 d.times          AS times,
                 MIN(d.seq)       AS seq
               FROM data d
-              WHERE d.times IN ('終了済','ハーフタイム','第一ハーフ')
+              WHERE d.times IN ('終了済','第二ハーフ','ハーフタイム','第一ハーフ')
                 AND EXISTS (
                   SELECT 1 FROM data x
                    WHERE x.data_category  = d.data_category
@@ -58,7 +58,7 @@ public class BookCsvDataRepository {
                    WHERE y.data_category  = d.data_category
                      AND y.home_team_name = d.home_team_name
                      AND y.away_team_name = d.away_team_name
-                     AND y.times = '終了済'
+                     AND y.times IN ('終了済','第二ハーフ')
                 )
               GROUP BY d.data_category, d.home_team_name, d.away_team_name, d.times
 
@@ -71,7 +71,7 @@ public class BookCsvDataRepository {
                 d.times          AS times,
                 d.seq            AS seq
               FROM data d
-              WHERE d.times NOT IN ('終了済','ハーフタイム','第一ハーフ')
+              WHERE d.times NOT IN ('終了済','第二ハーフ','ハーフタイム','第一ハーフ')
                 AND EXISTS (
                   SELECT 1 FROM data x
                    WHERE x.data_category  = d.data_category
@@ -84,7 +84,7 @@ public class BookCsvDataRepository {
                    WHERE y.data_category  = d.data_category
                      AND y.home_team_name = d.home_team_name
                      AND y.away_team_name = d.away_team_name
-                     AND y.times = '終了済'
+                     AND y.times IN ('終了済','第二ハーフ')
                 )
             ) t
             ORDER BY t.dataCategory, t.homeTeamName, t.awayTeamName, t.seq ASC
