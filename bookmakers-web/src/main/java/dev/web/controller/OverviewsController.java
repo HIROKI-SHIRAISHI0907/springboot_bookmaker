@@ -13,6 +13,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import dev.web.api.bm_w003.OverviewAPIService;
 import dev.web.api.bm_w003.OverviewResponse;
+import dev.web.api.bm_w003.OverviewSummaryDTO;
 import dev.web.api.bm_w003.ScheduleOverviewResponse;
 import lombok.AllArgsConstructor;
 
@@ -45,6 +46,15 @@ public class OverviewsController {
 
 		ScheduleOverviewResponse result = overviewAPIService.getScheduleOverview(teamEnglish, teamHash, seq);
 		return ResponseEntity.ok(new ScheduleOverviewResponse(result.getMatch(), result.getSurfaces()));
+	}
+
+	@GetMapping("/{teamEnglish}/{teamHash}/stats/summary")
+	public ResponseEntity<?> getOverviewStatSummary(
+			@PathVariable String teamEnglish,
+			@PathVariable String teamHash) throws BadRequestException, NotFoundException {
+
+		List<OverviewSummaryDTO> items = overviewAPIService.getOverviewSummary(teamEnglish, teamHash);
+		return ResponseEntity.ok(items);
 	}
 
 	static class OverviewListResponse {

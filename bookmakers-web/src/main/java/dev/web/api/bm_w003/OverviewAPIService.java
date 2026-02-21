@@ -85,6 +85,24 @@ public class OverviewAPIService {
         return new ScheduleOverviewResponse(match, surfaces);
     }
 
+    /**
+     * 統計サマリ取得
+     * @throws BadRequestException
+     * @throws NotFoundException
+     */
+    public List<OverviewSummaryDTO> getOverviewSummary(
+    		String teamEnglish, String teamHash
+    ) throws BadRequestException, NotFoundException {
+        if (isBlank(teamEnglish) || isBlank(teamHash)) {
+            throw new BadRequestException("country, league, team are required");
+        }
+
+        TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
+        if (teamInfo == null) return null;
+        return overviewsRepository.findOverviewSummary(teamInfo.getCountry(),
+        		teamInfo.getLeague(), teamInfo.getTeam());
+    }
+
     private boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
     }

@@ -16,6 +16,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.web.api.bm_w001.FuturesResponseDTO;
+import lombok.Data;
 
 /**
  * FuturesRepositoryクラス
@@ -59,7 +60,7 @@ public class FuturesRepository {
 	}
 
 	// --------------------------------------------------------
-	// 取得: GET /api/future/:country/:league/:team
+	// 取得: GET /api/future/{teamEnglish}/{teamHash}
 	// --------------------------------------------------------
 	public List<FuturesResponseDTO> findFutureMatches(String country, String league, String teamJa) {
 		String likeCond = country + ": " + league + "%";
@@ -155,7 +156,7 @@ public class FuturesRepository {
 	 * - limit 件だけ返す
 	 */
 	public List<FuturesResponseDTO> findFutureMatchesFromNextDay(String country, String league, int limit) {
-		// JST 기준で「明日の00:00」
+		// JSTで「明日の00:00」
 		ZonedDateTime tomorrowStartJst = ZonedDateTime.now(ZoneId.of("Asia/Tokyo"))
 				.plusDays(1)
 				.toLocalDate()
@@ -289,5 +290,79 @@ public class FuturesRepository {
 		public String homeTeamName;
 		public String awayTeamName;
 		public java.time.OffsetDateTime matchStartTime;
+	}
+
+	// ========= 各得点失点存在確認用 =========
+	// FuturesRepository.java
+
+	public List<DataEachScoreLostDataResponseDTO> findEachScoreLoseMatchesExistsList(
+	        String country, String league, String teamJa
+	) {
+	    String likeCond = country + ": " + league + "%";
+
+	    String sql = """
+	        SELECT
+	          f.seq,
+	          f.game_team_category AS data_category,
+	          f.future_time        AS record_time,
+	          f.home_team_name     AS home_team_name,
+	          f.away_team_name     AS away_team_name,
+	          NULLIF(TRIM(f.game_link), '') AS link,
+	          CASE
+	            WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
+	            ELSE CAST((regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
+	          END AS round_no
+	        FROM future_master f
+	        WHERE f.start_flg = '1'
+	          AND (f.home_team_name = :teamJa OR f.away_team_name = :teamJa)
+	          AND f.game_team_category LIKE :likeCond
+	        ORDER BY
+	          CASE
+	            WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN 2147483647
+	            ELSE CAST((regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
+	          END ASC,
+	          f.future_time ASC
+	    """;
+
+	    var params = new MapSqlParameterSource()
+	            .addValue("teamJa", teamJa)
+	            .addValue("likeCond", likeCond);
+
+	    RowMapper<DataEachScoreLostDataResponseDTO> rm = (rs, rowNum) -> {
+	        var dto = new DataEachScoreLostDataResponseDTO();
+	        dto.setSeq(rs.getLong("seq"));
+	        dto.setDataCategory(rs.getString("data_category"));
+
+	        int roundNo = rs.getInt("round_no");
+	        dto.setRoundNo(rs.wasNull() ? null : String.valueOf(roundNo)); // DTOがStringならこれ
+	        // dto.setRoundNo(rs.wasNull() ? null : roundNo);              // DTOをInteger化できるならこっち推奨
+
+	        Timestamp rt = rs.getTimestamp("record_time");
+	        dto.setRecordTime(rt == null ? null : rt.toInstant().atOffset(ZoneOffset.UTC).toString());
+
+	        dto.setHomeTeamName(rs.getString("home_team_name"));
+	        dto.setAwayTeamName(rs.getString("away_team_name"));
+
+	        dto.setHomeScore(null);
+	        dto.setAwayScore(null);
+
+	        dto.setLink(rs.getString("link"));
+	        return dto;
+	    };
+
+	    return masterJdbcTemplate.query(sql, params, rm);
+	}
+
+	@Data
+	public class DataEachScoreLostDataResponseDTO {
+		private Long seq;
+		private String dataCategory;
+		private String roundNo;
+		private String recordTime;
+		private String homeTeamName;
+		private String awayTeamName;
+		private Integer homeScore;
+		private Integer awayScore;
+		private String link;
 	}
 }
