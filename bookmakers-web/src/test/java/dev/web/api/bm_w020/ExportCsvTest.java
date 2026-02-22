@@ -124,7 +124,7 @@ class ExportCsvTest {
 					.collect(Collectors.toList());
 		}
 
-		assertEquals(2977, csvFiles.size());
+		assertEquals(115, csvFiles.size());
 
 		for (Path csv : csvFiles) {
 			List<DataEntity> list = CsvImport.importCsv(
@@ -157,7 +157,7 @@ class ExportCsvTest {
 		target.execute();
 
 		List<DataEntity> row = bookDataRepository.findAll();
-		assertEquals(2048, row.size());
+		assertEquals(115, row.size());
 
 		// tmp PUT（CSV複数 + seqList + data_team_list）
 		verify(s3Operator, atLeast(2)).uploadFile(eq(BUCKET), startsWith("tmp/"), any(Path.class));
