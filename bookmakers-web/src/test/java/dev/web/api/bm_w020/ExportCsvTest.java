@@ -16,7 +16,6 @@ import javax.sql.DataSource;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
-import org.junit.jupiter.api.io.TempDir;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -54,12 +53,11 @@ class ExportCsvTest {
 	@MockBean
 	ManageLoggerComponent manageLoggerComponent;
 
+	Path outDir;
+
 	@Autowired
 	@Qualifier("bmDataSource")
 	DataSource bmDataSource;
-
-	@TempDir
-	Path csvOutDir;
 
 	static final String BUCKET = "aws-s3-outputs-csv";
 
@@ -74,15 +72,36 @@ class ExportCsvTest {
 		uploadedTmpKeys = new CopyOnWriteArrayList<>();
 
 		when(config.getS3BucketsStats()).thenReturn(BUCKET);
-		when(config.getCsvFolder()).thenReturn(csvOutDir.toString());
 
-		doNothing().when(bean).init();
-		when(bean.getCsvInfo()).thenReturn(Collections.emptyMap());
+		// ★ 出力先を data/out に固定
+		Path projectRoot = Path.of(System.getProperty("user.dir")).toAbsolutePath().normalize();
+		this.outDir = projectRoot.resolve("src/test/java/dev/web/api/bm_w020/data/out").normalize();
+		Files.createDirectories(this.outDir);
 
-		var dummy = mock(CsvArtifactResource.class);
-		when(helper.getData()).thenReturn(dummy);
-		when(helper.csvCondition(anyList(), any())).thenReturn(true);
-		when(helper.abnormalChk(anyList())).thenAnswer(inv -> inv.getArgument(0));
+		System.out.println("outDir(abs) = " + this.outDir);
+		assertTrue(Files.isDirectory(this.outDir), "outDir が存在すること");
+		when(config.getCsvFolder()).thenReturn(this.outDir.toString());
+
+		try (var s = Files.walk(this.outDir)) {
+		    s.sorted((a, b) -> b.getNameCount() - a.getNameCount())
+		     .filter(p -> !p.equals(this.outDir))
+		     .forEach(p -> {
+		         try { Files.deleteIfExists(p); } catch (Exception ignore) {}
+		     });
+		}
+
+		doThrow(new RuntimeException("not found"))
+	    .when(s3Operator).downloadToFile(eq(BUCKET), anyString(), any(Path.class));
+
+		when(config.getCsvFolder()).thenReturn(this.outDir.toString());
+
+	    doNothing().when(bean).init();
+	    when(bean.getCsvInfo()).thenReturn(Collections.emptyMap());
+
+	    var dummy = mock(CsvArtifactResource.class);
+	    when(helper.getData()).thenReturn(dummy);
+	    when(helper.csvCondition(anyList(), any())).thenReturn(true);
+	    when(helper.abnormalChk(anyList())).thenAnswer(inv -> inv.getArgument(0));
 
 		when(s3Operator.buildKey(anyString(), anyString())).thenAnswer(inv -> {
 			String prefix = inv.getArgument(0);
@@ -102,10 +121,17 @@ class ExportCsvTest {
 				.thenAnswer(inv -> new ArrayList<>(uploadedTmpKeys));
 
 		doAnswer(inv -> {
-			String key = inv.getArgument(1);
-			uploadedTmpKeys.add(key);
-			return null;
+		    String key = inv.getArgument(1);
+		    Path local = inv.getArgument(2);
+
+		    assertTrue(Files.exists(local), "upload対象が存在すること: " + local);
+		    assertTrue(Files.size(local) > 0, "upload対象が空でないこと: " + local);
+
+		    uploadedTmpKeys.add(key);
+		    return null;
 		}).when(s3Operator).uploadFile(eq(BUCKET), anyString(), any(Path.class));
+
+
 
 		doNothing().when(s3Operator).copy(eq(BUCKET), anyString(), eq(BUCKET), anyString());
 		doNothing().when(s3Operator).delete(eq(BUCKET), anyString());
@@ -116,15 +142,17 @@ class ExportCsvTest {
 	private void seedDataTableFromLocalCsv() throws Exception {
 		Path root = ExportCsvTestSupport.resolveRootDir("src/test/java/dev/web/api/bm_w020/data");
 
-		List<Path> csvFiles;
-		try (var s = Files.walk(root)) {
-			csvFiles = s.filter(Files::isRegularFile)
-					.filter(p -> p.getFileName().toString().toLowerCase().endsWith(".csv"))
-					.sorted()
-					.collect(Collectors.toList());
-		}
+	    List<Path> csvFiles;
+	    try (var s = Files.walk(root)) {
+	        csvFiles = s.filter(Files::isRegularFile)
+	                .filter(p -> p.getFileName().toString().toLowerCase().endsWith(".csv"))
+	                // ★ out配下を除外（フィールドを使う）
+	                .filter(p -> !p.normalize().startsWith(this.outDir.normalize()))
+	                .sorted()
+	                .collect(Collectors.toList());
+	    }
 
-		assertEquals(115, csvFiles.size());
+		assertEquals(114, csvFiles.size());
 
 		for (Path csv : csvFiles) {
 			List<DataEntity> list = CsvImport.importCsv(
@@ -141,12 +169,22 @@ class ExportCsvTest {
 			for (DataEntity e : list) {
 				if (e == null || e.getSeq() == null || e.getSeq().isBlank())
 					continue;
-				if (bookDataRepository.findBySeq(e.getSeq()).isPresent()) {
-					System.out.println("update: " + e.getSeq() + ", 時間:" + e.getTimes() + ", ");
+				e.setConditionResultDataSeqId("1");
+
+				var condId = e.getConditionResultDataSeqId();
+				var category = e.getDataCategory();
+				var times = e.getTimes();
+				var home = e.getHomeTeamName();
+				var away = e.getAwayTeamName();
+
+				var oldOpt = bookDataRepository.findByBusinessKey(condId, category, times, home, away);
+
+				if (oldOpt.isPresent()) {
+					e.setSeq(oldOpt.get().getSeq()); // ← DBのAI seq
 					bookDataRepository.updateBySeq(e);
 				} else {
-					System.out.println("insert: " + e.getSeq() + ", 時間:" + e.getTimes() + ", ");
-					bookDataRepository.insert(e);
+					e.setSeq(null); // ← insertでseqを使わないが念のため
+					bookDataRepository.insert(e); // ← 修正後insert
 				}
 			}
 		}
@@ -157,7 +195,25 @@ class ExportCsvTest {
 		target.execute();
 
 		List<DataEntity> row = bookDataRepository.findAll();
-		assertEquals(115, row.size());
+		assertEquals(45, row.size());
+
+		List<BookDataRepository.BusinessGroupCountRow> rows = bookDataRepository
+				.countByBusinessGroupExcludeNullOrBlank();
+
+		assertEquals(33, rows.get(0).cnt);
+		assertEquals(6, rows.get(1).cnt);
+		assertEquals(6, rows.get(2).cnt);
+
+		// ====== ★ローカル出力の検証を追加 ======
+	    assertTrue(Files.exists(outDir.resolve("seqList.txt")), "seqList.txt が outDir に出力されていること");
+	    assertTrue(Files.exists(outDir.resolve("data_team_list.txt")), "data_team_list.txt が outDir に出力されていること");
+
+	    try (var s = Files.list(outDir)) {
+	        List<Path> csvs = s.filter(Files::isRegularFile)
+	                           .filter(p -> p.getFileName().toString().toLowerCase().endsWith(".csv"))
+	                           .collect(Collectors.toList());
+	        assertFalse(csvs.isEmpty(), "outDir 配下にCSVが1つ以上出力されていること");
+	    }
 
 		// tmp PUT（CSV複数 + seqList + data_team_list）
 		verify(s3Operator, atLeast(2)).uploadFile(eq(BUCKET), startsWith("tmp/"), any(Path.class));

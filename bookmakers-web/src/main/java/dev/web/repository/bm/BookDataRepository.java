@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 
 import dev.common.entity.DataEntity;
 import dev.web.api.bm_w014.EachScoreLostDataResponseDTO;
+import lombok.EqualsAndHashCode;
 
 /**
  * DataEntity 用リポジトリ（手動登録/更新向け）
@@ -266,7 +267,6 @@ public class BookDataRepository {
 
 		String sql = """
 				INSERT INTO data (
-				  seq,
 				  condition_result_data_seq_id,
 				  data_category,
 				  times,
@@ -365,7 +365,6 @@ public class BookDataRepository {
 				  probablity,
 				  prediction_score_time
 				) VALUES (
-				  :seq,
 				  :conditionResultDataSeqId,
 				  :dataCategory,
 				  :times,
@@ -849,184 +848,345 @@ public class BookDataRepository {
 	}
 
 	public Optional<EachScoreLostDataResponseDTO> findEachScoreLoseMatchFinishedByRoundAndTeams(
-	        String country,
-	        String league,
-	        String homeTeamName,
-	        String awayTeamName,
-	        int roundNo
-	) {
-	    String likeCond = country + ": " + league + "%";
+			String country,
+			String league,
+			String homeTeamName,
+			String awayTeamName,
+			int roundNo) {
+		String likeCond = country + ": " + league + "%";
 
-	    String sql = """
-	        SELECT DISTINCT ON (d.game_link)
-	          d.seq,
-	          d.data_category,
-	          d.home_team_name,
-	          d.away_team_name,
-	          d.home_score,
-	          d.away_score,
-	          NULLIF(TRIM(d.game_link), '') AS link,
-	          d.record_time,
-	          CASE
-	            WHEN regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
-	            ELSE CAST((regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
-	          END AS round_no
-	        FROM public.data d
-	        WHERE d.times = '終了済'
-	          AND d.data_category LIKE :likeCond
-	          AND d.home_team_name = :homeTeam
-	          AND d.away_team_name = :awayTeam
-	          AND (
-	            CASE
-	              WHEN regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
-	              ELSE CAST((regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
-	            END
-	          ) = :roundNo
-	          AND d.game_link IS NOT NULL
-	        ORDER BY d.game_link, d.record_time DESC
-	        LIMIT 1
-	    """;
+		String sql = """
+				    SELECT DISTINCT ON (d.game_link)
+				      d.seq,
+				      d.data_category,
+				      d.home_team_name,
+				      d.away_team_name,
+				      d.home_score,
+				      d.away_score,
+				      NULLIF(TRIM(d.game_link), '') AS link,
+				      d.record_time,
+				      CASE
+				        WHEN regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
+				        ELSE CAST((regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
+				      END AS round_no
+				    FROM public.data d
+				    WHERE d.times = '終了済'
+				      AND d.data_category LIKE :likeCond
+				      AND d.home_team_name = :homeTeam
+				      AND d.away_team_name = :awayTeam
+				      AND (
+				        CASE
+				          WHEN regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
+				          ELSE CAST((regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
+				        END
+				      ) = :roundNo
+				      AND d.game_link IS NOT NULL
+				    ORDER BY d.game_link, d.record_time DESC
+				    LIMIT 1
+				""";
 
-	    var params = new MapSqlParameterSource()
-	            .addValue("likeCond", likeCond)
-	            .addValue("homeTeam", homeTeamName)
-	            .addValue("awayTeam", awayTeamName)
-	            .addValue("roundNo", roundNo);
+		var params = new MapSqlParameterSource()
+				.addValue("likeCond", likeCond)
+				.addValue("homeTeam", homeTeamName)
+				.addValue("awayTeam", awayTeamName)
+				.addValue("roundNo", roundNo);
 
-	    List<EachScoreLostDataResponseDTO> list = bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
-	        var dto = new EachScoreLostDataResponseDTO();
-	        dto.setSeq(rs.getLong("seq"));
-	        dto.setDataCategory(rs.getString("data_category"));
+		List<EachScoreLostDataResponseDTO> list = bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
+			var dto = new EachScoreLostDataResponseDTO();
+			dto.setSeq(rs.getLong("seq"));
+			dto.setDataCategory(rs.getString("data_category"));
 
-	        String r = rs.getString("round_no");
-	        dto.setRoundNo(rs.wasNull() ? null : r);
+			String r = rs.getString("round_no");
+			dto.setRoundNo(rs.wasNull() ? null : r);
 
-	        Timestamp rt = rs.getTimestamp("record_time");
-	        dto.setRecordTime(rt == null ? null : rt.toInstant().atOffset(ZoneOffset.UTC).toString());
+			Timestamp rt = rs.getTimestamp("record_time");
+			dto.setRecordTime(rt == null ? null : rt.toInstant().atOffset(ZoneOffset.UTC).toString());
 
-	        dto.setHomeTeamName(rs.getString("home_team_name"));
-	        dto.setAwayTeamName(rs.getString("away_team_name"));
+			dto.setHomeTeamName(rs.getString("home_team_name"));
+			dto.setAwayTeamName(rs.getString("away_team_name"));
 
-	        String hs = rs.getString("home_score");
-	        String as = rs.getString("away_score");
-	        dto.setHomeScore(hs == null || hs.isBlank() ? null : Integer.valueOf(hs.trim()));
-	        dto.setAwayScore(as == null || as.isBlank() ? null : Integer.valueOf(as.trim()));
+			String hs = rs.getString("home_score");
+			String as = rs.getString("away_score");
+			dto.setHomeScore(hs == null || hs.isBlank() ? null : Integer.valueOf(hs.trim()));
+			dto.setAwayScore(as == null || as.isBlank() ? null : Integer.valueOf(as.trim()));
 
-	        dto.setLink(rs.getString("link"));
-	        dto.setStatus("FINISHED");
-	        return dto;
-	    });
+			dto.setLink(rs.getString("link"));
+			dto.setStatus("FINISHED");
+			return dto;
+		});
 
-	    return list.stream().findFirst();
+		return list.stream().findFirst();
 	}
 
 	/** dataを全件 DataEntity で取得（重いので注意） */
 	public List<DataEntity> findAll() {
-	    String sql = """
-	        SELECT
-	          seq,
-	          condition_result_data_seq_id,
-	          data_category,
-	          times,
-	          home_rank,
-	          home_team_name,
-	          home_score,
-	          away_rank,
-	          away_team_name,
-	          away_score,
-	          home_exp,
-	          away_exp,
-	          home_donation,
-	          away_donation,
-	          home_shoot_all,
-	          away_shoot_all,
-	          home_shoot_in,
-	          away_shoot_in,
-	          home_shoot_out,
-	          away_shoot_out,
-	          home_block_shoot,
-	          away_block_shoot,
-	          home_big_chance,
-	          away_big_chance,
-	          home_corner,
-	          away_corner,
-	          home_box_shoot_in,
-	          away_box_shoot_in,
-	          home_box_shoot_out,
-	          away_box_shoot_out,
-	          home_goal_post,
-	          away_goal_post,
-	          home_goal_head,
-	          away_goal_head,
-	          home_keeper_save,
-	          away_keeper_save,
-	          home_free_kick,
-	          away_free_kick,
-	          home_offside,
-	          away_offside,
-	          home_foul,
-	          away_foul,
-	          home_yellow_card,
-	          away_yellow_card,
-	          home_red_card,
-	          away_red_card,
-	          home_slow_in,
-	          away_slow_in,
-	          home_box_touch,
-	          away_box_touch,
-	          home_pass_count,
-	          away_pass_count,
-	          home_long_pass_count,
-	          away_long_pass_count,
-	          home_final_third_pass_count,
-	          away_final_third_pass_count,
-	          home_cross_count,
-	          away_cross_count,
-	          home_tackle_count,
-	          away_tackle_count,
-	          home_clear_count,
-	          away_clear_count,
-	          home_duel_count,
-	          away_duel_count,
-	          home_intercept_count,
-	          away_intercept_count,
-	          record_time,
-	          weather,
-	          temparature,
-	          humid,
-	          judge_member,
-	          home_manager,
-	          away_manager,
-	          home_formation,
-	          away_formation,
-	          studium,
-	          capacity,
-	          audience,
-	          home_max_getting_scorer,
-	          away_max_getting_scorer,
-	          home_max_getting_scorer_game_situation,
-	          away_max_getting_scorer_game_situation,
-	          home_team_home_score,
-	          home_team_home_lost,
-	          away_team_home_score,
-	          away_team_home_lost,
-	          home_team_away_score,
-	          home_team_away_lost,
-	          away_team_away_score,
-	          away_team_away_lost,
-	          notice_flg,
-	          goal_time,
-	          goal_team_member,
-	          judge,
-	          home_team_style,
-	          away_team_style,
-	          probablity,
-	          prediction_score_time
-	        FROM data
-	        ORDER BY seq DESC
-	        """;
+		String sql = """
+				SELECT
+				  seq,
+				  condition_result_data_seq_id,
+				  data_category,
+				  times,
+				  home_rank,
+				  home_team_name,
+				  home_score,
+				  away_rank,
+				  away_team_name,
+				  away_score,
+				  home_exp,
+				  away_exp,
+				  home_donation,
+				  away_donation,
+				  home_shoot_all,
+				  away_shoot_all,
+				  home_shoot_in,
+				  away_shoot_in,
+				  home_shoot_out,
+				  away_shoot_out,
+				  home_block_shoot,
+				  away_block_shoot,
+				  home_big_chance,
+				  away_big_chance,
+				  home_corner,
+				  away_corner,
+				  home_box_shoot_in,
+				  away_box_shoot_in,
+				  home_box_shoot_out,
+				  away_box_shoot_out,
+				  home_goal_post,
+				  away_goal_post,
+				  home_goal_head,
+				  away_goal_head,
+				  home_keeper_save,
+				  away_keeper_save,
+				  home_free_kick,
+				  away_free_kick,
+				  home_offside,
+				  away_offside,
+				  home_foul,
+				  away_foul,
+				  home_yellow_card,
+				  away_yellow_card,
+				  home_red_card,
+				  away_red_card,
+				  home_slow_in,
+				  away_slow_in,
+				  home_box_touch,
+				  away_box_touch,
+				  home_pass_count,
+				  away_pass_count,
+				  home_long_pass_count,
+				  away_long_pass_count,
+				  home_final_third_pass_count,
+				  away_final_third_pass_count,
+				  home_cross_count,
+				  away_cross_count,
+				  home_tackle_count,
+				  away_tackle_count,
+				  home_clear_count,
+				  away_clear_count,
+				  home_duel_count,
+				  away_duel_count,
+				  home_intercept_count,
+				  away_intercept_count,
+				  record_time,
+				  weather,
+				  temparature,
+				  humid,
+				  judge_member,
+				  home_manager,
+				  away_manager,
+				  home_formation,
+				  away_formation,
+				  studium,
+				  capacity,
+				  audience,
+				  home_max_getting_scorer,
+				  away_max_getting_scorer,
+				  home_max_getting_scorer_game_situation,
+				  away_max_getting_scorer_game_situation,
+				  home_team_home_score,
+				  home_team_home_lost,
+				  away_team_home_score,
+				  away_team_home_lost,
+				  home_team_away_score,
+				  home_team_away_lost,
+				  away_team_away_score,
+				  away_team_away_lost,
+				  notice_flg,
+				  goal_time,
+				  goal_team_member,
+				  judge,
+				  home_team_style,
+				  away_team_style,
+				  probablity,
+				  prediction_score_time
+				FROM data
+				ORDER BY seq DESC
+				""";
 
-	    return bmJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, rowNum) -> mapDataEntity(rs));
+		return bmJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, rowNum) -> mapDataEntity(rs));
+	}
+
+	public Optional<DataEntity> findByBusinessKey(
+			String condId, String category, String times, String home, String away) {
+		String sql = """
+				SELECT
+				  seq,
+				  condition_result_data_seq_id,
+				  data_category,
+				  times,
+				  home_rank,
+				  home_team_name,
+				  home_score,
+				  away_rank,
+				  away_team_name,
+				  away_score,
+				  home_exp,
+				  away_exp,
+				  home_donation,
+				  away_donation,
+				  home_shoot_all,
+				  away_shoot_all,
+				  home_shoot_in,
+				  away_shoot_in,
+				  home_shoot_out,
+				  away_shoot_out,
+				  home_block_shoot,
+				  away_block_shoot,
+				  home_big_chance,
+				  away_big_chance,
+				  home_corner,
+				  away_corner,
+				  home_box_shoot_in,
+				  away_box_shoot_in,
+				  home_box_shoot_out,
+				  away_box_shoot_out,
+				  home_goal_post,
+				  away_goal_post,
+				  home_goal_head,
+				  away_goal_head,
+				  home_keeper_save,
+				  away_keeper_save,
+				  home_free_kick,
+				  away_free_kick,
+				  home_offside,
+				  away_offside,
+				  home_foul,
+				  away_foul,
+				  home_yellow_card,
+				  away_yellow_card,
+				  home_red_card,
+				  away_red_card,
+				  home_slow_in,
+				  away_slow_in,
+				  home_box_touch,
+				  away_box_touch,
+				  home_pass_count,
+				  away_pass_count,
+				  home_long_pass_count,
+				  away_long_pass_count,
+				  home_final_third_pass_count,
+				  away_final_third_pass_count,
+				  home_cross_count,
+				  away_cross_count,
+				  home_tackle_count,
+				  away_tackle_count,
+				  home_clear_count,
+				  away_clear_count,
+				  home_duel_count,
+				  away_duel_count,
+				  home_intercept_count,
+				  away_intercept_count,
+				  record_time,
+				  weather,
+				  temparature,
+				  humid,
+				  judge_member,
+				  home_manager,
+				  away_manager,
+				  home_formation,
+				  away_formation,
+				  studium,
+				  capacity,
+				  audience,
+				  home_max_getting_scorer,
+				  away_max_getting_scorer,
+				  home_max_getting_scorer_game_situation,
+				  away_max_getting_scorer_game_situation,
+				  home_team_home_score,
+				  home_team_home_lost,
+				  away_team_home_score,
+				  away_team_home_lost,
+				  home_team_away_score,
+				  home_team_away_lost,
+				  away_team_away_score,
+				  away_team_away_lost,
+				  notice_flg,
+				  goal_time,
+				  goal_team_member,
+				  judge,
+				  home_team_style,
+				  away_team_style,
+				  probablity,
+				  prediction_score_time
+				FROM data
+				WHERE condition_result_data_seq_id = :condId
+				  AND data_category = :category
+				  AND times = :times
+				  AND home_team_name = :home
+				  AND away_team_name = :away
+				""";
+
+		var params = new MapSqlParameterSource()
+				.addValue("condId", condId)
+				.addValue("category", category)
+				.addValue("times", times)
+				.addValue("home", home)
+				.addValue("away", away);
+
+		List<DataEntity> list = bmJdbcTemplate.query(sql, params, (rs, rowNum) -> mapDataEntity(rs));
+		return list.stream().findFirst();
+	}
+
+	public List<BusinessGroupCountRow> countByBusinessGroupExcludeNullOrBlank() {
+
+		String sql = """
+				SELECT
+				  condition_result_data_seq_id,
+				  ANY_VALUE(data_category) AS data_category,
+				  home_team_name,
+				  away_team_name,
+				  COUNT(*) AS cnt
+				FROM data
+				WHERE condition_result_data_seq_id IS NOT NULL AND TRIM(condition_result_data_seq_id) <> ''
+					AND data_category IS NOT NULL               AND TRIM(data_category) <> ''
+					AND home_team_name IS NOT NULL             AND TRIM(home_team_name) <> ''
+					AND away_team_name IS NOT NULL             AND TRIM(away_team_name) <> ''
+				GROUP BY
+					condition_result_data_seq_id,
+					home_team_name,
+					away_team_name
+					ORDER BY cnt DESC
+				""";
+
+		return bmJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, rowNum) -> {
+			BusinessGroupCountRow r = new BusinessGroupCountRow();
+			r.conditionResultDataSeqId = rs.getString("condition_result_data_seq_id");
+			r.dataCategory = rs.getString("data_category");
+			r.homeTeamName = rs.getString("home_team_name");
+			r.awayTeamName = rs.getString("away_team_name");
+			r.cnt = rs.getLong("cnt");
+			return r;
+		});
+	}
+
+	@EqualsAndHashCode
+	public static class BusinessGroupCountRow {
+		public String conditionResultDataSeqId;
+		public String dataCategory;
+		public String homeTeamName;
+		public String awayTeamName;
+		public long cnt;
 	}
 
 }

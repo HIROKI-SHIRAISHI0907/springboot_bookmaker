@@ -121,4 +121,5 @@ CREATE TABLE data (
 );
 
 CREATE INDEX idx_data_keys_times_seq
-  ON data (data_category, home_team_name, away_team_name, times, seq);
+  ON data (condition_result_data_seq_id, data_category, times, home_team_name, away_team_name);
+
