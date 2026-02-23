@@ -12,6 +12,7 @@ import dev.common.config.PathConfig;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.s3.S3Operator;
 import dev.common.util.FileDeleteUtil;
 
 /**
@@ -33,13 +34,17 @@ public class CountryLeagueSeasonMasterStat implements SeasonEntityIF {
 	/** 実行モード */
 	private static final String EXEC_MODE = "COUNTRY_LEAGUE_SEASON";
 
-	/** PathConfig */
-	@Autowired
-	private PathConfig pathConfig;
-
 	/** CountryLeagueSeasonDBService部品 */
 	@Autowired
 	private CountryLeagueSeasonDBService countryLeagueSeasonDBService;
+
+	/** Config */
+	@Autowired
+	private PathConfig config;
+
+	/** S3Operator */
+	@Autowired
+	private S3Operator s3Operator;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -66,15 +71,18 @@ public class CountryLeagueSeasonMasterStat implements SeasonEntityIF {
 				String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 				throw new Exception(messageCd);
 			}
-			insertPath.add(pathConfig.getTeamCsvFolder() + "season_data.csv");
+			insertPath.add(config.getS3BucketsTeamSeasonDateData() + "/season_data.csv");
 		} catch (Exception e) {
 			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			throw new Exception(messageCd, e);
 		}
 
 		// 途中で例外が起きなければ全てのファイルを削除する
-		FileDeleteUtil.deleteFiles(
+		String bucket = config.getS3BucketsTeamSeasonDateData(); // バケット名取得
+		FileDeleteUtil.deleteS3Files(
 				insertPath,
+				bucket,
+				s3Operator,
 				manageLoggerComponent,
 				PROJECT_NAME,
 				CLASS_NAME,

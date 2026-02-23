@@ -9,8 +9,10 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.batch.interf.FutureEntityIF;
+import dev.common.config.PathConfig;
 import dev.common.entity.FutureEntity;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.s3.S3Operator;
 import dev.common.util.FileDeleteUtil;
 
 /**
@@ -31,6 +33,14 @@ public class FutureStat implements FutureEntityIF {
 	/** FutureDBService部品 */
 	@Autowired
 	private FutureDBService futureDBService;
+
+	/** Config */
+	@Autowired
+	private PathConfig config;
+
+	/** S3Operator */
+	@Autowired
+	private S3Operator s3Operator;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -68,8 +78,11 @@ public class FutureStat implements FutureEntityIF {
 		}
 
 		// 途中で例外が起きなければ全てのファイルを削除する
-		FileDeleteUtil.deleteFiles(
+		String bucket = config.getS3BucketsFuture(); // バケット名取得
+		FileDeleteUtil.deleteS3Files(
 				insertPath,
+				bucket,
+				s3Operator,
 				manageLoggerComponent,
 				PROJECT_NAME,
 				CLASS_NAME,

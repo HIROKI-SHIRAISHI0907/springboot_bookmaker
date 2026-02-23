@@ -13,9 +13,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.batch.interf.TeamMemberEntityIF;
+import dev.common.config.PathConfig;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.s3.S3Operator;
 import dev.common.util.FileDeleteUtil;
 
 /**
@@ -47,6 +49,14 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 	/** TeamMemberDBService部品 */
 	@Autowired
 	private TeamMemberDBService teamMemberDBService;
+
+	/** Config */
+	@Autowired
+	private PathConfig config;
+
+	/** S3Operator */
+	@Autowired
+	private S3Operator s3Operator;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -149,8 +159,11 @@ public class TeamMemberMasterStat implements TeamMemberEntityIF {
 		}
 
 		// 途中で例外が起きなければ全てのファイルを削除する
-		FileDeleteUtil.deleteFiles(
+		String bucket = config.getS3BucketsTeamMemberData(); // バケット名取得
+		FileDeleteUtil.deleteS3Files(
 				insertPath,
+				bucket,
+				s3Operator,
 				manageLoggerComponent,
 				PROJECT_NAME,
 				CLASS_NAME,
