@@ -62,6 +62,9 @@ public class ExportCsv {
 
 	private static final String CSV_NEW_PREFIX = "mk";
 
+	// クラス先頭のフィールドに追加
+	private static final com.fasterxml.jackson.databind.ObjectMapper SEQ_JSON = new com.fasterxml.jackson.databind.ObjectMapper();
+
 	// 「ラウンド12」や「ラウンド 12」「ラウンド１２」も拾いたいなら少し広めに取る
 	private static final Pattern ROUND_TOKEN = Pattern.compile("ラウンド\\s*[0-9０-９]+");
 
@@ -146,8 +149,6 @@ public class ExportCsv {
 		currentGroups = normalizeGroups(currentGroups);
 
 		// ====== 4) 既存 seqList 読み込み or 初回作成 ======
-		FileMngWrapper fileIO = new FileMngWrapper();
-		final String SEQ_LIST = localSeqPath.toString();
 		final String DATA_TEAM_LIST_TXT = localTeamPath.toString();
 
 		boolean firstRun = !seqExists || !Files.exists(localSeqPath);
@@ -155,10 +156,10 @@ public class ExportCsv {
 
 		if (firstRun) {
 			// 初回：従来互換（カンマ区切りで書く）
-			writeSeqListCommaLines(localSeqPath, currentGroups);
+			writeSeqListJson(localSeqPath, currentGroups);
 			textGroups = Collections.emptyList();
 		} else {
-			textGroups = fileIO.readSeqBuckets(SEQ_LIST);
+			textGroups = readSeqListJson(localSeqPath);
 			textGroups = normalizeGroups(textGroups);
 		}
 
@@ -317,7 +318,7 @@ public class ExportCsv {
 		// ====== 12) seqList.txt 更新（ローカル）→ S3 tmpへPUT ======
 		try {
 			// 従来互換（カンマ区切り）
-			writeSeqListCommaLines(localSeqPath, currentGroups);
+			writeSeqListJson(localSeqPath, currentGroups);
 			String tmpKeySeq = putLocalFileToTmp(statsBucket, tmpPrefix, localSeqPath);
 			tmpPutKeys.add(tmpKeySeq);
 		} catch (Exception e) {
@@ -388,18 +389,16 @@ public class ExportCsv {
 		currentGroups = normalizeGroups(currentGroups);
 
 		// seqList.txt 既存読み込み（ローカル基準）
-		FileMngWrapper fileIO = new FileMngWrapper();
-		final String SEQ_LIST = localSeqPath.toString();
 		final String DATA_TEAM_LIST_TXT = localTeamPath.toString();
 
 		boolean firstRun = !Files.exists(localSeqPath);
 		List<List<Integer>> textGroups;
 
 		if (firstRun) {
-			writeSeqListCommaLines(localSeqPath, currentGroups);
+			writeSeqListJson(localSeqPath, currentGroups);
 			textGroups = Collections.emptyList();
 		} else {
-			textGroups = fileIO.readSeqBuckets(SEQ_LIST);
+			textGroups = readSeqListJson(localSeqPath);
 			textGroups = normalizeGroups(textGroups);
 		}
 
@@ -558,6 +557,68 @@ public class ExportCsv {
 		}
 
 		endLog(METHOD_NAME, null, null);
+	}
+
+	// =========================================================
+	// seqList.txt JSON形式読み書き
+	// =========================================================
+
+	/**
+	 * seqList.txt を [[seq,seq,...],[seq,...]] 形式で書く
+	 */
+	private void writeSeqListJson(Path out, List<List<Integer>> groups) throws IOException {
+		String json = SEQ_JSON.writeValueAsString(groups);
+		Files.writeString(out, json, StandardCharsets.UTF_8,
+				StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
+	}
+
+	/**
+	 * seqList.txt を [[seq,seq,...],[seq,...]] 形式で読む
+	 * 旧形式（カンマ区切り複数行）が残っていても fallback で読めるようにする
+	 */
+	private List<List<Integer>> readSeqListJson(Path path) {
+		if (!Files.exists(path))
+			return Collections.emptyList();
+		try {
+			String json = Files.readString(path, StandardCharsets.UTF_8).trim();
+			if (json.isEmpty())
+				return Collections.emptyList();
+
+			// ★新形式（JSON配列）
+			if (json.startsWith("[")) {
+				return SEQ_JSON.readValue(json,
+						new com.fasterxml.jackson.core.type.TypeReference<List<List<Integer>>>() {
+						});
+			}
+
+			// ★旧形式 fallback（カンマ区切り複数行）
+			List<List<Integer>> result = new ArrayList<>();
+			for (String line : json.split("\n")) {
+				line = line.trim();
+				if (line.isEmpty())
+					continue;
+				List<Integer> group = new ArrayList<>();
+				for (String s : line.split(",")) {
+					s = s.trim();
+					if (!s.isEmpty()) {
+						try {
+							group.add(Integer.valueOf(s));
+						} catch (NumberFormatException ignore) {
+						}
+					}
+				}
+				if (!group.isEmpty())
+					result.add(group);
+			}
+			return result;
+
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, "readSeqListJson",
+					MessageCdConst.MCD00099I_LOG,
+					"seqList.txt の読み込みに失敗しました: " + path);
+			return Collections.emptyList();
+		}
 	}
 
 	// =========================================================
