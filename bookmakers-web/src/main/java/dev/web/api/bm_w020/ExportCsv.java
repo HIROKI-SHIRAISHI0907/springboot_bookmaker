@@ -708,37 +708,37 @@ public class ExportCsv {
 	// =========================================================
 
 	private List<List<Integer>> sortSeqs() {
-	    List<SeqWithKey> rows = this.bookCsvDataRepository.findAllSeqsWithKey();
-	    List<List<Integer>> result = new ArrayList<>();
-	    List<Integer> bucket = new ArrayList<>();
+		List<SeqWithKey> rows = this.bookCsvDataRepository.findAllSeqsWithKey();
+		List<List<Integer>> result = new ArrayList<>();
+		List<Integer> bucket = new ArrayList<>();
 
-	    String prevHome = null, prevAway = null;
+		String prevHome = null, prevAway = null;
 
-	    for (SeqWithKey r : rows) {
-	        boolean newGroup = prevHome == null
-	                || !Objects.equals(prevHome, r.getHomeTeamName())
-	                || !Objects.equals(prevAway, r.getAwayTeamName());
+		for (SeqWithKey r : rows) {
+			boolean newGroup = prevHome == null
+					|| !Objects.equals(prevHome, r.getHomeTeamName())
+					|| !Objects.equals(prevAway, r.getAwayTeamName());
 
-	        if (newGroup) {
-	            if (!bucket.isEmpty()) {
-	                bucket.sort(Comparator.naturalOrder());
-	                result.add(bucket);
-	            }
-	            bucket = new ArrayList<>();
-	            prevHome = r.getHomeTeamName();
-	            prevAway = r.getAwayTeamName();
-	        }
+			if (newGroup) {
+				if (!bucket.isEmpty()) {
+					bucket.sort(Comparator.naturalOrder());
+					result.add(bucket);
+				}
+				bucket = new ArrayList<>();
+				prevHome = r.getHomeTeamName();
+				prevAway = r.getAwayTeamName();
+			}
 
-	        if (r.getSeq() != null) {
-	            bucket.add(r.getSeq());
-	        }
-	    }
+			if (r.getSeq() != null) {
+				bucket.add(r.getSeq());
+			}
+		}
 
-	    if (!bucket.isEmpty()) {
-	        bucket.sort(Comparator.naturalOrder());
-	        result.add(bucket);
-	    }
-	    return result;
+		if (!bucket.isEmpty()) {
+			bucket.sort(Comparator.naturalOrder());
+			result.add(bucket);
+		}
+		return result;
 	}
 
 	private static List<List<Integer>> normalizeGroups(List<List<Integer>> groups) {
@@ -1053,13 +1053,19 @@ public class ExportCsv {
 		if (list == null || list.isEmpty())
 			return;
 
-		list.sort(Comparator.comparingInt(d -> {
-			try {
-				return Integer.parseInt(Objects.toString(d.getSeq(), "0"));
-			} catch (NumberFormatException e) {
-				return Integer.MAX_VALUE;
-			}
-		}));
+		// record_timeで昇順、nullの場合はseqで。
+		list.sort(Comparator
+				.comparing((DataEntity d) -> {
+					String rt = d.getRecordTime();
+					return (rt == null) ? "" : rt;
+				})
+				.thenComparingInt(d -> {
+					try {
+						return Integer.parseInt(Objects.toString(d.getSeq(), "0"));
+					} catch (NumberFormatException e) {
+						return Integer.MAX_VALUE;
+					}
+				}));
 
 		String lastHome = null;
 		String lastAway = null;

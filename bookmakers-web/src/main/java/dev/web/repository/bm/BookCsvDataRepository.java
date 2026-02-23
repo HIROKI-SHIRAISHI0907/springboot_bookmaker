@@ -46,13 +46,11 @@ public class BookCsvDataRepository {
 				    d.away_team_name AS awayTeamName,
 				    d.times          AS times,
 
-				    -- ★ seq は「ラウンド有りの行があるならその最小seq」、無ければ全体の最小seq
 				    COALESCE(
 				      MIN(CASE WHEN d.data_category LIKE '%ラウンド%' THEN d.seq END),
 				      MIN(d.seq)
 				    ) AS seq,
 
-				    -- ★ data_category も「ラウンド有りを代表値」、無ければ最大（or最小）で代表値
 				    COALESCE(
 				      MAX(CASE WHEN d.data_category LIKE '%ラウンド%' THEN d.data_category END),
 				      MAX(d.data_category)
@@ -60,20 +58,23 @@ public class BookCsvDataRepository {
 
 				  FROM data d
 				  WHERE
-				    -- 対象の試合だけ（前半系と後半系が両方あるもの）
 				    EXISTS (
 				      SELECT 1 FROM data x
 				      WHERE x.home_team_name = d.home_team_name
 				        AND x.away_team_name = d.away_team_name
-				        AND x.times IN ('ハーフタイム','第一ハーフ')
+				        AND x.times IN ('ハーフタイム', '第一ハーフ')
 				    )
+				    -- ★ここだけ変更：終了済/第二ハーフ が無くても 90分台なら対象にする
 				    AND EXISTS (
 				      SELECT 1 FROM data y
 				      WHERE y.home_team_name = d.home_team_name
 				        AND y.away_team_name = d.away_team_name
-				        AND y.times IN ('終了済','第二ハーフ')
+				        AND (
+				          y.times IN ('終了済', '第二ハーフ')
+				          OR y.times LIKE '90%'   -- ★これ1つで全パターンをカバー
+                               -- 90:09 / 90:37 / 90' / 90+1' / 90+5' など
+				        )
 				    )
-
 				  GROUP BY
 				    d.home_team_name, d.away_team_name, d.times
 				) t
@@ -202,6 +203,7 @@ public class BookCsvDataRepository {
 				  prediction_score_time
 				FROM data
 				WHERE seq IN (:seqList)
+				ORDER BY record_time ASC
 				""";
 
 		MapSqlParameterSource params = new MapSqlParameterSource();
