@@ -71,8 +71,6 @@ public class BookCsvDataRepository {
 				        AND y.away_team_name = d.away_team_name
 				        AND (
 				          y.times IN ('終了済', '第二ハーフ')
-				          OR y.times LIKE '90%'   -- ★これ1つで全パターンをカバー
-                               -- 90:09 / 90:37 / 90' / 90+1' / 90+5' など
 				        )
 				    )
 				  GROUP BY
