@@ -36,7 +36,11 @@ public interface FutureMasterRepository {
 			        update_time
 			    ) VALUES (
 			        #{gameTeamCategory},
-			        CAST(NULLIF(BTRIM(CAST(#{futureTime} AS text)), '') AS timestamptz),
+			        COALESCE(
+						CAST(NULLIF(BTRIM(CAST(#{futureTime} AS text)), '') AS timestamptz),
+						CAST(NULLIF(BTRIM(CAST(#{dataTime}   AS text)), '') AS timestamptz),
+						CURRENT_TIMESTAMP
+					),
 			        #{homeRank},
 			        #{awayRank},
 			        #{homeTeamName},
