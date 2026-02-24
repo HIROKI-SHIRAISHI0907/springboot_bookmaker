@@ -29,7 +29,7 @@ public class EachScoredLoseController {
      * @return
      */
     @GetMapping("/{teamEnglish}/{teamHash}")
-    public Map<String, Object> getFuture(
+    public Map<String, Object> getScoredLose(
             @PathVariable String teamEnglish,
             @PathVariable String teamHash
     ) {

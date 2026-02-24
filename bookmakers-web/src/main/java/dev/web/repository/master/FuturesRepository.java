@@ -316,6 +316,17 @@ public class FuturesRepository {
 	        WHERE f.start_flg = '1'
 	          AND (f.home_team_name = :teamJa OR f.away_team_name = :teamJa)
 	          AND f.game_team_category LIKE :likeCond
+	          -- ラウンドあり行が存在するなら、ラウンドなし行を除外する
+	    	  AND (
+	    		regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NOT NULL
+	    		OR NOT EXISTS (
+	    			SELECT 1 FROM future_master f2
+	    				WHERE f2.start_flg = '1'
+	    				AND f2.home_team_name = f.home_team_name
+	    				AND f2.away_team_name = f.away_team_name
+	    				AND regexp_match(f2.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NOT NULL
+	    		)
+	    	)
 	        ORDER BY
 	          CASE
 	            WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN 2147483647
