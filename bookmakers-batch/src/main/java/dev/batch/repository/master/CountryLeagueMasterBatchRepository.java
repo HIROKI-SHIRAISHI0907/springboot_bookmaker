@@ -14,24 +14,27 @@ import dev.common.entity.CountryLeagueMasterEntity;
 public interface CountryLeagueMasterBatchRepository {
 
 	@Insert({
-			    "INSERT INTO country_league_master (",
-			    "    country,",
-			    "    league,",
-			    "    team,",
-			    "    link,",
-			    "    del_flg,",
-			    "    register_id,",
-			    "    register_time,",
-			    "    update_id,",
-			    "    update_time",
-			    ") VALUES (",
-			    "    #{country},",
-			    "    #{league},",
-			    "    #{team},",
-			    "    #{link},",
-			    "    '0',",
-			    "    #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz))",
-			    //"#{registerId}, #{registerTime}, #{updateId}, #{updateTime});"
+			"INSERT INTO country_league_master (",
+			"    country,",
+			"    league,",
+			"    team,",
+			"    link,",
+			"    del_flg,",
+			"    register_id,",
+			"    register_time,",
+			"    update_id,",
+			"    update_time",
+			") VALUES (",
+			"    #{country},",
+			"    #{league},",
+			"    #{team},",
+			"    #{link},",
+			"    '0',",
+			"    #{registerId},",
+			"	 CURRENT_TIMESTAMP",
+			"	 {updateId},",
+			"	 CURRENT_TIMESTAMP)",
+			//"#{registerId}, #{registerTime}, #{updateId}, #{updateTime});"
 	})
 	int insert(CountryLeagueMasterEntity entity);
 

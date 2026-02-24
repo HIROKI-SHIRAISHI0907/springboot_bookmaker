@@ -74,14 +74,15 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 		"	        #{seasonYear},",
 		"	        #{startSeasonDate}::timestamptz,",
 		"			#{endSeasonDate}::timestamptz,",
-		//"			#{startSeasonDate},",
-		//"			#{endSeasonDate},",
 		"	        #{round},",
 		"	        #{path},",
 		"	        #{icon},",
 		"	        '0',",
 		"	        '0',",
-		"           #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz))",
+		"           #{registerId},",
+		"			CURRENT_TIMESTAMP",
+		"			{updateId},",
+		"			CURRENT_TIMESTAMP)",
 	""})
 	int insert(CountryLeagueSeasonMasterEntity entity);
 
