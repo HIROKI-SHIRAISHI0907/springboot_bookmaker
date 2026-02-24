@@ -66,28 +66,32 @@ public class FuturesRepository {
 		String likeCond = country + ": " + league + "%";
 
 		String sql = """
-				SELECT
-				  f.seq,
-				  f.game_team_category,
-				  f.future_time,
-				  f.home_team_name AS home_team,
-				  f.away_team_name AS away_team,
-				  NULLIF(TRIM(f.game_link), '') AS link,
-				  CASE
-				    WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
-				    ELSE CAST( (regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT )
-				  END AS round_no
-				FROM future_master f
-				WHERE f.start_flg = '1'
-				  AND (f.home_team_name = :teamJa OR f.away_team_name = :teamJa)
-				  AND f.game_team_category LIKE :likeCond
-				ORDER BY
-				  CASE
-				    WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN 2147483647
-				    ELSE CAST( (regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT )
-				  END ASC,
-				  f.future_time ASC
-				""";
+			    SELECT
+			      f.seq,
+			      f.game_team_category,
+			      f.future_time,
+			      f.home_team_name AS home_team,
+			      f.away_team_name AS away_team,
+			      NULLIF(TRIM(f.game_link), '') AS link,
+			      CASE
+			        WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
+			        ELSE CAST( (regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT )
+			      END AS round_no
+			    FROM future_master f
+			    WHERE f.start_flg = '1'
+			      AND f.future_time IS NOT NULL
+			      AND f.future_time > CURRENT_TIMESTAMP /* システム日付より後のもの */
+			      AND (f.home_team_name = :teamJa OR f.away_team_name = :teamJa)
+			      AND f.game_team_category LIKE :likeCond
+			    ORDER BY
+			      f.future_time ASC,
+			      CASE
+			        WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN 2147483647
+			        ELSE CAST( (regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT )
+			      END ASC,
+			      f.seq ASC
+			    LIMIT 1
+			    """;
 
 		MapSqlParameterSource params = new MapSqlParameterSource()
 				.addValue("teamJa", teamJa)
@@ -301,39 +305,27 @@ public class FuturesRepository {
 	    String likeCond = country + ": " + league + "%";
 
 	    String sql = """
-	        SELECT
-	          f.seq,
-	          f.game_team_category AS data_category,
-	          f.future_time        AS record_time,
-	          f.home_team_name     AS home_team_name,
-	          f.away_team_name     AS away_team_name,
-	          NULLIF(TRIM(f.game_link), '') AS link,
-	          CASE
-	            WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
-	            ELSE CAST((regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
-	          END AS round_no
-	        FROM future_master f
-	        WHERE f.start_flg = '1'
-	          AND (f.home_team_name = :teamJa OR f.away_team_name = :teamJa)
-	          AND f.game_team_category LIKE :likeCond
-	          -- ラウンドあり行が存在するなら、ラウンドなし行を除外する
-	    	  AND (
-	    		regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NOT NULL
-	    		OR NOT EXISTS (
-	    			SELECT 1 FROM future_master f2
-	    				WHERE f2.start_flg = '1'
-	    				AND f2.home_team_name = f.home_team_name
-	    				AND f2.away_team_name = f.away_team_name
-	    				AND regexp_match(f2.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NOT NULL
-	    		)
-	    	)
-	        ORDER BY
-	          CASE
-	            WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN 2147483647
-	            ELSE CAST((regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
-	          END ASC,
-	          f.future_time ASC
-	    """;
+	    	    WITH base AS (
+	    	      SELECT
+	    	        f.seq,
+	    	        f.game_team_category AS data_category,
+	    	        f.future_time        AS record_time,
+	    	        f.home_team_name     AS home_team_name,
+	    	        f.away_team_name     AS away_team_name,
+	    	        NULLIF(BTRIM(f.game_link), '') AS link,
+	    	        CASE
+	    	          WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
+	    	          ELSE CAST((regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
+	    	        END AS round_no
+	    	      FROM future_master f
+	    	      WHERE f.start_flg = '1'
+	    	        AND f.future_time IS NOT NULL
+	    	        AND (f.home_team_name = :teamJa OR f.away_team_name = :teamJa)
+	    	    )
+	    	    SELECT *
+	    	    FROM base
+	    	    ORDER BY record_time ASC, seq ASC
+	    	    """;
 
 	    var params = new MapSqlParameterSource()
 	            .addValue("teamJa", teamJa)

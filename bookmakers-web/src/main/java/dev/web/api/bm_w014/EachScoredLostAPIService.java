@@ -46,7 +46,9 @@ public class EachScoredLostAPIService {
 	    // ② masterChkList を 1件ずつ回して、data 側（終了済）を引き当てる
 	    List<EachScoreLostDataResponseDTO> out = new java.util.ArrayList<>();
 
-	    for (var m : masterChkList) {
+	    for (FuturesRepository.DataEachScoreLostDataResponseDTO m : masterChkList) {
+	    	System.out.println(teamInfo);
+	    	System.out.println(m);
 	        // roundNo が DTO 側で String の場合は int に変換
 	        if (m.getRoundNo() == null || m.getRoundNo().isBlank()) continue;
 
