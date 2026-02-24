@@ -52,7 +52,7 @@ public interface FutureMasterRepository {
 			        #{awayTeamAwayScore},
 			        #{awayTeamAwayLost},
 			        #{gameLink},
-			        CAST(#{dataTime} AS timestamptz),
+			        CAST(NULLIF(TRIM(#{dataTime}), '') AS timestamptz),
 			        1,
 			        #{registerId},
 			        CURRENT_TIMESTAMP,
