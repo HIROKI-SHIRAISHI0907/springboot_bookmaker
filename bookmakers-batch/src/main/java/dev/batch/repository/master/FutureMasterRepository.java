@@ -36,7 +36,7 @@ public interface FutureMasterRepository {
 			        update_time
 			    ) VALUES (
 			        #{gameTeamCategory},
-			        CAST(#{futureTime} AS timestamptz),
+			        CAST(NULLIF(BTRIM(CAST(#{futureTime} AS text)), '') AS timestamptz),
 			        #{homeRank},
 			        #{awayRank},
 			        #{homeTeamName},
