@@ -22,8 +22,10 @@ public interface TeamMemberMasterBatchRepository {
 			") VALUES (",
 			"#{country}, #{league}, #{team}, #{score}, #{loanBelong}, #{jersey}, #{member}, #{facePicPath}, #{belongList}, #{height}, #{weight}, #{position}, #{birth}, #{age}, #{marketValue}, #{injury},",
 			"#{versusTeamScoreData}, #{retireFlg}, #{deadline}, #{deadlineContractDate}, #{latestInfoDate}, #{updStamp}, '0', ",
-			"#{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz))",
-			//"#{registerId}, #{registerTime}, #{updateId}, #{updateTime});"
+			"    'SYSTEM', ",
+		    "    CURRENT_TIMESTAMP, ",
+		    "    'SYSTEM', ",
+		    "    CURRENT_TIMESTAMP)",
 			"ON CONFLICT (team, jersey, member, face_pic_path) DO NOTHING;"
 	})
 	int insert(TeamMemberMasterEntity entity);
