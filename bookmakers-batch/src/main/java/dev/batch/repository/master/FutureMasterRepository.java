@@ -58,7 +58,6 @@ public interface FutureMasterRepository {
 			        CURRENT_TIMESTAMP,
 			        #{updateId},
 			        CURRENT_TIMESTAMP)
-			    );
 			""")
 	int insert(FutureEntity entity);
 
