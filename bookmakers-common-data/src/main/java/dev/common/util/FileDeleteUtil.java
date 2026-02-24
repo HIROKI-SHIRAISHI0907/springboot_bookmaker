@@ -8,6 +8,7 @@ import java.util.Collection;
 
 import dev.common.constant.MessageCdConst;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.s3.S3Operator;
 
 /**
  * ファイル削除共通処理
@@ -70,4 +71,41 @@ public class FileDeleteUtil {
 			}
 		}
 	}
+
+	/**
+	* S3オブジェクト削除版
+	*/
+	public static void deleteS3Files(
+			Collection<String> s3Keys,
+			String bucket,
+			S3Operator s3Operator,
+			ManageLoggerComponent logger,
+			String projectName,
+			String className,
+			String methodName,
+			String title) {
+
+		if (s3Keys == null || s3Keys.isEmpty()) {
+			logger.debugInfoLog(projectName, className, methodName,
+					MessageCdConst.MCD00017I_NO_FILE_DELETED,
+					"削除対象S3キーなし" + (title == null ? "" : " - " + title));
+			return;
+		}
+
+		for (String key : s3Keys) {
+			if (key == null || key.isBlank())
+				continue;
+			try {
+				s3Operator.delete(bucket, key);
+				logger.debugInfoLog(projectName, className, methodName,
+						MessageCdConst.MCD00016I_FILE_DELETED,
+						"S3削除成功" + (title == null ? "" : " - " + title), key);
+			} catch (Exception e) {
+				logger.debugErrorLog(projectName, className, methodName,
+						MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION,
+						e, "S3削除失敗" + (title == null ? "" : " - " + title), key);
+			}
+		}
+	}
+
 }
