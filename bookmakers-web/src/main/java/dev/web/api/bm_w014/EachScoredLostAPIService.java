@@ -47,8 +47,6 @@ public class EachScoredLostAPIService {
 	    List<EachScoreLostDataResponseDTO> out = new java.util.ArrayList<>();
 
 	    for (FuturesRepository.DataEachScoreLostDataResponseDTO m : masterChkList) {
-	    	System.out.println(teamInfo);
-	    	System.out.println(m);
 	        // roundNo が DTO 側で String の場合は int に変換
 	        if (m.getRoundNo() == null || m.getRoundNo().isBlank()) continue;
 
@@ -68,7 +66,19 @@ public class EachScoredLostAPIService {
 	                roundNo
 	        );
 
-	        opt.ifPresent(out::add);
+	        opt.ifPresent(dto -> {
+	            // ★ recordTime は「試合日時（future_master.future_time）」で返す
+	            dto.setRecordTime(m.getRecordTime());
+
+	            // ついでに master 側を優先して整合させる（任意だけどおすすめ）
+	            dto.setDataCategory(m.getDataCategory());
+	            dto.setRoundNo(m.getRoundNo());
+	            if (dto.getLink() == null || dto.getLink().isBlank()) {
+	                dto.setLink(m.getLink());
+	            }
+
+	            out.add(dto);
+	        });
 	    }
 
 	    return out;

@@ -368,4 +368,39 @@ public class FuturesRepository {
 		private Integer awayScore;
 		private String link;
 	}
+
+	// 過去の試合予定日用キックオフ時間取得
+	public Map<String, String> findFutureTimeByGameLinks(String country, String league, List<String> links) {
+	    if (links == null || links.isEmpty()) return Map.of();
+
+	    String likeCond = country + ": " + league + "%";
+
+	    String sql = """
+	        SELECT DISTINCT ON (NULLIF(BTRIM(f.game_link), ''))
+	          NULLIF(BTRIM(f.game_link), '') AS game_link,
+	          f.future_time
+	        FROM future_master f
+	        WHERE f.start_flg = '1'
+	          AND f.game_team_category LIKE :likeCond
+	          AND NULLIF(BTRIM(f.game_link), '') IN (:links)
+	        ORDER BY NULLIF(BTRIM(f.game_link), ''), COALESCE(f.update_time, f.register_time) DESC, f.seq DESC
+	        """;
+
+	    var params = new MapSqlParameterSource()
+	        .addValue("likeCond", likeCond)
+	        .addValue("links", links);
+
+	    return masterJdbcTemplate.query(sql, params, (ResultSet rs) -> {
+	        java.util.Map<String, String> out = new java.util.HashMap<>();
+	        while (rs.next()) {
+	            String link = rs.getString("game_link");
+	            java.sql.Timestamp ft = rs.getTimestamp("future_time");
+	            if (link == null || link.isBlank() || ft == null) continue;
+	            String isoUtc = ft.toInstant().atOffset(java.time.ZoneOffset.UTC).toString();
+	            out.put(link, isoUtc);
+	        }
+	        return out;
+	    });
+	}
+
 }

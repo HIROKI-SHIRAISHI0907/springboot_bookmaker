@@ -14,40 +14,34 @@ import dev.web.api.bm_w002.HistoriesAPIService;
 import dev.web.api.bm_w002.HistoryDetailResponseDTO;
 import dev.web.api.bm_w002.HistoryMatchesResponse;
 import dev.web.api.bm_w002.HistoryResponseDTO;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/history")
+@RequiredArgsConstructor
 public class HistoriesController {
 
     private final HistoriesAPIService historiesAPIService;
 
-    public HistoriesController(HistoriesAPIService historiesAPIService) {
-        this.historiesAPIService = historiesAPIService;
-    }
-
-    // 一覧: GET /api/history/{country}/{league}/{team}
-    @GetMapping("/{country}/{league}/{team}")
+    // 一覧: GET /api/history/{teamEnglish}/{teamHash}
+    @GetMapping("/{teamEnglish}/{teamHash}")
     public ResponseEntity<HistoryMatchesResponse.MatchesResponse> listHistory(
-            @PathVariable String country,
-            @PathVariable String league,
-            @PathVariable String team
+    		@PathVariable String teamEnglish,
+            @PathVariable String teamHash
     ) throws BadRequestException {
-        validate(country, league, team);
 
-        List<HistoryResponseDTO> matches = historiesAPIService.listHistory(country, league, team);
+        List<HistoryResponseDTO> matches = historiesAPIService.listHistory(teamEnglish, teamHash);
         return ResponseEntity.ok(new HistoryMatchesResponse.MatchesResponse(matches));
     }
 
-    // 詳細: GET /api/history/{country}/{league}/{team}/{seq}
-    @GetMapping("/{country}/{league}/{team}/{seq}")
+    // 詳細: GET /api/history/{teamEnglish}/{teamHash}/{seq}
+    @GetMapping("/{teamEnglish}/{teamHash}/{seq}")
     public ResponseEntity<HistoryMatchesResponse.DetailResponse> historyDetail(
             @PathVariable String country,
             @PathVariable String league,
             @PathVariable String team,
             @PathVariable long seq
     ) throws BadRequestException, NotFoundException {
-        validate(country, league, team);
-        if (seq <= 0) throw new BadRequestException("valid seq is required");
 
         HistoryDetailResponseDTO detail = historiesAPIService
                 .getHistoryDetail(country, league, seq)
@@ -56,13 +50,4 @@ public class HistoriesController {
         return ResponseEntity.ok(new HistoryMatchesResponse.DetailResponse(detail));
     }
 
-    private static void validate(String country, String league, String team) throws BadRequestException {
-        if (isBlank(country) || isBlank(league) || isBlank(team)) {
-            throw new BadRequestException("country, league, team are required");
-        }
-    }
-
-    private static boolean isBlank(String s) {
-        return s == null || s.trim().isEmpty();
-    }
 }

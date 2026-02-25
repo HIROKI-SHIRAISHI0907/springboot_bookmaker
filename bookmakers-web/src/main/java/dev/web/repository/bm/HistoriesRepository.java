@@ -61,90 +61,66 @@ public class HistoriesRepository {
 	}
 
 	// --------------------------------------------------------
-	// 一覧: GET /api/:country/:league/:team/history
+	// 一覧: GET /api/history/:country/:league/:team
 	// --------------------------------------------------------
 	public List<HistoryResponseDTO> findPastMatches(String country, String league, String teamJa) {
+	    String likeCond = country + ": " + league + "%";
 
-		String likeCond = country + ": " + league + "%";
+	    String sql = """
+	        SELECT DISTINCT ON (NULLIF(BTRIM(d.game_link), ''))
+	          d.seq::bigint AS seq_big,
+	          d.data_category,
+	          d.home_team_name,
+	          d.away_team_name,
+	          NULLIF(TRIM(d.home_score), '')::int AS home_score,
+	          NULLIF(TRIM(d.away_score), '')::int AS away_score,
+	          d.record_time AS record_time_ts,
+	          NULLIF(BTRIM(d.game_link), '') AS game_link,
+	          CASE
+	            WHEN regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
+	            ELSE CAST((regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
+	          END AS round_no
+	        FROM public.data d
+	        WHERE d.times = '終了済'
+	          AND d.home_team_name IS NOT NULL
+	          AND d.away_team_name IS NOT NULL
+	          AND d.data_category LIKE :likeCond
+	          AND (d.home_team_name = :teamJa OR d.away_team_name = :teamJa)
+	          AND d.game_link IS NOT NULL
+	        ORDER BY NULLIF(BTRIM(d.game_link), ''), d.record_time DESC, d.seq DESC
+	        """;
 
-		String sql = """
-				WITH finished AS (
-				  SELECT
-				    d.seq::bigint AS seq_big,
-				    d.data_category,
-				    d.home_team_name,
-				    d.away_team_name,
-				    NULLIF(TRIM(d.times), '') AS times,
-				    NULLIF(TRIM(d.home_score), '')::int AS home_score,
-				    NULLIF(TRIM(d.away_score), '')::int AS away_score,
-				    (d.record_time AT TIME ZONE 'Asia/Tokyo')::timestamp AS record_time_jst_ts,
-				    to_char((d.record_time AT TIME ZONE 'Asia/Tokyo')::date, 'YYYY-MM-DD') AS jst_date,
-				    NULLIF(TRIM(d.judge), '') AS link_maybe
-				  FROM public.data d
-				  WHERE d.home_team_name IS NOT NULL
-				    AND d.away_team_name IS NOT NULL
-				    AND d.data_category LIKE :likeCond
-				AND (d.home_team_name = :teamJa
-				  OR d.away_team_name = :teamJa)
-				),
-				ranked AS (
-				  SELECT
-				    seq_big,
-				    data_category,
-				    home_team_name,
-				    away_team_name,
-				    times,
-				    home_score,
-				    away_score,
-				    record_time_jst_ts,
-				    jst_date,
-				    link_maybe,
-				    ROW_NUMBER() OVER (
-				      PARTITION BY jst_date, home_team_name, away_team_name
-				      ORDER BY seq_big DESC
-				    ) AS rn
-				  FROM finished
-				)
-				SELECT
-				  r.seq_big::text AS seq,
-				  to_char(r.record_time_jst_ts, 'YYYY-MM-DD"T"HH24:MI:SS') AS match_time,
-				  r.data_category,
-				  CASE
-				    WHEN regexp_match(r.data_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
-				    ELSE CAST( (regexp_match(r.data_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT )
-				  END AS round_no,
-				  r.home_team_name,
-				  r.away_team_name,
-				  r.home_score,
-				  r.away_score,
-				  r.link_maybe
-				FROM ranked r
-				WHERE r.rn = 1
-				ORDER BY r.record_time_jst_ts DESC
-				""";
+	    MapSqlParameterSource params = new MapSqlParameterSource()
+	        .addValue("likeCond", likeCond)
+	        .addValue("teamJa", teamJa);
 
-		MapSqlParameterSource params = new MapSqlParameterSource()
-				.addValue("likeCond", likeCond)
-				.addValue("teamJa", teamJa);
+	    RowMapper<HistoryResponseDTO> rowMapper = (rs, rowNum) -> {
+	        HistoryResponseDTO m = new HistoryResponseDTO();
 
-		RowMapper<HistoryResponseDTO> rowMapper = (rs, rowNum) -> {
-			HistoryResponseDTO m = new HistoryResponseDTO();
-			m.setSeq(Long.parseLong(rs.getString("seq")));
-			m.setMatchTime(rs.getString("match_time"));
-			m.setGameTeamCategory(rs.getString("data_category") == null ? "" : rs.getString("data_category"));
-			m.setHomeTeam(rs.getString("home_team_name"));
-			m.setAwayTeam(rs.getString("away_team_name"));
-			int hs = rs.getObject("home_score") == null ? 0 : rs.getInt("home_score");
-			int as = rs.getObject("away_score") == null ? 0 : rs.getInt("away_score");
-			m.setHomeScore(hs);
-			m.setAwayScore(as);
-			Integer roundNo = (Integer) rs.getObject("round_no");
-			m.setRoundNo(roundNo);
-			m.setLink(rs.getString("link_maybe"));
-			return m;
-		};
+	        m.setSeq(rs.getLong("seq_big"));
+	        m.setGameTeamCategory(rs.getString("data_category") == null ? "" : rs.getString("data_category"));
+	        m.setHomeTeam(rs.getString("home_team_name"));
+	        m.setAwayTeam(rs.getString("away_team_name"));
 
-		return bmJdbcTemplate.query(sql, params, rowMapper);
+	        Integer hs = (Integer) rs.getObject("home_score");
+	        Integer as = (Integer) rs.getObject("away_score");
+	        m.setHomeScore(hs == null ? 0 : hs);
+	        m.setAwayScore(as == null ? 0 : as);
+
+	        Integer roundNo = (Integer) rs.getObject("round_no");
+	        m.setRoundNo(roundNo);
+
+	        // ★ ひとまず data.record_time を入れておく（後で service で future_time に上書きする）
+	        java.sql.Timestamp rt = rs.getTimestamp("record_time_ts");
+	        m.setMatchTime(rt == null ? null : rt.toInstant().atOffset(java.time.ZoneOffset.UTC).toString());
+
+	        // ★ link は game_link
+	        m.setLink(rs.getString("game_link"));
+
+	        return m;
+	    };
+
+	    return bmJdbcTemplate.query(sql, params, rowMapper);
 	}
 
 	// --------------------------------------------------------
