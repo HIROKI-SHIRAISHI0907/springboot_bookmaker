@@ -1,0 +1,9 @@
+# Playwright
+playwright==1.57.0
+
+# データ処理
+openpyxl
+
+# AWS S3
+boto3
+botocore

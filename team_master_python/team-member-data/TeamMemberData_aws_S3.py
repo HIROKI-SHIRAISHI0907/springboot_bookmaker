@@ -207,13 +207,13 @@ progress = Progress()
 
 
 async def heartbeat_task():
-    """
-    定期的に必ずログを出す（処理が詰まってもログが出る）
-    """
-    while True:
-        await asyncio.sleep(HEARTBEAT_SEC)
-        progress.maybe_log(force=True)
-
+    try:
+        while True:
+            await asyncio.sleep(HEARTBEAT_SEC)
+            progress.maybe_log(force=True)
+    except asyncio.CancelledError:
+        # 正常終了（キャンセルされたら静かに終わる）
+        return
 
 # =========================
 # 設定（ECS固定）
@@ -1255,10 +1255,8 @@ async def main():
     log("TeamMemberData(ECS): 完了（teamバケットから入力 -> memberバケットへ出力）")
 
     hb.cancel()
-    try:
+    with contextlib.suppress(asyncio.CancelledError):
         await hb
-    except Exception:
-        pass
 
 
 if __name__ == "__main__":
