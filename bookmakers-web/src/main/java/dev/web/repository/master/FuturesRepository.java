@@ -403,4 +403,28 @@ public class FuturesRepository {
 	    });
 	}
 
+	// “matchKey” を game_link から抽出
+	public java.util.Set<String> findExistingMatchKeys(List<String> keys) {
+		  if (keys == null || keys.isEmpty()) return java.util.Set.of();
+
+		  String sql = """
+		    WITH base AS (
+		      SELECT
+		        COALESCE(
+		          NULLIF((regexp_match(f.game_link, 'mid=([A-Za-z0-9]+)'))[1], ''),
+		          NULLIF(BTRIM(f.game_link), '')
+		        ) AS match_key
+		      FROM future_master f
+		      WHERE f.game_link IS NOT NULL
+		    )
+		    SELECT DISTINCT match_key
+		    FROM base
+		    WHERE match_key IN (:keys)
+		  """;
+
+		  var params = new MapSqlParameterSource().addValue("keys", keys);
+		  List<String> xs = masterJdbcTemplate.query(sql, params, (rs, rowNum) -> rs.getString("match_key"));
+		  return new java.util.HashSet<>(xs);
+		}
+
 }

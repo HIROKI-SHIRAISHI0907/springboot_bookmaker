@@ -23,4 +23,10 @@ public class DataIngestSummaryDTO {
     /** 記録時間 */
     private String recordTime;
 
+    /** ゲームID */
+    private String gameId;
+
+    /** ゲームリンク */
+    private String gameLink;
+
 }

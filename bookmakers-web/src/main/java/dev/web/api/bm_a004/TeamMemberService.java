@@ -6,12 +6,16 @@ import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.web.repository.bm.LeaguesRepository;
+import dev.web.repository.bm.LeaguesRepository.TeamRow;
 import dev.web.repository.master.TeamMemberMasterWebRepository;
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class TeamMemberService {
+
+	private final LeaguesRepository leagueRepo;
 
     private final TeamMemberMasterWebRepository repo;
 
@@ -78,6 +82,25 @@ public class TeamMemberService {
             return res;
         }
     }
+
+    // URLからチームメンバーを取得する
+    @Transactional
+    public List<TeamMemberDTO> patchWebTeamMember(String teamEnglish, String teamHash) {
+    	TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
+	    if (teamInfo == null) return null;
+	    String country = teamInfo.getCountry();
+	    String league = teamInfo.getLeague();
+	    String teamJa = teamInfo.getTeam();
+
+        // 対象取得
+        TeamMemberSearchCondition condition = new TeamMemberSearchCondition();
+        condition.setCountry(country);
+        condition.setLeague(league);
+        condition.setTeam(teamJa);
+        List<TeamMemberDTO> dto = repo.search(condition);
+        return dto;
+    }
+
 
     /** 更新 */
 	public TeamMemberResponse update(TeamMemberRequest dto) {

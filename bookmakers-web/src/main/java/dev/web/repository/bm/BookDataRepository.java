@@ -805,6 +805,8 @@ public class BookDataRepository {
 				      home_team_name,
 				      away_team_name,
 				      record_time,
+				      game_id,
+				      game_link,
 				      register_time,
 				      update_time
 				    FROM data
@@ -825,7 +827,8 @@ public class BookDataRepository {
 			r.homeTeamName = rs.getString("home_team_name");
 			r.awayTeamName = rs.getString("away_team_name");
 			r.recordTime = rs.getString("record_time");
-
+			r.gameId = rs.getString("game_id");
+			r.gameLink = rs.getString("game_link");
 			Timestamp rt = rs.getTimestamp("register_time");
 			r.registerTime = (rt == null) ? null : rt.toInstant().atOffset(ZoneOffset.UTC);
 
@@ -843,6 +846,8 @@ public class BookDataRepository {
 		public String homeTeamName;
 		public String awayTeamName;
 		public String recordTime;
+		public String gameId;
+		public String gameLink;
 		public OffsetDateTime registerTime;
 		public OffsetDateTime updateTime;
 	}
@@ -1187,6 +1192,58 @@ public class BookDataRepository {
 		public String homeTeamName;
 		public String awayTeamName;
 		public long cnt;
+	}
+
+	// game_linkごとの times一覧をまとめて返す
+	public Map<String, List<String>> findDistinctTimesByMatchKeys(List<String> keys) {
+		if (keys == null || keys.isEmpty())
+			return Map.of();
+
+		String sql = """
+				  WITH base AS (
+				    SELECT
+				      COALESCE(
+				        NULLIF(BTRIM(CAST(d.game_id AS TEXT)), ''),   -- ★型安全
+				        NULLIF(BTRIM(d.game_link), '')
+				      ) AS match_key,
+				      NULLIF(BTRIM(d.times), '') AS times
+				    FROM public.data d
+				    WHERE COALESCE(
+				        NULLIF(BTRIM(CAST(d.game_id AS TEXT)), ''),
+				        NULLIF(BTRIM(d.game_link), '')
+				      ) IN (:keys)
+				  )
+				  SELECT
+				    match_key,
+				    array_agg(DISTINCT times ORDER BY
+				      CASE
+				        WHEN times = '終了済' THEN 99999999
+				        WHEN times ~ '^[0-9]{1,3}:[0-9]{1,2}$'
+				          THEN (split_part(times, ':', 1)::int * 60 + split_part(times, ':', 2)::int)
+				        WHEN times ~ '^[0-9]{1,3}\\'$'
+				          THEN (regexp_replace(times, '\\'', '', 'g')::int * 60)
+				        ELSE 99999998
+				      END,
+				      times
+				    ) AS times_list
+				  FROM base
+				  WHERE match_key IS NOT NULL
+				  GROUP BY match_key
+				""";
+
+		var params = new MapSqlParameterSource().addValue("keys", keys);
+
+		List<Map.Entry<String, List<String>>> rows = bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
+			String k = rs.getString("match_key");
+			java.sql.Array arr = rs.getArray("times_list");
+			String[] xs = (arr == null) ? new String[0] : (String[]) arr.getArray();
+			return Map.entry(k, List.of(xs));
+		});
+
+		Map<String, List<String>> out = new java.util.HashMap<>();
+		for (var e : rows)
+			out.put(e.getKey(), e.getValue());
+		return out;
 	}
 
 }

@@ -13,16 +13,14 @@ import org.springframework.web.server.ResponseStatusException;
 
 import dev.web.api.bm_w001.FuturesAPIService;
 import dev.web.api.bm_w001.FuturesResponseDTO;
+import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/future")
+@RequiredArgsConstructor
 public class FuturesController {
 
 	private final FuturesAPIService futuresAPIService;
-
-    public FuturesController(FuturesAPIService futuresAPIService) {
-        this.futuresAPIService = futuresAPIService;
-    }
 
     /**
      * チーム指定

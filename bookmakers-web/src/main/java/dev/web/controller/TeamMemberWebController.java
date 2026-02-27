@@ -7,6 +7,7 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -63,6 +64,20 @@ public class TeamMemberWebController {
     @GetMapping("/team-member-master")
     public ResponseEntity<List<TeamMemberDTO>> getAllTeamMembers() {
         return ResponseEntity.ok(service.getAll());
+    }
+
+    /**
+     * team_member_master をURLから取得する。
+     *
+     * GET /api/team-member-master/{teamEnglish}/{teamHash}
+     *
+     * @return team_member_master 一覧
+     */
+    @GetMapping("/team-member-master/{teamEnglish}/{teamHash}")
+    public ResponseEntity<List<TeamMemberDTO>> getEachTeamMembers(
+    		@PathVariable String teamEnglish,
+            @PathVariable String teamHash) {
+        return ResponseEntity.ok(service.patchWebTeamMember(teamEnglish, teamHash));
     }
 
     /**
