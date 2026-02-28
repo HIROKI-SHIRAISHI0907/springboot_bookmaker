@@ -168,10 +168,11 @@ public class ReadOrigin implements ReadFileBodyIF {
 				mappingDto.setAwayTeamStyle(parts[97]);
 				mappingDto.setProbablity(parts[98]);
 				mappingDto.setPredictionScoreTime(parts[99]);
-				mappingDto.setGameId(parts[100]);
-				mappingDto.setMatchId(normalizeMatchId(parts[101].trim()));
+				// ★末尾3列： 試合ID,通番,ソート用秒
+				mappingDto.setMatchId(normalizeMatchId(parts[100].trim())); // 試合ID → matchId
+				mappingDto.setSeq(parts[101].trim());                       // 通番 → seq
 				try {
-					mappingDto.setTimeSortSeconds(Integer.parseInt(parts[102].trim()));
+				    mappingDto.setTimeSortSeconds(Integer.parseInt(parts[102].trim()));
 				} catch (Exception e) {
 					String msg = "timeSortSeconds parse error"
 							+ " data=" + parts[102].trim();
