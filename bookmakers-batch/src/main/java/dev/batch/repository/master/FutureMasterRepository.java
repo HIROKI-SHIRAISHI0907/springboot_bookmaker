@@ -58,9 +58,9 @@ public interface FutureMasterRepository {
 			        #{gameLink},
 			        CAST(NULLIF(BTRIM(CAST(#{dataTime} AS text)), '') AS timestamptz),
 			        1,
-			        #{registerId},
+			        'SYSTEM',
 			        CURRENT_TIMESTAMP,
-			        #{updateId},
+			        'SYSTEM',
 			        CURRENT_TIMESTAMP)
 			""")
 	int insert(FutureEntity entity);

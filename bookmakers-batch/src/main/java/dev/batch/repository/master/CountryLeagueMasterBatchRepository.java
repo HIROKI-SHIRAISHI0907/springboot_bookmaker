@@ -30,9 +30,9 @@ public interface CountryLeagueMasterBatchRepository {
 			"    #{team},",
 			"    #{link},",
 			"    '0',",
-			"    #{registerId},",
+			"    'SYSTEM',",
 			"	 CURRENT_TIMESTAMP",
-			"	 {updateId},",
+			"	 'SYSTEM',",
 			"	 CURRENT_TIMESTAMP)",
 	})
 	int insert(CountryLeagueMasterEntity entity);
