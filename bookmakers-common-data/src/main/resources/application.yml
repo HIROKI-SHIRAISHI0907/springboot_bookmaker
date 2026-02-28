@@ -4,6 +4,7 @@ app:
   team-csv-folder: /Users/shiraishitoshio/bookmaker/teams_by_league/
   future-csv-folder: /Users/shiraishitoshio/bookmaker/future/
   b001-json-folder: /Users/shiraishitoshio/bookmaker/json/b001/
+  b008-json-folder: /Users/shiraishitoshio/bookmaker/json/b008/
   
 process:
   python:

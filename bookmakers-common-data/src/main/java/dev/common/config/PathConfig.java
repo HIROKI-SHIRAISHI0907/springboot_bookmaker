@@ -18,6 +18,12 @@ public class PathConfig {
 	private String b001JsonFolder;
 
 	/**
+	 * JSONフォルダ
+	 */
+	@Value("${app.b008-json-folder}")
+	private String b008JsonFolder;
+
+	/**
 	 * CSVフォルダ
 	 */
 	@Value("${app.csv-folder}")
@@ -107,6 +113,14 @@ public class PathConfig {
 	 */
 	public String getB001JsonFolder() {
         return b001JsonFolder;
+    }
+
+	/**
+	 * JSONフォルダ作成パスを返す
+	 * @return
+	 */
+	public String getB008JsonFolder() {
+        return b008JsonFolder;
     }
 
 	/**
