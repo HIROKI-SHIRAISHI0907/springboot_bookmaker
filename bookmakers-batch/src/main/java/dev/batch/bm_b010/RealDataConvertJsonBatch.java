@@ -31,14 +31,14 @@ import dev.common.s3.S3Operator;
  *
  */
 @Service("B010")
-public class ConvertJsonBatch extends AbstractJobBatchTemplate {
+public class RealDataConvertJsonBatch extends AbstractJobBatchTemplate {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = ConvertJsonBatch.class.getProtectionDomain()
+	private static final String PROJECT_NAME = RealDataConvertJsonBatch.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = ConvertJsonBatch.class.getName();
+	private static final String CLASS_NAME = RealDataConvertJsonBatch.class.getName();
 
 	/** エラーコード（運用ルールに合わせて変更） */
 	private static final String ERROR_CODE = "BM_B010_ERROR";
