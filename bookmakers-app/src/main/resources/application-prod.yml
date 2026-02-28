@@ -4,6 +4,7 @@ app:
   team-csv-folder: /tmp/teams_by_league/
   future-csv-folder: /tmp/future/
   b001-json-folder: /tmp/json/
+  b008-json-folder: /tmp/json/
   
 process:
   python:
