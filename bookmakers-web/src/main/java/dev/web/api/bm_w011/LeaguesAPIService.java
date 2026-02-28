@@ -32,9 +32,9 @@ public class LeaguesAPIService {
         for (LeagueCountRow r : rows) {
             LeagueFlatItemResponse item = new LeagueFlatItemResponse();
             item.setCountry(r.country);
-            item.setLeague(r.league);
+            item.setLeague(r.leagueGroup);
             item.setTeamCount(r.getTeamCount() != null ? r.getTeamCount().intValue() : 0);
-            String path = "/" + repo.toPath(r.country) + "/" + repo.toPath(r.league);
+            String path = "/" + repo.toPath(r.country) + "/" + repo.toPath(r.leagueGroup);
             item.setPath(path);
             out.add(item);
         }
@@ -56,10 +56,16 @@ public class LeaguesAPIService {
             });
 
             LeagueInfoDTO info = new LeagueInfoDTO();
-            info.setName(r.league);
-            info.setTeamCount(r.getTeamCount() != null ? r.getTeamCount().intValue() : 0);
-            info.setPath("/" + repo.toPath(r.country) + "/" + repo.toPath(r.league));
-            info.setRoutingPath(r.path);
+            info.setName(r.getLeagueGroup());
+            info.setLeagueGroup(r.getLeagueGroup());
+            info.setLeagueFull(null); // 親行なのでnullでOK
+            info.setSeasonYear(r.getSeasonYear());
+            info.setStartSeasonDate(r.getStartSeasonDate());
+            info.setEndSeasonDate(r.getEndSeasonDate());
+            info.setVariantCount(r.getVariantCount() == null ? 0 : r.getVariantCount().intValue());
+            info.setTeamCount(r.getTeamCount() == null ? 0 : r.getTeamCount().intValue());
+            info.setPath("/" + repo.toPath(r.getCountry()) + "/" + repo.toPath(r.getLeagueGroup())); // 親用の内部パス
+            info.setRoutingPath(r.getPath()); // 代表path（親で1つに決めるなら）
 
             group.getLeagues().add(info);
         }
