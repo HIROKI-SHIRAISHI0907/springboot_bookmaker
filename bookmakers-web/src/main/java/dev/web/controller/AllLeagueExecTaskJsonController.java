@@ -27,7 +27,7 @@ public class AllLeagueExecTaskJsonController {
     private final EcsBatchTaskRunner runner;
 
     /**
-     * /all-league-scrape-master-json を叩いたら B010 のFargateタスクを起動する
+     * /all-league-scrape-master-json を叩いたら B009 のFargateタスクを起動する
      */
     @PostMapping("/all-league-scrape-master-json")
     public ResponseEntity<StatResponseResource> execute(@RequestBody StatRequestResource req) {
@@ -37,7 +37,7 @@ public class AllLeagueExecTaskJsonController {
         // 例: env.put("COUNTRY", req.getCountry());
         // 例: env.put("LEAGUE", req.getLeague());
 
-        String taskArn = runner.runBatch("B010", env);
+        String taskArn = runner.runBatch("B009", env);
 
         StatResponseResource res = new StatResponseResource();
         // あなたのDTO設計に合わせて詰めてOK

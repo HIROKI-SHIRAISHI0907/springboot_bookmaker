@@ -128,6 +128,12 @@ ecs:
       taskDefinition: ${ECS_B009_TASK_DEF:no-game-batch}
       container: ${ECS_B009_CONTAINER:no-game-scraper}
       logGroup: ${ECS_B009_LOG_GROUP:/ecs/no-game-batch}
+      
+    B010:
+      cluster: ${ECS_B010_CLUSTER:bm-fin-cluster}
+      taskDefinition: ${ECS_B010_TASK_DEF:bm-fin-batch}
+      container: ${ECS_B010_CONTAINER:timely-data-fin-outputs-scraper}
+      logGroup: ${ECS_B010_LOG_GROUP:/ecs/bm-fin-batch}
     
   defaults:
     region: ${AWS_REGION:ap-northeast-1}
@@ -144,6 +150,7 @@ ecs:
     B005: {}
     B007: {}
     B009: {}
+    B010: {}
 
     # B006,B008 は bookmakers-appを起動
     B006:

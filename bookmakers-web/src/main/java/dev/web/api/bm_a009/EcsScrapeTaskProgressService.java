@@ -110,6 +110,7 @@ public class EcsScrapeTaskProgressService {
         }
         Task task = dt.tasks().get(0);
         res.setStatus(task.lastStatus()); // RUNNING / STOPPED / PROVISIONING など
+        res.setExitCd(task.containers().get(0).exitCode());
 
         if (!"RUNNING".equals(task.lastStatus())) {
             res.setMessage("タスクは RUNNING ではありません: " + task.lastStatus());
