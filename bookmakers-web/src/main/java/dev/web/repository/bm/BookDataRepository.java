@@ -796,7 +796,8 @@ public class BookDataRepository {
 	}
 
 	// ========= data =========
-	public List<DataIngestRow> findDataByRegisterTime(OffsetDateTime from, OffsetDateTime to) {
+	public List<DataIngestRow> findDataByRegisterTime(String country) {
+		String countryLike = country + ":%";
 		String sql = """
 				    SELECT
 				      seq,
@@ -811,14 +812,13 @@ public class BookDataRepository {
 				      register_time,
 				      update_time
 				    FROM data
-				    WHERE register_time >= :from
-				      AND register_time <  :to
+				    WHERE
+				    	data_category LIKE :countryLike
 				    ORDER BY register_time DESC
 				""";
 
-		var params = new MapSqlParameterSource()
-				.addValue("from", from)
-				.addValue("to", to);
+		 MapSqlParameterSource params = new MapSqlParameterSource()
+	                .addValue("countryLike", countryLike);
 
 		return bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
 			DataIngestRow r = new DataIngestRow();

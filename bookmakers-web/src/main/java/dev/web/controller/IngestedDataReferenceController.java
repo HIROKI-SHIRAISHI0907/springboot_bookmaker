@@ -1,8 +1,5 @@
 package dev.web.controller;
 
-import java.time.OffsetDateTime;
-
-import org.springframework.format.annotation.DateTimeFormat;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
@@ -37,13 +34,7 @@ public class IngestedDataReferenceController {
      */
     @GetMapping("/admin/ingested")
     public IngestedDataReferenceResponse getIngestedData(
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-            OffsetDateTime from,
-
-            @RequestParam(required = false)
-            @DateTimeFormat(iso = DateTimeFormat.ISO.DATE_TIME)
-            OffsetDateTime to,
+    		@RequestParam(required = false) String country,
 
             @RequestParam(defaultValue = "true")
             boolean includeFutureMaster,
@@ -58,8 +49,7 @@ public class IngestedDataReferenceController {
             int offset) {
 
     	IngestedDataReferenceRequest req = new IngestedDataReferenceRequest();
-        req.setFrom(from);
-        req.setTo(to);
+    	req.setCountry(country);
         req.setIncludeFutureMaster(includeFutureMaster);
         req.setIncludeData(includeData);
         req.setLimit(limit);

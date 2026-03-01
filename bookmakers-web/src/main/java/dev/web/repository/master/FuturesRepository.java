@@ -231,7 +231,8 @@ public class FuturesRepository {
 	}
 
 	// ========= future_master =========
-	public List<FutureMasterIngestRow> findFutureMasterByRegisterTime(OffsetDateTime from, OffsetDateTime to) {
+	public List<FutureMasterIngestRow> findFutureMasterByRegisterTime(String country) {
+		String countryLike = country + ":%";
 		String sql = """
 				    SELECT
 				      seq,
@@ -244,14 +245,13 @@ public class FuturesRepository {
 				      register_time,
 				      update_time
 				    FROM future_master
-				    WHERE register_time >= :from
-				      AND register_time <  :to
+				    WHERE
+				    	game_team_category LIKE :countryLike
 				    ORDER BY register_time DESC
 				""";
 
-		var params = new MapSqlParameterSource()
-				.addValue("from", from)
-				.addValue("to", to);
+		 MapSqlParameterSource params = new MapSqlParameterSource()
+	                .addValue("countryLike", countryLike);
 
 		return masterJdbcTemplate.query(sql, params, (rs, rowNum) -> {
 			FutureMasterIngestRow r = new FutureMasterIngestRow();

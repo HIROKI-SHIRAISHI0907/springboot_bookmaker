@@ -1,7 +1,5 @@
 package dev.web.api.bm_a011;
 
-import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -26,20 +24,12 @@ public class IngestedDataService {
 	@Transactional(readOnly = true)
 	public IngestedDataReferenceResponse search(IngestedDataReferenceRequest req) {
 
-		OffsetDateTime to = (req.getTo() != null)
-				? req.getTo()
-				: OffsetDateTime.now(ZoneId.of("Asia/Tokyo"));
-
-		OffsetDateTime from = (req.getFrom() != null)
-				? req.getFrom()
-				: to.minusDays(7);
-
 		List<IngestedRowDTO> merged = new ArrayList<>();
 		long total = 0;
 
 		// ===== future_master =====
 		if (req.isIncludeFutureMaster()) {
-			var futures = futuresRepository.findFutureMasterByRegisterTime(from, to);
+			var futures = futuresRepository.findFutureMasterByRegisterTime(req.getCountry());
 			total += futures.size();
 
 			for (var r : futures) {
@@ -69,7 +59,7 @@ public class IngestedDataService {
 
 		// ===== data =====
 		if (req.isIncludeData()) {
-			var dataRows = bookDataRepository.findDataByRegisterTime(from, to);
+			var dataRows = bookDataRepository.findDataByRegisterTime(req.getCountry());
 			total += dataRows.size();
 
 			for (var r : dataRows) {
@@ -164,8 +154,6 @@ public class IngestedDataService {
 		List<IngestedRowDTO> paged = merged.subList(fromIdx, toIdx);
 
 		IngestedDataReferenceResponse res = new IngestedDataReferenceResponse();
-		res.setFrom(from);
-		res.setTo(to);
 		res.setRows(paged);
 		res.setTotal(total);
 		return res;
