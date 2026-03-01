@@ -1,4 +1,4 @@
-package dev.web.api.bm_w015;
+package dev.web.api.bm_a012;
 
 import java.time.LocalDate;
 import java.util.List;
