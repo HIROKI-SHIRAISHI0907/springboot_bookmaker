@@ -139,6 +139,9 @@ public class MessageCdConst {
 	/** MCD00024E: ファイル記入エラーが発生しました。(ファイル名: {1}) */
 	public static final String MCD00024E_WRITE_FILE_FAILED = "MCD00024E";
 
+	/** MCD00025E: S3からのダウンロードが失敗しました。(バケット名: {1}, ファイル名: {2}) */
+	public static final String MCD00025E_S3_DOWNLOAD_FAILED = "MCD00025E";
+
 	/** MCD00099E: 予期せぬ例外が発生しました。(理由: {1}) */
 	public static final String MCD00099E_UNEXPECTED_EXCEPTION = "MCD00099E";
 
