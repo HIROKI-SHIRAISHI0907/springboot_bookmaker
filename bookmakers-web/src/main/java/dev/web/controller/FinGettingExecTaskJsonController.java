@@ -4,6 +4,7 @@ import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
+import org.springframework.scheduling.annotation.Async;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -43,11 +44,29 @@ public class FinGettingExecTaskJsonController {
     		@RequestBody FinGettingRequest req) throws Exception {
 
     	// JSONをupload
-    	String s3Key = service.convertAndUpload(req);
+    	service.convertAndUpload(req);
 
     	// スクレイピングを行う
     	String taskArn1 = runService.runScrape(BATCH_CODE, Map.of(), true);
 
+    	// バッチ処理を実行（スクレイピング完了後）
+    	asyncProgress();
+
+    	StatResponseResource res = new StatResponseResource();
+        // あなたのDTO設計に合わせて詰めてOK
+        res.setReturnCd("ACCEPTED");
+        // resに taskArn を入れられるなら入れるのがおすすめ（進捗追跡できる）
+        res.setTaskArn(taskArn1);
+
+        return ResponseEntity.ok(res);
+    }
+
+    /**
+     * 非同期
+     * @throws InterruptedException
+     */
+    @Async
+    private void asyncProgress() throws InterruptedException {
     	// 進捗管理
         service.getProgress();
 
@@ -56,13 +75,6 @@ public class FinGettingExecTaskJsonController {
         // 例: env.put("COUNTRY", req.getCountry());
         // 例: env.put("LEAGUE", req.getLeague());
 
-        String taskArn2 = runner.runBatch(BATCH_CODE, env);
-    	StatResponseResource res = new StatResponseResource();
-        // あなたのDTO設計に合わせて詰めてOK
-        res.setReturnCd("ACCEPTED");
-        // resに taskArn を入れられるなら入れるのがおすすめ（進捗追跡できる）
-        res.setTaskArn(taskArn2);
-
-        return ResponseEntity.ok(res);
+        runner.runBatch(BATCH_CODE, env);
     }
 }
