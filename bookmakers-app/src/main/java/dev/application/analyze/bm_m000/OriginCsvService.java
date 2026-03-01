@@ -100,7 +100,7 @@ public class OriginCsvService implements OriginIF {
 		}
 
 		// 直近のCSVデータ情報を取得
-		Map<String, List<DataEntity>> getOriginMap = this.getOriginInfo.getData();
+		Map<String, List<DataEntity>> getOriginMap = this.getOriginInfo.getData(null);
 		// BM_M001登録(Transactional)
 		try {
 			this.originStat.originStat(getOriginMap);
