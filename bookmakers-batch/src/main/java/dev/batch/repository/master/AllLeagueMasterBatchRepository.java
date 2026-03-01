@@ -30,7 +30,6 @@ public interface AllLeagueMasterBatchRepository {
 			    "    CURRENT_TIMESTAMP, ",
 			    "    'SYSTEM', ",
 			    "    CURRENT_TIMESTAMP)",
-			    //"#{registerId}, #{registerTime}, #{updateId}, #{updateTime});"
 	})
 	int insert(AllLeagueMasterEntity entity);
 

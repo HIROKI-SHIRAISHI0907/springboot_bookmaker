@@ -31,7 +31,7 @@ public interface CountryLeagueMasterBatchRepository {
 			"    #{link},",
 			"    '0',",
 			"    'SYSTEM',",
-			"	 CURRENT_TIMESTAMP",
+			"	 CURRENT_TIMESTAMP,",
 			"	 'SYSTEM',",
 			"	 CURRENT_TIMESTAMP)",
 	})

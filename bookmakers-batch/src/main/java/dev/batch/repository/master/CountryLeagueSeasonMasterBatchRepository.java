@@ -80,7 +80,7 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 		"	        '0',",
 		"	        '0',",
 		"           'SYSTEM',",
-		"			CURRENT_TIMESTAMP",
+		"			CURRENT_TIMESTAMP,",
 		"			'SYSTEM',",
 		"			CURRENT_TIMESTAMP)",
 	""})
