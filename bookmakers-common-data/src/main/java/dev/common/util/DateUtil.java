@@ -81,6 +81,11 @@ public class DateUtil {
 	        = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
 
 	/**
+	 * 通常フォーマット
+	 */
+	private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+	/**
 	 * コンストラクタ生成禁止
 	 */
 	private DateUtil() {
@@ -420,6 +425,19 @@ public class DateUtil {
 
 	    throw new IllegalArgumentException("不正な日時フォーマットです: " + input);
 	}
+
+	/**
+     * "2026-03-02 15:40:59" のような文字列を 90分前にして同形式で返す
+     */
+    public static String minus90Minutes(String dateTimeStr) {
+        if (dateTimeStr == null || dateTimeStr.isBlank()) {
+            throw new IllegalArgumentException("dateTimeStr is null/blank");
+        }
+
+        LocalDateTime dt = LocalDateTime.parse(dateTimeStr.trim(), FMT);
+        LocalDateTime dtMinus = dt.minusMinutes(90);
+        return dtMinus.format(FMT);
+    }
 
 	/** 目に見えない文字を可視化する */
 	private static String visualize(String str) {
