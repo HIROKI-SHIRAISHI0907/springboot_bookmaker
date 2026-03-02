@@ -1,4 +1,4 @@
-package dev.batch.bm_b010;
+package dev.batch.bm_b009;
 
 import java.io.File;
 import java.io.IOException;
@@ -30,7 +30,7 @@ import dev.common.s3.S3Operator;
  * @author shiraishitoshio
  *
  */
-@Service("B010")
+@Service("B009")
 public class RealDataConvertJsonBatch extends AbstractJobBatchTemplate {
 
 	/** プロジェクト名 */
@@ -41,10 +41,10 @@ public class RealDataConvertJsonBatch extends AbstractJobBatchTemplate {
 	private static final String CLASS_NAME = RealDataConvertJsonBatch.class.getName();
 
 	/** エラーコード（運用ルールに合わせて変更） */
-	private static final String ERROR_CODE = "BM_B010_ERROR";
+	private static final String ERROR_CODE = "BM_B009_ERROR";
 
 	/** バッチコード */
-	private static final String BATCH_CODE = "B010";
+	private static final String BATCH_CODE = "B009";
 
 	/** オーバーライド */
 	@Override
