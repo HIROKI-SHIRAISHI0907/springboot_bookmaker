@@ -4,7 +4,6 @@ package dev.web.repository.bm;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.dao.EmptyResultDataAccessException;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -46,7 +45,7 @@ public class MatchKeyRepository {
         try {
             String id = bmJdbcTemplate.queryForObject(sql, params, String.class);
             return Optional.ofNullable(id);
-        } catch (EmptyResultDataAccessException e) {
+        } catch (org.springframework.dao.EmptyResultDataAccessException e) {
             return Optional.empty();
         }
     }
@@ -71,9 +70,9 @@ public class MatchKeyRepository {
 				  :homeTeamName,
 				  :awayTeamName,
 				  :logicFlg,
-				  SYSTEM,
+				  'SYSTEM',
 				  CURRENT_TIMESTAMP,
-				  SYSTEM,
+				  'SYSTEM',
 				  CURRENT_TIMESTAMP
 				)
 				""";
