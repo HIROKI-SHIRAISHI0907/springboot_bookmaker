@@ -6,12 +6,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.batch.repository.bm.BookDataRepository;
+import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
- * DataDBService管理部品
+ * DataDBService管理部品(「終了済」データとして追加登録用)
  * @author shiraishitoshio
  *
  */
@@ -65,6 +66,7 @@ public class DataDBService {
 	public int insertInBatch(DataEntity insertEntities) {
 		final String METHOD_NAME = "insertInBatch";
 		try {
+			insertEntities.setTimes(BookMakersCommonConst.FIN);
 			int result = this.bookDataRepository.insert(insertEntities);
 			if (result != 1) {
 				String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
