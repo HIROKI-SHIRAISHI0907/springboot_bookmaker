@@ -20,8 +20,8 @@ public interface MatchKeySaveRepository {
 	List<MatchKeySaveEntity> findByMatchKey();
 
 	@Update("""
-			    TRUNCATE TABLE match_key_save;
+			    TRUNCATE TABLE match_key_save RESTART IDENTITY CASCADE;
 			""")
-	MatchKeySaveEntity truncate();
+	int truncate();
 
 }

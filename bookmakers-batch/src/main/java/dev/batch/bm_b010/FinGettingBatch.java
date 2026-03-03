@@ -2,12 +2,15 @@ package dev.batch.bm_b010;
 
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import dev.batch.common.AbstractJobBatchTemplate;
 import dev.batch.repository.bm.MatchKeySaveRepository;
@@ -17,6 +20,7 @@ import dev.common.entity.MatchKeySaveEntity;
 import dev.common.getinfo.GetOriginInfo;
 import dev.common.readfile.dto.MatchKeyItem;
 import dev.common.s3.S3Operator;
+import dev.common.util.FileDeleteUtil;
 
 /**
  * 「終了済」欠損データ登録バッチ実行クラス。
@@ -77,11 +81,15 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 	@Autowired
 	private GetOriginInfo getOriginInfo;
 
+	/** 終了済ロジック */
+	@Autowired
+	private FinGettingStat finGettingStat;
+
 	/** パスや外部実行設定（Python/S3等）を保持する設定クラス。 */
 	@Autowired
 	private PathConfig pathConfig;
 
-	/** S3Operator。 */
+	/** S3Operator */
 	@Autowired
 	private S3Operator s3Operator;
 
@@ -97,13 +105,12 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// バケット名取得
-		String outputBucket = pathConfig.getS3BucketsOutputs();
-
+		List<String> insertPath = new ArrayList<String>();
 		final String jsonFolder = pathConfig.getB008JsonFolder(); // /tmp/json/
 		final String jsonPath = jsonFolder + "b008_fin_getting_data.json";
 		final Path jsonFilePath = Paths.get(jsonPath);
 		final String s3Key = "json/" + jsonFilePath.getFileName().toString();
+		insertPath.add(s3Key);
 
 		// マッチキーDBから保存済マッチキーを取得
 		List<MatchKeySaveEntity> entity = matchKeySaveRepository.findByMatchKey();
@@ -116,14 +123,35 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 
 		// ObjectをダウンロードしEntityにマッピング
 		Map<String, List<DataEntity>> map = getOriginInfo.getData(items);
+		this.finGettingStat.finGettingStat(map);
 
 		// 削除
-		//matchKeySaveRepository.truncate();
+		truncate();
+
+		String bucket = pathConfig.getS3BucketsOutputs(); // バケット名取得
+		FileDeleteUtil.deleteS3Files(
+				insertPath,
+				bucket,
+				s3Operator,
+				manageLoggerComponent,
+				PROJECT_NAME,
+				CLASS_NAME,
+				METHOD_NAME,
+				"b008_fin_getting_data.json");
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		this.manageLoggerComponent.clear();
+	}
+
+	/**
+	 * 処理に失敗しても削除は行う
+	 */
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	private void truncate() {
+		// 処理に失敗しても削除は行う
+		matchKeySaveRepository.truncate();
 	}
 
 }
