@@ -82,8 +82,8 @@ public class FinGettingService {
 	 * @throws InterruptedException
 	 */
 	public void getProgress() throws InterruptedException {
-		// 例：最大30分待つ（必要に応じて調整）
-		Duration timeout = Duration.ofMinutes(30);
+		// 例：最大2時間待つ（必要に応じて調整）
+		Duration timeout = Duration.ofMinutes(120);
 		Instant deadline = Instant.now().plus(timeout);
 
 		while (true) {
