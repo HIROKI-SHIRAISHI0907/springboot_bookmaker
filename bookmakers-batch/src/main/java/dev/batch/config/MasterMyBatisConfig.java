@@ -20,8 +20,7 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
  */
 @Configuration
 @MapperScan(basePackages = {
-		"dev.batch.repository.master",
-		"dev.batch.repository.bm"
+		"dev.batch.repository.master"
 }, sqlSessionTemplateRef = "masterSqlSessionTemplate")
 public class MasterMyBatisConfig {
 
@@ -80,35 +79,4 @@ public class MasterMyBatisConfig {
 		return new SqlSessionTemplate(factory);
 	}
 
-	@Bean(name = "bmDataSourceProperties")
-	@ConfigurationProperties(prefix = "spring.datasource.bm")
-	public DataSourceProperties bmDataSourceProperties() {
-		return new DataSourceProperties();
-	}
-
-	@Bean(name = "bmDataSource")
-	public DataSource bmDataSource(
-			@Qualifier("bmDataSourceProperties") DataSourceProperties props) {
-		return props.initializeDataSourceBuilder().build();
-	}
-
-	@Bean(name = "bmTxManager")
-	public DataSourceTransactionManager bmTxManager(
-			@Qualifier("bmDataSource") DataSource ds) {
-		return new DataSourceTransactionManager(ds);
-	}
-
-	@Bean(name = "bmSqlSessionFactory")
-	public SqlSessionFactory bmSqlSessionFactory(
-			@Qualifier("bmDataSource") DataSource ds) throws Exception {
-		SqlSessionFactoryBean factory = new SqlSessionFactoryBean();
-		factory.setDataSource(ds);
-		return factory.getObject();
-	}
-
-	@Bean(name = "bmSqlSessionTemplate")
-	public SqlSessionTemplate bmSqlSessionTemplate(
-			@Qualifier("bmSqlSessionFactory") SqlSessionFactory factory) {
-		return new SqlSessionTemplate(factory);
-	}
 }
