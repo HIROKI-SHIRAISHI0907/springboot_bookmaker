@@ -23,7 +23,7 @@ import lombok.RequiredArgsConstructor;
  *
  */
 @RestController
-@RequestMapping("/api/admin/make")
+@RequestMapping("/api/admin/exec/task")
 @RequiredArgsConstructor
 public class FinGettingExecTaskJsonController {
 
