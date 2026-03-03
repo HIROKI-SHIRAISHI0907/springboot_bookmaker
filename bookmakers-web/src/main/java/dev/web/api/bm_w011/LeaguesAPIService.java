@@ -44,7 +44,6 @@ public class LeaguesAPIService {
     /** GET /api/leagues/grouped */
     public List<LeagueGroupedResponse> getLeaguesGrouped() {
         List<LeagueCountRow> rows = repo.findLeagueCounts();
-
         Map<String, LeagueGroupedResponse> map = new LinkedHashMap<>();
 
         for (LeagueCountRow r : rows) {
@@ -58,19 +57,31 @@ public class LeaguesAPIService {
             LeagueInfoDTO info = new LeagueInfoDTO();
             info.setName(r.getLeagueGroup());
             info.setLeagueGroup(r.getLeagueGroup());
-            info.setLeagueFull(null); // 親行なのでnullでOK
+            info.setLeagueFull(null);
             info.setSeasonYear(r.getSeasonYear());
             info.setStartSeasonDate(r.getStartSeasonDate());
             info.setEndSeasonDate(r.getEndSeasonDate());
             info.setVariantCount(r.getVariantCount() == null ? 0 : r.getVariantCount().intValue());
             info.setTeamCount(r.getTeamCount() == null ? 0 : r.getTeamCount().intValue());
-            info.setPath("/" + repo.toPath(r.getCountry()) + "/" + repo.toPath(r.getLeagueGroup())); // 親用の内部パス
-            info.setRoutingPath(r.getPath()); // 代表path（親で1つに決めるなら）
+
+            // ★画面遷移は /soccer/... に統一
+            String soccerPath = normalizeNoTrailingSlash(r.getPath()); // 例: "/soccer/japan/j1-league"
+            info.setPath(soccerPath);
+
+            // routingPath は残してもOK（同じ値でもよい）
+            info.setRoutingPath(soccerPath);
 
             group.getLeagues().add(info);
         }
 
         return new ArrayList<>(map.values());
+    }
+
+    private String normalizeNoTrailingSlash(String p) {
+        if (p == null) return null;
+        String s = p.trim();
+        if (s.endsWith("/")) s = s.substring(0, s.length() - 1);
+        return s;
     }
 
     /** GET /api/leagues/{country}/{league} country:england, league:premier-league*/

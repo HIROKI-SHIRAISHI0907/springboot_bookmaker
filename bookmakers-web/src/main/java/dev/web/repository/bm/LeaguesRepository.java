@@ -114,7 +114,7 @@ public class LeaguesRepository {
 				  SELECT
 				    country,
 				    league_group,
-				    MIN(routing_path) AS routing_path,
+				    MIN(routing_path) AS path,
 				    SUM(team_count)   AS team_count,
 				    COUNT(*)          AS variant_count,
 				    MAX(season_year)  AS season_year,
