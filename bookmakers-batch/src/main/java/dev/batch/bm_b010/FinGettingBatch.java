@@ -150,8 +150,13 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 	 */
 	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	private void truncate() {
+		final String METHOD_NAME = "truncate";
 		// 処理に失敗しても削除は行う
 		matchKeySaveRepository.truncate();
+
+		// endLog
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, "truncate");
 	}
 
 }

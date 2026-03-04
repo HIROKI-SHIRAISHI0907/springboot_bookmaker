@@ -136,6 +136,7 @@ ecs:
     B003: {}
     B004: {}
     B005: {}
+    B010: {}
     B008:
       cluster: ${ECS_B008_CLUSTER:stats-backend}
       taskDefinition: ${ECS_B008_TASK_DEF:bookmakers-app}

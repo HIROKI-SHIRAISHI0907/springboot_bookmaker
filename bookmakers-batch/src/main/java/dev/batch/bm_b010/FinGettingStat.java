@@ -138,7 +138,7 @@ public class FinGettingStat implements FinGettingEntityIF {
 				PROJECT_NAME,
 				CLASS_NAME,
 				METHOD_NAME,
-				"FUTURE");
+				"OUTPUTS_STATS");
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
