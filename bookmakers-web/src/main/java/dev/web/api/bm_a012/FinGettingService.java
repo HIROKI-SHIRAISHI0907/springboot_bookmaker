@@ -83,6 +83,7 @@ public class FinGettingService {
 	 * @return
 	 * @throws InterruptedException
 	 */
+	@SuppressWarnings("unused")
 	public void getProgress() throws InterruptedException {
 		// 例：最大4時間待つ（必要に応じて調整）
 		Duration timeout = Duration.ofMinutes(240);
@@ -90,7 +91,7 @@ public class FinGettingService {
 
 		while (true) {
 			// 経過時間観察
-			log.info("proccess time: {}" , timeout);
+			log.info("proccess time: {}", timeout);
 			// タイムアウト
 			if (Instant.now().isAfter(deadline)) {
 				throw new RuntimeException("ECS task timeout. batch=B010, waited=" + timeout);
@@ -106,12 +107,17 @@ public class FinGettingService {
 
 			String status = res.getStatus();
 
+			// ECSが止まったことを確認後次の処理に。
 			if ("STOPPED".equals(status)) {
 				Integer exitCd = res.getExitCd();
+				if (exitCd == null) {
+					throw new RuntimeException("ECS task stopped but exitCd is null. batch=B010");
+				}
 
-				if (exitCd != 0) {
+				if (exitCd.intValue() != 0) {
 					throw new RuntimeException("ECS task failed. batch=B010 exitCd=" + exitCd);
 				}
+
 				break;
 			}
 
@@ -163,33 +169,33 @@ public class FinGettingService {
 	 */
 	private void upsert(Map<String, List<Map<String, Object>>> map) {
 
-	    for (Map.Entry<String, List<Map<String, Object>>> entry : map.entrySet()) {
-	        for (Map<String, Object> obj : entry.getValue()) {
+		for (Map.Entry<String, List<Map<String, Object>>> entry : map.entrySet()) {
+			for (Map<String, Object> obj : entry.getValue()) {
 
-	            String mk = (String) obj.get("matchKey"); // ← これが登録したいキー
-	            if (mk == null || mk.isBlank()) {
-	                continue;
-	            }
+				String mk = (String) obj.get("matchKey"); // ← これが登録したいキー
+				if (mk == null || mk.isBlank()) {
+					continue;
+				}
 
-	            Optional<String> idOpt = matchKeyRepository.findMatchKeyId(mk);
-	            if (idOpt.isPresent()) {
-	                continue; // 既に存在
-	            }
+				Optional<String> idOpt = matchKeyRepository.findMatchKeyId(mk);
+				if (idOpt.isPresent()) {
+					continue; // 既に存在
+				}
 
-	            MatchKeySaveEntity entity = new MatchKeySaveEntity();
-	            entity.setMatchKey(mk);
+				MatchKeySaveEntity entity = new MatchKeySaveEntity();
+				entity.setMatchKey(mk);
 
-	            // insert が他カラム必須ならここでセット（後述）
-	            try {
-	                int rows = matchKeyRepository.insert(entity);
-	                if (rows != 1) {
-	                    throw new RuntimeException("match_key_save insert affected rows=" + rows + " matchKey=" + mk);
-	                }
-	            } catch (Exception e) {
-	                throw new RuntimeException("match_key_save insert failed. matchKey=" + mk, e);
-	            }
-	        }
-	    }
+				// insert が他カラム必須ならここでセット（後述）
+				try {
+					int rows = matchKeyRepository.insert(entity);
+					if (rows != 1) {
+						throw new RuntimeException("match_key_save insert affected rows=" + rows + " matchKey=" + mk);
+					}
+				} catch (Exception e) {
+					throw new RuntimeException("match_key_save insert failed. matchKey=" + mk, e);
+				}
+			}
+		}
 	}
 
 }
