@@ -87,25 +87,42 @@ public class FinGettingService {
 	public void getProgress() throws InterruptedException {
 		// 例：最大4時間待つ（必要に応じて調整）
 		Duration timeout = Duration.ofMinutes(240);
-		Instant deadline = Instant.now().plus(timeout);
+		Instant start = Instant.now();
+		Instant deadline = start.plus(timeout);
+
+		int tick = 0;
 
 		while (true) {
 			// 経過時間観察
 			log.info("proccess time: {}", timeout);
 			// タイムアウト
 			if (Instant.now().isAfter(deadline)) {
+				Duration elapsed = Duration.between(start, Instant.now());
 				throw new RuntimeException("ECS task timeout. batch=B010, waited=" + timeout);
 			}
 
 			// progress取得（null耐性）
 			EcsScrapeTaskProgressResponse res = ecsService.getLatestProgress("B010");
 			if (res == null || res.getStatus() == null) {
-				// 一時的に取れないケースはあり得るのでリトライ
+				// 取れない時は軽くログしてリトライ
+				if (++tick % 6 == 0) { // 60秒に1回程度
+					Duration elapsed = Duration.between(start, Instant.now());
+					Duration remaining = Duration.between(Instant.now(), deadline);
+					log.info("B010 progress: status=null (retry) elapsed={} remaining={}", elapsed, remaining);
+				}
 				Thread.sleep(10_000);
 				continue;
 			}
 
 			String status = res.getStatus();
+
+			// ★ここにログを置く（おすすめ）
+			if (++tick % 6 == 0) { // 10秒ごとだと多いので、60秒に1回だけ出す例
+				Duration elapsed = Duration.between(start, Instant.now());
+				Duration remaining = Duration.between(Instant.now(), deadline);
+				log.info("B010 progress: status={} exitCd={} elapsed={} remaining={}",
+						status, res.getExitCd(), elapsed, remaining);
+			}
 
 			// ECSが止まったことを確認後次の処理に。
 			if ("STOPPED".equals(status)) {
@@ -117,7 +134,6 @@ public class FinGettingService {
 				if (exitCd.intValue() != 0) {
 					throw new RuntimeException("ECS task failed. batch=B010 exitCd=" + exitCd);
 				}
-
 				break;
 			}
 
