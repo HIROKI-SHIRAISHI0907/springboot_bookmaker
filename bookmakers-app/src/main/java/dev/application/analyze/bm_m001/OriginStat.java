@@ -76,7 +76,8 @@ public class OriginStat implements OriginEntityIF {
 			final String filePath = entry.getKey();
 			final List<DataEntity> dataList = entry.getValue();
 			final String fillChar = "ファイル名: " + filePath;
-
+			// timesが入っていないデータはスキップ
+			if (dataList.get(0).getTimes() == null || "".equals(dataList.get(0).getTimes())) continue;
 			try {
 				// 事前準備はトランザクション外
 				List<DataEntity> insertEntities = originDBService.selectInBatch(dataList, fillChar);
