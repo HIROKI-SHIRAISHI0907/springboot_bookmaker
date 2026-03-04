@@ -73,6 +73,9 @@ public class FinGettingStat implements FinGettingEntityIF {
 			// リアルタイムデータ
 			List<DataEntity> entList = map.getValue();
 			for (DataEntity ent : entList) {
+				insertPath.add(filePath);
+				// 終了済が入っていないデータはスキップ
+				if (ent.getTimes() == null || "".equals(ent.getTimes())) continue;
 				try {
 					DataEntity insertEntities = this.dataDBService.selectInBatch(ent);
 					int result = this.dataDBService.insertInBatch(insertEntities);
@@ -80,7 +83,6 @@ public class FinGettingStat implements FinGettingEntityIF {
 						String messageCd = "新規登録エラー";
 						throw new Exception(messageCd);
 					}
-					insertPath.add(filePath);
 				} catch (Exception e) {
 					String messageCd = "システムエラー";
 					throw new Exception(messageCd, e);
