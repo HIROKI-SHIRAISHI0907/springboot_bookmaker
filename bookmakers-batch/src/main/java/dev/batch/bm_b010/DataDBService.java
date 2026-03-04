@@ -67,6 +67,8 @@ public class DataDBService {
 		final String METHOD_NAME = "insertInBatch";
 		try {
 			insertEntities.setTimes(BookMakersCommonConst.FIN);
+			// 手動登録扱い
+			insertEntities.setAddManualFlg("1");
 			int result = this.bookDataRepository.insert(insertEntities);
 			if (result != 1) {
 				String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
