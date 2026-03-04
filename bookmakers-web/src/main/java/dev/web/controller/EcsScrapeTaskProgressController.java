@@ -6,9 +6,11 @@ import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import dev.web.api.bm_a009.EcsScrapeTaskProgressRequest;
 import dev.web.api.bm_a009.EcsScrapeTaskProgressResponse;
 import dev.web.api.bm_a009.EcsScrapeTaskProgressService;
 import dev.web.batch.EcsScrapeTaskRunner;
@@ -19,35 +21,37 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class EcsScrapeTaskProgressController {
 
-    private final EcsScrapeTaskProgressService service;
+	private final EcsScrapeTaskProgressService service;
 
-    private final EcsScrapeTaskRunner runService;
+	private final EcsScrapeTaskRunner runService;
 
-    /**
-     * 最新RUNNINGタスクの進捗
-     * GET /api/admin/scrape/ecs/{batchCode}/latest/progress
-     */
-    @GetMapping("/ecs/{batchCode}/latest/progress")
-    public ResponseEntity<EcsScrapeTaskProgressResponse> latest(@PathVariable String batchCode) {
-        return ResponseEntity.ok(service.getLatestProgress(batchCode));
-    }
+	/**
+	 * 最新RUNNINGタスクの進捗
+	 * GET /api/admin/scrape/ecs/{batchCode}/latest/progress
+	 */
+	@GetMapping("/ecs/{batchCode}/latest/progress")
+	public ResponseEntity<EcsScrapeTaskProgressResponse> latest(@PathVariable String batchCode) {
+		return ResponseEntity.ok(service.getLatestProgress(batchCode));
+	}
 
-    /**
-     * 指定タスクの進捗
-     * GET /api/admin/scrape/ecs/{batchCode}/tasks/{taskId}/progress
-     */
-    @GetMapping("/ecs/{batchCode}/tasks/{taskId}/progress")
-    public ResponseEntity<EcsScrapeTaskProgressResponse> byTask(
-            @PathVariable String batchCode,
-            @PathVariable String taskId) {
-        return ResponseEntity.ok(service.getProgress(batchCode, taskId));
-    }
+	/**
+	 * 指定タスクの進捗
+	 * GET /api/admin/scrape/ecs/{batchCode}/tasks/{taskId}/progress
+	 */
+	@GetMapping("/ecs/{batchCode}/tasks/{taskId}/progress")
+	public ResponseEntity<EcsScrapeTaskProgressResponse> byTask(
+			@PathVariable String batchCode,
+			@PathVariable String taskId) {
+		return ResponseEntity.ok(service.getProgress(batchCode, taskId));
+	}
 
-    /** 手動実行 */
-    @PostMapping("/ecs/{batchCode}/run")
-    public ResponseEntity<Map<String, String>> run(@PathVariable String batchCode) {
-    	String taskArn = runService.runScrape(batchCode, Map.of(), true);
-        return ResponseEntity.accepted().body(Map.of("taskArn", taskArn));
-    }
+	/** 手動実行
+	 * @throws Exception */
+	@PostMapping("/ecs/run")
+	public ResponseEntity<Map<String, String>> run(
+			@RequestBody EcsScrapeTaskProgressRequest req) throws Exception {
+		String taskArn = runService.runScrape(req.getBatchCd(), Map.of(), true);
+		return ResponseEntity.accepted().body(Map.of("taskArn", taskArn));
+	}
 
 }
