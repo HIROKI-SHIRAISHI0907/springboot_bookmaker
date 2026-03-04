@@ -25,10 +25,12 @@ import dev.web.api.bm_a009.EcsScrapeTaskProgressResponse;
 import dev.web.api.bm_a009.EcsScrapeTaskProgressService;
 import dev.web.repository.bm.MatchKeyRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Transactional
 @RequiredArgsConstructor
+@Slf4j
 public class FinGettingService {
 
 	private final EcsScrapeTaskProgressService ecsService;
@@ -82,11 +84,13 @@ public class FinGettingService {
 	 * @throws InterruptedException
 	 */
 	public void getProgress() throws InterruptedException {
-		// 例：最大2時間待つ（必要に応じて調整）
-		Duration timeout = Duration.ofMinutes(120);
+		// 例：最大4時間待つ（必要に応じて調整）
+		Duration timeout = Duration.ofMinutes(240);
 		Instant deadline = Instant.now().plus(timeout);
 
 		while (true) {
+			// 経過時間観察
+			log.info("proccess time: {}" , timeout);
 			// タイムアウト
 			if (Instant.now().isAfter(deadline)) {
 				throw new RuntimeException("ECS task timeout. batch=B010, waited=" + timeout);
