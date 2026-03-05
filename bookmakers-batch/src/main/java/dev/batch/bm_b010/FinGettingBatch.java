@@ -9,8 +9,6 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Propagation;
-import org.springframework.transaction.annotation.Transactional;
 
 import dev.batch.common.AbstractJobBatchTemplate;
 import dev.batch.repository.bm.MatchKeySaveRepository;
@@ -85,6 +83,10 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 	@Autowired
 	private FinGettingStat finGettingStat;
 
+	/** Truncateロジック */
+	@Autowired
+	private FinGettingTruncate finGettingTruncate;
+
 	/** パスや外部実行設定（Python/S3等）を保持する設定クラス。 */
 	@Autowired
 	private PathConfig pathConfig;
@@ -126,7 +128,7 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 		this.finGettingStat.finGettingStat(map);
 
 		// 削除
-		truncate();
+		finGettingTruncate.truncate();
 
 		String bucket = pathConfig.getS3BucketsOutputs(); // バケット名取得
 		FileDeleteUtil.deleteS3Files(
@@ -143,20 +145,6 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		this.manageLoggerComponent.clear();
-	}
-
-	/**
-	 * 処理に失敗しても削除は行う
-	 */
-	@Transactional(propagation = Propagation.REQUIRES_NEW)
-	private void truncate() {
-		final String METHOD_NAME = "truncate";
-		// 処理に失敗しても削除は行う
-		matchKeySaveRepository.truncate();
-
-		// endLog
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, "truncate");
 	}
 
 }
