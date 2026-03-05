@@ -6,18 +6,15 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
-import dev.common.entity.MatchKeySaveEntity;
-
 @Mapper
 public interface MatchKeySaveRepository {
 
 	@Select("""
-			    SELECT
-			    	match_key
-			    FROM
-			    	match_key_save;
+			  SELECT match_key
+			  FROM match_key_save
+			  WHERE match_key IS NOT NULL
 			""")
-	List<MatchKeySaveEntity> findByMatchKey();
+	List<String> findMatchKeys();
 
 	@Update("""
 			    TRUNCATE TABLE match_key_save RESTART IDENTITY CASCADE;

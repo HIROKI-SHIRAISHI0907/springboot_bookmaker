@@ -14,7 +14,6 @@ import dev.batch.common.AbstractJobBatchTemplate;
 import dev.batch.repository.bm.MatchKeySaveRepository;
 import dev.common.config.PathConfig;
 import dev.common.entity.DataEntity;
-import dev.common.entity.MatchKeySaveEntity;
 import dev.common.getinfo.GetOriginInfo;
 import dev.common.readfile.dto.MatchKeyItem;
 import dev.common.s3.S3Operator;
@@ -115,13 +114,9 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 		insertPath.add(s3Key);
 
 		// マッチキーDBから保存済マッチキーを取得
-		List<MatchKeySaveEntity> entity = matchKeySaveRepository.findByMatchKey();
-		List<MatchKeyItem> items = entity.stream()
-				.map(mk -> {
-					MatchKeyItem e = new MatchKeyItem();
-					e.setMatchKey(mk.getMatchKey());
-					return e;
-				}).collect(Collectors.toList());
+		List<MatchKeyItem> items = matchKeySaveRepository.findMatchKeys().stream()
+			    .map(k -> { MatchKeyItem e = new MatchKeyItem(); e.setMatchKey(k); return e; })
+			    .collect(Collectors.toList());
 
 		// ObjectをダウンロードしEntityにマッピング
 		Map<String, List<DataEntity>> map = getOriginInfo.getData(items);
