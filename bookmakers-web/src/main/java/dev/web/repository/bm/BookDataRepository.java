@@ -796,8 +796,6 @@ public class BookDataRepository {
 
 	// ========= data =========
 	public List<DataIngestRow> findDataByRegisterTime(String country) {
-	    String countryLike = country + ":%";
-
 	    String sql = """
 	        SELECT
 	          seq,
@@ -812,6 +810,8 @@ public class BookDataRepository {
 	        FROM data
 	        WHERE data_category LIKE :countryLike
 	    """;
+
+	    String countryLike = (country == null || country.isBlank()) ? null : country + ":%";
 
 	    MapSqlParameterSource params = new MapSqlParameterSource()
 	        .addValue("countryLike", countryLike);
