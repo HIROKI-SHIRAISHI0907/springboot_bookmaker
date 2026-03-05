@@ -74,6 +74,8 @@ public class ExportCsv {
 	// "4710.csv" / "/path/4710.csv" から 4710 を取り出す
 	private static final Pattern CSV_NO_PATTERN = Pattern.compile("(^|.*/)(\\d+)\\.csv$", Pattern.CASE_INSENSITIVE);
 
+	private static final Pattern ROOT_CSV_PATTERN = Pattern.compile("^(\\d+)\\.csv$", Pattern.CASE_INSENSITIVE);
+
 	@Value("${exportcsv.local-only:false}")
 	private boolean localOnly;
 
@@ -688,32 +690,39 @@ public class ExportCsv {
 	 * S3（本番prefix）にある CSV の最大番号を取得する
 	 */
 	private int getMaxCsvNoFromS3(String bucket, String finalPrefix) {
-		final String METHOD_NAME = "getMaxCsvNoFromS3";
-		String prefix = (finalPrefix == null) ? "" : finalPrefix;
+	    final String METHOD_NAME = "getMaxCsvNoFromS3";
 
-		List<String> keys = s3Operator.listKeys(bucket, prefix);
-		int max = 0;
+	    // finalPrefix は直下運用なら "" のままでOK
+	    String prefix = (finalPrefix == null) ? "" : finalPrefix;
 
-		for (String key : keys) {
-			if (key == null)
-				continue;
-			Matcher m = CSV_KEY_PATTERN.matcher(key);
-			if (!m.matches())
-				continue;
+	    List<String> keys = s3Operator.listKeys(bucket, prefix);
+	    int max = 0;
 
-			try {
-				int n = Integer.parseInt(m.group(1));
-				if (n > max)
-					max = n;
-			} catch (NumberFormatException ignore) {
-			}
-		}
+	    for (String key : keys) {
+	        if (key == null) continue;
 
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-				"S3上の最大CSV番号=" + max + " (bucket=" + bucket + ", prefix=" + prefix + ")");
-		return max;
+	        // tmpは絶対除外（ここ重要）
+	        if (key.startsWith("tmp/")) continue;
+
+	        // 「直下のファイル名」以外（=スラッシュを含む）は除外
+	        if (key.indexOf('/') >= 0) continue;
+
+	        Matcher m = ROOT_CSV_PATTERN.matcher(key);
+	        if (!m.matches()) continue;
+
+	        try {
+	            int n = Integer.parseInt(m.group(1));
+	            if (n > max) max = n;
+	        } catch (NumberFormatException ignore) {}
+	    }
+
+	    manageLoggerComponent.debugInfoLog(
+	        PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+	        "S3上の最大CSV番号(root only)=" + max + " (bucket=" + bucket + ", prefix=" + prefix + ")"
+	    );
+	    return max;
 	}
+
 
 	/**
 	 * localOnly用：ローカルディレクトリにある CSV の最大番号を取得する
