@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 import dev.batch.common.AbstractJobBatchTemplate;
 import dev.batch.repository.bm.MatchKeySaveRepository;
 import dev.common.config.PathConfig;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
 import dev.common.getinfo.GetOriginInfo;
 import dev.common.readfile.dto.MatchKeyItem;
@@ -117,6 +118,15 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 		List<MatchKeyItem> items = matchKeySaveRepository.findMatchKeys().stream()
 			    .map(k -> { MatchKeyItem e = new MatchKeyItem(); e.setMatchKey(k); return e; })
 			    .collect(Collectors.toList());
+
+		// 取得できなかった場合は誤ってリアルタイムデータを登録してしまうのを防ぐためErrorを出力
+		if (items.isEmpty()) {
+			/** エラーコード（運用ルールに合わせて変更） */
+			String ERROR_CODE = MessageCdConst.MCD00003E_EXECUTION_SKIP;
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, null,
+					"items.isEmpty()");
+		}
 
 		// ObjectをダウンロードしEntityにマッピング
 		Map<String, List<DataEntity>> map = getOriginInfo.getData(items);
