@@ -65,11 +65,7 @@ public class FutureStat implements FutureEntityIF {
 			String fillChar = "ファイル名: " + filePath;
 			try {
 				List<FutureEntity> insertEntities = this.futureDBService.selectInBatch(map.getValue(), fillChar);
-				int result = this.futureDBService.insertInBatch(insertEntities);
-				if (result == 9) {
-					String messageCd = "新規登録エラー";
-					throw new Exception(messageCd);
-				}
+				this.futureDBService.insertInBatchOrThrow(insertEntities);
 				insertPath.add(filePath);
 			} catch (Exception e) {
 				String messageCd = "システムエラー";

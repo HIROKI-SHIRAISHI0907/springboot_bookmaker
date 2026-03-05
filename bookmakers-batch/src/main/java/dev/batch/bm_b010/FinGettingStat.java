@@ -11,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.batch.bm_b005.FutureDBService;
 import dev.batch.interf.FinGettingEntityIF;
 import dev.common.config.PathConfig;
+import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.DataEntity;
 import dev.common.entity.FutureEntity;
 import dev.common.logger.ManageLoggerComponent;
@@ -33,116 +34,103 @@ public class FinGettingStat implements FinGettingEntityIF {
 	/** クラス名 */
 	private static final String CLASS_NAME = FinGettingStat.class.getName();
 
-	/** FutureDBService部品 */
 	@Autowired
-	private FutureDBService futureDBService;
-
-	/** DataDBService部品 */
+	private FutureDBService futureDBService; // master
 	@Autowired
-	private DataDBService dataDBService;
-
-	/** Config */
+	private DataDBService dataDBService; // bm
 	@Autowired
 	private PathConfig config;
-
-	/** S3Operator */
 	@Autowired
 	private S3Operator s3Operator;
-
-	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
 
 	/**
 	 * {@inheritDoc}
-	 * @throws Exception
 	 */
 	@Override
-	@Transactional
+	@Transactional(rollbackFor = Exception.class)
 	public void finGettingStat(Map<String, List<DataEntity>> entities) throws Exception {
 		final String METHOD_NAME = "finGettingStat";
-		// ログ出力
-		this.manageLoggerComponent.debugStartInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		List<String> insertPath = new ArrayList<String>();
-		// FinGettingStatを登録する
+		List<String> insertPath = new ArrayList<>();
+
+		// 1) bm/master両方のDB処理（ここが “同一JTAトランザクション” に参加）
 		for (Map.Entry<String, List<DataEntity>> map : entities.entrySet()) {
 			String filePath = map.getKey();
 			String fillChar = "ファイル名: " + filePath;
-			// リアルタイムデータ
+
 			List<DataEntity> entList = map.getValue();
 			for (DataEntity ent : entList) {
 				insertPath.add(filePath);
-				// 終了済が入っていないデータはスキップ
-				if (ent.getTimes() == null || "".equals(ent.getTimes())) continue;
-				try {
-					DataEntity insertEntities = this.dataDBService.selectInBatch(ent);
-					int result = this.dataDBService.insertInBatch(insertEntities);
-					if (result == 9) {
-						String messageCd = "新規登録エラー";
-						throw new Exception(messageCd);
-					}
-				} catch (Exception e) {
-					String messageCd = "システムエラー";
-					throw new Exception(messageCd, e);
-				}
+				if (ent.getTimes() == null || ent.getTimes().isEmpty())
+					continue;
+
+				ent.setTimes(BookMakersCommonConst.FIN);
+				ent.setAddManualFlg("1");
+
+				DataEntity insertEntities = dataDBService.selectInBatch(ent);
+				dataDBService.insertInBatchOrThrow(insertEntities);
 			}
 
-			// 未来データに詰め直す
 			for (DataEntity ent : entList) {
-				List<FutureEntity> insertEntity = new ArrayList<FutureEntity>();
-				FutureEntity entity = new FutureEntity();
-				entity.setGameTeamCategory(ent.getDataCategory());
-				entity.setFutureTime(DateUtil.
-						minus90Minutes(ent.getRecordTime())); // 90分前の日付
-				entity.setHomeRank(ent.getHomeRank());
-				entity.setAwayRank(ent.getAwayRank());
-				entity.setHomeTeamName(ent.getHomeTeamName());
-				entity.setAwayTeamName(ent.getAwayTeamName());
-				entity.setHomeMaxGettingScorer(ent.getHomeMaxGettingScorer());
-				entity.setAwayMaxGettingScorer(ent.getAwayMaxGettingScorer());
-				entity.setHomeTeamHomeScore(ent.getHomeTeamHomeScore());
-				entity.setAwayTeamHomeScore(ent.getAwayTeamHomeScore());
-				entity.setHomeTeamHomeLost(ent.getHomeTeamHomeLost());
-				entity.setAwayTeamHomeLost(ent.getAwayTeamHomeLost());
-				entity.setHomeTeamAwayScore(ent.getHomeTeamAwayScore());
-				entity.setAwayTeamAwayScore(ent.getAwayTeamAwayScore());
-				entity.setHomeTeamAwayLost(ent.getHomeTeamAwayLost());
-				entity.setAwayTeamAwayLost(ent.getAwayTeamAwayLost());
-				entity.setGameLink(ent.getGameLink());
-				entity.setDataTime(DateUtil.getSysDate()); // 登録日付
-				entity.setStartFlg("1"); // 開始済
-				insertEntity.add(entity);
-				try {
-					List<FutureEntity> insertEntities = this.futureDBService.selectInBatch(insertEntity, fillChar);
-					int result = this.futureDBService.insertInBatch(insertEntities);
-					if (result == 9) {
-						String messageCd = "新規登録エラー";
-						throw new Exception(messageCd);
-					}
-				} catch (Exception e) {
-					String messageCd = "システムエラー";
-					throw new Exception(messageCd, e);
-				}
+				FutureEntity fe = buildFutureEntity(ent);
+				List<FutureEntity> list = List.of(fe);
+
+				List<FutureEntity> insertEntities = futureDBService.selectInBatch(list, fillChar);
+				futureDBService.insertInBatchOrThrow(insertEntities);
 			}
 		}
 
-		// 途中で例外が起きなければmatchKey限定のファイルを削除する
-		String bucket = config.getS3BucketsOutputs(); // バケット名取得
-		FileDeleteUtil.deleteS3Files(
-				insertPath,
-				bucket,
-				s3Operator,
-				manageLoggerComponent,
-				PROJECT_NAME,
-				CLASS_NAME,
-				METHOD_NAME,
-				"OUTPUTS_STATS");
+		// 2) afterCommitでS3削除（＝DBコミット成功後だけ消す）
+		String bucket = config.getS3BucketsOutputs();
+		org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
+				new org.springframework.transaction.support.TransactionSynchronization() {
+					@Override
+					public void afterCommit() {
+						FileDeleteUtil.deleteS3Files(
+								insertPath,
+								bucket,
+								s3Operator,
+								manageLoggerComponent,
+								PROJECT_NAME,
+								CLASS_NAME,
+								METHOD_NAME,
+								"OUTPUTS_STATS");
+					}
+				});
 
-		// endLog
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	}
+
+	/**
+	 * エンティティ設定
+	 * @param ent
+	 * @return
+	 */
+	private FutureEntity buildFutureEntity(DataEntity ent) {
+		FutureEntity entity = new FutureEntity();
+		entity.setGameTeamCategory(ent.getDataCategory());
+		entity.setFutureTime(DateUtil.minus90Minutes(ent.getRecordTime())); // 90分前の日付
+		entity.setHomeRank(ent.getHomeRank());
+		entity.setAwayRank(ent.getAwayRank());
+		entity.setHomeTeamName(ent.getHomeTeamName());
+		entity.setAwayTeamName(ent.getAwayTeamName());
+		entity.setHomeMaxGettingScorer(ent.getHomeMaxGettingScorer());
+		entity.setAwayMaxGettingScorer(ent.getAwayMaxGettingScorer());
+		entity.setHomeTeamHomeScore(ent.getHomeTeamHomeScore());
+		entity.setAwayTeamHomeScore(ent.getAwayTeamHomeScore());
+		entity.setHomeTeamHomeLost(ent.getHomeTeamHomeLost());
+		entity.setAwayTeamHomeLost(ent.getAwayTeamHomeLost());
+		entity.setHomeTeamAwayScore(ent.getHomeTeamAwayScore());
+		entity.setAwayTeamAwayScore(ent.getAwayTeamAwayScore());
+		entity.setHomeTeamAwayLost(ent.getHomeTeamAwayLost());
+		entity.setAwayTeamAwayLost(ent.getAwayTeamAwayLost());
+		entity.setGameLink(ent.getGameLink());
+		entity.setDataTime(DateUtil.getSysDate()); // 登録日付
+		entity.setStartFlg("1"); // 開始済
+		return entity;
 	}
 
 }

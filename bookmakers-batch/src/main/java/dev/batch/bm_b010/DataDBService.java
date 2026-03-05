@@ -6,7 +6,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.batch.repository.bm.BookDataRepository;
-import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
 import dev.common.logger.ManageLoggerComponent;
@@ -27,9 +26,6 @@ public class DataDBService {
 	/** クラス名 */
 	private static final String CLASS_NAME = DataDBService.class.getName();
 
-	/** BM_BATCH_NUMBER */
-	private static final String BM_NUMBER = "BM_B010";
-
 	/** BookDataRepositoryレポジトリクラス */
 	@Autowired
 	private BookDataRepository bookDataRepository;
@@ -43,55 +39,31 @@ public class DataDBService {
 	 * @param chkEntities
 	 */
 	public DataEntity selectInBatch(DataEntity chkEntities) {
-		final String METHOD_NAME = "selectInBatch";
-		try {
-			int chk = this.bookDataRepository
-					.findFinCount(chkEntities);
-			if (chk == 0) {
-				return chkEntities;
-			}
-		} catch (Exception e) {
-			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, "DB接続エラー");
-			throw e;
-		}
-		return null;
+		// ここは読み取りだけなのでTx不要（必要なら readOnly で付けてもOK）
+		int chk = bookDataRepository.findFinCount(chkEntities);
+		return (chk == 0) ? chkEntities : null;
 	}
 
 	/**
 	 * 登録メソッド
 	 * @param insertEntities
 	 */
-	public int insertInBatch(DataEntity insertEntities) {
-		final String METHOD_NAME = "insertInBatch";
+	@Transactional(transactionManager = "bmTxManager", rollbackFor = Exception.class)
+	public void insertInBatchOrThrow(DataEntity insertEntities) throws Exception {
+		final String METHOD_NAME = "insertInBatchOrThrow";
+
+		if (insertEntities == null)
+			return;
+
 		try {
-			insertEntities.setTimes(BookMakersCommonConst.FIN);
-			// 手動登録扱い
-			insertEntities.setAddManualFlg("1");
-			int result = this.bookDataRepository.insert(insertEntities);
+			int result = bookDataRepository.insert(insertEntities);
 			if (result != 1) {
-				String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
-				return 9;
+				throw new Exception("bm insert failed. result=" + result);
 			}
 		} catch (DuplicateKeyException e) {
+			// 重複は成功扱いにしたいなら握る（現状踏襲）
 			String messageCd = MessageCdConst.MCD00002W_DUPLICATION_WARNING;
-			this.manageLoggerComponent.debugWarnLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
-			// 重複は特に例外として出さない
-		} catch (Exception e) {
-			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
-			return 9;
+			manageLoggerComponent.debugWarnLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
 		}
-
-		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-				BM_NUMBER + " 登録件数: 1件");
-		return 0;
 	}
 }
