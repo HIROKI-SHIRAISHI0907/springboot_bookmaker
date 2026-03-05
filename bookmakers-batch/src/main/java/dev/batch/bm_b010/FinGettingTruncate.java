@@ -13,7 +13,7 @@ public class FinGettingTruncate {
 	@Autowired
 	MatchKeySaveRepository repo;
 
-	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	@Transactional(transactionManager = "bmTxManager", propagation = Propagation.REQUIRES_NEW)
 	public void truncate() {
 		repo.truncate();
 	}

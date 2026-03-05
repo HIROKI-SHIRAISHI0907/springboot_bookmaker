@@ -65,20 +65,10 @@ public class BatchJobRunner implements CommandLineRunner {
         System.out.println("batch bean toString=" + batch);
 
         int result = batch.execute();
-        SpringApplication.exit(ctx, () -> result == BatchConstant.BATCH_SUCCESS ? 0 : 1);
-        if (result != BatchConstant.BATCH_SUCCESS) {
-        	String messageCd = MessageCdConst.MCD00002E_BATCH_EXECUTION_SKIP;
-        	this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null,
-					"[BATCH FAILED] code=" + jobCode + " result=" + result);
-        	this.manageLoggerComponent.createSystemException(
-        			PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-        			null, null);
-        }
 
-        String messageCd = MessageCdConst.MCD00001I_BATCH_EXECUTION_GREEN_FIN;
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-				"[BATCH SUCCESS] code=" + jobCode);
+        int exit = (result == BatchConstant.BATCH_SUCCESS) ? 0 : 1;
+        SpringApplication.exit(ctx, () -> exit);
+        return;
+
     }
 }
