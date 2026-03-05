@@ -115,8 +115,8 @@ public class ExportCsv {
 		final String finalPrefix = ""; // 必要なら config から取得に変更
 
 		// S3管理ファイルキー（本番側）
-		final String seqKeyFinal = s3Operator.buildKey(finalPrefix, "seqList.txt");
-		final String teamKeyFinal = s3Operator.buildKey(finalPrefix, "data_team_list.txt");
+		final String seqKeyFinal  = "seqList.txt";
+		final String teamKeyFinal = "data_team_list.txt";
 
 		// ローカル作業場所（ECSコンテナのローカル）。S3 tmpとは別物。
 		final Path LOCAL_DIR = Paths.get(config.getCsvFolder());
@@ -628,7 +628,13 @@ public class ExportCsv {
 	private String putLocalFileToTmp(String bucket, String tmpPrefix, Path localFile) {
 		final String METHOD_NAME = "putLocalFileToTmp";
 		String fileName = localFile.getFileName().toString();
-		String tmpKey = s3Operator.buildKey(tmpPrefix, fileName);
+		String tmpKey = joinS3Key(tmpPrefix, fileName);   // ★先頭/なしで安全に結合
+		tmpKey = normalizeS3Key(tmpKey);
+
+		this.manageLoggerComponent.debugInfoLog(
+			    PROJECT_NAME, CLASS_NAME, "putLocalFileToTmp",
+			    MessageCdConst.MCD00099I_LOG,
+			    "UPLOAD bucket=" + bucket + " key=" + tmpKey + " localFile=" + localFile);
 
 		try {
 			s3Operator.uploadFile(bucket, tmpKey, localFile);
@@ -650,11 +656,13 @@ public class ExportCsv {
 			if (tmpKey == null)
 				continue;
 
-			String fileName = Paths.get(tmpKey).getFileName().toString();
-			String finalKey = s3Operator.buildKey(finalPrefix, fileName);
+			String fileName = tmpKey.substring(tmpKey.lastIndexOf('/') + 1); // S3キーとして安全
+			String finalKey = joinS3Key(finalPrefix, fileName);              // ★finalPrefix="" なら fileName
+			finalKey = normalizeS3Key(finalKey);
 
 			s3Operator.copy(bucket, tmpKey, bucket, finalKey);
 			s3Operator.delete(bucket, tmpKey);
+
 		}
 
 		this.manageLoggerComponent.debugInfoLog(
@@ -1190,6 +1198,27 @@ public class ExportCsv {
 
 	private static boolean isBlank(String s) {
 		return s == null || s.trim().isEmpty();
+	}
+
+	private static String normalizeS3Key(String key) {
+	    if (key == null) return null;
+	    String k = key;
+	    while (k.startsWith("/")) {
+	        k = k.substring(1);
+	    }
+	    return k;
+	}
+
+	private static String joinS3Key(String prefix, String fileName) {
+	    String p = (prefix == null) ? "" : prefix.trim();
+	    p = p.replaceAll("^/+", "");   // 先頭/を除去
+	    p = p.replaceAll("/+$", "");   // 末尾/を除去
+
+	    String f = (fileName == null) ? "" : fileName.trim();
+	    f = f.replaceAll("^/+", "");
+
+	    if (p.isBlank()) return f;         // ★バケット直下
+	    return p + "/" + f;
 	}
 
 	private void endLog(String method, String messageCd, String fillChar) {
