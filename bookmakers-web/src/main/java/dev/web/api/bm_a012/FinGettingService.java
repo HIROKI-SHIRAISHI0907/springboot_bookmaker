@@ -3,8 +3,6 @@ package dev.web.api.bm_a012;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
-import java.time.Duration;
-import java.time.Instant;
 import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -21,19 +19,13 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.common.config.PathConfig;
 import dev.common.entity.MatchKeySaveEntity;
 import dev.common.s3.S3Operator;
-import dev.web.api.bm_a009.EcsScrapeTaskProgressResponse;
-import dev.web.api.bm_a009.EcsScrapeTaskProgressService;
 import dev.web.repository.bm.MatchKeyRepository;
 import lombok.RequiredArgsConstructor;
-import lombok.extern.slf4j.Slf4j;
 
 @Service
 @Transactional
 @RequiredArgsConstructor
-@Slf4j
 public class FinGettingService {
-
-	private final EcsScrapeTaskProgressService ecsService;
 
 	private final ObjectMapper objectMapper;
 	private final PathConfig pathConfig;
@@ -78,69 +70,6 @@ public class FinGettingService {
 		return s3Key;
 	}
 
-	/**
-	 * 進捗管理
-	 * @return
-	 * @throws InterruptedException
-	 */
-	@SuppressWarnings("unused")
-	public void getProgress() throws InterruptedException {
-		// 例：最大4時間待つ（必要に応じて調整）
-		Duration timeout = Duration.ofMinutes(240);
-		Instant start = Instant.now();
-		Instant deadline = start.plus(timeout);
-
-		int tick = 0;
-
-		while (true) {
-			// 経過時間観察
-			log.info("proccess time: {}", timeout);
-			// タイムアウト
-			if (Instant.now().isAfter(deadline)) {
-				Duration elapsed = Duration.between(start, Instant.now());
-				throw new RuntimeException("ECS task timeout. batch=B010, waited=" + timeout);
-			}
-
-			// progress取得（null耐性）
-			EcsScrapeTaskProgressResponse res = ecsService.getLatestProgress("B010");
-			if (res == null || res.getStatus() == null) {
-				// 取れない時は軽くログしてリトライ
-				if (++tick % 6 == 0) { // 60秒に1回程度
-					Duration elapsed = Duration.between(start, Instant.now());
-					Duration remaining = Duration.between(Instant.now(), deadline);
-					log.info("B010 progress: status=null (retry) elapsed={} remaining={}", elapsed, remaining);
-				}
-				Thread.sleep(10_000);
-				continue;
-			}
-
-			String status = res.getStatus();
-
-			// ★ここにログを置く（おすすめ）
-			if (++tick % 6 == 0) { // 10秒ごとだと多いので、60秒に1回だけ出す例
-				Duration elapsed = Duration.between(start, Instant.now());
-				Duration remaining = Duration.between(Instant.now(), deadline);
-				log.info("B010 progress: status={} exitCd={} elapsed={} remaining={}",
-						status, res.getExitCd(), elapsed, remaining);
-			}
-
-			// ECSが止まったことを確認後次の処理に。
-			if ("STOPPED".equals(status)) {
-				Integer exitCd = res.getExitCd();
-				if (exitCd == null) {
-					throw new RuntimeException("ECS task stopped but exitCd is null. batch=B010");
-				}
-
-				if (exitCd.intValue() != 0) {
-					throw new RuntimeException("ECS task failed. batch=B010 exitCd=" + exitCd);
-				}
-				break;
-			}
-
-			// 割り込み尊重（sleepでInterruptedExceptionが投げられるが、念のため）
-			Thread.sleep(10_000);
-		}
-	}
 
 	/**
 	 * matches(List<Item>) → {date: [{matchKey, matchUrl?}]} のMapへ変換
