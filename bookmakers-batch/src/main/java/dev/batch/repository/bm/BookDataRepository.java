@@ -113,8 +113,8 @@ public interface BookDataRepository {
 			    prediction_score_time,
 			    game_id,
 			    match_id,
-			 time_sort_seconds,
-			 add_manual_flg,
+			 	time_sort_seconds,
+			 	add_manual_flg,
 			    register_id,
 			    register_time,
 			    update_id,
@@ -220,12 +220,12 @@ public interface BookDataRepository {
 			    #{predictionScoreTime},
 			    #{gameId},
 			    #{matchId},
-			 #{timeSortSeconds},
-			 #{addManualFlg},
+			 	#{timeSortSeconds},
+			 	#{addManualFlg},
 			    'SYSTEM',
 			    CURRENT_TIMESTAMP,
 			    'SYSTEM',
-			    CURRENT_TIMESTAMP)
+			    CURRENT_TIMESTAMP
 			)
 			RETURNING seq
 			""")
