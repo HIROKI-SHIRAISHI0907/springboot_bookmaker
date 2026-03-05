@@ -1,7 +1,6 @@
 package dev.web.repository.bm;
 
 import java.sql.Timestamp;
-import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.List;
 import java.util.Map;
@@ -797,48 +796,40 @@ public class BookDataRepository {
 
 	// ========= data =========
 	public List<DataIngestRow> findDataByRegisterTime(String country) {
-		String countryLike = country + ":%";
-		String sql = """
-				    SELECT
-				      seq,
-				      data_category,
-				      times,
-				      home_team_name,
-				      away_team_name,
-				      record_time,
-				      game_id,
-				      game_link,
-				      match_id,
-				      register_time,
-				      update_time
-				    FROM data
-				    WHERE
-				    	data_category LIKE :countryLike
-				    ORDER BY register_time DESC
-				""";
+	    String countryLike = country + ":%";
 
-		 MapSqlParameterSource params = new MapSqlParameterSource()
-	                .addValue("countryLike", countryLike);
+	    String sql = """
+	        SELECT
+	          seq,
+	          data_category,
+	          times,
+	          record_time,
+	          match_id,
+	          game_id,
+	          game_link,
+	          home_team_name,
+	          away_team_name
+	        FROM data
+	        WHERE data_category LIKE :countryLike
+	    """;
 
-		return bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
-			DataIngestRow r = new DataIngestRow();
-			r.seq = rs.getString("seq");
-			r.dataCategory = rs.getString("data_category");
-			r.times = rs.getString("times");
-			r.homeTeamName = rs.getString("home_team_name");
-			r.awayTeamName = rs.getString("away_team_name");
-			r.recordTime = rs.getString("record_time");
-			r.gameId = rs.getString("game_id");
-			r.gameLink = rs.getString("game_link");
-			r.matchId = rs.getString("match_id");
-			Timestamp rt = rs.getTimestamp("register_time");
-			r.registerTime = (rt == null) ? null : rt.toInstant().atOffset(ZoneOffset.UTC);
+	    MapSqlParameterSource params = new MapSqlParameterSource()
+	        .addValue("countryLike", countryLike);
 
-			Timestamp ut = rs.getTimestamp("update_time");
-			r.updateTime = (ut == null) ? null : ut.toInstant().atOffset(ZoneOffset.UTC);
+	    return bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
+	        DataIngestRow r = new DataIngestRow();
+	        r.seq = rs.getString("seq");
+	        r.dataCategory = rs.getString("data_category");
+	        r.times = rs.getString("times");
+	        r.homeTeamName = rs.getString("home_team_name");
+	        r.awayTeamName = rs.getString("away_team_name");
+	        r.recordTime = rs.getString("record_time");
+	        r.matchId = rs.getString("match_id");
+	        r.gameId = rs.getString("game_id");
+	        r.gameLink = rs.getString("game_link");
 
-			return r;
-		});
+	        return r;
+	    });
 	}
 
 	public static class DataIngestRow {
@@ -851,8 +842,6 @@ public class BookDataRepository {
 		public String gameId;
 		public String gameLink;
 		public String matchId;
-		public OffsetDateTime registerTime;
-		public OffsetDateTime updateTime;
 	}
 
 	public Optional<EachScoreLostDataResponseDTO> findEachScoreLoseMatchFinishedByRoundAndTeams(

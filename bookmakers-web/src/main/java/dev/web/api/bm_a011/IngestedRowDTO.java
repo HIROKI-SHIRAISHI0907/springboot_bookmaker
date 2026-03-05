@@ -1,6 +1,5 @@
 package dev.web.api.bm_a011;
 
-import java.time.OffsetDateTime;
 import java.util.List;
 
 import lombok.Data;
@@ -17,12 +16,6 @@ public class IngestedRowDTO {
 
     /** 主キー（future_master.seq / data.seq） */
     private String seq;
-
-    /** 投入（登録）日時 */
-    private OffsetDateTime registerTime;
-
-    /** 更新日時（あれば） */
-    private OffsetDateTime updateTime;
 
     /** 一覧用サマリ */
     private FutureMasterIngestSummaryDTO future;

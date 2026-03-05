@@ -241,13 +241,10 @@ public class FuturesRepository {
 				      home_team_name,
 				      away_team_name,
 				      game_link,
-				      start_flg,
-				      register_time,
-				      update_time
+				      start_flg
 				    FROM future_master
 				    WHERE
 				    	game_team_category LIKE :countryLike
-				    ORDER BY register_time DESC
 				""";
 
 		 MapSqlParameterSource params = new MapSqlParameterSource()
@@ -266,12 +263,6 @@ public class FuturesRepository {
 			r.gameLink = rs.getString("game_link");
 			r.startFlg = rs.getString("start_flg");
 
-			Timestamp rt = rs.getTimestamp("register_time");
-			r.registerTime = (rt == null) ? null : rt.toInstant().atOffset(ZoneOffset.UTC);
-
-			Timestamp ut = rs.getTimestamp("update_time");
-			r.updateTime = (ut == null) ? null : ut.toInstant().atOffset(ZoneOffset.UTC);
-
 			return r;
 		});
 	}
@@ -285,8 +276,6 @@ public class FuturesRepository {
 		public String awayTeamName;
 		public String gameLink;
 		public String startFlg;
-		public OffsetDateTime registerTime;
-		public OffsetDateTime updateTime;
 	}
 
 	public static class FutureMatchRow {
