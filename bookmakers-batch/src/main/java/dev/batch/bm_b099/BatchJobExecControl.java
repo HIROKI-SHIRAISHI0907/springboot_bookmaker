@@ -42,7 +42,8 @@ public class BatchJobExecControl implements jobExecControlIF {
      * ・batch_job_exec に INSERT（status=0）
      */
     @Override
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(transactionManager = "bmTxManager",
+    propagation = Propagation.REQUIRES_NEW)
     public boolean jobStart(String jobId, String batchCd) {
     	final String METHOD_NAME = "jobStart";
     	try {
@@ -86,7 +87,8 @@ public class BatchJobExecControl implements jobExecControlIF {
      * ・batch_job_exec に UPDATE（status=1）
      */
     @Override
-    @Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(transactionManager = "bmTxManager",
+    propagation = Propagation.REQUIRES_NEW)
 	public boolean jobRunning(String jobId) {
     	final String METHOD_NAME = "jobRunAsync";
     	try {
@@ -106,7 +108,8 @@ public class BatchJobExecControl implements jobExecControlIF {
      * ・batch_job_exec に UPDATE（status=10or99）
      */
 	@Override
-	@Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(transactionManager = "bmTxManager",
+    propagation = Propagation.REQUIRES_NEW)
 	public boolean jobEnd(String jobId) {
 		final String METHOD_NAME = "jobEnd";
     	try {
@@ -125,7 +128,8 @@ public class BatchJobExecControl implements jobExecControlIF {
      * ・batch_job_exec に UPDATE（status=99）
      */
 	@Override
-	@Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(transactionManager = "bmTxManager",
+    propagation = Propagation.REQUIRES_NEW)
 	public boolean jobException(String jobId) {
 		final String METHOD_NAME = "jobException";
     	try {
@@ -144,7 +148,8 @@ public class BatchJobExecControl implements jobExecControlIF {
      * ・batch_job_exec に 更新日時をUPDATE
      */
 	@Override
-	@Transactional(propagation = Propagation.REQUIRES_NEW)
+    @Transactional(transactionManager = "bmTxManager",
+    propagation = Propagation.REQUIRES_NEW)
 	public boolean jobHeartbeat(String jobId) {
 		final String METHOD_NAME = "jobException";
 	    try {
