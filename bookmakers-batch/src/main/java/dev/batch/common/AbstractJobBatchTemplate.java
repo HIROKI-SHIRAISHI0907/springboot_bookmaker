@@ -59,6 +59,12 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
     @Override
     public final int execute() {
         final String METHOD_NAME = "execute";
+
+        if (manageLoggerComponent == null) {
+            throw new IllegalStateException("manageLoggerComponent is null. "
+                + "This batch instance is not autowired by Spring. class=" + this.getClass());
+        }
+
         manageLoggerComponent.debugStartInfoLog(projectName(), className(), METHOD_NAME);
 
         final String code = batchCode();

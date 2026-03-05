@@ -60,6 +60,10 @@ public class BatchJobRunner implements CommandLineRunner {
         // @Service("B006") のように “Bean名 = jobCode” で取得
         BatchIF batch = (BatchIF) ctx.getBean(jobCode);
 
+        System.out.println("jobCode=" + jobCode);
+        System.out.println("batch bean class=" + batch.getClass().getName());
+        System.out.println("batch bean toString=" + batch);
+
         int result = batch.execute();
         SpringApplication.exit(ctx, () -> result == BatchConstant.BATCH_SUCCESS ? 0 : 1);
         if (result != BatchConstant.BATCH_SUCCESS) {
