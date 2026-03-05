@@ -32,9 +32,16 @@ public class BmMyBatisConfig {
 		return props.initializeDataSourceBuilder().build();
 	}
 
+	@Bean(name = "transactionManager")   // ← デフォルト名にする
+	@org.springframework.context.annotation.Primary
+	public DataSourceTransactionManager transactionManager(@Qualifier("bmDataSource") DataSource ds) {
+	    return new DataSourceTransactionManager(ds);
+	}
+
+	// 既存の bmTxManager を参照している箇所があるなら、互換のため alias も用意
 	@Bean(name = "bmTxManager")
 	public DataSourceTransactionManager bmTxManager(@Qualifier("bmDataSource") DataSource ds) {
-		return new DataSourceTransactionManager(ds);
+	    return new DataSourceTransactionManager(ds);
 	}
 
 	@Bean(name = "bmSqlSessionFactory")
