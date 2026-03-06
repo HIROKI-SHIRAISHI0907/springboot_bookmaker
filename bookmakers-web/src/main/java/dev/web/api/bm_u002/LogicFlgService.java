@@ -7,9 +7,7 @@ import org.springframework.stereotype.Service;
 
 import dev.common.constant.LogicFlgConst;
 import dev.common.util.TableUtil;
-import dev.web.api.bm_w020.ConditionData;
 import dev.web.repository.master.LogicFlgRepository;
-import dev.web.util.CsvArtifactHelper;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -27,12 +25,6 @@ public class LogicFlgService {
 	@Autowired
 	private LogicFlgRepository logicFlgRepository;
 
-	/**
-	 * CsvArtifactHelperクラス
-	 */
-	@Autowired
-	private CsvArtifactHelper CsvArtifactHelper;
-
 	/** 国リーグリスト */
 	private List<String> countryList;
 
@@ -47,14 +39,6 @@ public class LogicFlgService {
 		res.setResponseCode("200");
 		res.setMessage("処理が成功しました。");
 
-		// 設定統計データの取得
-		List<ConditionData> stat = setUpdateStat();
-		if (stat == null) {
-			res.setResponseCode("404");
-			res.setMessage("処理が失敗しました。");
-			return res;
-		}
-
 		// 更新用全テーブル
 		this.countryList = TableUtil.getCountryList();
 		this.categoryList = TableUtil.getCategoryList();
@@ -64,58 +48,7 @@ public class LogicFlgService {
 		if (!"200".equals(res.getResponseCode())) {
 			return res;
 		}
-		if (!stat.isEmpty()) {
-			for (ConditionData dto : stat) {
-				String country = dto.getCountry();
-				String league = dto.getLeague();
-				res = logicFlgUpdate(country, league, LogicFlgConst.LOGIC_FLG_0, res);
-				if (!"200".equals(res.getResponseCode())) {
-					return res;
-				}
-			}
-		} else {
-			res = logicFlgAllUpdate(LogicFlgConst.LOGIC_FLG_0, res);
-			if (!"200".equals(res.getResponseCode())) {
-				return res;
-			}
-		}
 
-		return res;
-	}
-
-	/**
-	 * 統計データ
-	 */
-	private List<ConditionData> setUpdateStat() {
-		// 設定した国、リーグ情報のみ適用させる
-		List<ConditionData> returnList = this.CsvArtifactHelper.statCondition(null);
-		return returnList;
-	}
-
-	/**
-	 * 更新メソッド
-	 */
-	private synchronized LogicFlgResponse logicFlgUpdate(String country, String league,
-			String flg, LogicFlgResponse res) {
-		for (String table : this.countryList) {
-			int result = this.logicFlgRepository.updateLogicFlgByCountryLeague(
-					table, country, league, flg);
-			if (result == 0) {
-				res.setResponseCode("404");
-				res.setMessage("処理が失敗しました。");
-				return res;
-			}
-		}
-
-		for (String table : this.categoryList) {
-			int result = this.logicFlgRepository.updateLogicFlgByCategoryLike(
-					table, country, league, flg);
-			if (result == 0) {
-				res.setResponseCode("404");
-				res.setMessage("処理が失敗しました。");
-				return res;
-			}
-		}
 		return res;
 	}
 

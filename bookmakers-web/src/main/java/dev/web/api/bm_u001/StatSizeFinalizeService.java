@@ -5,7 +5,8 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.web.repository.master.StatSizeFinalizeMasterRepository;
+import dev.common.entity.StatSizeFinalizeEntity;
+import dev.web.repository.master.StatSizeFinalizeMasterWebRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -18,7 +19,7 @@ import lombok.RequiredArgsConstructor;
 public class StatSizeFinalizeService {
 
 	/** StatSizeFinalizeMasterRepositoryクラス */
-	private final StatSizeFinalizeMasterRepository statSizeFinalizeMasterRepository;
+	private final StatSizeFinalizeMasterWebRepository statSizeFinalizeMasterRepository;
 
 	/**
 	 * 実行メソッド
@@ -48,11 +49,11 @@ public class StatSizeFinalizeService {
 		// リスト
 		List<SubInput> list = req.getSubList();
 		for (SubInput sub : list) {
-			StatSizeFinalizeDTO entity = new StatSizeFinalizeDTO();
+			StatSizeFinalizeEntity entity = new StatSizeFinalizeEntity();
 			entity.setOptionNum(sub.getOptionNum());
 			entity.setOptions(sub.getOptions());
 			entity.setValidFlg(sub.getValidFlg());
-			List<StatSizeFinalizeDTO> data = this.statSizeFinalizeMasterRepository
+			List<StatSizeFinalizeEntity> data = this.statSizeFinalizeMasterRepository
 					.findData(sub.getOptionNum(), sub.getOptions());
 			if (!data.isEmpty()) {
 				entity.setId(data.get(0).getId());
