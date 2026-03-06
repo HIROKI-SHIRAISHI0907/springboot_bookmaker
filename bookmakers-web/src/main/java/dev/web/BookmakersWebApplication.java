@@ -3,7 +3,7 @@ package dev.web;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-@SpringBootApplication(scanBasePackages = {"dev.web", "dev.common"})
+@SpringBootApplication(scanBasePackages = {"dev.common"})
 public class BookmakersWebApplication {
 
 	public static void main(String[] args) {

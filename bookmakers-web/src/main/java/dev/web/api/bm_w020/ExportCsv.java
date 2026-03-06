@@ -68,9 +68,6 @@ public class ExportCsv {
 	// 「ラウンド12」や「ラウンド 12」「ラウンド１２」も拾いたいなら少し広めに取る
 	private static final Pattern ROUND_TOKEN = Pattern.compile("ラウンド\\s*[0-9０-９]+");
 
-	// 末尾が "<数字>.csv" のキーをCSVとみなす
-	private static final Pattern CSV_KEY_PATTERN = Pattern.compile("^.*?(\\d+)\\.csv$", Pattern.CASE_INSENSITIVE);
-
 	// "4710.csv" / "/path/4710.csv" から 4710 を取り出す
 	private static final Pattern CSV_NO_PATTERN = Pattern.compile("(^|.*/)(\\d+)\\.csv$", Pattern.CASE_INSENSITIVE);
 

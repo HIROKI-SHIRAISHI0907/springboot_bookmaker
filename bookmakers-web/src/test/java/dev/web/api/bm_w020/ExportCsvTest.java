@@ -16,6 +16,9 @@ import javax.sql.DataSource;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import org.mockito.ArgumentCaptor;
+import org.mockito.Captor;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
@@ -53,7 +56,16 @@ class ExportCsvTest {
 	@MockBean
 	ManageLoggerComponent manageLoggerComponent;
 
+	@Captor ArgumentCaptor<String> bucketCap;
+	@Captor ArgumentCaptor<String> keyCap;
+	@Captor ArgumentCaptor<Path>   pathCap;
+
 	Path outDir;
+
+	@TempDir Path tempDir;
+
+	@Autowired
+	private ExportCsv exportCsv;
 
 	@Autowired
 	@Qualifier("bmDataSource")

@@ -15,4 +15,4 @@ spring:
         format_sql: true
 
 exportcsv:
-  local-only: true
+  local-only: false
