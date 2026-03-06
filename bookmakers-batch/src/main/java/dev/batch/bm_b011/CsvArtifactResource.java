@@ -1,4 +1,4 @@
-package dev.web.api.bm_w020;
+package dev.batch.bm_b011;
 
 import java.util.List;
 

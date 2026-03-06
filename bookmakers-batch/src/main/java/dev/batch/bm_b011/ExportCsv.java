@@ -1,4 +1,4 @@
-package dev.web.api.bm_w020;
+package dev.batch.bm_b011;
 
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
@@ -27,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
+import dev.batch.repository.bm.BookCsvDataRepository;
 import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
@@ -34,8 +35,6 @@ import dev.common.entity.DataEntity;
 import dev.common.filemng.FileMngWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
-import dev.web.repository.bm.BookCsvDataRepository;
-import dev.web.util.CsvArtifactHelper;
 
 /**
  * StatデータCSV出力ロジック（S3 tmpステージング版）

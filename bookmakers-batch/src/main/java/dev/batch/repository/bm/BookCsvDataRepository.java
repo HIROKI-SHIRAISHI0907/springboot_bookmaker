@@ -1,4 +1,4 @@
-package dev.web.repository.bm;
+package dev.batch.repository.bm;
 
 import java.util.List;
 import java.util.Map;
@@ -8,8 +8,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import dev.batch.bm_b011.SeqWithKey;
 import dev.common.entity.DataEntity;
-import dev.web.api.bm_w020.SeqWithKey;
 
 /**
  * CSV出力用のデータ取得リポジトリ.
