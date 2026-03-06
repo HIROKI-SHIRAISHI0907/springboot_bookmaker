@@ -102,7 +102,6 @@ public class BookMakerLogger {
 		}
 
 		StringBuilder sb = new StringBuilder();
-		sb.append("[").append(lastName(projectName)).append("]");
 		sb.append("[").append(lastName(className)).append("#").append(lastName(methodName)).append("]");
 
 		// 先にレベル

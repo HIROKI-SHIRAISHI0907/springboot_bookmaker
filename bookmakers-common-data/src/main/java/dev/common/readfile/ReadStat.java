@@ -12,6 +12,7 @@ import java.util.List;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
 
@@ -72,7 +73,7 @@ public class ReadStat {
             throw new RuntimeException(e);
 
         } finally {
-            manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "", "読み取りファイル名: " + key);
+            manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00012I_COUNTER_REFLECTION_SUCCESS, "読み取りファイル名: " + key);
             manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
             manageLoggerComponent.clear();
         }
