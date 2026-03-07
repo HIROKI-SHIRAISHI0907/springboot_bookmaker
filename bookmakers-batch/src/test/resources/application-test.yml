@@ -4,6 +4,7 @@ app:
   team-csv-folder: /Users/shiraishitoshio/bookmaker/teams_by_league/
   future-csv-folder: /Users/shiraishitoshio/bookmaker/future/
   b001-json-folder: /Users/shiraishitoshio/bookmaker/json/b001/
+  b008-json-folder: /Users/shiraishitoshio/bookmaker/json/b008/
   
 process:
   python:
@@ -18,6 +19,10 @@ process:
       outputs: aws-s3-outputs
 
 spring:
+  sql:
+    init:
+      platform: h2
+      mode: always
   datasource:
     bm:
       jdbc-url: jdbc:postgresql://localhost:54320/soccer_bm

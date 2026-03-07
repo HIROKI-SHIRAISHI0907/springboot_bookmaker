@@ -37,19 +37,16 @@ import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
 
 /**
- * StatデータCSV出力ロジック（S3 tmpステージング版）
+ * StatデータCSV出力ロジック（S3 直下アップロード版）
  *
  * 流れ：
  * 1) S3（本番prefix）から seqList.txt / data_team_list.txt をローカルへDL
  * 2) DBからグルーピング作成 → 差分計画（recreate/new）作成
  * 3) 生成対象CSVのみローカルに作成
- * 4) 生成物を S3 tmpPrefix へ一旦 put（CSV + seqList + teamList）
- * 5) 全部成功したら tmp → 本番へ copy → tmp delete（コミット）
+ * 4) 生成物を S3 本番prefix へ直接 put（CSV + seqList + teamList）
  *
  * localOnly=true のとき：
  * - S3操作（download/list/upload/copy/delete）を一切行わず、ローカルのみで完結
- * - seqList.txt は従来どおり「カンマ区切り」（1行=1グループ）
- * - data_team_list.txt は「N.csv\t説明」のTSV形式で更新
  */
 @Component
 public class ExportCsv {
@@ -61,13 +58,10 @@ public class ExportCsv {
 
 	private static final String CSV_NEW_PREFIX = "mk";
 
-	// クラス先頭のフィールドに追加
 	private static final com.fasterxml.jackson.databind.ObjectMapper SEQ_JSON = new com.fasterxml.jackson.databind.ObjectMapper();
 
-	// 「ラウンド12」や「ラウンド 12」「ラウンド１２」も拾いたいなら少し広めに取る
 	private static final Pattern ROUND_TOKEN = Pattern.compile("ラウンド\\s*[0-9０-９]+");
 
-	// "4710.csv" / "/path/4710.csv" から 4710 を取り出す
 	private static final Pattern CSV_NO_PATTERN = Pattern.compile("(^|.*/)(\\d+)\\.csv$", Pattern.CASE_INSENSITIVE);
 
 	private static final Pattern ROOT_CSV_PATTERN = Pattern.compile("^(\\d+)\\.csv$", Pattern.CASE_INSENSITIVE);
@@ -113,27 +107,21 @@ public class ExportCsv {
 		final String finalPrefix = ""; // 必要なら config から取得に変更
 
 		// S3管理ファイルキー（本番側）
-		final String seqKeyFinal  = "seqList.txt";
+		final String seqKeyFinal = "seqList.txt";
 		final String teamKeyFinal = "data_team_list.txt";
 
-		// ローカル作業場所（ECSコンテナのローカル）。S3 tmpとは別物。
+		// ローカル作業場所
 		final Path LOCAL_DIR = Paths.get(config.getCsvFolder());
 		ensureDir(LOCAL_DIR);
 
 		final Path localSeqPath = LOCAL_DIR.resolve("seqList.txt");
 		final Path localTeamPath = LOCAL_DIR.resolve("data_team_list.txt");
 
-		// S3 tmp prefix（実行単位でユニークにする）
-		final String runId = String.valueOf(System.currentTimeMillis());
-		final String prefixLabel = (finalPrefix == null || finalPrefix.isBlank())
-				? "root"
-				: finalPrefix.replaceAll("/+$", "");
-		final String tmpPrefix = "tmp/" + prefixLabel + "/" + runId;
-
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-				"bucket=" + statsBucket + ", finalPrefix=" + (finalPrefix == null ? "" : finalPrefix)
-						+ ", tmpPrefix=" + tmpPrefix + ", localDir=" + LOCAL_DIR);
+				"bucket=" + statsBucket
+						+ ", finalPrefix=" + (finalPrefix == null ? "" : finalPrefix)
+						+ ", localDir=" + LOCAL_DIR);
 
 		// ====== 1) 本番S3→ローカルへ管理ファイルDL（無ければ初回扱い） ======
 		boolean seqExists = downloadIfExists(statsBucket, seqKeyFinal, localSeqPath, "seqList.txt download");
@@ -143,7 +131,7 @@ public class ExportCsv {
 		bean.init();
 
 		// ====== 3) DBから現在のグルーピングを作る ======
-		List<List<Integer>> currentGroups = sortSeqs(); // seqでグルーピング
+		List<List<Integer>> currentGroups = sortSeqs();
 		currentGroups = normalizeGroups(currentGroups);
 
 		// ====== 4) 既存 seqList 読み込み or 初回作成 ======
@@ -153,7 +141,6 @@ public class ExportCsv {
 		List<List<Integer>> textGroups;
 
 		if (firstRun) {
-			// 初回：従来互換（カンマ区切りで書く）
 			writeSeqListJson(localSeqPath, currentGroups);
 			textGroups = Collections.emptyList();
 		} else {
@@ -168,7 +155,6 @@ public class ExportCsv {
 		// ====== 6) 照合して plan 作成 ======
 		CsvBuildPlan plan;
 		if (firstRun) {
-			// ★初回は「全部 newTargets」に積む
 			CsvBuildPlan plans = new CsvBuildPlan();
 			int i = 0;
 			for (List<Integer> curr : currentGroups) {
@@ -243,7 +229,7 @@ public class ExportCsv {
 			return;
 		}
 
-		// ====== 10) 並列生成→ローカル書込→S3 tmpへPUT ======
+		// ====== 10) 並列生成→ローカル書込→S3 本番prefixへ直接PUT ======
 		int threads = Math.max(2, Runtime.getRuntime().availableProcessors() - 1);
 		ExecutorService pool = Executors.newFixedThreadPool(threads);
 
@@ -259,9 +245,6 @@ public class ExportCsv {
 		List<SimpleEntry<String, List<DataEntity>>> succeeded = new ArrayList<>();
 		List<SimpleEntry<String, List<DataEntity>>> failedEntries = new ArrayList<>();
 
-		// tmpへPUTするキーを収集（commit対象）
-		List<String> tmpPutKeys = new ArrayList<>();
-
 		for (int i = 0; i < futures.size(); i++) {
 			try {
 				CsvArtifact art = futures.get(i).join();
@@ -272,9 +255,8 @@ public class ExportCsv {
 				// 1) ローカルへ書く
 				writeLocalCsv(art);
 
-				// 2) S3 tmpへPUT（ステージング）
-				String tmpKey = putLocalFileToTmp(statsBucket, tmpPrefix, Paths.get(art.getFilePath()));
-				tmpPutKeys.add(tmpKey);
+				// 2) S3 本番prefixへ直接PUT（直下運用なら key は "3.csv" 等）
+				putLocalFileToFinal(statsBucket, finalPrefix, Paths.get(art.getFilePath()));
 
 				success++;
 				succeeded.add(toCreate.get(i));
@@ -284,7 +266,7 @@ public class ExportCsv {
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 						MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, ex,
-						"CSV作成/PUT(tmp) 失敗");
+						"CSV作成/PUT(final) 失敗");
 			}
 		}
 
@@ -297,67 +279,49 @@ public class ExportCsv {
 
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-				"CSVステージング結果(tmp put) (成功: " + success + "件, 失敗: " + failed + "件)");
+				"CSVアップロード結果(final put) (成功: " + success + "件, 失敗: " + failed + "件)");
 
-		// ====== 11) data_team_list.txt 更新（ローカル）→ S3 tmpへPUT ======
+		// ====== 11) data_team_list.txt 更新（ローカル）→ S3 本番prefixへPUT ======
 		try {
 			upsertDataTeamList(Paths.get(DATA_TEAM_LIST_TXT), succeeded, failedEntries);
-			String tmpKeyTeam = putLocalFileToTmp(statsBucket, tmpPrefix, localTeamPath);
-			tmpPutKeys.add(tmpKeyTeam);
+			putLocalFileToFinal(statsBucket, finalPrefix, localTeamPath);
 		} catch (Exception e) {
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
-					"data_team_list.txt 更新/PUT(tmp) 失敗");
-			cleanupTmp(statsBucket, tmpPrefix);
+					"data_team_list.txt 更新/PUT(final) 失敗");
 			throw (e instanceof IOException) ? (IOException) e : new IOException(e);
 		}
 
-		// ====== 12) seqList.txt 更新（ローカル）→ S3 tmpへPUT ======
+		// ====== 12) seqList.txt 更新（ローカル）→ S3 本番prefixへPUT ======
 		try {
-			// 従来互換（カンマ区切り）
 			writeSeqListJson(localSeqPath, currentGroups);
-			String tmpKeySeq = putLocalFileToTmp(statsBucket, tmpPrefix, localSeqPath);
-			tmpPutKeys.add(tmpKeySeq);
+			putLocalFileToFinal(statsBucket, finalPrefix, localSeqPath);
 		} catch (Exception e) {
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
-					"seqList.txt 更新/PUT(tmp) 失敗");
-			cleanupTmp(statsBucket, tmpPrefix);
+					"seqList.txt 更新/PUT(final) 失敗");
 			throw (e instanceof IOException) ? (IOException) e : new IOException(e);
 		}
 
-		// ====== 13) commit: tmp → 本番へ copy & tmp delete ======
+		// ====== 13) tmp commit はしない（直下へ直接PUTのため） ======
 		if (failed > 0) {
 			this.manageLoggerComponent.debugWarnLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00099I_LOG,
-					"失敗があるためcommitしません。tmpPrefixに残します: " + tmpPrefix);
-			endLog(METHOD_NAME, null, null);
-			return;
-		}
-
-		try {
-			commitTmpToFinal(statsBucket, tmpPrefix, finalPrefix);
-		} catch (Exception e) {
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
-					"commit(tmp->final) 失敗 tmpPrefix=" + tmpPrefix);
-			throw (e instanceof IOException) ? (IOException) e : new IOException(e);
+					"失敗があるため一部のみアップロードされている可能性があります（直下PUT方式）");
 		}
 
 		endLog(METHOD_NAME, null, null);
 	}
 
 	// =========================================================
-	// localOnly（S3一切なし）
+	// localOnly（S3一切なし）: 元のまま
 	// =========================================================
 	private void executeLocalOnly(Path outDir) throws IOException {
 		final String METHOD_NAME = "executeLocalOnly";
 
-		// ローカル作業場所
 		final Path LOCAL_DIR = outDir;
 		ensureDir(LOCAL_DIR);
 
@@ -368,7 +332,6 @@ public class ExportCsv {
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 				"localOnly=true: S3処理を完全にスキップします。localDir=" + LOCAL_DIR);
 
-		// localOnlyでは GetStatInfo 経由のS3参照を避けたい場合があるため、ここは安全に try
 		Map<String, List<Integer>> csvInfoRow;
 		try {
 			bean.init();
@@ -382,11 +345,9 @@ public class ExportCsv {
 		}
 		csvInfoRow = (csvInfoRow != null) ? csvInfoRow : Collections.emptyMap();
 
-		// DBから現在のグルーピング
 		List<List<Integer>> currentGroups = sortSeqs();
 		currentGroups = normalizeGroups(currentGroups);
 
-		// seqList.txt 既存読み込み（ローカル基準）
 		final String DATA_TEAM_LIST_TXT = localTeamPath.toString();
 
 		boolean firstRun = !Files.exists(localSeqPath);
@@ -400,7 +361,6 @@ public class ExportCsv {
 			textGroups = normalizeGroups(textGroups);
 		}
 
-		// plan 作成
 		CsvBuildPlan plan;
 		if (firstRun) {
 			CsvBuildPlan plans = new CsvBuildPlan();
@@ -413,7 +373,6 @@ public class ExportCsv {
 			plan = matchSeqCombPlan(textGroups, currentGroups, csvInfoRow);
 		}
 
-		// 条件マスタ取得
 		CsvArtifactResource csvArtifactResource;
 		try {
 			csvArtifactResource = this.helper.getData();
@@ -424,11 +383,9 @@ public class ExportCsv {
 			throw (e instanceof IOException) ? (IOException) e : new IOException(e);
 		}
 
-		// 生成キュー（再作成→新規）
 		List<SimpleEntry<String, List<DataEntity>>> ordered = new ArrayList<>();
 
 		if (plan != null) {
-			// 再作成
 			for (Map.Entry<Integer, List<Integer>> rt : plan.recreateByCsvNo.entrySet()) {
 				String path = LOCAL_DIR.resolve(rt.getKey() + BookMakersCommonConst.CSV).toString();
 				List<Integer> ids = normalizeSeqList(rt.getValue());
@@ -440,7 +397,6 @@ public class ExportCsv {
 				ordered.add(new SimpleEntry<>(path, result));
 			}
 
-			// 新規（S3最大番号ではなく、ローカル最大番号）
 			int maxLocal = getMaxCsvNoFromLocal(LOCAL_DIR);
 			int nextNo = maxLocal + 1;
 
@@ -462,7 +418,6 @@ public class ExportCsv {
 			}
 		}
 
-		// 既存CSVと一致するものは除外
 		List<SimpleEntry<String, List<DataEntity>>> toCreate = new ArrayList<>();
 		for (SimpleEntry<String, List<DataEntity>> ord : ordered) {
 			boolean match = matchCsvInfo(csvInfoRow, ord.getValue());
@@ -477,7 +432,6 @@ public class ExportCsv {
 			return;
 		}
 
-		// 並列生成→ローカル書込（S3 PUTなし）
 		int threads = Math.max(2, Runtime.getRuntime().availableProcessors() - 1);
 		ExecutorService pool = Executors.newFixedThreadPool(threads);
 
@@ -525,7 +479,6 @@ public class ExportCsv {
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 				"localOnly: CSV生成結果 (成功: " + success + "件, 失敗: " + failed + "件)");
 
-		// data_team_list.txt 更新（ローカルTSV）
 		try {
 			upsertDataTeamList(Paths.get(DATA_TEAM_LIST_TXT), succeeded, failedEntries);
 		} catch (Exception e) {
@@ -536,7 +489,6 @@ public class ExportCsv {
 			throw (e instanceof IOException) ? (IOException) e : new IOException(e);
 		}
 
-		// seqList.txt 更新（ローカル、カンマ区切り）
 		try {
 			writeSeqListCommaLines(localSeqPath, currentGroups);
 		} catch (Exception e) {
@@ -560,20 +512,12 @@ public class ExportCsv {
 	// =========================================================
 	// seqList.txt JSON形式読み書き
 	// =========================================================
-
-	/**
-	 * seqList.txt を [[seq,seq,...],[seq,...]] 形式で書く
-	 */
 	private void writeSeqListJson(Path out, List<List<Integer>> groups) throws IOException {
 		String json = SEQ_JSON.writeValueAsString(groups);
 		Files.writeString(out, json, StandardCharsets.UTF_8,
 				StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 	}
 
-	/**
-	 * seqList.txt を [[seq,seq,...],[seq,...]] 形式で読む
-	 * 旧形式（カンマ区切り複数行）が残っていても fallback で読めるようにする
-	 */
 	private List<List<Integer>> readSeqListJson(Path path) {
 		if (!Files.exists(path))
 			return Collections.emptyList();
@@ -582,14 +526,13 @@ public class ExportCsv {
 			if (json.isEmpty())
 				return Collections.emptyList();
 
-			// ★新形式（JSON配列）
 			if (json.startsWith("[")) {
 				return SEQ_JSON.readValue(json,
 						new com.fasterxml.jackson.core.type.TypeReference<List<List<Integer>>>() {
 						});
 			}
 
-			// ★旧形式 fallback（カンマ区切り複数行）
+			// 旧形式 fallback（カンマ区切り複数行）
 			List<List<Integer>> result = new ArrayList<>();
 			for (String line : json.split("\n")) {
 				line = line.trim();
@@ -620,65 +563,29 @@ public class ExportCsv {
 	}
 
 	// =========================================================
-	// S3 tmp ステージング関連
+	// S3 upload（直下）
 	// =========================================================
-
-	private String putLocalFileToTmp(String bucket, String tmpPrefix, Path localFile) {
-		final String METHOD_NAME = "putLocalFileToTmp";
+	private String putLocalFileToFinal(String bucket, String finalPrefix, Path localFile) {
+		final String METHOD_NAME = "putLocalFileToFinal";
 		String fileName = localFile.getFileName().toString();
-		String tmpKey = joinS3Key(tmpPrefix, fileName);   // ★先頭/なしで安全に結合
-		tmpKey = normalizeS3Key(tmpKey);
 
-		this.manageLoggerComponent.debugInfoLog(
-			    PROJECT_NAME, CLASS_NAME, "putLocalFileToTmp",
-			    MessageCdConst.MCD00099I_LOG,
-			    "UPLOAD bucket=" + bucket + " key=" + tmpKey + " localFile=" + localFile);
-
-		try {
-			s3Operator.uploadFile(bucket, tmpKey, localFile);
-			return tmpKey;
-		} catch (Exception e) {
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00023E_S3_UPLOAD_FAILED, e,
-					bucket, tmpKey);
-			throw e;
-		}
-	}
-
-	private void commitTmpToFinal(String bucket, String tmpPrefix, String finalPrefix) {
-		final String METHOD_NAME = "commitTmpToFinal";
-
-		List<String> tmpKeys = s3Operator.listKeys(bucket, tmpPrefix);
-		for (String tmpKey : tmpKeys) {
-			if (tmpKey == null)
-				continue;
-
-			String fileName = tmpKey.substring(tmpKey.lastIndexOf('/') + 1); // S3キーとして安全
-			String finalKey = joinS3Key(finalPrefix, fileName);              // ★finalPrefix="" なら fileName
-			finalKey = normalizeS3Key(finalKey);
-
-			s3Operator.copy(bucket, tmpKey, bucket, finalKey);
-			s3Operator.delete(bucket, tmpKey);
-
-		}
+		String finalKey = joinS3Key(finalPrefix, fileName);
+		finalKey = normalizeS3Key(finalKey);
 
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 				MessageCdConst.MCD00099I_LOG,
-				"commit完了 tmpPrefix=" + tmpPrefix + " -> finalPrefix=" + (finalPrefix == null ? "" : finalPrefix));
-	}
+				"UPLOAD(final) bucket=" + bucket + " key=" + finalKey + " localFile=" + localFile);
 
-	private void cleanupTmp(String bucket, String tmpPrefix) {
 		try {
-			List<String> tmpKeys = s3Operator.listKeys(bucket, tmpPrefix);
-			for (String k : tmpKeys) {
-				try {
-					s3Operator.delete(bucket, k);
-				} catch (Exception ignore) {
-				}
-			}
-		} catch (Exception ignore) {
+			s3Operator.uploadFile(bucket, finalKey, localFile);
+			return finalKey;
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00023E_S3_UPLOAD_FAILED, e,
+					bucket, finalKey);
+			throw e;
 		}
 	}
 
@@ -686,43 +593,43 @@ public class ExportCsv {
 	 * S3（本番prefix）にある CSV の最大番号を取得する
 	 */
 	private int getMaxCsvNoFromS3(String bucket, String finalPrefix) {
-	    final String METHOD_NAME = "getMaxCsvNoFromS3";
+		final String METHOD_NAME = "getMaxCsvNoFromS3";
 
-	    // finalPrefix は直下運用なら "" のままでOK
-	    String prefix = (finalPrefix == null) ? "" : finalPrefix;
+		String prefix = (finalPrefix == null) ? "" : finalPrefix;
 
-	    List<String> keys = s3Operator.listKeys(bucket, prefix);
-	    int max = 0;
+		List<String> keys = s3Operator.listKeys(bucket, prefix);
+		int max = 0;
 
-	    for (String key : keys) {
-	        if (key == null) continue;
+		for (String key : keys) {
+			if (key == null)
+				continue;
 
-	        // tmpは絶対除外（ここ重要）
-	        if (key.startsWith("tmp/")) continue;
+			// tmpが残っていても最大番号判定に混ぜない
+			if (key.startsWith("tmp/"))
+				continue;
 
-	        // 「直下のファイル名」以外（=スラッシュを含む）は除外
-	        if (key.indexOf('/') >= 0) continue;
+			// 直下のみ対象
+			if (key.indexOf('/') >= 0)
+				continue;
 
-	        Matcher m = ROOT_CSV_PATTERN.matcher(key);
-	        if (!m.matches()) continue;
+			Matcher m = ROOT_CSV_PATTERN.matcher(key);
+			if (!m.matches())
+				continue;
 
-	        try {
-	            int n = Integer.parseInt(m.group(1));
-	            if (n > max) max = n;
-	        } catch (NumberFormatException ignore) {}
-	    }
+			try {
+				int n = Integer.parseInt(m.group(1));
+				if (n > max)
+					max = n;
+			} catch (NumberFormatException ignore) {
+			}
+		}
 
-	    manageLoggerComponent.debugInfoLog(
-	        PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-	        "S3上の最大CSV番号(root only)=" + max + " (bucket=" + bucket + ", prefix=" + prefix + ")"
-	    );
-	    return max;
+		manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+				"S3上の最大CSV番号(root only)=" + max + " (bucket=" + bucket + ", prefix=" + prefix + ")");
+		return max;
 	}
 
-
-	/**
-	 * localOnly用：ローカルディレクトリにある CSV の最大番号を取得する
-	 */
 	private int getMaxCsvNoFromLocal(Path localDir) {
 		final String METHOD_NAME = "getMaxCsvNoFromLocal";
 		int max = 0;
@@ -778,7 +685,8 @@ public class ExportCsv {
 	}
 
 	// =========================================================
-	// 既存ロジック
+	// 既存ロジック（グルーピング、plan、CSV生成など）
+	// ※ ここから下は、あなたの元コードのまま（必要箇所だけ immutable 対策入り）
 	// =========================================================
 
 	private List<List<Integer>> sortSeqs() {
@@ -869,9 +777,10 @@ public class ExportCsv {
 		if (result == null || result.isEmpty())
 			return null;
 
-		backfillScores(result);
+		// immutable対策（sortするためmutable化）
+		result = new ArrayList<>(result);
 
-		// ★ここを追加（CSV書き込み前に data_category を揃える）
+		backfillScores(result);
 		applyCanonicalCategory(result);
 
 		return result;
@@ -920,10 +829,6 @@ public class ExportCsv {
 		return false;
 	}
 
-	// =========================================================
-	// 差分計画（recreate/new）生成
-	// =========================================================
-
 	private CsvBuildPlan matchSeqCombPlan(
 			List<List<Integer>> textSeqs,
 			List<List<Integer>> dbSeqs,
@@ -931,7 +836,6 @@ public class ExportCsv {
 
 		CsvBuildPlan plan = new CsvBuildPlan();
 
-		// 既存CSV情報 -> csvNoマップ
 		Map<Integer, Integer> minSeqToCsvNo = new LinkedHashMap<>();
 		Map<String, Integer> groupKeyToCsvNo = new LinkedHashMap<>();
 
@@ -949,25 +853,21 @@ public class ExportCsv {
 			groupKeyToCsvNo.put(groupKey(ids), csvNo);
 		}
 
-		// DBグループ -> 既存一致チェック
 		for (List<Integer> dbGroup : dbSeqs) {
 			if (dbGroup == null || dbGroup.isEmpty())
 				continue;
 
 			String gk = groupKey(dbGroup);
 
-			// 既存CSVに完全一致するなら何もしない
 			if (groupKeyToCsvNo.containsKey(gk)) {
 				continue;
 			}
 
-			// minSeqが一致するCSVがあるなら、そのCSV番号を再生成対象にする
 			int min = dbGroup.get(0);
 			Integer csvNo = minSeqToCsvNo.get(min);
 			if (csvNo != null) {
 				plan.recreateByCsvNo.put(csvNo, dbGroup);
 			} else {
-				// 新規
 				plan.newTargets.put(CSV_NEW_PREFIX + "-" + min, dbGroup);
 			}
 		}
@@ -1000,20 +900,9 @@ public class ExportCsv {
 		}
 	}
 
-	// =========================================================
-	// data_team_list.txt 更新（TSV: "N.csv\t説明"）
-	// =========================================================
-
-	/**
-	 * data_team_list.txt を CSV番号単位で upsert する。
-	 *
-	 * フォーマット（希望形式）：
-	 *   1.csv\t説明
-	 *   2.csv\t説明
-	 *
-	 * succeeded: 追加/更新
-	 * failed   : 該当csvNo行を削除
-	 */
+	// data_team_list.txt 更新は、あなたの元コードをそのまま置いてください（省略なしで使えます）
+	// ※ ここでは紙幅の都合で省略せず、そのまま貼っていたものを利用してください。
+	// --- START: upsertDataTeamList / csvNoFromFilePath / safe ---
 	private void upsertDataTeamList(
 			Path out,
 			List<SimpleEntry<String, List<DataEntity>>> succeeded,
@@ -1021,7 +910,6 @@ public class ExportCsv {
 
 		Map<Integer, String> csvNoToLine = new LinkedHashMap<>();
 
-		// 既存読み込み（TSV）
 		if (Files.exists(out)) {
 			List<String> lines = Files.readAllLines(out, StandardCharsets.UTF_8);
 			for (String line : lines) {
@@ -1047,7 +935,6 @@ public class ExportCsv {
 			Files.writeString(out, "", StandardCharsets.UTF_8);
 		}
 
-		// failed は削除
 		if (failed != null) {
 			for (SimpleEntry<String, List<DataEntity>> e : failed) {
 				Integer csvNo = csvNoFromFilePath(e.getKey());
@@ -1057,7 +944,6 @@ public class ExportCsv {
 			}
 		}
 
-		// succeeded は upsert（説明は最低限：カテゴリ - Home vs Away）
 		if (succeeded != null) {
 			for (SimpleEntry<String, List<DataEntity>> e : succeeded) {
 				Integer csvNo = csvNoFromFilePath(e.getKey());
@@ -1088,7 +974,7 @@ public class ExportCsv {
 				} else if (!dataCategory.isEmpty()) {
 					desc = dataCategory;
 				} else {
-					desc = vsPart; // どれも空なら空行になるが、最低限の形は保つ
+					desc = vsPart;
 				}
 
 				String line = (csvNo + BookMakersCommonConst.CSV) + "\t" + desc;
@@ -1096,7 +982,6 @@ public class ExportCsv {
 			}
 		}
 
-		// 書き戻し（csvNo昇順）
 		List<Map.Entry<Integer, String>> entries = new ArrayList<>(csvNoToLine.entrySet());
 		entries.sort(Map.Entry.comparingByKey());
 
@@ -1111,23 +996,18 @@ public class ExportCsv {
 	private static Integer csvNoFromFilePath(String filePath) {
 		if (filePath == null)
 			return null;
-		// filePath は "/.../4710.csv" のはず
 		return parseCsvNo(filePath);
 	}
 
 	private static String safe(String s) {
 		return (s == null) ? "" : s;
 	}
-
-	// =========================================================
-	// score補完など
-	// =========================================================
+	// --- END ---
 
 	private static void backfillScores(List<DataEntity> list) {
 		if (list == null || list.isEmpty())
 			return;
 
-		// record_timeで昇順、nullの場合はseqで。
 		list.sort(Comparator
 				.comparing((DataEntity d) -> {
 					String rt = d.getRecordTime();
@@ -1163,14 +1043,11 @@ public class ExportCsv {
 	private static String pickCanonicalCategory(List<DataEntity> group) {
 		if (group == null || group.isEmpty())
 			return "";
-
-		// 1) ラウンド入りの文字列を優先して代表値にする
 		for (DataEntity d : group) {
 			String cat = d.getDataCategory();
 			if (hasRound(cat))
 				return cat.trim();
 		}
-		// 2) 無ければ先頭をフォールバック
 		String first = group.get(0).getDataCategory();
 		return first == null ? "" : first.trim();
 	}
@@ -1182,20 +1059,16 @@ public class ExportCsv {
 
 		for (DataEntity d : group) {
 			String cat = d.getDataCategory();
-			// 「ラウンドが消えてる」or「空」を canonical に差し替え
 			if (cat == null || cat.trim().isEmpty() || !hasRound(cat)) {
 				d.setDataCategory(canonical);
 			}
 		}
 	}
 
-	/**
-	 * seqList.txt を従来互換（カンマ区切り）で書く
-	 * 1行=1グループ
-	 */
 	private void writeSeqListCommaLines(Path out, List<List<Integer>> groups) throws IOException {
 		String body = groups.stream()
-				.map(list -> list.stream().map(String::valueOf).collect(java.util.stream.Collectors.joining(",")))
+				.map(list -> list.stream().map(String::valueOf)
+						.collect(java.util.stream.Collectors.joining(",")))
 				.collect(java.util.stream.Collectors.joining("\n")) + "\n";
 		Files.writeString(out, body, StandardCharsets.UTF_8,
 				StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
@@ -1206,24 +1079,26 @@ public class ExportCsv {
 	}
 
 	private static String normalizeS3Key(String key) {
-	    if (key == null) return null;
-	    String k = key;
-	    while (k.startsWith("/")) {
-	        k = k.substring(1);
-	    }
-	    return k;
+		if (key == null)
+			return null;
+		String k = key;
+		while (k.startsWith("/")) {
+			k = k.substring(1);
+		}
+		return k;
 	}
 
 	private static String joinS3Key(String prefix, String fileName) {
-	    String p = (prefix == null) ? "" : prefix.trim();
-	    p = p.replaceAll("^/+", "");   // 先頭/を除去
-	    p = p.replaceAll("/+$", "");   // 末尾/を除去
+		String p = (prefix == null) ? "" : prefix.trim();
+		p = p.replaceAll("^/+", "");
+		p = p.replaceAll("/+$", "");
 
-	    String f = (fileName == null) ? "" : fileName.trim();
-	    f = f.replaceAll("^/+", "");
+		String f = (fileName == null) ? "" : fileName.trim();
+		f = f.replaceAll("^/+", "");
 
-	    if (p.isBlank()) return f;         // ★バケット直下
-	    return p + "/" + f;
+		if (p.isBlank())
+			return f;
+		return p + "/" + f;
 	}
 
 	private void endLog(String method, String messageCd, String fillChar) {
