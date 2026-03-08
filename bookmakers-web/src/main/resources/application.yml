@@ -72,7 +72,7 @@ management:
     web:
       base-path: /actuator
       exposure:
-        include: health,info
+        include: health,info,mappings
   endpoint:
     health:
       show-details: never
@@ -217,5 +217,5 @@ s3-job:
       bucket: aws-s3-no-ecs-task-time-csv
       prefix: null
       recursive: true
-      
+     
       
