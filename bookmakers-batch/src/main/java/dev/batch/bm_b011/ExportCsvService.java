@@ -951,32 +951,36 @@ public class ExportCsvService {
 				if (csvNo == null || list == null || list.isEmpty())
 					continue;
 
-				DataEntity head = list.get(0);
+				// ★ 先頭固定をやめて、チーム名が入っている行を探す
+				DataEntity row = findRowWithTeams(list);
 
-				String dataCategory = safe(head.getDataCategory()).trim();
-				String home = safe(head.getHomeTeamName()).trim();
-				String away = safe(head.getAwayTeamName()).trim();
+				String dataCategory = safe(row.getDataCategory()).trim();
+				String home = safe(row.getHomeTeamName()).trim();
+				String away = safe(row.getAwayTeamName()).trim();
 
+				// ★ 要望どおり「ホームチーム名vsアウェーチーム名」
 				String vsPart;
 				if (!home.isEmpty() && !away.isEmpty()) {
-					vsPart = home + " vs " + away;
+					vsPart = home + "vs" + away; // 「 vs 」ではなく「vs」に寄せる
 				} else if (!home.isEmpty()) {
 					vsPart = home;
 				} else if (!away.isEmpty()) {
 					vsPart = away;
 				} else {
-					vsPart = "";
+					// ここに来る場合はマッピング不備の可能性が高い
+					vsPart = "(team name empty)";
 				}
 
 				String desc;
 				if (!dataCategory.isEmpty() && !vsPart.isEmpty()) {
-					desc = dataCategory + " - " + vsPart;
+				    desc = dataCategory + " - " + vsPart;
 				} else if (!dataCategory.isEmpty()) {
-					desc = dataCategory;
+				    desc = dataCategory;
 				} else {
-					desc = vsPart;
+				    desc = vsPart;
 				}
 
+				// 1行のフォーマット： "235.csv\tホームvsアウェー"
 				String line = (csvNo + BookMakersCommonConst.CSV) + "\t" + desc;
 				csvNoToLine.put(csvNo, line);
 			}
@@ -991,6 +995,18 @@ public class ExportCsvService {
 		}
 
 		Files.write(out, outLines, StandardCharsets.UTF_8, StandardOpenOption.TRUNCATE_EXISTING);
+	}
+
+	// ★ 追加：チーム名が入っている行を探す（クラス内のどこかに追加）
+	private static DataEntity findRowWithTeams(List<DataEntity> list) {
+		for (DataEntity d : list) {
+			String home = safe(d.getHomeTeamName()).trim();
+			String away = safe(d.getAwayTeamName()).trim();
+			if (!home.isEmpty() || !away.isEmpty()) {
+				return d;
+			}
+		}
+		return list.get(0);
 	}
 
 	private static Integer csvNoFromFilePath(String filePath) {

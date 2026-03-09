@@ -200,5 +200,7 @@ logging:
     org.springframework.jdbc: WARN
     org.mybatis: WARN
 
-      
+exportcsv:
+  local-only:
+    false
       

@@ -71,6 +71,7 @@ public interface BookCsvDataRepository {
 	List<SeqWithKey> findAllSeqsWithKey();
 
 	@Select("""
+			<script>
 			SELECT DISTINCT
 				  seq,
 				  condition_result_data_seq_id,
@@ -171,8 +172,21 @@ public interface BookCsvDataRepository {
 				  probablity,
 				  prediction_score_time
 				FROM data
-				WHERE seq IN (#{seqList})
-				ORDER BY record_time ASC
+				<where>
+				<choose>
+				<when test="seqList != null and seqList.size() > 0">
+					seq IN
+					<foreach collection="seqList" item="item" open="(" separator="," close=")">
+						#{item}
+					</foreach>
+				</when>
+				<otherwise>
+					1 = 0
+				</otherwise>
+				</choose>
+				</where>
+					ORDER BY record_time ASC
+			</script>
 			""")
 	List<DataEntity> findByData(@Param("seqList") List<Integer> seqList);
 

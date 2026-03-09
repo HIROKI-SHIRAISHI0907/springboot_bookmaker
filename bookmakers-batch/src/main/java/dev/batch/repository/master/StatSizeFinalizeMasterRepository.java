@@ -26,6 +26,6 @@ public interface StatSizeFinalizeMasterRepository {
 			    ORDER BY option_num, id;
 			""")
 	List<StatSizeFinalizeEntity> findFlgData(
-			@Param("flg") String flg);
+			@Param("validFlg") String flg);
 
 }
