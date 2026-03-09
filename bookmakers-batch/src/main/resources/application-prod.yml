@@ -51,6 +51,7 @@ spring:
 mybatis:
   type-handlers-package: dev.application.mybatis
   configuration:
+    auto-mapping-unknown-column-behavior: WARNING
     map-underscore-to-camel-case: true
 
 security:
