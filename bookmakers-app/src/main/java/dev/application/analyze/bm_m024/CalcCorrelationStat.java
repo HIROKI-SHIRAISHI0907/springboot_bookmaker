@@ -4,16 +4,12 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.Executor;
 import java.util.concurrent.ExecutorService;
-import java.util.concurrent.ForkJoinPool;
 import java.util.stream.Collectors;
 
 import org.apache.commons.math3.stat.correlation.PearsonsCorrelation;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import dev.application.analyze.bm_m023.AverageStatisticsSituationConst;
@@ -76,23 +72,6 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
     private ManageLoggerComponent manageLoggerComponent;
 
     /**
-     * <p>Config で定義した共有 Executor（例：{@code @Bean @Qualifier("calcCorrelationExecutor")}）。</p>
-     * <p>未注入の場合は {@link ForkJoinPool#commonPool()} にフォールバックします。</p>
-     */
-    @Autowired(required = false)
-    @Qualifier("calcCorrelationExecutor")
-    private ExecutorService injectedExecutor;
-
-    /**
-     * 使用する Executor を解決します。
-     *
-     * @return 注入済み Executor、なければ {@code ForkJoinPool.commonPool()}
-     */
-    private Executor getExecutor() {
-        return (injectedExecutor != null) ? injectedExecutor : ForkJoinPool.commonPool();
-    }
-
-    /**
      * {@inheritDoc}
      *
      * <p>全ての国・リーグ・カードを走査し、相関計算→登録を行います。</p>
@@ -129,13 +108,9 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
             }
         }
 
-        // 登録のみを非同期実行
-        List<CompletableFuture<Void>> futures = new ArrayList<>(resultMap.size());
-        Executor exec = getExecutor();
         for (CalcCorrelationEntity entity : resultMap.values()) {
-            futures.add(CompletableFuture.runAsync(() -> insert(entity), exec));
+            insert(entity);
         }
-        CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
 
         manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
         manageLoggerComponent.clear();
@@ -396,7 +371,7 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
      * @param entity 登録対象
      * @throws RuntimeException 期待件数不一致時
      */
-    private synchronized void insert(CalcCorrelationEntity entity) {
+    private void insert(CalcCorrelationEntity entity) {
         final String METHOD_NAME = "insert";
         String fillChar = setLoggerFillChar(
                 entity.getChkBody(),

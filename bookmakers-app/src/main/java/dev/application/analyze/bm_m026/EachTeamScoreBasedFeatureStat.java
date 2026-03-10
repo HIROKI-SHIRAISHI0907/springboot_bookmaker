@@ -4,10 +4,7 @@ import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ConcurrentHashMap;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
@@ -126,23 +123,24 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				if (resultMap == null) {
 					continue;
 				}
-				// 登録・更新
-				ExecutorService executor = Executors.newFixedThreadPool(2);
-				List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+				// ===== 登録・更新（逐次実行に変更：並列撤去）=====
 				for (Map.Entry<String, List<EachTeamScoreBasedFeatureEntity>> entrys : resultMap.entrySet()) {
-					CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-						for (EachTeamScoreBasedFeatureEntity subSubEntity : entrys.getValue()) {
-							if (subSubEntity.isUpd()) {
-								update(subSubEntity);
-							} else {
-								insert(subSubEntity);
-							}
+					List<EachTeamScoreBasedFeatureEntity> vals = entrys.getValue();
+					if (vals == null || vals.isEmpty()) {
+						continue;
+					}
+					for (EachTeamScoreBasedFeatureEntity subSubEntity : vals) {
+						if (subSubEntity == null) {
+							continue;
 						}
-					}, executor);
-					futures.add(future);
+						if (subSubEntity.isUpd()) {
+							update(subSubEntity);
+						} else {
+							insert(subSubEntity);
+						}
+					}
 				}
-				CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-				executor.shutdown();
 			}
 		}
 
@@ -220,9 +218,10 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 
 		// 各スコアの組み合わせ(例: ["0-0", "1-0", "1-1", ...])
 		List<String> allScores = extractExistingScorePatterns(entities);
-		ExecutorService executor = Executors.newFixedThreadPool(4); // スレッド数は状況に応じて調整
-		List<CompletableFuture<Void>> futures = new ArrayList<>();
+
+		// ===== 逐次実行に変更：並列撤去 =====
 		ConcurrentHashMap<String, List<EachTeamScoreBasedFeatureEntity>> allMap = new ConcurrentHashMap<>();
+
 		for (int i = 1; i <= 2; i++) {
 			String team = (i == 1) ? returnMaxEntity.getHomeTeamName() : returnMaxEntity.getAwayTeamName();
 			String ha = (i == 1) ? "H" : "A";
@@ -232,33 +231,19 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 						for (String score : allScores) {
 							if ("0-0".equals(score))
 								continue; // 0-0 スコアはEACH_SCOREから除外
-							CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-								basedEntities(allMap, entities, score, situation, flg, country, league, team, ha,
-										bmM30Map);
-							}, executor);
-							futures.add(future);
+							basedEntities(allMap, entities, score, situation, flg, country, league, team, ha, bmM30Map);
 						}
 					} else {
 						if (!AverageStatisticsSituationConst.EACH_SCORE.equals(flg)) {
-							CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-								basedEntities(allMap, entities, null, situation, flg, country, league, team, ha,
-										bmM30Map);
-							}, executor);
-							futures.add(future);
+							basedEntities(allMap, entities, null, situation, flg, country, league, team, ha, bmM30Map);
 						}
 					}
 				} else {
 					// ALL_DATA / FIRST_DATA / SECOND_DATA → スコア単位でなく全体処理なので null を渡す
-					CompletableFuture<Void> future = CompletableFuture.runAsync(() -> {
-						basedEntities(allMap, entities, null, situation, flg, country, league, team, ha, bmM30Map);
-					}, executor);
-					futures.add(future);
+					basedEntities(allMap, entities, null, situation, flg, country, league, team, ha, bmM30Map);
 				}
 			}
 		}
-		// すべての非同期処理が終わるのを待つ
-		CompletableFuture.allOf(futures.toArray(new CompletableFuture[0])).join();
-		executor.shutdown();
 		return allMap;
 	}
 
@@ -523,9 +508,8 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			entity = setOtherEntity(connectScore, situation, country, league, team, updFlg, id, entity);
 		}
 
-		// insertMap 格納（スレッドセーフ）
-		insertMap.computeIfAbsent(flg, k -> new java.util.concurrent.CopyOnWriteArrayList<>())
-				.add(entity);
+		// insertMap 格納（逐次処理なので CopyOnWriteArrayList は不要）
+		insertMap.computeIfAbsent(flg, k -> new ArrayList<>()).add(entity);
 	}
 
 	/**
@@ -1110,7 +1094,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				String skewSigma = (cnt == 1) ? ""
 						: String.valueOf(
 								Math.sqrt(Double.parseDouble(skewSumSigma) / (cnt - 1)));
-				//System.out.println("skewAve, skewSigma, cnt: " + skewAve + ", " + skewSigma + ", " + cnt);
 				// 導出できなければskip
 				if ("".equals(skewAve) || "".equals(skewSigma))
 					continue;
@@ -1123,8 +1106,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 					skewness[idx] += Math.pow((Double.parseDouble(currentSkewnessNumeric)
 							- Double.parseDouble(skewAve)) / Double.parseDouble(skewSigma), 3);
 				}
-				//System.out.println("setSkewness, fillChar: " + fillChar + ", currentValue: " + currentValue
-				//		+ ", skewness[idx]: " + skewness[idx]);
 				// 件数カウント
 				cntList[idx] = cnt;
 			} catch (Exception e) {
@@ -1143,8 +1124,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			double skew = skewness[i];
 			double result = (cnt / ((cnt - 1.0) * (cnt - 2.0))) * skew;
 			skewnessList[i] = String.format("%.3f", result);
-			//System.out
-			//		.println("setSkewness/division, skewness[idx]: " + skew + ", cnt: " + cnt + ", result: " + result);
 		}
 		return skewnessList;
 	}
@@ -1215,8 +1194,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 							- Double.parseDouble(kurtAve)), 4) / Math.pow(
 									Double.parseDouble(kurtSigma), 4));
 				}
-				//System.out.println("setKurtosis, fillChar: " + fillChar + ", currentValue: " + currentValue
-				//		+ ", kurtosis[idx]: " + kurtosis[idx]);
 				// 件数カウント
 				cntList[idx] = cnt;
 			} catch (Exception e) {
@@ -1242,8 +1219,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				result = Double.NaN; // cnt==0 や std==0 など
 			}
 			kurtosisList[i] = String.format("%.3f", result);
-			//System.out
-			//		.println("setKurtosis/division, kurtosis[idx]: " + kurt + ", cnt: " + cnt + ", result: " + result);
 		}
 		return kurtosisList;
 	}
