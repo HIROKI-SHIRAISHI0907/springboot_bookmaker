@@ -70,19 +70,48 @@ public class CsvArtifactHelper {
 	 * @return
 	 */
 	public CsvArtifactResource setOption1stNum(List<StatSizeFinalizeEntity> entities,
-			CsvArtifactResource csvArtifactResource) {
-		for (StatSizeFinalizeEntity entity : entities) {
-			switch (entity.getOptionNum()) {
-			// 0-0, 1-0など
-			case "1": {
-				String[] scores = entity.getOptions().split("-");
-				csvArtifactResource.setHomeScore(scores[0]);
-				csvArtifactResource.setAwayScore(scores[1]);
-				break;
-			}
-			}
-		}
-		return csvArtifactResource;
+	        CsvArtifactResource csvArtifactResource) {
+
+	    if (entities == null || entities.isEmpty()) {
+	        return csvArtifactResource;
+	    }
+
+	    for (StatSizeFinalizeEntity entity : entities) {
+	        if (entity == null) {
+	            continue;
+	        }
+
+	        String optionNum = entity.getOptionNum();
+	        if (optionNum == null || optionNum.isBlank()) {
+	            // ここで「どのレコードが壊れているか」追えるようにログ推奨
+	            // log.warn("StatSizeFinalize optionNum is null. entity={}", entity);
+	            continue;
+	        }
+
+	        switch (optionNum) {
+	        case "1": {
+	            String opt = entity.getOptions();
+	            if (opt == null || opt.isBlank()) {
+	                // log.warn("OptionNum=1 but options is blank. entity={}", entity);
+	                break;
+	            }
+
+	            String[] scores = opt.split("-", -1); // 空要素も保持
+	            if (scores.length < 2 || scores[0].isBlank() || scores[1].isBlank()) {
+	                // log.warn("OptionNum=1 but options format invalid: {}", opt);
+	                break;
+	            }
+
+	            csvArtifactResource.setHomeScore(scores[0].trim());
+	            csvArtifactResource.setAwayScore(scores[1].trim());
+	            break;
+	        }
+	        default:
+	            // "2" は setOption2ndNum 側で処理するのでここでは無視でOK
+	            break;
+	        }
+	    }
+	    return csvArtifactResource;
 	}
 
 	/**
@@ -92,23 +121,42 @@ public class CsvArtifactHelper {
 	 * @return
 	 */
 	public CsvArtifactResource setOption2ndNum(List<StatSizeFinalizeEntity> entities,
-			CsvArtifactResource csvArtifactResource) {
-		List<String> countryList = new ArrayList<String>();
-		List<String> leagueList = new ArrayList<String>();
-		for (StatSizeFinalizeEntity entity : entities) {
-			switch (entity.getOptionNum()) {
-			// 国リーグ
-			case "2": {
-				String[] target = entity.getOptions().split(":");
-				countryList.add(target[0]);
-				leagueList.add(target[1]);
-				break;
-			}
-			}
-		}
-		csvArtifactResource.setCountry(countryList);
-		csvArtifactResource.setLeague(leagueList);
-		return csvArtifactResource;
+	        CsvArtifactResource csvArtifactResource) {
+
+	    List<String> countryList = new ArrayList<>();
+	    List<String> leagueList = new ArrayList<>();
+
+	    if (entities == null || entities.isEmpty()) {
+	        csvArtifactResource.setCountry(countryList);
+	        csvArtifactResource.setLeague(leagueList);
+	        return csvArtifactResource;
+	    }
+
+	    for (StatSizeFinalizeEntity entity : entities) {
+	        if (entity == null) continue;
+
+	        String optionNum = entity.getOptionNum();
+	        if (!"2".equals(optionNum)) continue;
+
+	        String opt = entity.getOptions();
+	        if (opt == null || opt.isBlank()) {
+	            // log.warn("OptionNum=2 but options is blank. entity={}", entity);
+	            continue;
+	        }
+
+	        String[] target = opt.split(":", 2);
+	        if (target.length < 2 || target[0].isBlank() || target[1].isBlank()) {
+	            // log.warn("OptionNum=2 but options format invalid: {}", opt);
+	            continue;
+	        }
+
+	        countryList.add(target[0].trim());
+	        leagueList.add(target[1].trim());
+	    }
+
+	    csvArtifactResource.setCountry(countryList);
+	    csvArtifactResource.setLeague(leagueList);
+	    return csvArtifactResource;
 	}
 
 	/**
