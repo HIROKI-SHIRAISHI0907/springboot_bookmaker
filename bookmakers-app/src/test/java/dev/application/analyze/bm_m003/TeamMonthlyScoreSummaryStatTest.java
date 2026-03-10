@@ -17,7 +17,7 @@ import dev.common.getinfo.GetStatInfo;
  *
  */
 @SpringBootTest
-@ActiveProfiles("test")
+@ActiveProfiles("prod")
 public class TeamMonthlyScoreSummaryStatTest {
 
 	@Autowired
