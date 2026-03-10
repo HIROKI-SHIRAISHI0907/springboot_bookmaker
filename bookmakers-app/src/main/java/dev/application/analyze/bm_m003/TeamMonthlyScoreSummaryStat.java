@@ -61,37 +61,71 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 		// スレッドセーフなマップ構造（逐次でも害はないので維持）
 		Map<String, Map<String, Map<String, Integer>>> goalCountMap = new ConcurrentHashMap<>();
 
-		// ===== 並列をやめて逐次にする（要件：並列不要）=====
+		// ※並列不要なので逐次（parallelStream撤去）
 		for (Map.Entry<String, Map<String, List<BookDataEntity>>> outerEntry : entities.entrySet()) {
 			String countryLeague = outerEntry.getKey();
 			Map<String, List<BookDataEntity>> homeAwayMap = outerEntry.getValue();
 
 			for (Map.Entry<String, List<BookDataEntity>> innerEntry : homeAwayMap.entrySet()) {
-				String teamName = innerEntry.getKey();
+				// ここが「ファイル名-ホーム-アウェイ」形式のキー
+				String key = innerEntry.getKey(); // 例: "6089.csv-浦和-FC東京"
 
-				// ===== ここが ArrayIndexOutOfBounds の原因箇所なので防御 =====
-				// split("-", -1) で空文字も保持（"-" -> ["", ""] になる）
-				String[] parts = (teamName == null) ? new String[0] : teamName.split("-", -1);
+				// 末尾空要素も保持（"-" -> ["", ""] になる）
+				String[] parts = (key == null) ? new String[0] : key.split("-", -1);
 
-				if (parts.length < 2 || parts[0].isBlank() || parts[1].isBlank()) {
+				// 先頭はファイル名（あなたの要件）
+				String fileName = (parts.length >= 1) ? parts[0] : "";
+
+				// 想定：fileName-home-away... （最低3要素必要）
+				if (parts.length < 3) {
 					String messageCd = MessageCdConst.MCD00099I_LOG;
 					this.manageLoggerComponent.debugInfoLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-							"skip: invalid teamName key. teamName=" + teamName
-							+ ", countryLeague=" + countryLeague
-							+ ", partsLen=" + parts.length);
+							"skip: invalid key format (need file-home-away). fileName=" + fileName
+							+ ", key=" + key
+							+ ", partsLen=" + parts.length
+							+ ", countryLeague=" + countryLeague);
 					continue;
 				}
 
-				String homeTeam = parts[0];
-				String awayTeam = parts[1];
+				String homeTeam = parts[1];
+				// away側に '-' が混ざる可能性があるので残り全部を結合
+				String awayTeam;
+				if (parts.length == 3) {
+					awayTeam = parts[2];
+				} else {
+					StringBuilder sb = new StringBuilder();
+					for (int i = 2; i < parts.length; i++) {
+						if (i > 2) sb.append("-");
+						sb.append(parts[i]);
+					}
+					awayTeam = sb.toString();
+				}
 
-				// 既存の変数名に合わせる（使い回しを最小化）
+				// 空ならスキップ（このとき fileName を必ず出す）
+				if (homeTeam == null || homeTeam.isBlank() || awayTeam == null || awayTeam.isBlank()) {
+					String messageCd = MessageCdConst.MCD00099I_LOG;
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+							"skip: blank home/away. fileName=" + fileName
+							+ ", key=" + key
+							+ ", home=" + homeTeam
+							+ ", away=" + awayTeam
+							+ ", countryLeague=" + countryLeague);
+					continue;
+				}
+
 				String home = homeTeam + "-home";
 				String away = awayTeam + "-away";
 
 				List<BookDataEntity> entityList = innerEntry.getValue();
 				if (entityList == null || entityList.isEmpty()) {
+					String messageCd = MessageCdConst.MCD00099I_LOG;
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+							"skip: empty entityList. fileName=" + fileName
+							+ ", key=" + key
+							+ ", countryLeague=" + countryLeague);
 					continue;
 				}
 
@@ -99,20 +133,20 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 				int prevAwayScore = 0;
 
 				for (BookDataEntity entity : entityList) {
+					// 既存ログ（filePath）に加えて、ファイル名も欲しければここに出せます
 					String messageCd = MessageCdConst.MCD00099I_LOG;
 					this.manageLoggerComponent.debugInfoLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, entity.getFilePath());
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+							"fileName=" + fileName + ", filePath=" + entity.getFilePath());
 
 					String recordTime = entity.getRecordTime();
-					if (recordTime == null || recordTime.length() < 7) {
+					if (recordTime == null || recordTime.length() < 7)
 						continue;
-					}
 					String yearMonth = recordTime.substring(0, 7);
 
 					// ゴール取り消しはスキップ
-					if (BookMakersCommonConst.GOAL_DELETE.equals(entity.getJudge())) {
+					if (BookMakersCommonConst.GOAL_DELETE.equals(entity.getJudge()))
 						continue;
-					}
 
 					int currentHomeScore = parseScore(entity.getHomeScore());
 					int currentAwayScore = parseScore(entity.getAwayScore());
