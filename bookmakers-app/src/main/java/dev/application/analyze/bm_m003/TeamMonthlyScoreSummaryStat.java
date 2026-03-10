@@ -58,38 +58,64 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// スレッドセーフなマップ構造
+		// スレッドセーフなマップ構造（逐次でも害はないので維持）
 		Map<String, Map<String, Map<String, Integer>>> goalCountMap = new ConcurrentHashMap<>();
-		entities.entrySet().parallelStream().forEach(outerEntry -> {
+
+		// ===== 並列をやめて逐次にする（要件：並列不要）=====
+		for (Map.Entry<String, Map<String, List<BookDataEntity>>> outerEntry : entities.entrySet()) {
 			String countryLeague = outerEntry.getKey();
 			Map<String, List<BookDataEntity>> homeAwayMap = outerEntry.getValue();
 
 			for (Map.Entry<String, List<BookDataEntity>> innerEntry : homeAwayMap.entrySet()) {
 				String teamName = innerEntry.getKey();
-				String home = teamName.split("-")[0] + "-home";
-				String away = teamName.split("-")[1] + "-away";
+
+				// ===== ここが ArrayIndexOutOfBounds の原因箇所なので防御 =====
+				// split("-", -1) で空文字も保持（"-" -> ["", ""] になる）
+				String[] parts = (teamName == null) ? new String[0] : teamName.split("-", -1);
+
+				if (parts.length < 2 || parts[0].isBlank() || parts[1].isBlank()) {
+					String messageCd = MessageCdConst.MCD00099I_LOG;
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+							"skip: invalid teamName key. teamName=" + teamName
+							+ ", countryLeague=" + countryLeague
+							+ ", partsLen=" + parts.length);
+					continue;
+				}
+
+				String homeTeam = parts[0];
+				String awayTeam = parts[1];
+
+				// 既存の変数名に合わせる（使い回しを最小化）
+				String home = homeTeam + "-home";
+				String away = awayTeam + "-away";
+
 				List<BookDataEntity> entityList = innerEntry.getValue();
+				if (entityList == null || entityList.isEmpty()) {
+					continue;
+				}
 
 				int prevHomeScore = 0;
 				int prevAwayScore = 0;
+
 				for (BookDataEntity entity : entityList) {
 					String messageCd = MessageCdConst.MCD00099I_LOG;
 					this.manageLoggerComponent.debugInfoLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, entity.getFilePath());
+
 					String recordTime = entity.getRecordTime();
-					if (recordTime == null || recordTime.length() < 7)
+					if (recordTime == null || recordTime.length() < 7) {
 						continue;
+					}
 					String yearMonth = recordTime.substring(0, 7);
 
-					int currentHomeScore = 0;
-					int currentAwayScore = 0;
-
 					// ゴール取り消しはスキップ
-					if (BookMakersCommonConst.GOAL_DELETE.equals(entity.getJudge()))
+					if (BookMakersCommonConst.GOAL_DELETE.equals(entity.getJudge())) {
 						continue;
+					}
 
-					currentHomeScore = parseScore(entity.getHomeScore());
-					currentAwayScore = parseScore(entity.getAwayScore());
+					int currentHomeScore = parseScore(entity.getHomeScore());
+					int currentAwayScore = parseScore(entity.getAwayScore());
 
 					// 差分でゴール検出
 					int diffHome = currentHomeScore - prevHomeScore;
@@ -115,7 +141,7 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 					prevAwayScore = currentAwayScore;
 				}
 			}
-		});
+		}
 
 		// 結果の登録/更新処理
 		for (Map.Entry<String, Map<String, Map<String, Integer>>> leagueEntry : goalCountMap.entrySet()) {
@@ -143,7 +169,6 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 					int monthIndex = Integer.parseInt(month) - 1; // 0-based index
 
 					// データ取得（getData）呼び出し
-
 					TeamStaticDataOutputDTO dto = getData(country, league, teamName, ha, year);
 					boolean chkFlg = dto.isUpdFlg();
 					String[] seasonCountList = dto.getScoreList();
