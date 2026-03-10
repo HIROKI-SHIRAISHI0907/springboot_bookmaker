@@ -34,7 +34,9 @@ public class LeagueScoreTimeBandStatTest {
 		// Act
 		String csvNumber = "5";
 		String csvNumberAfter = "6";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvNumberAfter);
+		Map<String, Map<String, List<BookDataEntity>>> entities =
+                getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.leagueScoreTimeBandStat.calcStat(entities);
 	}
@@ -47,7 +49,9 @@ public class LeagueScoreTimeBandStatTest {
 		// Act
 		String csvNumber = "90";
 		String csvNumberAfter = "91";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvNumberAfter);
+		Map<String, Map<String, List<BookDataEntity>>> entities =
+                getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.leagueScoreTimeBandStat.calcStat(entities);
 	}
@@ -60,7 +64,9 @@ public class LeagueScoreTimeBandStatTest {
 		// Act
 		String csvNumber = "0";
 		String csvNumberAfter = "100";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvNumberAfter);
+		Map<String, Map<String, List<BookDataEntity>>> entities =
+                getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.leagueScoreTimeBandStat.calcStat(entities);
 	}

@@ -43,7 +43,8 @@ public class SurfaceOverviewStatTest {
 		// Act
 		String csvNumber = "0";
 		String csvNumberAfter = null;
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvNumberAfter);
+		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.surfaceOverviewStat.calcStat(entities);
 	}

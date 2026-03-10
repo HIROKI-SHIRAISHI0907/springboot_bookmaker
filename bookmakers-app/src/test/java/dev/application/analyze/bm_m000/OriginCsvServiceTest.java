@@ -1,5 +1,6 @@
 package dev.application.analyze.bm_m000;
 
+
 import static org.junit.jupiter.api.Assertions.*;
 
 import org.junit.jupiter.api.Test;

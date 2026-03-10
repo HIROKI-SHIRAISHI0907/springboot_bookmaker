@@ -31,10 +31,11 @@ class ScoreBasedFeatureStatTest {
 	 * メモリ効率試験
 	 */
 	@Test
-	void test_calcStat_shouldUpdateCorrectly() {
+	void test_calcStat_shouldUpdateCorrectly() throws Exception {
 		// Act
 		String csvNumber = "3999";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, null);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, null);
+		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.scoreBasedFeatureStat.calcStat(entities);
 	}
@@ -43,10 +44,11 @@ class ScoreBasedFeatureStatTest {
 	 * XX% (XX/XX)の形式を持つデータのマップ
 	 */
 	@Test
-	void test_calcStat_shouldInitData() {
+	void test_calcStat_shouldInitData() throws Exception {
 		String csvNumber = "174";
 		String csvBackNumber = "175";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvBackNumber);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvBackNumber);
+		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.scoreBasedFeatureStat.calcStat(entities);
 	}
@@ -55,28 +57,31 @@ class ScoreBasedFeatureStatTest {
 	 * XX% (XX/XX)の形式を持つデータのマップかつ同一国,リーグデータ
 	 */
 	@Test
-	void test_calcStat_shouldInitUpdateData() {
+	void test_calcStat_shouldInitUpdateData() throws Exception {
 		String csvNumber = "174";
 		String csvBackNumber = "175";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvBackNumber);
-
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvBackNumber);
+		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 		this.scoreBasedFeatureStat.calcStat(entities);
 
 		csvNumber = "257";
 		csvBackNumber = "258";
-		entities = this.getStatInfo.getData(csvNumber, csvBackNumber);
+		list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvBackNumber);
+		entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.scoreBasedFeatureStat.calcStat(entities);
 	}
 
 	/**
 	 * XX% (XX/XX)の形式を持つデータのマップ
+	 * @throws Exception
 	 */
 	@Test
-	void test_calcStat_shouldInitData2() {
+	void test_calcStat_shouldInitData2() throws Exception {
 		String csvNumber = "0";
 		String csvBackNumber = "450";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvBackNumber);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvBackNumber);
+		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.scoreBasedFeatureStat.calcStat(entities);
 	}

@@ -34,7 +34,9 @@ public class TeamMatchFinalStatTest {
 		// Act
 		String csvNumber = "0";
 		String csvNumberAfter = "10";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvNumberAfter);
+		Map<String, Map<String, List<BookDataEntity>>> entities =
+                getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.teamMatchFinalStat.calcStat(entities);
 	}

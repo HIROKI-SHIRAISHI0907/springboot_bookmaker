@@ -349,10 +349,10 @@ class RepositoryTest {
 		int saved = eachTeamScoreBasedFeatureStatsRepository.insert(entity);
 		assertEquals(1, saved);
 
-		List<EachTeamScoreBasedFeatureEntity> list = eachTeamScoreBasedFeatureStatsRepository.
+		EachTeamScoreBasedFeatureEntity list = eachTeamScoreBasedFeatureStatsRepository.
 				findStatData("2-0", "得点あり",
 						"日本", "J3リーグ", team);
-		assertFalse(list.isEmpty());
+		assertFalse(list == null);
 
 		int savedUpd = eachTeamScoreBasedFeatureStatsRepository.updateStatValues(entity);
 		assertEquals(1, savedUpd);

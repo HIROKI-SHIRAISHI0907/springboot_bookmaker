@@ -32,9 +32,10 @@ class CoreStatTest {
 		String csvBackNumber = null;
 
 		// 直近のCSVデータ情報を取得
-		Map<String, Map<String, List<BookDataEntity>>> getStatMap = this.getStatInfo.getData(csvNumber, csvBackNumber);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvBackNumber);
+		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 		// Act
-		int result = statService.execute(getStatMap);
+		int result = statService.execute(entities);
 
 		// Assert
 		assertEquals(0, result); // 戻り値が0であること

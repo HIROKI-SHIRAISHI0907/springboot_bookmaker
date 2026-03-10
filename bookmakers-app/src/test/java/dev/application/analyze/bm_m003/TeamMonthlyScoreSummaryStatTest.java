@@ -31,7 +31,9 @@ public class TeamMonthlyScoreSummaryStatTest {
 		// Act
 		String csvNumber = "1";
 		String csvNumberAfter = "5";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvNumberAfter);
+		Map<String, Map<String, List<BookDataEntity>>> entities =
+                getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.teamMonthlyScoreSummaryStat.calcStat(entities);
 	}

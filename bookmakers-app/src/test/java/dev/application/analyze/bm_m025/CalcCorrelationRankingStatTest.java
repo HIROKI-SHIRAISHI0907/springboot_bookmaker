@@ -34,7 +34,8 @@ public class CalcCorrelationRankingStatTest {
 		// Act
 		String csvNumber = "915";
 		String csvNumberAfter = "916";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvNumberAfter);
+		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.calcCorrelationRankingStat.calcStat(entities);
 	}

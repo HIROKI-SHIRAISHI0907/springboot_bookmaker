@@ -35,7 +35,9 @@ public class AnalyzeRankingStatTest {
 		// Act
 		String csvNumber = "174";
 		String csvBackNumber = "175";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvBackNumber);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvBackNumber);
+		Map<String, Map<String, List<BookDataEntity>>> entities =
+                getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		// Act
 		this.analyzeRankingStat.calcStat(entities);

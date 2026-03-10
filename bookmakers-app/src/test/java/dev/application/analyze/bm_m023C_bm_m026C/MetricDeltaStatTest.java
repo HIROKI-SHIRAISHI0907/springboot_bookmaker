@@ -35,7 +35,8 @@ public class MetricDeltaStatTest {
 		// Act
 		String csvNumber = "0";
 		String csvNumberAfter = "7";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvNumberAfter);
+		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.metricDeltaStat.calcStat(entities);
 	}

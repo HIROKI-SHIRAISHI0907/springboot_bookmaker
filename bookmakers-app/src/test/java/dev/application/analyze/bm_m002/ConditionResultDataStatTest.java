@@ -31,7 +31,9 @@ class ConditionResultDataStatTest {
 		// Act
 		String csvNumber = "4050";
 		String csvNumberAfter = "4060";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvNumberAfter);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvNumberAfter);
+		Map<String, Map<String, List<BookDataEntity>>> entities =
+                getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.conditionResultDataStat.calcStat(entities);
 	}

@@ -31,10 +31,11 @@ class EachScoreBasedFeatureStatTest {
 	 * メモリ効率試験
 	 */
 	@Test
-	void test_calcStat_shouldUpdateCorrectly() {
+	void test_calcStat_shouldUpdateCorrectly() throws Exception {
 		// Act
 		String csvNumber = "3999";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, null);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, null);
+		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.eachTeamScoreBasedFeatureStat.calcStat(entities);
 	}
@@ -43,10 +44,11 @@ class EachScoreBasedFeatureStatTest {
 	 * XX% (XX/XX)の形式を持つデータのマップ
 	 */
 	@Test
-	void test_calcStat_shouldInitData() {
+	void test_calcStat_shouldInitData() throws Exception {
 		String csvNumber = "174";
 		String csvBackNumber = "175";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvBackNumber);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvBackNumber);
+		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.eachTeamScoreBasedFeatureStat.calcStat(entities);
 	}
@@ -55,11 +57,12 @@ class EachScoreBasedFeatureStatTest {
 	 * XX% (XX/XX)の形式を持つデータのマップかつ同一国,リーグデータ
 	 */
 	@Test
-	void test_calcStat_shouldInitUpdateData1() {
+	void test_calcStat_shouldInitUpdateData1() throws Exception {
 		// ビジャレアルvsバレンシア
 		String csvNumber = "174";
 		String csvBackNumber = "175";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvBackNumber);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvBackNumber);
+		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.eachTeamScoreBasedFeatureStat.calcStat(entities);
 	}
@@ -68,24 +71,27 @@ class EachScoreBasedFeatureStatTest {
 	 * XX% (XX/XX)の形式を持つデータのマップかつ同一国,リーグデータ
 	 */
 	@Test
-	void test_calcStat_shouldInitUpdateData2() {
+	void test_calcStat_shouldInitUpdateData2() throws Exception {
 		// レアル・マドリードvsバレンシア
 		String csvNumber = "477";
 		String csvBackNumber = "478";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvBackNumber);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvBackNumber);
+		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.eachTeamScoreBasedFeatureStat.calcStat(entities);
 	}
 
 	/**
 	 * XX% (XX/XX)の形式を持つデータのマップかつ同一国,リーグデータ
+	 * @throws Exception
 	 */
 	@Test
-	void test_calcStat_shouldInitUpdateData3() {
+	void test_calcStat_shouldInitUpdateData3() throws Exception {
 		// バレンシアvsアトレティコ・マドリード
 		String csvNumber = "596";
 		String csvBackNumber = "597";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvBackNumber);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvBackNumber);
+		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.eachTeamScoreBasedFeatureStat.calcStat(entities);
 	}
@@ -94,11 +100,12 @@ class EachScoreBasedFeatureStatTest {
 	 * XX% (XX/XX)の形式を持つデータのマップかつ同一国,リーグデータ
 	 */
 	@Test
-	void test_calcStat_shouldInitUpdateData4() {
+	void test_calcStat_shouldInitUpdateData4() throws Exception {
 		// バレンシアvsアトレティコ・マドリード
 		String csvNumber = "0";
 		String csvBackNumber = "450";
-		Map<String, Map<String, List<BookDataEntity>>> entities = this.getStatInfo.getData(csvNumber, csvBackNumber);
+		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvBackNumber);
+		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		this.eachTeamScoreBasedFeatureStat.calcStat(entities);
 	}
