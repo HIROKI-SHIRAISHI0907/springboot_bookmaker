@@ -156,8 +156,8 @@ public class ReadStat {
                 e.setAwayBoxTouch(parts[51]);
                 e.setHomePassCount(parts[52]);
                 e.setAwayPassCount(parts[53]);
-                e.setHomePassCount(parts[54]);
-                e.setAwayPassCount(parts[55]);
+                e.setHomeLongPassCount(parts[54]);
+                e.setAwayLongPassCount(parts[55]);
                 e.setHomeFinalThirdPassCount(parts[56]);
                 e.setAwayFinalThirdPassCount(parts[57]);
                 e.setHomeCrossCount(parts[58]);
