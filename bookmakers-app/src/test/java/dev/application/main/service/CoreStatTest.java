@@ -54,8 +54,8 @@ class CoreStatTest {
 	@Test
 	void execute_test() throws Exception {
 		// シーケンスデータから取得(最大値情報取得)
-		String csvNumber = "4101";
-		String csvBackNumber = "4109";
+		String csvNumber = "4102";
+		String csvBackNumber = "4107";
 
 		// 直近のCSVデータ情報を取得
 		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvBackNumber);
