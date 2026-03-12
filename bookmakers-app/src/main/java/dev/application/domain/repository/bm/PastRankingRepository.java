@@ -32,7 +32,7 @@ public interface PastRankingRepository {
 			    #{win},
 			    #{lose},
 			    #{draw},
-			    #{winning_points},
+			    #{winningPoints},
 			    'ADMIN',
 			    CURRENT_TIMESTAMP,
 			    'ADMIN',
@@ -40,5 +40,4 @@ public interface PastRankingRepository {
 			)
 			""")
 	int insert(PastRankingEntity entity);
-
 }

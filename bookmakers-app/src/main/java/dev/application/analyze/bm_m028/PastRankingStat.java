@@ -108,7 +108,7 @@ public class PastRankingStat {
 		stringBuilder.append("国: " + country + ", ");
 		stringBuilder.append("リーグ: " + league + ", ");
 		stringBuilder.append("シーズン: " + seasonYear + ", ");
-		stringBuilder.append("チーム: " + team);
+		stringBuilder.append("チーム: " + team + ", ");
 		stringBuilder.append("節: " + match);
 		return stringBuilder.toString();
 	}
