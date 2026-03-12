@@ -1,8 +1,14 @@
 package dev.application.analyze.bm_m028;
 
+import lombok.AllArgsConstructor;
+import lombok.Builder;
 import lombok.Data;
+import lombok.NoArgsConstructor;
 
 @Data
+@Builder
+@NoArgsConstructor
+@AllArgsConstructor
 public class PastRankingQueryParam {
 
     /** 国 */
