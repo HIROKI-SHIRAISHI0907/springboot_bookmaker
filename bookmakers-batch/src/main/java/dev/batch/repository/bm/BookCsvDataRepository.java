@@ -73,7 +73,7 @@ public interface BookCsvDataRepository {
 	@Select("""
 			<script>
 			SELECT DISTINCT
-			  seq                              AS seq,
+			  seq                               AS seq,
 			  condition_result_data_seq_id      AS conditionResultDataSeqId,
 			  data_category                     AS dataCategory,
 			  times                             AS times,
@@ -174,11 +174,11 @@ public interface BookCsvDataRepository {
 			  home_team_style                   AS homeTeamStyle,
 			  away_team_style                   AS awayTeamStyle,
 			  probablity                        AS probablity,
-			  prediction_score_time             AS predictionScoreTime
+			  prediction_score_time             AS predictionScoreTime,
 			  game_id                           AS gameId,
 			  match_id                          AS matchId,
 			  time_sort_seconds                 AS timeSortSeconds,
-			  add_manual_flg                    AS addManualFlg,
+			  add_manual_flg                    AS addManualFlg
 			FROM data
 			<where>
 			  <choose>
