@@ -84,31 +84,34 @@ public class StandingsAPIService {
 	    List<TeamStandingsRowDTO> trend = pastRankingRepository.findTrendAllTeams(country, league, seasonYear);
 	    if (trend == null || trend.isEmpty()) return null;
 
-	    // 3) latestMatch は trend から算出（DBに別クエリ不要）
+	 // 3) latestMatch は “リーグ全体の最大節” としてtrendから算出（グラフ横軸の上限）
 	    Integer latestMatch = trend.stream()
-	            .map(TeamStandingsRowDTO::getMatch)
-	            .filter(java.util.Objects::nonNull)
-	            .max(Integer::compareTo)
-	            .orElse(null);
-	    if (latestMatch == null) return null;
+	        .map(TeamStandingsRowDTO::getMatch)
+	        .filter(java.util.Objects::nonNull)
+	        .max(Integer::compareTo)
+	        .orElse(0);
 
-	    // 4) 最新節の順位表（表示用）を trend から抽出して、太字用フラグ付与
-	    List<TeamStandingsRowViewDTO> standings = trend.stream()
-	    	    .filter(r -> latestMatch.equals(r.getMatch()))
-	    	    .sorted(Comparator.comparing(TeamStandingsRowDTO::getRank,
-	    	    	    Comparator.nullsLast(Integer::compareTo)))
-	    	    .map((TeamStandingsRowDTO r) -> {
-	    	        TeamStandingsRowViewDTO dto = new TeamStandingsRowViewDTO();
-	    	        dto.setRank(r.getRank());
-	    	        dto.setTeam(r.getTeam());
-	    	        dto.setWin(r.getWin());
-	    	        dto.setLose(r.getLose());
-	    	        dto.setDraw(r.getDraw());
-	    	        dto.setWinningPoints(r.getWinningPoints());
-	    	        dto.setCurrentTeam(normalizeTeamName(r.getTeam()).equals(currentTeamName));
-	    	        return dto;
-	    	    })
-	    	    .collect(Collectors.toList());
+	    // 4) standings は “各チーム最新スナップショット” で作る（matchがチームごとに混在してOK）
+	    List<TeamStandingsRowDTO> latestRows =
+	        pastRankingRepository.findLatestSnapshotAllTeams(country, league, seasonYear);
+
+	    List<TeamStandingsRowViewDTO> standings = latestRows.stream()
+	        .sorted(Comparator.comparing(TeamStandingsRowDTO::getRank,
+	                Comparator.nullsLast(Integer::compareTo)))
+	        .map(r -> {
+	            TeamStandingsRowViewDTO dto = new TeamStandingsRowViewDTO();
+	            dto.setRank(r.getRank());
+	            dto.setMatch(r.getMatch()); // ← チームごとに 2/3/5 が混在する
+	            dto.setTeam(r.getTeam());
+	            dto.setWin(r.getWin());
+	            dto.setLose(r.getLose());
+	            dto.setDraw(r.getDraw());
+	            dto.setWinningPoints(r.getWinningPoints());
+	            dto.setCurrentTeam(normalizeTeamName(r.getTeam()).equals(currentTeamName));
+	            return dto;
+	        })
+	        .collect(Collectors.toList());
+
 	    return new TeamsStandingsResponse(seasonYear, latestMatch, standings, trend);
 	}
 

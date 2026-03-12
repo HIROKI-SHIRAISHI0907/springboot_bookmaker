@@ -13,7 +13,6 @@ public class TeamStandingsRowDTO {
 	private Integer win;
 	private Integer lose;
 	private Integer draw;
-	private Integer drawInteger;
 	private Integer winningPoints;
 	private boolean currentTeam;      // 太字用
 }

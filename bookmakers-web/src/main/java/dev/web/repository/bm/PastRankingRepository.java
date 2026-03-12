@@ -70,6 +70,64 @@ public class PastRankingRepository {
         });
     }
 
+    public List<TeamStandingsRowDTO> findLatestSnapshotAllTeams(String country, String league, String seasonYear) {
+
+        String sql = """
+            WITH latest AS (
+              SELECT DISTINCT ON (team)
+                country,
+                league,
+                season_year,
+                "match",
+                team,
+                win,
+                lose,
+                draw,
+                winning_points
+              FROM past_ranking
+              WHERE country = :country
+                AND league  = :league
+                AND season_year = :seasonYear
+              ORDER BY team, "match" DESC
+            )
+            SELECT
+              country,
+              league,
+              season_year AS season_year,
+              "match"     AS match,
+              row_number() OVER (
+                ORDER BY winning_points DESC, win DESC, draw DESC, team ASC
+              ) AS rank,
+              team,
+              win,
+              lose,
+              draw,
+              winning_points AS winning_points
+            FROM latest
+            ORDER BY rank ASC
+        """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+            .addValue("country", country == null ? null : country.trim())
+            .addValue("league", league == null ? null : league.trim())
+            .addValue("seasonYear", seasonYear == null ? null : seasonYear.trim());
+
+        return jdbcTemplate.query(sql, params, (rs, n) -> {
+            TeamStandingsRowDTO dto = new TeamStandingsRowDTO();
+            dto.setCountry(rs.getString("country"));
+            dto.setLeague(rs.getString("league"));
+            dto.setSeasonYear(rs.getString("season_year"));
+            dto.setMatch(getNullableInt(rs, "match"));           // ★ここに入る match はチームごとに違う
+            dto.setRank(getNullableInt(rs, "rank"));
+            dto.setTeam(rs.getString("team"));
+            dto.setWin(getNullableInt(rs, "win"));
+            dto.setLose(getNullableInt(rs, "lose"));
+            dto.setDraw(getNullableInt(rs, "draw"));
+            dto.setWinningPoints(getNullableInt(rs, "winning_points"));
+            return dto;
+        });
+    }
+
     private static Integer getNullableInt(java.sql.ResultSet rs, String col) throws java.sql.SQLException {
         int v = rs.getInt(col);
         return rs.wasNull() ? null : v;
