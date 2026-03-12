@@ -92,7 +92,7 @@ public class StandingsAPIService {
 	            .orElse(null);
 	    if (latestMatch == null) return null;
 
-	    // 4) 最新節の順位表（表表示用）を trend から抽出して、太字用フラグ付与
+	    // 4) 最新節の順位表（表示用）を trend から抽出して、太字用フラグ付与
 	    List<TeamStandingsRowViewDTO> standings = trend.stream()
 	    	    .filter(r -> latestMatch.equals(r.getMatch()))
 	    	    .sorted(Comparator.comparing(TeamStandingsRowDTO::getRank,
@@ -109,7 +109,6 @@ public class StandingsAPIService {
 	    	        return dto;
 	    	    })
 	    	    .collect(Collectors.toList());
-
 	    return new TeamsStandingsResponse(seasonYear, latestMatch, standings, trend);
 	}
 

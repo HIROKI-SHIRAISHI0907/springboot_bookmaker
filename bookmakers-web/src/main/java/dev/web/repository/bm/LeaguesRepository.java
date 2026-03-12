@@ -169,7 +169,7 @@ public class LeaguesRepository {
 		String sql = """
 				SELECT id, country, league, team, link
 				FROM country_league_master
-				WHERE link = :link
+				WHERE link = :link AND del_flg = '0'
 				LIMIT 1
 				""";
 

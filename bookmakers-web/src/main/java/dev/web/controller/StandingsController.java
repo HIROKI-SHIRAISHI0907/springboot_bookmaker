@@ -11,7 +11,7 @@ import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
 import dev.web.api.bm_w006.StandingsAPIService;
-import dev.web.api.bm_w009.PlayersResponse;
+import dev.web.api.bm_w006.TeamsStandingsResponse;
 
 /**
  * リーグ順位表API コントローラー.
@@ -59,13 +59,13 @@ public class StandingsController {
      * GET /api/standings/{teamEnglish}/{teamHash}/front/border
      */
     @GetMapping("/{teamEnglish}/{teamHash}/front/border")
-    public PlayersResponse getPlayers(
+    public TeamsStandingsResponse getPlayers(
             @PathVariable String teamEnglish,
             @PathVariable String teamHash) {
 
         // Spring 側で decodeURIComponent 相当はやってくれるので、
         // フロント側と同じ encodeURIComponent で OK
-    	PlayersResponse res = standingsService.getStandingsBorder(teamEnglish, teamHash);
+    	TeamsStandingsResponse res = standingsService.getStandingsBorder(teamEnglish, teamHash);
     	if (res == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "standings not found");
         }
