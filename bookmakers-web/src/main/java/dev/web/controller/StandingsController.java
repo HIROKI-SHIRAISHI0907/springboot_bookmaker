@@ -1,14 +1,17 @@
 // src/main/java/dev/web/controller/StandingsController.java
 package dev.web.controller;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
+import org.springframework.web.server.ResponseStatusException;
 
 import dev.web.api.bm_w006.StandingsAPIService;
+import dev.web.api.bm_w009.PlayersResponse;
 
 /**
  * リーグ順位表API コントローラー.
@@ -50,6 +53,23 @@ public class StandingsController {
 
         var body = standingsService.getStandings(country, league);
         return ResponseEntity.ok(body);
+    }
+
+    /**
+     * GET /api/standings/{teamEnglish}/{teamHash}/front/border
+     */
+    @GetMapping("/{teamEnglish}/{teamHash}/front/border")
+    public PlayersResponse getPlayers(
+            @PathVariable String teamEnglish,
+            @PathVariable String teamHash) {
+
+        // Spring 側で decodeURIComponent 相当はやってくれるので、
+        // フロント側と同じ encodeURIComponent で OK
+    	PlayersResponse res = standingsService.getStandingsBorder(teamEnglish, teamHash);
+    	if (res == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "standings not found");
+        }
+        return res;
     }
 
     // ---------- private helpers ----------
