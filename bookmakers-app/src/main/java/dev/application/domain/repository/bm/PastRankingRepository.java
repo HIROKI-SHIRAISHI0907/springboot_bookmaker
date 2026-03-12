@@ -18,7 +18,7 @@ public interface PastRankingRepository {
 			    win,
 			    lose,
 			    draw,
-			    winningPoints,
+			    winning_points,
 			    register_id,
 			    register_time,
 			    update_id,
