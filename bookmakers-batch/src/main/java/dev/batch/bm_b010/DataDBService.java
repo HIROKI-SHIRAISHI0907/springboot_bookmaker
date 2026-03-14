@@ -52,7 +52,7 @@ public class DataDBService {
 	public void insertInBatchOrThrow(DataEntity insertEntities) throws Exception {
 		final String METHOD_NAME = "insertInBatchOrThrow";
 
-		if (insertEntities != null)
+		if (insertEntities == null)
 			return;
 
 		try {
