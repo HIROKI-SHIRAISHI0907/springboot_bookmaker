@@ -126,6 +126,7 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, null,
 					"items.isEmpty()");
+			throw new Exception(ERROR_CODE);
 		}
 
 		// ObjectをダウンロードしEntityにマッピング

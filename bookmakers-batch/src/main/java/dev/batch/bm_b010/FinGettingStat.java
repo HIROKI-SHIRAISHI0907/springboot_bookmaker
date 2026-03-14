@@ -11,7 +11,6 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.batch.bm_b005.FutureDBService;
 import dev.batch.interf.FinGettingEntityIF;
 import dev.common.config.PathConfig;
-import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.DataEntity;
 import dev.common.entity.FutureEntity;
 import dev.common.logger.ManageLoggerComponent;
@@ -66,8 +65,7 @@ public class FinGettingStat implements FinGettingEntityIF {
 				insertPath.add(filePath);
 				if (ent.getTimes() == null || ent.getTimes().isEmpty())
 					continue;
-
-				ent.setTimes(BookMakersCommonConst.FIN);
+				// 手動フラグを設定
 				ent.setAddManualFlg("1");
 
 				DataEntity insertEntities = dataDBService.selectInBatch(ent);
