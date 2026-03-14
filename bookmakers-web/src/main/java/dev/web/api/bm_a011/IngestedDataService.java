@@ -145,7 +145,7 @@ public class IngestedDataService {
                 r.setHasFinishedTimes(false);
             } else {
                 List<String> times = timesByKey.getOrDefault(k, List.of());
-                boolean hasFinished = times.stream().anyMatch(t -> BookMakersCommonConst.FIN.equals(t));
+                boolean hasFinished = times.stream().anyMatch(IngestedDataService::isFinishedLikeTimes);
                 r.setTimesList(times);
                 r.setHasFinishedTimes(hasFinished);
                 r.setFutureExists(linkByKey.containsKey(k));
@@ -299,10 +299,18 @@ public class IngestedDataService {
 
     /** 終了済のgame_linkがあれば、それを代表にしたい */
     private static int priorityForTimes(String times) {
+        return isFinishedLikeTimes(times) ? 2 : 1;
+    }
+
+    private static boolean isFinishedLikeTimes(String times) {
         String t = trimToNull(times);
-        if (t == null) return 0;
-        if (BookMakersCommonConst.FIN.equals(t)) return 2;
-        return 1;
+        if (t == null) return false;
+
+        // 余計な空白を吸収（例: "ペナルティ 勝ち" のような表記揺れ対策）
+        String norm = t.replaceAll("\\s+", "");
+
+        return BookMakersCommonConst.FIN.equals(t)
+            || norm.contains("ペナルティ");
     }
 
     /** data_category はラウンド付きがあればそれを代表にする */

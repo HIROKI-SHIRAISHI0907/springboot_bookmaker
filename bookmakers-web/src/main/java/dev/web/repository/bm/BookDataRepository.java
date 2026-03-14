@@ -1204,13 +1204,14 @@ public class BookDataRepository {
 				      match_key,
 				      times,
 				      CASE
-				        WHEN times = '終了済' THEN 99999999
-				        WHEN times ~ '^[0-9]{1,3}:[0-9]{1,2}$'
-				          THEN (split_part(times, ':', 1)::int * 60 + split_part(times, ':', 2)::int)
-				        WHEN times ~ '^[0-9]{1,3}''$'
-				          THEN (replace(times, '''', '')::int * 60)
-				        ELSE 99999998
-				      END AS sort_key
+						WHEN times = '終了済'
+						OR times LIKE '%ペナルティ%' THEN 99999999
+						WHEN times ~ '^[0-9]{1,3}:[0-9]{1,2}$'
+						THEN (split_part(times, ':', 1)::int * 60 + split_part(times, ':', 2)::int)
+						WHEN times ~ '^[0-9]{1,3}''$'
+						THEN (replace(times, '''', '')::int * 60)
+						ELSE 99999998
+					  END AS sort_key
 				    FROM base
 				    WHERE match_key IS NOT NULL
 				      AND BTRIM(match_key) <> ''
