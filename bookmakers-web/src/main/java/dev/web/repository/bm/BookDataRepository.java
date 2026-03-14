@@ -585,7 +585,7 @@ public class BookDataRepository {
 	private static DataEntity mapDataEntity(java.sql.ResultSet rs) throws java.sql.SQLException {
 		DataEntity e = new DataEntity();
 
-		e.setSeq(rs.getString("seq"));
+		e.setSeq(Long.parseLong(rs.getString("seq")));
 		e.setConditionResultDataSeqId(rs.getString("condition_result_data_seq_id"));
 		e.setDataCategory(rs.getString("data_category"));
 		e.setTimes(rs.getString("times"));

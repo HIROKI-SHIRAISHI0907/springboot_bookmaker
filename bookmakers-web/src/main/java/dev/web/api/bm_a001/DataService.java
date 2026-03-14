@@ -118,7 +118,8 @@ public class DataService {
         DataEntity e = new DataEntity();
 
         e.setFile(r.getFile());
-        e.setSeq(r.getSeq());
+        e.setSeq(Long.parseLong(
+        		r.getSeq()));
         e.setConditionResultDataSeqId(r.getConditionResultDataSeqId());
         e.setDataCategory(r.getDataCategory());
         e.setTimes(r.getTimes());
