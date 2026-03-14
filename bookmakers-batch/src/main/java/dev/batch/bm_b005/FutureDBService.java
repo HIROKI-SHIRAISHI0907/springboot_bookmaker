@@ -70,6 +70,9 @@ public class FutureDBService {
 					if (result != 1) {
 						throw new Exception("master insert failed. result=" + result);
 					}
+					String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "登録件数: " + result + "件");
 				} catch (DuplicateKeyException e) {
 					// 重複は成功扱い（現状踏襲）
 					manageLoggerComponent.debugWarnLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,

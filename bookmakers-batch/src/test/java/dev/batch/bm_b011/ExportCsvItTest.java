@@ -95,7 +95,7 @@ class ExportCsvItTest {
 			List<Integer> ids = (List<Integer>) inv.getArgument(0);
 
 			DataEntity e = new DataEntity();
-			e.setSeq(String.valueOf(ids.get(0)));
+			e.setSeq(Long.parseLong(String.valueOf(ids.get(0))));
 			e.setDataCategory("ラウンド1");
 			e.setHomeTeamName("HOME");
 			e.setAwayTeamName("AWAY");
@@ -204,7 +204,7 @@ class ExportCsvItTest {
 	        @SuppressWarnings("unchecked")
 	        List<Integer> ids = (List<Integer>) inv.getArgument(0);
 	        DataEntity e = new DataEntity();
-	        e.setSeq(String.valueOf(ids.get(0)));
+	        e.setSeq(Long.parseLong(String.valueOf(ids.get(0))));
 	        e.setDataCategory("ラウンド1");
 	        e.setHomeTeamName("HOME");
 	        e.setAwayTeamName("AWAY");
