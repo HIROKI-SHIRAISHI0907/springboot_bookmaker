@@ -61,6 +61,7 @@ public interface BookCsvDataRepository {
 				        AND y.away_team_name = d.away_team_name
 				        AND (
 				          y.times IN ('終了済', '第二ハーフ')
+				          OR REPLACE(BTRIM(y.times), ' ', '') LIKE '%ペナルティ%'
 				        )
 				    )
 				  GROUP BY
