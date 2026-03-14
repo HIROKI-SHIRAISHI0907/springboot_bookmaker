@@ -170,7 +170,7 @@ public class ReadOrigin implements ReadFileBodyIF {
 				mappingDto.setPredictionScoreTime(parts[99]);
 				// ★末尾3列： 試合ID,通番,ソート用秒
 				mappingDto.setMatchId(normalizeMatchId(parts[100].trim())); // 試合ID → matchId
-				mappingDto.setSeq(parts[101].trim());                       // 通番 → seq
+				mappingDto.setSeq(Long.parseLong(parts[101].trim()));                       // 通番 → seq
 				try {
 				    mappingDto.setTimeSortSeconds(Integer.parseInt(parts[102].trim()));
 				} catch (Exception e) {
