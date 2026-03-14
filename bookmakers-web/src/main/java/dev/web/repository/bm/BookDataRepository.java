@@ -796,40 +796,40 @@ public class BookDataRepository {
 
 	// ========= data =========
 	public List<DataIngestRow> findDataByRegisterTime(String country) {
-	    String sql = """
-	        SELECT
-	          seq,
-	          data_category,
-	          times,
-	          record_time,
-	          match_id,
-	          game_id,
-	          game_link,
-	          home_team_name,
-	          away_team_name
-	        FROM data
-	        WHERE data_category LIKE :countryLike
-	    """;
+		String sql = """
+				    SELECT
+				      seq,
+				      data_category,
+				      times,
+				      record_time,
+				      match_id,
+				      game_id,
+				      game_link,
+				      home_team_name,
+				      away_team_name
+				    FROM data
+				    WHERE data_category LIKE :countryLike
+				""";
 
-	    String countryLike = (country == null || country.isBlank()) ? null : country + ":%";
+		String countryLike = (country == null || country.isBlank()) ? null : country + ":%";
 
-	    MapSqlParameterSource params = new MapSqlParameterSource()
-	        .addValue("countryLike", countryLike);
+		MapSqlParameterSource params = new MapSqlParameterSource()
+				.addValue("countryLike", countryLike);
 
-	    return bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
-	        DataIngestRow r = new DataIngestRow();
-	        r.seq = rs.getString("seq");
-	        r.dataCategory = rs.getString("data_category");
-	        r.times = rs.getString("times");
-	        r.homeTeamName = rs.getString("home_team_name");
-	        r.awayTeamName = rs.getString("away_team_name");
-	        r.recordTime = rs.getString("record_time");
-	        r.matchId = rs.getString("match_id");
-	        r.gameId = rs.getString("game_id");
-	        r.gameLink = rs.getString("game_link");
+		return bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
+			DataIngestRow r = new DataIngestRow();
+			r.seq = rs.getString("seq");
+			r.dataCategory = rs.getString("data_category");
+			r.times = rs.getString("times");
+			r.homeTeamName = rs.getString("home_team_name");
+			r.awayTeamName = rs.getString("away_team_name");
+			r.recordTime = rs.getString("record_time");
+			r.matchId = rs.getString("match_id");
+			r.gameId = rs.getString("game_id");
+			r.gameLink = rs.getString("game_link");
 
-	        return r;
-	    });
+			return r;
+		});
 	}
 
 	public static class DataIngestRow {
@@ -1192,37 +1192,40 @@ public class BookDataRepository {
 			return Map.of();
 
 		String sql = """
-				  WITH base AS (
-					SELECT
-						NULLIF(BTRIM(d.match_id), '') AS match_key,
-						NULLIF(BTRIM(d.times), '')    AS times
-					FROM public.data d
-						WHERE NULLIF(BTRIM(d.match_id), '') IN (:keys)
-				  ),
-				  dedup AS (
-				    SELECT DISTINCT
-				      match_key,
-				      times,
-				      CASE
-						WHEN times = '終了済'
-						OR times LIKE '%ペナルティ%' THEN 99999999
-						WHEN times ~ '^[0-9]{1,3}:[0-9]{1,2}$'
-						THEN (split_part(times, ':', 1)::int * 60 + split_part(times, ':', 2)::int)
-						WHEN times ~ '^[0-9]{1,3}''$'
-						THEN (replace(times, '''', '')::int * 60)
-						ELSE 99999998
-					  END AS sort_key
-				    FROM base
-				    WHERE match_key IS NOT NULL
-				      AND BTRIM(match_key) <> ''
-				      AND times IS NOT NULL
-				      AND BTRIM(times) <> ''
-				  )
+				WITH base AS (
 				  SELECT
+				    COALESCE(
+				      NULLIF(BTRIM(d.match_id), ''),
+				      NULLIF((regexp_match(d.game_link, 'mid=([A-Za-z0-9]+)'))[1], ''),
+				      NULLIF(BTRIM(d.game_id), '')
+				    ) AS match_key,
+				    NULLIF(BTRIM(d.times), '') AS times
+				  FROM public.data d
+				  WHERE COALESCE(
+				      NULLIF(BTRIM(d.match_id), ''),
+				      NULLIF((regexp_match(d.game_link, 'mid=([A-Za-z0-9]+)'))[1], ''),
+				      NULLIF(BTRIM(d.game_id), '')
+				    ) IN (:keys)
+				),
+				dedup AS (
+				  SELECT DISTINCT
 				    match_key,
-				    array_agg(times ORDER BY sort_key, times) AS times_list
-				  FROM dedup
-				  GROUP BY match_key
+				    times,
+				    CASE
+				      WHEN times = '終了済' OR times LIKE '%ペナルティ%' THEN 99999999
+				      WHEN times ~ '^[0-9]{1,3}:[0-9]{1,2}$'
+				        THEN (split_part(times, ':', 1)::int * 60 + split_part(times, ':', 2)::int)
+				      WHEN times ~ '^[0-9]{1,3}''$'
+				        THEN (replace(times, '''', '')::int * 60)
+				      ELSE 99999998
+				    END AS sort_key
+				  FROM base
+				  WHERE match_key IS NOT NULL AND match_key <> ''
+				    AND times IS NOT NULL AND times <> ''
+				)
+				SELECT match_key, array_agg(times ORDER BY sort_key, times) AS times_list
+				FROM dedup
+				GROUP BY match_key;
 				""";
 
 		var params = new MapSqlParameterSource().addValue("keys", keys);
