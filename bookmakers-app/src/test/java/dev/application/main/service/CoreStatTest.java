@@ -14,14 +14,14 @@ import dev.common.entity.BookDataEntity;
 import dev.common.getinfo.GetStatInfo;
 
 @SpringBootTest(properties = {
-	    "MASTER_DB_URL=jdbc:postgresql://localhost:54320/soccer_bm_master",
-	    "MASTER_DB_USER=postgres",
-	    "MASTER_DB_PASS=sonic3717",
+		"MASTER_DB_URL=jdbc:postgresql://localhost:54320/soccer_bm_master",
+		"MASTER_DB_USER=postgres",
+		"MASTER_DB_PASS=sonic3717",
 
-	    "BM_DB_URL=jdbc:postgresql://localhost:54320/soccer_bm",
-	    "BM_DB_USER=postgres",
-	    "BM_DB_PASS=sonic3717",
-	})
+		"BM_DB_URL=jdbc:postgresql://localhost:54320/soccer_bm",
+		"BM_DB_USER=postgres",
+		"BM_DB_PASS=sonic3717",
+})
 @ActiveProfiles("prod")
 class CoreStatTest {
 
@@ -58,12 +58,32 @@ class CoreStatTest {
 		String csvBackNumber = "4107";
 
 		// 直近のCSVデータ情報を取得
-		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvBackNumber);
-		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
-		// Act
-		int result = statService.execute(entities);
+		List<String> keys = this.getStatInfo.listCsvKeysInRange(csvNumber, csvBackNumber);
 
-		// Assert
-		assertEquals(0, result); // 戻り値が0であること
+		int result = 0;
+		for (String key : keys) {
+			Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(key);
+
+			result = statService.execute(entities);
+			assertEquals(0, result);
+		}
+	}
+
+	@Test
+	void execute_test2() throws Exception {
+		// シーケンスデータから取得(最大値情報取得)
+		String csvNumber = "4700";
+		String csvBackNumber = "4705";
+
+		// 直近のCSVデータ情報を取得
+		List<String> keys = this.getStatInfo.listCsvKeysInRange(csvNumber, csvBackNumber);
+
+		int result = 0;
+		for (String key : keys) {
+			Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(key);
+
+			result = statService.execute(entities);
+			assertEquals(0, result);
+		}
 	}
 }

@@ -118,7 +118,7 @@ class RepositoryTest {
 	@Test
 	void test1() {
 		DataEntity entity = new DataEntity();
-		entity.setSeq("1");
+		entity.setSeq(Long.parseLong("1"));
 		entity.setDataCategory("Japan");
 
 		int saved = bookDataRepository.insert(entity);
