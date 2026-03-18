@@ -34,5 +34,10 @@ public class IngestedRowDTO {
     /** // timesListに「終了済」が含まれるか */
     private Boolean hasFinishedTimes;
 
+    /** registerTime */
+    private String registerTime;
+
+    /** updateTime */
+    private String updateTime;
 
 }

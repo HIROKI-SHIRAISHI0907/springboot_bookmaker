@@ -38,7 +38,7 @@ public class IngestedDataService {
 
         // ===== future_master =====
         if (req.isIncludeFutureMaster()) {
-            var futures = futuresRepository.findFutureMasterByRegisterTime(req.getCountry());
+            var futures = futuresRepository.findFutureMasterByRegisterTime(req.getCountry(), req.getKeyword());
             total += futures.size();
 
             for (var r : futures) {
@@ -66,7 +66,7 @@ public class IngestedDataService {
 
         // ===== data =====
         if (req.isIncludeData()) {
-            var dataRows = bookDataRepository.findDataByRegisterTime(req.getCountry());
+            var dataRows = bookDataRepository.findDataByRegisterTime(req.getCountry(), req.getKeyword());
             total += dataRows.size();
 
             for (var r : dataRows) {
@@ -120,12 +120,27 @@ public class IngestedDataService {
             }
         }
 
+        merged.sort((a, b) -> {
+            String at = (a.getUpdateTime() != null && !a.getUpdateTime().isBlank()) ? a.getUpdateTime() : a.getRegisterTime();
+            String bt = (b.getUpdateTime() != null && !b.getUpdateTime().isBlank()) ? b.getUpdateTime() : b.getRegisterTime();
+            long am = (at == null) ? 0L : java.time.OffsetDateTime.parse(at).toInstant().toEpochMilli();
+            long bm = (bt == null) ? 0L : java.time.OffsetDateTime.parse(bt).toInstant().toEpochMilli();
+            return Long.compare(bm, am); // desc
+        });
+
         // ===== enrich（merged作り終わった後、sort/paging前）=====
         List<String> keys = merged.stream()
                 .map(IngestedRowDTO::getMatchKey)
                 .filter(k -> k != null && !k.isBlank())
                 .distinct()
                 .collect(Collectors.toList());
+
+        // ★追加：要対応のみ（futureなし OR 終了済/ペナルティなし）
+        if (Boolean.TRUE.equals(req.getOnlyNeedsAttention())) {
+            merged = merged.stream()
+                .filter(r -> Boolean.FALSE.equals(r.getFutureExists()) || Boolean.FALSE.equals(r.getHasFinishedTimes()))
+                .collect(Collectors.toList());
+        }
 
         Map<String, List<String>> timesByKey = keys.isEmpty()
                 ? Map.of()
@@ -206,7 +221,7 @@ public class IngestedDataService {
 
         IngestedDataReferenceResponse res = new IngestedDataReferenceResponse();
         res.setRows(paged);
-        res.setTotal(total);
+        res.setTotal(merged.size());
         return res;
     }
 

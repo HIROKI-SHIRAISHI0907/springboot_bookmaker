@@ -795,26 +795,32 @@ public class BookDataRepository {
 	}
 
 	// ========= data =========
-	public List<DataIngestRow> findDataByRegisterTime(String country) {
+	public List<DataIngestRow> findDataByRegisterTime(String country, String keyword) {
 		String sql = """
 				    SELECT
-				      seq,
-				      data_category,
-				      times,
-				      record_time,
-				      match_id,
-				      game_id,
-				      game_link,
-				      home_team_name,
-				      away_team_name
-				    FROM data
-				    WHERE data_category LIKE :countryLike
+						seq, data_category, times, record_time, match_id, game_id, game_link,
+						home_team_name, away_team_name
+					FROM data
+					WHERE (:countryLike = '' OR data_category LIKE :countryLike)
+					AND (
+						:kw = ''
+						OR home_team_name ILIKE :kwLike
+						OR away_team_name ILIKE :kwLike
+						OR data_category   ILIKE :kwLike
+						OR game_link       ILIKE :kwLike
+						OR match_id        = :kw
+						OR game_id         = :kw
+					)
 				""";
 
-		String countryLike = (country == null || country.isBlank()) ? null : country + ":%";
+		String countryLike = (country == null || country.isBlank()) ? null : (country + ":%");
+	    String kw = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
+	    String kwLike = (kw == null) ? null : ("%" + kw + "%");
 
-		MapSqlParameterSource params = new MapSqlParameterSource()
-				.addValue("countryLike", countryLike);
+	    MapSqlParameterSource params = new MapSqlParameterSource()
+	            .addValue("countryLike", countryLike)
+	            .addValue("kwLike", kwLike)
+	            .addValue("kwExact", kw);
 
 		return bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
 			DataIngestRow r = new DataIngestRow();
@@ -827,6 +833,8 @@ public class BookDataRepository {
 			r.matchId = rs.getString("match_id");
 			r.gameId = rs.getString("game_id");
 			r.gameLink = rs.getString("game_link");
+			r.registerTime = rs.getString("register_time");
+			r.updateTime = rs.getString("update_time");
 
 			return r;
 		});
@@ -842,6 +850,8 @@ public class BookDataRepository {
 		public String gameId;
 		public String gameLink;
 		public String matchId;
+		public String registerTime;
+		public String updateTime;
 	}
 
 	public Optional<EachScoreLostDataResponseDTO> findEachScoreLoseMatchFinishedByRoundAndTeams(

@@ -231,24 +231,36 @@ public class FuturesRepository {
 	}
 
 	// ========= future_master =========
-	public List<FutureMasterIngestRow> findFutureMasterByRegisterTime(String country) {
-		String countryLike = country + ":%";
+	public List<FutureMasterIngestRow> findFutureMasterByRegisterTime(String country, String keyword) {
 		String sql = """
 				    SELECT
-				      seq,
-				      game_team_category,
-				      future_time,
-				      home_team_name,
-				      away_team_name,
-				      game_link,
-				      start_flg
-				    FROM future_master
-				    WHERE
-				    	game_team_category LIKE :countryLike
+						seq,
+						game_team_category,
+						future_time,
+						home_team_name,
+						away_team_name,
+						game_link,
+						start_flg
+					FROM future_master
+					WHERE (:countryLike = '' OR game_team_category LIKE :countryLike)
+					AND (
+						:kw = ''
+						OR home_team_name     ILIKE :kwLike
+						OR away_team_name     ILIKE :kwLike
+						OR game_team_category ILIKE :kwLike
+						OR game_link          ILIKE :kwLike
+					)
 				""";
 
-		 MapSqlParameterSource params = new MapSqlParameterSource()
-	                .addValue("countryLike", countryLike);
+		String countryLike = (country == null || country.isBlank()) ? null : (country + ":%");
+	    String kw = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
+	    String kwLike = (kw == null) ? null : ("%" + kw + "%");
+
+	    MapSqlParameterSource params = new MapSqlParameterSource()
+	        .addValue("countryLike", countryLike)
+	        .addValue("kw", kw)
+	        .addValue("kwLike", kwLike);
+
 
 		return masterJdbcTemplate.query(sql, params, (rs, rowNum) -> {
 			FutureMasterIngestRow r = new FutureMasterIngestRow();
