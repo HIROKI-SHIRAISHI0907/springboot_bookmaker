@@ -123,10 +123,10 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 		if (items.isEmpty()) {
 			/** エラーコード（運用ルールに合わせて変更） */
 			String ERROR_CODE = MessageCdConst.MCD00003E_EXECUTION_SKIP;
-			this.manageLoggerComponent.debugErrorLog(
+			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, null,
-					"items.isEmpty()");
-			throw new Exception(ERROR_CODE);
+					"items.isEmpty() マッチキーが取得できなかったため処理を終了します。");
+			return;
 		}
 
 		// ObjectをダウンロードしEntityにマッピング
