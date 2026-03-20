@@ -87,6 +87,10 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 	@Autowired
 	private FinGettingTruncate finGettingTruncate;
 
+	/** FutureStartFlgServiceロジック */
+	@Autowired
+	private FutureStartFlgService futureStartFlgService;
+
 	/** パスや外部実行設定（Python/S3等）を保持する設定クラス。 */
 	@Autowired
 	private PathConfig pathConfig;
@@ -146,6 +150,20 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 				CLASS_NAME,
 				METHOD_NAME,
 				"b008_fin_getting_data.json");
+
+		// 以降は処理に失敗しても次の処理のタイミングで更新がかけられるので問題ない
+		try {
+			futureStartFlgService.execute(map);
+		} catch (Exception e) {
+			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+			this.manageLoggerComponent.createSystemException(
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					messageCd,
+					null,
+					e);
+		}
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
