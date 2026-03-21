@@ -130,6 +130,8 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, null,
 					"items.isEmpty() マッチキーが取得できなかったため処理を終了します。");
+			// 念の為ここでもフラグ更新(対象マップは絞らない)
+			updateFlg(null);
 			return;
 		}
 
@@ -152,6 +154,21 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 				"b008_fin_getting_data.json");
 
 		// 以降は処理に失敗しても次の処理のタイミングで更新がかけられるので問題ない
+		updateFlg(map);
+
+		// endLog
+		this.manageLoggerComponent.debugEndInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		this.manageLoggerComponent.clear();
+	}
+
+	/**
+	 * フラグ更新
+	 * @param map
+	 */
+	private void updateFlg(Map<String, List<DataEntity>> map) {
+		final String METHOD_NAME = "updateFlg";
+
 		try {
 			futureStartFlgService.execute(map);
 		} catch (Exception e) {
@@ -164,11 +181,5 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 					null,
 					e);
 		}
-
-		// endLog
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		this.manageLoggerComponent.clear();
 	}
-
 }
