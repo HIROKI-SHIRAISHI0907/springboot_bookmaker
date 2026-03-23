@@ -796,46 +796,56 @@ public class BookDataRepository {
 
 	// ========= data =========
 	public List<DataIngestRow> findDataByRegisterTime(String country, String keyword) {
+
 		String sql = """
-				    SELECT
-						seq, data_category, times, record_time, match_id, game_id, game_link,
-						home_team_name, away_team_name
-					FROM data
-					WHERE (:countryLike = '' OR data_category LIKE :countryLike)
-					AND (
-						:kw = ''
-						OR home_team_name ILIKE :kwLike
-						OR away_team_name ILIKE :kwLike
-						OR data_category   ILIKE :kwLike
-						OR game_link       ILIKE :kwLike
-						OR match_id        = :kw
-						OR game_id         = :kw
-					)
+				SELECT
+				    seq,
+				    data_category,
+				    times,
+				    record_time,
+				    match_id,
+				    game_id,
+				    game_link,
+				    home_team_name,
+				    away_team_name
+				FROM data
+				WHERE (:countryLike = '' OR data_category LIKE :countryLike)
+				  AND (
+				        :kw = ''
+				     OR home_team_name ILIKE :kwLike
+				     OR away_team_name ILIKE :kwLike
+				     OR data_category   ILIKE :kwLike
+				     OR game_link       ILIKE :kwLike
+				     OR match_id        = :kwExact
+				     OR game_id         = :kwExact
+				  )
+				ORDER BY COALESCE(update_time, register_time, record_time) DESC, seq DESC
 				""";
 
-		String countryLike = (country == null || country.isBlank()) ? null : (country + ":%");
-	    String kw = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
-	    String kwLike = (kw == null) ? null : ("%" + kw + "%");
+		// ★ここが重要：null禁止。必ず空文字を渡す
+		String countryLike = (country == null || country.isBlank()) ? "" : (country.trim() + ":%");
+		String kw = (keyword == null || keyword.isBlank()) ? "" : keyword.trim();
+		String kwLike = "%" + kw + "%"; // kw="" なら "%%" になり、ILIKEの型問題も回避できる
+		String kwExact = kw; // kw="" なら一致しないのでOK
 
-	    MapSqlParameterSource params = new MapSqlParameterSource()
-	            .addValue("countryLike", countryLike)
-	            .addValue("kwLike", kwLike)
-	            .addValue("kwExact", kw);
+		MapSqlParameterSource params = new MapSqlParameterSource()
+				.addValue("countryLike", countryLike)
+				.addValue("kw", kw)
+				.addValue("kwLike", kwLike)
+				.addValue("kwExact", kwExact);
 
 		return bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
 			DataIngestRow r = new DataIngestRow();
 			r.seq = rs.getString("seq");
 			r.dataCategory = rs.getString("data_category");
 			r.times = rs.getString("times");
-			r.homeTeamName = rs.getString("home_team_name");
-			r.awayTeamName = rs.getString("away_team_name");
-			r.recordTime = rs.getString("record_time");
+			var rt = rs.getTimestamp("record_time");
+			r.recordTime = (rt == null) ? null : rt.toInstant().atOffset(java.time.ZoneOffset.UTC).toString();
 			r.matchId = rs.getString("match_id");
 			r.gameId = rs.getString("game_id");
 			r.gameLink = rs.getString("game_link");
-			r.registerTime = rs.getString("register_time");
-			r.updateTime = rs.getString("update_time");
-
+			r.homeTeamName = rs.getString("home_team_name");
+			r.awayTeamName = rs.getString("away_team_name");
 			return r;
 		});
 	}
@@ -855,75 +865,80 @@ public class BookDataRepository {
 	}
 
 	public Optional<EachScoreLostDataResponseDTO> findEachScoreLoseMatchFinishedByRoundAndTeams(
-			String country,
-			String league,
-			String homeTeamName,
-			String awayTeamName,
-			int roundNo) {
-		String likeCond = country + ": " + league + "%";
+            String country,
+            String league,
+            String homeTeamName,
+            String awayTeamName,
+            int roundNo) {
 
-		String sql = """
-				    SELECT DISTINCT ON (d.game_link)
-				      d.seq,
-				      d.data_category,
-				      d.home_team_name,
-				      d.away_team_name,
-				      d.home_score,
-				      d.away_score,
-				      NULLIF(TRIM(d.game_link), '') AS link,
-				      d.record_time,
-				      CASE
-				        WHEN regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
-				        ELSE CAST((regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
-				      END AS round_no
-				    FROM public.data d
-				    WHERE d.times = '終了済'
-				      AND d.data_category LIKE :likeCond
-				      AND d.home_team_name = :homeTeam
-				      AND d.away_team_name = :awayTeam
-				      AND (
-				        CASE
-				          WHEN regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
-				          ELSE CAST((regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
-				        END
-				      ) = :roundNo
-				      AND d.game_link IS NOT NULL
-				    ORDER BY d.game_link, d.record_time DESC
-				    LIMIT 1
-				""";
+        String likeCond = country + ": " + league + "%";
 
-		var params = new MapSqlParameterSource()
-				.addValue("likeCond", likeCond)
-				.addValue("homeTeam", homeTeamName)
-				.addValue("awayTeam", awayTeamName)
-				.addValue("roundNo", roundNo);
+        String sql = """
+            SELECT DISTINCT ON (d.game_link)
+              d.seq,
+              d.data_category,
+              d.home_team_name,
+              d.away_team_name,
+              d.home_score,
+              d.away_score,
+              NULLIF(TRIM(d.game_link), '') AS link,
+              d.record_time,
+              CASE
+                WHEN regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
+                ELSE CAST((regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
+              END AS round_no
+            FROM public.data d
+            WHERE
+              (
+                REPLACE(BTRIM(d.times), ' ', '') = '終了済'
+                OR REPLACE(BTRIM(d.times), ' ', '') LIKE '%ペナルティ%'
+              )
+              AND d.data_category LIKE :likeCond
+              AND d.home_team_name = :homeTeam
+              AND d.away_team_name = :awayTeam
+              AND (
+                CASE
+                  WHEN regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
+                  ELSE CAST((regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
+                END
+              ) = :roundNo
+              AND d.game_link IS NOT NULL
+            ORDER BY d.game_link, d.record_time DESC
+            LIMIT 1
+            """;
 
-		List<EachScoreLostDataResponseDTO> list = bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
-			var dto = new EachScoreLostDataResponseDTO();
-			dto.setSeq(rs.getLong("seq"));
-			dto.setDataCategory(rs.getString("data_category"));
+        var params = new MapSqlParameterSource()
+                .addValue("likeCond", likeCond)
+                .addValue("homeTeam", homeTeamName)
+                .addValue("awayTeam", awayTeamName)
+                .addValue("roundNo", roundNo);
 
-			String r = rs.getString("round_no");
-			dto.setRoundNo(rs.wasNull() ? null : r);
+        List<EachScoreLostDataResponseDTO> list = bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
+            var dto = new EachScoreLostDataResponseDTO();
+            dto.setSeq(rs.getLong("seq"));
+            dto.setDataCategory(rs.getString("data_category"));
 
-			Timestamp rt = rs.getTimestamp("record_time");
-			dto.setRecordTime(rt == null ? null : rt.toInstant().atOffset(ZoneOffset.UTC).toString());
+            int r = rs.getInt("round_no");
+            dto.setRoundNo(rs.wasNull() ? null : String.valueOf(r));
 
-			dto.setHomeTeamName(rs.getString("home_team_name"));
-			dto.setAwayTeamName(rs.getString("away_team_name"));
+            Timestamp rt = rs.getTimestamp("record_time");
+            dto.setRecordTime(rt == null ? null : rt.toInstant().atOffset(ZoneOffset.UTC).toString());
 
-			String hs = rs.getString("home_score");
-			String as = rs.getString("away_score");
-			dto.setHomeScore(hs == null || hs.isBlank() ? null : Integer.valueOf(hs.trim()));
-			dto.setAwayScore(as == null || as.isBlank() ? null : Integer.valueOf(as.trim()));
+            dto.setHomeTeamName(rs.getString("home_team_name"));
+            dto.setAwayTeamName(rs.getString("away_team_name"));
 
-			dto.setLink(rs.getString("link"));
-			dto.setStatus("FINISHED");
-			return dto;
-		});
+            String hs = rs.getString("home_score");
+            String as = rs.getString("away_score");
+            dto.setHomeScore(hs == null || hs.isBlank() ? null : Integer.valueOf(hs.trim()));
+            dto.setAwayScore(as == null || as.isBlank() ? null : Integer.valueOf(as.trim()));
 
-		return list.stream().findFirst();
-	}
+            dto.setLink(rs.getString("link"));
+            dto.setStatus("FINISHED");
+            return dto;
+        });
+
+        return list.stream().findFirst();
+    }
 
 	/** dataを全件 DataEntity で取得（重いので注意） */
 	public List<DataEntity> findAll() {

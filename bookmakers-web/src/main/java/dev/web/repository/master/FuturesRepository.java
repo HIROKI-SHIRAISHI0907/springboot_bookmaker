@@ -253,14 +253,13 @@ public class FuturesRepository {
 				""";
 
 		String countryLike = (country == null || country.isBlank()) ? null : (country + ":%");
-	    String kw = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
-	    String kwLike = (kw == null) ? null : ("%" + kw + "%");
+		String kw = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
+		String kwLike = (kw == null) ? null : ("%" + kw + "%");
 
-	    MapSqlParameterSource params = new MapSqlParameterSource()
-	        .addValue("countryLike", countryLike)
-	        .addValue("kw", kw)
-	        .addValue("kwLike", kwLike);
-
+		MapSqlParameterSource params = new MapSqlParameterSource()
+				.addValue("countryLike", countryLike)
+				.addValue("kw", kw)
+				.addValue("kwLike", kwLike);
 
 		return masterJdbcTemplate.query(sql, params, (rs, rowNum) -> {
 			FutureMasterIngestRow r = new FutureMasterIngestRow();
@@ -300,12 +299,19 @@ public class FuturesRepository {
 	// ========= 各得点失点存在確認用 =========
 	// FuturesRepository.java
 
+	/**
+	 * 各チームの試合候補（future_master）を返す
+	 * - 対象: start_flg=1, future_time not null, チーム一致
+	 * - リーグ: likeCond で絞る
+	 * - 重複: (home, away, round_no) で DISTINCT
+	 */
 	public List<DataEachScoreLostDataResponseDTO> findEachScoreLoseMatchesExistsList(
 			String country, String league, String teamJa) {
+
 		String likeCond = country + ": " + league + "%";
 
 		String sql = """
-				WITH base AS (
+			WITH base AS (
 				  SELECT
 				    f.seq,
 				    f.game_team_category AS data_category,
@@ -313,42 +319,49 @@ public class FuturesRepository {
 				    f.home_team_name     AS home_team_name,
 				    f.away_team_name     AS away_team_name,
 				    NULLIF(BTRIM(f.game_link), '') AS link,
+				    (regexp_match(f.game_link, 'mid=([A-Za-z0-9]+)'))[1] AS mid,
 				    CASE
-				      WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
-				      ELSE CAST((regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
-				    END AS round_no
+				      WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\s*([0-9]+)') IS NULL THEN NULL
+				      ELSE CAST((regexp_match(f.game_team_category, '(ラウンド|Round)\s*([0-9]+)'))[2] AS INT)
+				    END AS round_no,
+				    COALESCE(f.update_time, f.register_time, f.data_time, f.future_time) AS ut
 				  FROM future_master f
 				  WHERE f.start_flg = '1'
 				    AND f.future_time IS NOT NULL
 				    AND (f.home_team_name = :teamJa OR f.away_team_name = :teamJa)
+				    AND f.game_team_category LIKE :likeCond
+				    AND f.game_link IS NOT NULL
+				    AND f.game_link ~ 'mid='
+				),
+				picked AS (
+				  SELECT DISTINCT ON (mid)
+				    seq, data_category, record_time, home_team_name, away_team_name, link, mid, round_no
+				  FROM base
+				  WHERE mid IS NOT NULL AND mid <> ''
+				  ORDER BY mid, ut DESC, seq DESC
 				)
 				SELECT *
-				FROM base
-				ORDER BY record_time ASC, seq ASC
-				""";
+				FROM picked
+				ORDER BY round_no DESC;
+			""";
 
 		var params = new MapSqlParameterSource()
 				.addValue("teamJa", teamJa)
 				.addValue("likeCond", likeCond);
 
-		RowMapper<DataEachScoreLostDataResponseDTO> rm = (rs, rowNum) -> {
+		RowMapper<DataEachScoreLostDataResponseDTO> rm = (ResultSet rs, int rowNum) -> {
 			var dto = new DataEachScoreLostDataResponseDTO();
 			dto.setSeq(rs.getLong("seq"));
 			dto.setDataCategory(rs.getString("data_category"));
 
 			int roundNo = rs.getInt("round_no");
-			dto.setRoundNo(rs.wasNull() ? null : String.valueOf(roundNo)); // DTOがStringならこれ
-			// dto.setRoundNo(rs.wasNull() ? null : roundNo);              // DTOをInteger化できるならこっち推奨
+			dto.setRoundNo(rs.wasNull() ? null : String.valueOf(roundNo));
 
 			Timestamp rt = rs.getTimestamp("record_time");
 			dto.setRecordTime(rt == null ? null : rt.toInstant().atOffset(ZoneOffset.UTC).toString());
 
 			dto.setHomeTeamName(rs.getString("home_team_name"));
 			dto.setAwayTeamName(rs.getString("away_team_name"));
-
-			dto.setHomeScore(null);
-			dto.setAwayScore(null);
-
 			dto.setLink(rs.getString("link"));
 			return dto;
 		};

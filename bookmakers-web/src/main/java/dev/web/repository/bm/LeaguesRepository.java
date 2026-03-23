@@ -13,6 +13,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * LeaguesRepositoryクラス
@@ -20,6 +21,7 @@ import lombok.Data;
  *
  */
 @Repository
+@Slf4j
 public class LeaguesRepository {
 
 	private final NamedParameterJdbcTemplate masterJdbcTemplate;
@@ -180,6 +182,10 @@ public class LeaguesRepository {
 				sql,
 				params,
 				new BeanPropertyRowMapper<>(TeamRow.class));
+		if (list != null && !list.isEmpty()) {
+			log.info("teamInfoData: country: {}, league: {}, team: {} ",
+					list.get(0).getCountry(), list.get(0).getLeague(), list.get(0).getTeam());
+		}
 		return list.isEmpty() ? null : list.get(0);
 	}
 }
