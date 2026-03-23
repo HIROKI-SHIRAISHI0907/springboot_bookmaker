@@ -8,9 +8,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.domain.repository.master.FutureMasterRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
 import dev.common.entity.FutureEntity;
-import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
@@ -37,10 +37,6 @@ public class FutureStartFlgService {
 	 */
 	@Autowired
 	private FutureMasterRepository futureMasterRepository;
-
-	/** ログ管理ラッパー*/
-	@Autowired
-	private RootCauseWrapper rootCauseWrapper;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -102,8 +98,9 @@ public class FutureStartFlgService {
 
 	/**
 	 * 更新メソッド
+	 * @throws Exception
 	 */
-	private synchronized void startFlgUpdate(String home, String away, String flg) {
+	private synchronized void startFlgUpdate(String home, String away, String flg) throws Exception {
 		final String METHOD_NAME = "startFlgUpdate";
 		String fillChar = setLoggerFillChar(
 				home,
@@ -116,14 +113,16 @@ public class FutureStartFlgService {
 			int result = this.futureMasterRepository.updateStartFlg(
 					findList.get(0).getSeq(), flg);
 			if (result != 1) {
-				String messageCd = "更新エラー";
-				this.rootCauseWrapper.throwUnexpectedRowCount(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						messageCd,
-						1, result,
-						String.format("home=%s, away=%s", home, away));
+				String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME,
+						CLASS_NAME,
+						METHOD_NAME,
+						messageCd, null
+						);
+				throw new Exception();
 			}
-			String messageCd = "更新件数";
+			String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar, "更新件数: 1件");
 		}
@@ -139,17 +138,10 @@ public class FutureStartFlgService {
 			result = this.futureMasterRepository.updateFutureTimeFlg(
 					flg);
 		} catch (Exception e) {
-			String messageCd = "更新エラー";
-			this.manageLoggerComponent.createSystemException(
-					PROJECT_NAME,
-					CLASS_NAME,
-					METHOD_NAME,
-					messageCd,
-					null,
-					e);
+			throw e;
 		}
 
-		String messageCd = "更新件数";
+		String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "更新件数: " + result + "件");
 	}
