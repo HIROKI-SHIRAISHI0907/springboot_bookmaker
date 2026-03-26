@@ -13,7 +13,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
-import dev.web.repository.bm.EachStatsRepository;
+import dev.web.repository.bm.EachTeamScoreRepository;
 import dev.web.repository.bm.LeaguesRepository;
 import dev.web.repository.bm.LeaguesRepository.TeamRow;
 import lombok.RequiredArgsConstructor;
@@ -29,7 +29,7 @@ public class EachStatsAPIService {
 
 	private final LeaguesRepository leagueRepo;
 
-    private final EachStatsRepository repo;
+    private final EachTeamScoreRepository repo;
 
     public TeamStatsResponse getStats(String teamEnglish, String teamHash) {
 
