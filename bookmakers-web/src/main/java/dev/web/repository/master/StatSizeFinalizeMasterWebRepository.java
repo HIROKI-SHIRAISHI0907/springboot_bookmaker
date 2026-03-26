@@ -34,18 +34,14 @@ public class StatSizeFinalizeMasterWebRepository {
 				  option_num, options, valid_flg, register_id, register_time, update_id, update_time
 				) VALUES (
 				  :optionNum, :options, :validFlg,
-				  :registerId, :registerTime, :updateId, :updateTime
+				  'SYSTEM', NOW(), 'SYSTEM', NOW()
 				)
 				""";
 
 		Map<String, Object> params = new HashMap<>();
 		params.put("optionNum", entity.getOptionNum());
 		params.put("options", entity.getOptions());
-		params.put("valid_flg", entity.getValidFlg());
-		params.put("registerId", entity.getRegisterId());
-		params.put("registerTime", entity.getRegisterTime());
-		params.put("updateId", entity.getUpdateId());
-		params.put("updateTime", entity.getUpdateTime());
+		params.put("validFlg", entity.getValidFlg());
 
 		return masterJdbcTemplate.update(sql, params);
 	}
@@ -87,7 +83,7 @@ public class StatSizeFinalizeMasterWebRepository {
 		params.put("id", entity.getId());
 		params.put("optionNum", entity.getOptionNum());
 		params.put("options", entity.getOptions());
-		params.put("valid_flg", entity.getValidFlg());
+		params.put("validFlg", entity.getValidFlg());
 
 		return masterJdbcTemplate.update(sql, params);
 	}
