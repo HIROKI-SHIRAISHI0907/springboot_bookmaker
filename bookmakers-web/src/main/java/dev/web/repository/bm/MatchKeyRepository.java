@@ -1,6 +1,7 @@
 // src/main/java/dev/web/repository/GamesRepository.java
 package dev.web.repository.bm;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -48,6 +49,19 @@ public class MatchKeyRepository {
         } catch (org.springframework.dao.EmptyResultDataAccessException e) {
             return Optional.empty();
         }
+    }
+
+    /**
+     * match_key 一覧取得
+     */
+    public List<String> findAllMatchKeys() {
+        String sql = """
+            SELECT match_key
+            FROM match_key_save
+            """;
+
+        return bmJdbcTemplate.query(sql, new MapSqlParameterSource(),
+                (rs, rowNum) -> rs.getString("match_key"));
     }
 
     /** 新規登録（手動登録） */
