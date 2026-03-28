@@ -93,9 +93,9 @@ public interface AnalyzeManualRepository {
 			    #{homeTeamName},
 			    #{awayTeamName},
 			    #{matchId},
-			    #{registerId},
+			    'SYSTEM',
 			    CURRENT_TIMESTAMP,
-			    #{updateId},
+			    'SYSTEM',
 			    CURRENT_TIMESTAMP
 			)
 			""")
