@@ -163,7 +163,7 @@ ecs:
     B010: {}
     B011: {}
 
-    # B006,B008 は bookmakers-appを起動
+    # B006,B008,B012 は bookmakers-appを起動
     B006:
       cluster: ${ECS_B006_CLUSTER:stats-backend}
       taskDefinition: ${ECS_B006_TASK_DEF:bookmakers-app}
@@ -175,6 +175,12 @@ ecs:
       taskDefinition: ${ECS_B008_TASK_DEF:bookmakers-app}
       container: ${ECS_B008_CONTAINER:bookmakers-app}
       logGroup: ${ECS_B008_LOG_GROUP:/ecs/bookmakers-app}
+      
+    B012:
+      cluster: ${ECS_B012_CLUSTER:stats-backend}
+      taskDefinition: ${ECS_B012_TASK_DEF:bookmakers-app}
+      container: ${ECS_B012_CONTAINER:bookmakers-app}
+      logGroup: ${ECS_B012_LOG_GROUP:/ecs/bookmakers-app}
 
 s3-job:
   jobs:
