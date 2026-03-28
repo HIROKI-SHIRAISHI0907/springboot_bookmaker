@@ -88,6 +88,8 @@ public class AnalyzeManualStat {
 			return 0;
 		}
 
+		System.out.println(finList.get(0));
+
 		// 2) 終了済み or PENALTY含みを対象
 		List<DataEntity> finishedList = finList.stream()
 				.filter(this::isFinishedTarget)

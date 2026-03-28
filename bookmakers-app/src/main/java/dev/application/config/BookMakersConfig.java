@@ -8,6 +8,7 @@ import java.util.concurrent.TimeUnit;
 
 import javax.sql.DataSource;
 
+import org.apache.ibatis.session.Configuration;
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.mybatis.spring.SqlSessionTemplate;
@@ -18,7 +19,6 @@ import org.springframework.boot.autoconfigure.jdbc.DataSourceProperties;
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.ComponentScan;
-import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 
@@ -28,7 +28,7 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
  * - 2 DataSource（bm / master） + MyBatis / TxManager を明示構成
  * - BM_M024 相関登録用スレッドプールの提供（calcCorrelationExecutor）
  */
-@Configuration
+@org.springframework.context.annotation.Configuration
 @ComponentScan(basePackages = {
         "dev.application.constant",
         "dev.application.common",
@@ -53,10 +53,6 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
         )
 })
 public class BookMakersConfig {
-
-    // =========================================================
-    // Executor
-    // =========================================================
 
     @Bean(destroyMethod = "shutdown")
     @Qualifier("calcCorrelationExecutor")
@@ -94,13 +90,6 @@ public class BookMakersConfig {
         return exec;
     }
 
-    // =========================================================
-    // DataSourceProperties（bm / master）
-    // application-prod.yml:
-    // spring.datasource.bm.url / username / password / driver-class-name
-    // spring.datasource.master.url / username / password / driver-class-name
-    // =========================================================
-
     @Bean(name = "bmDataSourceProperties")
     @Primary
     @ConfigurationProperties(prefix = "spring.datasource.bm")
@@ -114,16 +103,11 @@ public class BookMakersConfig {
         return new DataSourceProperties();
     }
 
-    // =========================================================
-    // DataSource（bm / master）
-    // =========================================================
-
     @Bean(name = "bmDataSource")
     @Primary
     public DataSource bmDataSource(
             @Qualifier("bmDataSourceProperties") DataSourceProperties props
     ) {
-        // url/username/password/driver-class-name を確実に反映
         return props.initializeDataSourceBuilder().build();
     }
 
@@ -133,10 +117,6 @@ public class BookMakersConfig {
     ) {
         return props.initializeDataSourceBuilder().build();
     }
-
-    // =========================================================
-    // TransactionManager（bm / master）
-    // =========================================================
 
     @Bean(name = "bmTxManager")
     @Primary
@@ -153,14 +133,6 @@ public class BookMakersConfig {
         return new DataSourceTransactionManager(ds);
     }
 
-    // =========================================================
-    // MyBatis: SqlSessionFactory（bm / master）
-    // ※ mybatis.configuration(map-underscore-to-camel-case等)は
-    //   application.yml 側の MyBatisAutoConfiguration が拾ってくれる構成もありますが、
-    //   2 factory を自前で作る場合は必要に応じてここで setConfiguration してください。
-    //   （現状、Mapperは注釈SQL中心なので最低限でOK）
-    // =========================================================
-
     @Bean(name = "bmSqlSessionFactory")
     @Primary
     public SqlSessionFactory bmSqlSessionFactory(
@@ -168,6 +140,11 @@ public class BookMakersConfig {
     ) throws Exception {
         SqlSessionFactoryBean factory = new SqlSessionFactoryBean();
         factory.setDataSource(ds);
+
+        Configuration config = new Configuration();
+        config.setMapUnderscoreToCamelCase(true);
+        factory.setConfiguration(config);
+
         return factory.getObject();
     }
 
@@ -177,12 +154,13 @@ public class BookMakersConfig {
     ) throws Exception {
         SqlSessionFactoryBean factory = new SqlSessionFactoryBean();
         factory.setDataSource(ds);
+
+        Configuration config = new Configuration();
+        config.setMapUnderscoreToCamelCase(true);
+        factory.setConfiguration(config);
+
         return factory.getObject();
     }
-
-    // =========================================================
-    // MyBatis: SqlSessionTemplate（bm / master）
-    // =========================================================
 
     @Bean(name = "bmSqlSessionTemplate")
     @Primary
