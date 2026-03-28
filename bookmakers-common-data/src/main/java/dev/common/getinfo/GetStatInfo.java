@@ -182,6 +182,40 @@ public class GetStatInfo {
 						LinkedHashMap::new));
 	}
 
+	/**
+	 * BookDataEntity一覧から CoreStat 用Mapを作成
+	 * key: category, value: (home-away -> entities)
+	 */
+	public Map<String, Map<String, List<BookDataEntity>>> buildStatMapFromEntities(List<BookDataEntity> list) {
+
+		Map<String, Map<String, List<BookDataEntity>>> result = new HashMap<>();
+		if (list == null || list.isEmpty()) {
+			return result;
+		}
+
+		for (BookDataEntity entity : list) {
+			if (entity == null) {
+				continue;
+			}
+
+			String category = entity.getGameTeamCategory();
+			String home = entity.getHomeTeamName();
+			String away = entity.getAwayTeamName();
+
+			if (category == null || home == null || away == null) {
+				continue;
+			}
+
+			String versus = home + "-" + away;
+
+			result.computeIfAbsent(category, k -> new HashMap<>())
+				  .computeIfAbsent(versus, k -> new ArrayList<>())
+				  .add(entity);
+		}
+
+		return result;
+	}
+
 	/** キー一覧を返す */
 	public List<String> listCsvKeysInRange(String csvNumber, String csvBackNumber) {
 	    String bucket = config.getS3BucketsStats();

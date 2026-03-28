@@ -67,6 +67,9 @@ public class BookMakersCommonConst {
 	/** 定数: 終了済 */
 	public static final String FIN = "終了済";
 
+	/** 定数: ペナルティ */
+	public static final String PENALTY = "ペナルティ";
+
 	/** 定数: ハーフタイム */
 	public static final String HALF_TIME = "ハーフタイム";
 
