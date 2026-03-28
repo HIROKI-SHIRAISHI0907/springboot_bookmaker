@@ -119,6 +119,11 @@ public class AnalyzeManualStat {
 
 			List<AnalyzeManualEntity> existingList = analyzeManualDataRepository.selectByMatchIds(batch);
 			if (existingList == null || existingList.isEmpty()) {
+				this.manageLoggerComponent.debugWarnLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
+						null,
+						"MatchId existingList not found: ");
 				continue;
 			}
 
