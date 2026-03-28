@@ -26,6 +26,7 @@ import dev.common.entity.BookDataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * BM_M026統計分析ロジック
@@ -33,6 +34,7 @@ import dev.common.util.ExecuteMainUtil;
  *
  */
 @Component
+@Slf4j
 public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */
@@ -142,39 +144,52 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 
 		// 保存マップ登録
 		for (Map.Entry<String, StatEncryptionEntity> entry : bmM30Map.entrySet()) {
-			StatEncryptionEntity e = entry.getValue();
-			StatEncryptionEntity newEntrys = encryption(e);
-			if (newEntrys.isUpdFlg()) {
-				//System.out.println("team, chkBody, upd: " + team + ", " + newEntrys.isUpdFlg());
-				int result = this.statEncryptionRepository.updateEncValues(newEntrys);
-				if (result != 1) {
-					String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
-					this.rootCauseWrapper.throwUnexpectedRowCount(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							messageCd,
-							1, result,
-							String.format("id=%s, team=%s", newEntrys.getId(), e.getTeam()));
-				}
+		    StatEncryptionEntity e = entry.getValue();
+		    StatEncryptionEntity newEntrys = encryption(e);
 
-				String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 更新件数: " + result + "件");
-			} else {
-				//System.out.println("team, chkBody, reg: " + team);
-				int result = this.statEncryptionRepository.insert(newEntrys);
-				if (result != 1) {
-					String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-					this.rootCauseWrapper.throwUnexpectedRowCount(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							messageCd,
-							1, result,
-							null);
-				}
+		    boolean shouldUpdate = newEntrys.isUpdFlg()
+		            && newEntrys.getId() != null
+		            && !newEntrys.getId().isBlank();
 
-				String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: " + result + "件");
-			}
+		    if (shouldUpdate) {
+		        int result = this.statEncryptionRepository.updateEncValues(newEntrys);
+		        if (result != 1) {
+		            String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
+		            this.rootCauseWrapper.throwUnexpectedRowCount(
+		                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+		                    messageCd,
+		                    1, result,
+		                    String.format("id=%s, team=%s, country=%s, league=%s, chkBody=%s",
+		                            newEntrys.getId(),
+		                            e.getTeam(),
+		                            e.getCountry(),
+		                            e.getLeague(),
+		                            e.getChkBody()));
+		        }
+
+		        String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
+		        this.manageLoggerComponent.debugInfoLog(
+		                PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 更新件数: " + result + "件");
+		    } else {
+		        int result = this.statEncryptionRepository.insert(newEntrys);
+		        if (result != 1) {
+		            String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
+		            this.rootCauseWrapper.throwUnexpectedRowCount(
+		                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+		                    messageCd,
+		                    1, result,
+		                    String.format("id=%s, team=%s, country=%s, league=%s, chkBody=%s",
+		                            newEntrys.getId(),
+		                            e.getTeam(),
+		                            e.getCountry(),
+		                            e.getLeague(),
+		                            e.getChkBody()));
+		        }
+
+		        String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
+		        this.manageLoggerComponent.debugInfoLog(
+		                PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: " + result + "件");
+		    }
 		}
 
 		// endLog
@@ -273,21 +288,20 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 		List<BookDataEntity> filteredList = null;
 		if (AverageStatisticsSituationConst.EACH_SCORE.equals(flg)) {
 			filteredList = entities.stream()
-					.filter(entity -> connectScore.equals(entity.getHomeScore() + "-" + entity.getAwayScore())).
-					collect(Collectors.toList());
+					.filter(entity -> connectScore.equals(entity.getHomeScore() + "-" + entity.getAwayScore()))
+					.collect(Collectors.toList());
 		} else if (AverageStatisticsSituationConst.ALL_DATA.equals(flg)) {
 			filteredList = entities;
 		} else {
 			BookDataEntity half = ExecuteMainUtil.getHalfEntities(entities);
 			if (half == null || half.getSeq() == null) {
-                manageLoggerComponent.debugInfoLog(
-                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
-                    "half not found -> skip FIRST/SECOND. file=" + entities.get(0).getFilePath()
-                    + ", size=" + entities.size()
-                    + ", country=" + country + ", league=" + league
-                );
-                return; // ← FIRST/SECOND は計算不能なのでスキップ
-            }
+				manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
+						"half not found -> skip FIRST/SECOND. file=" + entities.get(0).getFilePath()
+								+ ", size=" + entities.size()
+								+ ", country=" + country + ", league=" + league);
+				return; // ← FIRST/SECOND は計算不能なのでスキップ
+			}
 			String halfTimeSeq = half.getSeq();
 			if (AverageStatisticsSituationConst.FIRST_DATA.equals(flg)) {
 				filteredList = entities.stream()
@@ -345,29 +359,29 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			StatEncryptionEntity exist = bmM30Map.get(key);
 
 			if (exist != null) {
-				// 追加分を作る（home/away のどちらかだけ埋まる）
-				StatEncryptionEntity addPart = buildBmM30Form(
-						filteredFinalList, country, league, ha, chkFinalBody, fieldMap
-				);
+			    StatEncryptionEntity addPart = buildBmM30Form(
+			            filteredFinalList, country, league, ha, chkFinalBody, fieldMap);
 
-				// exist に addPart を home/away 側だけマージ
-				StatEncryptionEntity merged = mergeStatEncryptionEntity(exist, addPart, ha);
-				merged.setId(exist.getId());
-				merged.setUpdFlg(true);
-				merged.setTeam(team);
+			    StatEncryptionEntity merged = mergeStatEncryptionEntity(exist, addPart, ha);
 
-				bmM30Map.put(key, merged);
+			    String existId = exist.getId();
+			    boolean alreadyPersisted = existId != null && !existId.isBlank();
+
+			    merged.setId(existId);
+			    merged.setUpdFlg(alreadyPersisted);
+			    merged.setTeam(team);
+
+			    bmM30Map.put(key, merged);
 
 			} else {
-				StatEncryptionEntity fresh = buildBmM30Form(
-						filteredFinalList, country, league, ha, chkFinalBody, fieldMap
-				);
+			    StatEncryptionEntity fresh = buildBmM30Form(
+			            filteredFinalList, country, league, ha, chkFinalBody, fieldMap);
 
-				fresh.setId(null);
-				fresh.setUpdFlg(false);
-				fresh.setTeam(team);
+			    fresh.setId(null);
+			    fresh.setUpdFlg(false);
+			    fresh.setTeam(team);
 
-				bmM30Map.put(key, fresh);
+			    bmM30Map.put(key, fresh);
 			}
 
 			// ★ ロック内で参照を確定させて持ち出す
@@ -447,15 +461,17 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 		String[] kurtosisList = this.bmM023M024M026InitBean.getKurtosisList().clone();
 		Integer[] kurtosisCntList = this.bmM023M024M026InitBean.getSkewnessCntList().clone();
 
-		skewnessList = setSkewness(decidedEntity, skewnessList, aveSkewKurtList, sigmaSkewKurtList, kurtosisCntList, ha);
-		kurtosisList = setKurtosis(decidedEntity, kurtosisList, aveSkewKurtList, sigmaSkewKurtList, kurtosisCntList, ha);
+		skewnessList = setSkewness(decidedEntity, skewnessList, aveSkewKurtList, sigmaSkewKurtList, kurtosisCntList,
+				ha);
+		kurtosisList = setKurtosis(decidedEntity, kurtosisList, aveSkewKurtList, sigmaSkewKurtList, kurtosisCntList,
+				ha);
 
 		// エンティティ組み立て
 		EachTeamScoreBasedFeatureEntity entity = new EachTeamScoreBasedFeatureEntity();
 		StringBuilder sb = new StringBuilder();
 
-		for (int i = this.bmM023M024M026InitBean.getStartScoreInsertIdx();
-				i < this.bmM023M024M026InitBean.getEndScoreInsertIdx(); i++) {
+		for (int i = this.bmM023M024M026InitBean.getStartScoreInsertIdx(); i < this.bmM023M024M026InitBean
+				.getEndScoreInsertIdx(); i++) {
 
 			int idx = i - this.bmM023M024M026InitBean.getStartScoreInsertIdx();
 
@@ -538,53 +554,57 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	 * @param entity
 	 */
 	private void save(EachTeamScoreBasedFeatureEntity entity) {
-	    final String METHOD_NAME = "save";
-	    String fillChar = setLoggerFillChar(
-	            entity.getSituation(),
-	            entity.getScore(),
-	            entity.getCountry(),
-	            entity.getLeague(),
-	            entity.getTeam());
+		String key = String.format(
+				"country=%s, league=%s, team=%s, situation=%s",
+				entity.getCountry(),
+				entity.getLeague(),
+				entity.getTeam(),
+				entity.getSituation());
 
-	    // まず update を試す（既存があれば更新）
-	    int updated = this.eachTeamScoreBasedFeatureStatsRepository.updateStatValues(entity);
-	    if (updated == 1) {
-	        String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
-	        this.manageLoggerComponent.debugInfoLog(
-	                PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-	                BM_NUMBER + " 更新件数: " + updated + "件 (" + fillChar + ")");
-	        return;
-	    }
+		try {
+			int updated = eachTeamScoreBasedFeatureStatsRepository.updateStatValues(entity);
 
-	    // 0件なら insert を試す
-	    if (updated == 0) {
-	        entity.setId(null);
-	        entity.setUpd(false);
+			if (updated == 1) {
+				log.info("score_based_feature_stats updated: {}", key);
+				return;
+			}
 
-	        int inserted = this.eachTeamScoreBasedFeatureStatsRepository.insert(entity);
-	        if (inserted == 1) {
-	            String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
-	            this.manageLoggerComponent.debugInfoLog(
-	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-	                    BM_NUMBER + " 登録件数: " + inserted + "件 (" + fillChar + ")");
-	            return;
-	        }
+			if (updated > 1) {
+				throw new IllegalStateException(
+						"Unexpected update row count (expected=1, actual=" + updated + "), key=" + key);
+			}
 
-	        String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-	        this.manageLoggerComponent.debugErrorLog(
-	                PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, fillChar);
-	        this.manageLoggerComponent.createSystemException(
-	                PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, null);
-	        return;
-	    }
+			// updated == 0
+			log.warn("No row updated. try insert. key={}", key);
 
-	    // 1件以外は異常
-	    String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
-	    this.manageLoggerComponent.debugErrorLog(
-	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null,
-	            fillChar + ", updateCount=" + updated);
-	    this.manageLoggerComponent.createSystemException(
-	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, null);
+			try {
+				int inserted = eachTeamScoreBasedFeatureStatsRepository.insert(entity);
+
+				if (inserted == 1) {
+					log.info("score_based_feature_stats inserted: {}", key);
+					return;
+				}
+
+				throw new IllegalStateException(
+						"Unexpected insert row count (expected=1, actual=" + inserted + "), key=" + key);
+
+			} catch (org.springframework.dao.DuplicateKeyException e) {
+				log.warn("Duplicate on insert, retry update. key={}", key, e);
+
+				int retried = eachTeamScoreBasedFeatureStatsRepository.updateStatValues(entity);
+				if (retried == 1) {
+					log.info("score_based_feature_stats updated after duplicate: {}", key);
+					return;
+				}
+
+				throw new IllegalStateException(
+						"Upsert failed after duplicate retry (expected=1, actual=" + retried + "), key=" + key, e);
+			}
+
+		} catch (RuntimeException e) {
+			log.error("save failed. key={}, entity={}", key, entity, e);
+			throw e;
+		}
 	}
 
 	/**
@@ -1321,25 +1341,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 		entity.setLeague(league);
 		entity.setTeam(team);
 		return entity;
-	}
-
-	/**
-	 * 埋め字設定
-	 * @param situation 状況
-	 * @param score スコア
-	 * @param country 国
-	 * @param league リーグ
-	 * @return
-	 */
-	private String setLoggerFillChar(String situation, String score,
-			String country, String league, String team) {
-		StringBuilder stringBuilder = new StringBuilder();
-		stringBuilder.append("状況: " + situation + ", ");
-		stringBuilder.append("スコア: " + score + ", ");
-		stringBuilder.append("国: " + country + ", ");
-		stringBuilder.append("リーグ: " + league + ", ");
-		stringBuilder.append("チーム: " + team);
-		return stringBuilder.toString();
 	}
 
 	/**
