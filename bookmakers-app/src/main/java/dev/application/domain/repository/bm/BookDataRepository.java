@@ -364,4 +364,11 @@ public interface BookDataRepository {
 			@Param("league") String league,
 			@Param("match") String match);
 
+	@Select("""
+			SELECT *
+			FROM data
+			where add_manual_flg = '1' AND (times = '終了済' OR times LIKE 'ペナルティ%');
+			""")
+	List<DataEntity> getFinData();
+
 }
