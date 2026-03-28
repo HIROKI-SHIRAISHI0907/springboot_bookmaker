@@ -134,11 +134,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 						if (subSubEntity == null) {
 							continue;
 						}
-						if (subSubEntity.isUpd()) {
-							update(subSubEntity);
-						} else {
-							insert(subSubEntity);
-						}
+						save(subSubEntity);
 					}
 				}
 			}
@@ -538,58 +534,57 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	}
 
 	/**
-	 * 登録メソッド
-	 * @param entity エンティティ
+	 * 更新登録メソッド
+	 * @param entity
 	 */
-	private synchronized void insert(EachTeamScoreBasedFeatureEntity entity) {
-		final String METHOD_NAME = "insert";
-		String fillChar = setLoggerFillChar(
-				entity.getSituation(),
-				entity.getScore(),
-				entity.getCountry(),
-				entity.getLeague(),
-				entity.getTeam());
-		// 暗号化
-		int result = this.eachTeamScoreBasedFeatureStatsRepository.insert(entity);
-		if (result != 1) {
-			String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, fillChar);
-			this.manageLoggerComponent.createSystemException(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, null);
-		}
+	private void save(EachTeamScoreBasedFeatureEntity entity) {
+	    final String METHOD_NAME = "save";
+	    String fillChar = setLoggerFillChar(
+	            entity.getSituation(),
+	            entity.getScore(),
+	            entity.getCountry(),
+	            entity.getLeague(),
+	            entity.getTeam());
 
-		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-				BM_NUMBER + " 登録件数: " + result + "件 (" + fillChar + ")");
-	}
+	    // まず update を試す（既存があれば更新）
+	    int updated = this.eachTeamScoreBasedFeatureStatsRepository.updateStatValues(entity);
+	    if (updated == 1) {
+	        String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
+	        this.manageLoggerComponent.debugInfoLog(
+	                PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+	                BM_NUMBER + " 更新件数: " + updated + "件 (" + fillChar + ")");
+	        return;
+	    }
 
-	/**
-	 * 登録メソッド
-	 * @param entity エンティティ
-	 */
-	private void update(EachTeamScoreBasedFeatureEntity entity) {
-		final String METHOD_NAME = "update";
-		String fillChar = setLoggerFillChar(
-				entity.getSituation(),
-				entity.getScore(),
-				entity.getCountry(),
-				entity.getLeague(),
-				entity.getTeam());
-		int result = this.eachTeamScoreBasedFeatureStatsRepository.updateStatValues(entity);
-		if (result != 1) {
-			String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, fillChar);
-			this.manageLoggerComponent.createSystemException(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, null);
-		}
+	    // 0件なら insert を試す
+	    if (updated == 0) {
+	        entity.setId(null);
+	        entity.setUpd(false);
 
-		String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-				BM_NUMBER + " 更新件数: " + result + "件 (" + fillChar + ")");
+	        int inserted = this.eachTeamScoreBasedFeatureStatsRepository.insert(entity);
+	        if (inserted == 1) {
+	            String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
+	            this.manageLoggerComponent.debugInfoLog(
+	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+	                    BM_NUMBER + " 登録件数: " + inserted + "件 (" + fillChar + ")");
+	            return;
+	        }
+
+	        String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
+	        this.manageLoggerComponent.debugErrorLog(
+	                PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, fillChar);
+	        this.manageLoggerComponent.createSystemException(
+	                PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, null);
+	        return;
+	    }
+
+	    // 1件以外は異常
+	    String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
+	    this.manageLoggerComponent.debugErrorLog(
+	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null,
+	            fillChar + ", updateCount=" + updated);
+	    this.manageLoggerComponent.createSystemException(
+	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, null);
 	}
 
 	/**

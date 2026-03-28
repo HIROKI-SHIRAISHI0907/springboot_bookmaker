@@ -1,6 +1,10 @@
 package dev.application.analyze.bm_m097;
 
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeFormatter;
+import java.util.ArrayList;
 import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
@@ -72,7 +76,7 @@ public class AnalyzeManualStat {
 	@Transactional(rollbackFor = Exception.class)
 	public int manualStat() {
 		final String METHOD_NAME = "manualStat";
-		// ログ出力
+
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
@@ -84,11 +88,9 @@ public class AnalyzeManualStat {
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
 					null,
-					"finList not found: ");
+					"finList not found");
 			return 0;
 		}
-
-		System.out.println(finList.get(0));
 
 		// 2) 終了済み or PENALTY含みを対象
 		List<DataEntity> finishedList = finList.stream()
@@ -100,19 +102,37 @@ public class AnalyzeManualStat {
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
 					null,
-					"finishedList not found: ");
+					"finishedList not found");
 			return 0;
 		}
 
-		// 3) matchId をユニーク抽出
-		List<String> matchIds = finishedList.stream()
+		// 3) 同一 match_id の重複を正規化
+		List<DataEntity> normalizedFinishedList = normalizeFinishedData(finishedList);
+
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
+				"manual target normalize: before=" + finishedList.size()
+						+ ", after=" + normalizedFinishedList.size());
+
+		if (normalizedFinishedList.isEmpty()) {
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
+					null,
+					"normalizedFinishedList not found");
+			return 0;
+		}
+
+		// 4) matchId をユニーク抽出
+		List<String> matchIds = normalizedFinishedList.stream()
 				.map(DataEntity::getMatchId)
 				.map(this::nvl)
 				.filter(s -> !s.isEmpty())
 				.distinct()
 				.collect(Collectors.toList());
 
-		// 4) analyze_manual_data に既にあるものを一括取得
+		// 5) analyze_manual_data に既にあるものを一括取得
+		//    match_id がある場合は match_id を優先して重複判定する
 		Set<String> analyzedKeySet = new HashSet<>();
 
 		for (int i = 0; i < matchIds.size(); i += MATCH_ID_BATCH_SIZE) {
@@ -121,16 +141,11 @@ public class AnalyzeManualStat {
 
 			List<AnalyzeManualEntity> existingList = analyzeManualDataRepository.selectByMatchIds(batch);
 			if (existingList == null || existingList.isEmpty()) {
-				this.manageLoggerComponent.debugWarnLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
-						null,
-						"MatchId existingList not found: ");
 				continue;
 			}
 
 			for (AnalyzeManualEntity existing : existingList) {
-				analyzedKeySet.add(buildKey(
+				analyzedKeySet.add(buildAnalyzeKey(
 						existing.getGameCategory(),
 						existing.getTimes(),
 						existing.getHomeTeamName(),
@@ -139,9 +154,9 @@ public class AnalyzeManualStat {
 			}
 		}
 
-		// 5) 未反映データだけを抽出
-		List<DataEntity> targetList = finishedList.stream()
-				.filter(e -> !analyzedKeySet.contains(buildKey(
+		// 6) 未反映データだけを抽出
+		List<DataEntity> targetList = normalizedFinishedList.stream()
+				.filter(e -> !analyzedKeySet.contains(buildAnalyzeKey(
 						e.getDataCategory(),
 						e.getTimes(),
 						e.getHomeTeamName(),
@@ -154,12 +169,26 @@ public class AnalyzeManualStat {
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
 					null,
-					"targetList not found: ");
+					"targetList not found");
 			return 0;
 		}
 
-		// 6) CoreStat に渡すMapを作成して実行
-		List<BookDataEntity> bookDataList = targetList.stream()
+		// 7) CoreStat に渡せるデータだけに絞る
+		List<DataEntity> validTargetList = targetList.stream()
+				.filter(this::isValidForCoreStat)
+				.collect(Collectors.toList());
+
+		if (validTargetList.isEmpty()) {
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
+					null,
+					"validTargetList not found");
+			return 0;
+		}
+
+		// 8) CoreStat に渡すMapを作成して実行
+		List<BookDataEntity> bookDataList = validTargetList.stream()
 				.map(this::toBookDataEntity)
 				.collect(Collectors.toList());
 
@@ -176,14 +205,15 @@ public class AnalyzeManualStat {
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, null);
 		}
 
-		// 7) 成功したデータを analyze_manual_data に登録
-		for (DataEntity entity : targetList) {
+		// 9) 成功したデータを analyze_manual_data に登録
+		for (DataEntity entity : validTargetList) {
 			AnalyzeManualEntity manualEntity = new AnalyzeManualEntity();
 			manualEntity.setGameCategory(nvl(entity.getDataCategory()));
 			manualEntity.setTimes(nvl(entity.getTimes()));
 			manualEntity.setHomeTeamName(nvl(entity.getHomeTeamName()));
 			manualEntity.setAwayTeamName(nvl(entity.getAwayTeamName()));
 			manualEntity.setMatchId(nvl(entity.getMatchId()));
+
 			int result = analyzeManualDataRepository.insertAnalyzeManualData(manualEntity);
 			if (result != 1) {
 				String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
@@ -191,24 +221,162 @@ public class AnalyzeManualStat {
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 						messageCd,
 						1, result,
-						entity.getDataCategory() + ": " + entity.getHomeTeamName() +
-								"-" + entity.getAwayTeamName());
+						entity.getDataCategory() + ": "
+								+ entity.getHomeTeamName() + "-"
+								+ entity.getAwayTeamName());
 			}
 
 			String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-					BM_NUMBER + " ホーム登録件数: " + result + "件 (" + entity.getDataCategory() + ": "
-							+ entity.getHomeTeamName() +
-							"-" + entity.getAwayTeamName() + ")");
+					BM_NUMBER + " ホーム登録件数: " + result + "件 ("
+							+ entity.getDataCategory() + ": "
+							+ entity.getHomeTeamName() + "-"
+							+ entity.getAwayTeamName() + ")");
 		}
 
-		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		this.manageLoggerComponent.clear();
 
 		return 0;
+	}
+
+	/**
+	 * 同一 match_id の重複を正規化する。
+	 *
+	 * 優先順位:
+	 * 1. data_category に「ラウンド」を含む方
+	 * 2. update_time が新しい方
+	 * 3. seq が大きい方
+	 */
+	private List<DataEntity> normalizeFinishedData(List<DataEntity> source) {
+		if (source == null || source.isEmpty()) {
+			return new ArrayList<>();
+		}
+
+		Map<String, DataEntity> normalizedMap = source.stream()
+				.filter(e -> e != null)
+				.collect(Collectors.toMap(
+						this::buildNormalizeKey,
+						e -> e,
+						this::preferDataEntity,
+						LinkedHashMap::new
+				));
+
+		return new ArrayList<>(normalizedMap.values());
+	}
+
+	/**
+	 * 正規化用キー
+	 * match_id がある場合は match_id を最優先。
+	 * match_id が無い場合は誤統合を避けるため従来寄りのキーにする。
+	 */
+	private String buildNormalizeKey(DataEntity e) {
+		String matchId = nvl(e.getMatchId());
+		if (!matchId.isEmpty()) {
+			return "MID||" + matchId;
+		}
+		return String.join("||",
+				nvl(e.getDataCategory()),
+				nvl(e.getTimes()),
+				nvl(e.getHomeTeamName()),
+				nvl(e.getAwayTeamName()));
+	}
+
+	/**
+	 * analyze_manual_data 既存判定用キー。
+	 * match_id がある場合はカテゴリ違いでも同一試合として扱う。
+	 */
+	private String buildAnalyzeKey(String gameCategory, String times,
+			String homeTeamName, String awayTeamName, String matchId) {
+		String normalizedMatchId = nvl(matchId);
+		if (!normalizedMatchId.isEmpty()) {
+			return "MID||" + normalizedMatchId;
+		}
+		return String.join("||",
+				nvl(gameCategory),
+				nvl(times),
+				nvl(homeTeamName),
+				nvl(awayTeamName),
+				normalizedMatchId);
+	}
+
+	/**
+	 * DataEntity の優先順位比較
+	 */
+	private DataEntity preferDataEntity(DataEntity a, DataEntity b) {
+		if (a == null) {
+			return b;
+		}
+		if (b == null) {
+			return a;
+		}
+
+		// 1. data_category に「ラウンド」を含む方を優先
+		boolean aHasRound = containsRound(a.getDataCategory());
+		boolean bHasRound = containsRound(b.getDataCategory());
+		if (aHasRound && !bHasRound) {
+			return a;
+		}
+		if (!aHasRound && bHasRound) {
+			return b;
+		}
+
+		// 2. update_time が新しい方
+		long aUpdate = parseUpdateTimeToEpochMillis(a.getUpdateTime());
+		long bUpdate = parseUpdateTimeToEpochMillis(b.getUpdateTime());
+		if (aUpdate > bUpdate) {
+			return a;
+		}
+		if (aUpdate < bUpdate) {
+			return b;
+		}
+
+		// 3. seq が大きい方
+		long aSeq = parseSeqToLong(a.getSeq());
+		long bSeq = parseSeqToLong(b.getSeq());
+		if (aSeq >= bSeq) {
+			return a;
+		}
+		return b;
+	}
+
+	private boolean containsRound(String value) {
+		return nvl(value).contains("ラウンド");
+	}
+
+	private long parseUpdateTimeToEpochMillis(String updateTime) {
+		String value = nvl(updateTime);
+		if (value.isEmpty()) {
+			return Long.MIN_VALUE;
+		}
+
+		List<DateTimeFormatter> formatters = List.of(
+				DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssX"),
+				DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX")
+		);
+
+		for (DateTimeFormatter formatter : formatters) {
+			try {
+				return OffsetDateTime.parse(value, formatter).toInstant().toEpochMilli();
+			} catch (Exception ignore) {
+				// 次の formatter を試す
+			}
+		}
+
+		return Long.MIN_VALUE;
+	}
+
+	private long parseSeqToLong(Object seq) {
+		if (seq == null) {
+			return Long.MIN_VALUE;
+		}
+		try {
+			return Long.parseLong(String.valueOf(seq).trim());
+		} catch (NumberFormatException ex) {
+			return Long.MIN_VALUE;
+		}
 	}
 
 	/**
@@ -353,6 +521,26 @@ public class AnalyzeManualStat {
 		return dest;
 	}
 
+	private boolean isValidForCoreStat(DataEntity e) {
+		return !nvl(e.getDataCategory()).isEmpty()
+				&& !nvl(e.getHomeTeamName()).isEmpty()
+				&& !nvl(e.getAwayTeamName()).isEmpty()
+				&& isInteger(nvl(e.getHomeScore()))
+				&& isInteger(nvl(e.getAwayScore()))
+				&& e.getSeq() != null;
+	}
+
+	private boolean isInteger(String value) {
+		if (value == null || value.isBlank()) {
+			return false;
+		}
+		try {
+			Integer.parseInt(value.trim());
+			return true;
+		} catch (NumberFormatException ex) {
+			return false;
+		}
+	}
 
 	/**
 	 * 終了済み対象判定
@@ -361,15 +549,6 @@ public class AnalyzeManualStat {
 		String times = nvl(entity.getTimes());
 		return BookMakersCommonConst.FIN.equals(times)
 				|| times.contains(BookMakersCommonConst.PENALTY);
-	}
-
-	private String buildKey(String gameCategory, String times, String homeTeamName, String awayTeamName, String matchId) {
-		return String.join("||",
-				nvl(gameCategory),
-				nvl(times),
-				nvl(homeTeamName),
-				nvl(awayTeamName),
-				nvl(matchId));
 	}
 
 	private String nvl(String value) {
