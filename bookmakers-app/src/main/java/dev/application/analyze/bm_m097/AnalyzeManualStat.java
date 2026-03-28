@@ -67,9 +67,10 @@ public class AnalyzeManualStat {
 
 	/**
 	 * 登録ロジック
+	 * @return
 	 */
 	@Transactional(rollbackFor = Exception.class)
-	public void manualStat() {
+	public int manualStat() {
 		final String METHOD_NAME = "manualStat";
 		// ログ出力
 		this.manageLoggerComponent.init(EXEC_MODE, null);
@@ -79,7 +80,12 @@ public class AnalyzeManualStat {
 		// 1) 手動データ取得
 		List<DataEntity> finList = bookDataRepository.getFinData();
 		if (finList == null || finList.isEmpty()) {
-			return;
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
+					null,
+					"finList not found: ");
+			return 0;
 		}
 
 		// 2) 終了済み or PENALTY含みを対象
@@ -88,7 +94,12 @@ public class AnalyzeManualStat {
 				.collect(Collectors.toList());
 
 		if (finishedList.isEmpty()) {
-			return;
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
+					null,
+					"finishedList not found: ");
+			return 0;
 		}
 
 		// 3) matchId をユニーク抽出
@@ -137,7 +148,7 @@ public class AnalyzeManualStat {
 					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
 					null,
 					"targetList not found: ");
-			return;
+			return 0;
 		}
 
 		// 6) CoreStat に渡すMapを作成して実行
@@ -189,6 +200,8 @@ public class AnalyzeManualStat {
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		this.manageLoggerComponent.clear();
+
+		return 0;
 	}
 
 	/**
