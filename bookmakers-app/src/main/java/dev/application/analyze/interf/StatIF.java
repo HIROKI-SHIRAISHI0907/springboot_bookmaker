@@ -17,6 +17,6 @@ public interface StatIF {
 	 * @return
 	 * @throws Exception
 	 */
-	public int execute(Map<String, Map<String, List<BookDataEntity>>> stat) throws Exception;
+	public int execute(Map<String, Map<String, List<BookDataEntity>>> stat, boolean manualFlg) throws Exception;
 
 }

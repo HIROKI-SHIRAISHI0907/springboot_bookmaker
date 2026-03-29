@@ -102,8 +102,8 @@ public class MainStat implements ServiceIF {
 	            		+ "info] country-league = {}", oneMap.keySet());
 
 	            // ✅ 1CSV分だけ処理（メモリ溜めない）
-	            statService.execute(oneMap);
-	            rankingService.execute(oneMap);
+	            statService.execute(oneMap, false);
+	            rankingService.execute(oneMap, false);
 
 	            // ✅ “このCSVまでは成功” を進める（途中成功を確定）
 	            int seq = extractSeq(key);

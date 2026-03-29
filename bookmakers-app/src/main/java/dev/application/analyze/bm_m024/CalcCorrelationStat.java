@@ -24,7 +24,7 @@ import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
 /**
- * <p>BM_M024 相関分析ロジック。</p>
+ * <p>BM_M024 相関分析ロジック。（手動データ投入の場合は適用対象外）</p>
  *
  * <ul>
  *   <li>入力: 国×リーグ×カード単位の {@code BookDataEntity} 群</li>

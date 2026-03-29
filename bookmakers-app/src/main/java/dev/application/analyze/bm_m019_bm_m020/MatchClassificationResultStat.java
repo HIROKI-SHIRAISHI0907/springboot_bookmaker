@@ -24,7 +24,7 @@ import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
 /**
- * BM_M019_BM_M020統計分析ロジック（恒久対応版）
+ * BM_M019_BM_M020統計分析ロジック（恒久対応版）（手動データ投入の場合は適用対象外）
  * - 並列×DBを廃止
  * - BM_M020 は UPSERT(+1) で原子的にカウント反映
  * - BM_M019 はバルク挿入

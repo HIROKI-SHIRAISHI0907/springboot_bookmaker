@@ -43,7 +43,7 @@ public class RankingService implements StatIF {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int execute(Map<String, Map<String, List<BookDataEntity>>> stat) throws Exception {
+	public int execute(Map<String, Map<String, List<BookDataEntity>>> stat, boolean manualFlg) throws Exception {
 		final String METHOD_NAME = "execute";
 
 		// 時間計測開始
@@ -54,7 +54,7 @@ public class RankingService implements StatIF {
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		// 統計ロジック呼び出し(@Transactionl付き)(国,リーグ単位で並列)
-		this.analyzeRankingStat.calcStat(stat);
+		if (!manualFlg) this.analyzeRankingStat.calcStat(stat);
 
 		// endLog
 		this.loggerComponent.debugEndInfoLog(

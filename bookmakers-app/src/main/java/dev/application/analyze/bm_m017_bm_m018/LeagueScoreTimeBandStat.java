@@ -23,7 +23,7 @@ import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
 /**
- * BM_M017_BM_M018統計分析ロジック
+ * BM_M017_BM_M018統計分析ロジック（手動データ投入の場合は適用対象外）
  * @author shiraishitoshio
  *
  */

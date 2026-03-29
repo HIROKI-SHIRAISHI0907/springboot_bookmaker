@@ -29,7 +29,7 @@ import dev.common.util.ExecuteMainUtil;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * BM_M026統計分析ロジック
+ * BM_M026統計分析ロジック（手動データ投入の場合は適用対象外）
  * @author shiraishitoshio
  *
  */

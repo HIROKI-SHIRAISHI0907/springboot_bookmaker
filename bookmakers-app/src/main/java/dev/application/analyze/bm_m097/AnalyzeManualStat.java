@@ -196,7 +196,7 @@ public class AnalyzeManualStat {
 				getStatInfo.buildStatMapFromEntities(bookDataList);
 
 		try {
-			coreStat.execute(entities);
+			coreStat.execute(entities, true);
 		} catch (Exception e1) {
 			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			this.manageLoggerComponent.debugErrorLog(

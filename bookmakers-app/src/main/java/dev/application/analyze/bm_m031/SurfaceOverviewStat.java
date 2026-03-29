@@ -171,20 +171,32 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		final String METHOD_NAME = "basedMain";
 
 		BookDataEntity last = ExecuteMainUtil.getMaxSeqEntities(entities);
-		manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, null, null, last.getFilePath());
-		if (!BookMakersCommonConst.FIN.equals(last.getTime()))
-			return;
-
-		BookDataEntity mid = ExecuteMainUtil.getHalfEntities(entities);
-		if (mid == null || mid.getSeq() == null) {
+		if (last == null) {
 			manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
-					"half not found -> skip FIRST/SECOND. file=" + entities.get(0).getFilePath()
+					"last not found -> skip. size=" + (entities == null ? 0 : entities.size())
+							+ ", country=" + country + ", league=" + league);
+			return;
+		}
+
+		manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, null, null, last.getFilePath());
+
+		if (!BookMakersCommonConst.FIN.equals(last.getTime())) {
+			return;
+		}
+
+		BookDataEntity mid = ExecuteMainUtil.getHalfEntities(entities);
+		BookDataEntity first = ExecuteMainUtil.getMinSeqEntities(entities);
+
+		boolean canCalcScoreData = mid != null && mid.getSeq() != null && first != null;
+
+		if (!canCalcScoreData) {
+			manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
+					"half/min not found -> skip score split stats only. file=" + last.getFilePath()
 							+ ", size=" + entities.size()
 							+ ", country=" + country + ", league=" + league);
-			return; // ← FIRST/SECOND は計算不能なのでスキップ
 		}
-		BookDataEntity first = ExecuteMainUtil.getMinSeqEntities(entities);
 
 		// スコア推移（連続重複を除外）
 		List<String> scoreList = new ArrayList<>();
@@ -205,23 +217,25 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		// ラウンド
 		Integer roundNo = tryGetRoundNo(last, roundMap.get(country + ": " + league));
 
-		// ---- Home 側（キーは 年月を含む）----
+		// ---- Home 側 ----
 		PastRankingQueryParam homeParam = null;
 		final String homeKey = String.join("|", country, league, gameYear, gameMonth, home);
 		synchronized (getLock(homeKey)) {
 			SurfaceOverviewEntity row = resultMap.getOrDefault(homeKey,
 					loadOrNew(country, league, gameYear, gameMonth, home));
 
-			// 必須メタ
 			row.setCountry(country);
 			row.setLeague(league);
 			row.setGameYear(Integer.parseInt(gameYear));
 			row.setGameMonth(Integer.parseInt(gameMonth));
 			row.setTeam(home);
 
-			// 累積
 			row = setTeamMainData(last, row, country, league, home);
-			row = setScoreData(last, mid, first, row, home);
+
+			if (canCalcScoreData) {
+				row = setScoreData(last, mid, first, row, home);
+			}
+
 			row = setEachScoreCountData(roundNo, row, country, league);
 			row = setWinLoseDetailData(last, scoreList, row, home);
 			row = firstWinAndConsecutiveLose(row, homeKey, roundNo);
@@ -229,7 +243,6 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 
 			resultMap.put(homeKey, row);
 
-			// homeをそれぞれのteamデータとして過去順位管理に登録
 			if (roundNo != null) {
 				homeParam = PastRankingQueryParam.builder()
 						.country(country)
@@ -243,24 +256,23 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 						.winningPoints(parseOrZeroInt(row.getWinningPoints()))
 						.build();
 			}
-
 		}
 
-		// ロック外でDB登録（PastRankingStatがDBアクセスするなら、ここでやるのが安全）
 		if (homeParam != null) {
 			try {
 				pastRankingStat.executeStat(homeParam);
 			} catch (Exception except) {
 				String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
-				manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME,
-						METHOD_NAME, messageCd, except);
+				manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, except);
 			}
 		}
 
-		// ---- Away 側（キーは 年月を含む）----
+		// ---- Away 側 ----
 		PastRankingQueryParam awayParam = null;
 		final String awayKey = String.join("|", country, league, gameYear, gameMonth, away);
-		Integer roundNoAway = roundNo; // 同一試合のため同値
+		Integer roundNoAway = roundNo;
+
 		synchronized (getLock(awayKey)) {
 			SurfaceOverviewEntity row = resultMap.getOrDefault(awayKey,
 					loadOrNew(country, league, gameYear, gameMonth, away));
@@ -272,7 +284,11 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			row.setTeam(away);
 
 			row = setTeamMainData(last, row, country, league, away);
-			row = setScoreData(last, mid, first, row, away);
+
+			if (canCalcScoreData) {
+				row = setScoreData(last, mid, first, row, away);
+			}
+
 			row = setEachScoreCountData(roundNoAway, row, country, league);
 			row = setWinLoseDetailData(last, scoreList, row, away);
 			row = firstWinAndConsecutiveLose(row, awayKey, roundNoAway);
@@ -280,13 +296,12 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 
 			resultMap.put(awayKey, row);
 
-			// awayをそれぞれのteamデータとして過去順位管理に登録
-			if (roundNo != null) {
+			if (roundNoAway != null) {
 				awayParam = PastRankingQueryParam.builder()
 						.country(country)
 						.league(league)
 						.seasonYear(gameYear)
-						.match(roundNo)
+						.match(roundNoAway)
 						.team(away)
 						.win(parseOrZeroInt(row.getWin()))
 						.lose(parseOrZeroInt(row.getLose()))
@@ -296,14 +311,13 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			}
 		}
 
-		// ロック外でDB登録（PastRankingStatがDBアクセスするなら、ここでやるのが安全）
 		if (awayParam != null) {
 			try {
 				pastRankingStat.executeStat(awayParam);
 			} catch (Exception except) {
 				String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
-				manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME,
-						METHOD_NAME, messageCd, except);
+				manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, except);
 			}
 		}
 	}

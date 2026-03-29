@@ -142,7 +142,7 @@ public class CoreStat implements StatIF {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public int execute(Map<String, Map<String, List<BookDataEntity>>> stat) throws Exception {
+	public int execute(Map<String, Map<String, List<BookDataEntity>>> stat, boolean manualFlg) throws Exception {
 		final String METHOD_NAME = "execute";
 
 		// 時間計測開始
@@ -153,19 +153,19 @@ public class CoreStat implements StatIF {
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		// 統計ロジック呼び出し(国,リーグ単位で並列)
-		this.conditionResultDataStat.calcStat(stat);
+		if (!manualFlg) this.conditionResultDataStat.calcStat(stat);
 		this.teamMonthlyScoreSummaryStat.calcStat(stat);
-		this.teamTimeSegmentShootingStat.calcStat(stat);
-		this.countryLeagueSummaryStat.calcStat(stat);
+		if (!manualFlg) this.teamTimeSegmentShootingStat.calcStat(stat);
+		if (!manualFlg) this.countryLeagueSummaryStat.calcStat(stat);
 		this.noGoalMatchStat.calcStat(stat);
-		//this.timeRangeFeatureStat.calcStat(stat);
-		this.leagueScoreTimeBandStat.calcStat(stat);
-		this.matchClassificationResultStat.calcStat(stat);
+		//if (!manualFlg) this.timeRangeFeatureStat.calcStat(stat);
+		if (!manualFlg) this.leagueScoreTimeBandStat.calcStat(stat);
+		if (!manualFlg) this.matchClassificationResultStat.calcStat(stat);
 		this.teamMatchFinalStat.calcStat(stat);
-		this.scoreBasedFeatureStat.calcStat(stat);
-		this.calcCorrelationStat.calcStat(stat);
-		this.calcCorrelationRankingStat.calcStat(stat);
-		this.eachTeamScoreBasedFeatureStat.calcStat(stat);
+		if (!manualFlg) this.scoreBasedFeatureStat.calcStat(stat);
+		if (!manualFlg) this.calcCorrelationStat.calcStat(stat);
+		if (!manualFlg) this.calcCorrelationRankingStat.calcStat(stat);
+		if (!manualFlg) this.eachTeamScoreBasedFeatureStat.calcStat(stat);
 		this.surfaceOverviewStat.calcStat(stat);
 		this.rankHistoryStat.calcStat(stat);
 
