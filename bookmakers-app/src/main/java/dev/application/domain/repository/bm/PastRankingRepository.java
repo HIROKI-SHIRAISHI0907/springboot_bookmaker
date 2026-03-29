@@ -33,9 +33,9 @@ public interface PastRankingRepository {
 			    #{lose},
 			    #{draw},
 			    #{winningPoints},
-			    'ADMIN',
+			    'SYSTEM',
 			    CURRENT_TIMESTAMP,
-			    'ADMIN',
+			    'SYSTEM',
 			    CURRENT_TIMESTAMP
 			)
 			""")
