@@ -45,7 +45,7 @@ class CoreStatTest {
 		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvBackNumber);
 		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 		// Act
-		int result = statService.execute(entities);
+		int result = statService.execute(entities, false);
 
 		// Assert
 		assertEquals(0, result); // 戻り値が0であること
@@ -64,7 +64,7 @@ class CoreStatTest {
 		for (String key : keys) {
 			Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(key);
 
-			result = statService.execute(entities);
+			result = statService.execute(entities, false);
 			assertEquals(0, result);
 		}
 	}
@@ -82,7 +82,7 @@ class CoreStatTest {
 		for (String key : keys) {
 			Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(key);
 
-			result = statService.execute(entities);
+			result = statService.execute(entities, false);
 			assertEquals(0, result);
 		}
 	}

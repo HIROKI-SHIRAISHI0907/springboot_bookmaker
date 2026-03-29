@@ -181,7 +181,8 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 
 		manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, null, null, last.getFilePath());
 
-		if (!BookMakersCommonConst.FIN.equals(last.getTime())) {
+		if (!BookMakersCommonConst.FIN.equals(last.getTime())
+				&& !last.getTime().contains(BookMakersCommonConst.PENALTY)) {
 			return;
 		}
 

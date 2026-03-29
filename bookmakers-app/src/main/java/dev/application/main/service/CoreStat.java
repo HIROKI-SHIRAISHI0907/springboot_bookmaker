@@ -169,6 +169,8 @@ public class CoreStat implements StatIF {
 		this.surfaceOverviewStat.calcStat(stat);
 		this.rankHistoryStat.calcStat(stat);
 
+		stat.clear();
+
 		// endLog
 		this.loggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
