@@ -535,7 +535,8 @@ public class ExecuteMainUtil {
 				seq = seqs;
 				returnEntity = entity;
 			}
-			if (BookMakersCommonConst.FIN.equals(entity.getTime())) {
+			if (BookMakersCommonConst.FIN.equals(entity.getTime())
+					|| entity.getTime().contains(BookMakersCommonConst.PENALTY)) {
 				return entity;
 			}
 		}

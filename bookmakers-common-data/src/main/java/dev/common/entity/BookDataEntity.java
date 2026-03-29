@@ -315,6 +315,39 @@ public class BookDataEntity implements Serializable {
 	/** スコア予想時間 */
 	private String predictionScoreTime;
 
+	/** 場所 */
+	private String location;
+
+	/** 試合リンク */
+	private String gameLink;
+
+	/** ゲームID */
+	private String gameId;
+
+	/** マッチID */
+	private String matchId;
+
+	/** time sort seconds */
+	private String timeSortSeconds;
+
+	/** 手動追加フラグ */
+	private String addManualFlg;
+
+	/** ロジックフラグ */
+	private String logicFlg;
+
+	/** 登録者 */
+	private String registerId;
+
+	/** 登録日時 */
+	private String registerTime;
+
+	/** 更新者 */
+	private String updateId;
+
+	/** 更新日時 */
+	private String updateTime;
+
 	/** ファイルパス */
 	private String filePath;
 
