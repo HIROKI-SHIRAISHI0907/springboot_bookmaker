@@ -94,7 +94,8 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 					}
 
 					// 終了済以外はスキップ
-					if (!BookMakersCommonConst.FIN.equals(entity.getTime())) {
+					if (!BookMakersCommonConst.FIN.equals(entity.getTime())
+							&& !entity.getTime().contains(BookMakersCommonConst.PENALTY)) {
 						continue;
 					}
 
@@ -103,7 +104,7 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 					if (countryLeague.isEmpty()) {
 						String messageCd = MessageCdConst.MCD00001W_COUNTRY_LEAGUE_SPLIT_FAIL_WARNING;
 						this.manageLoggerComponent.debugWarnLog(
-								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null,
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
 								"ExecuteMainUtil.getCountryLeagueByRegex(分割失敗: " + category + ")");
 						continue;
 					}
@@ -117,7 +118,6 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 					    this.manageLoggerComponent.debugWarnLog(
 					        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					        MessageCdConst.MCD00001W_COUNTRY_LEAGUE_SPLIT_FAIL_WARNING,
-					        null,
 					        "season_year not found: " + country + " / " + league
 					    );
 					    continue;

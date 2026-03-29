@@ -4,7 +4,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -21,6 +20,7 @@ import dev.application.general.CsvHeaderMaps;
 import dev.application.general.CsvImport;
 import dev.application.main.service.CoreStat;
 import dev.common.entity.BookDataEntity;
+import dev.common.getinfo.GetStatInfo;
 
 /**
  * BM_M097統計分析ロジックテスト
@@ -34,6 +34,9 @@ import dev.common.entity.BookDataEntity;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @ActiveProfiles("test")
 public class AnalyzeManualStatITTest {
+
+	@Autowired
+	private GetStatInfo getStatInfo;
 
 	@Autowired
 	private CoreStat coreStat;
@@ -100,65 +103,7 @@ public class AnalyzeManualStatITTest {
 	 * value     : BookDataEntity list
 	 */
 	private Map<String, Map<String, List<BookDataEntity>>> toAnalyzeEntities(List<BookDataEntity> rows) {
-		return rows.stream()
-				.collect(Collectors.groupingBy(
-						this::buildLeagueKey,
-						LinkedHashMap::new,
-						Collectors.groupingBy(
-								this::buildMatchKey,
-								LinkedHashMap::new,
-								Collectors.collectingAndThen(
-										Collectors.toList(),
-										list -> list.stream()
-												.sorted(Comparator.comparingLong(this::seqAsLong))
-												.collect(Collectors.toList())
-								)
-						)
-				));
+		return getStatInfo.buildStatMapFromEntities(rows);
 	}
 
-	/**
-	 * gameTeamCategory 例:
-	 * 日本: J1 リーグ - ラウンド 1
-	 * -> 日本,J1 リーグ - ラウンド 1
-	 */
-	private String buildLeagueKey(BookDataEntity e) {
-		String category = nvl(e.getGameTeamCategory());
-		int idx = category.indexOf(':');
-		if (idx >= 0) {
-			String country = category.substring(0, idx).trim();
-			String league = category.substring(idx + 1).trim();
-			return country + "," + league;
-		}
-		return category;
-	}
-
-	/**
-	 * match_id 優先でキー化
-	 * 無い場合は home-away-recordTime で代替
-	 */
-	private String buildMatchKey(BookDataEntity e) {
-		if (hasText(e.getMatchId())) {
-			return "MID||" + e.getMatchId().trim();
-		}
-		return nvl(e.getHomeTeamName()) + "-"
-				+ nvl(e.getAwayTeamName()) + "||"
-				+ nvl(e.getRecordTime());
-	}
-
-	private long seqAsLong(BookDataEntity e) {
-		try {
-			return Long.parseLong(nvl(e.getSeq()));
-		} catch (Exception ex) {
-			return Long.MAX_VALUE;
-		}
-	}
-
-	private boolean hasText(String s) {
-		return s != null && !s.trim().isEmpty();
-	}
-
-	private String nvl(String s) {
-		return s == null ? "" : s;
-	}
 }
