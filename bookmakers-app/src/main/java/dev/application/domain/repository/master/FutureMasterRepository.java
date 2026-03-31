@@ -45,4 +45,22 @@ public interface FutureMasterRepository {
 			""")
 	int findAll();
 
+	/**
+	 * BM_M097 用:
+	 * future_master にある future_time の JST日付一覧を取得
+	 */
+	@Select("""
+			SELECT
+			    seq,
+			    home_team_name AS homeTeamName,
+			    away_team_name AS awayTeamName,
+			    future_time    AS futureTime
+			FROM future_master
+			WHERE future_time IS NOT NULL
+			  AND home_team_name IS NOT NULL
+			  AND away_team_name IS NOT NULL
+			ORDER BY seq
+			""")
+	List<FutureEntity> findFutureDatesForManualStat();
+
 }

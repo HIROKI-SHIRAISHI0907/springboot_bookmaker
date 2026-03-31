@@ -1,6 +1,7 @@
 package dev.application.analyze.bm_m097;
 
 import java.time.OffsetDateTime;
+import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -8,6 +9,7 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -16,11 +18,13 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.domain.repository.bm.AnalyzeManualRepository;
 import dev.application.domain.repository.bm.BookDataRepository;
+import dev.application.domain.repository.master.FutureMasterRepository;
 import dev.application.main.service.CoreStat;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.entity.DataEntity;
+import dev.common.entity.FutureEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.getinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
@@ -49,8 +53,13 @@ public class AnalyzeManualStat {
 	/** 1回のIN句件数（DB負荷対策） */
 	private static final int MATCH_ID_BATCH_SIZE = 500;
 
+	private static final ZoneId JST = ZoneId.of("Asia/Tokyo");
+
 	@Autowired
 	private BookDataRepository bookDataRepository;
+
+	@Autowired
+	private FutureMasterRepository futureMasterRepository;
 
 	@Autowired
 	private AnalyzeManualRepository analyzeManualDataRepository;
@@ -92,10 +101,39 @@ public class AnalyzeManualStat {
 			return 0;
 		}
 
-		// 2) 終了済み or PENALTY含みを対象
+		// 2) future_master から比較用の試合キーを取得
+		Map<String, FutureEntity> futureTargetMap = futureMasterRepository.findFutureDatesForManualStat().stream()
+				.filter(e -> e != null)
+				.filter(e -> !nvl(e.getHomeTeamName()).isEmpty())
+				.filter(e -> !nvl(e.getAwayTeamName()).isEmpty())
+				.filter(e -> !toTokyoDateString(e.getFutureTime()).isEmpty())
+				.collect(Collectors.toMap(
+						this::buildFutureMasterKey,
+						Function.identity(),
+						(a, b) -> a,
+						LinkedHashMap::new));
+
+		if (futureTargetMap.isEmpty()) {
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
+					null,
+					"futureTargetMap not found");
+			return 0;
+		}
+
+		// 3) 終了済み or PENALTY含み かつ
+		//    home/away/date が future_master と一致するものだけ対象
 		List<DataEntity> finishedList = finList.stream()
 				.filter(this::isFinishedTarget)
+				.filter(e -> futureTargetMap.containsKey(buildDataFutureKey(e)))
 				.collect(Collectors.toList());
+
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
+				"manual target by future key: futureTargetMap=" + futureTargetMap.size()
+						+ ", finList=" + finList.size()
+						+ ", finishedList=" + finishedList.size());
 
 		if (finishedList.isEmpty()) {
 			this.manageLoggerComponent.debugWarnLog(
@@ -192,8 +230,7 @@ public class AnalyzeManualStat {
 				.map(this::toBookDataEntity)
 				.collect(Collectors.toList());
 
-		Map<String, Map<String, List<BookDataEntity>>> entities =
-				getStatInfo.buildStatMapFromEntities(bookDataList);
+		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.buildStatMapFromEntities(bookDataList);
 
 		try {
 			coreStat.execute(entities, true);
@@ -261,8 +298,7 @@ public class AnalyzeManualStat {
 						this::buildNormalizeKey,
 						e -> e,
 						this::preferDataEntity,
-						LinkedHashMap::new
-				));
+						LinkedHashMap::new));
 
 		return new ArrayList<>(normalizedMap.values());
 	}
@@ -354,8 +390,7 @@ public class AnalyzeManualStat {
 
 		List<DateTimeFormatter> formatters = List.of(
 				DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssX"),
-				DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX")
-		);
+				DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX"));
 
 		for (DateTimeFormatter formatter : formatters) {
 			try {
@@ -554,4 +589,77 @@ public class AnalyzeManualStat {
 	private String nvl(String value) {
 		return value == null ? "" : value.trim();
 	}
+
+	/**
+	 * future_master 側の照合キー
+	 * home_team_name + away_team_name + future_time(JST日付)
+	 */
+	private String buildFutureMasterKey(FutureEntity e) {
+		return String.join("||",
+				nvl(e.getHomeTeamName()),
+				nvl(e.getAwayTeamName()),
+				toTokyoDateString(e.getFutureTime()));
+	}
+
+	/**
+	 * data 側の照合キー
+	 * home_team_name + away_team_name + record_time(JST日付)
+	 */
+	private String buildDataFutureKey(DataEntity e) {
+		return String.join("||",
+				nvl(e.getHomeTeamName()),
+				nvl(e.getAwayTeamName()),
+				toTokyoDateString(e.getRecordTime()));
+	}
+
+	/**
+	 * JST日付文字列へ変換
+	 * String / OffsetDateTime の両方を吸収
+	 */
+	@SuppressWarnings("preview")
+	private String toTokyoDateString(Object dateTime) {
+		if (dateTime == null) {
+			return "";
+		}
+
+		if (dateTime instanceof OffsetDateTime odt) {
+			return odt.toInstant()
+					.atZone(JST)
+					.toLocalDate()
+					.toString();
+		}
+
+		String value = String.valueOf(dateTime).trim();
+		if (value.isEmpty()) {
+			return "";
+		}
+
+		List<DateTimeFormatter> formatters = List.of(
+				DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssX"),
+				DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX")
+		);
+
+		for (DateTimeFormatter formatter : formatters) {
+			try {
+				return OffsetDateTime.parse(value, formatter)
+						.toInstant()
+						.atZone(JST)
+						.toLocalDate()
+						.toString();
+			} catch (Exception ignore) {
+				// 次の formatter を試す
+			}
+		}
+
+		try {
+			return OffsetDateTime.parse(value)
+					.toInstant()
+					.atZone(JST)
+					.toLocalDate()
+					.toString();
+		} catch (Exception ignore) {
+			return "";
+		}
+	}
+
 }
