@@ -28,13 +28,17 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import dev.batch.repository.bm.BookCsvDataRepository;
+import dev.batch.repository.bm.CsvDetailManageRepository;
+import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
 import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
+import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.filemng.FileMngWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
+import dev.common.util.ExecuteMainUtil;
 
 /**
  * StatデータCSV出力ロジック（S3 直下アップロード版）
@@ -98,6 +102,16 @@ public class ExportCsvService {
 
 	@Autowired
 	private BookCsvDataRepository bookCsvDataRepository;
+
+	@Autowired
+	private CsvDetailManageRepository csvDetailManageRepository;
+
+	@Autowired
+	private CountryLeagueSeasonMasterBatchRepository countryLeagueSeasonMasterBatchRepository;
+
+	/** ログ管理ラッパー*/
+	@Autowired
+	private RootCauseWrapper rootCauseWrapper;
 
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
@@ -349,6 +363,8 @@ public class ExportCsvService {
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 				"CSVアップロード結果(final put) (成功: " + success + "件, 失敗: " + failed + "件)");
 
+		registerCsvDetailManage(succeeded, METHOD_NAME);
+
 		// ====== 11) data_team_list.txt 更新（ローカル）→ S3へPUT ======
 		try {
 			upsertDataTeamList(localTeamPath, succeeded, failedEntries);
@@ -573,6 +589,8 @@ public class ExportCsvService {
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 				"localOnly: CSV生成結果 (成功: " + success + "件, 失敗: " + failed + "件)");
 
+		registerCsvDetailManage(succeeded, METHOD_NAME);
+
 		// localOnlyでも管理ファイルは更新する
 		upsertDataTeamList(localTeamPath, succeeded, failedEntries);
 		writeSeqListJson(localSeqPath, currentGroups);
@@ -586,6 +604,138 @@ public class ExportCsvService {
 
 		endLog(METHOD_NAME, null, null);
 	}
+
+	// =========================================================
+	// csv_detail_manage 更新
+	// =========================================================
+	private void registerCsvDetailManage(
+			List<SimpleEntry<String, List<DataEntity>>> succeeded,
+			String parentMethod) {
+
+		final String METHOD_NAME = "registerCsvDetailManage";
+
+		if (succeeded == null || succeeded.isEmpty()) {
+			return;
+		}
+
+		for (SimpleEntry<String, List<DataEntity>> e : succeeded) {
+			if (e == null) {
+				continue;
+			}
+
+			Integer csvNo = csvNoFromFilePath(e.getKey());
+			List<DataEntity> list = e.getValue();
+
+			if (csvNo == null || list == null || list.isEmpty()) {
+				continue;
+			}
+
+			DataEntity row = findRowWithTeams(list);
+			if (row == null) {
+				continue;
+			}
+
+			// データカテゴリからシーズン年を取得
+			List<String> dataList = ExecuteMainUtil.
+					getCountryLeagueByRegex(row.getDataCategory());
+			String season = countryLeagueSeasonMasterBatchRepository.
+					findSeasonYear(dataList.get(0), dataList.get(1));
+
+			String csvId = String.valueOf(csvNo);
+			String dataCategory = safe(row.getDataCategory()).trim();
+
+			String home = safe(row.getHomeTeamName()).trim();
+			String away = safe(row.getAwayTeamName()).trim();
+
+			try {
+				upsertCsvDetailManage(csvId, dataCategory, season, home, away, parentMethod);
+			} catch (Exception ex) {
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, ex,
+						"csv_detail_manage 更新失敗: " + buildCsvDetailContext(dataCategory, season, home, away));
+
+				throw ex;
+			}
+		}
+	}
+
+	/**
+	 * CSV詳細管理
+	 * @param csvId
+	 * @param dataCategory
+	 * @param season
+	 * @param home
+	 * @param away
+	 * @param parentMethod
+	 */
+	private void upsertCsvDetailManage(
+			String csvId,
+			String dataCategory,
+			String season,
+			String home,
+			String away,
+			String parentMethod) {
+
+		final String METHOD_NAME = "upsertCsvDetailManage";
+
+		CsvDetailManageEntity entity = new CsvDetailManageEntity();
+		entity.setCsvId(csvId);
+		entity.setDataCategory(dataCategory);
+		entity.setSeason(season);
+		entity.setHomeTeamName(home);
+		entity.setAwayTeamName(away);
+		entity.setCheckFinFlg("0");
+
+		String context = buildCsvDetailContext(dataCategory, season, home, away);
+
+		CsvDetailManageEntity selectEntity = this.csvDetailManageRepository.select(entity);
+		if (selectEntity != null) {
+			int result = this.csvDetailManageRepository.update(selectEntity.getCsvId(), "1");
+			if (result != 1) {
+				String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
+				this.rootCauseWrapper.throwUnexpectedRowCount(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						messageCd,
+						1, result,
+						context);
+			}
+
+			String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+					"csv_detail_manage 更新件数: " + result + "件 (" + context + ", csvId=" + csvId + ")");
+		} else {
+			int result = this.csvDetailManageRepository.insert(entity);
+			if (result != 1) {
+				String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
+				this.rootCauseWrapper.throwUnexpectedRowCount(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						messageCd,
+						1, result,
+						context);
+			}
+
+			String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+					"csv_detail_manage 登録件数: " + result + "件 (" + context + ", csvId=" + csvId + ")");
+		}
+	}
+
+	private String buildCsvDetailContext(
+			String dataCategory,
+			String season,
+			String home,
+			String away) {
+
+		return String.format("%s(%s): %s vs %s",
+				safe(dataCategory).trim(),
+				safe(season).trim(),
+				safe(home).trim(),
+				safe(away).trim());
+	}
+
 
 	// =========================================================
 	// seqList.txt JSON形式読み書き

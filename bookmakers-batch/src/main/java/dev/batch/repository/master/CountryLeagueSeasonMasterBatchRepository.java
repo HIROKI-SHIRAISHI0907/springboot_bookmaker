@@ -15,6 +15,19 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 
 	@Select("""
 			    SELECT
+			     	season_year
+			    FROM
+			    	country_league_season_master
+			    WHERE
+				    country = #{country}
+				    AND league = #{league}
+				    AND del_flg = '0';
+			""")
+	String findSeasonYear(@Param("country") String country,
+			@Param("league") String league);
+
+	@Select("""
+			    SELECT
 			        country,
 			        league,
 			        end_season_date
@@ -53,37 +66,37 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			@Param("league") String league);
 
 	@Insert({
-		"	    INSERT INTO country_league_season_master (",
-		"	        country,",
-		"	        league,",
-		"	        season_year,",
-		"	        start_season_date,",
-		"	        end_season_date,",
-		"	        round,",
-		"	        path,",
-		"	        icon,",
-		"	        valid_flg,",
-		"           del_flg,",
-		"	        register_id,",
-		"	        register_time,",
-		"	        update_id,",
-		"	        update_time",
-		"	    ) VALUES (",
-		"	        #{country},",
-		"	        #{league},",
-		"	        #{seasonYear},",
-		"	        #{startSeasonDate}::timestamptz,",
-		"			#{endSeasonDate}::timestamptz,",
-		"	        #{round},",
-		"	        #{path},",
-		"	        #{icon},",
-		"	        '0',",
-		"	        '0',",
-		"           'SYSTEM',",
-		"			CURRENT_TIMESTAMP,",
-		"			'SYSTEM',",
-		"			CURRENT_TIMESTAMP)",
-	""})
+			"	    INSERT INTO country_league_season_master (",
+			"	        country,",
+			"	        league,",
+			"	        season_year,",
+			"	        start_season_date,",
+			"	        end_season_date,",
+			"	        round,",
+			"	        path,",
+			"	        icon,",
+			"	        valid_flg,",
+			"           del_flg,",
+			"	        register_id,",
+			"	        register_time,",
+			"	        update_id,",
+			"	        update_time",
+			"	    ) VALUES (",
+			"	        #{country},",
+			"	        #{league},",
+			"	        #{seasonYear},",
+			"	        #{startSeasonDate}::timestamptz,",
+			"			#{endSeasonDate}::timestamptz,",
+			"	        #{round},",
+			"	        #{path},",
+			"	        #{icon},",
+			"	        '0',",
+			"	        '0',",
+			"           'SYSTEM',",
+			"			CURRENT_TIMESTAMP,",
+			"			'SYSTEM',",
+			"			CURRENT_TIMESTAMP)",
+			"" })
 	int insert(CountryLeagueSeasonMasterEntity entity);
 
 	@Select("""
@@ -154,22 +167,22 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			@Param("path") String path);
 
 	@Update({
-		"	    UPDATE ",
-		"	        country_league_season_master ",
-		"	    SET ",
-		"	        season_year = #{seasonYear},",
-		"			start_season_date = #{startSeasonDate}::timestamptz,",
-		"			end_season_date = #{endSeasonDate}::timestamptz,",
-		//"			start_season_date = #{startSeasonDate},",
-		//"			end_season_date = #{endSeasonDate},",
-		"			round = #{round},",
-		"			path = #{path},",
-		"			icon = #{icon},",
-		"			valid_flg = '0',",
-		"			del_flg = '0'",
-		"	    WHERE",
-		"	        country = #{country} AND",
-		"	        league = #{league};"
+			"	    UPDATE ",
+			"	        country_league_season_master ",
+			"	    SET ",
+			"	        season_year = #{seasonYear},",
+			"			start_season_date = #{startSeasonDate}::timestamptz,",
+			"			end_season_date = #{endSeasonDate}::timestamptz,",
+			//"			start_season_date = #{startSeasonDate},",
+			//"			end_season_date = #{endSeasonDate},",
+			"			round = #{round},",
+			"			path = #{path},",
+			"			icon = #{icon},",
+			"			valid_flg = '0',",
+			"			del_flg = '0'",
+			"	    WHERE",
+			"	        country = #{country} AND",
+			"	        league = #{league};"
 	})
 	int updateByCountryLeague(CountryLeagueSeasonMasterEntity entity);
 
