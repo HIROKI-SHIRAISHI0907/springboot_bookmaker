@@ -49,7 +49,7 @@ public interface CountryLeagueSeasonMasterRepository {
 			"WHERE country = #{country} AND league = #{league}"
 	})
 	List<CountryLeagueSeasonMasterEntity> findByCountryAndLeague(@Param("country") String country,
-			  @Param("league") String league);
+			@Param("league") String league);
 
 	@Select({
 			"SELECT country, league, round FROM country_league_season_master ",
@@ -58,17 +58,30 @@ public interface CountryLeagueSeasonMasterRepository {
 	List<CountryLeagueSeasonMasterEntity> findRoundValidFlg(@Param("validFlg") String validFlg);
 
 	@Select({
-	    "SELECT season_year ",
-	    "FROM country_league_season_master ",
-	    "WHERE country = #{country} ",
-	    "  AND league  = #{league} ",
-	    "  AND valid_flg = '0' ",
-	    "  AND del_flg = '0' ",
-	    "  AND NOW() BETWEEN start_season_date AND end_season_date ",
-	    "ORDER BY start_season_date DESC ",
-	    "LIMIT 1"
+			"SELECT season_year ",
+			"FROM country_league_season_master ",
+			"WHERE country = #{country} ",
+			"  AND league  = #{league} ",
+			"  AND valid_flg = '0' ",
+			"  AND del_flg = '0' ",
+			"  AND NOW() BETWEEN start_season_date AND end_season_date ",
+			"ORDER BY start_season_date DESC ",
+			"LIMIT 1"
 	})
 	String findCurrentSeasonYear(@Param("country") String country,
-			  @Param("league") String league);
+			@Param("league") String league);
+
+	@Select("""
+			    SELECT
+			     	season_year
+			    FROM
+			    	country_league_season_master
+			    WHERE
+				    country = #{country}
+				    AND league = #{league}
+				    AND del_flg = '0';
+			""")
+	String findSeasonYear(@Param("country") String country,
+			@Param("league") String league);
 
 }
