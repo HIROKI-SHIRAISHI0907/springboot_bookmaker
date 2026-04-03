@@ -1,8 +1,7 @@
-package dev.batch.bm_b011;
+package dev.common.entity;
 
 import java.io.Serializable;
 
-import dev.common.entity.MetaEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
