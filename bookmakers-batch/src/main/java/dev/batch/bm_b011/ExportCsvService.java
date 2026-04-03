@@ -28,11 +28,12 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import dev.batch.repository.bm.BookCsvDataRepository;
-import dev.batch.repository.bm.CsvDetailManageRepository;
+import dev.batch.repository.bm.BookCsvDetailManageRepository;
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
 import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
+import dev.common.entity.CsvDetailManageEntity;
 import dev.common.entity.DataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.filemng.FileMngWrapper;
@@ -104,7 +105,7 @@ public class ExportCsvService {
 	private BookCsvDataRepository bookCsvDataRepository;
 
 	@Autowired
-	private CsvDetailManageRepository csvDetailManageRepository;
+	private BookCsvDetailManageRepository csvDetailManageRepository;
 
 	@Autowired
 	private CountryLeagueSeasonMasterBatchRepository countryLeagueSeasonMasterBatchRepository;

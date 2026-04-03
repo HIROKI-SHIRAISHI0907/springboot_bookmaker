@@ -6,11 +6,11 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
-import dev.batch.bm_b011.CsvDetailManageEntity;
+import dev.common.entity.CsvDetailManageEntity;
 
 
 @Mapper
-public interface CsvDetailManageRepository {
+public interface BookCsvDetailManageRepository {
 
 	@Select("""
 			SELECT
