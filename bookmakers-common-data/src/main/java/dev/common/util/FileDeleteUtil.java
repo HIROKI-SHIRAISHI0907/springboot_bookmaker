@@ -5,6 +5,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.Collection;
+import java.util.List;
 
 import dev.common.constant.MessageCdConst;
 import dev.common.logger.ManageLoggerComponent;
@@ -93,18 +94,59 @@ public class FileDeleteUtil {
 		}
 
 		for (String key : s3Keys) {
-			if (key == null || key.isBlank())
+			if (key == null || key.isBlank()) {
 				continue;
+			}
+
 			try {
+				boolean beforeExists = existsS3Object(bucket, key, s3Operator);
+				if (!beforeExists) {
+					logger.debugInfoLog(projectName, className, methodName,
+							MessageCdConst.MCD00017I_NO_FILE_DELETED,
+							"削除対象なし（S3に存在しない）" + (title == null ? "" : " - " + title), key);
+					continue;
+				}
+
 				s3Operator.delete(bucket, key);
-				logger.debugInfoLog(projectName, className, methodName,
-						MessageCdConst.MCD00016I_FILE_DELETED,
-						"S3削除成功" + (title == null ? "" : " - " + title), key);
+
+				boolean afterExists = existsS3Object(bucket, key, s3Operator);
+				if (!afterExists) {
+					logger.debugInfoLog(projectName, className, methodName,
+							MessageCdConst.MCD00016I_FILE_DELETED,
+							"S3削除成功" + (title == null ? "" : " - " + title), key);
+				} else {
+					logger.debugErrorLog(projectName, className, methodName,
+							MessageCdConst.MCD00009E_DELETE_FAILED,
+							null,
+							"S3削除後もオブジェクトが残っています" + (title == null ? "" : " - " + title), key);
+				}
+
 			} catch (Exception e) {
 				logger.debugErrorLog(projectName, className, methodName,
 						MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION,
 						e, "S3削除失敗" + (title == null ? "" : " - " + title), key);
 			}
+		}
+	}
+
+	private static boolean existsS3Object(
+			String bucket,
+			String key,
+			S3Operator s3Operator) {
+
+		try {
+			List<String> keys = s3Operator.listKeys(bucket, key);
+			if (keys == null || keys.isEmpty()) {
+				return false;
+			}
+			for (String k : keys) {
+				if (key.equals(k)) {
+					return true;
+				}
+			}
+			return false;
+		} catch (Exception e) {
+			return false;
 		}
 	}
 
