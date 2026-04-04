@@ -115,7 +115,7 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 		final String jsonFolder = pathConfig.getB008JsonFolder(); // /tmp/json/
 		final String jsonPath = jsonFolder + "b008_fin_getting_data.json";
 		final Path jsonFilePath = Paths.get(jsonPath);
-		final String s3Key = "json/" + jsonFilePath.getFileName().toString();
+		final String s3Key = "fin/" + jsonFilePath.getFileName().toString();
 		insertPath.add(s3Key);
 
 		// マッチキーDBから保存済マッチキーを取得

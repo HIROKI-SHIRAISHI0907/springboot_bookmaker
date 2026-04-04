@@ -46,7 +46,7 @@ public interface BookCsvDetailManageRepository {
 			    #{season},
 			    #{homeTeamName},
 			    #{awayTeamName},
-			    #{checkFinFlg}
+			    #{checkFinFlg},
 			    'ADMIN',
 			    CURRENT_TIMESTAMP,
 			    'ADMIN',
