@@ -47,6 +47,9 @@ public class CoreStat implements StatIF {
 	/** クラス名 */
 	private static final String CLASS_NAME = CoreStat.class.getName();
 
+	/** 手動登録 */
+	private static final String CSV_ID_MANUAL = "-99";
+
 	/**
 	 * BM_M002統計分析ロジッククラス
 	 */
@@ -208,8 +211,11 @@ public class CoreStat implements StatIF {
 		this.loggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// csv詳細管理登録
-		insertCsvDetail(existDto);
+		// csv詳細管理登録（csv_idを-99で登録）
+		if (manualFlg) {
+			existDto.setCsvId(CSV_ID_MANUAL);
+			insertCsvDetail(existDto);
+		}
 
 		// 時間計測終了
 		long endTime = System.nanoTime();
@@ -220,6 +226,11 @@ public class CoreStat implements StatIF {
 		return 0;
 	}
 
+	/**
+	 * CSV詳細管理データ取得
+	 * @param stat
+	 * @return
+	 */
 	private CsvDetailEntityOutputDTO selectCsvDetail(
 			Map<String, Map<String, List<BookDataEntity>>> stat) {
 		final String METHOD_NAME = "selectCsvDetail";

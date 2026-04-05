@@ -49,7 +49,7 @@ public interface CsvDetailManageRepository {
 			    #{season},
 			    #{homeTeamName},
 			    #{awayTeamName},
-			    #{checkFinFlg}
+			    #{checkFinFlg},
 			    'ADMIN',
 			    CURRENT_TIMESTAMP,
 			    'ADMIN',

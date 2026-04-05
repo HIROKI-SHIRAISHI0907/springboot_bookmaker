@@ -616,50 +616,50 @@ public class AnalyzeManualStat {
 	 * JST日付文字列へ変換
 	 * String / OffsetDateTime の両方を吸収
 	 */
-	@SuppressWarnings("preview")
 	private String toTokyoDateString(Object dateTime) {
-		if (dateTime == null) {
-			return "";
-		}
+	    if (dateTime == null) {
+	        return "";
+	    }
 
-		if (dateTime instanceof OffsetDateTime odt) {
-			return odt.toInstant()
-					.atZone(JST)
-					.toLocalDate()
-					.toString();
-		}
+	    if (dateTime instanceof OffsetDateTime) {
+	        OffsetDateTime odt = (OffsetDateTime) dateTime;
+	        return odt.toInstant()
+	                .atZone(JST)
+	                .toLocalDate()
+	                .toString();
+	    }
 
-		String value = String.valueOf(dateTime).trim();
-		if (value.isEmpty()) {
-			return "";
-		}
+	    String value = String.valueOf(dateTime).trim();
+	    if (value.isEmpty()) {
+	        return "";
+	    }
 
-		List<DateTimeFormatter> formatters = List.of(
-				DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssX"),
-				DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX")
-		);
+	    List<DateTimeFormatter> formatters = List.of(
+	            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssX"),
+	            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX")
+	    );
 
-		for (DateTimeFormatter formatter : formatters) {
-			try {
-				return OffsetDateTime.parse(value, formatter)
-						.toInstant()
-						.atZone(JST)
-						.toLocalDate()
-						.toString();
-			} catch (Exception ignore) {
-				// 次の formatter を試す
-			}
-		}
+	    for (DateTimeFormatter formatter : formatters) {
+	        try {
+	            return OffsetDateTime.parse(value, formatter)
+	                    .toInstant()
+	                    .atZone(JST)
+	                    .toLocalDate()
+	                    .toString();
+	        } catch (Exception ignore) {
+	            // 次の formatter を試す
+	        }
+	    }
 
-		try {
-			return OffsetDateTime.parse(value)
-					.toInstant()
-					.atZone(JST)
-					.toLocalDate()
-					.toString();
-		} catch (Exception ignore) {
-			return "";
-		}
+	    try {
+	        return OffsetDateTime.parse(value)
+	                .toInstant()
+	                .atZone(JST)
+	                .toLocalDate()
+	                .toString();
+	    } catch (Exception ignore) {
+	        return "";
+	    }
 	}
 
 }

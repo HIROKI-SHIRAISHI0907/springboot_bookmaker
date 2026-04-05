@@ -2,6 +2,7 @@ package dev.application.analyze.bm_m031;
 
 import java.util.ArrayList;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
@@ -182,14 +183,15 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, null, null, last.getFilePath());
 
 		if (!BookMakersCommonConst.FIN.equals(last.getTime())
-				&& !last.getTime().contains(BookMakersCommonConst.PENALTY)) {
+				&& !safe(last.getTime()).contains(BookMakersCommonConst.PENALTY)) {
 			return;
 		}
 
 		BookDataEntity mid = ExecuteMainUtil.getHalfEntities(entities);
 		BookDataEntity first = ExecuteMainUtil.getMinSeqEntities(entities);
 
-		boolean canCalcScoreData = mid != null && mid.getSeq() != null && first != null;
+		boolean singleFinalOnly = entities != null && entities.size() == 1;
+		boolean canCalcScoreData = last != null && (singleFinalOnly || (mid != null && first != null));
 
 		if (!canCalcScoreData) {
 			manageLoggerComponent.debugInfoLog(
@@ -199,14 +201,21 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 							+ ", country=" + country + ", league=" + league);
 		}
 
-		// スコア推移（連続重複を除外）
+		// 先制点・逆転判定用のスコア推移
+		// 1件しかない救済データでは first goal は判定しないので、1件だけなら空のままにする
+		// また penalty only 行は除外する
 		List<String> scoreList = new ArrayList<>();
-		String prev = null;
-		for (BookDataEntity e : entities) {
-			String s = e.getHomeScore() + "-" + e.getAwayScore();
-			if (!s.equals(prev)) {
-				scoreList.add(s);
-				prev = s;
+		if (!singleFinalOnly) {
+			String prev = null;
+			for (BookDataEntity e : entities) {
+				if (e == null || isPenaltyOnlyGoal(e)) {
+					continue;
+				}
+				String s = safe(e.getHomeScore()) + "-" + safe(e.getAwayScore());
+				if (!s.equals(prev)) {
+					scoreList.add(s);
+					prev = s;
+				}
 			}
 		}
 
@@ -400,14 +409,11 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		String homeTeam = maxEntity.getHomeTeamName();
 		String awayTeam = maxEntity.getAwayTeamName();
 
-		int homeMin = parseOrZero(minEntity.getHomeScore());
-		int homeMid = parseOrZero(middleEntity.getHomeScore());
-		int homeMax = parseOrZero(maxEntity.getHomeScore());
-		int awayMin = parseOrZero(minEntity.getAwayScore());
-		int awayMid = parseOrZero(middleEntity.getAwayScore());
-		int awayMax = parseOrZero(maxEntity.getAwayScore());
+		// 救済ケース:
+		// 3分刻みデータが取れず、FIN / PENALTY の1件だけ流れ込んだ場合
+		boolean singleFinalOnly = (middleEntity == null || minEntity == null);
 
-		// 得点（既存）
+		// 得点
 		String h1 = resultEntity.getHome1stHalfScore();
 		String h2 = resultEntity.getHome2ndHalfScore();
 		String hs = resultEntity.getHomeSumScore();
@@ -421,7 +427,7 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		String fts = resultEntity.getFailToScoreGameCount();
 		int befFts = parseOrZero(fts);
 
-		// 追加：失点
+		// 失点
 		String hl1 = resultEntity.getHome1stHalfLost();
 		String hl2 = resultEntity.getHome2ndHalfLost();
 		String hls = resultEntity.getHomeSumLost();
@@ -430,14 +436,102 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		String al2 = resultEntity.getAway2ndHalfLost();
 		String als = resultEntity.getAwaySumLost();
 
-		// 前後半の増分
-		int dh1 = homeMid - homeMin; // ホーム得点（前半増分）
-		int dh2 = homeMax - homeMid; // ホーム得点（後半増分）
-		int da1 = awayMid - awayMin; // アウェー得点（前半増分）
-		int da2 = awayMax - awayMid; // アウェー得点（後半増分）
+		if (singleFinalOnly) {
+			// 1件だけなので前半/後半の内訳は不明
+			// 合計得点・合計失点・CS・無得点だけ更新する
+			int homeMax = parseOrZero(maxEntity.getHomeScore());
+			int awayMax = parseOrZero(maxEntity.getAwayScore());
+
+			if (team.equals(homeTeam)) {
+				hs = String.valueOf(parseOrZero(hs) + homeMax);
+				hls = String.valueOf(parseOrZero(hls) + awayMax);
+
+				if (awayMax == 0) {
+					hc = String.valueOf(parseOrZero(hc) + 1);
+				}
+				if (homeMax == 0) {
+					fts = String.valueOf(parseOrZero(fts) + 1);
+				}
+
+			} else if (team.equals(awayTeam)) {
+				as = String.valueOf(parseOrZero(as) + awayMax);
+				als = String.valueOf(parseOrZero(als) + homeMax);
+
+				if (homeMax == 0) {
+					ac = String.valueOf(parseOrZero(ac) + 1);
+				}
+				if (awayMax == 0) {
+					fts = String.valueOf(parseOrZero(fts) + 1);
+				}
+			}
+
+			if (h1 == null) h1 = "0";
+			if (h2 == null) h2 = "0";
+			if (hs == null) hs = "0";
+			if (a1 == null) a1 = "0";
+			if (a2 == null) a2 = "0";
+			if (as == null) as = "0";
+			if (hc == null) hc = "0";
+			if (ac == null) ac = "0";
+			if (fts == null) fts = "0";
+
+			if (hl1 == null) hl1 = "0";
+			if (hl2 == null) hl2 = "0";
+			if (hls == null) hls = "0";
+			if (al1 == null) al1 = "0";
+			if (al2 == null) al2 = "0";
+			if (als == null) als = "0";
+
+			resultEntity.setHome1stHalfScore(h1);
+			resultEntity.setHome2ndHalfScore(h2);
+			resultEntity.setHomeSumScore(hs);
+			resultEntity.setHome1stHalfScoreRatio(toPercent(parseOrZero(h1), parseOrZero(hs)));
+			resultEntity.setHome2ndHalfScoreRatio(toPercent(parseOrZero(h2), parseOrZero(hs)));
+			resultEntity.setHomeCleanSheet(hc);
+
+			resultEntity.setAway1stHalfScore(a1);
+			resultEntity.setAway2ndHalfScore(a2);
+			resultEntity.setAwaySumScore(as);
+			resultEntity.setAway1stHalfScoreRatio(toPercent(parseOrZero(a1), parseOrZero(as)));
+			resultEntity.setAway2ndHalfScoreRatio(toPercent(parseOrZero(a2), parseOrZero(as)));
+			resultEntity.setAwayCleanSheet(ac);
+
+			resultEntity.setFailToScoreGameCount(fts);
+
+			resultEntity.setHome1stHalfLost(hl1);
+			resultEntity.setHome2ndHalfLost(hl2);
+			resultEntity.setHomeSumLost(hls);
+			resultEntity.setHome1stHalfLostRatio(toPercent(parseOrZero(hl1), parseOrZero(hls)));
+			resultEntity.setHome2ndHalfLostRatio(toPercent(parseOrZero(hl2), parseOrZero(hls)));
+
+			resultEntity.setAway1stHalfLost(al1);
+			resultEntity.setAway2ndHalfLost(al2);
+			resultEntity.setAwaySumLost(als);
+			resultEntity.setAway1stHalfLostRatio(toPercent(parseOrZero(al1), parseOrZero(als)));
+			resultEntity.setAway2ndHalfLostRatio(toPercent(parseOrZero(al2), parseOrZero(als)));
+
+			int consec = parseOrZero(resultEntity.getConsecutiveScoreCount());
+			consec = (parseOrZero(fts) == befFts) ? (consec + 1) : 0;
+			resultEntity.setConsecutiveScoreCount(String.valueOf(consec));
+			resultEntity.setConsecutiveScoreCountDisp(consec >= 3 ? SurfaceOverviewConst.CONSECTIVE_SCORING : null);
+
+			return resultEntity;
+		}
+
+		// 通常ケース（3分刻みデータあり）
+		int homeMin = parseOrZero(minEntity.getHomeScore());
+		int homeMid = parseOrZero(middleEntity.getHomeScore());
+		int homeMax = parseOrZero(maxEntity.getHomeScore());
+		int awayMin = parseOrZero(minEntity.getAwayScore());
+		int awayMid = parseOrZero(middleEntity.getAwayScore());
+		int awayMax = parseOrZero(maxEntity.getAwayScore());
+
+		int dh1 = homeMid - homeMin;
+		int dh2 = homeMax - homeMid;
+		int da1 = awayMid - awayMin;
+		int da2 = awayMax - awayMid;
 
 		if (team.equals(homeTeam)) {
-			// 得点
 			h1 = String.valueOf(parseOrZero(h1) + dh1);
 			h2 = String.valueOf(parseOrZero(h2) + dh2);
 			hs = String.valueOf(parseOrZero(hs) + dh1 + dh2);
@@ -446,13 +540,11 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			if (homeMax == 0)
 				fts = String.valueOf(parseOrZero(fts) + 1);
 
-			// 失点（ホームの失点＝アウェー得点の増分）
 			hl1 = String.valueOf(parseOrZero(hl1) + da1);
 			hl2 = String.valueOf(parseOrZero(hl2) + da2);
 			hls = String.valueOf(parseOrZero(hls) + da1 + da2);
 
 		} else if (team.equals(awayTeam)) {
-			// 得点
 			a1 = String.valueOf(parseOrZero(a1) + da1);
 			a2 = String.valueOf(parseOrZero(a2) + da2);
 			as = String.valueOf(parseOrZero(as) + da1 + da2);
@@ -461,46 +553,28 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			if (awayMax == 0)
 				fts = String.valueOf(parseOrZero(fts) + 1);
 
-			// 失点（アウェーの失点＝ホーム得点の増分）
 			al1 = String.valueOf(parseOrZero(al1) + dh1);
 			al2 = String.valueOf(parseOrZero(al2) + dh2);
 			als = String.valueOf(parseOrZero(als) + dh1 + dh2);
 		}
 
-		// 0埋め（nullセーフ）
-		if (h1 == null)
-			h1 = "0";
-		if (h2 == null)
-			h2 = "0";
-		if (hs == null)
-			hs = "0";
-		if (a1 == null)
-			a1 = "0";
-		if (a2 == null)
-			a2 = "0";
-		if (as == null)
-			as = "0";
-		if (hc == null)
-			hc = "0";
-		if (ac == null)
-			ac = "0";
-		if (fts == null)
-			fts = "0";
+		if (h1 == null) h1 = "0";
+		if (h2 == null) h2 = "0";
+		if (hs == null) hs = "0";
+		if (a1 == null) a1 = "0";
+		if (a2 == null) a2 = "0";
+		if (as == null) as = "0";
+		if (hc == null) hc = "0";
+		if (ac == null) ac = "0";
+		if (fts == null) fts = "0";
 
-		if (hl1 == null)
-			hl1 = "0";
-		if (hl2 == null)
-			hl2 = "0";
-		if (hls == null)
-			hls = "0";
-		if (al1 == null)
-			al1 = "0";
-		if (al2 == null)
-			al2 = "0";
-		if (als == null)
-			als = "0";
+		if (hl1 == null) hl1 = "0";
+		if (hl2 == null) hl2 = "0";
+		if (hls == null) hls = "0";
+		if (al1 == null) al1 = "0";
+		if (al2 == null) al2 = "0";
+		if (als == null) als = "0";
 
-		// 反映：得点
 		resultEntity.setHome1stHalfScore(h1);
 		resultEntity.setHome2ndHalfScore(h2);
 		resultEntity.setHomeSumScore(hs);
@@ -517,7 +591,6 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 
 		resultEntity.setFailToScoreGameCount(fts);
 
-		// 反映：失点
 		resultEntity.setHome1stHalfLost(hl1);
 		resultEntity.setHome2ndHalfLost(hl2);
 		resultEntity.setHomeSumLost(hls);
@@ -530,7 +603,6 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		resultEntity.setAway1stHalfLostRatio(toPercent(parseOrZero(al1), parseOrZero(als)));
 		resultEntity.setAway2ndHalfLostRatio(toPercent(parseOrZero(al2), parseOrZero(als)));
 
-		// 得点継続（無得点が増えていなければ＋1）
 		int consec = parseOrZero(resultEntity.getConsecutiveScoreCount());
 		consec = (parseOrZero(fts) == befFts) ? (consec + 1) : 0;
 		resultEntity.setConsecutiveScoreCount(String.valueOf(consec));
@@ -729,13 +801,16 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	private SurfaceOverviewEntity updateHomeLeadTrailStats(
 			List<String> scoreList, SurfaceOverviewEntity resultEntity) {
 
-		if (scoreList == null || scoreList.isEmpty())
+		// 救済ケース（FIN / PENALTY の1件のみ）では
+		// 先制点・逆転の判定材料が無いので何もしない
+		if (scoreList == null || scoreList.size() <= 1) {
 			return resultEntity;
+		}
 
 		boolean has10 = false, has20 = false, has01 = false, has02 = false;
 		boolean homeEverLed = false, homeEverTrailed = false;
 
-		String firstScorer = "NONE"; // HOME/AWAY/NONE
+		String firstScorer = "NONE";
 		int[] prev = null;
 
 		for (String sc : scoreList) {
@@ -766,18 +841,6 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 					firstScorer = "AWAY";
 			}
 			prev = cur;
-		}
-
-		if ("NONE".equals(firstScorer)) {
-			for (String sc : scoreList) {
-				int[] p = parseScorePair(sc);
-				if (p == null)
-					continue;
-				if (p[0] != p[1]) {
-					firstScorer = (p[0] > p[1]) ? "HOME" : "AWAY";
-					break;
-				}
-			}
 		}
 
 		int finalH = 0, finalA = 0;
@@ -842,13 +905,16 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	private SurfaceOverviewEntity updateAwayLeadTrailStats(
 			List<String> scoreList, SurfaceOverviewEntity resultEntity) {
 
-		if (scoreList == null || scoreList.isEmpty())
+		// 救済ケース（FIN / PENALTY の1件のみ）では
+		// 先制点・逆転の判定材料が無いので何もしない
+		if (scoreList == null || scoreList.size() <= 1) {
 			return resultEntity;
+		}
 
 		boolean has10 = false, has20 = false, has01 = false, has02 = false;
 		boolean awayEverLed = false, awayEverTrailed = false;
 
-		String firstScorer = "NONE"; // HOME/AWAY/NONE
+		String firstScorer = "NONE";
 		int[] prev = null;
 
 		for (String sc : scoreList) {
@@ -857,11 +923,11 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 				continue;
 
 			if (cur[0] == 1 && cur[1] == 0)
-				has10 = true; // ホーム先制
+				has10 = true;
 			if (cur[0] == 2 && cur[1] == 0)
 				has20 = true;
 			if (cur[0] == 0 && cur[1] == 1)
-				has01 = true; // アウェー先制
+				has01 = true;
 			if (cur[0] == 0 && cur[1] == 2)
 				has02 = true;
 
@@ -879,18 +945,6 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 					firstScorer = "HOME";
 			}
 			prev = cur;
-		}
-
-		if ("NONE".equals(firstScorer)) {
-			for (String sc : scoreList) {
-				int[] p = parseScorePair(sc);
-				if (p == null)
-					continue;
-				if (p[0] != p[1]) {
-					firstScorer = (p[1] > p[0]) ? "AWAY" : "HOME";
-					break;
-				}
-			}
 		}
 
 		int finalH = 0, finalA = 0;
@@ -1099,6 +1153,14 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			e.setConsecutiveLoseCount("0");
 	}
 
+	private boolean isPenaltyOnlyGoal(BookDataEntity row) {
+		String times = safe(row.getTime()).trim().toLowerCase(Locale.ROOT);
+		return times.contains("pen")
+				|| times.contains("pk")
+				|| times.contains("pso")
+				|| times.contains("penalty");
+	}
+
 	/** 同一チーム（country, league, team）の全行から roundConc をマージ。 */
 	private RoundHistory loadMergedRoundHistory(String country, String league, String team) {
 		RoundHistory merged = new RoundHistory();
@@ -1253,6 +1315,10 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	/** ロックオブジェクトをキー毎に用意。 */
 	private Object getLock(String key) {
 		return lockMap.computeIfAbsent(key, k -> new Object());
+	}
+
+	private String safe(String value) {
+		return value == null ? "" : value;
 	}
 
 	private static Integer parseOrZeroInt(String s) {
