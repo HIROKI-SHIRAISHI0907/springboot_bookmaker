@@ -163,23 +163,21 @@ public class CoreStat implements StatIF {
 	public int execute(Map<String, Map<String, List<BookDataEntity>>> stat, boolean manualFlg) throws Exception {
 		final String METHOD_NAME = "execute";
 
-		// 時間計測開始
 		long startTime = System.nanoTime();
 
-		// ログ出力
 		this.loggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		CsvDetailEntityOutputDTO existDto = selectCsvDetail(stat);
-		if (existDto.isExistFlg()) {
+		List<CsvDetailEntityOutputDTO> dtoList = selectCsvDetail(stat, manualFlg);
+		if (dtoList == null || dtoList.isEmpty()) {
 			this.loggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP,
-					"すでに統計反映しているデータのためスキップします。（" + existDto + "）");
+					"すでに統計反映しているデータ、または登録対象データがありません。");
 			return 0;
 		}
 
-		// 統計ロジック呼び出し(国,リーグ単位で並列)
+		// 統計ロジック呼び出し
 		if (!manualFlg)
 			this.conditionResultDataStat.calcStat(stat);
 		this.teamMonthlyScoreSummaryStat.calcStat(stat);
@@ -188,7 +186,6 @@ public class CoreStat implements StatIF {
 		if (!manualFlg)
 			this.countryLeagueSummaryStat.calcStat(stat);
 		this.noGoalMatchStat.calcStat(stat);
-		//if (!manualFlg) this.timeRangeFeatureStat.calcStat(stat);
 		if (!manualFlg)
 			this.leagueScoreTimeBandStat.calcStat(stat);
 		if (!manualFlg)
@@ -205,21 +202,20 @@ public class CoreStat implements StatIF {
 		this.surfaceOverviewStat.calcStat(stat);
 		this.rankHistoryStat.calcStat(stat);
 
+		// csv詳細管理登録
+		if (manualFlg) {
+			for (CsvDetailEntityOutputDTO dto : dtoList) {
+				insertCsvDetail(dto);
+			}
+		}
+
 		stat.clear();
 
-		// endLog
 		this.loggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// csv詳細管理登録（csv_idを-99で登録）
-		if (manualFlg) {
-			existDto.setCsvId(CSV_ID_MANUAL);
-			insertCsvDetail(existDto);
-		}
-
-		// 時間計測終了
 		long endTime = System.nanoTime();
-		long durationMs = (endTime - startTime) / 1_000_000; // ミリ秒に変換
+		long durationMs = (endTime - startTime) / 1_000_000;
 
 		System.out.println("時間: " + durationMs);
 
@@ -231,15 +227,16 @@ public class CoreStat implements StatIF {
 	 * @param stat
 	 * @return
 	 */
-	private CsvDetailEntityOutputDTO selectCsvDetail(
-			Map<String, Map<String, List<BookDataEntity>>> stat) {
+	private List<CsvDetailEntityOutputDTO> selectCsvDetail(
+			Map<String, Map<String, List<BookDataEntity>>> stat,
+			boolean manualFlg) {
 		final String METHOD_NAME = "selectCsvDetail";
 
-		if (stat == null || stat.isEmpty()) {
-			return null;
-		}
+		List<CsvDetailEntityOutputDTO> result = new java.util.ArrayList<>();
 
-		CsvDetailEntityOutputDTO dto = new CsvDetailEntityOutputDTO();
+		if (stat == null || stat.isEmpty()) {
+			return result;
+		}
 
 		for (Map<String, List<BookDataEntity>> innerMap : stat.values()) {
 			if (innerMap == null || innerMap.isEmpty()) {
@@ -260,19 +257,19 @@ public class CoreStat implements StatIF {
 				if (dataCategory.isEmpty()) {
 					continue;
 				}
-				dto.setDataCategory(dataCategory);
 
-				// csv番号
-				String file = safe(row.getFilePath()).trim();
-				String csvId = "";
-				if (!file.isEmpty()) {
-					String fileName = java.nio.file.Paths.get(file).getFileName().toString(); // X.csv
-					int dot = fileName.lastIndexOf('.');
-					csvId = (dot >= 0) ? fileName.substring(0, dot) : fileName; // X
+				String csvId;
+				if (manualFlg) {
+					csvId = CSV_ID_MANUAL;
 				} else {
-					continue;
+					String file = safe(row.getFilePath()).trim();
+					if (file.isEmpty()) {
+						continue;
+					}
+					String fileName = java.nio.file.Paths.get(file).getFileName().toString();
+					int dot = fileName.lastIndexOf('.');
+					csvId = (dot >= 0) ? fileName.substring(0, dot) : fileName;
 				}
-				dto.setCsvId(csvId);
 
 				List<String> dataList = ExecuteMainUtil.getCountryLeagueByRegex(dataCategory);
 				if (dataList == null || dataList.size() < 2) {
@@ -285,12 +282,9 @@ public class CoreStat implements StatIF {
 
 				String season = countryLeagueSeasonMasterBatchRepository
 						.findSeasonYear(dataList.get(0), dataList.get(1));
-				dto.setSeason(season);
 
 				String home = safe(row.getHomeTeamName()).trim();
-				dto.setHomeTeamName(home);
 				String away = safe(row.getAwayTeamName()).trim();
-				dto.setAwayTeamName(away);
 
 				CsvDetailManageEntity entity = new CsvDetailManageEntity();
 				entity.setCsvId(csvId);
@@ -299,16 +293,30 @@ public class CoreStat implements StatIF {
 				entity.setHomeTeamName(home);
 				entity.setAwayTeamName(away);
 
-				CsvDetailManageEntity selEntity = this.csvDetailManageRepository
-						.select(entity);
-				dto.setExistFlg(true);
-				if (selEntity == null) {
-					dto.setExistFlg(false);
+				CsvDetailManageEntity selEntity = this.csvDetailManageRepository.select(entity);
+				if (selEntity != null) {
+					this.loggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+							MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP,
+							"すでに csv_detail_manage 登録済みのためスキップ: "
+									+ buildCsvDetailContext(dataCategory, season, home, away)
+									+ ", csvId=" + csvId);
+					continue;
 				}
-				return dto;
+
+				CsvDetailEntityOutputDTO dto = new CsvDetailEntityOutputDTO();
+				dto.setCsvId(csvId);
+				dto.setDataCategory(dataCategory);
+				dto.setSeason(season);
+				dto.setHomeTeamName(home);
+				dto.setAwayTeamName(away);
+				dto.setExistFlg(false);
+
+				result.add(dto);
 			}
 		}
-		return dto;
+
+		return result;
 	}
 
 	/**

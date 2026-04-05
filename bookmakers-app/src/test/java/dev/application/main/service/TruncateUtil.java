@@ -41,9 +41,9 @@ public class TruncateUtil {
 	    m.put(23, "each_team_score_based_feature_stats");
 	    m.put(24, "score_based_feature_stats_history");
 	    m.put(25, "each_team_score_based_feature_stats_history");
-	    m.put(26, "match_key_save");
-	    m.put(27, "analyze_manual_data");
-	    m.put(28, "past_ranking");
+	    m.put(26, "analyze_manual_data");
+	    m.put(27, "past_ranking");
+	    m.put(28, "csv_detail_manage");
 	    return Collections.unmodifiableMap(m);
 	}
 
