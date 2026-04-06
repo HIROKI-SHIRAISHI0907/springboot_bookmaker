@@ -43,12 +43,15 @@ class CoreStatTest {
 
 		// 直近のCSVデータ情報を取得
 		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvBackNumber);
-		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
-		// Act
-		int result = statService.execute(entities, false);
+		for (String data : list) {
+			Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo
+					.getStatMapForSingleKey(data);
+			// Act
+			int result = statService.execute(entities, false);
 
-		// Assert
-		assertEquals(0, result); // 戻り値が0であること
+			// Assert
+			assertEquals(0, result); // 戻り値が0であること
+		}
 	}
 
 	@Test
