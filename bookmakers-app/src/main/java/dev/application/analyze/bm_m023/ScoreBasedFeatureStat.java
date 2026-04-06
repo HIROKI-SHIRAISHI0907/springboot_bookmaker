@@ -82,14 +82,30 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	@Override
 	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) throws Exception {
 		final String METHOD_NAME = "calcStat";
-		// ログ出力
+
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		bmM030StatEncryptionBean.init();
+		// 先に対象 country / league をユニーク抽出して BM_M030 を初期化
+		java.util.Set<String> loadedLeagueSet = new java.util.HashSet<>();
 
-		// 保存データを取得
+		for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
+			String[] data_category = safeLeague(entry.getKey());
+			String country = data_category[0];
+			String league = data_category[1];
+
+			if (country.isBlank() || league.isBlank()) {
+				continue;
+			}
+
+			String leagueKey = country + "||" + league;
+			if (loadedLeagueSet.add(leagueKey)) {
+				bmM030StatEncryptionBean.init(country, league);
+			}
+		}
+
+		// 初期化後に取得
 		ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map = this.bmM030StatEncryptionBean.getEncMap();
 
 		// 全リーグ・国を走査
@@ -101,7 +117,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			String country = data_category[0];
 			String league = data_category[1];
 
-			// どちらかが空ならスキップ（BM_M026寄せ）
 			if (country.isBlank() || league.isBlank()) {
 				manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 						"skip: invalid league key", null, "key=" + entry.getKey());
@@ -111,18 +126,15 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			Map<String, List<BookDataEntity>> entrySub = entry.getValue();
 
 			for (List<BookDataEntity> entityList : entrySub.values()) {
-				// null や空リストはスキップ
 				if (entityList == null || entityList.isEmpty()) {
 					continue;
 				}
 
-				// decideBasedMain を呼び出して集計マップを取得
 				map = decideBasedMain(entityList, country, league, bmM30Map);
 				if (map == null) {
 					continue;
 				}
 
-				// 登録・更新
 				ExecutorService executor = Executors.newFixedThreadPool(Math.max(1, map.size()));
 				List<CompletableFuture<Void>> futures = new ArrayList<>();
 
@@ -144,7 +156,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			}
 		}
 
-		// 保存マップ登録（ここは元の設計に合わせて insert のまま）
 		for (Map.Entry<String, StatEncryptionEntity> entry : bmM30Map.entrySet()) {
 			String[] split = entry.getKey().split("-");
 			String home = split.length > 0 ? split[0] : "";
@@ -170,12 +181,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: " + result + "件");
 		}
 
-		// NOTE:
-		// 長期運用で key が無限に増えるなら、ここで bmM30Map/lockMap を clear する運用も検討。
-		// bmM30Map.clear();
-		// lockMap.clear();
-
-		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		this.manageLoggerComponent.clear();
