@@ -38,6 +38,14 @@ public interface PastRankingRepository {
 			    'SYSTEM',
 			    CURRENT_TIMESTAMP
 			)
+			ON CONFLICT (country, league, season_year, match, team)
+			DO UPDATE SET
+			    win = EXCLUDED.win,
+			    lose = EXCLUDED.lose,
+			    draw = EXCLUDED.draw,
+			    winning_points = EXCLUDED.winning_points,
+			    update_id = 'SYSTEM',
+			    update_time = CURRENT_TIMESTAMP
 			""")
 	int insert(PastRankingEntity entity);
 }
