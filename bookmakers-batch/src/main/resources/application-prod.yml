@@ -133,21 +133,41 @@ ecs:
     logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
 
   job:
-    B002: {}
-    B003: {}
-    B004: {}
-    B005: {}
-    B010: {}
-    B008:
-      cluster: ${ECS_B008_CLUSTER:stats-backend}
-      taskDefinition: ${ECS_B008_TASK_DEF:bookmakers-app}
-      container: ${ECS_B008_CONTAINER:bookmakers-app}
-      logGroup: ${ECS_B008_LOG_GROUP:/ecs/bookmakers-app}
+    B002:
+      cluster: ${ECS_BATCH_CLUSTER:batch-backend}
+      taskDefinition: ${ECS_BATCH_TASK_DEF:bookmakers-batch}
+      container: ${ECS_BATCH_CONTAINER:bookmakers-batch}
+      logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
+    B003:
+      cluster: ${ECS_BATCH_CLUSTER:batch-backend}
+      taskDefinition: ${ECS_BATCH_TASK_DEF:bookmakers-batch}
+      container: ${ECS_BATCH_CONTAINER:bookmakers-batch}
+      logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
+    B004:
+      cluster: ${ECS_BATCH_CLUSTER:batch-backend}
+      taskDefinition: ${ECS_BATCH_TASK_DEF:bookmakers-batch}
+      container: ${ECS_BATCH_CONTAINER:bookmakers-batch}
+      logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
+    B005: 
+      cluster: ${ECS_BATCH_CLUSTER:batch-backend}
+      taskDefinition: ${ECS_BATCH_TASK_DEF:bookmakers-batch}
+      container: ${ECS_BATCH_CONTAINER:bookmakers-batch}
+      logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
     B006:
       cluster: ${ECS_B006_CLUSTER:stats-backend}
       taskDefinition: ${ECS_B006_TASK_DEF:bookmakers-app}
       container: ${ECS_B006_CONTAINER:bookmakers-app}
       logGroup: ${ECS_B006_LOG_GROUP:/ecs/bookmakers-app}
+    B008:
+      cluster: ${ECS_B008_CLUSTER:stats-backend}
+      taskDefinition: ${ECS_B008_TASK_DEF:bookmakers-app}
+      container: ${ECS_B008_CONTAINER:bookmakers-app}
+      logGroup: ${ECS_B008_LOG_GROUP:/ecs/bookmakers-app}
+    B010:
+      cluster: ${ECS_B010_CLUSTER:stats-backend}
+      taskDefinition: ${ECS_B010_TASK_DEF:bookmakers-app}
+      container: ${ECS_B010_CONTAINER:bookmakers-app}
+      logGroup: ${ECS_B010_LOG_GROUP:/ecs/bookmakers-app}
 
 s3-job:
   jobs:
