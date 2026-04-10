@@ -73,6 +73,18 @@
 			<version>2.25.10</version>
 		</dependency>
 
+		<!-- AWS SDK v2 : ECS -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>ecs</artifactId>
+		</dependency>
+
+		<!-- AWS SDK v2 : CloudWatch Logs -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>cloudwatchlogs</artifactId>
+		</dependency>
+
 		<!-- Lombok -->
 		<dependency>
 			<groupId>org.projectlombok</groupId>
