@@ -134,10 +134,26 @@ ecs:
     logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
 
   job:
-    B002: {}
-    B003: {}
-    B004: {}
-    B005: {}
+    B002:
+      cluster: ${ECS_BATCH_CLUSTER:batch-backend}
+      taskDefinition: ${ECS_BATCH_TASK_DEF:bookmakers-batch}
+      container: ${ECS_BATCH_CONTAINER:bookmakers-batch}
+      logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
+    B003:
+      cluster: ${ECS_BATCH_CLUSTER:batch-backend}
+      taskDefinition: ${ECS_BATCH_TASK_DEF:bookmakers-batch}
+      container: ${ECS_BATCH_CONTAINER:bookmakers-batch}
+      logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
+    B004:
+      cluster: ${ECS_BATCH_CLUSTER:batch-backend}
+      taskDefinition: ${ECS_BATCH_TASK_DEF:bookmakers-batch}
+      container: ${ECS_BATCH_CONTAINER:bookmakers-batch}
+      logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
+    B005: 
+      cluster: ${ECS_BATCH_CLUSTER:batch-backend}
+      taskDefinition: ${ECS_BATCH_TASK_DEF:bookmakers-batch}
+      container: ${ECS_BATCH_CONTAINER:bookmakers-batch}
+      logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
     B006:
       cluster: ${ECS_B006_CLUSTER:stats-backend}
       taskDefinition: ${ECS_B006_TASK_DEF:bookmakers-app}
