@@ -1,0 +1,159 @@
+ecs:
+  network:
+    subnets:
+      - subnet-067d3d5d9d5ea2e17
+      - subnet-008cd7c2beab18e5c
+      - subnet-0bb92140d18f13851
+    securityGroups:
+      - sg-024711907f71edd57
+    assignPublicIp: true
+
+  scraper:
+    B002:
+      cluster: ${ECS_B002_CLUSTER:team-member-cluster}
+      taskDefinition: ${ECS_B002_TASK_DEF:team-member-batch}
+      container: ${ECS_B002_CONTAINER:team-member-scraper}
+      logGroup: ${ECS_B002_LOG_GROUP:/ecs/team-member-batch}
+      
+    B003:
+      cluster: ${ECS_B003_CLUSTER:season-cluster}
+      taskDefinition: ${ECS_B003_TASK_DEF:season-batch}
+      container: ${ECS_B003_CONTAINER:season-scraper}
+      logGroup: ${ECS_B003_LOG_GROUP:/ecs/season-batch}
+      
+    B004:
+      cluster: ${ECS_B004_CLUSTER:team-cluster}
+      taskDefinition: ${ECS_B004_TASK_DEF:team-batch}
+      container: ${ECS_B004_CONTAINER:team-scraper}
+      logGroup: ${ECS_B004_LOG_GROUP:/ecs/team-batch}
+      
+    B005:
+      cluster: ${ECS_B005_CLUSTER:future-cluster}
+      taskDefinition: ${ECS_B005_TASK_DEF:future-batch}
+      container: ${ECS_B005_CONTAINER:future-scraper}
+      logGroup: ${ECS_B005_LOG_GROUP:/ecs/future-batch}
+      
+    B006:
+      cluster: ${ECS_B006_CLUSTER:stats-backend}
+      taskDefinition: ${ECS_B006_TASK_DEF:bookmakers-app}
+      container: ${ECS_B006_CONTAINER:bookmakers-app}
+      logGroup: ${ECS_B006_LOG_GROUP:/ecs/bookmakers-app}
+    
+    B007:
+      cluster: ${ECS_B007_CLUSTER:all-league-cluster}
+      taskDefinition: ${ECS_B007_TASK_DEF:all-league-batch}
+      container: ${ECS_B007_CONTAINER:all-league-scraper}
+      logGroup: ${ECS_B007_LOG_GROUP:/ecs/all-league-batch}
+      
+    B008:
+      cluster: ${ECS_B008_CLUSTER:bm-cluster}
+      taskDefinition: ${ECS_B008_TASK_DEF:bm-batch}
+      container: ${ECS_B008_CONTAINER:timely-data-outputs-scraper}
+      logGroup: ${ECS_B008_LOG_GROUP:/ecs/bm-batch}
+      
+    B009:
+      cluster: ${ECS_B009_CLUSTER:no-game-ecs-task-cluster}
+      taskDefinition: ${ECS_B009_TASK_DEF:no-game-batch}
+      container: ${ECS_B009_CONTAINER:no-game-scraper}
+      logGroup: ${ECS_B009_LOG_GROUP:/ecs/no-game-batch}
+      
+    B010:
+      cluster: ${ECS_B010_CLUSTER:bm-fin-cluster}
+      taskDefinition: ${ECS_B010_TASK_DEF:bm-fin-batch}
+      container: ${ECS_B010_CONTAINER:timely-data-fin-outputs-scraper}
+      logGroup: ${ECS_B010_LOG_GROUP:/ecs/bm-fin-batch}
+    
+  defaults:
+    region: ${AWS_REGION:ap-northeast-1}
+    cluster: ${ECS_BATCH_CLUSTER:batch-backend}
+    taskDefinition: ${ECS_BATCH_TASK_DEF:bookmakers-batch}
+    container: ${ECS_BATCH_CONTAINER:bookmakers-batch}
+    logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
+
+  job:
+    # B002〜B005, B009 は defaults or scraper 側（あなたの設計に合わせて）
+    B002: {}
+    B003: {}
+    B004: {}
+    B005: {}
+    B007: {}
+    B009: {}
+    B010: {}
+    B011: {}
+
+    # B006,B008,B012 は bookmakers-appを起動
+    B006:
+      cluster: ${ECS_B006_CLUSTER:stats-backend}
+      taskDefinition: ${ECS_B006_TASK_DEF:bookmakers-app}
+      container: ${ECS_B006_CONTAINER:bookmakers-app}
+      logGroup: ${ECS_B006_LOG_GROUP:/ecs/bookmakers-app}
+
+    B008:
+      cluster: ${ECS_B008_CLUSTER:stats-backend}
+      taskDefinition: ${ECS_B008_TASK_DEF:bookmakers-app}
+      container: ${ECS_B008_CONTAINER:bookmakers-app}
+      logGroup: ${ECS_B008_LOG_GROUP:/ecs/bookmakers-app}
+      
+    B012:
+      cluster: ${ECS_B012_CLUSTER:stats-backend}
+      taskDefinition: ${ECS_B012_TASK_DEF:bookmakers-app}
+      container: ${ECS_B012_CONTAINER:bookmakers-app}
+      logGroup: ${ECS_B012_LOG_GROUP:/ecs/bookmakers-app}
+
+s3-job:
+  jobs:
+    B002:
+      bucket: aws-s3-team-member-csv
+      prefix: json/
+      recursive: true
+      
+    B003:
+      bucket: aws-s3-season-csv
+      prefix: json/
+      recursive: true
+      
+    B004:
+      bucket: aws-s3-team-csv
+      prefix: json/
+      recursive: true
+      
+    B005:
+      bucket: aws-s3-future-csv
+      prefix: null
+      recursive: true
+      
+    B006:
+      bucket: aws-s3-stat-csv
+      prefix: null
+      recursive: true
+      
+    B007:
+      bucket: aws-s3-all-league-csv
+      prefix: null
+      recursive: true
+      
+    B008:
+      bucket: aws-s3-outputs-csv
+      prefix: null
+      recursive: true
+      
+    B009:
+      bucket: aws-s3-no-ecs-task-time-csv
+      prefix: null
+      recursive: true
+      
+logging:
+  level:
+    root: INFO
+
+    # アプリのパッケージ（使っているもの全部まとめる）
+    dev.web: INFO
+    dev.batch: INFO
+    dev.application: INFO
+    dev.common: INFO
+
+    # ノイズ抑制
+    com.zaxxer.hikari: OFF
+    org.springframework.jdbc: WARN
+    org.mybatis: WARN
+      
