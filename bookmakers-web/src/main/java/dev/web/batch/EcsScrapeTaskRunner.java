@@ -8,8 +8,8 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
-import dev.web.config.EcsNetworkPropertiesConfig;
-import dev.web.config.EcsScrapePropertiesConfig;
+import dev.common.config.EcsNetworkPropertiesConfig;
+import dev.common.config.EcsScrapePropertiesConfig;
 import software.amazon.awssdk.services.ecs.EcsClient;
 import software.amazon.awssdk.services.ecs.model.AssignPublicIp;
 import software.amazon.awssdk.services.ecs.model.AwsVpcConfiguration;

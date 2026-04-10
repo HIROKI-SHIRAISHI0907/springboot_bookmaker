@@ -10,7 +10,7 @@ import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
 
-import dev.web.config.EcsScrapePropertiesConfig;
+import dev.common.config.EcsScrapePropertiesConfig;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.cloudwatchlogs.model.GetLogEventsRequest;
 import software.amazon.awssdk.services.cloudwatchlogs.model.GetLogEventsResponse;
