@@ -1,4 +1,4 @@
-package dev.common.config;
+package dev.web.config;
 
 import java.util.List;
 

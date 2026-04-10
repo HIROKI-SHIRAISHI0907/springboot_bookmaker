@@ -8,8 +8,8 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
-import dev.common.config.EcsJobPropertiesConfig;
-import dev.common.config.EcsNetworkPropertiesConfig;
+import dev.web.config.EcsJobPropertiesConfig;
+import dev.web.config.EcsNetworkPropertiesConfig;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.services.ecs.EcsClient;
 import software.amazon.awssdk.services.ecs.model.AssignPublicIp;

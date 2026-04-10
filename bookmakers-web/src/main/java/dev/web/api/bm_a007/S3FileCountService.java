@@ -11,9 +11,9 @@ import java.util.Objects;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import dev.common.config.S3JobPropertiesConfig;
 import dev.common.constant.MessageCdConst;
 import dev.common.logger.ManageLoggerComponent;
+import dev.web.config.S3JobPropertiesConfig;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
