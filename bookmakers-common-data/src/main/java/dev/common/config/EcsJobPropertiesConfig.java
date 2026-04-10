@@ -1,4 +1,4 @@
-package dev.web.config;
+package dev.common.config;
 
 import java.util.HashMap;
 import java.util.Map;
