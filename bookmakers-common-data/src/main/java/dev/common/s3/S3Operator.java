@@ -25,10 +25,15 @@ import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
+import software.amazon.awssdk.services.s3.model.Delete;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsRequest;
+import software.amazon.awssdk.services.s3.model.DeleteObjectsResponse;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.ObjectIdentifier;
 import software.amazon.awssdk.services.s3.model.PutObjectRequest;
+import software.amazon.awssdk.services.s3.model.S3Error;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 /**
@@ -43,6 +48,14 @@ public class S3Operator {
 		    Pattern.compile("^.*?(\\d+)\\.csv$", Pattern.CASE_INSENSITIVE);
 
 	private final S3Client s3;
+
+	/**
+	 * S3ClientGetter
+	 * @return
+	 */
+	public S3Client getS3Client() {
+	    return s3;
+	}
 
 	/**
 	 * インスタンス生成（東京リージョンで生成）
@@ -170,6 +183,45 @@ public class S3Operator {
 				(S3Object o) -> o.lastModified() == null ? Instant.MAX : o.lastModified()));
 		return objects;
 	}
+
+	/**
+	 * 一括削除
+	 * @param bucket
+	 * @param keys
+	 */
+	public void deleteObjects(String bucket, List<String> keys) {
+	    if (keys == null || keys.isEmpty()) {
+	        return;
+	    }
+
+	    List<ObjectIdentifier> objects = keys.stream()
+	            .map(key -> ObjectIdentifier.builder().key(key).build())
+	            .collect(Collectors.toList());
+
+	    Delete delete = Delete.builder()
+	            .objects(objects)
+	            .quiet(false)
+	            .build();
+
+	    DeleteObjectsRequest request = DeleteObjectsRequest.builder()
+	            .bucket(bucket)
+	            .delete(delete)
+	            .build();
+
+	    DeleteObjectsResponse response = getS3Client().deleteObjects(request);
+
+	    if (response.hasErrors() && !response.errors().isEmpty()) {
+	        StringBuilder sb = new StringBuilder("S3一括削除で一部失敗: ");
+	        for (S3Error error : response.errors()) {
+	            sb.append("[key=").append(error.key())
+	              .append(", code=").append(error.code())
+	              .append(", message=").append(error.message())
+	              .append("] ");
+	        }
+	        throw new RuntimeException(sb.toString());
+	    }
+	}
+
 
 	/**
 	 * 連番リスト取得（統計用）
