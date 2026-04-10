@@ -81,7 +81,7 @@ ecs:
       - subnet-008cd7c2beab18e5c
       - subnet-0bb92140d18f13851
     securityGroups:
-      - sg-024711907f71edd57
+      - sg-03f3bfdb63f3d0c56
     assignPublicIp: true
 
   scraper:

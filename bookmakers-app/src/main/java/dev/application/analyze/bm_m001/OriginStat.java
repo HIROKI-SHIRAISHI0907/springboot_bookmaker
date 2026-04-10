@@ -34,6 +34,9 @@ public class OriginStat implements OriginEntityIF {
 	/** クラス名 */
 	private static final String CLASS_NAME = OriginStat.class.getName();
 
+	/** S3 DeleteObjects 最大件数 */
+    private static final int S3_DELETE_BATCH_SIZE = 1000;
+
 	/** DBサービス */
 	@Autowired
 	private OriginDBService originDBService;
@@ -65,7 +68,8 @@ public class OriginStat implements OriginEntityIF {
 		manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		final int total = entities.size();
-		int done = 0;
+        int done = 0;
+        int skipped = 0;
 
 		List<String> successPaths = new ArrayList<>(total);
 		List<String> failedPaths = new ArrayList<>();
@@ -77,7 +81,13 @@ public class OriginStat implements OriginEntityIF {
 			final List<DataEntity> dataList = entry.getValue();
 			final String fillChar = "ファイル名: " + filePath;
 			// timesが入っていないデータはスキップ
-			if (dataList.get(0).getTimes() == null || "".equals(dataList.get(0).getTimes())) continue;
+            if (dataList == null || dataList.isEmpty()
+                    || dataList.get(0).getTimes() == null
+                    || "".equals(dataList.get(0).getTimes())) {
+                skipped++;
+                continue;
+            }
+
 			try {
 				// 事前準備はトランザクション外
 				List<DataEntity> insertEntities = originDBService.selectInBatch(dataList, fillChar);
@@ -124,54 +134,85 @@ public class OriginStat implements OriginEntityIF {
 		}
 
 		// サマリ
-		manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-				String.format("CSV登録完了件数（最終）: %d/%d（失敗: %d）",
-						successPaths.size(), total, failedPaths.size()));
+        manageLoggerComponent.debugInfoLog(
+                PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                String.format("CSV登録結果（最終）: 成功=%d, 失敗=%d, スキップ=%d, 全体=%d",
+                        successPaths.size(), failedPaths.size(), skipped, total));
 
-		// 全成功時のみ全削除
-		if (failedPaths.isEmpty()) {
-		    String bucket = config.getS3BucketsOutputs();
+        // 全成功時のみ全削除
+        if (failedPaths.isEmpty()) {
+            String bucket = config.getS3BucketsOutputs();
+            List<String> s3KeysToDelete = new ArrayList<>();
 
-		    for (String localPath : entities.keySet()) {
+            manageLoggerComponent.debugInfoLog(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                    "削除フェーズ開始: total=" + entities.size());
 
-		        // ローカル削除
-		        try {
-		            Files.deleteIfExists(Paths.get(localPath));
-		        } catch (IOException e) {
-		            manageLoggerComponent.debugErrorLog(
-		                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-		                    "ローカルCSV削除失敗", e, localPath);
-		        }
+            int deleteIndex = 0;
+            for (String localPath : entities.keySet()) {
+                deleteIndex++;
 
-		        // S3削除（DataEntity.file に入れてある S3 key を使う）
-		        List<DataEntity> list = entities.get(localPath);
-		        if (list != null && !list.isEmpty()) {
-		            String s3Key = list.get(0).getFile(); // 例: 2026-02-05/mid=xxx/seq=....csv
-		            try {
-		                s3Operator.delete(bucket, s3Key);
-		            } catch (Exception e) {
-		                manageLoggerComponent.debugErrorLog(
-		                        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-		                        "S3 CSV削除失敗", e, s3Key);
-		            }
-		        }
-		    }
+                if (deleteIndex % 100 == 0 || deleteIndex == entities.size()) {
+                    manageLoggerComponent.debugInfoLog(
+                            PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                            String.format("ローカル削除進捗: %d/%d", deleteIndex, entities.size()));
+                }
 
-		    manageLoggerComponent.debugInfoLog(
-		            PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-		            "全CSV削除を完了しました（S3 + ローカル）（全登録成功）");
-		} else {
-			manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					"失敗があったためCSVは残します。失敗数: " + failedPaths.size());
-		}
+                // ローカル削除
+                try {
+                    Files.deleteIfExists(Paths.get(localPath));
+                } catch (IOException e) {
+                    manageLoggerComponent.debugErrorLog(
+                            PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                            "ローカルCSV削除失敗", e, localPath);
+                }
 
-		manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+                // S3 key 収集
+                List<DataEntity> list = entities.get(localPath);
+                if (list != null && !list.isEmpty()) {
+                    String s3Key = list.get(0).getFile(); // 例: 2026-02-05/mid=xxx/seq=....csv
+                    if (s3Key != null && !s3Key.isBlank()) {
+                        s3KeysToDelete.add(s3Key);
+                    }
+                }
+            }
 
-		// 1件でも失敗があれば通知（成功分はコミット済）
-		if (firstThrown != null)
-			throw firstThrown;
+            // S3まとめ削除
+            deleteS3ObjectsInBatches(bucket, s3KeysToDelete, METHOD_NAME);
+
+            manageLoggerComponent.debugInfoLog(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                    "全CSV削除を完了しました（S3 + ローカル）（全登録成功）");
+        } else {
+            manageLoggerComponent.debugInfoLog(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                    "失敗があったためCSVは残します。失敗数: " + failedPaths.size());
+        }
+
+        manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+
+        // 1件でも失敗があれば通知（成功分はコミット済）
+        if (firstThrown != null) {
+            throw firstThrown;
+        }
 	}
 
+	/**
+     * S3のオブジェクトを1000件単位でまとめて削除
+     */
+    private void deleteS3ObjectsInBatches(String bucket, List<String> s3Keys, String methodName) {
+        if (s3Keys == null || s3Keys.isEmpty()) {
+            manageLoggerComponent.debugInfoLog(
+                    PROJECT_NAME, CLASS_NAME, methodName,
+                    "S3削除対象なし");
+            return;
+        }
+
+        int total = s3Keys.size();
+        for (int from = 0; from < total; from += S3_DELETE_BATCH_SIZE) {
+            int to = Math.min(from + S3_DELETE_BATCH_SIZE, total);
+            List<String> chunk = s3Keys.subList(from, to);
+            s3Operator.deleteObjects(bucket, chunk);
+        }
+    }
 }
