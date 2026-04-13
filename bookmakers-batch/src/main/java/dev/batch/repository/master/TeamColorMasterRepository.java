@@ -16,6 +16,7 @@ public interface TeamColorMasterRepository {
 			    INSERT INTO team_color_master (
 			        country,
 			        league,
+			        sub_league,
 			        team,
 			        team_color_main_hex,
 			        team_color_sub_hex,
@@ -26,6 +27,7 @@ public interface TeamColorMasterRepository {
 			    ) VALUES (
 			        #{country},
 			        #{league},
+			        #{subLeague},
 			        #{team},
 			        #{teamColorMainHex},
 			        #{teamColorSubHex},
@@ -42,6 +44,7 @@ public interface TeamColorMasterRepository {
 			    	id,
 			        country,
 			        league,
+			        sub_league,
 			        team,
 			        team_color_main_hex,
 			        team_color_sub_hex
@@ -62,6 +65,7 @@ public interface TeamColorMasterRepository {
 			    	id,
 			        country,
 			        league,
+			        sub_league,
 			        team
 			    FROM
 			    	team_color_master

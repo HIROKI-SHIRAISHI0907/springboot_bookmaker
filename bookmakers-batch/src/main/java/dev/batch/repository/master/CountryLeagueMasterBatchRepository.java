@@ -17,6 +17,7 @@ public interface CountryLeagueMasterBatchRepository {
 			"INSERT INTO country_league_master (",
 			"    country,",
 			"    league,",
+			"    sub_league,",
 			"    team,",
 			"    link,",
 			"    del_flg,",
@@ -27,6 +28,7 @@ public interface CountryLeagueMasterBatchRepository {
 			") VALUES (",
 			"    #{country},",
 			"    #{league},",
+			"    #{subLeague}",
 			"    #{team},",
 			"    #{link},",
 			"    '0',",
@@ -42,6 +44,7 @@ public interface CountryLeagueMasterBatchRepository {
 			    	id,
 			        country,
 			        league,
+			        sub_league,
 			        team,
 			        link,
 			        del_flg
@@ -63,6 +66,7 @@ public interface CountryLeagueMasterBatchRepository {
 			    	id,
 			        country,
 			        league,
+			        sub_league,
 			        team,
 			        link,
 			        del_flg
@@ -81,6 +85,7 @@ public interface CountryLeagueMasterBatchRepository {
 			    	id,
 			        country,
 			        league,
+			        sub_league,
 			        team,
 			        link,
 			        del_flg
@@ -103,6 +108,7 @@ public interface CountryLeagueMasterBatchRepository {
 			    	id,
 			        country,
 			        league,
+			        sub_league,
 			        team,
 			        link,
 			        del_flg

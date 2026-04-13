@@ -22,6 +22,9 @@ public class TeamColorMasterEntity extends MetaEntity {
 	/** リーグ */
 	private String league;
 
+	/** サブリーグ */
+	private String subLeague;
+
 	/** チーム */
 	private String team;
 

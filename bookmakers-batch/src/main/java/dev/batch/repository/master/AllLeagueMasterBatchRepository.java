@@ -17,6 +17,7 @@ public interface AllLeagueMasterBatchRepository {
 			    "INSERT INTO all_league_scrape_master (",
 			    "    country,",
 			    "    league,",
+			    "    sub_league,",
 			    "    logic_flg,",
 			    "    register_id,",
 			    "    register_time,",
@@ -25,6 +26,7 @@ public interface AllLeagueMasterBatchRepository {
 			    ") VALUES (",
 			    "    #{country},",
 			    "    #{league},",
+			    "    #{subLeague},",
 			    "    #{logicFlg},",
 			    "    'SYSTEM', ",
 			    "    CURRENT_TIMESTAMP, ",
@@ -38,6 +40,7 @@ public interface AllLeagueMasterBatchRepository {
 			    	id,
 			        country,
 			        league,
+			        sub_league,
 			        logic_flg
 			    FROM
 			    	all_league_scrape_master
@@ -54,6 +57,7 @@ public interface AllLeagueMasterBatchRepository {
 			    	id,
 			        country,
 			        league,
+			        sub_league,
 			        logic_flg
 			    FROM
 			    	all_league_scrape_master
@@ -70,6 +74,7 @@ public interface AllLeagueMasterBatchRepository {
 			    	id,
 			        country,
 			        league,
+			        sub_league,
 			        logic_flg
 			    FROM
 			    	all_league_scrape_master
@@ -90,6 +95,7 @@ public interface AllLeagueMasterBatchRepository {
 			    	id,
 			        country,
 			        league,
+			        sub_league,
 			        logic_flg,
 			        disp_flg
 			    FROM
