@@ -19,6 +19,9 @@ public class TeamColorDTO {
 	/** リーグ */
 	private String league;
 
+	/** サブリーグ */
+	private String subLeague;
+
 	/** チーム */
 	private String team;
 
@@ -27,5 +30,8 @@ public class TeamColorDTO {
 
 	/** サブカラーコード */
 	private String teamColorSubHex;
+
+	/** 削除フラグ */
+	private String delFlg;
 
 }

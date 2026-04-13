@@ -33,6 +33,7 @@ public class AllLeagueMasterWebRepository {
 				      id,
 				      country,
 				      league,
+				      sub_league,
 				      logic_flg,
 				      disp_flg
 				    FROM all_league_scrape_master
@@ -44,6 +45,7 @@ public class AllLeagueMasterWebRepository {
 			dto.setId(rs.getString("id"));
 			dto.setCountry(rs.getString("country"));
 			dto.setLeague(rs.getString("league"));
+			dto.setSubLeague(rs.getString("sub_league"));
 			dto.setLogicFlg(rs.getString("logic_flg"));
 			dto.setDispFlg(rs.getString("disp_flg"));
 			return dto;

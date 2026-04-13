@@ -1,0 +1,999 @@
+id,country,league,sub_league,team,link,del_flg,register_id,register_time,update_id,update_time
+1,イタリア,セリエ A,,インテル,/team/inter/Iw7eKK25/,0,bm_user,2026-04-12 15:14:03,bm_user,2026-04-12 15:14:03
+2,イタリア,セリエ A,,ACミラン,/team/ac-milan/8Sa8HInO/,0,bm_user,2026-04-12 15:14:03,bm_user,2026-04-12 15:14:03
+3,イタリア,セリエ A,,ナポリ,/team/napoli/69Dxbc61/,0,bm_user,2026-04-12 15:14:03,bm_user,2026-04-12 15:14:03
+4,イタリア,セリエ A,,ASローマ,/team/associazione-sportiva-roma/zVqqL0ma/,0,bm_user,2026-04-12 15:14:03,bm_user,2026-04-12 15:14:03
+5,イタリア,セリエ A,,ユヴェントス,/team/juventus/C06aJvIB/,0,bm_user,2026-04-12 15:14:03,bm_user,2026-04-12 15:14:03
+6,イタリア,セリエ A,,コモ,/team/como/ttyLthOA/,0,bm_user,2026-04-12 15:14:03,bm_user,2026-04-12 15:14:03
+7,イタリア,セリエ A,,ボローニャ,/team/bologna/0M9xNN8N/,0,bm_user,2026-04-12 15:14:03,bm_user,2026-04-12 15:14:03
+8,イタリア,セリエ A,,ラツィオ,/team/lazio/URcSl02h/,0,bm_user,2026-04-12 15:14:03,bm_user,2026-04-12 15:14:03
+9,イタリア,セリエ A,,サッスオーロ,/team/sassuolo/QDdvI0zl/,0,bm_user,2026-04-12 15:14:03,bm_user,2026-04-12 15:14:03
+10,イタリア,セリエ A,,アタランタ,/team/atalanta/8C9JjMXu/,0,bm_user,2026-04-12 15:14:03,bm_user,2026-04-12 15:14:03
+11,イタリア,セリエ A,,ウディネーゼ,/team/udinese/rXw8YKDE/,0,bm_user,2026-04-12 15:14:03,bm_user,2026-04-12 15:14:03
+12,イタリア,セリエ A,,クレモネーゼ,/team/cremonese/KUzfp5N3/,0,bm_user,2026-04-12 15:14:03,bm_user,2026-04-12 15:14:03
+13,イタリア,セリエ A,,トリノ,/team/torino/MZFZnvX4/,0,bm_user,2026-04-12 15:14:03,bm_user,2026-04-12 15:14:03
+14,イタリア,セリエ A,,カリアリ,/team/cagliari/SCGVmKHb/,0,bm_user,2026-04-12 15:14:03,bm_user,2026-04-12 15:14:03
+15,イタリア,セリエ A,,パルマ,/team/parma/6DxlaxHN/,0,bm_user,2026-04-12 15:14:03,bm_user,2026-04-12 15:14:04
+16,イタリア,セリエ A,,レッチェ,/team/lecce/G8lYsMgU/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+17,イタリア,セリエ A,,ジェノア,/team/genoa/d0PJxeie/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+18,イタリア,セリエ A,,エラス・ヴェローナ,/team/verona/rJVAIaHo/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+19,イタリア,セリエ A,,ピサ,/team/pisa/roasMsOT/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+20,イタリア,セリエ A,,フィオレンティーナ,/team/fiorentina/Q3A3IbXH/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+21,イタリア,セリエ B,,フロジノーネ,/team/frosinone/pfo9H1Wp/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+22,イタリア,セリエ B,,モンツァ,/team/monza/4YSMlwj7/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+23,イタリア,セリエ B,,ヴェネツィアFC,/team/unione-venezia/MkPmVv50/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+24,イタリア,セリエ B,,パレルモ,/team/palermo/n38Nktmn/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+25,イタリア,セリエ B,,カタンザーロ,/team/catanzaro/GnizyMB7/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+26,イタリア,セリエ B,,チェゼーナ,/team/cesena/xddf1qfh/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+27,イタリア,セリエ B,,モデナ,/team/modena/MBn63swN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+28,イタリア,セリエ B,,ユーヴェ・スタビア,/team/juve-stabia/hKSfjtsQ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+29,イタリア,セリエ B,,エンポリ,/team/empoli/0ESCnI1H/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+30,イタリア,セリエ B,,パドヴァ,/team/padova/2gUwEtrE/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+31,イタリア,セリエ B,,アヴェッリーノ,/team/avellino/A332L1f5/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+32,イタリア,セリエ B,,レッジャーナ,/team/reggiana/6ulJbMCe/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+33,イタリア,セリエ B,,カッラレーゼ,/team/carrarese/hG4fg4z3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+34,イタリア,セリエ B,,サンプドリア,/team/sampdoria/nJbCGx2U/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+35,イタリア,セリエ B,,スペツィア,/team/spezia/re6VD39b/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+36,イタリア,セリエ B,,バーリ,/team/bari/xIkUr2vO/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+37,イタリア,セリエ B,,ズュートティロール,/team/sudtirol/W02MZDnp/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+38,イタリア,セリエ B,,エンテッラ,/team/entella/hUuJfYbb/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+39,イタリア,セリエ B,,マントヴァ,/team/mantova/z7WK5Pwb/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+40,イタリア,セリエ B,,ペスカーラ,/team/pescara/WW0i6v4C/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+41,イングランド,EFL チャンピオンシップ,,コヴェントリー,/team/coventry/GOvB22xg/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+42,イングランド,EFL チャンピオンシップ,,ミドルズブラ,/team/middlesbrough/6F0lvLNC/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+43,イングランド,EFL チャンピオンシップ,,イプスウィッチ,/team/ipswich/thqhB2MB/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+44,イングランド,EFL チャンピオンシップ,,ハル・シティ,/team/hull-city/S66R0t75/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+45,イングランド,EFL チャンピオンシップ,,ミルウォール,/team/millwall/6uz2cJBL/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+46,イングランド,EFL チャンピオンシップ,,ワトフォード,/team/watford/UmMRoGzp/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+47,イングランド,EFL チャンピオンシップ,,プレストン,/team/preston/x8IDVcbi/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+48,イングランド,EFL チャンピオンシップ,,ブリストル・シティ,/team/bristol-city/MahqU27I/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+49,イングランド,EFL チャンピオンシップ,,QPR,/team/qpr/lrMHUHDc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+50,イングランド,EFL チャンピオンシップ,,ストーク・シティ,/team/stoke-city/hSUajdSS/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+51,イングランド,EFL チャンピオンシップ,,レクサム,/team/wrexham/IgO7K1ZA/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+52,イングランド,EFL チャンピオンシップ,,レスター・シティ,/team/leicester/KrrdAMyI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+53,イングランド,EFL チャンピオンシップ,,サウサンプトン,/team/southampton/WdKOwxDM/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+54,イングランド,EFL チャンピオンシップ,,ダービー,/team/derby/Iug0YO0Q/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+55,イングランド,EFL チャンピオンシップ,,バーミンガム,/team/birmingham/SWk4muv7/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+56,イングランド,EFL チャンピオンシップ,,ウェスト・ブロム,/team/west-brom/CCBWpzjj/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+57,イングランド,EFL チャンピオンシップ,,シェフィールド・U,/team/sheffield-utd/MeKPSerA/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+58,イングランド,EFL チャンピオンシップ,,スウォンジー,/team/swansea/K6xezbY7/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+59,イングランド,EFL チャンピオンシップ,,ブラックバーン,/team/blackburn/6Nl8nagD/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+60,イングランド,EFL チャンピオンシップ,,チャールトン,/team/charlton/fXf5mQ7t/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+61,イングランド,EFL チャンピオンシップ,,ポーツマス,/team/portsmouth/zckREQFJ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+62,イングランド,EFL チャンピオンシップ,,オックスフォード,/team/oxford-utd/vgOBT43c/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+63,イングランド,EFL チャンピオンシップ,,ノリッジ,/team/norwich/Qo6off6p/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+64,イングランド,EFL チャンピオンシップ,,ｼｪﾌｨｰﾙﾄﾞ・ｳｪﾝｽﾞﾃﾞｨ,/team/sheffield-wed/llcCvIcG/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+65,イングランド,EFL リーグ 1,,カーディフ,/team/cardiff/hO8wh6aP/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+66,イングランド,EFL リーグ 1,,リンカーン・シティ,/team/lincoln-city/hrHTRs5B/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+67,イングランド,EFL リーグ 1,,ﾌﾞﾗｯﾄﾞﾌｫｰﾄﾞ･ｼﾃｨ,/team/bradford/bsc3EJ27/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+68,イングランド,EFL リーグ 1,,ストックポート,/team/stockport/IX6WjNvr/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+69,イングランド,EFL リーグ 1,,ハダースフィールド,/team/huddersfield/xxxpBZl2/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+70,イングランド,EFL リーグ 1,,ボルトン,/team/bolton/Or1bBrWD/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+71,イングランド,EFL リーグ 1,,スティヴネイジ,/team/stevenage/ANwyQM2M/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+72,イングランド,EFL リーグ 1,,ルートン・タウン,/team/luton/SlybbadF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+73,イングランド,EFL リーグ 1,,ウィコム,/team/wycombe/hl2V5JIl/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+74,イングランド,EFL リーグ 1,,レディングFC,/team/reading/EmlVDpVP/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+75,イングランド,EFL リーグ 1,,マンスフィールド,/team/mansfield/t6G9wMZN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+76,イングランド,EFL リーグ 1,,ウィガン,/team/wigan/MgHlK2Na/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+77,イングランド,EFL リーグ 1,,ブラックプール,/team/blackpool/8EFIJthC/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+78,イングランド,EFL リーグ 1,,ピーターバラ,/team/peterborough/tWeI85kh/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+79,イングランド,EFL リーグ 1,,バーンズリー,/team/barnsley/UNGEKMx6/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+80,イングランド,EFL リーグ 1,,レイトン・オリエント,/team/leyton-orient/KKyYcus9/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+81,イングランド,EFL リーグ 1,,AFC ウィンブルドン,/team/afc-wimbledon/4KREuF43/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+82,イングランド,EFL リーグ 1,,バートン,/team/burton/nwCtJaJT/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+83,イングランド,EFL リーグ 1,,ノーサンプトン,/team/northampton/l4P6dwRR/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+84,イングランド,EFL リーグ 1,,エクセター,/team/exeter/ve14a3l4/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+85,イングランド,EFL リーグ 1,,プリマス,/team/plymouth/WpGM6ELj/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+86,イングランド,EFL リーグ 1,,ロザラム,/team/rotherham/KMfM7P4b/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+87,イングランド,EFL リーグ 1,,ドンカスター,/team/doncaster/hlzYDy5q/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+88,イングランド,EFL リーグ 1,,ポート・ヴェイル,/team/port-vale/U3lM3y4e/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+89,イングランド,プレミアリーグ,,アーセナル,/team/arsenal/hA1Zm19f/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+90,イングランド,プレミアリーグ,,マンチェスター・C,/team/manchester-city/Wtn9Stg0/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+91,イングランド,プレミアリーグ,,アストン・ヴィラ,/team/aston-villa/W00wmLO0/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+92,イングランド,プレミアリーグ,,リヴァプール,/team/liverpool/lId4TMwf/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+93,イングランド,プレミアリーグ,,チェルシー,/team/chelsea/4fGZN2oK/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+94,イングランド,プレミアリーグ,,マンチェスター・U,/team/manchester-united/ppjDR086/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+95,イングランド,プレミアリーグ,,サンダーランド,/team/sunderland/WSzc94ws/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+96,イングランド,プレミアリーグ,,エヴァートン,/team/everton/KluSTr9s/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+97,イングランド,プレミアリーグ,,ブレントフォード,/team/brentford/xYe7DwID/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+98,イングランド,プレミアリーグ,,ニューカッスル,/team/newcastle-utd/p6ahwuwJ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+99,イングランド,プレミアリーグ,,クリスタル・パレス,/team/crystal-palace/AovF1Mia/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+100,イングランド,プレミアリーグ,,フラム,/team/fulham/69ZiU2Om/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+101,イングランド,プレミアリーグ,,トッテナム,/team/tottenham/UDg08Ohm/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+102,イングランド,プレミアリーグ,,ブライトン,/team/brighton/2XrRecc3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+103,イングランド,プレミアリーグ,,ボーンマス,/team/bournemouth/OtpNdwrc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+104,イングランド,プレミアリーグ,,リーズ,/team/leeds/tUxUbLR2/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+105,イングランド,プレミアリーグ,,ノッティンガム,/team/nottingham/UsushcZr/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+106,イングランド,プレミアリーグ,,ウェストハム,/team/west-ham/Cxq57r8g/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+107,イングランド,プレミアリーグ,,バーンリー,/team/burnley/z3dmTMMO/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+108,イングランド,プレミアリーグ,,ウルヴス,/team/wolves/j3Azpf5d/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+109,インドネシア,スーパーリーグ,,ペルシブ・バンドン,/team/persib-bandung/KpBjbPK1/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+110,インドネシア,スーパーリーグ,,ボルネオ,/team/borneo/nwyOlpIL/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+111,インドネシア,スーパーリーグ,,ﾍﾟﾙｼｼﾞｬ･ｼﾞｬｶﾙﾀ,/team/persija-jakarta/dWeXDE5i/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+112,インドネシア,スーパーリーグ,,マルク・ユナイテッド,/team/malut-united/KUGXCpwa/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+113,インドネシア,スーパーリーグ,,ペルシタ,/team/persita/d0uFG5mk/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+114,インドネシア,スーパーリーグ,,PSIM ｼﾞｮｸﾞｼﾞｬｶﾙﾀ,/team/psim-yogyakarta/0tqnseis/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+115,インドネシア,スーパーリーグ,,ペルセバヤ,/team/persebaya/CMfxYmUA/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+116,インドネシア,スーパーリーグ,,バリ・ユナイテッド,/team/bali-united/W82OaQl9/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+117,インドネシア,スーパーリーグ,,PSM マカッサル,/team/psm-makassar/IaeYYTE4/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+118,インドネシア,スーパーリーグ,,バヤンガラ・ソロ,/team/fc-bhayangkara/6gEuDIDT/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+119,インドネシア,スーパーリーグ,,アレマFC,/team/arema-fc/dpH3oK85/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+120,インドネシア,スーパーリーグ,,プルシク・ケディリ,/team/persik-kediri/MDFOmQ7H/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+121,インドネシア,スーパーリーグ,,ﾏﾄﾞｩｰﾗ･ﾕﾅｲﾃｯﾄﾞ,/team/madura-united/6i1jCnP9/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+122,インドネシア,スーパーリーグ,,デワ・ユナイテッド,/team/dewa-united/IeUVbzhs/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+123,インドネシア,スーパーリーグ,,PSBS ﾋﾞｱｸ･ﾇﾝﾎﾙ,/team/psbs-biak-numfor/n9DO3MV8/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+124,インドネシア,スーパーリーグ,,セメン・パダン,/team/semen-padang/Q3wHWKK0/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+125,インドネシア,スーパーリーグ,,ﾍﾟﾙｼｼﾞｬﾌﾟ･ｼﾞｭﾊﾟﾗ,/team/persijap-jepara/AqJqcOYR/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+126,インドネシア,スーパーリーグ,,ペルシス・ソロ,/team/persis-solo/KQxLVvz7/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+127,ウガンダ,プレミアリーグ,,カンパラ・シティ,/team/kampala-city/fwjo7kpb/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+128,ウガンダ,プレミアリーグ,,バイパーズ,/team/vipers/naKVehgj/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+129,ウガンダ,プレミアリーグ,,ヴィラ,/team/villa/ALztxK6e/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+130,ウガンダ,プレミアリーグ,,ポリス,/team/police/O6V1NhPB/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+131,ウガンダ,プレミアリーグ,,エンテベ UPPC,/team/uppc/UPwapTb8/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+132,ウガンダ,プレミアリーグ,,キタラ,/team/kitara/W0aMZOUR/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+133,ウガンダ,プレミアリーグ,,マル―ンズ,/team/maroons/hj8xMlGq/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+134,ウガンダ,プレミアリーグ,,エクスプレス,/team/express-fc/dM8vDNti/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+135,ウガンダ,プレミアリーグ,,NEC FC,/team/nec-fc/vXYNKJKR/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+136,ウガンダ,プレミアリーグ,,UPDF,/team/updf-fc/CCz5vQDb/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+137,ウガンダ,プレミアリーグ,,ウガンダ・レベニュー,/team/uganda-revenue/IPUH0qvc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+138,ウガンダ,プレミアリーグ,,ブヒンバ,/team/buhimba/neJtB1pJ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+139,ウガンダ,プレミアリーグ,,BIDCO ブル,/team/bul/612q3z1G/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+140,ウガンダ,プレミアリーグ,,ムバララ・シティ,/team/mbarara-city/lba9cS49/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+141,ウガンダ,プレミアリーグ,,ルガジ,/team/lugazi/ziQnnPsF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+142,ウガンダ,プレミアリーグ,,カルバリー,/team/calvary/SzQhQsLe/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+143,ウクライナ,プレミアリーグ,,LNZ チェルカースィ,/team/lnz-cherkasy/2m6zvQp5/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+144,ウクライナ,プレミアリーグ,,ｼｬﾌﾀｰﾙ･ﾄﾞﾈﾂｸ,/team/shakhtar/4ENWX2OA/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+145,ウクライナ,プレミアリーグ,,ジトーミル,/team/zhytomyr/f3sGNX3j/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+146,ウクライナ,プレミアリーグ,,ディナモ・キーウ,/team/dynamo-kiev/nNpqXMwH/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+147,ウクライナ,プレミアリーグ,,クリフバス,/team/kryvbas/2gUHsxs4/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+148,ウクライナ,プレミアリーグ,,ｺﾛｽ･ｺｳﾞｧﾘﾌｶ,/team/kolos-kovalivka/OfzUZGy6/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+149,ウクライナ,プレミアリーグ,,メタリスト 1925,/team/fc-metalist-1925-kharkiv/W0X2VHyL/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+150,ウクライナ,プレミアリーグ,,ゾリャ,/team/zorya/j9Wy32w4/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+151,ウクライナ,プレミアリーグ,,カルパティ・リヴィウ,/team/karpaty-lviv/tCBNq3le/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+152,ウクライナ,プレミアリーグ,,ルフ・リヴィウ,/team/rukh-lviv/pQAxlRVL/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+153,ウクライナ,プレミアリーグ,,ヴェレス・リウネ,/team/veres-rivne/Aahkn5KI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+154,ウクライナ,プレミアリーグ,,オボロン・キエフ,/team/obolon/bN0dYbAh/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+155,ウクライナ,プレミアリーグ,,クドリフカ,/team/kudrivka/nmVantfF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+156,ウクライナ,プレミアリーグ,,エピツェントル,/team/epitsentr/fsn6KO1s/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+157,ウクライナ,プレミアリーグ,,オレクサンドリーヤ,/team/oleksandriya/nHJnN4vh/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+158,ウクライナ,プレミアリーグ,,SCポルタヴァ,/team/sc-poltava/reGwCBEC/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+159,エクアドル,リーガ・プロ,,ｲﾝﾃﾞﾍﾟﾝﾃﾞｨｴﾝﾃ･ﾃﾞﾙ･ﾊﾞｼﾞｪ,/team/independiente-del-valle/YFwXD2sh/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+160,エクアドル,リーガ・プロ,,バルセロナSC,/team/barcelona-sc/pCMG6CNp/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+161,エクアドル,リーガ・プロ,,LDU キト,/team/ldu-quito/xIqORMgg/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+162,エクアドル,リーガ・プロ,,ｳﾆﾍﾞﾙｼﾀﾞ･ｶﾄﾘｶ,/team/u-catolica/pG8RWOGP/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+163,エクアドル,リーガ・プロ,,オレンセ,/team/orense/4MwdGZV3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+164,エクアドル,リーガ・プロ,,リベルタ,/team/libertad/vB5IpIzn/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+165,エクアドル,リーガ・プロ,,ﾃﾞﾎﾟﾙﾃｨｰﾎﾞ･ｸｴﾝｶ,/team/dep-cuenca/KQ6zRt9a/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+166,エクアドル,リーガ・プロ,,エメレク,/team/emelec/8namOvgI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+167,エクアドル,リーガ・プロ,,アウカス,/team/aucas/nJRc8sLh/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+168,エクアドル,リーガ・プロ,,マカラ,/team/macara/QN9rPKwC/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+169,エクアドル,リーガ・プロ,,エル・ナシオナル,/team/el-nacional/tnfcR2vm/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+170,エクアドル,リーガ・プロ,,デルフィン,/team/delfin/b1b1P14P/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+171,エクアドル,リーガ・プロ,,ﾃｸﾆｺ･ｳﾆﾍﾞﾙｼﾀﾘｵ,/team/tecnico-u/Em6vQ0O5/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+172,エクアドル,リーガ・プロ,,ビノティント,/team/vinotinto/vy3P17u4/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+173,エクアドル,リーガ・プロ,,ムシュク・ルナ,/team/mushuc-runa/bioR64Gg/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+174,エクアドル,リーガ・プロ,,マンタ,/team/manta/YwE6vHLt/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+175,エストニア,メスタリリーガ,,フローラ・タリン,/team/flora/zLFV5ykn/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+176,エストニア,メスタリリーガ,,レバディア,/team/levadia/zNmMkSLj/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+177,エストニア,メスタリリーガ,,カリュ,/team/kalju/6sqJGMx9/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+178,エストニア,メスタリリーガ,,パイデ,/team/paide-linnameeskond/CAjWlFop/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+179,エストニア,メスタリリーガ,,ナルヴァ,/team/narva/CpFLgaVe/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+180,エストニア,メスタリリーガ,,ﾊﾟﾙﾇ･ﾘﾅﾒｰｽｺﾝﾄﾞ,/team/parnu-jk-vaprus/zRHz0529/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+181,エストニア,メスタリリーガ,,ハリュ JK ラーグリ,/team/harju-jk-laagri/GS9F0Cw6/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+182,エストニア,メスタリリーガ,,タルトゥJKタメカ,/team/tammeka-tartu/SdXRE07L/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+183,エストニア,メスタリリーガ,,クレサーレ,/team/kuressaare/xAe6hQ2a/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+184,エストニア,メスタリリーガ,,タリナ・カレフ,/team/tallinna-kalev/jyEPhJp2/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+185,エチオピア,プレミアリーグ,,シダマ・ブンナ,/team/sidama-bunna/hMfHFzqj/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+186,エチオピア,プレミアリーグ,,ファジル・ケネマ,/team/fasil-kenema/rBwuCq38/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+187,エチオピア,プレミアリーグ,,アワッサ,/team/hawassa/YeJ5rtW6/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+188,エチオピア,プレミアリーグ,,ｴﾁｵ･ｴﾚｸﾄﾘｯｸ,/team/ethio-electric-s-c/vsvcjXbp/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+189,エチオピア,プレミアリーグ,,アダマ・シティ,/team/adama-city/CrNQ8wjF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+190,エチオピア,プレミアリーグ,,ﾈｹﾞﾚ･ｱﾙｼ･ｹﾃﾏ,/team/negele-arsi-ketema-fc/Ig4eUKaT/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+191,エチオピア,プレミアリーグ,,メカル,/team/mechal-sc/fF7FZEzp/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+192,エチオピア,プレミアリーグ,,セイント・ジョージ,/team/st-georges/lMtfAfk0/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+193,エチオピア,プレミアリーグ,,ハディヤ・ホッサナ,/team/hadiya-hossana/hOiG83Vs/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+194,エチオピア,プレミアリーグ,,ディレ・ダワ,/team/dire-dawa/ppDypUPj/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+195,エチオピア,プレミアリーグ,,ｴﾁｵﾋﾟｱ･ﾆｸﾞﾄﾞ･ﾊﾞﾝｸ,/team/ethiopia-nigd-bank/vFEtMx6M/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+196,エチオピア,プレミアリーグ,,バハルダール・ケネマ,/team/bahir-dar-kenema/zqa9ZINp/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+197,エチオピア,プレミアリーグ,,エチオピア・ブンナ,/team/ethiopia-bunna/2yAFxbj3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+198,エチオピア,プレミアリーグ,,ｼﾚ･ｲﾝﾀﾞｾﾗｼｰ,/team/shire-endaselassie/h4Bab20o/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+199,エチオピア,プレミアリーグ,,シェガー・ケテマ,/team/sheger-ketema-fc/GOnVBIr9/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+200,エチオピア,プレミアリーグ,,ウォライタ・ディチャ,/team/welayta-dicha/6PbLEfbd/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+201,エチオピア,プレミアリーグ,,ｴﾁｵﾋﾟｱﾝ･ｲﾝｼｭｱﾗﾝｽ,/team/ethiopian-insurance/27bLOvM3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+202,エチオピア,プレミアリーグ,,ﾒｹﾚ70･ｴﾝﾃﾞﾙﾀFC,/team/mekelle-70-enderta-fc/00ZuwKHc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+203,エチオピア,プレミアリーグ,,ｳｪﾙﾜﾛ･ｱﾃﾞｨｸﾞﾗｯﾄ,/team/welwalo-adigrat/EPlozI1G/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+204,エチオピア,プレミアリーグ,,アルバ・メンケ,/team/arba-menche/Ac5CGGTq/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+205,オランダ,エールディビジ,,PSV,/team/psv/M9UEHJWi/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+206,オランダ,エールディビジ,,フェイエノールト,/team/feyenoord/8zjySeoN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+207,オランダ,エールディビジ,,アヤックス,/team/ajax/8UOvIwnb/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+208,オランダ,エールディビジ,,ナイメヘン,/team/nijmegen/nRluRF0T/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+209,オランダ,エールディビジ,,フローニンゲン,/team/groningen/MBUGcjb9/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+210,オランダ,エールディビジ,,AZアルクマール,/team/az-alkmaar/2RxOow1i/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+211,オランダ,エールディビジ,,トゥウェンテ,/team/twente/dhOKTHGA/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+212,オランダ,エールディビジ,,ユトレヒト,/team/utrecht/p6QXMgOj/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+213,オランダ,エールディビジ,,ヘーレンフェーン,/team/heerenveen/EDjXSyWG/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+214,オランダ,エールディビジ,,ｽﾊﾟﾙﾀ･ﾛｯﾃﾙﾀﾞﾑ,/team/sparta-rotterdam/KK4FaFV3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+215,オランダ,エールディビジ,,シッタート,/team/sittard/YH8HX5iP/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+216,オランダ,エールディビジ,,エクセルシオール,/team/excelsior/nNlLsRUr/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+217,オランダ,エールディビジ,,GAイーグルス,/team/g-a-eagles/hG8POBb8/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+218,オランダ,エールディビジ,,ズヴォレ,/team/zwolle/r1L5w2EB/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+219,オランダ,エールディビジ,,テルスター,/team/telstar/Aw0qTPat/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+220,オランダ,エールディビジ,,フォレンダム,/team/fc-volendam/6VbkuOqa/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+221,オランダ,エールディビジ,,ヘラクレス,/team/heracles/bB3JbZpA/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+222,オランダ,エールディビジ,,ブレダ,/team/breda/nLNrHc14/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+223,オーストラリア,A リーグ・メン,,オークランドFC,/team/auckland-fc/2J7jacL6/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+224,オーストラリア,A リーグ・メン,,シドニーFC,/team/sydney-fc/6JsBlXVI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+225,オーストラリア,A リーグ・メン,,ブリスベン・ロアー,/team/brisbane-roar/SSr7kDGC/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+226,オーストラリア,A リーグ・メン,,マッカーサーFC,/team/macarthur-fc/bL3ChiWQ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+227,オーストラリア,A リーグ・メン,,ｱﾃﾞﾚｰﾄﾞ･ﾕﾅｲﾃｯﾄﾞ,/team/adelaide-utd/4AZ2ueHm/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+228,オーストラリア,A リーグ・メン,,ﾆｭｰｶｯｽﾙ･ｼﾞｪｯﾂ,/team/newcastle-jets/EaZ5xZo0/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+229,オーストラリア,A リーグ・メン,,ﾒﾙﾎﾞﾙﾝ･ﾋﾞｸﾄﾘｰ,/team/melbourne-victory/Qql6CzOP/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+230,オーストラリア,A リーグ・メン,,パース・グローリー,/team/perth-glory/hjY9yg16/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+231,オーストラリア,A リーグ・メン,,メルボルン・シティ,/team/melbourne-city/OKfoGJBe/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+232,オーストラリア,A リーグ・メン,,ｳｪﾘﾝﾄﾝ･ﾌｪﾆｯｸｽ,/team/wellington-phoenix/Ctp2DG8J/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+233,オーストラリア,A リーグ・メン,,WSワンダラーズ,/team/western-sydney-wanderers/l00pXxBN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+234,オーストラリア,A リーグ・メン,,ｾﾝﾄﾗﾙｺｰｽﾄ･ﾏﾘﾅｰｽﾞ,/team/central-coast-mariners-fc/Wzp1wFWg/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+235,カメルーン,エリート 1,,コロンブ,/team/colombe/27xPRZxk/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+236,カメルーン,エリート 1,,パンテール,/team/panthere/MPLYHPAs/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+237,カメルーン,エリート 1,,ガゼル,/team/gazelle/vLt173Om/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+238,カメルーン,エリート 1,,コトンスポール,/team/cotonsport/IB1gnyvJ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+239,カメルーン,エリート 1,,ステッド・レナルド,/team/stade-renard/G87EIVIl/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+240,カメルーン,エリート 1,,ﾋﾞｸﾄﾘｱ･ﾕﾅｲﾃｯﾄﾞ,/team/victoria-united/rczUOCZn/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+241,カメルーン,エリート 1,,キャノン・ヤウンデ,/team/canon-yaounde/48ckmHOC/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+242,カメルーン,エリート 1,,バメンダ,/team/bamenda/tto1EEn8/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+243,カメルーン,エリート 1,,ﾌｰｳﾞ･ｱｽﾞｰﾙ･ｴﾘｰﾄ,/team/fauve-azur-elite/xbAIWGw5/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+244,カメルーン,エリート 1,,ディナモ・ドゥアラ,/team/dynamo-douala/xzuSCh18/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+245,カメルーン,エリート 1,,フォルトゥナ・ムフー,/team/as-fortuna-mfou/0dGuEAp0/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+246,カメルーン,エリート 1,,エーグル・ムンゴ,/team/aigle-moungo/Ctkhc1eF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+247,カメルーン,エリート 1,,バンブトFC,/team/bamboutos-fc/ERjLSiWD/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+248,カメルーン,エリート 1,,リ・ザストル,/team/les-astres/p69GrIhO/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+249,カメルーン,エリート 1,,ユニオン・ドゥアラ,/team/union-douala/jTsPWvKd/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+250,カメルーン,エリート 1,,ヤング・スポーツ,/team/young-sports/GMBWxkqT/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+251,ケニア,プレミアリーグ,,レオパーズ,/team/leopards/GWtFfl5B/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+252,ケニア,プレミアリーグ,,タスカー,/team/tusker/b9c0Ziqo/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+253,ケニア,プレミアリーグ,,ゴア・マヒア,/team/mahia/GU9jbyMo/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+254,ケニア,プレミアリーグ,,シャバナ,/team/shabana/YXH9gwV9/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+255,ケニア,プレミアリーグ,,ポリスFC,/team/police-fc/AX15Kdd9/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+256,ケニア,プレミアリーグ,,ｶｶﾒｶﾞ･ﾎｰﾑﾎﾞｰｲｽﾞ,/team/kakamega-homeboyz-fc/OfdPtDuK/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+257,ケニア,プレミアリーグ,,KCB,/team/kcb/YJdDMY7P/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+258,ケニア,プレミアリーグ,,ポスタ・レンジャーズ,/team/rangers/WfxlGWpg/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+259,ケニア,プレミアリーグ,,ムランガ,/team/murang-a/xxIkEOUS/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+260,ケニア,プレミアリーグ,,マラ・スーガル,/team/mara-sugar/UBYgXJJb/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+261,ケニア,プレミアリーグ,,マザレ・ユナイテッド,/team/mathare-united/lzS777jQ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+262,ケニア,プレミアリーグ,,バンダリ,/team/bandari/AuYxVndl/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+263,ケニア,プレミアリーグ,,ﾅｲﾛﾋﾞ･ﾕﾅｲﾃｯﾄﾞ,/team/nairobi-united/6m8PWkft/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+264,ケニア,プレミアリーグ,,ウリンジ・スターズ,/team/ulinzi-stars/KzxaGb9r/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+265,ケニア,プレミアリーグ,,ビドコ・ユナイテッド,/team/bidco-united/0zjHr0CN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+266,ケニア,プレミアリーグ,,APS ボメット,/team/aps-bomet/KScUSuRF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+267,ケニア,プレミアリーグ,,ソファパカ,/team/sofapaka/xU9afFkD/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+268,ケニア,プレミアリーグ,,ｶﾘｵﾊﾞﾝｷﾞ･ｼｬｰｸｽ,/team/kariobangi-sharks/EkWjHR8e/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+269,コスタリカ,リーガ FPD,,アラフエレンセ,/team/alajuelense/GhSOAX3r/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+270,コスタリカ,リーガ FPD,,サプリサ,/team/saprissa/AXxf8wUg/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+271,コスタリカ,リーガ FPD,,カルタヒネス,/team/cartagines/4YQV6Vm1/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+272,コスタリカ,リーガ FPD,,リベリア,/team/liberia/jgPa69ID/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+273,コスタリカ,リーガ FPD,,エレディアーノ,/team/herediano/C2Qe7k37/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+274,コスタリカ,リーガ FPD,,セレドン,/team/zeledon/Ict26Hb6/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+275,コスタリカ,リーガ FPD,,プンタレナスFC,/team/puntarenas-fc/bqElF1MD/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+276,コスタリカ,リーガ FPD,,Sporting FC,/team/sporting-fc/xfnmMoFp/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+277,コスタリカ,リーガ FPD,,グアダルーペ,/team/guadalupe/UNs8Witt/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+278,コスタリカ,リーガ FPD,,サン・カルロス,/team/san-carlos/69HdDuiQ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+279,コロンビア,プリメーラ A,,チコ,/team/chico/ULWUFrRR/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+280,コロンビア,プリメーラ A,,ｲﾝﾃﾞﾍﾟﾝﾃﾞｨｴﾝﾃ･ﾒﾃﾞｼﾞﾝ,/team/ind-medellin/p2ADRKlk/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+281,コロンビア,プリメーラ A,,アメリカ・デ・カリ,/team/america-de-cali/Oh9HQv4e/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+282,コロンビア,プリメーラ A,,サンタフェ,/team/santa-fe/6HbMPbJ1/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+283,コロンビア,プリメーラ A,,Inter Bogotá,/team/inter-bogota/KK2QOIY7/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+284,コロンビア,プリメーラ A,,デポルティーボ・カリ,/team/dep-cali/GWDKnMQE/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+285,コロンビア,プリメーラ A,,A・ナシオナル,/team/atl-nacional/C23omttL/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+286,コロンビア,プリメーラ A,,ブカラマンガ,/team/bucaramanga/I1DMa0eR/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+287,コロンビア,プリメーラ A,,ククタ,/team/cucuta/zs0leK3r/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+288,コロンビア,プリメーラ A,,ﾃﾞﾎﾟﾙﾃｨｰﾎﾞ･ﾊﾟｽﾄ,/team/dep-pasto/GdemgvJl/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+289,コロンビア,プリメーラ A,,デポルテス・トリマ,/team/deportes-tolima/bLphhbYf/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+290,コロンビア,プリメーラ A,,ジュニオール,/team/junior/ptqMix37/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+291,コロンビア,プリメーラ A,,ミジョナリオス,/team/millonarios/OWsQjdID/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+292,コロンビア,プリメーラ A,,オンセ・カルダス,/team/once-caldas/bVsnDlMD/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+293,コロンビア,プリメーラ A,,ﾃﾞﾎﾟﾙﾃｨｰﾎﾞ･ﾍﾟﾚｲﾗ,/team/dep-pereira/CYojC8yK/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+294,コロンビア,プリメーラ A,,アギラス,/team/aguilas-doradas/Ma0BXUXe/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+295,コロンビア,プリメーラ A,,ペトロレラ,/team/alianza/GfFNymsk/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+296,コロンビア,プリメーラ A,,フォルタレサ,/team/fortaleza-c-e-i-f/8YJQcU38/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+297,コロンビア,プリメーラ A,,ジャネロス,/team/llaneros/KzwFLhIU/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+298,コロンビア,プリメーラ A,,ﾊｸﾞｱﾚｽ･ﾃﾞ･ｺﾙﾄﾞﾊﾞ,/team/jaguares-de-cordoba/hCwaFc4a/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+299,ジャマイカ,プレミアリーグ,,ﾚｰｼﾝｸﾞ･ﾕﾅｲﾃｯﾄﾞ,/team/racing-united/MHizSXtf/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+300,ジャマイカ,プレミアリーグ,,モンテゴ・ベイ,/team/montego-bay/pSsPYXRh/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+301,ジャマイカ,プレミアリーグ,,ポートモア,/team/portmore/pfDrVtbe/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+302,ジャマイカ,プレミアリーグ,,マウント・プレザント,/team/mount-pleasant/lrJ7nxoC/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+303,ジャマイカ,プレミアリーグ,,キャバリエ,/team/cavalier/UuOW3jq1/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+304,ジャマイカ,プレミアリーグ,,ウォーターハウス,/team/waterhouse/jL5z86u6/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+305,ジャマイカ,プレミアリーグ,,モリネス,/team/molynes-united/EqamFmnd/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+306,ジャマイカ,プレミアリーグ,,チボリ,/team/tivoli/EZUb42dG/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+307,ジャマイカ,プレミアリーグ,,ダンベホルデン,/team/fc-dunbeholden/ULAHJbS6/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+308,ジャマイカ,プレミアリーグ,,ハーバー・ビュー,/team/harbour-view/tnfra3K8/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+309,ジャマイカ,プレミアリーグ,,ｱｰﾈｯﾄ･ｶﾞｰﾃﾞﾝｽﾞ,/team/arnett-gardens/AHBD4DSI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+310,ジャマイカ,プレミアリーグ,,トレジャー・ビーチ,/team/treasure-beach/ETwdWBmB/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+311,ジャマイカ,プレミアリーグ,,チャペルトン,/team/chapelton/AZJexZFC/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+312,ジャマイカ,プレミアリーグ,,ｽﾊﾟﾆｯｼｭ･ﾀｳﾝ･ﾎﾟﾘｽ,/team/spanish-town-police/dr6zkmMh/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+313,スコットランド,プレミアシップ,,ハーツ,/team/hearts/0rGrwwNc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+314,スコットランド,プレミアシップ,,セルティック,/team/celtic/QFKRRD8M/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+315,スコットランド,プレミアシップ,,レンジャーズ,/team/rangers/8vAWQXNS/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+316,スコットランド,プレミアシップ,,マザーウェル,/team/motherwell/YuW7ZfMM/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+317,スコットランド,プレミアシップ,,ハイバーニアン,/team/hibernian/f5Fnxcx4/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+318,スコットランド,プレミアシップ,,ﾀﾞﾝﾃﾞｨｰ･ﾕﾅｲﾃｯﾄﾞ,/team/dundee-utd/8QEB2FFp/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+319,スコットランド,プレミアシップ,,アバディーン,/team/aberdeen/AmdbMiWq/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+320,スコットランド,プレミアシップ,,フォルカーク,/team/falkirk/nHDF1ZUj/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+321,スコットランド,プレミアシップ,,ダンディーFC,/team/dundee-fc/hjIyrgaj/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+322,スコットランド,プレミアシップ,,セント・ミレン,/team/st-mirren/tAVXZEyT/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+323,スコットランド,プレミアシップ,,キルマーノック,/team/kilmarnock/jX8ezy7G/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+324,スコットランド,プレミアシップ,,リヴィングストン,/team/livingston/MoYV5dic/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+325,スペイン,ラ・リーガ,,バルセロナ,/team/barcelona/SKbpVP5K/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+326,スペイン,ラ・リーガ,,レアル・マドリード,/team/real-madrid/W8mj7MDD/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+327,スペイン,ラ・リーガ,,A・マドリード,/team/atl-madrid/jaarqpLQ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+328,スペイン,ラ・リーガ,,ビジャレアル,/team/villarreal/lUatW5jE/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+329,スペイン,ラ・リーガ,,エスパニョール,/team/espanyol/QFfPdh1J/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+330,スペイン,ラ・リーガ,,ベティス,/team/betis/vJbTeCGP/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+331,スペイン,ラ・リーガ,,セルタ,/team/celta-vigo/8pvUZFhf/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+332,スペイン,ラ・リーガ,,A・ビルバオ,/team/ath-bilbao/IP5zl0cJ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+333,スペイン,ラ・リーガ,,エルチェ,/team/elche/4jl02tPF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+334,スペイン,ラ・リーガ,,セビージャ,/team/sevilla/h8oAv4Ts/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+335,スペイン,ラ・リーガ,,ヘタフェ,/team/getafe/dboeiWOt/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+336,スペイン,ラ・リーガ,,オサスナ,/team/osasuna/ETdxjU8a/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+337,スペイン,ラ・リーガ,,マジョルカ,/team/mallorca/4jDQxrbf/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+338,スペイン,ラ・リーガ,,アラベス,/team/alaves/hxt57t2q/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+339,スペイン,ラ・リーガ,,ﾗｰｼﾞｮ･ﾊﾞｼﾞｪｶｰﾉ,/team/rayo-vallecano/8bcjFy6O/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+340,スペイン,ラ・リーガ,,レアル・ソシエダ,/team/real-sociedad/jNvak2f3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+341,スペイン,ラ・リーガ,,バレンシア,/team/valencia/CQeaytrD/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+342,スペイン,ラ・リーガ,,ジローナ,/team/girona/nNNpcUSL/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+343,スペイン,ラ・リーガ,,レアル・オビエド,/team/r-oviedo/SzYzw34K/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+344,スペイン,ラ・リーガ,,レバンテ,/team/levante/G8FL0ShI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+345,セルビア,スーペルリーガ,,パルチザン,/team/partizan/8OLvlKz0/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+346,セルビア,スーペルリーガ,,ﾂﾙｳﾞｪﾅ･ｽﾞｳﾞｪｽﾞﾀﾞ,/team/crvena-zvezda/ncRzHK14/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+347,セルビア,スーペルリーガ,,ヴォイヴォディナ,/team/vojvodina/8pVJab5C/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+348,セルビア,スーペルリーガ,,ノヴィ・パザル,/team/novi-pazar/KfRtJ260/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+349,セルビア,スーペルリーガ,,ジェレズニチャル,/team/zeleznicar-pancevo/jmmBWFML/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+350,セルビア,スーペルリーガ,,チュカリチュキ,/team/cukaricki/tEBfcZh3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+351,セルビア,スーペルリーガ,,ﾗﾄﾞﾆｸ･ｽﾙﾄﾞｩﾘﾂｧ,/team/radnik-surdulica/001CSxc0/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+352,セルビア,スーペルリーガ,,ラドニチュキ 1923,/team/radnicki-1923/IXb191IM/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+353,セルビア,スーペルリーガ,,OFK ベオグラード,/team/ofk-beograd/Imdxh57l/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+354,セルビア,スーペルリーガ,,ムラドスト・ルチャニ,/team/mladost-lucani/ER92eDNF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+355,セルビア,スーペルリーガ,,TSC,/team/tsc-backa-topola/CtblNHpa/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+356,セルビア,スーペルリーガ,,IMT,/team/imt-novi-beograd/CIgZyXPE/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+357,セルビア,スーペルリーガ,,ヤヴォル,/team/javor/00NeCQbK/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+358,セルビア,スーペルリーガ,,ラドニチュキ・ニシュ,/team/radnicki-nis/boQpIML6/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+359,セルビア,スーペルリーガ,,ｽﾊﾟﾙﾀｸ･ｽﾎﾞﾃｨﾂｧ,/team/spartak-subotica/b7fHYa2g/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+360,セルビア,スーペルリーガ,,ナプレダク,/team/napredak/8WNhuohr/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+361,タンザニア,プレミアリーグ,,JKT タンザニア,/team/jkt-tanzania/tWnWFCSs/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+362,タンザニア,プレミアリーグ,,ヤング・アフリカンズ,/team/young-africans/dMbOiRbT/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+363,タンザニア,プレミアリーグ,,パンバ,/team/pamba/8SZxN2bT/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+364,タンザニア,プレミアリーグ,,マシュジャー,/team/mashujaa/hQ372V8j/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+365,タンザニア,プレミアリーグ,,シンバ,/team/simba/C2SQy01d/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+366,タンザニア,プレミアリーグ,,ナムンゴ,/team/namungo/rq101FoU/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+367,タンザニア,プレミアリーグ,,ムティブワ・シュガー,/team/mtibwa-sugar/YumRyCHF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+368,タンザニア,プレミアリーグ,,ファウンテン・ゲート,/team/fountain-gate/UZbifa45/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+369,タンザニア,プレミアリーグ,,アザム,/team/azam/SrpJwYn3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+370,タンザニア,プレミアリーグ,,TRA ユナイテッド,/team/tra/QBZZQ08f/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+371,タンザニア,プレミアリーグ,,コースタル・ユニオン,/team/coastal-union/8vCT7K7l/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+372,タンザニア,プレミアリーグ,,ｼﾝｼﾞﾀﾞ･ﾌﾞﾗｯｸｽﾀｰｽﾞ,/team/singida-black-stars/jTBgEvMq/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+373,タンザニア,プレミアリーグ,,ムベヤ・シティ,/team/mbeya-city/6o8pEMUK/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+374,タンザニア,プレミアリーグ,,ﾀﾝｻﾞﾆｱ･ﾌﾟﾘｽﾞﾝｽﾞ,/team/tanzania-prisons/bT4t5Ii7/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+375,タンザニア,プレミアリーグ,,ドドマ・ジジ,/team/dodoma-jiji/YeeY7sb7/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+376,タンザニア,プレミアリーグ,,キノンドーニMC,/team/kinondoni-mc/OfxyFWsl/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+377,チュニジア,チュニジア･プロリーグ,,ｴｽﾍﾟﾗﾝｽ･ﾁｭﾆｽ,/team/esperance-tunis/bVINpDMl/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+378,チュニジア,チュニジア･プロリーグ,,クラブ・アフリカーン,/team/club-africain/C2lt6Igm/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+379,チュニジア,チュニジア･プロリーグ,,ｽﾀｯﾄﾞ･ﾁｭﾆｼﾞｱﾝ,/team/stade-tunisien/IVPZsB67/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+380,チュニジア,チュニジア･プロリーグ,,スファクシアン,/team/sfaxien/2BJIkFqL/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+381,チュニジア,チュニジア･プロリーグ,,モナスティル,/team/monastir/zixQ6fq8/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+382,チュニジア,チュニジア･プロリーグ,,ザルジス,/team/zarzis/0AqfZLXt/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+383,チュニジア,チュニジア･プロリーグ,,メトラウイ,/team/metlaoui/tIVvg8yF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+384,チュニジア,チュニジア･プロリーグ,,エトワール・サヘル,/team/etoile-sahel/QyX50QIH/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+385,チュニジア,チュニジア･プロリーグ,,ASマルサ,/team/as-marsa/GfH6hHa2/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+386,チュニジア,チュニジア･プロリーグ,,ベンガーダン,/team/ben-guerdane/4MWKcfBn/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+387,チュニジア,チュニジア･プロリーグ,,JSオムラネ,/team/jeunesse-sportive/84XWfU62/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+388,チュニジア,チュニジア･プロリーグ,,CAビゼルティン,/team/bizertin/foGAiyF8/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+389,チュニジア,チュニジア･プロリーグ,,JSケルアン,/team/js-kairouan/rVdSw2PP/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+390,チュニジア,チュニジア･プロリーグ,,ソリマン,/team/soliman/n5jl3GmP/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+391,チュニジア,チュニジア･プロリーグ,,オリンピック・ベジャ,/team/olympique-beja/Kp7Wrii1/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+392,チュニジア,チュニジア･プロリーグ,,ガベス,/team/gabes/UNMR8gOn/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+393,トルコ,スュペル・リグ,,ガラタサライ,/team/galatasaray/riaqqurF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+394,トルコ,スュペル・リグ,,フェネルバフチェ,/team/fenerbahce/MsbmracL/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+395,トルコ,スュペル・リグ,,トラブゾンスポル,/team/trabzonspor/MmsYDc03/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+396,トルコ,スュペル・リグ,,ギョズテペ,/team/goztepe/0MJlDkrA/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+397,トルコ,スュペル・リグ,,ベシクタシュ,/team/besiktas/IDmErJCR/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+398,トルコ,スュペル・リグ,,サムスンスポル,/team/samsunspor/pSc6z7bf/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+399,トルコ,スュペル・リグ,,バシャクシェヒル,/team/basaksehir/YqP5NmC1/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+400,トルコ,スュペル・リグ,,コジャエリスポル,/team/kocaelispor/hfvQIzKf/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+401,トルコ,スュペル・リグ,,ガズィアンテプ,/team/gaziantep/ITkIKZ7q/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+402,トルコ,スュペル・リグ,,アランヤスポル,/team/alanyaspor/IcN8oPcJ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+403,トルコ,スュペル・リグ,,ゲンチレルビルリイ,/team/genclerbirligi/GOPqBIRK/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+404,トルコ,スュペル・リグ,,リゼスポル,/team/rizespor/EFRnJdkr/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+405,トルコ,スュペル・リグ,,コンヤスポル,/team/konyaspor/YazuCbCE/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+406,トルコ,スュペル・リグ,,カスムパシャ,/team/kasimpasa/dOlaIG4l/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+407,トルコ,スュペル・リグ,,アンタルヤスポル,/team/antalyaspor/GAtxDHF9/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+408,トルコ,スュペル・リグ,,カイセリスポル,/team/kayserispor/8pwUEwoc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+409,トルコ,スュペル・リグ,,エユプスポル,/team/eyupspor/276zKCgt/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+410,トルコ,スュペル・リグ,,カラギュムリュク,/team/f-karagumruk/Cv7CWW8n/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+411,ドイツ,ブンデスリーガ,,バイエルン,/team/bayern-munich/nVp0wiqd/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+412,ドイツ,ブンデスリーガ,,ドルトムント,/team/dortmund/nP1i5US1/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+413,ドイツ,ブンデスリーガ,,レバークーゼン,/team/bayer-leverkusen/4jcj2zMd/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+414,ドイツ,ブンデスリーガ,,RBライプツィヒ,/team/rb-leipzig/KbS1suSm/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+415,ドイツ,ブンデスリーガ,,ホッフェンハイム,/team/hoffenheim/hQAtP9Sl/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+416,ドイツ,ブンデスリーガ,,シュトゥットガルト,/team/vfb-stuttgart/nJQmYp1B/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+417,ドイツ,ブンデスリーガ,,フランクフルト,/team/eintracht-frankfurt/8vndvXTk/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+418,ドイツ,ブンデスリーガ,,ウニオン・ベルリン,/team/union-berlin/pzHW4oaE/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+419,ドイツ,ブンデスリーガ,,フライブルク,/team/freiburg/fiEQZ7C7/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+420,ドイツ,ブンデスリーガ,,ブレーメン,/team/werder-bremen/Ig1f1fy3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+421,ドイツ,ブンデスリーガ,,FCケルン,/team/koln/WG9pOTse/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+422,ドイツ,ブンデスリーガ,,ボルシアMG,/team/b-monchengladbach/88HSzjDr/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+423,ドイツ,ブンデスリーガ,,ハンブルガーSV,/team/hamburger/v9k3aY5F/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+424,ドイツ,ブンデスリーガ,,ヴォルフスブルク,/team/wolfsburg/nwkTahLL/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+425,ドイツ,ブンデスリーガ,,FCアウクスブルク,/team/augsburg/fTVNku3I/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+426,ドイツ,ブンデスリーガ,,ザンクトパウリ,/team/st-pauli/ILyJuN3g/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+427,ドイツ,ブンデスリーガ,,ハイデンハイム,/team/heidenheim/KWixEVWi/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+428,ドイツ,ブンデスリーガ,,マインツ,/team/mainz/EuakNmc1/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+429,フランス,リーグ・アン,,RCランス,/team/lens/IBmris38/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+430,フランス,リーグ・アン,,PSG,/team/paris-sg/CjhkPw0k/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+431,フランス,リーグ・アン,,マルセイユ,/team/marseille/SblU3Hee/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+432,フランス,リーグ・アン,,リール,/team/lille/pfDZL71o/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+433,フランス,リーグ・アン,,リヨン,/team/lyon/2akflumR/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+434,フランス,リーグ・アン,,レンヌ,/team/rennes/d2nnj1IE/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+435,フランス,リーグ・アン,,ストラスブール,/team/strasbourg/nP6UzIU1/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+436,フランス,リーグ・アン,,トゥールーズ,/team/toulouse/MLmY2yB1/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+437,フランス,リーグ・アン,,モナコ,/team/monaco/2PIvr8o4/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+438,フランス,リーグ・アン,,アンジェ,/team/angers/SAlF91iL/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+439,フランス,リーグ・アン,,ブレスト,/team/brest/Cr4VGaUl/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+440,フランス,リーグ・アン,,ロリアン,/team/lorient/jgNAYRGi/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+441,フランス,リーグ・アン,,ニース,/team/nice/YagoQJpq/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+442,フランス,リーグ・アン,,パリFC,/team/paris-fc/0OEHEprs/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+443,フランス,リーグ・アン,,ル・アーヴル,/team/le-havre/CIEe04GT/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+444,フランス,リーグ・アン,,オセール,/team/auxerre/MTLr36WA/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+445,フランス,リーグ・アン,,ナント,/team/nantes/veuetnGG/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+446,フランス,リーグ・アン,,メス,/team/metz/4v0yqlWc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+447,ブラジル,セリエ A ベターノ,,ブラガンチーノ,/team/bragantino/jwKvKhGa/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+448,ブラジル,セリエ A ベターノ,,インテルナシオナル,/team/internacional/tSCiHj0I/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+449,ブラジル,セリエ A ベターノ,,ヴァスコ・ダ・ガマ,/team/vasco/2RABlYFn/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+450,ブラジル,セリエ A ベターノ,,グレミオ,/team/gremio/E1EFmhVh/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+451,ブラジル,セリエ A ベターノ,,ボタフォゴRJ,/team/botafogo-rj/jXzWoWa5/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+452,ブラジル,セリエ A ベターノ,,サントス,/team/santos/n3QdnjFB/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+453,ブラジル,セリエ A ベターノ,,サンパウロ,/team/sao-paulo/QgP0oAUH/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+454,ブラジル,セリエ A ベターノ,,コリチーバ,/team/coritiba/KGO4pUqO/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+455,ブラジル,セリエ A ベターノ,,クルゼイロ,/team/cruzeiro/0SwtclaU/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+456,ブラジル,セリエ A ベターノ,,ヴィトーリア,/team/vitoria/8bSbHipn/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+457,ブラジル,セリエ A ベターノ,,アトレチコ・ミネイロ,/team/atletico-mg/hGLC5Bah/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+458,ブラジル,セリエ A ベターノ,,フルミネンセ,/team/fluminense/EV9L3kU4/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+459,ブラジル,セリエ A ベターノ,,CRフラメンゴ,/team/flamengo-rj/WjxY29qB/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+460,ブラジル,セリエ A ベターノ,,パルメイラス,/team/palmeiras/hMn9FTbH/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+461,ブラジル,セリエ A ベターノ,,アトレチコPR,/team/athletico-pr/UoAxb1Tq/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+462,ブラジル,セリエ A ベターノ,,バイーア,/team/bahia/UeD7XtzM/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+463,ブラジル,セリエ A ベターノ,,コリンチャンス,/team/corinthians/QBGfQbSe/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+464,ブラジル,セリエ A ベターノ,,ミラソウ,/team/mirassol/pQ8ryEe7/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+465,ブラジル,セリエ A ベターノ,,レモ,/team/remo/2i0B6Zul/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+466,ブラジル,セリエ A ベターノ,,シャペコエンセ,/team/chapecoense-sc/jcQV3XP6/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+467,ブラジル,セリエ B,,コリチーバ,/team/coritiba/KGO4pUqO/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+468,ブラジル,セリエ B,,アトレチコPR,/team/athletico-pr/UoAxb1Tq/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+469,ブラジル,セリエ B,,シャペコエンセ,/team/chapecoense-sc/jcQV3XP6/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+470,ブラジル,セリエ B,,レモ,/team/remo/2i0B6Zul/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+471,ブラジル,セリエ B,,クリシューマ,/team/criciuma/48b7cubd/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+472,ブラジル,セリエ B,,ゴイアス,/team/goias/hfAZyE0t/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+473,ブラジル,セリエ B,,ノヴォリゾンチーノ,/team/novorizontino/4lOgZPQl/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+474,ブラジル,セリエ B,,CRB,/team/crb/QHa3bLrj/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+475,ブラジル,セリエ B,,アヴァイ,/team/avai/rPzY7fWt/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+476,ブラジル,セリエ B,,クイアバ,/team/cuiaba/zVvjqDOo/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+477,ブラジル,セリエ B,,アトレチコGO,/team/atletico-go/8M0mP8nt/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+478,ブラジル,セリエ B,,オペラリオ,/team/operario/CW8Nm1GL/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+479,ブラジル,セリエ B,,ヴィラ・ノヴァFC,/team/vila-nova-fc/Y3E1Lrj3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+480,ブラジル,セリエ B,,アメリカMG,/team/america-mg/xUT0Bp8o/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+481,ブラジル,セリエ B,,アスレチック・クラブ,/team/athletic-club/INXlw5Bp/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+482,ブラジル,セリエ B,,ボタフォゴSP,/team/botafogo-sp/2yRUzy5N/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+483,ブラジル,セリエ B,,フェロヴィアリア,/team/ferroviaria/pAPVj72I/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+484,ブラジル,セリエ B,,アマゾナス,/team/amazonas/zk9LAfeq/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+485,ブラジル,セリエ B,,ヴォルタ・レドンダ,/team/volta-redonda/zs0bUylR/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+486,ブラジル,セリエ B,,パイサンドゥPA,/team/paysandu-pa/URQ9q4vA/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+487,ブルガリア,パルヴァ・リーガ,,レフスキ・ソフィア,/team/levski/E5OOzgs4/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+488,ブルガリア,パルヴァ・リーガ,,CSKA 1948 ソフィア,/team/cska-1948-sofia/fgaHZGUb/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+489,ブルガリア,パルヴァ・リーガ,,ルドゴレツ,/team/ludogorets/GrLjfV3M/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+490,ブルガリア,パルヴァ・リーガ,,チェルノ・モレ,/team/cherno-more/EeRUF2go/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+491,ブルガリア,パルヴァ・リーガ,,CSKA ソフィア,/team/cska-sofia/0xFNNECi/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+492,ブルガリア,パルヴァ・リーガ,,ﾛｺﾓﾃｨﾌ･ﾌﾟﾛｳﾞﾃﾞｨﾌ,/team/lok-plovdiv/zFPKyZRc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+493,ブルガリア,パルヴァ・リーガ,,スラヴィア・ソフィア,/team/slavia-sofia/UopPSUlp/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+494,ブルガリア,パルヴァ・リーガ,,ﾛｺﾓﾃｨﾌ･ｿﾌｨｱ,/team/lok-sofia/xp9SXWBG/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+495,ブルガリア,パルヴァ・リーガ,,ボテフ・ヴラツァ,/team/botev-vratsa/revfhoot/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+496,ブルガリア,パルヴァ・リーガ,,アルダ・クルジャリ,/team/arda/G4CP0a82/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+497,ブルガリア,パルヴァ・リーガ,,ボテフ・プロヴディフ,/team/botev-plovdiv/xzz3KroU/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+498,ブルガリア,パルヴァ・リーガ,,スパルタク,/team/spartak/zof0uk4j/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+499,ブルガリア,パルヴァ・リーガ,,ベロエ,/team/beroe/4MyeM4GH/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+500,ブルガリア,パルヴァ・リーガ,,モンタナ,/team/montana/KlnUda9s/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+501,ブルガリア,パルヴァ・リーガ,,ｾﾌﾟﾃﾑｳﾞﾘ･ｿﾌｨｱ,/team/septemvri-sofia/8nkL4WbD/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+502,ブルガリア,パルヴァ・リーガ,,ドブルジャ,/team/dobrudzha/0CpyYs0O/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+503,ベルギー,ジュピラー･プロリーグ,,ユニオン,/team/royale-union-sg/407h8Ird/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+504,ベルギー,ジュピラー･プロリーグ,,クラブ・ブルッヘ,/team/club-brugge/rgTHIK74/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+505,ベルギー,ジュピラー･プロリーグ,,シント＝トロイデン,/team/st-truiden/d2EjBxMM/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+506,ベルギー,ジュピラー･プロリーグ,,アンデルレヒト,/team/anderlecht/vslqAKNo/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+507,ベルギー,ジュピラー･プロリーグ,,KVメヘレン,/team/kv-mechelen/ULVIb27i/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+508,ベルギー,ジュピラー･プロリーグ,,ｽﾀﾝﾀﾞｰﾙ･ﾘｴｰｼﾞｭ,/team/st-liege/vsnvCI6G/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+509,ベルギー,ジュピラー･プロリーグ,,アントワープ,/team/antwerp/rVpPxw8H/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+510,ベルギー,ジュピラー･プロリーグ,,ヘント,/team/gent/MgkzUx7T/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+511,ベルギー,ジュピラー･プロリーグ,,ヘンク,/team/genk/r3jWUIiN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+512,ベルギー,ジュピラー･プロリーグ,,ウェステルロー,/team/westerlo/hYaM5Gqp/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+513,ベルギー,ジュピラー･プロリーグ,,シャルルロワ,/team/charleroi/WIPDJ0hb/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+514,ベルギー,ジュピラー･プロリーグ,,ワレヘム,/team/waregem/jPDfAdyT/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+515,ベルギー,ジュピラー･プロリーグ,,ルーヴェン,/team/leuven/dYlTycNN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+516,ベルギー,ジュピラー･プロリーグ,,ルヴィエロワーズ,/team/raal-la-louviere/K0H6jm7P/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+517,ベルギー,ジュピラー･プロリーグ,,サークル・ブルッヘ,/team/cercle-brugge/IXnm9vwh/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+518,ベルギー,ジュピラー･プロリーグ,,デンデル,/team/dender/xGSLHvNA/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+519,ペルー,リーガ 1,,ｳﾆﾍﾞﾙｼﾀﾘｵ･ﾃﾞﾎﾟﾙﾃｽ,/team/universitario-de-deportes/xhw3JTnU/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+520,ペルー,リーガ 1,,クスコ,/team/cusco/zDuHd68m/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+521,ペルー,リーガ 1,,アリアンサ・リマ,/team/a-lima/tSWpiWmI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+522,ペルー,リーガ 1,,ｽﾎﾟﾙﾃｨﾝｸﾞ･ｸﾘｽﾀﾙ,/team/sporting-cristal/rVwaK9XN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+523,ペルー,リーガ 1,,ｱﾘｱﾝｻ･ｱﾄﾚﾃｨｺ,/team/alianza-atl/GlLFjAIU/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+524,ペルー,リーガ 1,,FBC メルガール,/team/fbc-melgar/IZO9NXIh/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+525,ペルー,リーガ 1,,ﾃﾞﾎﾟﾙﾃｨｰﾎﾞ･ｶﾞﾙｼﾗｰｿ,/team/deportivo-garcilaso/pQ8DJXPR/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+526,ペルー,リーガ 1,,シエンシアーノ,/team/cienciano/82OXAD3n/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+527,ペルー,リーガ 1,,ロス・チャンカス,/team/los-chankas/hfMxvE6a/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+528,ペルー,リーガ 1,,ADタルマ,/team/ad-tarma/EsfgJz9N/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+529,ペルー,リーガ 1,,スポルト・ワンカヨ,/team/sport-huancayo/hEX4iScl/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+530,ペルー,リーガ 1,,グラウ,/team/atletico-grau/6o4srhvP/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+531,ペルー,リーガ 1,,ｺﾒﾙｼｱﾝﾃｽ･ｳﾆﾄﾞｽ,/team/comerciantes-unidos/ABEwYY2S/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+532,ペルー,リーガ 1,,スポルト・ボーイズ,/team/sport-boys/URZfLkIH/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+533,ペルー,リーガ 1,,フアン・パブロⅡ,/team/juan-pablo-ii/bXJtZt18/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+534,ペルー,リーガ 1,,カハマルカ,/team/cajamarca/6cko2SpQ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+535,ペルー,リーガ 1,,アヤクーチョ,/team/ayacucho/A5Ahh8rr/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+536,ペルー,リーガ 1,,ｱﾘｱﾝﾂｧ･ｳﾆﾍﾞﾙｼﾀﾞｯﾄﾞ,/team/alianza-huanuco/8U4wZEmf/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+537,ペルー,リーガ 1,,ビナシオナル,/team/binacional/lAu3Dhr0/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+538,ボリビア,LFPB,,ｵｰﾙｳｪｲｽﾞ･ﾚﾃﾞｨ,/team/always-ready/tryqNMHF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+539,ボリビア,LFPB,,ボリバル,/team/bolivar/WImzpcSF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+540,ボリビア,LFPB,,ザ・ストロンゲスト,/team/the-strongest/Wfi42xS2/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+541,ボリビア,LFPB,,SAブロ・ブロ,/team/san-antonio-bulo-bulo/AoMZyUBM/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+542,ボリビア,LFPB,,ブルーミング,/team/blooming/hSlWpwD9/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+543,ボリビア,LFPB,,インデペンディエンテ,/team/independiente/8AXozsR8/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+544,ボリビア,LFPB,,ナシオナル・ポトシ,/team/nacional-potosi/hUyau0Vc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+545,ボリビア,LFPB,,グアビラ,/team/guabira/vmm0pHsM/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+546,ボリビア,LFPB,,GVサン・ホセ,/team/gv-san-jose/Ch7Q7a9K/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+547,ボリビア,LFPB,,アウロラ,/team/aurora/A3aRoJc3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+548,ボリビア,LFPB,,トモヤポ,/team/tomayapo/SlIKwGVI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+549,ボリビア,LFPB,,ｵﾘｴﾝﾃ･ﾍﾟﾄﾛﾚﾛ,/team/oriente-petrolero/Sxmuue5q/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+550,ボリビア,LFPB,,レアル・オルロ,/team/real-oruro/KG3q1tio/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+551,ボリビア,LFPB,,ｳﾆﾍﾞﾙｼﾀﾘｵ･ﾃﾞ･ﾋﾞﾝﾄ,/team/club-universitario-de-vinto/Crksl26f/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+552,ボリビア,LFPB,,ｱｶﾃﾞﾐｱ･ﾃﾞﾙ･ﾊﾞﾛﾝﾋﾟｴ,/team/academia-del-balompie/Oh2AVRlj/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+553,ボリビア,LFPB,,ウィルステルマン,/team/jorge-wilstermann/48kC0GdF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+554,ポルトガル,リーガ・ポルトガル,,FCポルト,/team/fc-porto/S2NmScGp/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+555,ポルトガル,リーガ・ポルトガル,,スポルティング,/team/sporting-lisbon/tljXuHBC/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+556,ポルトガル,リーガ・ポルトガル,,ベンフィカ,/team/benfica/zBkyuyRI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+557,ポルトガル,リーガ・ポルトガル,,ジル・ヴィセンテ,/team/gil-vicente/CS0fFFd8/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+558,ポルトガル,リーガ・ポルトガル,,ブラガ,/team/braga/dpUer7ht/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+559,ポルトガル,リーガ・ポルトガル,,ファマリカン,/team/famalicao/ABBgitC3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+560,ポルトガル,リーガ・ポルトガル,,ｳﾞｨﾄｰﾘｱ･ｷﾞﾏﾗﾝｲｽ,/team/guimaraes/pQYVZyD2/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+561,ポルトガル,リーガ・ポルトガル,,モレイレンセ,/team/moreirense/8d9NGt9H/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+562,ポルトガル,リーガ・ポルトガル,,エストリル,/team/estoril/htoKuYZl/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+563,ポルトガル,リーガ・ポルトガル,,エストレラ,/team/estrela-da-amadora/hrYABE5k/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+564,ポルトガル,リーガ・ポルトガル,,リオ・アヴェ,/team/rio-ave/jPzXLi4l/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+565,ポルトガル,リーガ・ポルトガル,,アルヴェルカ,/team/fc-alverca/roaMksQg/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+566,ポルトガル,リーガ・ポルトガル,,サンタ・クララ,/team/santa-clara/YmQyLBJf/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+567,ポルトガル,リーガ・ポルトガル,,ナシオナル,/team/nacional/4ETLrR7n/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+568,ポルトガル,リーガ・ポルトガル,,カーザ・ピア,/team/casa-pia/QFHt9Zgs/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+569,ポルトガル,リーガ・ポルトガル,,アロウカ,/team/arouca/fJqfm7CG/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+570,ポルトガル,リーガ・ポルトガル,,トンデラ,/team/tondela/nFFgCnVo/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+571,ポルトガル,リーガ・ポルトガル,,AFS,/team/afs/IZPeUwtM/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+572,メキシコ,リーガ MX,,トルーカ,/team/toluca/8hiBr2eQ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+573,メキシコ,リーガ MX,,ティグレス UNAL,/team/u-a-n-l-tigres/Iy4albIC/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+574,メキシコ,リーガ MX,,クルス・アスル,/team/cruz-azul/G8PFBMll/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+575,メキシコ,リーガ MX,,クラブ・アメリカ,/team/club-america/vyrswtJm/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+576,メキシコ,リーガ MX,,モンテレイ,/team/monterrey/Ya23C2Zs/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+577,メキシコ,リーガ MX,,ﾁｰﾊﾞｽ･ｸﾞｱﾀﾞﾗﾊﾗ,/team/guadalajara-chivas/Y5TaMKY6/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+578,メキシコ,リーガ MX,,クラブ・ティフアナ,/team/club-tijuana/nuNVeQkr/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+579,メキシコ,リーガ MX,,フアレス,/team/juarez/2wZp8NAh/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+580,メキシコ,リーガ MX,,パチューカ,/team/pachuca/QT16qrtK/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+581,メキシコ,リーガ MX,,UNAM プーマス,/team/u-n-a-m-pumas/UB73mIXI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+582,メキシコ,リーガ MX,,サントス・ラグナ,/team/santos-laguna/EBPEFrRQ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+583,メキシコ,リーガ MX,,ケレタロ,/team/queretaro/fqJAznPc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+584,メキシコ,リーガ MX,,ネカクサ,/team/necaxa/nw32pOQD/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+585,メキシコ,リーガ MX,,アトラス,/team/atlas/AVOJAt4f/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+586,メキシコ,リーガ MX,,ｱﾄﾚﾃｨｺ･ｻﾝﾙｲｽ,/team/atletico-san-luis/OYSN90J0/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+587,メキシコ,リーガ MX,,マサトランFC,/team/mazatlan-fc/AXl5ehGE/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+588,メキシコ,リーガ MX,,クラブレオン,/team/club-leon/l0iuHPBQ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+589,メキシコ,リーガ MX,,プエブラ,/team/puebla/pO5ijKm0/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+590,中国,中国スーパーリーグ,,上海海港,/team/shanghai-port/O88o93rn/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+591,中国,中国スーパーリーグ,,山東泰山,/team/shandong-taishan/27dl0BzH/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+592,中国,中国スーパーリーグ,,浙江職業,/team/zhejiang-professional/ncsQGOBL/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+593,中国,中国スーパーリーグ,,大連英博,/team/dalian-yingbo/zDctmLjH/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+594,日本,J1 リーグ,,水戸ホーリーホック,/team/mito/GliRsh4P/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+595,日本,J1 リーグ,,東京ヴェルディ,/team/verdy/ppNYGTQb/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+596,日本,J1 リーグ,,横浜F・マリノス,/team/yokohama-m/4h6TMt23/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+597,日本,J1 リーグ,,川崎フロンターレ,/team/kawasaki-frontale/bF5XL0H9/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+598,日本,J1 リーグ,,柏レイソル,/team/kashiwa/hEbtKvnM/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+599,日本,J1 リーグ,,ｼﾞｪﾌﾕﾅｲﾃｯﾄﾞ市原・千葉,/team/chiba/zNLhJb1S/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+600,日本,J1 リーグ,,浦和レッズ,/team/urawa/C8IHSxPk/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+601,日本,J1 リーグ,,FC東京,/team/fc-tokyo/8zCQQGg2/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+602,日本,J1 リーグ,,鹿島アントラーズ,/team/kashima/4nNKlKo9/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+603,日本,J1 リーグ,,町田ゼルビア,/team/machida-zelvia/CUSC1dab/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+604,日本,J1 リーグ,,アビスパ福岡,/team/avispa-fukuoka/SdMQZTB5/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+605,日本,J1 リーグ,,セレッソ大阪,/team/c-osaka/rJJl6Vtt/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+606,日本,J1 リーグ,,京都サンガ,/team/kyoto/fZS33RAH/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+607,日本,J1 リーグ,,名古屋グランパス,/team/nagoya/6BeXoaup/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+608,日本,J1 リーグ,,清水エスパルス,/team/shimizu/vPgupwAd/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+609,日本,J1 リーグ,,ヴィッセル神戸,/team/kobe/698tGI9q/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+610,日本,J1 リーグ,,サンフレッチェ広島,/team/hiroshima/fX7MRdvd/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+611,日本,J1 リーグ,,ガンバ大阪,/team/g-osaka/zLQAGOBK/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+612,日本,J1 リーグ,,ファジアーノ岡山,/team/okayama/vDpqgnYn/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+613,日本,J1 リーグ,,V・ファーレン長崎,/team/v-varen-nagasaki/hl74HAcF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+614,中国,中国スーパーリーグ,,青島西海岸,/team/qingdao-west-coast/0QkqH4Gf/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+615,中国,中国スーパーリーグ,,成都蓉城,/team/chengdu-rongcheng/ILi3oBgH/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+616,中国,中国スーパーリーグ,,上海申花,/team/shanghai-shenhua/r5AIrq5q/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+617,中国,中国スーパーリーグ,,青島中能,/team/qingdao-hainiu/KbZy1iLA/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+618,中国,中国スーパーリーグ,,天津津門虎,/team/tianjin-jinmen-tiger/tCx1gsk2/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+619,中国,中国スーパーリーグ,,河南嵩山龍門,/team/henan-songshan-longmen/Ywy81Djb/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+620,中国,中国スーパーリーグ,,梅州客家,/team/meizhou-hakka/r7NA6VcD/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+621,中国,中国スーパーリーグ,,長春亜泰,/team/changchun-yatai/jZX9VVzU/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+622,中国,中国スーパーリーグ,,深圳新鵬城,/team/shenzhen-xinpengcheng/08kX8Xr0/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+623,中国,中国スーパーリーグ,,武漢三鎮,/team/wuhan-three-towns/SfLUTe08/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+624,中国,中国スーパーリーグ,,北京国安,/team/beijing-guoan/WSLjVBLN/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+625,日本,J2 リーグ,,FC今治,/team/imabari/0fQDWIvJ/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+626,日本,J2 リーグ,,V・ファーレン長崎,/team/v-varen-nagasaki/hl74HAcF/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+627,日本,J2 リーグ,,いわきFC,/team/iwaki/Mi3WmBrD/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+628,日本,J2 リーグ,,サガン鳥栖,/team/tosu/nsRRyAda/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+629,日本,J2 リーグ,,ジュビロ磐田,/team/iwata/QeOGk0W2/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+630,日本,J2 リーグ,,モンテディオ山形,/team/montedio-yamagata/2uKzonBU/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+631,日本,J2 リーグ,,ベガルタ仙台,/team/vegalta-sendai/lSW1nlRB/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+632,日本,J2 リーグ,,徳島ヴォルティス,/team/tokushima/IcwgwCCt/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+633,日本,J2 リーグ,,水戸ホーリーホック,/team/mito/GliRsh4P/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+634,日本,J2 リーグ,,大宮アルディージャ,/team/omiya-ardija/OErJ0IVR/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+635,日本,J2 リーグ,,北海道ｺﾝｻﾄﾞｰﾚ札幌,/team/sapporo/Ak9yLKWF/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+636,日本,J3 リーグ,,ヴァンラーレ八戸,/team/vanraure/hKLJFla1/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+637,日本,J3 リーグ,,ガイナーレ鳥取,/team/gainare-tottori/G6Tk4M6t/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+638,日本,WEリーグ,,INAC神戸レオネッサ W,/team/inac-kobe-leonesa/CKfaNnKs/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+639,日本,WEリーグ,,浦和レッズ W,/team/urawa/Opt8O1bI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+640,日本,WEリーグ,,日テレ・ベレーザ W,/team/beleza/rBn3n5jP/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+641,日本,WEリーグ,,ﾏｲﾅﾋﾞ仙台ﾚﾃﾞｨｰｽ W,/team/mynavi-sendai/Yufh7cU6/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+642,日本,WEリーグ,,アルビレックス新潟 W,/team/albirex-niigata/WvTfrqEn/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+643,日本,WEリーグ,,サンフレッチェ広島 W,/team/hiroshima/UPml0M85/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+644,日本,WEリーグ,,大宮アルディージャ W,/team/omiya-ardija/pxnx3OOn/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+645,日本,WEリーグ,,ｼﾞｪﾌﾕﾅｲﾃｯﾄﾞ市原・千葉 W,/team/jef-united/pKYUsPbt/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+646,日本,WEリーグ,,セレッソ大阪 W,/team/c-osaka/QVUz6GzN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+647,日本,WEリーグ,,ノジマステラ W,/team/nojima-stella/fapzQWho/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+648,日本,WEリーグ,,AC長野パルセイロ W,/team/ac-parceiro-nagano/46e2P3RO/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+649,日本,WEリーグ,,ASエルフェン埼玉 W,/team/saitama/AFqGusb5/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+650,韓国,K リーグ 1,,全北,/team/jeonbuk/x0hNfcgA/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+651,韓国,K リーグ 1,,金泉尚武,/team/gimcheon-sangmu/IaoBca9i/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+652,韓国,K リーグ 1,,大田,/team/daejeon/2NTiQXjI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+653,韓国,K リーグ 1,,浦項,/team/pohang/KIIIipI5/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+654,韓国,K リーグ 1,,ソウル,/team/seoul/8tzeYeHp/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+655,韓国,K リーグ 1,,江原,/team/gangwon/A144gewT/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+656,韓国,K リーグ 1,,安養,/team/anyang/QRK4aI4P/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+657,韓国,K リーグ 1,,光州FC,/team/gwangju-fc/8SWdrMTR/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+658,韓国,K リーグ 1,,蔚山HD,/team/ulsan-hyundai/EVEwgyOM/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+659,韓国,K リーグ 1,,水原FC,/team/suwon-fc/6sXCYRPI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+660,韓国,K リーグ 1,,済州SK,/team/jeju-sk/vFZJewv4/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+661,韓国,K リーグ 1,,大邱,/team/daegu/SrMQkOnI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+662,日本,J3 リーグ,,アスルクラロ沼津,/team/azul-claro-numazu/K8znKTMa/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+663,日本,J2 リーグ,,ヴァンフォーレ甲府,/team/kofu/4IyNxjsg/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+664,日本,J2 リーグ,,カターレ富山,/team/toyama/tdPByjKs/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+665,日本,J2 リーグ,,ブラウブリッツ秋田,/team/blaublitz/fwDHgzFc/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+666,日本,J2 リーグ,,レノファ山口FC,/team/renofa-yamaguchi/f1DPrs5c/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+667,日本,J2 リーグ,,ロアッソ熊本,/team/kumamoto/ARlzJ8RO/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+668,日本,J2 リーグ,,愛媛FC,/team/ehime/dMNh5kdn/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+669,日本,J2 リーグ,,大分トリニータ,/team/oita-trinita/Q17PNMnc/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+670,日本,J2 リーグ,,藤枝MYFC,/team/fujieda-myfc/jFPWWTQn/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+671,日本,J3 リーグ,,AC長野パルセイロ,/team/nagano-parceiro/4UgFVol8/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+672,日本,J3 リーグ,,FC大阪,/team/fc-osaka/E3uzKMdT/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+673,日本,J3 リーグ,,SC相模原,/team/sc-sagamihara/nXumKCoo/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+674,日本,J3 リーグ,,FC岐阜,/team/gifu/QRxJwWRn/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+675,日本,J3 リーグ,,FC琉球,/team/ryukyu/tM115Db3/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+676,日本,J3 リーグ,,テゲバジャーロ宮崎,/team/tegevajaro-miyazaki/2DLKhMtU/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+677,日本,J3 リーグ,,ザスパクサツ群馬,/team/thespakusatsu-gunma/UFZb6lCI/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+678,日本,J3 リーグ,,カマタマーレ讃岐,/team/kamatamare-sanuki/S6HnxZqN/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+679,日本,J3 リーグ,,ギラヴァンツ北九州,/team/giravanz-kitakyushu/00Cp2KYP/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+680,日本,J3 リーグ,,ツエーゲン金沢,/team/kanazawa/KY7LrA6d/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+681,日本,J3 リーグ,,高知ユナイテッド,/team/kochi-united/A13oDV39/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+682,日本,J3 リーグ,,鹿児島ﾕﾅｲﾃｯﾄﾞFC,/team/kagoshima-united/8jbnAT1B/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+683,日本,J3 リーグ,,栃木SC,/team/tochigi/rcqppiCl/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+684,日本,J3 リーグ,,松本山雅FC,/team/matsumoto-yamaga/0lMXpXdr/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+685,日本,J3 リーグ,,栃木シティ,/team/tochigi-city/4MvNs2n5/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+686,日本,J3 リーグ,,奈良クラブ,/team/nara-club/6s0AMsBf/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+687,日本,J3 リーグ,,福島ユナイテッドFC,/team/fukushima-united/KSReC3sk/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+688,中国,中国スーパーリーグ,,雲南玉昆,/team/yunnan-yukun/EJp81K5A/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+689,マレーシア,スーパーリーグ,,ペナン,/team/penang/YDrUEgY3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+690,マレーシア,スーパーリーグ,,DPMM,/team/dpmm/K2cZL3G5/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+691,マレーシア,スーパーリーグ,,ヌグリ・スンビラン,/team/negeri-sembilan-fa/lMUAAz44/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+692,マレーシア,スーパーリーグ,,イミグレセン,/team/imigresen/Ghf0ihRI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+693,マレーシア,スーパーリーグ,,ｸﾗﾝﾀﾝ･ｻﾞ･ﾘｱﾙ･ｳｫﾘｱｰｽﾞ,/team/kelantan-the-real-warriors/2wR15I0F/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+694,マレーシア,スーパーリーグ,,サバ,/team/sabah/WUPN62XK/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+695,マレーシア,スーパーリーグ,,マラッカFC,/team/melaka-fc/d4mW0ZS6/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+696,マレーシア,スーパーリーグ,,PDRM FC,/team/pdrm-fc/tGuLbJ45/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+697,ラトビア,1.リーガ,,リガFC W,/team/riga-fc/IXbE6vOa/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+698,ラトビア,1.リーガ,,RFS W,/team/rfs/zuOenPVP/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+699,ラトビア,1.リーガ,,FKメッタ W,/team/fk-metta/MNyh6e2j/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+700,ラトビア,1.リーガ,,ｲｴﾂｧｳﾞｧ/ｵﾗｲﾈ W,/team/iecava-olaine/8z5LasH0/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+701,ラトビア,1.リーガ,,アウダ W,/team/fk-auda-riga/WdEJ3x8I/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+702,ラトビア,1.リーガ,,FKリエパーヤ W,/team/fk-liepaja/vuAjd2iL/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+703,ラトビア,1.リーガ,,ﾘｰｶﾞｽ･ﾌﾄﾎﾞﾗ･ｽｺﾗ W,/team/rigas-futbola-skola/p8FGyV1l/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+704,リトアニア,A リーガ,,カウノ・ジャルギリス,/team/fk-kauno-zalgiris/0p17kQla/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+705,リトアニア,A リーガ,,ヘゲルマン,/team/fc-hegelmann/nmpJqEeg/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+706,リトアニア,A リーガ,,ジャルギリス,/team/zalgiris/fuLOijFI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+707,リトアニア,A リーガ,,スードゥヴァ,/team/suduva/zT1dAfJo/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+708,リトアニア,A リーガ,,シャウレイFA,/team/siauliai-fa/CMmWKuwf/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+709,リトアニア,A リーガ,,FKパネヴェジース,/team/fk-panevezys/E1ffSpX7/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+710,リトアニア,A リーガ,,ジュガス・テルシェイ,/team/dziugas-telsiai/jX421nlj/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+711,リトアニア,A リーガ,,バンガ,/team/banga/nieEy2it/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+712,リトアニア,A リーガ,,トラカイ,/team/riteriai/Cpqd5uFj/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+713,リトアニア,A リーガ,,ﾀﾞｲﾅｳﾞｧ･ｱﾘｰﾄｩｽ,/team/dainava-alytus/OnVA3S0I/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+714,ルーマニア,スーペルリーガ,,ｳﾆｳﾞｪﾙｼﾀﾃｱ･ｸﾗﾖｰｳﾞｧ,/team/univ-craiova/bsd9fGaK/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+715,ルーマニア,スーペルリーガ,,FCラピド・ブカレスト,/team/rapid-bucuresti/YFCpigVG/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+716,ルーマニア,スーペルリーガ,,ディナモ・ブカレスト,/team/din-bucuresti/rBgMi3MH/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+717,ルーマニア,スーペルリーガ,,FCアルジェシュ,/team/campionii-arges/65I2MLv6/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+718,ルーマニア,スーペルリーガ,,FCボトシャニ,/team/fc-botosani/GjY1JjUS/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+719,ルーマニア,スーペルリーガ,,ｳﾆｳﾞｪﾙｼﾀﾃｱ･ｸﾙｼﾞｭ,/team/universitatea-cluj/Us6gkXaT/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+720,ルーマニア,スーペルリーガ,,CFR クルジュ,/team/cfr-cluj/4KfIhq7B/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+721,ルーマニア,スーペルリーガ,,FCSB,/team/fcsb/Gv2kjDpN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+722,ルーマニア,スーペルリーガ,,UTA アラド,/team/fc-uta-arad/QDiPqBNj/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+723,ルーマニア,スーペルリーガ,,オツェルル,/team/otelul/2H5uhNyO/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+724,ルーマニア,スーペルリーガ,,ﾌｧﾙﾙ･ｺﾝｽﾀﾝﾂｧ,/team/farul-constanta/CrJbN1Pa/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+725,ルーマニア,スーペルリーガ,,ペトロルル,/team/petrolul/dhnNlCE9/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+726,ルーマニア,スーペルリーガ,,ﾁｰｸｾﾚﾀﾞ･ﾐｴﾙｸﾚｱ=ﾁｭｸ,/team/miercurea-ciuc/A5gTQ7pG/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+727,ルーマニア,スーペルリーガ,,ウニレア・スロボジア,/team/unirea-slobozia/6XmrBYL3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+728,ルーマニア,スーペルリーガ,,FCヘルマンシュタット,/team/fc-hermannstadt/pUUuFXvI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+729,ルーマニア,スーペルリーガ,,ﾒﾀﾛｸﾞﾛﾊﾞｽ･ﾌﾞｶﾚｽﾄ,/team/metaloglobus-bucharest/0zf4F2nD/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+730,中国,中国スーパーリーグ,,上海申花,/team/shanghai-shenhua/r5AIrq5q/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+731,中国,中国スーパーリーグ,,成都蓉城,/team/chengdu-rongcheng/ILi3oBgH/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+732,中国,中国スーパーリーグ,,北京国安,/team/beijing-guoan/WSLjVBLN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+733,中国,中国スーパーリーグ,,天津津門虎,/team/tianjin-jinmen-tiger/tCx1gsk2/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+734,中国,中国スーパーリーグ,,雲南玉昆,/team/yunnan-yukun/EJp81K5A/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+735,中国,中国スーパーリーグ,,青島西海岸,/team/qingdao-west-coast/0QkqH4Gf/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+736,中国,中国スーパーリーグ,,河南嵩山龍門,/team/henan-songshan-longmen/Ywy81Djb/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+737,中国,中国スーパーリーグ,,深圳新鵬城,/team/shenzhen-xinpengcheng/08kX8Xr0/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+738,中国,中国スーパーリーグ,,武漢三鎮,/team/wuhan-three-towns/SfLUTe08/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+739,中国,中国スーパーリーグ,,青島中能,/team/qingdao-hainiu/KbZy1iLA/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+740,アメリカ,MLS,,FCダラス,/team/fc-dallas/4GtbI4Q1/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+741,アメリカ,MLS,,ﾋｭｰｽﾄﾝ･ﾀﾞｲﾅﾓ,/team/houston-dynamo/2i4sdl32/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+742,アメリカ,MLS,,ﾛｻﾝｾﾞﾙｽ･ｷﾞｬﾗｸｼｰ,/team/los-angeles-galaxy/U3ebh62R/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+743,アメリカ,MLS,,レアル・ソルトレイク,/team/real-salt-lake/W0ealpQl/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+744,アメリカ,MLS,,ｻﾝﾉｾﾞ･ｱｰｽｸｴｲｸｽ,/team/san-jose-earthquakes/x05z14ue/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+745,アメリカ,MLS,,コロラド・ラピッズ,/team/colorado-rapids/jmBZNRn8/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+746,アメリカ,MLS,,ｽﾎﾟﾙﾃｨﾝｸﾞ･ｶﾝｻﾞｽｼﾃｨ,/team/sporting-kansas-city/CURGfJWt/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+747,アメリカ,MLS,,ｼｱﾄﾙ･ｻｳﾝﾀﾞｰｽﾞ,/team/seattle-sounders/6P5S63Ah/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+748,アメリカ,MLS,,ﾎﾟｰﾄﾗﾝﾄﾞ･ﾃｨﾝﾊﾞｰｽﾞ,/team/portland-timbers/bm8usLzB/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+749,アメリカ,MLS,,ﾊﾞﾝｸｰﾊﾞｰ･ﾎﾜｲﾄｷｬｯﾌﾟｽ,/team/vancouver-whitecaps/K2dlua5N/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+750,アメリカ,MLS,,ﾐﾈｿﾀ･ﾕﾅｲﾃｯﾄﾞ,/team/minnesota-united/zXFxsw2a/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+751,アメリカ,MLS,,ロサンゼルスFC,/team/los-angeles-fc/txUJt9AR/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+752,アメリカ,MLS,,オースティンFC,/team/austin-fc/IeT6JBE3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+753,アメリカ,MLS,,セントルイス・シティ,/team/st-louis-city/4r4sKQud/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+754,アメリカ,MLS,,サンディエゴFC,/team/san-diego-fc/EuGkBf33/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+755,アメリカ,MLS,,ﾆｭｰｲﾝｸﾞﾗﾝﾄﾞ･ﾚﾎﾞﾘｭｰｼｮﾝ,/team/new-england-revolution/tr3oe8I8/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+756,アメリカ,MLS,,D.C.ユナイテッド,/team/dc-united/O6hjfSXE/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+757,アメリカ,MLS,,トロントFC,/team/toronto-fc/zsdfgnmL/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+758,アメリカ,MLS,,ﾆｭｰﾖｰｸ･ﾚｯﾄﾞﾌﾞﾙｽﾞ,/team/new-york-red-bulls/zV5YmQAr/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+759,アメリカ,MLS,,コロンバス・クルー,/team/columbus-crew/pQ8rarA7/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+760,アメリカ,MLS,,シカゴ・ファイアー,/team/chicago-fire/UwAwNo2E/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+761,アメリカ,MLS,,CFモントリオール,/team/club-de-foot-montreal/j9cigLCr/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+762,アメリカ,MLS,,ﾌｨﾗﾃﾞﾙﾌｨｱ･ﾕﾆｵﾝ,/team/philadelphia-union/Szrwix67/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+763,アメリカ,MLS,,オーランド・シティ,/team/orlando-city/rsHkUNCo/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+764,アメリカ,MLS,,ニューヨーク・シティ,/team/new-york-city/vZraQYnO/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+765,アメリカ,MLS,,FCシンシナティ,/team/fc-cincinnati/8btog05R/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+766,アメリカ,MLS,,ｱﾄﾗﾝﾀ･ﾕﾅｲﾃｯﾄﾞ,/team/atlanta-united/EPngUvhk/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+767,アメリカ,MLS,,ナッシュビルSC,/team/nashville-sc/84yIDQMe/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+768,アメリカ,MLS,,インテル・マイアミ,/team/inter-miami/0AheRyBg/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+769,アメリカ,MLS,,シャーロット,/team/charlotte-fc/QJF7WTFB/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+770,アルジェリア,リーグ 1,,MCアルジェ,/team/mc-alger/tnY2Lfcp/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+771,アルジェリア,リーグ 1,,CSコンスタンティーヌ,/team/constantine/nBionu2l/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+772,アルジェリア,リーグ 1,,JSサウラ,/team/saoura/nimcBvel/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+773,アルジェリア,リーグ 1,,ｵﾘﾝﾋﾟｯｸ･ｱｸﾌﾞｰ,/team/olympique-akbou/dhMQsMOh/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+774,アルジェリア,リーグ 1,,CRベルイーズダッド,/team/cr-belouizdad/vNJLB2jP/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+775,アルジェリア,リーグ 1,,USM アルジェ,/team/usm/zXBidj5t/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+776,アルジェリア,リーグ 1,,MCオラン,/team/oran/CrCmB35M/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+777,アルジェリア,リーグ 1,,ベンヌ・アクヌン,/team/es-ben-aknoun/QmvZvxCB/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+778,アルジェリア,リーグ 1,,JSカビリー,/team/kabylie/Wfaskwf0/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+779,アルジェリア,リーグ 1,,ルイサ,/team/rouisset/hGHHy7Am/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+780,アルジェリア,リーグ 1,,ヘンシュラ,/team/khenchela/lYuJtBj9/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+781,アルジェリア,リーグ 1,,ESセティフ,/team/es-setif/EDgC6qYp/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+782,アルジェリア,リーグ 1,,ASO シュレフ,/team/aso-chlef/Aobolc96/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+783,アルジェリア,リーグ 1,,パラドゥーAC,/team/paradou/WIyffF3J/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+784,アルジェリア,リーグ 1,,モスタガネム,/team/mostaganem/j9T7TM2E/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+785,アルジェリア,リーグ 1,,エル・バヤズ,/team/el-bayadh/S6H5xCS1/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+786,アルゼンチン,スーペルリーガ,,ｲﾝﾃﾞﾍﾟﾝﾃﾞｨｴﾝﾃ･ﾘﾊﾞﾀﾞﾋﾞｱ,/team/ind-rivadavia/Eg51aDC4/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+787,アルゼンチン,スーペルリーガ,,ティグレ,/team/tigre/nkwO1uw4/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+788,アルゼンチン,スーペルリーガ,,ﾍﾞﾚｽ･ｻﾙｽﾌｨｴﾙﾄﾞ,/team/velez-sarsfield/UsCR8gFd/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+789,アルゼンチン,スーペルリーガ,,CAラヌース,/team/lanus/Y9yh1J7G/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+790,アルゼンチン,スーペルリーガ,,ｴｽﾄｩﾃﾞｨｱﾝﾃｽ･ﾃﾞ･ﾗ･ﾌﾟﾗﾀ,/team/estudiantes-l-p/p2SkCHXs/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+791,アルゼンチン,スーペルリーガ,,ﾃﾞﾌｪﾝｻ･ｲ･ﾌｽﾃｨｼｱ,/team/defensa-y-justicia/Gdfv0Zsh/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+792,アルゼンチン,スーペルリーガ,,CAベルグラーノ,/team/ca-belgrano-de-cordoba/Amzaty2s/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+793,アルゼンチン,スーペルリーガ,,プラテンセ,/team/platense/80MMdBdN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+794,アルゼンチン,スーペルリーガ,,リーベル・プレート,/team/river-plate/EVqSBe2f/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+795,アルゼンチン,スーペルリーガ,,ボカ・ジュニアーズ,/team/boca-juniors/hMrWAFH0/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+796,アルゼンチン,スーペルリーガ,,ｲﾝﾃﾞﾍﾟﾝﾃﾞｨｴﾝﾃ,/team/independiente/UVatI5Y2/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+797,アルゼンチン,スーペルリーガ,,サン・ロレンソ,/team/san-lorenzo/ju1xJoJd/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+798,アルゼンチン,スーペルリーガ,,CAサルミエント,/team/sarmiento-junin/KQ6kGfyc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+799,アルゼンチン,スーペルリーガ,,ﾋﾑﾅｼｱ･ﾗ･ﾌﾟﾗﾀ,/team/gimnasia-l-p/jiDN9Zaj/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+800,アルゼンチン,スーペルリーガ,,ﾋﾑﾅｼｱ･ﾃﾞ･ﾒﾝﾄﾞｰｻ,/team/gimnasia-mendoza/K2sDXbFE/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+801,アルゼンチン,スーペルリーガ,,バラカス・セントラル,/team/barracas-central/hW08cP6J/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+802,アルゼンチン,スーペルリーガ,,ロサリオ・セントラル,/team/rosario-central/4QmJ2LNc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+803,アルゼンチン,スーペルリーガ,,ウラカン,/team/huracan/xd3lGq3F/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+804,アルゼンチン,スーペルリーガ,,ｱﾙﾍﾝﾃｨﾉｽ･ｼﾞｭﾆｱｰｽﾞ,/team/argentinos-jrs/QuxS0ahA/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+805,アルゼンチン,スーペルリーガ,,ｳﾆｵﾝ･ﾃﾞ･ｻﾝﾀﾌｪ,/team/union-de-santa-fe/lr2YMkTK/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+806,アルゼンチン,スーペルリーガ,,タジェレス,/team/talleres-cordoba/bkDdeAvA/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+807,アルゼンチン,スーペルリーガ,,バンフィエルド,/team/banfield/GIb40wNM/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+808,アルゼンチン,スーペルリーガ,,ｾﾝﾄﾗﾙ･ｺﾙﾄﾞﾊﾞ,/team/central-cordoba-santiago-del-estero/0dHZReql/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+809,アルゼンチン,スーペルリーガ,,アルドシビ,/team/aldosivi/Eu4qrEcB/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+810,アルゼンチン,スーペルリーガ,,ラシン・クラブ,/team/racing-club/OhapHPm9/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+811,アルゼンチン,スーペルリーガ,,ｱﾄﾚﾃｨｺ･ﾄｩｸﾏﾝ,/team/atl-tucuman/KpqpxWko/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+812,アルゼンチン,スーペルリーガ,,ｲﾝｽﾃｨﾄｩｰﾄ･ｺﾙﾄﾞﾊﾞ,/team/instituto/8G45bXRA/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+813,アルゼンチン,スーペルリーガ,,CDリエストラ,/team/deportivo-riestra/2iZ4q0z6/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+814,アルゼンチン,スーペルリーガ,,ﾆｭｰｳｪﾙｽﾞ･ｵｰﾙﾄﾞﾎﾞｰｲｽﾞ,/team/newells-old-boys/6gMiRHVj/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+815,アルゼンチン,スーペルリーガ,,ｴｽﾄｩﾃﾞｨｱﾝﾃｽ･ﾘｵ･ｸｱﾙﾄ,/team/estudiantes-rio-cuarto/llpcIYF2/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+816,インド,I リーグ,,インテル・カーシー,/team/inter-kashi/K2ADKy2f/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+817,インド,I リーグ,,ﾁｬｰﾁﾙ･ﾌﾞﾗｻﾞｰｽﾞ,/team/churchill-brothers/E11bNKv8/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+818,インド,I リーグ,,レアル・カシミール,/team/real-kashmir/vXg8sYxt/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+819,インド,I リーグ,,ゴクラム,/team/gokulam/v7CtJpbN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+820,インド,I リーグ,,ﾗｼﾞｬｽﾀﾝ･ﾕﾅｲﾃｯﾄﾞ,/team/rajasthan-united/pfZhXYXE/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+821,インド,I リーグ,,デンポSC,/team/dempo/CzEgIMeC/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+822,インド,I リーグ,,ナームダリ,/team/namdhari/tlZWwaIq/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+823,インド,I リーグ,,ラジョン,/team/lajong/pU5Du2Rg/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+824,インド,I リーグ,,スレーニディ・デカン,/team/sreenidi-deccan/xb1pAU0F/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+825,インド,I リーグ,,アイゾール,/team/aizawl-fc/Ygia1i1K/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+826,インド,I リーグ,,SCベンガルール,/team/sc-bengaluru/ANeH3uag/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+827,インド,I リーグ,,デリーFC,/team/delhi-fc/vqH84IIK/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+828,エクアドル,リーガ・プロ,,グアヤキル・シティ,/team/guayaquil-city/pn42PQGI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+829,エクアドル,リーガ・プロ,,ﾚｵﾈｽ･ﾃﾞﾙ･ﾉﾙﾃ,/team/leones-del-norte/Y3V74SEO/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+830,エストニア,メスタリリーガ,,ノーメ・ユナイテッド,/team/nomme-utd/OjJXWrlR/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+831,カナダ,プレミアリーグ,,HFX ワンダラーズ,/team/hfx-wanderers/ddtteDpd/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+832,カナダ,プレミアリーグ,,カヴァルリー,/team/cavalry/EHhWJdNd/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+833,カナダ,プレミアリーグ,,パシフィックFC,/team/pacific-fc/AqnuIzh9/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+834,カナダ,プレミアリーグ,,Inter Toronto,/team/inter-toronto/lzoqHf7F/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+835,カナダ,プレミアリーグ,,フォージ,/team/forge-fc/K2kdlC2P/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+836,カナダ,プレミアリーグ,,アトレティコ・オタワ,/team/atletico-ottawa/xdCBerfb/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+837,カナダ,プレミアリーグ,,バンクーバーFC,/team/vancouver-fc/2JZmqbTp/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+838,カナダ,プレミアリーグ,,Supra du Quebec,/team/supra-du-quebec/EJdYTitI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+839,カメルーン,エリート 1,,バファン,/team/bafang/Y1bbY8ip/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+840,カメルーン,エリート 1,,エーグル・ロワイヤル,/team/aigle-royal/6cHw78m1/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+841,ギリシャ,スーパーリーグ,,AEK アテネFC,/team/aek/ANpZncAM/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+842,ギリシャ,スーパーリーグ,,オリンピアコス,/team/olympiakos-piraeus/hnzvnHPS/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+843,ギリシャ,スーパーリーグ,,PAOK,/team/paok/Kry6HxA9/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+844,ギリシャ,スーパーリーグ,,レバディアコス,/team/levadiakos/YouAGdPF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+845,ギリシャ,スーパーリーグ,,パナシナイコス,/team/panathinaikos/SENMmweG/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+846,ギリシャ,スーパーリーグ,,アリス,/team/aris/SvR5syYq/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+847,ギリシャ,スーパーリーグ,,ヴォロス,/team/volos/nDZbFBqG/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+848,ギリシャ,スーパーリーグ,,OFI クレタ,/team/ofi-crete/bTObIPJB/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+849,ギリシャ,スーパーリーグ,,アトロミトス,/team/atromitos/GAUEFGvM/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+850,ギリシャ,スーパーリーグ,,キフィシア,/team/kifisias/h2QDTB2A/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+851,ギリシャ,スーパーリーグ,,AEL ラリッサ,/team/ael-larissa/0hPDuF2d/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+852,ギリシャ,スーパーリーグ,,パネトリコス,/team/panetolikos/2e7mzLut/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+853,ギリシャ,スーパーリーグ,,ｱｽﾃﾗｽ･ﾄﾘﾎﾟﾘｽ,/team/asteras-tripolis/KMRQ5buc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+854,ギリシャ,スーパーリーグ,,パンセライコス,/team/panserraikos/YqtVj85g/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+855,クロアチア,HNL,,ディナモ・ザグレブ,/team/din-zagreb/8G5ufQTg/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+856,クロアチア,HNL,,ハイドゥク・スプリト,/team/hajduk-split/2w5qgpq0/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+857,クロアチア,HNL,,ヴァラジュディン,/team/varazdin/Wv0GNPrm/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+858,クロアチア,HNL,,イストラ 1961,/team/istra-1961/hCg2iHl4/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+859,クロアチア,HNL,,リエカ,/team/rijeka/zXKuUR5J/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+860,クロアチア,HNL,,スラヴェン・ベルポ,/team/belupo/ENJqToLP/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+861,クロアチア,HNL,,ﾛｺﾓﾃｨｳﾞｧ･ｻﾞｸﾞﾚﾌﾞ,/team/lok-zagreb/CWwBJ6PA/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+862,クロアチア,HNL,,HNK ゴリツァ,/team/hnk-gorica/WnmFp9Kg/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+863,クロアチア,HNL,,ヴコヴァル 1991,/team/vukovar-1991/nDCpAOpa/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+864,クロアチア,HNL,,オシエク,/team/osijek/448T3rTI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+865,ザンビア,スーパーリーグ,,レッド・アローズ,/team/red-arrows/40edj3GC/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+866,ザンビア,スーパーリーグ,,パワー・ダイナモス,/team/power-dynamos/KlN00gNJ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+867,ザンビア,スーパーリーグ,,ﾁｬﾝｶﾞ･ﾚﾝｼﾞｬｰｽﾞ,/team/nchanga-rangers/YThXPY0r/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+868,ザンビア,スーパーリーグ,,ザナコ,/team/zanaco/UaYLa3g3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+869,ザンビア,スーパーリーグ,,ムフリラ,/team/mufulira-wanderers/86p2Mfs4/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+870,ザンビア,スーパーリーグ,,FC MUZA,/team/fc-muza/OACto324/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+871,ザンビア,スーパーリーグ,,カブウェ,/team/kabwe/nBcVV8UJ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+872,ザンビア,スーパーリーグ,,グリーン・イーグルス,/team/green-eagles/nRQlruHO/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+873,ザンビア,スーパーリーグ,,ンカナ,/team/nkana/GdboAWKS/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+874,ザンビア,スーパーリーグ,,ｸﾞﾘｰﾝ･ﾊﾞｯﾌｧﾛｰｽ,/team/green-buffaloes-fc/CffBeNbc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+875,ザンビア,スーパーリーグ,,ZESCO,/team/zesco/0f5FgmUG/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+876,ザンビア,スーパーリーグ,,コンコラ・ブレーズ,/team/konkola-blades/GCFGgmS2/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+877,ザンビア,スーパーリーグ,,カンサンシ,/team/kansanshi/G0mMqgU3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+878,ザンビア,スーパーリーグ,,NAPSA スターズ,/team/napsa-stars/t8U62r2t/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+879,ザンビア,スーパーリーグ,,ンクワジ,/team/nkwazi/UFobNzSc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+880,ザンビア,スーパーリーグ,,プリソン・レオパルド,/team/prison-leopards/IHT1r1nN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+881,ザンビア,スーパーリーグ,,ムトンド・スターズ,/team/mutondo-stars/dKTLZW2H/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+882,ザンビア,スーパーリーグ,,マインズ,/team/mines/vqmBQ5VG/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+883,スイス,スーパーリーグ,,トゥーン,/team/thun/4WElAd9p/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+884,スイス,スーパーリーグ,,ザンクト・ガレン,/team/st-gallen/bkxMEx1T/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+885,スイス,スーパーリーグ,,ルガーノ,/team/lugano/IHaUjgT1/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+886,スイス,スーパーリーグ,,バーゼル,/team/basel/S8MBgwuo/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+887,スイス,スーパーリーグ,,シオン,/team/sion/KbwIFIoN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+888,スイス,スーパーリーグ,,ヤングボーイズ,/team/young-boys/YXDi6MHo/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+889,スイス,スーパーリーグ,,ローザンヌ,/team/lausanne/Wd10iFbk/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+890,スイス,スーパーリーグ,,チューリッヒ,/team/zurich/COCe5tXi/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+891,スイス,スーパーリーグ,,ルツェルン,/team/luzern/CUwhFbWG/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+892,スイス,スーパーリーグ,,セルヴェット,/team/servette/Ov2LFx62/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+893,スイス,スーパーリーグ,,グラスホッパーズ,/team/grasshoppers/6oCa40nb/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+894,スイス,スーパーリーグ,,ヴィンタートゥール,/team/winterthur/vRvKpKGc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+895,チリ,リーガ・デ・プリメーラ,,ウニオン・ラ・カレラ,/team/union-la-calera/M34g8ulJ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+896,チリ,リーガ・デ・プリメーラ,,オヒギンス,/team/o-higgins/hYrshGxg/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+897,チリ,リーガ・デ・プリメーラ,,ｱｳﾀﾞｯｸｽ･ｲﾀﾘｱｰﾉ,/team/a-italiano/rN3Jxc8g/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+898,チリ,リーガ・デ・プリメーラ,,ｳﾆﾍﾞﾙｼﾀﾞ･ｶﾄﾘｶ,/team/u-catolica/Qe432hiO/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+899,チリ,リーガ・デ・プリメーラ,,リマチェ,/team/limache/YPTUuyqJ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+900,チリ,リーガ・デ・プリメーラ,,コキンボ,/team/coquimbo/hWejMZ6h/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+901,チリ,リーガ・デ・プリメーラ,,コロコロ,/team/colo-colo/th4HPIws/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+902,チリ,リーガ・デ・プリメーラ,,ウアチパト,/team/huachipato/SlhZpIaP/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+903,チリ,リーガ・デ・プリメーラ,,コブレサル,/team/cobresal/YeUwzehC/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+904,チリ,リーガ・デ・プリメーラ,,ｳﾆﾍﾞﾙｼﾀﾞ･ﾃﾞ･ｺﾝｾﾌﾟｼｵﾝ,/team/u-de-concepcion/6BcMMext/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+905,チリ,リーガ・デ・プリメーラ,,ニュブレンセ,/team/nublense/vVvwgdNn/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+906,チリ,リーガ・デ・プリメーラ,,ラ・セレーナ,/team/la-serena/d6kYgx8t/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+907,チリ,リーガ・デ・プリメーラ,,ｳﾆﾍﾞﾙｼﾀﾞ･ﾃﾞ･ﾁﾘ,/team/u-de-chile/xW771C6U/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+908,チリ,リーガ・デ・プリメーラ,,パレスティーノ,/team/palestino/U35cjf75/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+909,チリ,リーガ・デ・プリメーラ,,ﾃﾞﾎﾟﾙﾃｽ･ｺﾝｾﾌﾟｼｵﾝ,/team/d-concepcion/GKJrZE7I/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+910,チリ,リーガ・デ・プリメーラ,,エヴァートン,/team/everton/Kr3LOxgm/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+911,デンマーク,スーパーリーガ,,オーフス,/team/aarhus/OOXnKGbO/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+912,デンマーク,スーパーリーガ,,ミッティラン,/team/midtjylland/8GZDmdbB/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+913,デンマーク,スーパーリーガ,,ブレンビー,/team/brondby/67R5vKqt/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+914,デンマーク,スーパーリーガ,,スナユスケ,/team/sonderjyske/42ectuVa/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+915,デンマーク,スーパーリーガ,,FCコペンハーゲン,/team/fc-copenhagen/hSPZwbEh/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+916,デンマーク,スーパーリーガ,,ヴィボー,/team/viborg/v99EsEjo/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+917,デンマーク,スーパーリーガ,,ノアシェラン,/team/nordsjaelland/2wZHnGDH/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+918,デンマーク,スーパーリーガ,,オーデンセ,/team/odense/tUXLozTN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+919,デンマーク,スーパーリーガ,,ラナースFC,/team/fc/x0NnnfrU/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+920,デンマーク,スーパーリーガ,,シルケボー,/team/silkeborg/4dCl8IE5/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+921,デンマーク,スーパーリーガ,,フレゼリシア,/team/fredericia/Aab5vJaC/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+922,デンマーク,スーパーリーガ,,ヴァイレ,/team/vejle/Mmkx9baa/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+923,ブラジル,セリエ B,,セアラー,/team/ceara/p0JrJCV5/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+924,ブラジル,セリエ B,,スポルチ・レシフェ,/team/sport-recife/KIBeGAFO/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+925,ブラジル,セリエ B,,ナウチコ,/team/nautico/8ODJnCpa/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+926,ブラジル,セリエ B,,ジュベントゥージ,/team/esporte-clube-juventude/GS36K259/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+927,ブラジル,セリエ B,,ポンチ・プレッタ,/team/ponte-preta/WlHjRvDk/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+928,ブラジル,セリエ B,,フォルタレーザ,/team/fortaleza/42FbPIs2/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+929,ブラジル,セリエ B,,ロンドリーナ,/team/londrina/xdhbBEVA/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+930,ブラジル,セリエ B,,サンベルナルド,/team/sao-bernardo/Wp4nyhLR/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+931,ベトナム,V リーグ.1,,ピープルズ・ポリス,/team/cong-an-ha-noi/tnHa1drt/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+932,ベトナム,V リーグ.1,,フードンFC,/team/phu-dong-ninh-binh/GtBp2ZoS/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+933,ベトナム,V リーグ.1,,ベトテルFC,/team/viettel/Gb6wjV0S/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+934,ベトナム,V リーグ.1,,ハノイFC,/team/hanoi-fc/x2LRDuqP/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+935,ベトナム,V リーグ.1,,ハイフォン,/team/hai-phong/W2JuAXes/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+936,ベトナム,V リーグ.1,,ホーチミン・シティ,/team/ho-chi-minh/AgIq9iBm/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+937,ベトナム,V リーグ.1,,ホンリン・ハティン,/team/hong-linh-ha-tinh/jBPHGr0j/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+938,ベトナム,V リーグ.1,,ホアンアイン・ザライ,/team/gia-lai/4GHm8BQg/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+939,ベトナム,V リーグ.1,,ソンラム・ゲアン,/team/song-lam-nghe-an/UBWx5muP/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+940,ベトナム,V リーグ.1,,ナムディン,/team/nam-dinh/riY859AC/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+941,ベトナム,V リーグ.1,,タインホア,/team/thanh-hoa/b5Rh9ait/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+942,ベトナム,V リーグ.1,,ビンズオン,/team/binh-duong/hS84kAeJ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+943,ベトナム,V リーグ.1,,PVF ｺﾝｱﾝ･ﾆｬﾝｻﾞﾝ,/team/pvf-cand/WSRPbuTF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+944,ベトナム,V リーグ.1,,ダナン,/team/da-nang/AmLfEgYJ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+945,ペルー,リーガ 1,,FCカハマルカ,/team/fc-cajamarca/0EDzFnkQ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+946,ペルー,リーガ 1,,モケグア,/team/moquegua/OtSVKjtb/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+947,マレーシア,スーパーリーグ,,ジョホールDT,/team/johor-dt/AVV6BGlb/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+948,マレーシア,スーパーリーグ,,セランゴール,/team/selangor/drQ7lgso/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+949,マレーシア,スーパーリーグ,,クチン・シティ,/team/kuching-city-fc/EqLgadT1/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+950,マレーシア,スーパーリーグ,,ｸｱﾗﾙﾝﾌﾟｰﾙ･ｼﾃｨ,/team/kuala-lumpur-city/re2YdYmN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+951,マレーシア,スーパーリーグ,,トレンガヌ,/team/terengganu/25SbDxKo/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+952,中国,中国スーパーリーグ,,梅州客家,/team/meizhou-hakka/r7NA6VcD/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+953,中国,中国スーパーリーグ,,長春亜泰,/team/changchun-yatai/jZX9VVzU/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+954,インド,I リーグ,,チャンマリ,/team/chanmari/65SX6RP2/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+955,インド,I リーグ,,ﾀﾞｲﾔﾓﾝﾄﾞ･ﾊｰﾊﾞｰ,/team/diamond-harbour/dM61HiFJ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+956,中国,中国スーパーリーグ,,遼寧鉄人,/team/liaoning-tieren/K8GO0Wwb/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+957,中国,中国スーパーリーグ,,重慶銅梁龍,/team/chongqing-tonglianglong/niRb526o/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+958,日本,J2・J3 リーグ,,ベガルタ仙台,/team/vegalta-sendai/lSW1nlRB/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+959,日本,J2・J3 リーグ,,ブラウブリッツ秋田,/team/blaublitz/fwDHgzFc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+960,日本,J2・J3 リーグ,,湘南ベルマーレ,/team/shonan/SIV5o8tI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+961,日本,J2・J3 リーグ,,SC相模原,/team/sc-sagamihara/nXumKCoo/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+962,日本,J2・J3 リーグ,,モンテディオ山形,/team/montedio-yamagata/2uKzonBU/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+963,日本,J2・J3 リーグ,,ザスパクサツ群馬,/team/thespakusatsu-gunma/UFZb6lCI/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+964,日本,J2・J3 リーグ,,横浜FC,/team/yokohama/OlLWoSeO/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+965,日本,J2・J3 リーグ,,ヴァンラーレ八戸,/team/vanraure/hKLJFla1/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+966,日本,J2・J3 リーグ,,栃木SC,/team/tochigi/rcqppiCl/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+967,日本,J2・J3 リーグ,,栃木シティ,/team/tochigi-city/4MvNs2n5/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+968,日本,J2・J3 リーグ,,ヴァンフォーレ甲府,/team/kofu/4IyNxjsg/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+969,日本,J2・J3 リーグ,,大宮アルディージャ,/team/omiya-ardija/OErJ0IVR/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+970,日本,J2・J3 リーグ,,FC岐阜,/team/gifu/QRxJwWRn/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+971,日本,J2・J3 リーグ,,いわきFC,/team/iwaki/Mi3WmBrD/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+972,日本,J2・J3 リーグ,,藤枝MYFC,/team/fujieda-myfc/jFPWWTQn/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+973,日本,J2・J3 リーグ,,松本山雅FC,/team/matsumoto-yamaga/0lMXpXdr/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+974,日本,J2・J3 リーグ,,ジュビロ磐田,/team/iwata/QeOGk0W2/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+975,日本,J2・J3 リーグ,,福島ユナイテッドFC,/team/fukushima-united/KSReC3sk/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+976,日本,J2・J3 リーグ,,北海道ｺﾝｻﾄﾞｰﾚ札幌,/team/sapporo/Ak9yLKWF/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+977,日本,J2・J3 リーグ,,AC長野パルセイロ,/team/nagano-parceiro/4UgFVol8/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+978,日本,J2・J3 リーグ,,徳島ヴォルティス,/team/tokushima/IcwgwCCt/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+979,日本,J2・J3 リーグ,,高知ユナイテッド,/team/kochi-united/A13oDV39/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+980,日本,J2・J3 リーグ,,カターレ富山,/team/toyama/tdPByjKs/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+981,日本,J2・J3 リーグ,,アルビレックス新潟,/team/albirex-niigata/CAwa47eB/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+982,日本,J2・J3 リーグ,,FC大阪,/team/fc-osaka/E3uzKMdT/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+983,日本,J2・J3 リーグ,,ツエーゲン金沢,/team/kanazawa/KY7LrA6d/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+984,日本,J2・J3 リーグ,,カマタマーレ讃岐,/team/kamatamare-sanuki/S6HnxZqN/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+985,日本,J2・J3 リーグ,,FC今治,/team/imabari/0fQDWIvJ/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+986,日本,J2・J3 リーグ,,愛媛FC,/team/ehime/dMNh5kdn/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+987,日本,J2・J3 リーグ,,奈良クラブ,/team/nara-club/6s0AMsBf/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+988,日本,J2・J3 リーグ,,テゲバジャーロ宮崎,/team/tegevajaro-miyazaki/2DLKhMtU/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+989,日本,J2・J3 リーグ,,大分トリニータ,/team/oita-trinita/Q17PNMnc/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+990,日本,J2・J3 リーグ,,ロアッソ熊本,/team/kumamoto/ARlzJ8RO/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+991,日本,J2・J3 リーグ,,鹿児島ﾕﾅｲﾃｯﾄﾞFC,/team/kagoshima-united/8jbnAT1B/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+992,日本,J2・J3 リーグ,,ガイナーレ鳥取,/team/gainare-tottori/G6Tk4M6t/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+993,日本,J2・J3 リーグ,,レノファ山口FC,/team/renofa-yamaguchi/f1DPrs5c/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+994,日本,J2・J3 リーグ,,レイラック滋賀,/team/reilac-shiga/6oQgdcG5/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+995,日本,J2・J3 リーグ,,FC琉球,/team/ryukyu/tM115Db3/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+996,日本,J2・J3 リーグ,,サガン鳥栖,/team/tosu/nsRRyAda/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+997,日本,J2・J3 リーグ,,ギラヴァンツ北九州,/team/giravanz-kitakyushu/00Cp2KYP/,0,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04
+998,日本,J2 リーグ,,ｼﾞｪﾌﾕﾅｲﾃｯﾄﾞ市原・千葉,/team/chiba/zNLhJb1S/,1,bm_user,2026-04-12 15:14:04,bm_user,2026-04-12 15:14:04

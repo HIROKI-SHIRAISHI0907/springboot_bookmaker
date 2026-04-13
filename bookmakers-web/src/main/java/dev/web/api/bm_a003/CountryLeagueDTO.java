@@ -19,6 +19,9 @@ public class CountryLeagueDTO {
 	/** リーグ */
 	private String league;
 
+	/** サブリーグ */
+	private String subLeague;
+
 	/** チーム */
 	private String team;
 

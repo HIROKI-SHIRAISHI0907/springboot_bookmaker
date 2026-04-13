@@ -19,6 +19,9 @@ public class AllLeagueDTO {
 	/** リーグ */
 	private String league;
 
+	/** サブリーグ */
+	private String subLeague;
+
 	/** 論理フラグ */
 	private String logicFlg;
 
