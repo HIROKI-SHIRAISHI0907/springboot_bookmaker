@@ -37,13 +37,15 @@ public class LeaguesRepository {
 		public String country;
 		/** 親リーグ名（サイドメニュー表示用）例: "J2・J3リーグ" */
 		public String leagueGroup;
-		/** フルリーグ名（詳細画面表示用）例: "J2・J3リーグ - WEST A"（親集約の時はnullでもOK） */
+		/** サブリーグ名（null/空なら未設定扱い） */
+		public String subLeague;
+		/** フルリーグ名（必要なら使う。今回は親リーグと同じでも可） */
 		public String leagueFull;
 		public String seasonYear;
 		public String startSeasonDate;
 		public String endSeasonDate;
 		public Long teamCount;
-		/** サブリーグの数（親集約行のときだけ意味がある。子のときはnull or 1） */
+		/** 親リーグ配下の subLeague 数 */
 		public Long variantCount;
 		public String path;
 	}
@@ -81,18 +83,24 @@ public class LeaguesRepository {
 
 	// --- クエリ ---
 
+	/**
+	 * country → league → subLeague 用
+	 * 1行 = 1 country + 1 leagueGroup + 1 subLeague
+	 */
 	public List<LeagueCountRow> findLeagueCounts() {
 
 		String sql = """
-				  WITH base AS (
+				WITH team_base AS (
 				    SELECT
-				      a.country,
-				      regexp_replace(a.league, '\\s*[-－—]\\s*.*$', '') AS league_group,
-				      s.path AS routing_path,
-				      s.season_year,
-				      s.start_season_date,
-				      s.end_season_date,
-				      COUNT(c.id) AS team_count
+				        a.country,
+				        regexp_replace(a.league, '\\s*[-－—]\\s*.*$', '') AS league_group,
+				        a.league AS league_full,
+				        NULLIF(TRIM(c.sub_league), '') AS sub_league,
+				        s.path AS routing_path,
+				        s.season_year,
+				        s.start_season_date,
+				        s.end_season_date,
+				        c.team
 				    FROM all_league_scrape_master a
 				    JOIN country_league_season_master s
 				      ON s.country = a.country
@@ -105,26 +113,41 @@ public class LeaguesRepository {
 				     AND c.del_flg = '0'
 				    WHERE a.disp_flg = '0'
 				      AND a.logic_flg = '0'
+				),
+				sub_league_agg AS (
+				    SELECT
+				        country,
+				        league_group,
+				        MIN(league_full) AS league_full,
+				        COALESCE(sub_league, '未設定') AS sub_league,
+				        MIN(routing_path) AS path,
+				        MAX(season_year) AS season_year,
+				        MIN(start_season_date) AS start_season_date,
+				        MAX(end_season_date) AS end_season_date,
+				        COUNT(DISTINCT team) AS team_count
+				    FROM team_base
 				    GROUP BY
-				      a.country,
-				      a.league,
-				      s.path,
-				      s.season_year,
-				      s.start_season_date,
-				      s.end_season_date
-				  )
-				  SELECT
+				        country,
+				        league_group,
+				        COALESCE(sub_league, '未設定')
+				)
+				SELECT
 				    country,
 				    league_group,
-				    MIN(routing_path) AS path,
-				    SUM(team_count)   AS team_count,
-				    COUNT(*)          AS variant_count,
-				    MAX(season_year)  AS season_year,
-				    MIN(start_season_date) AS start_season_date,
-				    MAX(end_season_date)   AS end_season_date
-				  FROM base
-				  GROUP BY country, league_group
-				  ORDER BY country, league_group
+				    sub_league,
+				    league_full,
+				    season_year,
+				    start_season_date,
+				    end_season_date,
+				    team_count,
+				    COUNT(*) OVER (PARTITION BY country, league_group) AS variant_count,
+				    path
+				FROM sub_league_agg
+				ORDER BY
+				    country,
+				    league_group,
+				    CASE WHEN sub_league = '未設定' THEN 0 ELSE 1 END,
+				    sub_league
 				""";
 
 		return masterJdbcTemplate.query(sql, new BeanPropertyRowMapper<>(LeagueCountRow.class));
@@ -156,7 +179,7 @@ public class LeaguesRepository {
 				INNER JOIN country_league_season_master clsm
 				  ON clm.country = clsm.country
 				 AND clm.league  = clsm.league
-				 WHERE clsm.path = :path
+				WHERE clsm.path = :path
 				ORDER BY clm.team
 				""";
 

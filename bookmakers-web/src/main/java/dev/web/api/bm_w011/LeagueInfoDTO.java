@@ -1,5 +1,7 @@
 package dev.web.api.bm_w011;
 
+import java.util.List;
+
 import lombok.Data;
 
 /**
@@ -41,4 +43,8 @@ public class LeagueInfoDTO {
 
     /** 外部ルーティングパス（Flashscoreのpath等。例: "/soccer/japan/j2-league/"） */
     private String routingPath;
+
+    /** サブリーグ */
+    private List<SubLeagueInfoDTO> subLeagues;
+
 }

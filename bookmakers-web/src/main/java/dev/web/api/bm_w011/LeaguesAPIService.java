@@ -1,6 +1,8 @@
 // dev/web/api/bm_w011/LeaguesService.java
 package dev.web.api.bm_w011;
 
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -44,37 +46,78 @@ public class LeaguesAPIService {
     /** GET /api/leagues/grouped */
     public List<LeagueGroupedResponse> getLeaguesGrouped() {
         List<LeagueCountRow> rows = repo.findLeagueCounts();
-        Map<String, LeagueGroupedResponse> map = new LinkedHashMap<>();
 
-        for (LeagueCountRow r : rows) {
-            LeagueGroupedResponse group = map.computeIfAbsent(r.country, c -> {
-                LeagueGroupedResponse g = new LeagueGroupedResponse();
-                g.setCountry(c);
-                g.setLeagues(new ArrayList<>());
-                return g;
+        Map<String, LeagueGroupedResponse> countryMap = new LinkedHashMap<>();
+        Map<String, Map<String, LeagueInfoDTO>> leagueMapByCountry = new LinkedHashMap<>();
+        Map<String, Map<String, Map<String, SubLeagueInfoDTO>>> subLeagueMapByCountryLeague = new LinkedHashMap<>();
+
+        for (LeagueCountRow row : rows) {
+            String country = safeTrim(row.getCountry());
+            String leagueGroup = safeTrim(row.getLeagueGroup());
+            String rawSubLeague = normalizeSubLeague(row.getSubLeague());
+
+            // country作成
+            LeagueGroupedResponse countryDto = countryMap.computeIfAbsent(country, c -> {
+                LeagueGroupedResponse dto = new LeagueGroupedResponse();
+                dto.setCountry(c);
+                dto.setLeagues(new ArrayList<>());
+                return dto;
             });
 
-            LeagueInfoDTO info = new LeagueInfoDTO();
-            info.setName(r.getLeagueGroup());
-            info.setLeagueGroup(r.getLeagueGroup());
-            info.setLeagueFull(null);
-            info.setSeasonYear(r.getSeasonYear());
-            info.setStartSeasonDate(r.getStartSeasonDate());
-            info.setEndSeasonDate(r.getEndSeasonDate());
-            info.setVariantCount(r.getVariantCount() == null ? 0 : r.getVariantCount().intValue());
-            info.setTeamCount(r.getTeamCount() == null ? 0 : r.getTeamCount().intValue());
+            // country配下のleague map
+            Map<String, LeagueInfoDTO> leagueMap = leagueMapByCountry.computeIfAbsent(country, c -> new LinkedHashMap<>());
 
-            // ★画面遷移は /soccer/... に統一
-            String soccerPath = normalizeNoTrailingSlash(r.getPath()); // 例: "/soccer/japan/j1-league"
-            info.setPath(soccerPath);
+            // league作成
+            LeagueInfoDTO leagueDto = leagueMap.computeIfAbsent(leagueGroup, lg -> {
+                LeagueInfoDTO dto = new LeagueInfoDTO();
+                dto.setName(lg);
+                dto.setLeagueGroup(lg);
+                dto.setSeasonYear(row.getSeasonYear());
+                dto.setStartSeasonDate(row.getStartSeasonDate());
+                dto.setEndSeasonDate(row.getEndSeasonDate());
+                dto.setVariantCount(row.getVariantCount() == null ? 0 : row.getVariantCount().intValue());
+                dto.setTeamCount(row.getTeamCount() == null ? 0 : row.getTeamCount().intValue());
+                dto.setPath(normalizeNoTrailingSlash(row.getPath()));
+                dto.setRoutingPath(normalizeNoTrailingSlash(row.getPath()));
+                dto.setSubLeagues(new ArrayList<>());
+                countryDto.getLeagues().add(dto);
+                return dto;
+            });
 
-            // routingPath は残してもOK（同じ値でもよい）
-            info.setRoutingPath(soccerPath);
+            // country + league 配下のsubLeague map
+            Map<String, Map<String, SubLeagueInfoDTO>> byLeague =
+                    subLeagueMapByCountryLeague.computeIfAbsent(country, c -> new LinkedHashMap<>());
+            Map<String, SubLeagueInfoDTO> subLeagueMap =
+                    byLeague.computeIfAbsent(leagueGroup, lg -> new LinkedHashMap<>());
 
-            group.getLeagues().add(info);
+            // subLeague作成
+            SubLeagueInfoDTO subLeagueDto = subLeagueMap.computeIfAbsent(rawSubLeague, sl -> {
+                SubLeagueInfoDTO dto = new SubLeagueInfoDTO();
+                dto.setRawName(sl);
+                dto.setName("▶︎" + sl);
+                dto.setRoutingPath(buildSubLeagueRoutingPath(leagueDto.getRoutingPath(), sl));
+                dto.setTeamCount(0);
+                leagueDto.getSubLeagues().add(dto);
+                return dto;
+            });
+
+            // teamCount加算
+            int addTeamCount = row.getTeamCount() == null ? 0 : row.getTeamCount().intValue();
+            subLeagueDto.setTeamCount(subLeagueDto.getTeamCount() + addTeamCount);
         }
 
-        return new ArrayList<>(map.values());
+        return new ArrayList<>(countryMap.values());
+    }
+
+    private String normalizeSubLeague(String value) {
+        if (value == null || value.trim().isEmpty()) {
+            return "未設定";
+        }
+        return value.trim();
+    }
+
+    private String safeTrim(String value) {
+        return value == null ? "" : value.trim();
     }
 
     private String normalizeNoTrailingSlash(String p) {
@@ -82,6 +125,12 @@ public class LeaguesAPIService {
         String s = p.trim();
         if (s.endsWith("/")) s = s.substring(0, s.length() - 1);
         return s;
+    }
+
+    private String buildSubLeagueRoutingPath(String basePath, String subLeague) {
+        String normalizedBase = normalizeNoTrailingSlash(basePath);
+        String encoded = URLEncoder.encode(subLeague, StandardCharsets.UTF_8);
+        return normalizedBase + "?subLeague=" + encoded;
     }
 
     /** GET /api/leagues/{country}/{league} country:england, league:premier-league*/
