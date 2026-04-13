@@ -1,6 +1,9 @@
 package dev.common.entity;
 
+import java.io.Serializable;
+
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * AllLeagueMasterEntity
@@ -8,7 +11,8 @@ import lombok.Data;
  *
  */
 @Data
-public class AllLeagueMasterEntity {
+@EqualsAndHashCode(callSuper = false)
+public class AllLeagueMasterEntity extends MetaEntity implements Serializable {
 
 	/** ID */
 	private String id;
@@ -18,6 +22,9 @@ public class AllLeagueMasterEntity {
 
 	/** スクレイピングリーグ */
 	private String league;
+
+	/** サブリーグ */
+	private String subLeague;
 
 	/** 論理フラグ(0: 最新の国リーグ情報, 1: 旧名の国リーグ情報) */
 	private String logicFlg;
