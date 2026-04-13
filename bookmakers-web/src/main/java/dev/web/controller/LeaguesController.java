@@ -6,6 +6,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 import org.springframework.web.server.ResponseStatusException;
 
@@ -35,13 +36,19 @@ public class LeaguesController {
         return service.getLeaguesGrouped();
     }
 
-    /** GET /api/leagues/{country}/{league} - チーム一覧 */
+    /**
+     * GET /api/leagues/{country}/{league}
+     * 例:
+     * /api/leagues/japan/j2-j3
+     * /api/leagues/japan/j2-j3?subLeague=EAST-A
+     */
     @GetMapping("/leagues/{country}/{league}")
     public TeamsInLeagueResponse getTeamsInLeague(
             @PathVariable String country,
-            @PathVariable String league) {
-        // Spring が decode 済みなのでそのまま Node 側と同じ文字列になる想定
-        return service.getTeamsInLeague(country, league);
+            @PathVariable String league,
+            @RequestParam(required = false) String subLeague) {
+
+        return service.getTeamsInLeague(country, league, subLeague);
     }
 
     /** GET /api/leagues/{teamEnglish}/{teamHash}/teamDetail - チーム詳細 */

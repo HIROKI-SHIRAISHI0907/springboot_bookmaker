@@ -55,6 +55,7 @@ public class LeaguesRepository {
 		public Integer id;
 		public String country;
 		public String league;
+		public String subLeague;
 		public String team;
 		public String link;
 	}
@@ -187,6 +188,37 @@ public class LeaguesRepository {
 				.addValue("path", "/soccer/" + country + "/" + league + "/");
 
 		return masterJdbcTemplate.query(sql, params, new BeanPropertyRowMapper<>(TeamRow.class));
+	}
+
+	/** 国＋リーグのチーム一覧(英語名)+サブリーグ付き */
+	public List<TeamRow> findTeamsInLeagueOnSlug(String country, String league, String subLeague) {
+	    String sql = """
+	            SELECT clm.id, clm.country, clm.league, clm.team, clm.link
+	            FROM country_league_master clm
+	            INNER JOIN country_league_season_master clsm
+	              ON clm.country = clsm.country
+	             AND clm.league  = clsm.league
+	            WHERE clsm.path = :path
+	              AND clm.del_flg = '0'
+	              AND (
+	                    :subLeague IS NULL
+	                    OR COALESCE(NULLIF(TRIM(clm.sub_league), ''), '未設定') = :subLeague
+	                  )
+	            ORDER BY clm.team
+	            """;
+
+	    MapSqlParameterSource params = new MapSqlParameterSource()
+	            .addValue("path", "/soccer/" + country + "/" + league + "/")
+	            .addValue("subLeague", normalizeSubLeague(subLeague));
+
+	    return masterJdbcTemplate.query(sql, params, new BeanPropertyRowMapper<>(TeamRow.class));
+	}
+
+	private String normalizeSubLeague(String subLeague) {
+	    if (subLeague == null || subLeague.trim().isEmpty()) {
+	        return null;
+	    }
+	    return subLeague.trim();
 	}
 
 	/** 指定チーム詳細 (1件のみ) teamEnglish + teamHash */

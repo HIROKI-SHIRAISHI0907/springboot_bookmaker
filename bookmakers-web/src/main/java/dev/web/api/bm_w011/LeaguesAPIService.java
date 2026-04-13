@@ -134,8 +134,8 @@ public class LeaguesAPIService {
     }
 
     /** GET /api/leagues/{country}/{league} country:england, league:premier-league*/
-    public TeamsInLeagueResponse getTeamsInLeague(String country, String league) {
-        List<TeamRow> rows = repo.findTeamsInLeagueOnSlug(country, league);
+    public TeamsInLeagueResponse getTeamsInLeague(String country, String league, String subLeague) {
+        List<TeamRow> rows = repo.findTeamsInLeagueOnSlug(country, league, subLeague);
 
         TeamsInLeagueResponse res = new TeamsInLeagueResponse();
         res.setCountry(country);
