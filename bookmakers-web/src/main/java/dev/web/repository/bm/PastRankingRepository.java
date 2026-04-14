@@ -25,7 +25,12 @@ public class PastRankingRepository {
      * past_ranking から「全節×全チーム」の推移データを rank 付きで取得する
      * rank は節ごとに付与（PARTITION BY match）
      */
-    public List<TeamStandingsRowDTO> findTrendAllTeams(String country, String league, String seasonYear) {
+    public List<TeamStandingsRowDTO> findTrendAllTeams(String country, String league,
+    		String seasonYear, List<String> teamList) {
+
+    	if (teamList == null || teamList.isEmpty()) {
+            return List.of();
+        }
 
         String sql = """
             SELECT
@@ -46,13 +51,15 @@ public class PastRankingRepository {
             WHERE country = :country
               AND league  = :league
               AND season_year = :seasonYear
+              AND team IN (:teamList)
             ORDER BY "match" ASC, rank ASC
         """;
 
         MapSqlParameterSource params = new MapSqlParameterSource()
                 .addValue("country", country)
                 .addValue("league", league)
-                .addValue("seasonYear", seasonYear);
+                .addValue("seasonYear", seasonYear)
+                .addValue("teamList", teamList);
 
         return jdbcTemplate.query(sql, params, (rs, n) -> {
             TeamStandingsRowDTO dto = new TeamStandingsRowDTO();
@@ -70,7 +77,12 @@ public class PastRankingRepository {
         });
     }
 
-    public List<TeamStandingsRowDTO> findLatestSnapshotAllTeams(String country, String league, String seasonYear) {
+    public List<TeamStandingsRowDTO> findLatestSnapshotAllTeams(
+    		String country, String league, String seasonYear, List<String> teamList) {
+
+    	if (teamList == null || teamList.isEmpty()) {
+            return List.of();
+        }
 
         String sql = """
             WITH latest AS (
@@ -88,6 +100,7 @@ public class PastRankingRepository {
               WHERE country = :country
                 AND league  = :league
                 AND season_year = :seasonYear
+                AND team IN (:teamList)
               ORDER BY team, "match" DESC
             )
             SELECT
@@ -110,7 +123,8 @@ public class PastRankingRepository {
         MapSqlParameterSource params = new MapSqlParameterSource()
             .addValue("country", country == null ? null : country.trim())
             .addValue("league", league == null ? null : league.trim())
-            .addValue("seasonYear", seasonYear == null ? null : seasonYear.trim());
+            .addValue("seasonYear", seasonYear == null ? null : seasonYear.trim())
+            .addValue("teamList", teamList);
 
         return jdbcTemplate.query(sql, params, (rs, n) -> {
             TeamStandingsRowDTO dto = new TeamStandingsRowDTO();

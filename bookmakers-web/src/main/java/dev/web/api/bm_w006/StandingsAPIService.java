@@ -13,6 +13,7 @@ import dev.web.repository.bm.PastRankingRepository;
 import dev.web.repository.bm.StandingsRepository;
 import dev.web.repository.master.CountryLeagueSeasonMasterWebRepository;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * StandingsAPI用サービス
@@ -21,6 +22,7 @@ import lombok.AllArgsConstructor;
  */
 @Service
 @AllArgsConstructor
+@Slf4j
 public class StandingsAPIService {
 
 	private final LeaguesRepository leagueRepo;
@@ -75,25 +77,45 @@ public class StandingsAPIService {
 		final String league = teamInfo.getLeague();
 		final String currentTeamName = normalizeTeamName(teamInfo.getTeam()); // teamInfo.getName() の場合は合わせて
 
-		// 1) seasonYear はマスタの current を使う（ここはあなたの方針どおり）
+		// 1) seasonYear はマスタの current を使う
 		String seasonYear = countryLeagueSeasonMasterWebRepository.findCurrentSeasonYear(country, league);
 		if (seasonYear == null || seasonYear.isBlank())
 			return null;
 
-		// 2) trend は pastRankingRepository から全節×全チーム取得（rank付き）
-	    List<TeamStandingsRowDTO> trend = pastRankingRepository.findTrendAllTeams(country, league, seasonYear);
-	    if (trend == null || trend.isEmpty()) return null;
+		// 2) 同一subLeagueに所属するチームのみ取得
+		List<String> sameSubLeague = leagueRepo.findTeamsInSameSubLeague(
+				country, league, currentTeamName);
 
-	 // 3) latestMatch は “リーグ全体の最大節” としてtrendから算出（グラフ横軸の上限）
+		log.info("sameSubLeague: {} ",sameSubLeague);
+
+		if (sameSubLeague == null || sameSubLeague.isEmpty()) {
+	        return new TeamsStandingsResponse(seasonYear, 0, List.of(), List.of());
+	    }
+
+		// 3) trend は pastRankingRepository から全節×全チーム取得（rank付き）
+	    List<TeamStandingsRowDTO> trend = pastRankingRepository
+	    		.findTrendAllTeams(country, league, seasonYear, sameSubLeague);
+
+	    log.info("trend size: {}", trend == null ? null : trend.size());
+
+	    if (trend == null || trend.isEmpty()) {
+	        // 404 にせず空レスポンスで返す
+	        return new TeamsStandingsResponse(seasonYear, 0, List.of(), List.of());
+	    }
+
+	    // 4) latestMatch は “リーグ全体の最大節” としてtrendから算出（グラフ横軸の上限）
 	    Integer latestMatch = trend.stream()
 	        .map(TeamStandingsRowDTO::getMatch)
 	        .filter(java.util.Objects::nonNull)
 	        .max(Integer::compareTo)
 	        .orElse(0);
 
-	    // 4) standings は “各チーム最新スナップショット” で作る（matchがチームごとに混在してOK）
+	    // 5) standings は “各チーム最新スナップショット” で作る（matchがチームごとに混在してOK）
 	    List<TeamStandingsRowDTO> latestRows =
-	        pastRankingRepository.findLatestSnapshotAllTeams(country, league, seasonYear);
+	            pastRankingRepository.findLatestSnapshotAllTeams(
+	            		country, league, seasonYear, sameSubLeague);
+
+	    log.info("latestRows size: {}", latestRows == null ? null : latestRows.size());
 
 	    List<TeamStandingsRowViewDTO> standings = latestRows.stream()
 	        .sorted(Comparator.comparing(TeamStandingsRowDTO::getRank,

@@ -224,7 +224,7 @@ public class LeaguesRepository {
 	/** 指定チーム詳細 (1件のみ) teamEnglish + teamHash */
 	public TeamRow findTeamDetailByTeamAndHash(String teamEnglish, String teamHash) {
 		String sql = """
-				SELECT id, country, league, team, link
+				SELECT id, country, league, sub_league, team, link
 				FROM country_league_master
 				WHERE link = :link AND del_flg = '0'
 				LIMIT 1
@@ -238,9 +238,47 @@ public class LeaguesRepository {
 				params,
 				new BeanPropertyRowMapper<>(TeamRow.class));
 		if (list != null && !list.isEmpty()) {
-			log.info("teamInfoData: country: {}, league: {}, team: {} ",
-					list.get(0).getCountry(), list.get(0).getLeague(), list.get(0).getTeam());
+			log.info("teamInfoData: country: {}, league: {}, subLeague: {}, team: {} ",
+					list.get(0).getCountry(), list.get(0).getLeague(),
+					list.get(0).getSubLeague(), list.get(0).getTeam());
 		}
 		return list.isEmpty() ? null : list.get(0);
 	}
+
+	/** 指定チームと同じ sub_league に属する team 一覧を取得
+	 *  ただし、対象チームの sub_league が未設定(null/空)なら、
+	 *  同一 country + league の全チームを返す
+	 */
+	public List<String> findTeamsInSameSubLeague(String country, String league, String team) {
+	    String sql = """
+	        WITH target_sub_league AS (
+	            SELECT
+	                NULLIF(TRIM(MAX(sub_league)), '') AS sub_league_norm
+	            FROM country_league_master
+	            WHERE country = :country
+	              AND league  = :league
+	              AND team    = :team
+	              AND del_flg = '0'
+	        )
+	        SELECT DISTINCT clm.team
+	        FROM country_league_master clm
+	        CROSS JOIN target_sub_league t
+	        WHERE clm.country = :country
+	          AND clm.league  = :league
+	          AND clm.del_flg = '0'
+	          AND (
+	                t.sub_league_norm IS NULL
+	                OR NULLIF(TRIM(clm.sub_league), '') = t.sub_league_norm
+	              )
+	        ORDER BY clm.team
+	        """;
+
+	    MapSqlParameterSource params = new MapSqlParameterSource()
+	            .addValue("country", country)
+	            .addValue("league", league)
+	            .addValue("team", team);
+
+	    return masterJdbcTemplate.queryForList(sql, params, String.class);
+	}
+
 }
