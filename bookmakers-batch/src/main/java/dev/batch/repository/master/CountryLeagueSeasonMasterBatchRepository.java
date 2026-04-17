@@ -30,7 +30,7 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			    SELECT
 			        country,
 			        league,
-			        end_season_date
+			        end_season_date AS endSeasonDate
 			    FROM
 			        country_league_season_master
 			    WHERE
@@ -64,6 +64,18 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			""")
 	int clearEndSeasonDate(@Param("country") String country,
 			@Param("league") String league);
+
+	@Select("""
+			    SELECT
+			        country,
+			        league,
+			        end_season_date AS endSeasonDate
+			    FROM
+			        country_league_season_master
+			    WHERE
+			        del_flg = '0'
+			""")
+	List<CountryLeagueSeasonMasterEntity> findDateList();
 
 	@Insert({
 			"	    INSERT INTO country_league_season_master (",
@@ -173,8 +185,6 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			"	        season_year = #{seasonYear},",
 			"			start_season_date = #{startSeasonDate}::timestamptz,",
 			"			end_season_date = #{endSeasonDate}::timestamptz,",
-			//"			start_season_date = #{startSeasonDate},",
-			//"			end_season_date = #{endSeasonDate},",
 			"			round = #{round},",
 			"			path = #{path},",
 			"			icon = #{icon},",

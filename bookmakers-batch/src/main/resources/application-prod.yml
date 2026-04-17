@@ -168,6 +168,11 @@ ecs:
       taskDefinition: ${ECS_B010_TASK_DEF:bookmakers-app}
       container: ${ECS_B010_CONTAINER:bookmakers-app}
       logGroup: ${ECS_B010_LOG_GROUP:/ecs/bookmakers-app}
+    B013: 
+      cluster: ${ECS_BATCH_CLUSTER:batch-backend}
+      taskDefinition: ${ECS_BATCH_TASK_DEF:bookmakers-batch}
+      container: ${ECS_BATCH_CONTAINER:bookmakers-batch}
+      logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
 
 s3-job:
   jobs:
