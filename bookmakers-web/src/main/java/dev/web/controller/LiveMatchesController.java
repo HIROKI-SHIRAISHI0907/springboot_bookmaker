@@ -1,12 +1,15 @@
 package dev.web.controller;
 
-import org.springframework.http.ResponseEntity;
+import java.util.List;
+
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import dev.web.api.bm_w007.LiveMatchDTO;
 import dev.web.api.bm_w007.LiveMatchesAPIService;
+import dev.web.api.bm_w007.MultiLiveMatchesResponse;
 
 /**
  * LiveMatchesAPI コントローラー
@@ -34,11 +37,16 @@ public class LiveMatchesController {
     }
 
     @GetMapping("/live-matches/{teamEnglish}/{teamHash}")
-    public ResponseEntity<?> getLiveMatches(
+    public MultiLiveMatchesResponse getLiveMatches(
             @PathVariable String teamEnglish,
             @PathVariable String teamHash
     ) {
-        var list = liveMatchesService.getLiveMatches(teamEnglish, teamHash);
-        return ResponseEntity.ok(list);
+    	List<LiveMatchDTO> list = liveMatchesService.getLiveMatches(teamEnglish, teamHash);
+
+        MultiLiveMatchesResponse response = new MultiLiveMatchesResponse();
+    	response.setMatches(list);
+    	response.setCount(list.size());
+
+        return response;
     }
 }

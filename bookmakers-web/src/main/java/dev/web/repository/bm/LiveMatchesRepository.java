@@ -13,7 +13,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 import org.springframework.util.StringUtils;
 
-import dev.web.api.bm_w007.LiveMatchResponse;
+import dev.web.api.bm_w007.LiveMatchDTO;
 
 /**
  * 現在開催中の試合（LIVE）取得 Repository
@@ -42,7 +42,7 @@ public class LiveMatchesRepository {
 	 * @param league  リーグ名（null/空なら全カテゴリ）
 	 * @return LiveMatchDTO のリスト
 	 */
-    public List<LiveMatchResponse> findLiveMatches(String country, String league) {
+    public List<LiveMatchDTO> findLiveMatches(String country, String league) {
         final String like;
         if (StringUtils.hasText(country) && StringUtils.hasText(league)) {
             like = country + ": " + league + "%";
@@ -54,7 +54,7 @@ public class LiveMatchesRepository {
                 .addValue("pattern", like);
 
         // ① soccer_bm.data から LIVE 試合だけ取得
-        List<LiveMatchResponse> rows = bmJdbcTemplate.query(SQL, params, ROW_MAPPER);
+        List<LiveMatchDTO> rows = bmJdbcTemplate.query(SQL, params, ROW_MAPPER);
 
         // ② master 側から team → slug のマップを作成
         MapSqlParameterSource mparams = new MapSqlParameterSource();
@@ -94,7 +94,7 @@ public class LiveMatchesRepository {
         );
 
         // ③ LiveMatchDTO に slug をセット
-        for (LiveMatchResponse dto : rows) {
+        for (LiveMatchDTO dto : rows) {
             String homeSlug = slugMap.get(dto.getHomeTeamName());
             String awaySlug = slugMap.get(dto.getAwayTeamName());
             dto.setHomeSlug(homeSlug);
@@ -107,10 +107,10 @@ public class LiveMatchesRepository {
 
 	// ========= RowMapper =========
 
-	private static final RowMapper<LiveMatchResponse> ROW_MAPPER = new RowMapper<LiveMatchResponse>() {
+	private static final RowMapper<LiveMatchDTO> ROW_MAPPER = new RowMapper<LiveMatchDTO>() {
 	    @Override
-	    public LiveMatchResponse mapRow(ResultSet rs, int rowNum) throws SQLException {
-	        LiveMatchResponse dto = new LiveMatchResponse();
+	    public LiveMatchDTO mapRow(ResultSet rs, int rowNum) throws SQLException {
+	        LiveMatchDTO dto = new LiveMatchDTO();
 
 	        dto.setSeq(rs.getLong("seq"));
 	        dto.setDataCategory(nz(rs.getString("data_category")));

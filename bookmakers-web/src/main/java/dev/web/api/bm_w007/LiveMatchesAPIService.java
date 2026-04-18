@@ -26,7 +26,7 @@ public class LiveMatchesAPIService {
     /**
      * 現在開催中試合一覧を取得。
      */
-    public List<LiveMatchResponse> getLiveMatches(String teamEnglish, String teamHash) {
+    public List<LiveMatchDTO> getLiveMatches(String teamEnglish, String teamHash) {
     	TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
     	if (teamInfo == null) return null;
 
@@ -40,6 +40,13 @@ public class LiveMatchesAPIService {
         }
 
         return liveMatchesRepository.findLiveMatches(c, l);
+    }
+
+    /**
+     * トップページ用：現在開催中の全試合一覧を取得。
+     */
+    public List<LiveMatchDTO> getAllLiveMatches() {
+        return liveMatchesRepository.findLiveMatches(null, null);
     }
 
     private String trimToNull(String s) {

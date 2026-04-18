@@ -3,7 +3,7 @@ package dev.web.api.bm_w007;
 import lombok.Data;
 
 /**
- * LiveMatchesAPI（現在開催中の試合）
+ * LiveMatchDTO（現在開催中の試合）
  * フロント側の LiveMatch 型と対応
  *
  *   GET /api/live-matches
@@ -12,7 +12,7 @@ import lombok.Data;
  * @author shiraishitoshio
  */
 @Data
-public class LiveMatchResponse {
+public class LiveMatchDTO {
 
     /** seq（public.data.seq） */
     private long seq;
