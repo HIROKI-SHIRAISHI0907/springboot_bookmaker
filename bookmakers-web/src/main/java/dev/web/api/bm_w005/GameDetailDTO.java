@@ -4,9 +4,7 @@ import lombok.Data;
 
 /**
  * GameDetailAPI（試合詳細）
- * /api/{country}/{league}/{team}/games/detail/{seq}
- *
- * フロント側 GameDetail 型に対応。
+ * POST /api/games/detail
  *
  * @author shiraishitoshio
  */
@@ -34,7 +32,7 @@ public class GameDetailDTO {
     /** 外部詳細へのリンク（judge 由来） */
     private String link;
 
-    /** 生 times 文字列（例: "68:09" / "45+2'" / "終了済" など） */
+    /** 生 times 文字列 */
     private String times;
 
     /** ホーム側情報 */
@@ -46,9 +44,6 @@ public class GameDetailDTO {
     /** 会場情報 */
     private Venue venue;
 
-    /**
-     * チーム別のスタッツ情報
-     */
     @Data
     public static class TeamSide {
 
@@ -64,13 +59,16 @@ public class GameDetailDTO {
         /** フォーメーション */
         private String formation;
 
-        /** 期待得点（xG） */
+        /** xG */
         private Double xg;
+
+        /** 枠内xG */
+        private Double inGoalXg;
 
         /** ポゼッション（%） */
         private Integer possession;
 
-        /** シュート合計 */
+        /** 総シュート */
         private Integer shots;
 
         /** 枠内シュート */
@@ -79,34 +77,76 @@ public class GameDetailDTO {
         /** 枠外シュート */
         private Integer shotsOff;
 
-        /** ブロック数 */
+        /** ブロックシュート */
         private Integer blocks;
 
-        /** コーナーキック数 */
-        private Integer corners;
-
-        /** ビッグチャンス数 */
+        /** ビッグチャンス */
         private Integer bigChances;
 
-        /** セーブ数 */
+        /** CK */
+        private Integer corners;
+
+        /** PA内シュート */
+        private Integer boxShotsIn;
+
+        /** PA外シュート */
+        private Integer boxShotsOut;
+
+        /** ポスト直撃 */
+        private Integer goalPost;
+
+        /** ヘディングゴール */
+        private Integer headGoals;
+
+        /** GKセーブ */
         private Integer saves;
 
-        /** イエローカード枚数 */
+        /** FK */
+        private Integer freeKicks;
+
+        /** オフサイド */
+        private Integer offsides;
+
+        /** ファウル */
+        private Integer fouls;
+
+        /** イエローカード */
         private Integer yc;
 
-        /** レッドカード枚数 */
+        /** レッドカード */
         private Integer rc;
 
-        /** パス数（"xxx (yyy%)" 等の文字列） */
+        /** スローイン */
+        private Integer throwIns;
+
+        /** ボックスタッチ */
+        private Integer boxTouches;
+
+        /** パス数 */
         private String passes;
 
         /** ロングパス数 */
         private String longPasses;
+
+        /** ファイナルサードパス数 */
+        private String finalThirdPasses;
+
+        /** クロス数 */
+        private Integer crosses;
+
+        /** タックル数 */
+        private Integer tackles;
+
+        /** クリア数 */
+        private Integer clearances;
+
+        /** デュエル数 */
+        private Integer duels;
+
+        /** インターセプト数 */
+        private Integer interceptions;
     }
 
-    /**
-     * 会場情報
-     */
     @Data
     public static class Venue {
 
