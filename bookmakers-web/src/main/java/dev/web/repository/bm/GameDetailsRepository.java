@@ -28,6 +28,7 @@ public class GameDetailsRepository {
 	private final NamedParameterJdbcTemplate bmJdbcTemplate;
 
 	private static final Pattern PCT_PATTERN = Pattern.compile("([0-9]+(?:\\.[0-9]+)?)\\s*%");
+	private static final Pattern FIRST_NUMBER_PATTERN = Pattern.compile("([0-9]+(?:\\.[0-9]+)?)");
 
 	private static final String BASE_SELECT = """
 			SELECT
@@ -111,6 +112,31 @@ public class GameDetailsRepository {
 			FROM data d
 			""";
 
+	private static Integer parseStatNumber(String str) {
+		if (str == null) {
+			return null;
+		}
+
+		String text = str.trim();
+		if (text.isEmpty()) {
+			return null;
+		}
+
+		Matcher pctMatcher = PCT_PATTERN.matcher(text);
+		if (pctMatcher.find()) {
+			double v = Double.parseDouble(pctMatcher.group(1));
+			return (int) Math.round(v);
+		}
+
+		Matcher numberMatcher = FIRST_NUMBER_PATTERN.matcher(text);
+		if (numberMatcher.find()) {
+			double v = Double.parseDouble(numberMatcher.group(1));
+			return (int) Math.round(v);
+		}
+
+		return null;
+	}
+
 	private static final RowMapper<GameDetailDTO> GAME_DETAIL_ROW_MAPPER = (rs, rowNum) -> {
 		Integer hsObj = (Integer) rs.getObject("home_score");
 		Integer asObj = (Integer) rs.getObject("away_score");
@@ -137,8 +163,9 @@ public class GameDetailsRepository {
 		}
 
 		Function<String, Integer> pct = (str) -> {
-			if (str == null)
+			if (str == null) {
 				return null;
+			}
 			Matcher m = PCT_PATTERN.matcher(str);
 			if (m.find()) {
 				double v = Double.parseDouble(m.group(1));
@@ -164,8 +191,10 @@ public class GameDetailsRepository {
 
 		BigDecimal homeExp = (BigDecimal) rs.getObject("home_exp");
 		home.setXg(homeExp == null ? null : homeExp.doubleValue());
+
 		BigDecimal homeInGoalExp = (BigDecimal) rs.getObject("home_in_goal_exp");
 		home.setInGoalXg(homeInGoalExp == null ? null : homeInGoalExp.doubleValue());
+
 		home.setBoxShotsIn((Integer) rs.getObject("home_box_shoot_in"));
 		home.setBoxShotsOut((Integer) rs.getObject("home_box_shoot_out"));
 		home.setGoalPost((Integer) rs.getObject("home_goal_post"));
@@ -176,11 +205,11 @@ public class GameDetailsRepository {
 		home.setThrowIns((Integer) rs.getObject("home_slow_in"));
 		home.setBoxTouches((Integer) rs.getObject("home_box_touch"));
 		home.setFinalThirdPasses(rs.getString("home_final_third_pass_count"));
-		home.setCrosses((Integer) rs.getObject("home_cross_count"));
-		home.setTackles((Integer) rs.getObject("home_tackle_count"));
-		home.setClearances((Integer) rs.getObject("home_clear_count"));
-		home.setDuels((Integer) rs.getObject("home_duel_count"));
-		home.setInterceptions((Integer) rs.getObject("home_intercept_count"));
+		home.setCrosses(parseStatNumber(rs.getString("home_cross_count")));
+		home.setTackles(parseStatNumber(rs.getString("home_tackle_count")));
+		home.setClearances(parseStatNumber(rs.getString("home_clear_count")));
+		home.setDuels(parseStatNumber(rs.getString("home_duel_count")));
+		home.setInterceptions(parseStatNumber(rs.getString("home_intercept_count")));
 		home.setPossession(pct.apply(rs.getString("home_donation")));
 		home.setShots((Integer) rs.getObject("home_shoot_all"));
 		home.setShotsOn((Integer) rs.getObject("home_shoot_in"));
@@ -203,8 +232,10 @@ public class GameDetailsRepository {
 
 		BigDecimal awayExp = (BigDecimal) rs.getObject("away_exp");
 		away.setXg(awayExp == null ? null : awayExp.doubleValue());
+
 		BigDecimal awayInGoalExp = (BigDecimal) rs.getObject("away_in_goal_exp");
 		away.setInGoalXg(awayInGoalExp == null ? null : awayInGoalExp.doubleValue());
+
 		away.setBoxShotsIn((Integer) rs.getObject("away_box_shoot_in"));
 		away.setBoxShotsOut((Integer) rs.getObject("away_box_shoot_out"));
 		away.setGoalPost((Integer) rs.getObject("away_goal_post"));
@@ -215,11 +246,11 @@ public class GameDetailsRepository {
 		away.setThrowIns((Integer) rs.getObject("away_slow_in"));
 		away.setBoxTouches((Integer) rs.getObject("away_box_touch"));
 		away.setFinalThirdPasses(rs.getString("away_final_third_pass_count"));
-		away.setCrosses((Integer) rs.getObject("away_cross_count"));
-		away.setTackles((Integer) rs.getObject("away_tackle_count"));
-		away.setClearances((Integer) rs.getObject("away_clear_count"));
-		away.setDuels((Integer) rs.getObject("away_duel_count"));
-		away.setInterceptions((Integer) rs.getObject("away_intercept_count"));
+		away.setCrosses(parseStatNumber(rs.getString("away_cross_count")));
+		away.setTackles(parseStatNumber(rs.getString("away_tackle_count")));
+		away.setClearances(parseStatNumber(rs.getString("away_clear_count")));
+		away.setDuels(parseStatNumber(rs.getString("away_duel_count")));
+		away.setInterceptions(parseStatNumber(rs.getString("away_intercept_count")));
 		away.setPossession(pct.apply(rs.getString("away_donation")));
 		away.setShots((Integer) rs.getObject("away_shoot_all"));
 		away.setShotsOn((Integer) rs.getObject("away_shoot_in"));
