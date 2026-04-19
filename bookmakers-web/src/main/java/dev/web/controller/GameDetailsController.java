@@ -1,7 +1,6 @@
 // src/main/java/dev/web/controller/GameDetailController.java
 package dev.web.controller;
 
-import org.springframework.http.ResponseEntity;
 import org.springframework.util.StringUtils;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -35,34 +34,25 @@ public class GameDetailsController {
         this.gameDetailsService = gameDetailsService;
     }
 
-    @GetMapping("/{country}/{league}/{team}/{seq}")
-    public ResponseEntity<?> getGameDetail(
-            @PathVariable("country") String country,
-            @PathVariable("league") String league,
-            @PathVariable("team") String teamSlug,
+    @GetMapping("/{teamEnglish}/{teamHash}")
+    public GameDetailResponse getGameDetail(
+    		@PathVariable String teamEnglish,
+            @PathVariable String teamHash,
             @PathVariable("seq") String seqStr
     ) {
-        if (!StringUtils.hasText(country) ||
-            !StringUtils.hasText(league)  ||
-            !StringUtils.hasText(seqStr)) {
-            return ResponseEntity.badRequest()
-                    .body(new SimpleMessage("country/league/seq are required"));
+    	if (!StringUtils.hasText(teamEnglish) || !StringUtils.hasText(teamHash)) {
+            return new GameDetailResponse(new GameDetailDTO());
         }
 
         long seq;
         try {
             seq = Long.parseLong(seqStr);
         } catch (NumberFormatException e) {
-            return ResponseEntity.badRequest()
-                    .body(new SimpleMessage("seq must be numeric"));
+        	return new GameDetailResponse(new GameDetailDTO());
         }
 
-        var opt = gameDetailsService.getGameDetail(country, league, seq);
-        if (opt.isEmpty()) {
-        	return ResponseEntity.ok(new GameDetailResponse(new GameDetailDTO()));
-        }
-
-        return ResponseEntity.ok(new GameDetailResponse(opt.get()));
+        GameDetailResponse opt = gameDetailsService.getGameDetail(teamEnglish, teamHash, seq);
+        return opt;
     }
 
     // ---------- private helpers ----------

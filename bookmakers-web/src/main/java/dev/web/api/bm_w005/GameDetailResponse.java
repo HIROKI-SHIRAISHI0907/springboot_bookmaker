@@ -1,7 +1,6 @@
 package dev.web.api.bm_w005;
 
-import com.fasterxml.jackson.annotation.JsonProperty;
-
+import lombok.AllArgsConstructor;
 import lombok.Data;
 
 /**
@@ -15,13 +14,10 @@ import lombok.Data;
  * @author shiraishitoshio
  */
 @Data
+@AllArgsConstructor
 public class GameDetailResponse {
 
     /** 試合詳細 */
-    @JsonProperty("detail")
     private GameDetailDTO detail;
 
-    public GameDetailResponse(GameDetailDTO detail) {
-        this.detail = detail;
-    }
 }

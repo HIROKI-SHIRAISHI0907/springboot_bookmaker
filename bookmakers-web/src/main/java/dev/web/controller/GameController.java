@@ -26,7 +26,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/games")
 @RequiredArgsConstructor
-public class GamesController {
+public class GameController {
 
 	private final GameAPIService service;
 
