@@ -23,6 +23,9 @@ public class LiveMatchDTO {
     /** 試合時間（"68:09" / "45+2'" / "ハーフタイム" 等） */
     private String times;
 
+    /** サブリーグ（例: EAST-A, EAST-B） */
+    private String subLeague;
+
     /** ホームチーム名 */
     private String homeTeamName;
 

@@ -4,9 +4,12 @@ import java.sql.ResultSet;
 import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.ZoneOffset;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.ResultSetExtractor;
 import org.springframework.jdbc.core.RowMapper;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
@@ -55,48 +58,66 @@ public class LiveMatchesRepository {
 		// ① soccer_bm.data から LIVE 試合だけ取得
 		List<LiveMatchDTO> rows = bmJdbcTemplate.query(SQL, params, ROW_MAPPER);
 
-		// ② master 側から team → slug のマップを作成
+		// ② master 側から team → slug / subLeague のマップを作成
 		MapSqlParameterSource mparams = new MapSqlParameterSource();
 		String masterSql;
 
 		if (StringUtils.hasText(country) && StringUtils.hasText(league)) {
 			masterSql = """
-					  SELECT
-					    team,
-					    NULLIF(substring(link from '/team/([^/]+)/'), '') AS slug
-					  FROM country_league_master
-					  WHERE country = :country
-					    AND league  = :league
+					SELECT
+					  team,
+					  NULLIF(substring(link from '/team/([^/]+)/'), '') AS slug,
+					  NULLIF(TRIM(sub_league), '') AS sub_league
+					FROM country_league_master
+					WHERE country = :country
+					  AND league  = :league
 					""";
 			mparams.addValue("country", country)
 					.addValue("league", league);
 		} else {
-			// country / league 未指定なら全件（必要に応じて絞り込み検討）
 			masterSql = """
-					  SELECT
-					    team,
-					    NULLIF(substring(link from '/team/([^/]+)/'), '') AS slug
-					  FROM country_league_master
+					SELECT
+					  team,
+					  NULLIF(substring(link from '/team/([^/]+)/'), '') AS slug,
+					  NULLIF(TRIM(sub_league), '') AS sub_league
+					FROM country_league_master
 					""";
 		}
 
-		var slugMap = masterJdbcTemplate.query(
-				masterSql,
-				mparams,
-				rs -> {
-					java.util.Map<String, String> m = new java.util.HashMap<>();
-					while (rs.next()) {
-						m.put(rs.getString("team"), rs.getString("slug"));
-					}
-					return m;
-				});
+		Map<String, String> slugMap = new HashMap<>();
+		Map<String, String> subLeagueMap = new HashMap<>();
 
-		// ③ LiveMatchDTO に slug をセット
+		masterJdbcTemplate.query(masterSql, mparams, new ResultSetExtractor<Void>() {
+			@Override
+			public Void extractData(ResultSet rs) throws SQLException {
+				while (rs.next()) {
+					String team = rs.getString("team");
+					slugMap.put(team, rs.getString("slug"));
+					subLeagueMap.put(team, rs.getString("sub_league"));
+				}
+				return null;
+			}
+		});
+
+		// ③ LiveMatchDTO に slug / subLeague をセット
 		for (LiveMatchDTO dto : rows) {
 			String homeSlug = slugMap.get(dto.getHomeTeamName());
 			String awaySlug = slugMap.get(dto.getAwayTeamName());
+
 			dto.setHomeSlug(homeSlug);
 			dto.setAwaySlug(awaySlug);
+
+			String homeSubLeague = subLeagueMap.get(dto.getHomeTeamName());
+			String awaySubLeague = subLeagueMap.get(dto.getAwayTeamName());
+
+			// subLeague は home 優先、なければ away
+			if (StringUtils.hasText(homeSubLeague)) {
+				dto.setSubLeague(homeSubLeague);
+			} else if (StringUtils.hasText(awaySubLeague)) {
+				dto.setSubLeague(awaySubLeague);
+			} else {
+				dto.setSubLeague(null);
+			}
 		}
 
 		return rows;
@@ -137,9 +158,9 @@ public class LiveMatchesRepository {
 			String goalTime = rs.getString("goal_time");
 			dto.setLink(goalTime != null && !goalTime.isBlank() ? goalTime : null);
 
-			// スラグはここではまだ null。後で Java 側で埋める
 			dto.setHomeSlug(null);
 			dto.setAwaySlug(null);
+			dto.setSubLeague(null);
 
 			return dto;
 		}
@@ -161,7 +182,7 @@ public class LiveMatchesRepository {
 		return rs.wasNull() ? null : v;
 	}
 
-	// ========= SQL（$1 → :pattern に変更） =========
+	// ========= SQL =========
 	private static final String SQL = """
 			WITH data_norm AS (
 			  SELECT
@@ -172,30 +193,18 @@ public class LiveMatchesRepository {
 			    NULLIF(TRIM(d.home_team_name), '')          AS home_team_name,
 			    NULLIF(TRIM(d.away_team_name), '')          AS away_team_name,
 
-			    /* スコア: 非数字と '.' '-' を除去 → float → floor → int */
-			    CASE
-			      WHEN NULLIF(regexp_replace(TRIM(d.home_score), '[-0-9.]', '', 'g'), '') IS NULL
-			      THEN NULL
-			      ELSE floor(NULLIF(regexp_replace(TRIM(d.home_score), '[^0-9.-]', '', 'g'), '')::float)::int
-			    END AS home_score,
-			    CASE
-			      WHEN NULLIF(regexp_replace(TRIM(d.away_score), '[-0-9.]', '', 'g'), '') IS NULL
-			      THEN NULL
-			      ELSE floor(NULLIF(regexp_replace(TRIM(d.away_score), '[^0-9.-]', '', 'g'), '')::float)::int
-			    END AS away_score,
+			    floor(NULLIF(regexp_replace(TRIM(d.home_score), '[^0-9.-]', '', 'g'), '')::float)::int AS home_score,
+				floor(NULLIF(regexp_replace(TRIM(d.away_score), '[^0-9.-]', '', 'g'), '')::float)::int AS away_score,
 
-			    /* xG: float 正規化 */
 			    NULLIF(regexp_replace(TRIM(d.home_exp),      '[^0-9.-]', '', 'g'), '')::float AS home_exp,
 			    NULLIF(regexp_replace(TRIM(d.away_exp),      '[^0-9.-]', '', 'g'), '')::float AS away_exp,
 
-			    /* 枠内シュート: int 正規化 */
 			    NULLIF(regexp_replace(TRIM(d.home_shoot_in), '[^0-9-]',  '', 'g'), '')::int   AS home_shoot_in,
 			    NULLIF(regexp_replace(TRIM(d.away_shoot_in), '[^0-9-]',  '', 'g'), '')::int   AS away_shoot_in,
 
 			    d.record_time,
 			    d.update_time,
 
-			    /* record_time / update_time のうち新しい方 */
 			    GREATEST(
 			      COALESCE(d.record_time, TIMESTAMP '1970-01-01 00:00:00'),
 			      COALESCE(d.update_time, TIMESTAMP '1970-01-01 00:00:00')
@@ -203,11 +212,9 @@ public class LiveMatchesRepository {
 
 			    NULLIF(TRIM(d.goal_time), '')               AS goal_time,
 
-			    /* data_category → country / league 抜き出し */
 			    btrim(split_part(COALESCE(NULLIF(TRIM(d.data_category), ''), ''), ':', 1)) AS dc_country,
 			    btrim(split_part(split_part(COALESCE(NULLIF(TRIM(d.data_category), ''), ''), ':', 2), '-', 1)) AS dc_league,
 
-			    /* チーム名の正規化キー */
 			    lower(
 			      btrim(
 			        regexp_replace(
@@ -279,5 +286,4 @@ public class LiveMatchesRepository {
 			  COALESCE(lr.data_category, '') ASC,
 			  lr.seq DESC
 			""";
-
 }
