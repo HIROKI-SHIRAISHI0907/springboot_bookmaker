@@ -1,9 +1,10 @@
 package dev.web.repository.bm;
 
 import java.math.BigDecimal;
+import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.util.List;
 import java.util.Optional;
-import java.util.function.Function;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -19,15 +20,13 @@ import dev.web.api.bm_w005.GameDetailDTO;
  * GameDetailRepositoryクラス
  *
  * public.data から 1 試合分のスタッツを取得する。
- *
- * @author shiraishitoshio
  */
 @Repository
 public class GameDetailsRepository {
 
 	private final NamedParameterJdbcTemplate bmJdbcTemplate;
 
-	private static final Pattern PCT_PATTERN = Pattern.compile("([0-9]+(?:\\.[0-9]+)?)\\s*%");
+	private static final Pattern PCT_PATTERN = Pattern.compile("([0-9]+(?:\\.[0-9]+)?)\\s*[%％]");
 	private static final Pattern FIRST_NUMBER_PATTERN = Pattern.compile("([0-9]+(?:\\.[0-9]+)?)");
 
 	private static final String BASE_SELECT = """
@@ -112,6 +111,32 @@ public class GameDetailsRepository {
 			FROM data d
 			""";
 
+	public GameDetailsRepository(
+			@Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate) {
+		this.bmJdbcTemplate = bmJdbcTemplate;
+	}
+
+	private static String safeGetString(ResultSet rs, String column) throws SQLException {
+		String value = rs.getString(column);
+		if (value == null) {
+			return null;
+		}
+		String trimmed = value.trim();
+		return trimmed.isEmpty() ? null : trimmed;
+	}
+
+	private static Integer parsePercent(String str) {
+		if (str == null) {
+			return null;
+		}
+		Matcher m = PCT_PATTERN.matcher(str);
+		if (m.find()) {
+			double v = Double.parseDouble(m.group(1));
+			return Integer.valueOf((int) Math.round(v));
+		}
+		return null;
+	}
+
 	private static Integer parseStatNumber(String str) {
 		if (str == null) {
 			return null;
@@ -125,170 +150,186 @@ public class GameDetailsRepository {
 		Matcher pctMatcher = PCT_PATTERN.matcher(text);
 		if (pctMatcher.find()) {
 			double v = Double.parseDouble(pctMatcher.group(1));
-			return (int) Math.round(v);
+			return Integer.valueOf((int) Math.round(v));
 		}
 
 		Matcher numberMatcher = FIRST_NUMBER_PATTERN.matcher(text);
 		if (numberMatcher.find()) {
 			double v = Double.parseDouble(numberMatcher.group(1));
-			return (int) Math.round(v);
+			return Integer.valueOf((int) Math.round(v));
 		}
 
 		return null;
 	}
 
-	private static final RowMapper<GameDetailDTO> GAME_DETAIL_ROW_MAPPER = (rs, rowNum) -> {
-		Integer hsObj = (Integer) rs.getObject("home_score");
-		Integer asObj = (Integer) rs.getObject("away_score");
-		int hs = hsObj == null ? 0 : hsObj;
-		int as = asObj == null ? 0 : asObj;
+	private static Integer safeGetInteger(ResultSet rs, String column) throws SQLException {
+		Object value = rs.getObject(column);
 
-		String times = rs.getString("times");
-
-		boolean finished = times != null &&
-				(times.contains("終了")
-						|| times.toUpperCase().contains("FT")
-						|| times.toUpperCase().contains("AET")
-						|| times.toUpperCase().contains("PEN"));
-
-		String winner;
-		if (!finished) {
-			winner = "LIVE";
-		} else if (hs == as) {
-			winner = "DRAW";
-		} else if (hs > as) {
-			winner = "HOME";
-		} else {
-			winner = "AWAY";
+		if (value == null) {
+			return null;
+		}
+		if (value instanceof Integer) {
+			return (Integer) value;
+		}
+		if (value instanceof Number) {
+			return Integer.valueOf(((Number) value).intValue());
+		}
+		if (value instanceof String) {
+			return parseStatNumber((String) value);
 		}
 
-		Function<String, Integer> pct = (str) -> {
-			if (str == null) {
+		return null;
+	}
+
+	private static Double safeGetDouble(ResultSet rs, String column) throws SQLException {
+		Object value = rs.getObject(column);
+
+		if (value == null) {
+			return null;
+		}
+		if (value instanceof BigDecimal) {
+			return Double.valueOf(((BigDecimal) value).doubleValue());
+		}
+		if (value instanceof Number) {
+			return Double.valueOf(((Number) value).doubleValue());
+		}
+		if (value instanceof String) {
+			String text = ((String) value).trim();
+			if (text.isEmpty()) {
 				return null;
 			}
-			Matcher m = PCT_PATTERN.matcher(str);
-			if (m.find()) {
-				double v = Double.parseDouble(m.group(1));
-				return (int) Math.round(v);
+			try {
+				return Double.valueOf(Double.parseDouble(text));
+			} catch (NumberFormatException ignore) {
+				Integer parsed = parseStatNumber(text);
+				return parsed == null ? null : Double.valueOf(parsed.doubleValue());
 			}
-			return null;
-		};
+		}
 
-		GameDetailDTO detail = new GameDetailDTO();
-		detail.setCompetition(rs.getString("data_category") == null ? "" : rs.getString("data_category"));
-		detail.setRoundNo((Integer) rs.getObject("round_no"));
-		detail.setRecordedAt(rs.getString("record_time_jst"));
-		detail.setWinner(winner);
-		detail.setLink(rs.getString("link_maybe"));
-		detail.setTimes(times);
-
-		// home
-		GameDetailDTO.TeamSide home = new GameDetailDTO.TeamSide();
-		home.setName(rs.getString("home_team_name"));
-		home.setScore(hs);
-		home.setManager(rs.getString("home_manager"));
-		home.setFormation(rs.getString("home_formation"));
-
-		BigDecimal homeExp = (BigDecimal) rs.getObject("home_exp");
-		home.setXg(homeExp == null ? null : homeExp.doubleValue());
-
-		BigDecimal homeInGoalExp = (BigDecimal) rs.getObject("home_in_goal_exp");
-		home.setInGoalXg(homeInGoalExp == null ? null : homeInGoalExp.doubleValue());
-
-		home.setBoxShotsIn((Integer) rs.getObject("home_box_shoot_in"));
-		home.setBoxShotsOut((Integer) rs.getObject("home_box_shoot_out"));
-		home.setGoalPost((Integer) rs.getObject("home_goal_post"));
-		home.setHeadGoals((Integer) rs.getObject("home_goal_head"));
-		home.setFreeKicks((Integer) rs.getObject("home_free_kick"));
-		home.setOffsides((Integer) rs.getObject("home_offside"));
-		home.setFouls((Integer) rs.getObject("home_foul"));
-		home.setThrowIns((Integer) rs.getObject("home_slow_in"));
-		home.setBoxTouches((Integer) rs.getObject("home_box_touch"));
-		home.setFinalThirdPasses(rs.getString("home_final_third_pass_count"));
-		home.setCrosses(parseStatNumber(rs.getString("home_cross_count")));
-		home.setTackles(parseStatNumber(rs.getString("home_tackle_count")));
-		home.setClearances(parseStatNumber(rs.getString("home_clear_count")));
-		home.setDuels(parseStatNumber(rs.getString("home_duel_count")));
-		home.setInterceptions(parseStatNumber(rs.getString("home_intercept_count")));
-		home.setPossession(pct.apply(rs.getString("home_donation")));
-		home.setShots((Integer) rs.getObject("home_shoot_all"));
-		home.setShotsOn((Integer) rs.getObject("home_shoot_in"));
-		home.setShotsOff((Integer) rs.getObject("home_shoot_out"));
-		home.setBlocks((Integer) rs.getObject("home_block_shoot"));
-		home.setCorners((Integer) rs.getObject("home_corner"));
-		home.setBigChances((Integer) rs.getObject("home_big_chance"));
-		home.setSaves((Integer) rs.getObject("home_keeper_save"));
-		home.setYc((Integer) rs.getObject("home_yellow_card"));
-		home.setRc((Integer) rs.getObject("home_red_card"));
-		home.setPasses(rs.getString("home_pass_count"));
-		home.setLongPasses(rs.getString("home_long_pass_count"));
-
-		// away
-		GameDetailDTO.TeamSide away = new GameDetailDTO.TeamSide();
-		away.setName(rs.getString("away_team_name"));
-		away.setScore(as);
-		away.setManager(rs.getString("away_manager"));
-		away.setFormation(rs.getString("away_formation"));
-
-		BigDecimal awayExp = (BigDecimal) rs.getObject("away_exp");
-		away.setXg(awayExp == null ? null : awayExp.doubleValue());
-
-		BigDecimal awayInGoalExp = (BigDecimal) rs.getObject("away_in_goal_exp");
-		away.setInGoalXg(awayInGoalExp == null ? null : awayInGoalExp.doubleValue());
-
-		away.setBoxShotsIn((Integer) rs.getObject("away_box_shoot_in"));
-		away.setBoxShotsOut((Integer) rs.getObject("away_box_shoot_out"));
-		away.setGoalPost((Integer) rs.getObject("away_goal_post"));
-		away.setHeadGoals((Integer) rs.getObject("away_goal_head"));
-		away.setFreeKicks((Integer) rs.getObject("away_free_kick"));
-		away.setOffsides((Integer) rs.getObject("away_offside"));
-		away.setFouls((Integer) rs.getObject("away_foul"));
-		away.setThrowIns((Integer) rs.getObject("away_slow_in"));
-		away.setBoxTouches((Integer) rs.getObject("away_box_touch"));
-		away.setFinalThirdPasses(rs.getString("away_final_third_pass_count"));
-		away.setCrosses(parseStatNumber(rs.getString("away_cross_count")));
-		away.setTackles(parseStatNumber(rs.getString("away_tackle_count")));
-		away.setClearances(parseStatNumber(rs.getString("away_clear_count")));
-		away.setDuels(parseStatNumber(rs.getString("away_duel_count")));
-		away.setInterceptions(parseStatNumber(rs.getString("away_intercept_count")));
-		away.setPossession(pct.apply(rs.getString("away_donation")));
-		away.setShots((Integer) rs.getObject("away_shoot_all"));
-		away.setShotsOn((Integer) rs.getObject("away_shoot_in"));
-		away.setShotsOff((Integer) rs.getObject("away_shoot_out"));
-		away.setBlocks((Integer) rs.getObject("away_block_shoot"));
-		away.setCorners((Integer) rs.getObject("away_corner"));
-		away.setBigChances((Integer) rs.getObject("away_big_chance"));
-		away.setSaves((Integer) rs.getObject("away_keeper_save"));
-		away.setYc((Integer) rs.getObject("away_yellow_card"));
-		away.setRc((Integer) rs.getObject("away_red_card"));
-		away.setPasses(rs.getString("away_pass_count"));
-		away.setLongPasses(rs.getString("away_long_pass_count"));
-
-		// venue
-		GameDetailDTO.Venue venue = new GameDetailDTO.Venue();
-		venue.setStadium(rs.getString("studium"));
-		venue.setAudience(rs.getString("audience"));
-		venue.setCapacity(rs.getString("capacity"));
-
-		detail.setHome(home);
-		detail.setAway(away);
-		detail.setVenue(venue);
-
-		return detail;
-	};
-
-	public GameDetailsRepository(
-			@Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate) {
-		this.bmJdbcTemplate = bmJdbcTemplate;
+		return null;
 	}
+
+	private static final RowMapper<GameDetailDTO> GAME_DETAIL_ROW_MAPPER = new RowMapper<GameDetailDTO>() {
+		@Override
+		public GameDetailDTO mapRow(ResultSet rs, int rowNum) throws SQLException {
+			Integer homeScoreObj = safeGetInteger(rs, "home_score");
+			Integer awayScoreObj = safeGetInteger(rs, "away_score");
+
+			int homeScoreForJudge = homeScoreObj == null ? 0 : homeScoreObj.intValue();
+			int awayScoreForJudge = awayScoreObj == null ? 0 : awayScoreObj.intValue();
+
+			String times = safeGetString(rs, "times");
+
+			boolean finished = times != null
+					&& (times.contains("終了")
+							|| times.toUpperCase().contains("FT")
+							|| times.toUpperCase().contains("AET")
+							|| times.toUpperCase().contains("PEN"));
+
+			String winner;
+			if (!finished) {
+				winner = "LIVE";
+			} else if (homeScoreForJudge == awayScoreForJudge) {
+				winner = "DRAW";
+			} else if (homeScoreForJudge > awayScoreForJudge) {
+				winner = "HOME";
+			} else {
+				winner = "AWAY";
+			}
+
+			GameDetailDTO detail = new GameDetailDTO();
+			detail.setCompetition(safeGetString(rs, "data_category"));
+			detail.setRoundNo(safeGetInteger(rs, "round_no"));
+			detail.setRecordedAt(safeGetString(rs, "record_time_jst"));
+			detail.setWinner(winner);
+			detail.setLink(safeGetString(rs, "link_maybe"));
+			detail.setTimes(times);
+
+			GameDetailDTO.TeamSide home = new GameDetailDTO.TeamSide();
+			home.setName(safeGetString(rs, "home_team_name"));
+			home.setScore(homeScoreObj);
+			home.setManager(safeGetString(rs, "home_manager"));
+			home.setFormation(safeGetString(rs, "home_formation"));
+			home.setXg(safeGetDouble(rs, "home_exp"));
+			home.setInGoalXg(safeGetDouble(rs, "home_in_goal_exp"));
+			home.setPossession(parsePercent(safeGetString(rs, "home_donation")));
+			home.setShots(safeGetInteger(rs, "home_shoot_all"));
+			home.setShotsOn(safeGetInteger(rs, "home_shoot_in"));
+			home.setShotsOff(safeGetInteger(rs, "home_shoot_out"));
+			home.setBlocks(safeGetInteger(rs, "home_block_shoot"));
+			home.setBigChances(safeGetInteger(rs, "home_big_chance"));
+			home.setCorners(safeGetInteger(rs, "home_corner"));
+			home.setBoxShotsIn(safeGetInteger(rs, "home_box_shoot_in"));
+			home.setBoxShotsOut(safeGetInteger(rs, "home_box_shoot_out"));
+			home.setGoalPost(safeGetInteger(rs, "home_goal_post"));
+			home.setHeadGoals(safeGetInteger(rs, "home_goal_head"));
+			home.setSaves(safeGetInteger(rs, "home_keeper_save"));
+			home.setFreeKicks(safeGetInteger(rs, "home_free_kick"));
+			home.setOffsides(safeGetInteger(rs, "home_offside"));
+			home.setFouls(safeGetInteger(rs, "home_foul"));
+			home.setYc(safeGetInteger(rs, "home_yellow_card"));
+			home.setRc(safeGetInteger(rs, "home_red_card"));
+			home.setThrowIns(safeGetInteger(rs, "home_slow_in"));
+			home.setBoxTouches(safeGetInteger(rs, "home_box_touch"));
+			home.setPasses(safeGetString(rs, "home_pass_count"));
+			home.setLongPasses(safeGetString(rs, "home_long_pass_count"));
+			home.setFinalThirdPasses(safeGetString(rs, "home_final_third_pass_count"));
+			home.setCrosses(safeGetInteger(rs, "home_cross_count"));
+			home.setTackles(safeGetInteger(rs, "home_tackle_count"));
+			home.setClearances(safeGetInteger(rs, "home_clear_count"));
+			home.setDuels(safeGetInteger(rs, "home_duel_count"));
+			home.setInterceptions(safeGetInteger(rs, "home_intercept_count"));
+
+			GameDetailDTO.TeamSide away = new GameDetailDTO.TeamSide();
+			away.setName(safeGetString(rs, "away_team_name"));
+			away.setScore(awayScoreObj);
+			away.setManager(safeGetString(rs, "away_manager"));
+			away.setFormation(safeGetString(rs, "away_formation"));
+			away.setXg(safeGetDouble(rs, "away_exp"));
+			away.setInGoalXg(safeGetDouble(rs, "away_in_goal_exp"));
+			away.setPossession(parsePercent(safeGetString(rs, "away_donation")));
+			away.setShots(safeGetInteger(rs, "away_shoot_all"));
+			away.setShotsOn(safeGetInteger(rs, "away_shoot_in"));
+			away.setShotsOff(safeGetInteger(rs, "away_shoot_out"));
+			away.setBlocks(safeGetInteger(rs, "away_block_shoot"));
+			away.setBigChances(safeGetInteger(rs, "away_big_chance"));
+			away.setCorners(safeGetInteger(rs, "away_corner"));
+			away.setBoxShotsIn(safeGetInteger(rs, "away_box_shoot_in"));
+			away.setBoxShotsOut(safeGetInteger(rs, "away_box_shoot_out"));
+			away.setGoalPost(safeGetInteger(rs, "away_goal_post"));
+			away.setHeadGoals(safeGetInteger(rs, "away_goal_head"));
+			away.setSaves(safeGetInteger(rs, "away_keeper_save"));
+			away.setFreeKicks(safeGetInteger(rs, "away_free_kick"));
+			away.setOffsides(safeGetInteger(rs, "away_offside"));
+			away.setFouls(safeGetInteger(rs, "away_foul"));
+			away.setYc(safeGetInteger(rs, "away_yellow_card"));
+			away.setRc(safeGetInteger(rs, "away_red_card"));
+			away.setThrowIns(safeGetInteger(rs, "away_slow_in"));
+			away.setBoxTouches(safeGetInteger(rs, "away_box_touch"));
+			away.setPasses(safeGetString(rs, "away_pass_count"));
+			away.setLongPasses(safeGetString(rs, "away_long_pass_count"));
+			away.setFinalThirdPasses(safeGetString(rs, "away_final_third_pass_count"));
+			away.setCrosses(safeGetInteger(rs, "away_cross_count"));
+			away.setTackles(safeGetInteger(rs, "away_tackle_count"));
+			away.setClearances(safeGetInteger(rs, "away_clear_count"));
+			away.setDuels(safeGetInteger(rs, "away_duel_count"));
+			away.setInterceptions(safeGetInteger(rs, "away_intercept_count"));
+
+			GameDetailDTO.Venue venue = new GameDetailDTO.Venue();
+			venue.setStadium(safeGetString(rs, "studium"));
+			venue.setAudience(safeGetString(rs, "audience"));
+			venue.setCapacity(safeGetString(rs, "capacity"));
+
+			detail.setHome(home);
+			detail.setAway(away);
+			detail.setVenue(venue);
+
+			return detail;
+		}
+	};
 
 	/**
 	 * 既存用：country / league + seq で取得
-	 *
-	 * @param country 国名
-	 * @param league リーグ名
-	 * @param seq public.data.seq
-	 * @return 試合詳細（存在しなければ empty）
 	 */
 	public Optional<GameDetailDTO> findGameDetail(String country, String league, long seq) {
 		String likeCond = country + ": " + league + "%";
@@ -308,9 +349,6 @@ public class GameDetailsRepository {
 
 	/**
 	 * 新API用：seq のみで取得
-	 *
-	 * @param seq public.data.seq
-	 * @return 試合詳細（存在しなければ empty）
 	 */
 	public Optional<GameDetailDTO> findGameDetail(long seq) {
 		String sql = BASE_SELECT + """
