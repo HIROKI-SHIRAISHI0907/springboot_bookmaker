@@ -1,4 +1,4 @@
-package dev.web.api.bm_a015;
+package dev.common.entity;
 
 import lombok.Data;
 
