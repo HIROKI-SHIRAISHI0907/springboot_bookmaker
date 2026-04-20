@@ -85,6 +85,20 @@ public class OriginService implements OriginIF {
 					e);
 		}
 
+		// BM_M029登録・更新(Transactional)
+		try {
+			this.realDataProcessStat.calcStat(getStatMap);
+		} catch (Exception e) {
+			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+			this.loggerComponent.createSystemException(
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					messageCd,
+					null,
+					e);
+		}
+
 		// 未来データフラグ更新
 		try {
 			this.futureStartFlgService.execute(getStatMap);

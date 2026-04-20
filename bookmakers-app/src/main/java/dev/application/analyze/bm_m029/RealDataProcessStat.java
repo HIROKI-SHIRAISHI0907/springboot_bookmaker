@@ -8,6 +8,8 @@ import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.domain.repository.bm.BookDataRepository;
 import dev.application.domain.repository.bm.RealDataProcessRepository;
@@ -73,11 +75,12 @@ public class RealDataProcessStat {
 	 * 差分保存処理
 	 *
 	 * 想定構造:
-	 * key   = 同一試合キー（gameId / matchId / home-away等）
+	 * key   = 同一試合キー（home-away等）
 	 * value = 同一試合候補のDataEntityリスト
 	 *
 	 * 実際の差分計算は data テーブルの最新2件を使用する
 	 */
+	@Transactional(propagation = Propagation.REQUIRES_NEW)
 	public void calcStat(Map<String, List<DataEntity>> entities) {
 		final String METHOD_NAME = "calcStat";
 		this.manageLoggerComponent.init(EXEC_MODE, null);
