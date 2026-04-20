@@ -7,9 +7,12 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
+import dev.batch.constant.PointSettingConstant;
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
+import dev.batch.repository.master.PointSettingMasterBatchRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
+import dev.common.entity.PointSettingEntity;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
@@ -33,6 +36,10 @@ public class CountryLeagueSeasonDBService {
 	/** CountryLeagueSeasonMasterRepositoryレポジトリクラス */
 	@Autowired
 	private CountryLeagueSeasonMasterBatchRepository countryLeagueSeasonMasterRepository;
+
+	/** PointSettingMasterBatchRepositoryレポジトリクラス */
+	@Autowired
+	private PointSettingMasterBatchRepository pointSettingMasterBatchRepository;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -79,11 +86,29 @@ public class CountryLeagueSeasonDBService {
 					String endDate = SeasonDateBuilder.buildDate(years[1], entity.getEndSeasonDate());
 					entity.setStartSeasonDate(startDate);
 					entity.setEndSeasonDate(endDate);
+					// シーズンマスタ登録
 					int result = this.countryLeagueSeasonMasterRepository.insert(entity);
 					if (result != 1) {
 						String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 						this.manageLoggerComponent.debugErrorLog(
-								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null);
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+								null, "countryLeagueSeasonMasterRepository");
+						return 9;
+					}
+					// 勝ち点設定マスタ登録
+					PointSettingEntity eSettingEntity = new PointSettingEntity();
+					eSettingEntity.setCountry(entity.getCountry());
+					eSettingEntity.setLeague(entity.getLeague());
+					eSettingEntity.setWin(PointSettingConstant.WIN);
+					eSettingEntity.setLose(PointSettingConstant.LOSE);
+					eSettingEntity.setDraw(PointSettingConstant.DRAW);
+					// 備考はnull
+					int result2 = this.pointSettingMasterBatchRepository.insert(eSettingEntity);
+					if (result2 != 1) {
+						String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
+						this.manageLoggerComponent.debugErrorLog(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+								null, "pointSettingMasterBatchRepository");
 						return 9;
 					}
 				} catch (DuplicateKeyException e) {
