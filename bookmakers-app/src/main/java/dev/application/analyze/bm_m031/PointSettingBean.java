@@ -1,5 +1,7 @@
 package dev.application.analyze.bm_m031;
 
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -16,32 +18,28 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class PointSettingBean {
 
-	/** デフォルト勝ち点設定 */
+	/** デフォルト設定 */
 	private static final PointSettingModel DEFAULT_MODEL = new PointSettingModel(3, 0, 1, "");
 
-	/**
-	 * 外側キー: country-league
-	 * 内側キー: remarks
-	 */
-	private volatile Map<String, Map<String, PointSettingModel>> pointSettingMap = new ConcurrentHashMap<>();
+	/** 通常設定: key = country-league */
+	private volatile Map<String, PointSettingModel> pointSettingMap = new ConcurrentHashMap<>();
+
+	/** 特殊設定: key = country-league, value = { "PK勝ち"=2, "PK負け"=1 } */
+	private volatile Map<String, Map<String, Integer>> pointSettingRemarksMap = new ConcurrentHashMap<>();
 
 	/** PointSettingMasterRepository */
 	private final PointSettingMasterRepository pointSettingMasterRepository;
 
-	/** 初期化 */
 	@PostConstruct
 	public void init() {
 		reload();
 	}
 
-	/**
-	 * DBから再読込
-	 * 管理画面で勝ち点設定更新後に呼べば即時反映できる
-	 */
 	public synchronized void reload() {
 		List<PointSettingEntity> entities = pointSettingMasterRepository.findAllPoints();
 
-		Map<String, Map<String, PointSettingModel>> newMap = new LinkedHashMap<>();
+		Map<String, PointSettingModel> newPointMap = new LinkedHashMap<>();
+		Map<String, Map<String, Integer>> newRemarksMap = new LinkedHashMap<>();
 
 		for (PointSettingEntity entity : entities) {
 			if (entity == null) {
@@ -55,124 +53,124 @@ public class PointSettingBean {
 				continue;
 			}
 
-			String leagueKey = buildLeagueKey(country, league);
-			String remarksKey = normalizeRemarks(entity.getRemarks());
+			String key = buildKey(country, league);
 
 			PointSettingModel model = new PointSettingModel(
 					defaultIfNull(entity.getWin(), DEFAULT_MODEL.getWin()),
 					defaultIfNull(entity.getLose(), DEFAULT_MODEL.getLose()),
 					defaultIfNull(entity.getDraw(), DEFAULT_MODEL.getDraw()),
-					remarksKey);
+					trimToEmpty(entity.getRemarks()));
 
-			newMap.computeIfAbsent(leagueKey, k -> new LinkedHashMap<>())
-			      .put(remarksKey, model);
+			newPointMap.put(key, model);
+
+			// remarks が null / 空なら空Map（= 特殊ルールなし）
+			newRemarksMap.put(key, parseRemarks(entity.getRemarks()));
 		}
 
-		this.pointSettingMap = new ConcurrentHashMap<>(newMap);
+		this.pointSettingMap = new ConcurrentHashMap<>(newPointMap);
+		this.pointSettingRemarksMap = new ConcurrentHashMap<>(newRemarksMap);
 	}
 
 	/**
-	 * 通常設定取得（remarksなし）
+	 * 通常設定取得
 	 */
 	public PointSettingModel getPointSetting(String country, String league) {
-		return getPointSetting(country, league, "");
+		String key = buildKey(country, league);
+		return pointSettingMap.getOrDefault(key, DEFAULT_MODEL);
 	}
 
 	/**
-	 * remarks付き設定取得
-	 * 1. exact remarks
-	 * 2. remarks="" の通常設定
-	 * 3. デフォルト(3/0/1)
+	 * resultType:
+	 * - 勝ち
+	 * - 負け
+	 * - 引分
+	 * - PK勝ち
+	 * - PK負け
+	 *
+	 * remarks が null / 空 の場合は remarks 由来の特殊勝ち点は除外し、
+	 * 通常の勝ち点設定へフォールバックする。
 	 */
-	public PointSettingModel getPointSetting(String country, String league, String remarks) {
-		String leagueKey = buildLeagueKey(country, league);
-		String remarksKey = normalizeRemarks(remarks);
+	public int getPoint(String country, String league, String resultType) {
+		PointSettingModel model = getPointSetting(country, league);
+		Map<String, Integer> remarksMap = pointSettingRemarksMap.getOrDefault(
+				buildKey(country, league),
+				Collections.emptyMap());
 
-		Map<String, PointSettingModel> remarksMap = pointSettingMap.get(leagueKey);
+		String type = trimToEmpty(resultType);
+
+		switch (type) {
+		case "PK勝ち": {
+			Integer pkWin = getRemarksPoint(remarksMap, "PK勝ち");
+			return pkWin != null
+					? pkWin
+					: defaultIfNull(model.getWin(), DEFAULT_MODEL.getWin());
+		}
+		case "PK負け": {
+			Integer pkLose = getRemarksPoint(remarksMap, "PK負け");
+			return pkLose != null
+					? pkLose
+					: defaultIfNull(model.getLose(), DEFAULT_MODEL.getLose());
+		}
+		case "引分":
+			return defaultIfNull(model.getDraw(), DEFAULT_MODEL.getDraw());
+		case "負け":
+			return defaultIfNull(model.getLose(), DEFAULT_MODEL.getLose());
+		case "勝ち":
+		default:
+			return defaultIfNull(model.getWin(), DEFAULT_MODEL.getWin());
+		}
+	}
+
+	private Integer getRemarksPoint(Map<String, Integer> remarksMap, String key) {
 		if (remarksMap == null || remarksMap.isEmpty()) {
-			return DEFAULT_MODEL;
+			return null;
 		}
-
-		PointSettingModel exact = remarksMap.get(remarksKey);
-		if (exact != null) {
-			return exact;
-		}
-
-		PointSettingModel normal = remarksMap.get("");
-		if (normal != null) {
-			return normal;
-		}
-
-		return DEFAULT_MODEL;
+		return remarksMap.get(key);
 	}
 
 	/**
-	 * 勝ち点計算（通常）
+	 * 例:
+	 * "PK勝ち=2,PK負け=1"
+	 *
+	 * remarks が null / 空なら空Mapを返す
 	 */
-	public int calcWinningPoints(String country, String league, int winCount, int loseCount, int drawCount) {
-		return calcWinningPoints(country, league, winCount, loseCount, drawCount, "");
-	}
+	private Map<String, Integer> parseRemarks(String remarks) {
+		Map<String, Integer> result = new HashMap<>();
 
-	/**
-	 * 勝ち点計算（remarks指定）
-	 */
-	public int calcWinningPoints(
-			String country,
-			String league,
-			int winCount,
-			int loseCount,
-			int drawCount,
-			String remarks) {
+		if (remarks == null || remarks.isBlank()) {
+			return result;
+		}
 
-		PointSettingModel model = getPointSetting(country, league, remarks);
-
-		int winPoint = defaultIfNull(model.getWin(), DEFAULT_MODEL.getWin());
-		int losePoint = defaultIfNull(model.getLose(), DEFAULT_MODEL.getLose());
-		int drawPoint = defaultIfNull(model.getDraw(), DEFAULT_MODEL.getDraw());
-
-		return winCount * winPoint
-			 + loseCount * losePoint
-			 + drawCount * drawPoint;
-	}
-
-	/**
-	 * 平坦な通常設定マップが必要な場合の互換getter
-	 * key = country-league
-	 */
-	public Map<String, PointSettingModel> getDefaultPointSettingMap() {
-		Map<String, PointSettingModel> result = new LinkedHashMap<>();
-
-		for (Map.Entry<String, Map<String, PointSettingModel>> entry : pointSettingMap.entrySet()) {
-			Map<String, PointSettingModel> remarksMap = entry.getValue();
-
-			if (remarksMap == null || remarksMap.isEmpty()) {
-				result.put(entry.getKey(), DEFAULT_MODEL);
+		String[] tokens = remarks.split("[,，]");
+		for (String token : tokens) {
+			if (token == null || token.isBlank()) {
 				continue;
 			}
 
-			PointSettingModel model = remarksMap.get("");
-			if (model == null) {
-				model = remarksMap.values().iterator().next();
+			String[] pair = token.split("[=＝]", 2);
+			if (pair.length != 2) {
+				continue;
 			}
-			result.put(entry.getKey(), model);
+
+			String ruleKey = trimToEmpty(pair[0]);
+			String ruleValue = trimToEmpty(pair[1]);
+
+			if (ruleKey.isEmpty() || ruleValue.isEmpty()) {
+				continue;
+			}
+
+			try {
+				result.put(ruleKey, Integer.parseInt(ruleValue));
+			} catch (NumberFormatException ignore) {
+				// 不正値は無視
+			}
 		}
 
 		return result;
 	}
 
-	/**
-	 * 全件取得
-	 */
-	public Map<String, Map<String, PointSettingModel>> getPointSettingMap() {
-		return pointSettingMap;
-	}
-
-	private String buildLeagueKey(String country, String league) {
+	private String buildKey(String country, String league) {
 		return trimToEmpty(country) + "-" + trimToEmpty(league);
-	}
-
-	private String normalizeRemarks(String remarks) {
-		return trimToEmpty(remarks);
 	}
 
 	private String trimToEmpty(String value) {
@@ -189,5 +187,13 @@ public class PointSettingBean {
 
 	private int defaultIfNull(Integer value, Integer defaultValue) {
 		return value == null ? defaultValue : value;
+	}
+
+	public Map<String, PointSettingModel> getPointSettingMap() {
+		return pointSettingMap;
+	}
+
+	public Map<String, Map<String, Integer>> getPointSettingRemarksMap() {
+		return pointSettingRemarksMap;
 	}
 }

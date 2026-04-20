@@ -105,6 +105,7 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		bean.init();
+		pointSettingBean.reload();
 		roundMap = bean.getCountryLeagueRoundMap();
 
 		// 同月×チームの途中結果を保持
@@ -347,47 +348,71 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	/**
 	 * メイン（勝敗・勝点・無敗継続）を更新。
 	 *
-	 * <p>games は勝敗反映後の {@code win+lose+draw} で再計算します。</p>
+	 * <p>
+	 * 勝ち点は固定値再計算ではなく、今回試合分の加算点を
+	 * PointSettingBean から取得して累積加算する。
+	 * </p>
 	 */
-	private SurfaceOverviewEntity setTeamMainData(BookDataEntity maxEntity,
-			SurfaceOverviewEntity resultEntity, String country, String league, String team) {
+	private SurfaceOverviewEntity setTeamMainData(
+			BookDataEntity maxEntity,
+			SurfaceOverviewEntity resultEntity,
+			String country,
+			String league,
+			String team) {
 
-		String homeTeam = maxEntity.getHomeTeamName();
-		String awayTeam = maxEntity.getAwayTeamName();
+		String homeTeam = safe(maxEntity.getHomeTeamName()).trim();
+		String awayTeam = safe(maxEntity.getAwayTeamName()).trim();
+
 		int homeScore = parseOrZero(maxEntity.getHomeScore());
 		int awayScore = parseOrZero(maxEntity.getAwayScore());
 
 		int winCount = parseOrZero(resultEntity.getWin());
 		int loseCount = parseOrZero(resultEntity.getLose());
 		int drawCount = parseOrZero(resultEntity.getDraw());
+		int winningPoints = parseOrZero(resultEntity.getWinningPoints());
 
 		int befWin = winCount;
 		int befLose = loseCount;
 
-		// 勝敗更新
+		String resultType = null;
+
+		// チーム視点でこの試合の結果を判定
 		if (team.equals(homeTeam)) {
-			if (homeScore > awayScore)
+			if (homeScore > awayScore) {
 				winCount++;
-			else if (homeScore < awayScore)
+				resultType = isPenaltyDecisionMatch(maxEntity) ? "PK勝ち" : "勝ち";
+			} else if (homeScore < awayScore) {
 				loseCount++;
-			else
+				resultType = isPenaltyDecisionMatch(maxEntity) ? "PK負け" : "負け";
+			} else {
 				drawCount++;
+				resultType = "引分";
+			}
 		} else if (team.equals(awayTeam)) {
-			if (awayScore > homeScore)
+			if (awayScore > homeScore) {
 				winCount++;
-			else if (awayScore < homeScore)
+				resultType = isPenaltyDecisionMatch(maxEntity) ? "PK勝ち" : "勝ち";
+			} else if (awayScore < homeScore) {
 				loseCount++;
-			else
+				resultType = isPenaltyDecisionMatch(maxEntity) ? "PK負け" : "負け";
+			} else {
 				drawCount++;
+				resultType = "引分";
+			}
 		}
 
 		// 反映
 		resultEntity.setWin(String.valueOf(winCount));
 		resultEntity.setLose(String.valueOf(loseCount));
 		resultEntity.setDraw(String.valueOf(drawCount));
-		resultEntity.setWinningPoints(String.valueOf(
-				pointSettingBean.calcWinningPoints(country, league, winCount, loseCount, drawCount)
-		));
+
+		// 勝ち点は今回試合分だけ加算
+		if (resultType != null) {
+			int addPoint = pointSettingBean.getPoint(country, league, resultType);
+			resultEntity.setWinningPoints(String.valueOf(winningPoints + addPoint));
+		} else {
+			resultEntity.setWinningPoints(String.valueOf(winningPoints));
+		}
 
 		int games = winCount + loseCount + drawCount;
 		resultEntity.setGames(String.valueOf(games));
@@ -1157,6 +1182,29 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			e.setConsecutiveScoreCount("0");
 		if (e.getConsecutiveLoseCount() == null)
 			e.setConsecutiveLoseCount("0");
+	}
+
+	/**
+	 * PK戦決着の試合かどうかを判定する。
+	 *
+	 * <p>
+	 * 現在は time / gameTeamCategory の文字列から簡易判定している。
+	 * データ仕様に応じて必要なら強化する。
+	 * </p>
+	 */
+	private boolean isPenaltyDecisionMatch(BookDataEntity entity) {
+		String time = safe(entity.getTime()).toLowerCase(Locale.ROOT);
+		String category = safe(entity.getGameTeamCategory()).toLowerCase(Locale.ROOT);
+
+		return time.contains("pen")
+				|| time.contains("pk")
+				|| time.contains("pso")
+				|| time.contains("penalty")
+				|| category.contains("pen")
+				|| category.contains("pk")
+				|| category.contains("pso")
+				|| category.contains("penalty")
+				|| time.contains("ペナルティ");
 	}
 
 	private boolean isPenaltyOnlyGoal(BookDataEntity row) {
