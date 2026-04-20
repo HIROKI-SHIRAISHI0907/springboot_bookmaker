@@ -9,11 +9,9 @@ import java.util.regex.Pattern;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.bm.BookDataRepository;
 import dev.application.domain.repository.bm.RealDataProcessRepository;
 import dev.common.constant.MessageCdConst;
-import dev.common.entity.BookDataEntity;
 import dev.common.entity.DataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
@@ -29,7 +27,7 @@ import dev.common.logger.ManageLoggerComponent;
  * 5. 既存があれば更新、無ければ登録
  */
 @Component
-public class RealDataProcessStat implements AnalyzeEntityIF {
+public class RealDataProcessStat {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = RealDataProcessStat.class.getProtectionDomain()
@@ -75,79 +73,72 @@ public class RealDataProcessStat implements AnalyzeEntityIF {
 	 * 差分保存処理
 	 *
 	 * 想定構造:
-	 * outer key = 国:リーグ
-	 * inner key = 同一試合キー（gameId / matchId / home-away等）
-	 * value     = 同一試合のリアルタイム候補リスト
+	 * key   = 同一試合キー（gameId / matchId / home-away等）
+	 * value = 同一試合候補のDataEntityリスト
 	 *
 	 * 実際の差分計算は data テーブルの最新2件を使用する
 	 */
-	@Override
-	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) {
+	public void calcStat(Map<String, List<DataEntity>> entities) {
 		final String METHOD_NAME = "calcStat";
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		entities.entrySet().parallelStream().forEach(outerEntry -> {
-			String countryLeague = outerEntry.getKey();
-			Map<String, List<BookDataEntity>> matchMap = outerEntry.getValue();
+		entities.entrySet().parallelStream().forEach(entry -> {
+			String matchKey = entry.getKey();
+			List<DataEntity> candidates = entry.getValue();
 
-			for (Map.Entry<String, List<BookDataEntity>> matchEntry : matchMap.entrySet()) {
-				String matchKey = matchEntry.getKey();
-				List<BookDataEntity> candidates = matchEntry.getValue();
+			if (candidates == null || candidates.isEmpty()) {
+				return;
+			}
 
-				if (candidates == null || candidates.isEmpty()) {
-					continue;
-				}
+			DataEntity seed = findFirstNonNull(candidates);
+			if (seed == null) {
+				return;
+			}
 
-				BookDataEntity seed = findFirstNonNull(candidates);
-				if (seed == null) {
-					continue;
-				}
+			String dataCategory = trimToNull(seed.getDataCategory());
+			String homeTeamName = trimToNull(seed.getHomeTeamName());
+			String awayTeamName = trimToNull(seed.getAwayTeamName());
 
-				String dataCategory = firstNonBlank(seed.getGameTeamCategory(), countryLeague);
-				String homeTeamName = trimToNull(seed.getHomeTeamName());
-				String awayTeamName = trimToNull(seed.getAwayTeamName());
-
-				if (isBlank(dataCategory) || isBlank(homeTeamName) || isBlank(awayTeamName)) {
-					String messageCd = MessageCdConst.MCD00099I_LOG;
-					this.manageLoggerComponent.debugInfoLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-							"skip: key不足 matchKey=" + matchKey
-									+ ", dataCategory=" + dataCategory
-									+ ", home=" + homeTeamName
-									+ ", away=" + awayTeamName);
-					continue;
-				}
-
+			if (isBlank(dataCategory) || isBlank(homeTeamName) || isBlank(awayTeamName)) {
 				String messageCd = MessageCdConst.MCD00099I_LOG;
 				this.manageLoggerComponent.debugInfoLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-						"差分対象取得 matchKey=" + matchKey
+						"skip: key不足 matchKey=" + matchKey
 								+ ", dataCategory=" + dataCategory
 								+ ", home=" + homeTeamName
 								+ ", away=" + awayTeamName);
-
-				// dataテーブルから最新2件取得（seq DESC）
-				List<DataEntity> latestTwo = this.dataRepository.findLatestTwoByTeams(
-						dataCategory, homeTeamName, awayTeamName);
-
-				if (latestTwo == null || latestTwo.isEmpty()) {
-					this.manageLoggerComponent.debugInfoLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-							"dataテーブル対象なし matchKey=" + matchKey
-									+ ", dataCategory=" + dataCategory
-									+ ", home=" + homeTeamName
-									+ ", away=" + awayTeamName);
-					continue;
-				}
-
-				DataEntity latest = latestTwo.get(0);
-				DataEntity previous = latestTwo.size() >= 2 ? latestTwo.get(1) : null;
-
-				RealDataProcessEntity entity = buildDiffEntity(countryLeague, latest, previous);
-
-				saveOrUpdate(entity);
+				return;
 			}
+
+			String messageCd = MessageCdConst.MCD00099I_LOG;
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+					"差分対象取得 matchKey=" + matchKey
+							+ ", dataCategory=" + dataCategory
+							+ ", home=" + homeTeamName
+							+ ", away=" + awayTeamName);
+
+			// dataテーブルから最新2件取得（seq DESC）
+			List<DataEntity> latestTwo = this.dataRepository.findLatestTwoByTeams(
+					dataCategory, homeTeamName, awayTeamName);
+
+			if (latestTwo == null || latestTwo.isEmpty()) {
+				this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+						"dataテーブル対象なし matchKey=" + matchKey
+								+ ", dataCategory=" + dataCategory
+								+ ", home=" + homeTeamName
+								+ ", away=" + awayTeamName);
+				return;
+			}
+
+			DataEntity latest = latestTwo.get(0);
+			DataEntity previous = latestTwo.size() >= 2 ? latestTwo.get(1) : null;
+
+			RealDataProcessEntity entity = buildDiffEntity(dataCategory, latest, previous);
+
+			saveOrUpdate(entity);
 		});
 
 		this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
@@ -159,12 +150,12 @@ public class RealDataProcessStat implements AnalyzeEntityIF {
 	 *
 	 * previous が無い場合は latest をそのまま格納
 	 */
-	private RealDataProcessEntity buildDiffEntity(String countryLeague, DataEntity latest, DataEntity previous) {
+	private RealDataProcessEntity buildDiffEntity(String dataCategory, DataEntity latest, DataEntity previous) {
 		RealDataProcessEntity entity = new RealDataProcessEntity();
 
 		// 識別・付帯情報は最新値をそのまま保持
 		entity.setConditionResultDataSeqId(latest.getConditionResultDataSeqId());
-		entity.setDataCategory(firstNonBlank(latest.getDataCategory(), countryLeague));
+		entity.setDataCategory(firstNonBlank(latest.getDataCategory(), dataCategory));
 		entity.setTimes(latest.getTimes());
 		entity.setHomeRank(latest.getHomeRank());
 		entity.setAwayRank(latest.getAwayRank());
@@ -280,8 +271,8 @@ public class RealDataProcessStat implements AnalyzeEntityIF {
 	/**
 	 * insert / update
 	 *
-	 * 同一スナップショット判定キーは Repository 側で定義
-	 * 推奨: data_category + home_team_name + away_team_name + record_time + game_id + match_id
+	 * 更新判定キー:
+	 * data_category + home_team_name + away_team_name
 	 */
 	private synchronized void saveOrUpdate(RealDataProcessEntity entity) {
 		final String METHOD_NAME = "saveOrUpdate";
@@ -319,13 +310,6 @@ public class RealDataProcessStat implements AnalyzeEntityIF {
 
 	/**
 	 * 差分文字列作成
-	 *
-	 * ルール:
-	 * - previous が null の場合は current をそのまま返す
-	 * - 38% (210/300) 同士なら 2% (10/10)
-	 * - 210/300 同士なら 10/10
-	 * - 数値同士なら差分
-	 * - それ以外は current を返す
 	 */
 	private String diffValue(String current, String previous) {
 		String cur = trimToNull(current);
@@ -428,8 +412,8 @@ public class RealDataProcessStat implements AnalyzeEntityIF {
 		return normalized.toPlainString();
 	}
 
-	private BookDataEntity findFirstNonNull(List<BookDataEntity> list) {
-		for (BookDataEntity e : list) {
+	private DataEntity findFirstNonNull(List<DataEntity> list) {
+		for (DataEntity e : list) {
 			if (e != null) {
 				return e;
 			}

@@ -6,6 +6,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import dev.application.analyze.bm_m029.RealDataProcessStat;
 import dev.application.analyze.interf.OriginIF;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
@@ -38,6 +39,12 @@ public class OriginService implements OriginIF {
 	 */
 	@Autowired
 	private OriginStat originStat;
+
+	/**
+	 * BM_M029起源データ過程登録ロジック
+	 */
+	@Autowired
+	private RealDataProcessStat realDataProcessStat;
 
 	/**
 	 * 未来データフラグサービス
