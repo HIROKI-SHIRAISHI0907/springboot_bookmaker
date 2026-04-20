@@ -371,4 +371,22 @@ public interface BookDataRepository {
 			""")
 	List<DataEntity> getFinData();
 
+	/**
+	 * data_category + home_team_name + away_team_name で
+	 * seq降順の最新2件を取得
+	 */
+	@Select("""
+			SELECT *
+				FROM data
+			WHERE data_category = :dataCategory
+				AND home_team_name = :homeTeamName
+				AND away_team_name = :awayTeamName
+			ORDER BY seq DESC
+			LIMIT 2
+			""")
+	List<DataEntity> findLatestTwoByTeams(
+			@Param("dataCategory") String dataCategory,
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
+
 }
