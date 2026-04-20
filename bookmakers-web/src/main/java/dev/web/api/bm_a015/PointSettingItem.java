@@ -20,7 +20,12 @@ public class PointSettingItem {
     /** 引き分け */
     private Integer draw;
 
-    /** 備考 */
+    /**
+     * 備考
+     * null / 空文字は許可
+     * 入力する場合のみ: PK勝ち=X,PK負け=Y
+     */
+	@ValidPointSettingRemarks
     private String remarks;
 
     /** 削除フラグ */

@@ -8,7 +8,7 @@ import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import dev.web.api.bm_a015.PointSettingEntity;
+import dev.common.entity.PointSettingEntity;
 
 /**
  * point_setting_master 操作用リポジトリ

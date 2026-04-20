@@ -7,6 +7,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.common.entity.PointSettingEntity;
 import dev.web.repository.master.PointSettingRepository;
 import lombok.RequiredArgsConstructor;
 
