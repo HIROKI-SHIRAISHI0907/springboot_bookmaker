@@ -10,17 +10,18 @@ import org.springframework.stereotype.Repository;
 
 import dev.common.entity.PointSettingEntity;
 
+
 /**
  * point_setting_master 操作用リポジトリ
  *
  * 勝ち点設定の登録・更新・取得を行う。
  */
 @Repository
-public class PointSettingRepository {
+public class PointSettingWebRepository {
 
 	private final NamedParameterJdbcTemplate masterJdbcTemplate;
 
-	public PointSettingRepository(
+	public PointSettingWebRepository(
 			@Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate) {
 		this.masterJdbcTemplate = masterJdbcTemplate;
 	}
@@ -180,6 +181,32 @@ public class PointSettingRepository {
 		params.put("draw", entity.getDraw());
 		params.put("remarks", normalizeRemarks(entity.getRemarks()));
 		params.put("delFlg", normalizeDelFlg(entity.getDelFlg()));
+
+		return masterJdbcTemplate.update(sql, params);
+	}
+
+	/**
+	 * country_league_season_masterとpoint_setting_masterとのdel_flg同期用
+	 * @param country
+	 * @param league
+	 * @param delFlg
+	 * @return
+	 */
+	public int updateDelFlgByCountryAndLeague(String country, String league, String delFlg) {
+
+		String sql = """
+				UPDATE point_setting_master
+				SET del_flg     = :delFlg,
+				    update_id   = 'SYSTEM',
+				    update_time = NOW()
+				WHERE country = :country
+				  AND league  = :league
+				""";
+
+		Map<String, Object> params = Map.of(
+				"country", country,
+				"league", league,
+				"delFlg", normalizeDelFlg(delFlg));
 
 		return masterJdbcTemplate.update(sql, params);
 	}

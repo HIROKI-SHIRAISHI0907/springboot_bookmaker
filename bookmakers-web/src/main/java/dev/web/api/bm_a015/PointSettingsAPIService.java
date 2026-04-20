@@ -2,20 +2,25 @@ package dev.web.api.bm_a015;
 
 import java.util.ArrayList;
 import java.util.Collections;
+import java.util.LinkedHashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.common.entity.PointSettingEntity;
-import dev.web.repository.master.PointSettingRepository;
+import dev.web.repository.master.CountryLeagueSeasonMasterWebRepository;
+import dev.web.repository.master.PointSettingWebRepository;
 import lombok.RequiredArgsConstructor;
 
 @Service
 @RequiredArgsConstructor
 public class PointSettingsAPIService {
 
-    private final PointSettingRepository pointSettingRepository;
+    private final PointSettingWebRepository pointSettingRepository;
+
+    private final CountryLeagueSeasonMasterWebRepository countryLeagueSeasonMasterWebRepository;
 
     /**
      * 全件取得
@@ -26,6 +31,9 @@ public class PointSettingsAPIService {
 
     /**
      * 複数件登録・更新・削除
+     *
+     * del_flg は country + league 単位で
+     * country_league_season_master と point_setting_master を同期する。
      */
     @Transactional
     public List<PointSettingEntity> save(PointSettingsSaveRequest request) {
@@ -35,6 +43,9 @@ public class PointSettingsAPIService {
         }
 
         List<PointSettingEntity> results = new ArrayList<>();
+
+        // 同一 country/league の del_flg は一致させる
+        Map<String, String> countryLeagueDelFlgMap = new LinkedHashMap<>();
 
         for (PointSettingItem item : request.getItems()) {
             if (item == null) {
@@ -50,9 +61,19 @@ public class PointSettingsAPIService {
             entity.setRemarks(normalizeRemarks(item.getRemarks()));
             entity.setDelFlg(normalizeDelFlg(item.getDelFlg()));
 
-            // 必須チェック
             if (isBlank(entity.getCountry()) || isBlank(entity.getLeague())) {
                 continue;
+            }
+
+            String countryLeagueKey = buildCountryLeagueKey(entity.getCountry(), entity.getLeague());
+            String currentDelFlg = countryLeagueDelFlgMap.get(countryLeagueKey);
+
+            if (currentDelFlg == null) {
+                countryLeagueDelFlgMap.put(countryLeagueKey, entity.getDelFlg());
+            } else if (!currentDelFlg.equals(entity.getDelFlg())) {
+                throw new IllegalArgumentException(
+                        "同一 country / league の delFlg は同じ値にしてください: "
+                                + entity.getCountry() + " / " + entity.getLeague());
             }
 
             List<PointSettingEntity> existingList = pointSettingRepository.findData(
@@ -62,45 +83,40 @@ public class PointSettingsAPIService {
 
             PointSettingEntity existing = existingList.isEmpty() ? null : existingList.get(0);
 
-            // 削除指定
-            if ("1".equals(entity.getDelFlg())) {
-                if (existing != null) {
-                    pointSettingRepository.logicalDelete(existing.getId());
-                }
-                continue;
-            }
-
-            // 既存あり → update
             if (existing != null) {
                 entity.setId(existing.getId());
                 pointSettingRepository.update(entity);
-
-                List<PointSettingEntity> updatedList = pointSettingRepository.findData(
-                        entity.getCountry(),
-                        entity.getLeague(),
-                        entity.getRemarks());
-
-                if (!updatedList.isEmpty()) {
-                    results.add(updatedList.get(0));
-                }
-                continue;
+            } else {
+                entity.setDelFlg("0".equals(entity.getDelFlg()) ? "0" : entity.getDelFlg());
+                pointSettingRepository.insert(entity);
             }
 
-            // 新規登録
-            entity.setDelFlg("0");
-            pointSettingRepository.insert(entity);
-
-            List<PointSettingEntity> insertedList = pointSettingRepository.findData(
+            List<PointSettingEntity> savedList = pointSettingRepository.findData(
                     entity.getCountry(),
                     entity.getLeague(),
                     entity.getRemarks());
 
-            if (!insertedList.isEmpty()) {
-                results.add(insertedList.get(0));
+            if (!savedList.isEmpty()) {
+                results.add(savedList.get(0));
             }
         }
 
-        return results;
+        // 最後に country/league 単位で両テーブルの del_flg を同期
+        for (Map.Entry<String, String> entry : countryLeagueDelFlgMap.entrySet()) {
+            String[] keys = entry.getKey().split("\\|\\|", 2);
+            String country = keys[0];
+            String league = keys[1];
+            String delFlg = entry.getValue();
+
+            pointSettingRepository.updateDelFlgByCountryAndLeague(country, league, delFlg);
+            countryLeagueSeasonMasterWebRepository.updateDelFlgByCountryAndLeague(country, league, delFlg);
+        }
+
+        return pointSettingRepository.findAll();
+    }
+
+    private String buildCountryLeagueKey(String country, String league) {
+        return country + "||" + league;
     }
 
     private String normalizeRemarks(String remarks) {

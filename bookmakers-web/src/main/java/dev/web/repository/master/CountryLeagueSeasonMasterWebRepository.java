@@ -1,6 +1,7 @@
 package dev.web.repository.master;
 
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -203,6 +204,32 @@ public class CountryLeagueSeasonMasterWebRepository {
 						.addValue("seasonYear", seasonYear)
 						.addValue("path", path)
 						.addValue("delFlg", delFlg));
+	}
+
+	/**
+	 * country_league_season_masterとpoint_setting_masterとのdel_flg同期用
+	 * @param country
+	 * @param league
+	 * @param delFlg
+	 * @return
+	 */
+	public int updateDelFlgByCountryAndLeague(String country, String league, String delFlg) {
+
+		String sql = """
+				UPDATE country_league_season_master
+				SET del_flg     = :delFlg,
+				    update_id   = 'SYSTEM',
+				    update_time = NOW()
+				WHERE country = :country
+				  AND league  = :league
+				""";
+
+		Map<String, Object> params = Map.of(
+				"country", country,
+				"league", league,
+				"delFlg", delFlg == null || delFlg.isBlank() ? "0" : delFlg.trim());
+
+		return masterJdbcTemplate.update(sql, params);
 	}
 
 	public String findCurrentSeasonYear(String country, String league) {

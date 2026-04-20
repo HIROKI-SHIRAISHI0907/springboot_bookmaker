@@ -7,6 +7,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.web.repository.master.CountryLeagueSeasonMasterWebRepository;
+import dev.web.repository.master.PointSettingWebRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -19,6 +20,8 @@ import lombok.RequiredArgsConstructor;
 public class CountryLeagueSeasonService {
 
 	private final CountryLeagueSeasonMasterWebRepository repo;
+
+	private final PointSettingWebRepository pointSettingRepository;
 
 	@Transactional(readOnly = true)
 	public List<CountryLeagueSeasonDTO> findAll() {
@@ -34,7 +37,6 @@ public class CountryLeagueSeasonService {
 	public CountryLeagueSeasonResponse patchLink(CountryLeagueSeasonRequest req) {
 		CountryLeagueSeasonResponse res = new CountryLeagueSeasonResponse();
 
-		// 必須チェック
 		if (isBlank(req.getCountry())
 				|| isBlank(req.getLeague())
 				|| isBlank(req.getSeasonYear())
@@ -45,7 +47,6 @@ public class CountryLeagueSeasonService {
 			return res;
 		}
 
-		// link重複チェック（自分自身は除外）
 		if (repo.existsPathOtherThanKey(
 				req.getCountry(),
 				req.getLeague(),
@@ -73,7 +74,6 @@ public class CountryLeagueSeasonService {
 			return res;
 
 		} catch (DataIntegrityViolationException e) {
-			// DBユニーク制約がある場合の最終防衛線
 			res.setResponseCode("409");
 			res.setMessage("すでに使用されているリンクです。");
 			return res;
@@ -86,23 +86,40 @@ public class CountryLeagueSeasonService {
 	}
 
 	/** 更新 */
+	@Transactional
 	public CountryLeagueSeasonResponse update(CountryLeagueSeasonDTO dto) {
 		CountryLeagueSeasonResponse res = new CountryLeagueSeasonResponse();
 
 		try {
-			int updated = repo.updateById(dto.getId(), dto.getCountry(), dto.getLeague(), dto.getSeasonYear(), dto.getPath(),
+			int updated = repo.updateById(
+					dto.getId(),
+					dto.getCountry(),
+					dto.getLeague(),
+					dto.getSeasonYear(),
+					dto.getPath(),
 					dto.getDelFlg());
+
 			if (updated == 1) {
+				// point_setting_master 側にも同じ del_flg を反映
+				pointSettingRepository.updateDelFlgByCountryAndLeague(
+						dto.getCountry(),
+						dto.getLeague(),
+						dto.getDelFlg());
+
 				res.setResponseCode("200");
 				res.setMessage("更新成功しました。");
 				return res;
 			}
+
+			res.setResponseCode("404");
+			res.setMessage("更新対象が存在しません。");
+			return res;
+
 		} catch (Exception e) {
 			res.setResponseCode("500");
 			res.setMessage("システムエラーが発生しました。");
 			return res;
 		}
-		return res;
 	}
 
 	private boolean isBlank(String s) {
