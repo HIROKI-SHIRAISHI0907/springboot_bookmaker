@@ -66,6 +66,10 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	@Autowired
 	private BmM031SurfaceOverviewBean bean;
 
+	/** 勝ち点設定 */
+	@Autowired
+	private PointSettingBean pointSettingBean;
+
 	/** 過去順位管理 */
 	@Autowired
 	private PastRankingStat pastRankingStat;
@@ -381,7 +385,9 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		resultEntity.setWin(String.valueOf(winCount));
 		resultEntity.setLose(String.valueOf(loseCount));
 		resultEntity.setDraw(String.valueOf(drawCount));
-		resultEntity.setWinningPoints(String.valueOf(winCount * 3 + drawCount));
+		resultEntity.setWinningPoints(String.valueOf(
+				pointSettingBean.calcWinningPoints(country, league, winCount, loseCount, drawCount)
+		));
 
 		int games = winCount + loseCount + drawCount;
 		resultEntity.setGames(String.valueOf(games));
