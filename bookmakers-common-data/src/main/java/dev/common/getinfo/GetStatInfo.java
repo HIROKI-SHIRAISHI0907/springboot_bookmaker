@@ -2,7 +2,7 @@ package dev.common.getinfo;
 
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.Comparator;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
@@ -11,6 +11,7 @@ import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
@@ -31,7 +32,17 @@ public class GetStatInfo {
 
 	private static final Logger log = LoggerFactory.getLogger(GetStatInfo.class);
 
-	private static final Pattern SEQ_CSV_KEY = Pattern.compile("^\\d+\\.csv$"); // 例: 1.csv, 12.csv
+	/**
+	 * 直下/サブフォルダ配下を問わず、末尾が数値CSVのキーを対象にする。
+	 * 例:
+	 * 1.csv
+	 * Japan-J1-ラウンド5/9.csv
+	 * stats/Japan-J1-ラウンド5/9.csv
+	 */
+	private static final Pattern SEQ_CSV_KEY = Pattern.compile("^(?:.+/)?\\d+\\.csv$");
+
+	/** 末尾ファイル名のCSV番号抽出 */
+	private static final Pattern CSV_NO_PATTERN = Pattern.compile("(^|.*/)(\\d+)\\.csv$");
 
 	@Autowired
 	private S3Operator s3Operator;
@@ -53,16 +64,16 @@ public class GetStatInfo {
 
 		String bucket = config.getS3BucketsStats();
 
-		List<String> keys = s3Operator.listSeqCsvKeysInRoot(bucket, SEQ_CSV_KEY);
+		List<String> keys = listAllSeqCsvKeys(bucket);
 		keys = filterKeysBySeqRange(keys, csvNumber, csvBackNumber);
 
 		log.info("[GetStatMap] bucket={} keys.size={}", bucket, (keys == null ? -1 : keys.size()));
 
 		Map<String, Map<String, List<BookDataEntity>>> result = new HashMap<>();
-		if (keys == null || keys.isEmpty())
+		if (keys == null || keys.isEmpty()) {
 			return result;
+		}
 
-		// OOM対策：同時実行を小さく（まず2推奨）
 		final int concurrency = 2;
 		final Semaphore gate = new Semaphore(concurrency);
 
@@ -80,15 +91,17 @@ public class GetStatInfo {
 				try (InputStream is = s3Operator.download(bucket, key)) {
 
 					List<BookDataEntity> list = readStat.readEntities(is, key);
-					if (list == null || list.isEmpty())
+					if (list == null || list.isEmpty()) {
 						return;
+					}
 
 					BookDataEntity first = list.get(0);
 					String category = first.getGameTeamCategory();
 					String home = first.getHomeTeamName();
 					String away = first.getAwayTeamName();
-					if (category == null || home == null || away == null)
+					if (category == null || home == null || away == null) {
 						return;
+					}
 
 					String versus = home + "-" + away;
 
@@ -99,37 +112,38 @@ public class GetStatInfo {
 					}
 
 				} catch (Exception ignore) {
-					// 読めないCSVはスキップ（必要ならwarn）
+					// 読めないCSVはスキップ
 				}
 			}, csvTaskExecutor).whenComplete((r, t) -> gate.release()));
 		}
 
-		for (CompletableFuture<Void> f : futures)
+		for (CompletableFuture<Void> f : futures) {
 			f.join();
+		}
 		return result;
 	}
 
 	/**
 	 * ★ ExportCsv / ReaderCurrentCsvInfoBean 用：
 	 * 既存CSVの「組み合わせ復元」専用
-	 * @return key: category_home-away_fileNo, value: seq(昇順・重複なし)
+	 *
+	 * @return key: S3相対キー（例: Japan-J1-ラウンド5/9.csv）, value: seq(昇順・重複なし)
 	 */
 	public Map<String, List<Integer>> getCsvInfo(String csvNumber, String csvBackNumber) {
 
 		String bucket = config.getS3BucketsStats();
 
-		List<String> keys = s3Operator.listSeqCsvKeysInRoot(bucket, SEQ_CSV_KEY);
+		List<String> keys = listAllSeqCsvKeys(bucket);
 		keys = filterKeysBySeqRange(keys, csvNumber, csvBackNumber);
 
 		log.info("[GetCsvInfo] bucket={} keys.size={}", bucket, (keys == null ? -1 : keys.size()));
 
-		if (keys == null || keys.isEmpty())
+		if (keys == null || keys.isEmpty()) {
 			return new LinkedHashMap<>();
+		}
 
-		// 集約：key -> seqSet（TreeSetで重複除外＋昇順）
 		Map<String, Set<Integer>> acc = new LinkedHashMap<>();
 
-		// OOM対策：同時実行を絞る（2〜4推奨）
 		final int concurrency = 2;
 		final Semaphore gate = new Semaphore(concurrency);
 
@@ -146,21 +160,13 @@ public class GetStatInfo {
 				try (InputStream is = s3Operator.download(bucket, key)) {
 
 					StatCsvIndexDTO idx = readStat.readIndex(is, key);
-					if (idx == null)
-						return;
-
-					if (idx.getFileNo() == null
-							|| idx.getCategory() == null
-							|| idx.getHome() == null
-							|| idx.getAway() == null) {
+					if (idx == null) {
 						return;
 					}
 
-					String versus = idx.getHome() + "-" + idx.getAway();
-					String mapKey = idx.getCategory() + "_" + versus + "_" + idx.getFileNo();
-
+					// key 自体を一意な識別子として使う
 					synchronized (acc) {
-						acc.computeIfAbsent(mapKey, k -> new TreeSet<>()).addAll(idx.getSeqs());
+						acc.computeIfAbsent(key, k -> new TreeSet<>()).addAll(idx.getSeqs());
 					}
 
 				} catch (Exception ignore) {
@@ -169,16 +175,16 @@ public class GetStatInfo {
 			}, csvTaskExecutor).whenComplete((r, t) -> gate.release()));
 		}
 
-		for (CompletableFuture<Void> f : futures)
+		for (CompletableFuture<Void> f : futures) {
 			f.join();
+		}
 
-		// TreeSet -> List へ確定（fileNoの昇順でLinkedHashMapに）
 		return acc.entrySet().stream()
-				.sorted(Comparator.comparingInt(e -> fileNoFromKey(e.getKey())))
+				.sorted((a, b) -> compareCsvKey(a.getKey(), b.getKey()))
 				.collect(Collectors.toMap(
 						Map.Entry::getKey,
 						e -> new ArrayList<>(e.getValue()),
-						(a, b) -> a,
+						(x, y) -> x,
 						LinkedHashMap::new));
 	}
 
@@ -218,95 +224,110 @@ public class GetStatInfo {
 
 	/** キー一覧を返す */
 	public List<String> listCsvKeysInRange(String csvNumber, String csvBackNumber) {
-	    String bucket = config.getS3BucketsStats();
-	    List<String> keys = s3Operator.listSeqCsvKeysInRoot(bucket, SEQ_CSV_KEY);
-	    keys = filterKeysBySeqRange(keys, csvNumber, csvBackNumber);
-	    keys.sort(Comparator.comparingInt(k -> {
-	        Integer n = extractSeqFromKey(k);
-	        return n == null ? Integer.MAX_VALUE : n;
-	    }));
-	    return keys;
+		String bucket = config.getS3BucketsStats();
+		List<String> keys = listAllSeqCsvKeys(bucket);
+		keys = filterKeysBySeqRange(keys, csvNumber, csvBackNumber);
+		keys.sort(GetStatInfo::compareCsvKey);
+		return keys;
 	}
 
 	/** 1ファイル分だけ Map を作る */
 	public Map<String, Map<String, List<BookDataEntity>>> getStatMapForSingleKey(String key) {
-	    String bucket = config.getS3BucketsStats();
+		String bucket = config.getS3BucketsStats();
 
-	    Map<String, Map<String, List<BookDataEntity>>> result = new HashMap<>();
+		Map<String, Map<String, List<BookDataEntity>>> result = new HashMap<>();
 
-	    try (InputStream is = s3Operator.download(bucket, key)) {
-	        List<BookDataEntity> list = readStat.readEntities(is, key);
-	        if (list == null || list.isEmpty()) return result;
+		try (InputStream is = s3Operator.download(bucket, key)) {
+			List<BookDataEntity> list = readStat.readEntities(is, key);
+			if (list == null || list.isEmpty()) {
+				return result;
+			}
 
-	        BookDataEntity first = list.get(0);
-	        String category = first.getGameTeamCategory();
-	        String home = first.getHomeTeamName();
-	        String away = first.getAwayTeamName();
-	        if (category == null || home == null || away == null) return result;
+			BookDataEntity first = list.get(0);
+			String category = first.getGameTeamCategory();
+			String home = first.getHomeTeamName();
+			String away = first.getAwayTeamName();
+			if (category == null || home == null || away == null) {
+				return result;
+			}
 
-	        String versus = home + "-" + away;
+			String versus = home + "-" + away;
 
-	        result.computeIfAbsent(category, k -> new HashMap<>())
-	              .computeIfAbsent(versus, k -> new ArrayList<>())
-	              .addAll(list);
+			result.computeIfAbsent(category, k -> new HashMap<>())
+				  .computeIfAbsent(versus, k -> new ArrayList<>())
+				  .addAll(list);
 
-	    } catch (Exception e) {
-	        log.warn("[getStatMapForSingleKey] failed key={}", key, e);
-	    }
+		} catch (Exception e) {
+			log.warn("[getStatMapForSingleKey] failed key={}", key, e);
+		}
 
-	    return result;
+		return result;
 	}
 
-	// GetStatInfo に追加（S3のキー一覧だけ見て最大番号を返す）
+	/**
+	 * 末尾CSV番号ベースで最大番号を返す。
+	 *
+	 * <p>
+	 * 新構成では番号は「フォルダ単位」で採番されるため、
+	 * このメソッドの戻り値は全体最大値としての参考値であり、
+	 * 新規採番には使用しないこと。
+	 * </p>
+	 */
 	public int getMaxCsvNo(String csvNumber, String csvBackNumber) {
 
 		String bucket = config.getS3BucketsStats();
 
-		List<String> keys = s3Operator.listSeqCsvKeysInRoot(bucket, SEQ_CSV_KEY);
+		List<String> keys = listAllSeqCsvKeys(bucket);
 		keys = filterKeysBySeqRange(keys, csvNumber, csvBackNumber);
 
 		int max = 0;
-		if (keys == null)
+		if (keys == null) {
 			return 0;
+		}
 
 		for (String key : keys) {
-			Integer n = extractSeqFromKey(key); // 既存 private static をそのまま使う
-			if (n != null && n > max)
+			Integer n = extractSeqFromKey(key);
+			if (n != null && n > max) {
 				max = n;
+			}
 		}
 		return max;
 	}
 
-	private static int fileNoFromKey(String key) {
-		int idx = key.lastIndexOf('_');
-		if (idx < 0)
-			return Integer.MAX_VALUE;
-		try {
-			return Integer.parseInt(key.substring(idx + 1));
-		} catch (NumberFormatException e) {
-			return Integer.MAX_VALUE;
+	/**
+	 * バケット配下から対象CSVキーをすべて取得する。
+	 */
+	private List<String> listAllSeqCsvKeys(String bucket) {
+		List<String> keys = s3Operator.listKeys(bucket, "");
+		if (keys == null || keys.isEmpty()) {
+			return Collections.emptyList();
 		}
-	}
 
-	// ===== 既存の filter はそのまま =====
+		return keys.stream()
+				.filter(k -> k != null && SEQ_CSV_KEY.matcher(k).matches())
+				.collect(Collectors.toList());
+	}
 
 	public static List<String> filterKeysBySeqRange(List<String> keys, String csvNumber, String csvBackNumber) {
 		Integer from = null;
 		Integer to = null;
 
 		try {
-			if (csvNumber != null && !csvNumber.isBlank())
+			if (csvNumber != null && !csvNumber.isBlank()) {
 				from = Integer.parseInt(csvNumber.trim());
+			}
 		} catch (NumberFormatException ignore) {
 		}
 		try {
-			if (csvBackNumber != null && !csvBackNumber.isBlank())
+			if (csvBackNumber != null && !csvBackNumber.isBlank()) {
 				to = Integer.parseInt(csvBackNumber.trim());
+			}
 		} catch (NumberFormatException ignore) {
 		}
 
-		if (from == null && to == null)
+		if (from == null && to == null) {
 			return keys;
+		}
 
 		final Integer fFrom = from;
 		final Integer fTo = to;
@@ -314,27 +335,64 @@ public class GetStatInfo {
 		return keys.stream()
 				.filter(k -> {
 					Integer seq = extractSeqFromKey(k);
-					if (seq == null)
+					if (seq == null) {
 						return false;
-					if (fFrom != null && seq < fFrom)
+					}
+					if (fFrom != null && seq < fFrom) {
 						return false;
-					if (fTo != null && seq > fTo)
+					}
+					if (fTo != null && seq > fTo) {
 						return false;
+					}
 					return true;
 				})
 				.collect(Collectors.toList());
 	}
 
 	private static Integer extractSeqFromKey(String key) {
-		if (key == null)
+		if (key == null) {
 			return null;
-		var m = java.util.regex.Pattern.compile("^(\\d+)\\.csv$").matcher(key);
-		if (!m.find())
+		}
+		Matcher m = CSV_NO_PATTERN.matcher(key);
+		if (!m.find()) {
 			return null;
+		}
 		try {
-			return Integer.parseInt(m.group(1));
+			return Integer.parseInt(m.group(2));
 		} catch (NumberFormatException e) {
 			return null;
 		}
+	}
+
+	private static int compareCsvKey(String a, String b) {
+		String pa = parentPath(a);
+		String pb = parentPath(b);
+
+		int folderCompare = pa.compareTo(pb);
+		if (folderCompare != 0) {
+			return folderCompare;
+		}
+
+		Integer na = extractSeqFromKey(a);
+		Integer nb = extractSeqFromKey(b);
+
+		if (na == null && nb == null) {
+			return a.compareTo(b);
+		}
+		if (na == null) {
+			return 1;
+		}
+		if (nb == null) {
+			return -1;
+		}
+		return Integer.compare(na, nb);
+	}
+
+	private static String parentPath(String key) {
+		if (key == null) {
+			return "";
+		}
+		int idx = key.lastIndexOf('/');
+		return (idx >= 0) ? key.substring(0, idx) : "";
 	}
 }
