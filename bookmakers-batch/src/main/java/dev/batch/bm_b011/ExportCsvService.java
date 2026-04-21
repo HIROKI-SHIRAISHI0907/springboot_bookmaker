@@ -763,14 +763,14 @@ public class ExportCsvService {
 
 		CsvDetailManageEntity selectEntity = this.csvDetailManageRepository.select(entity);
 		if (selectEntity != null) {
-			int result = this.csvDetailManageRepository.update(selectEntity.getCsvId(), "1");
+			int result = this.csvDetailManageRepository.update(entity);
 			if (result != 1) {
 				String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
 				this.rootCauseWrapper.throwUnexpectedRowCount(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 						messageCd,
 						1, result,
-						context);
+						context + ", csvId=" + csvId);
 			}
 
 			String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
@@ -785,7 +785,7 @@ public class ExportCsvService {
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 						messageCd,
 						1, result,
-						context);
+						context + ", csvId=" + csvId);
 			}
 
 			String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;

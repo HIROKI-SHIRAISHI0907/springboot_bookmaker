@@ -2,29 +2,29 @@ package dev.batch.repository.bm;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
 import dev.common.entity.CsvDetailManageEntity;
-
 
 @Mapper
 public interface BookCsvDetailManageRepository {
 
 	@Select("""
 			SELECT
-				*
+				csv_id         AS csvId,
+				data_category  AS dataCategory,
+				season         AS season,
+				home_team_name AS homeTeamName,
+				away_team_name AS awayTeamName,
+				check_fin_flg  AS checkFinFlg
 			FROM
 				csv_detail_manage
 			WHERE
-			    data_category = #{dataCategory}
-			AND
-			    season = #{season}
-			AND
-			    home_team_name = #{homeTeamName}
-			AND
-			    away_team_name = #{awayTeamName}
+				data_category = #{dataCategory}
+			AND season = #{season}
+			AND home_team_name = #{homeTeamName}
+			AND away_team_name = #{awayTeamName}
 			""")
 	CsvDetailManageEntity select(CsvDetailManageEntity entity);
 
@@ -57,12 +57,17 @@ public interface BookCsvDetailManageRepository {
 
 	@Update("""
 			UPDATE csv_detail_manage
-			SET check_fin_flg = #{checkFinFlg},
+			SET
+			    csv_id = #{csvId},
+			    check_fin_flg = #{checkFinFlg},
 			    update_time = CURRENT_TIMESTAMP,
 			    update_id = 'ADMIN'
-			WHERE csv_id = #{csvId}
+			WHERE
+				data_category = #{dataCategory}
+			AND season = #{season}
+			AND home_team_name = #{homeTeamName}
+			AND away_team_name = #{awayTeamName}
 			""")
-	int update(@Param("csvId") String csvId,
-			@Param("checkFinFlg") String checkFinFlg);
+	int update(CsvDetailManageEntity entity);
 
 }
