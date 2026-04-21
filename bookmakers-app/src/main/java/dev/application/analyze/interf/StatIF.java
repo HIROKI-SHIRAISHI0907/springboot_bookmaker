@@ -14,6 +14,8 @@ public interface StatIF {
 
 	/**
 	 * 実行共通メソッド
+	 * true: 手動データの反映
+	 * false: CSVでまとめた場合のデータの反映
 	 * @return
 	 * @throws Exception
 	 */

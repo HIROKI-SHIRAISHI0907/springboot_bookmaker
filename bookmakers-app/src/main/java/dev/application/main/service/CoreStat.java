@@ -169,7 +169,7 @@ public class CoreStat implements StatIF {
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		List<CsvDetailEntityOutputDTO> dtoList = selectCsvDetail(stat, manualFlg);
-		if (dtoList != null && !dtoList.isEmpty()) {
+		if (dtoList == null || dtoList.isEmpty()) {
 			this.loggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP,
@@ -380,7 +380,8 @@ public class CoreStat implements StatIF {
 		row.setTime(firstNonBlank(rows, BookDataEntity::getTime));
 		row.setHomeScore(firstNonBlank(rows, BookDataEntity::getHomeScore));
 		row.setAwayScore(firstNonBlank(rows, BookDataEntity::getAwayScore));
-
+		row.setFilePath(firstNonBlank(rows, BookDataEntity::getFilePath));   // 追加
+		row.setSeq(firstNonBlank(rows, BookDataEntity::getSeq));             // あってもよい
 		return row;
 	}
 

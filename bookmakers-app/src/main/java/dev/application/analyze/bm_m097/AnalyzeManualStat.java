@@ -232,6 +232,10 @@ public class AnalyzeManualStat {
 
 		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.buildStatMapFromEntities(bookDataList);
 
+		// 9) 以降に進むには条件がある
+		// 手動データに対応するデータカテゴリ,ホームチーム,アウェーチーム,matchIdがdataテーブルに存在しない（CSVにできる状態にない）
+
+
 		try {
 			coreStat.execute(entities, true);
 		} catch (Exception e1) {
@@ -242,7 +246,7 @@ public class AnalyzeManualStat {
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, null);
 		}
 
-		// 9) 成功したデータを analyze_manual_data に登録
+		// 10) 成功したデータを analyze_manual_data に登録
 		for (DataEntity entity : validTargetList) {
 			AnalyzeManualEntity manualEntity = new AnalyzeManualEntity();
 			manualEntity.setGameCategory(nvl(entity.getDataCategory()));
