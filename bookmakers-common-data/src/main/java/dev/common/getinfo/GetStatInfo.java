@@ -41,9 +41,6 @@ public class GetStatInfo {
 	 */
 	private static final Pattern SEQ_CSV_KEY = Pattern.compile("^(?:.+/)?\\d+\\.csv$");
 
-	/** 末尾ファイル名のCSV番号抽出 */
-	private static final Pattern CSV_NO_PATTERN = Pattern.compile("(^|.*/)(\\d+)\\.csv$");
-
 	@Autowired
 	private S3Operator s3Operator;
 
@@ -295,6 +292,175 @@ public class GetStatInfo {
 	}
 
 	/**
+	 * 指定フォルダ配下の数値CSVキーを取得する。
+	 *
+	 * @param bucket S3バケット名
+	 * @param targetFolders 対象フォルダ一覧
+	 * @return CSVキー一覧
+	 */
+	private List<String> listSeqCsvKeysInFolders(String bucket, Set<String> targetFolders) {
+		if (targetFolders == null || targetFolders.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		List<String> result = new ArrayList<>();
+
+		for (String folder : targetFolders) {
+			if (folder == null || folder.isBlank()) {
+				continue;
+			}
+
+			String prefix = folder.endsWith("/") ? folder : folder + "/";
+			List<String> keys = s3Operator.listKeys(bucket, prefix);
+			if (keys == null || keys.isEmpty()) {
+				continue;
+			}
+
+			for (String key : keys) {
+				if (key != null && SEQ_CSV_KEY.matcher(key).matches()) {
+					result.add(key);
+				}
+			}
+		}
+
+		return result;
+	}
+
+	/**
+	 * 対象フォルダ配下の既存CSVから seq 構成情報を取得する。
+	 *
+	 * @param targetFolders 対象フォルダ一覧
+	 * @return key: S3相対キー, value: seq一覧
+	 */
+	public Map<String, List<Integer>> getCsvInfoByFolders(Set<String> targetFolders) {
+
+		String bucket = config.getS3BucketsStats();
+		List<String> keys = listSeqCsvKeysInFolders(bucket, targetFolders);
+
+		log.info("[GetCsvInfoByFolders] bucket={} targetFolders.size={} keys.size={}",
+				bucket,
+				(targetFolders == null ? -1 : targetFolders.size()),
+				(keys == null ? -1 : keys.size()));
+
+		if (keys == null || keys.isEmpty()) {
+			return new LinkedHashMap<>();
+		}
+
+		Map<String, Set<Integer>> acc = new LinkedHashMap<>();
+
+		final int concurrency = 2;
+		final Semaphore gate = new Semaphore(concurrency);
+
+		List<CompletableFuture<Void>> futures = new ArrayList<>(keys.size());
+		for (String key : keys) {
+			try {
+				gate.acquire();
+			} catch (InterruptedException e) {
+				Thread.currentThread().interrupt();
+				break;
+			}
+
+			futures.add(CompletableFuture.runAsync(() -> {
+				try (InputStream is = s3Operator.download(bucket, key)) {
+
+					StatCsvIndexDTO idx = readStat.readIndex(is, key);
+					if (idx == null || idx.getSeqs() == null || idx.getSeqs().isEmpty()) {
+						return;
+					}
+
+					synchronized (acc) {
+						acc.computeIfAbsent(key, k -> new TreeSet<>()).addAll(idx.getSeqs());
+					}
+
+				} catch (Exception ignore) {
+					// 読めないCSVはスキップ
+				}
+			}, csvTaskExecutor).whenComplete((r, t) -> gate.release()));
+		}
+
+		for (CompletableFuture<Void> f : futures) {
+			f.join();
+		}
+
+		return acc.entrySet().stream()
+				.sorted((a, b) -> compareCsvKey(a.getKey(), b.getKey()))
+				.collect(Collectors.toMap(
+						Map.Entry::getKey,
+						e -> new ArrayList<>(e.getValue()),
+						(a, b) -> a,
+						LinkedHashMap::new));
+	}
+
+	/**
+	 * 対象フォルダごとの最大CSV番号を取得する。
+	 *
+	 * @param targetFolders 対象フォルダ一覧
+	 * @return key: フォルダ名, value: 最大CSV番号
+	 */
+	public Map<String, Integer> getMaxCsvNoByFolders(Set<String> targetFolders) {
+		String bucket = config.getS3BucketsStats();
+		Map<String, Integer> result = new LinkedHashMap<>();
+
+		if (targetFolders == null || targetFolders.isEmpty()) {
+			return result;
+		}
+
+		for (String folder : targetFolders) {
+			if (folder == null || folder.isBlank()) {
+				continue;
+			}
+
+			String prefix = folder.endsWith("/") ? folder : folder + "/";
+			List<String> keys = s3Operator.listKeys(bucket, prefix);
+
+			int max = 0;
+			if (keys != null) {
+				for (String key : keys) {
+					Integer n = extractSeqFromKey(key);
+					if (n != null && n > max) {
+						max = n;
+					}
+				}
+			}
+			result.put(folder, max);
+		}
+
+		return result;
+	}
+
+	private static int compareCsvKey(String a, String b) {
+		String pa = parentPath(a);
+		String pb = parentPath(b);
+
+		int folderCompare = pa.compareTo(pb);
+		if (folderCompare != 0) {
+			return folderCompare;
+		}
+
+		Integer na = extractSeqFromKey(a);
+		Integer nb = extractSeqFromKey(b);
+
+		if (na == null && nb == null) {
+			return a.compareTo(b);
+		}
+		if (na == null) {
+			return 1;
+		}
+		if (nb == null) {
+			return -1;
+		}
+		return Integer.compare(na, nb);
+	}
+
+	private static String parentPath(String key) {
+		if (key == null) {
+			return "";
+		}
+		int idx = key.lastIndexOf('/');
+		return (idx >= 0) ? key.substring(0, idx) : "";
+	}
+
+	/**
 	 * バケット配下から対象CSVキーをすべて取得する。
 	 */
 	private List<String> listAllSeqCsvKeys(String bucket) {
@@ -353,7 +519,7 @@ public class GetStatInfo {
 		if (key == null) {
 			return null;
 		}
-		Matcher m = CSV_NO_PATTERN.matcher(key);
+		Matcher m = Pattern.compile("(^|.*/)(\\d+)\\.csv$").matcher(key);
 		if (!m.find()) {
 			return null;
 		}
@@ -364,35 +530,4 @@ public class GetStatInfo {
 		}
 	}
 
-	private static int compareCsvKey(String a, String b) {
-		String pa = parentPath(a);
-		String pb = parentPath(b);
-
-		int folderCompare = pa.compareTo(pb);
-		if (folderCompare != 0) {
-			return folderCompare;
-		}
-
-		Integer na = extractSeqFromKey(a);
-		Integer nb = extractSeqFromKey(b);
-
-		if (na == null && nb == null) {
-			return a.compareTo(b);
-		}
-		if (na == null) {
-			return 1;
-		}
-		if (nb == null) {
-			return -1;
-		}
-		return Integer.compare(na, nb);
-	}
-
-	private static String parentPath(String key) {
-		if (key == null) {
-			return "";
-		}
-		int idx = key.lastIndexOf('/');
-		return (idx >= 0) ? key.substring(0, idx) : "";
-	}
 }
