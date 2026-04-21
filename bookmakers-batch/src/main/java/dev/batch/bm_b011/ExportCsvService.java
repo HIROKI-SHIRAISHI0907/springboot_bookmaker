@@ -11,9 +11,11 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.ExecutorService;
@@ -37,6 +39,7 @@ import dev.common.entity.CsvDetailManageEntity;
 import dev.common.entity.DataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.filemng.FileMngWrapper;
+import dev.common.getinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
 import dev.common.util.ExecuteMainUtil;
@@ -101,6 +104,9 @@ public class ExportCsvService {
 	private S3Operator s3Operator;
 
 	@Autowired
+	private GetStatInfo getStatInfo;
+
+	@Autowired
 	private PathConfig config;
 
 	@Autowired
@@ -152,6 +158,16 @@ public class ExportCsvService {
 		final Path localSeqPath = LOCAL_DIR.resolve(seqFileName);
 		final Path localTeamPath = LOCAL_DIR.resolve(teamFileName);
 
+		CsvArtifactResource csvArtifactResource;
+		try {
+			csvArtifactResource = this.helper.getData();
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e);
+			throw e;
+		}
+
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 				"bucket=" + statsBucket
@@ -162,8 +178,6 @@ public class ExportCsvService {
 
 		boolean seqExists = downloadIfExists(statsBucket, seqKeyFinal, localSeqPath, "seqList.txt download");
 		downloadIfExists(statsBucket, teamKeyFinal, localTeamPath, "data_team_list.txt download");
-
-		bean.init();
 
 		List<List<Integer>> currentGroups = sortSeqs();
 		currentGroups = normalizeGroups(currentGroups);
@@ -179,7 +193,16 @@ public class ExportCsvService {
 			textGroups = normalizeGroups(textGroups);
 		}
 
-		Map<String, List<Integer>> csvInfoRow = (bean != null ? bean.getCsvInfo() : null);
+		// ====== 対象グループを事前読込し、対象フォルダだけ既存CSV情報を読む ======
+		Map<String, List<DataEntity>> groupResultMap =
+				preloadGroupResults(currentGroups, csvArtifactResource, METHOD_NAME);
+
+		Set<String> targetFolders = collectTargetFolders(groupResultMap);
+
+		// S3全件走査ではなく、対象フォルダだけ既存CSV情報を読み込む
+		bean.init(targetFolders);
+
+		Map<String, List<Integer>> csvInfoRow = bean.getCsvInfo();
 		csvInfoRow = (csvInfoRow != null) ? csvInfoRow : Collections.emptyMap();
 
 		CsvBuildPlan plan;
@@ -213,38 +236,26 @@ public class ExportCsvService {
 						+ ", plan.newTargets=" + plan.newTargets.size()
 						+ ", firstRun=" + firstRun);
 
-		CsvArtifactResource csvArtifactResource;
-		try {
-			csvArtifactResource = this.helper.getData();
-		} catch (Exception e) {
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e);
-			throw e;
-		}
-
 		List<SimpleEntry<String, List<DataEntity>>> recreateCandidates = new ArrayList<>();
 		List<List<DataEntity>> newCandidates = new ArrayList<>();
 
 		// recreate
-		for (Map.Entry<String, List<Integer>> rt : plan.recreateByCsvKey.entrySet()) {
-			String relativeKey = rt.getKey();
-			if (relativeKey == null || relativeKey.isBlank()) {
+		for (Map.Entry<String, List<Integer>> entry : plan.newTargets.entrySet()) {
+			List<Integer> ids = normalizeSeqList(entry.getValue());
+			if (ids.isEmpty()) {
 				continue;
 			}
 
-			String path = LOCAL_DIR.resolve(relativeKey).toString();
-			List<Integer> ids = normalizeSeqList(rt.getValue());
-
-			List<DataEntity> result = fetchAndFilter(ids, csvArtifactResource, METHOD_NAME, "recreate findByData");
-			if (result == null) {
+			String gk = groupKey(ids);
+			List<DataEntity> result = groupResultMap.get(gk);
+			if (result == null || result.isEmpty()) {
 				continue;
 			}
 
 			if (matchCsvInfo(csvInfoRow, result)) {
 				continue;
 			}
-			recreateCandidates.add(new SimpleEntry<>(path, result));
+			newCandidates.add(result);
 		}
 
 		// new
@@ -254,8 +265,9 @@ public class ExportCsvService {
 				continue;
 			}
 
-			List<DataEntity> result = fetchAndFilter(ids, csvArtifactResource, METHOD_NAME, "new findByData");
-			if (result == null) {
+			String gk = groupKey(ids);
+			List<DataEntity> result = groupResultMap.get(gk);
+			if (result == null || result.isEmpty()) {
 				continue;
 			}
 
@@ -293,13 +305,15 @@ public class ExportCsvService {
 		recreateCandidates.sort(Comparator.comparing(e -> toRelativeCsvKey(LOCAL_DIR, e.getKey())));
 		toCreate.addAll(recreateCandidates);
 
+		Set<String> newTargetFolders = new LinkedHashSet<>(newCandidatesByFolder.keySet());
+		Map<String, Integer> s3MaxByFolder = getStatInfo.getMaxCsvNoByFolders(newTargetFolders);
 		for (Map.Entry<String, List<List<DataEntity>>> e : newCandidatesByFolder.entrySet()) {
 			String folderName = e.getKey();
 			List<List<DataEntity>> groups = e.getValue();
 
 			groups.sort(Comparator.comparingInt(ExportCsvService::minSeqOfResult));
 
-			int maxOnS3 = getMaxCsvNoFromS3(statsBucket, joinS3Key(prefix, folderName));
+			int maxOnS3 = s3MaxByFolder.getOrDefault(folderName, 0);
 			int maxLocal = getMaxCsvNoFromLocal(LOCAL_DIR.resolve(folderName));
 			int nextNo = Math.max(maxOnS3, maxLocal) + 1;
 
@@ -468,6 +482,9 @@ public class ExportCsvService {
 			throw (e instanceof IOException) ? (IOException) e : new IOException(e);
 		}
 
+		Map<String, List<DataEntity>> groupResultMap =
+				preloadGroupResults(currentGroups, csvArtifactResource, METHOD_NAME);
+
 		List<SimpleEntry<String, List<DataEntity>>> recreateCandidates = new ArrayList<>();
 		List<List<DataEntity>> newCandidates = new ArrayList<>();
 
@@ -477,17 +494,19 @@ public class ExportCsvService {
 				continue;
 			}
 
-			String path = LOCAL_DIR.resolve(relativeKey).toString();
 			List<Integer> ids = normalizeSeqList(rt.getValue());
+			String gk = groupKey(ids);
 
-			List<DataEntity> result = fetchAndFilter(ids, csvArtifactResource, METHOD_NAME, "recreate findByData");
-			if (result == null) {
+			List<DataEntity> result = groupResultMap.get(gk);
+			if (result == null || result.isEmpty()) {
 				continue;
 			}
 
 			if (matchCsvInfo(csvInfoRow, result)) {
 				continue;
 			}
+
+			String path = LOCAL_DIR.resolve(relativeKey).toString();
 			recreateCandidates.add(new SimpleEntry<>(path, result));
 		}
 
@@ -497,8 +516,9 @@ public class ExportCsvService {
 				continue;
 			}
 
-			List<DataEntity> result = fetchAndFilter(ids, csvArtifactResource, METHOD_NAME, "new findByData");
-			if (result == null) {
+			String gk = groupKey(ids);
+			List<DataEntity> result = groupResultMap.get(gk);
+			if (result == null || result.isEmpty()) {
 				continue;
 			}
 
@@ -813,47 +833,6 @@ public class ExportCsvService {
 					bucket, finalKey);
 			throw e;
 		}
-	}
-
-	/**
-	 * S3（prefix配下）にある CSV の最大番号を取得する
-	 */
-	private int getMaxCsvNoFromS3(String bucket, String prefix) {
-		final String METHOD_NAME = "getMaxCsvNoFromS3";
-
-		String p = normalizePrefix(prefix);
-		String listPrefix = p.isBlank() ? "" : (p.endsWith("/") ? p : p + "/");
-
-		List<String> keys = s3Operator.listKeys(bucket, listPrefix);
-		int max = 0;
-
-		for (String key : keys) {
-			if (key == null) {
-				continue;
-			}
-
-			if (key.startsWith("tmp/")) {
-				continue;
-			}
-
-			Matcher m = CSV_NO_PATTERN.matcher(key);
-			if (!m.find()) {
-				continue;
-			}
-
-			try {
-				int n = Integer.parseInt(m.group(2));
-				if (n > max) {
-					max = n;
-				}
-			} catch (NumberFormatException ignore) {
-			}
-		}
-
-		manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-				"S3上の最大CSV番号=" + max + " (bucket=" + bucket + ", prefix=" + listPrefix + ")");
-		return max;
 	}
 
 	private int getMaxCsvNoFromLocal(Path localDir) {
@@ -1547,4 +1526,64 @@ public class ExportCsvService {
 			return content;
 		}
 	}
+
+	/**
+	 * 現在のグループ一覧から、CSV生成対象として有効な DataEntity リストを事前読込する。
+	 *
+	 * @param currentGroups 現在グループ
+	 * @param csvArtifactResource 条件リソース
+	 * @param methodName 呼び出し元メソッド名
+	 * @return key: groupKey, value: DataEntity一覧
+	 */
+	private Map<String, List<DataEntity>> preloadGroupResults(
+			List<List<Integer>> currentGroups,
+			CsvArtifactResource csvArtifactResource,
+			String methodName) {
+
+		Map<String, List<DataEntity>> groupResultMap = new LinkedHashMap<>();
+
+		if (currentGroups == null || currentGroups.isEmpty()) {
+			return groupResultMap;
+		}
+
+		for (List<Integer> group : currentGroups) {
+			List<Integer> ids = normalizeSeqList(group);
+			if (ids.isEmpty()) {
+				continue;
+			}
+
+			List<DataEntity> result = fetchAndFilter(ids, csvArtifactResource, methodName, "preload findByData");
+			if (result == null || result.isEmpty()) {
+				continue;
+			}
+
+			groupResultMap.put(groupKey(ids), result);
+		}
+
+		return groupResultMap;
+	}
+
+	/**
+	 * 事前読込したグループ結果から対象フォルダ一覧を抽出する。
+	 *
+	 * @param groupResultMap group結果
+	 * @return 対象フォルダ一覧
+	 */
+	private Set<String> collectTargetFolders(Map<String, List<DataEntity>> groupResultMap) {
+		Set<String> targetFolders = new LinkedHashSet<>();
+
+		if (groupResultMap == null || groupResultMap.isEmpty()) {
+			return targetFolders;
+		}
+
+		for (List<DataEntity> result : groupResultMap.values()) {
+			if (result == null || result.isEmpty()) {
+				continue;
+			}
+			targetFolders.add(resolveRoundFolderName(result));
+		}
+
+		return targetFolders;
+	}
+
 }
