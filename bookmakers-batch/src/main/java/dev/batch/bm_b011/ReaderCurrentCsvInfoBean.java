@@ -12,17 +12,23 @@ import dev.common.getinfo.GetStatInfo;
 @Component
 public class ReaderCurrentCsvInfoBean {
 
-    @Autowired
-    private GetStatInfo getStatInfo;
+	@Autowired
+	private GetStatInfo getStatInfo;
 
-    private Map<String, List<Integer>> csvInfo = Collections.emptyMap();
+	/**
+	 * key: S3相対キー（例: Japan-J1-ラウンド5/9.csv）
+	 * value: seq一覧
+	 */
+	private Map<String, List<Integer>> csvInfo = Collections.emptyMap();
 
-    public void init() {
-        this.csvInfo = getStatInfo.getCsvInfo("0", null);
-        if (this.csvInfo == null) this.csvInfo = Collections.emptyMap();
-    }
+	public void init() {
+		this.csvInfo = getStatInfo.getCsvInfo("0", null);
+		if (this.csvInfo == null) {
+			this.csvInfo = Collections.emptyMap();
+		}
+	}
 
-    public Map<String, List<Integer>> getCsvInfo() {
-        return csvInfo;
-    }
+	public Map<String, List<Integer>> getCsvInfo() {
+		return csvInfo;
+	}
 }
