@@ -28,6 +28,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
 import dev.batch.repository.bm.BookCsvDataRepository;
 import dev.batch.repository.bm.BookCsvDetailManageRepository;
@@ -64,6 +65,7 @@ import dev.common.util.ExecuteMainUtil;
  * - S3操作を一切行わず、ローカルのみで完結
  */
 @Component
+@Transactional
 public class ExportCsvService {
 
 	private static final String PROJECT_NAME = ExportCsvService.class.getProtectionDomain()
