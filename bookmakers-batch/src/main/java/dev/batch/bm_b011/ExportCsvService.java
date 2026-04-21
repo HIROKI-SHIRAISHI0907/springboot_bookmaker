@@ -322,9 +322,9 @@ public class ExportCsvService {
 
 			groups.sort(Comparator.comparingInt(ExportCsvService::minSeqOfResult));
 
+			// S3モードでは最終配置先である S3 上の番号だけを基準に採番する
 			int maxOnS3 = s3MaxByFolder.getOrDefault(folderName, 0);
-			int maxLocal = getMaxCsvNoFromLocal(LOCAL_DIR.resolve(folderName));
-			int nextNo = Math.max(maxOnS3, maxLocal) + 1;
+			int nextNo = maxOnS3 + 1;
 
 			for (int i = 0; i < groups.size(); i++) {
 				int csvNo = nextNo + i;
