@@ -120,6 +120,9 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		pointSettingBean.reload();
 		roundMap = bean.getCountryLeagueRoundMap();
 
+		// 期限切れ差分データ削除
+		surfaceOverviewProcessStat.deleteExpiredProcessEntity();
+
 		// 同月×チームの途中結果を保持
 		ConcurrentHashMap<String, SurfaceOverviewEntity> resultMap = new ConcurrentHashMap<>();
 

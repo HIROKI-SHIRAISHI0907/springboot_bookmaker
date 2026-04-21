@@ -3,9 +3,13 @@ package dev.application.analyze.bm_m032;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.application.analyze.bm_m031.SurfaceOverviewEntity;
+import dev.application.domain.repository.bm.SurfaceOverviewProcessRepository;
+import dev.common.constant.MessageCdConst;
+import dev.common.logger.ManageLoggerComponent;
 
 /**
  * SurfaceOverview の更新前後データから、
@@ -17,27 +21,10 @@ import dev.application.analyze.bm_m031.SurfaceOverviewEntity;
  * </p>
  *
  * <p>
- * ラウンド番号は {@code roundConc} の {@code A=} 部分から判定する。
- * 例:
- * </p>
- *
- * <pre>
- * before: A=1,2,4|W=1|L=2,4
- * after : A=1,2,4,5|W=1,5|L=2,4
- * </pre>
- *
- * <p>
- * この場合、
- * </p>
- * <ul>
- *   <li>直前ラウンド = 4</li>
- *   <li>今回ラウンド = 5</li>
- *   <li>ラウンド差 = 1</li>
- * </ul>
- *
- * <p>
- * 差分値は基本的に {@code after - before} で算出する。
- * 数値項目が null / 空文字 / 非数値の場合は 0 として扱う。
+ * 差分データは、更新前ラウンドと更新後ラウンドが隣接している場合のみ生成する。
+ * 例えば、前回ラウンドが5で今回ラウンドが6の場合は差分生成対象となるが、
+ * 前回ラウンドが5で今回ラウンドが7の場合は、ラウンド6の欠損があるため
+ * 差分を導出できず、生成対象外とする。
  * </p>
  *
  * @author shiraishitoshio
@@ -45,23 +32,96 @@ import dev.application.analyze.bm_m031.SurfaceOverviewEntity;
 @Component
 public class SurfaceOverviewProcessStat {
 
+	/** プロジェクト名 */
+	private static final String PROJECT_NAME = SurfaceOverviewProcessStat.class.getProtectionDomain()
+			.getCodeSource().getLocation().getPath();
+
+	/** クラス名 */
+	private static final String CLASS_NAME = SurfaceOverviewProcessStat.class.getName();
+
+	/** 実行モード */
+	private static final String EXEC_MODE = "BM_M032_SURFACE_OVERVIEW_PROCESS";
+
+	/** ロガー */
+	@Autowired
+	private ManageLoggerComponent manageLoggerComponent;
+
+	/** 差分データRepository */
+	@Autowired
+	private SurfaceOverviewProcessRepository surfaceOverviewProcessRepository;
+
+	/**
+	 * 最終更新から1時間経過した差分データを削除する。
+	 *
+	 * @return 削除件数
+	 */
+	public int deleteExpiredProcessEntity() {
+		final String METHOD_NAME = "deleteExpiredProcessEntity";
+		manageLoggerComponent.init(EXEC_MODE, null);
+		manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+
+		int deleteCount = surfaceOverviewProcessRepository.deleteExpired();
+
+		String messageCd = MessageCdConst.MCD00099I_LOG;
+		manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+				"deleteCount: " + deleteCount);
+
+		manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		manageLoggerComponent.clear();
+
+		return deleteCount;
+	}
+
 	/**
 	 * 更新前後の SurfaceOverview から差分Entityを生成する。
 	 *
 	 * <p>
-	 * 直前ラウンド番号は更新前の {@code roundConc} から取得し、
-	 * 今回ラウンド番号は更新後の {@code roundConc} から取得する。
+	 * 以下の場合は差分データを生成せず null を返す。
 	 * </p>
+	 * <ul>
+	 *   <li>更新前データが存在しない場合</li>
+	 *   <li>更新前または更新後のラウンド番号が取得できない場合</li>
+	 *   <li>更新前ラウンドと更新後ラウンドが隣接していない場合</li>
+	 * </ul>
 	 *
 	 * @param before 更新前の累積Entity
-	 * @param after  更新後の累積Entity
-	 * @return 差分を格納した {@link SurfaceOverviewProcessEntity}
+	 * @param after 更新後の累積Entity
+	 * @return 差分を格納した {@link SurfaceOverviewProcessEntity}。
+	 *         差分導出不可の場合は null
 	 */
 	public SurfaceOverviewProcessEntity createProcessEntity(
 			SurfaceOverviewEntity before,
 			SurfaceOverviewEntity after) {
+		final String METHOD_NAME = "createProcessEntity";
+		manageLoggerComponent.init(EXEC_MODE, null);
+		manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		if (after == null) {
+		if (before == null || after == null) {
+			String messageCd = MessageCdConst.MCD00099I_LOG;
+			manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+					"before or after is null");
+			manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+			manageLoggerComponent.clear();
+			return null;
+		}
+
+		Integer previousRoundNo = getLastRoundNo(before.getRoundConc());
+		Integer currentRoundNo = getLastRoundNo(after.getRoundConc());
+
+		if (!isAdjacentRound(previousRoundNo, currentRoundNo)) {
+			String messageCd = MessageCdConst.MCD00099I_LOG;
+			manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+					"skip process entity. previousRoundNo: " + previousRoundNo
+							+ " || currentRoundNo: " + currentRoundNo
+							+ " || country: " + after.getCountry()
+							+ " || league: " + after.getLeague()
+							+ " || team: " + after.getTeam());
+
+			manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+			manageLoggerComponent.clear();
 			return null;
 		}
 
@@ -73,72 +133,64 @@ public class SurfaceOverviewProcessStat {
 		entity.setGameMonth(after.getGameMonth());
 		entity.setTeam(after.getTeam());
 
-		entity.setBeforeRoundConc(before == null ? null : before.getRoundConc());
+		entity.setBeforeRoundConc(before.getRoundConc());
 		entity.setAfterRoundConc(after.getRoundConc());
-
-		Integer previousRoundNo = getLastRoundNo(before == null ? null : before.getRoundConc());
-		Integer currentRoundNo = getLastRoundNo(after.getRoundConc());
 
 		entity.setPreviousRoundNo(previousRoundNo);
 		entity.setCurrentRoundNo(currentRoundNo);
 		entity.setRoundGap(calcRoundGap(previousRoundNo, currentRoundNo));
 
-		entity.setGamesDiff(diff(after.getGames(), before == null ? null : before.getGames()));
-		entity.setWinDiff(diff(after.getWin(), before == null ? null : before.getWin()));
-		entity.setLoseDiff(diff(after.getLose(), before == null ? null : before.getLose()));
-		entity.setDrawDiff(diff(after.getDraw(), before == null ? null : before.getDraw()));
-		entity.setWinningPointsDiff(diff(after.getWinningPoints(), before == null ? null : before.getWinningPoints()));
+		entity.setGamesDiff(diff(after.getGames(), before.getGames()));
+		entity.setWinDiff(diff(after.getWin(), before.getWin()));
+		entity.setLoseDiff(diff(after.getLose(), before.getLose()));
+		entity.setDrawDiff(diff(after.getDraw(), before.getDraw()));
+		entity.setWinningPointsDiff(diff(after.getWinningPoints(), before.getWinningPoints()));
 
-		entity.setHome1stHalfScoreDiff(diff(after.getHome1stHalfScore(), before == null ? null : before.getHome1stHalfScore()));
-		entity.setHome2ndHalfScoreDiff(diff(after.getHome2ndHalfScore(), before == null ? null : before.getHome2ndHalfScore()));
-		entity.setHomeSumScoreDiff(diff(after.getHomeSumScore(), before == null ? null : before.getHomeSumScore()));
+		entity.setHome1stHalfScoreDiff(diff(after.getHome1stHalfScore(), before.getHome1stHalfScore()));
+		entity.setHome2ndHalfScoreDiff(diff(after.getHome2ndHalfScore(), before.getHome2ndHalfScore()));
+		entity.setHomeSumScoreDiff(diff(after.getHomeSumScore(), before.getHomeSumScore()));
 
-		entity.setAway1stHalfScoreDiff(diff(after.getAway1stHalfScore(), before == null ? null : before.getAway1stHalfScore()));
-		entity.setAway2ndHalfScoreDiff(diff(after.getAway2ndHalfScore(), before == null ? null : before.getAway2ndHalfScore()));
-		entity.setAwaySumScoreDiff(diff(after.getAwaySumScore(), before == null ? null : before.getAwaySumScore()));
+		entity.setAway1stHalfScoreDiff(diff(after.getAway1stHalfScore(), before.getAway1stHalfScore()));
+		entity.setAway2ndHalfScoreDiff(diff(after.getAway2ndHalfScore(), before.getAway2ndHalfScore()));
+		entity.setAwaySumScoreDiff(diff(after.getAwaySumScore(), before.getAwaySumScore()));
 
-		entity.setHome1stHalfLostDiff(diff(after.getHome1stHalfLost(), before == null ? null : before.getHome1stHalfLost()));
-		entity.setHome2ndHalfLostDiff(diff(after.getHome2ndHalfLost(), before == null ? null : before.getHome2ndHalfLost()));
-		entity.setHomeSumLostDiff(diff(after.getHomeSumLost(), before == null ? null : before.getHomeSumLost()));
+		entity.setHome1stHalfLostDiff(diff(after.getHome1stHalfLost(), before.getHome1stHalfLost()));
+		entity.setHome2ndHalfLostDiff(diff(after.getHome2ndHalfLost(), before.getHome2ndHalfLost()));
+		entity.setHomeSumLostDiff(diff(after.getHomeSumLost(), before.getHomeSumLost()));
 
-		entity.setAway1stHalfLostDiff(diff(after.getAway1stHalfLost(), before == null ? null : before.getAway1stHalfLost()));
-		entity.setAway2ndHalfLostDiff(diff(after.getAway2ndHalfLost(), before == null ? null : before.getAway2ndHalfLost()));
-		entity.setAwaySumLostDiff(diff(after.getAwaySumLost(), before == null ? null : before.getAwaySumLost()));
+		entity.setAway1stHalfLostDiff(diff(after.getAway1stHalfLost(), before.getAway1stHalfLost()));
+		entity.setAway2ndHalfLostDiff(diff(after.getAway2ndHalfLost(), before.getAway2ndHalfLost()));
+		entity.setAwaySumLostDiff(diff(after.getAwaySumLost(), before.getAwaySumLost()));
 
-		entity.setFailToScoreGameCountDiff(diff(after.getFailToScoreGameCount(), before == null ? null : before.getFailToScoreGameCount()));
+		entity.setFailToScoreGameCountDiff(diff(after.getFailToScoreGameCount(), before.getFailToScoreGameCount()));
 
-		entity.setFirstWeekGameWinCountDiff(diff(after.getFirstWeekGameWinCount(), before == null ? null : before.getFirstWeekGameWinCount()));
-		entity.setFirstWeekGameLostCountDiff(diff(after.getFirstWeekGameLostCount(), before == null ? null : before.getFirstWeekGameLostCount()));
-		entity.setMidWeekGameWinCountDiff(diff(after.getMidWeekGameWinCount(), before == null ? null : before.getMidWeekGameWinCount()));
-		entity.setMidWeekGameLostCountDiff(diff(after.getMidWeekGameLostCount(), before == null ? null : before.getMidWeekGameLostCount()));
-		entity.setLastWeekGameWinCountDiff(diff(after.getLastWeekGameWinCount(), before == null ? null : before.getLastWeekGameWinCount()));
-		entity.setLastWeekGameLostCountDiff(diff(after.getLastWeekGameLostCount(), before == null ? null : before.getLastWeekGameLostCount()));
+		entity.setFirstWeekGameWinCountDiff(diff(after.getFirstWeekGameWinCount(), before.getFirstWeekGameWinCount()));
+		entity.setFirstWeekGameLostCountDiff(diff(after.getFirstWeekGameLostCount(), before.getFirstWeekGameLostCount()));
+		entity.setMidWeekGameWinCountDiff(diff(after.getMidWeekGameWinCount(), before.getMidWeekGameWinCount()));
+		entity.setMidWeekGameLostCountDiff(diff(after.getMidWeekGameLostCount(), before.getMidWeekGameLostCount()));
+		entity.setLastWeekGameWinCountDiff(diff(after.getLastWeekGameWinCount(), before.getLastWeekGameWinCount()));
+		entity.setLastWeekGameLostCountDiff(diff(after.getLastWeekGameLostCount(), before.getLastWeekGameLostCount()));
 
-		entity.setHomeWinCountDiff(diff(after.getHomeWinCount(), before == null ? null : before.getHomeWinCount()));
-		entity.setHomeLoseCountDiff(diff(after.getHomeLoseCount(), before == null ? null : before.getHomeLoseCount()));
-		entity.setHomeFirstGoalCountDiff(diff(after.getHomeFirstGoalCount(), before == null ? null : before.getHomeFirstGoalCount()));
-		entity.setHomeWinBehindCountDiff(diff(after.getHomeWinBehindCount(), before == null ? null : before.getHomeWinBehindCount()));
-		entity.setHomeLoseBehindCountDiff(diff(after.getHomeLoseBehindCount(), before == null ? null : before.getHomeLoseBehindCount()));
+		entity.setHomeWinCountDiff(diff(after.getHomeWinCount(), before.getHomeWinCount()));
+		entity.setHomeLoseCountDiff(diff(after.getHomeLoseCount(), before.getHomeLoseCount()));
+		entity.setHomeFirstGoalCountDiff(diff(after.getHomeFirstGoalCount(), before.getHomeFirstGoalCount()));
+		entity.setHomeWinBehindCountDiff(diff(after.getHomeWinBehindCount(), before.getHomeWinBehindCount()));
+		entity.setHomeLoseBehindCountDiff(diff(after.getHomeLoseBehindCount(), before.getHomeLoseBehindCount()));
 
-		entity.setAwayWinCountDiff(diff(after.getAwayWinCount(), before == null ? null : before.getAwayWinCount()));
-		entity.setAwayLoseCountDiff(diff(after.getAwayLoseCount(), before == null ? null : before.getAwayLoseCount()));
-		entity.setAwayFirstGoalCountDiff(diff(after.getAwayFirstGoalCount(), before == null ? null : before.getAwayFirstGoalCount()));
-		entity.setAwayWinBehindCountDiff(diff(after.getAwayWinBehindCount(), before == null ? null : before.getAwayWinBehindCount()));
-		entity.setAwayLoseBehindCountDiff(diff(after.getAwayLoseBehindCount(), before == null ? null : before.getAwayLoseBehindCount()));
+		entity.setAwayWinCountDiff(diff(after.getAwayWinCount(), before.getAwayWinCount()));
+		entity.setAwayLoseCountDiff(diff(after.getAwayLoseCount(), before.getAwayLoseCount()));
+		entity.setAwayFirstGoalCountDiff(diff(after.getAwayFirstGoalCount(), before.getAwayFirstGoalCount()));
+		entity.setAwayWinBehindCountDiff(diff(after.getAwayWinBehindCount(), before.getAwayWinBehindCount()));
+		entity.setAwayLoseBehindCountDiff(diff(after.getAwayLoseBehindCount(), before.getAwayLoseBehindCount()));
+
+		manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		manageLoggerComponent.clear();
 
 		return entity;
 	}
 
 	/**
 	 * roundConc 文字列から A= の最後のラウンド番号を取得する。
-	 *
-	 * <p>
-	 * 例:
-	 * </p>
-	 * <pre>
-	 * A=1,2,4,5|W=1,5|L=2,4 -> 5
-	 * A=1,2,4|W=1|L=2,4     -> 4
-	 * </pre>
 	 *
 	 * @param roundConc roundConc文字列
 	 * @return 最後のラウンド番号。取得できない場合は null
@@ -149,6 +201,20 @@ public class SurfaceOverviewProcessStat {
 			return null;
 		}
 		return rounds.get(rounds.size() - 1);
+	}
+
+	/**
+	 * 直前ラウンドと今回ラウンドが隣接しているか判定する。
+	 *
+	 * @param previousRoundNo 直前ラウンド番号
+	 * @param currentRoundNo 今回ラウンド番号
+	 * @return 隣接している場合 true
+	 */
+	private boolean isAdjacentRound(Integer previousRoundNo, Integer currentRoundNo) {
+		if (previousRoundNo == null || currentRoundNo == null) {
+			return false;
+		}
+		return currentRoundNo - previousRoundNo == 1;
 	}
 
 	/**
@@ -199,10 +265,15 @@ public class SurfaceOverviewProcessStat {
 	 *
 	 * @param previousRoundNo 直前ラウンド
 	 * @param currentRoundNo 今回ラウンド
-	 * @return ラウンド差。どちらかが null の場合は null
+	 * @return ラウンド差
 	 */
 	private Integer calcRoundGap(Integer previousRoundNo, Integer currentRoundNo) {
+		final String METHOD_NAME = "calcRoundGap";
 		if (previousRoundNo == null || currentRoundNo == null) {
+			String messageCd = MessageCdConst.MCD00099I_LOG;
+			manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+					"previousRoundNo: " + previousRoundNo + "|| currentRoundNo: " + currentRoundNo);
 			return null;
 		}
 		return currentRoundNo - previousRoundNo;
@@ -239,5 +310,4 @@ public class SurfaceOverviewProcessStat {
 			return 0;
 		}
 	}
-
 }

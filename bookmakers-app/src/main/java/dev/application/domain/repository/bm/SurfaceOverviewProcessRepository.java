@@ -2,6 +2,7 @@ package dev.application.domain.repository.bm;
 
 import java.util.List;
 
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -22,12 +23,6 @@ import dev.application.analyze.bm_m032.SurfaceOverviewProcessEntity;
 @Mapper
 public interface SurfaceOverviewProcessRepository {
 
-	/**
-	 * 差分データを新規登録する。
-	 *
-	 * @param entity 登録対象
-	 * @return 登録件数
-	 */
 	@Insert("""
 			INSERT INTO surface_overview_process (
 				country,
@@ -131,17 +126,6 @@ public interface SurfaceOverviewProcessRepository {
 			""")
 	int insert(SurfaceOverviewProcessEntity entity);
 
-	/**
-	 * 主キー相当条件で差分データを取得する。
-	 *
-	 * @param country 国
-	 * @param league リーグ
-	 * @param gameYear 試合年
-	 * @param gameMonth 試合月
-	 * @param team チーム
-	 * @param currentRoundNo 今回ラウンド番号
-	 * @return 該当データ
-	 */
 	@Select("""
 			SELECT
 				country,
@@ -206,12 +190,6 @@ public interface SurfaceOverviewProcessRepository {
 			@Param("team") String team,
 			@Param("currentRoundNo") Integer currentRoundNo);
 
-	/**
-	 * 差分データを更新する。
-	 *
-	 * @param entity 更新対象
-	 * @return 更新件数
-	 */
 	@Update("""
 			UPDATE surface_overview_process
 			SET
@@ -264,4 +242,20 @@ public interface SurfaceOverviewProcessRepository {
 				AND current_round_no = #{currentRoundNo};
 			""")
 	int update(SurfaceOverviewProcessEntity entity);
+
+	/**
+	 * 最終更新から1時間経過した差分データを削除する。
+	 *
+	 * <p>
+	 * update_time が存在する場合は update_time を優先し、
+	 * update_time が null の場合は register_time を基準に判定する。
+	 * </p>
+	 *
+	 * @return 削除件数
+	 */
+	@Delete("""
+			DELETE FROM surface_overview_process
+			WHERE COALESCE(update_time, register_time) < (CURRENT_TIMESTAMP - INTERVAL '1 hour');
+			""")
+	int deleteExpired();
 }
