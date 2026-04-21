@@ -240,7 +240,7 @@ public class ExportCsvService {
 		List<List<DataEntity>> newCandidates = new ArrayList<>();
 
 		// recreate
-		for (Map.Entry<String, List<Integer>> entry : plan.newTargets.entrySet()) {
+		for (Map.Entry<String, List<Integer>> entry : plan.recreateByCsvKey.entrySet()) {
 			List<Integer> ids = normalizeSeqList(entry.getValue());
 			if (ids.isEmpty()) {
 				continue;
