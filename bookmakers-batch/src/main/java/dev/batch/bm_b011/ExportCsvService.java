@@ -241,6 +241,11 @@ public class ExportCsvService {
 
 		// recreate
 		for (Map.Entry<String, List<Integer>> entry : plan.recreateByCsvKey.entrySet()) {
+			String relativeKey = entry.getKey();
+			if (relativeKey == null || relativeKey.isBlank()) {
+				continue;
+			}
+
 			List<Integer> ids = normalizeSeqList(entry.getValue());
 			if (ids.isEmpty()) {
 				continue;
@@ -255,7 +260,9 @@ public class ExportCsvService {
 			if (matchCsvInfo(csvInfoRow, result)) {
 				continue;
 			}
-			newCandidates.add(result);
+
+			String path = LOCAL_DIR.resolve(relativeKey).toString();
+			recreateCandidates.add(new SimpleEntry<>(path, result));
 		}
 
 		// new
@@ -658,13 +665,11 @@ public class ExportCsvService {
 				continue;
 			}
 
-			List<String> dataList = ExecuteMainUtil.getCountryLeagueByRegex(row.getDataCategory());
-			String season = countryLeagueSeasonMasterBatchRepository
-					.findSeasonYear(dataList.get(0), dataList.get(1));
-
 			String dataCategory = safe(row.getDataCategory()).trim();
 			String home = safe(row.getHomeTeamName()).trim();
 			String away = safe(row.getAwayTeamName()).trim();
+
+			String season = resolveSeasonSafely(csvId, dataCategory);
 
 			try {
 				upsertCsvDetailManage(csvId, dataCategory, season, home, away, parentMethod);
@@ -676,6 +681,58 @@ public class ExportCsvService {
 
 				throw ex;
 			}
+		}
+	}
+
+	private String resolveSeasonSafely(String csvId, String dataCategory) {
+		final String METHOD_NAME = "resolveSeasonSafely";
+
+		String country = "";
+		String league = "";
+
+		try {
+			List<String> dataList = ExecuteMainUtil.getCountryLeagueByRegex(dataCategory);
+			if (dataList != null && dataList.size() >= 2) {
+				country = safe(dataList.get(0)).trim();
+				league = safe(dataList.get(1)).trim();
+			}
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG,
+					"dataCategory から country/league 抽出失敗. dataCategory=" + dataCategory + ", csvId=" + csvId);
+		}
+
+		// dataCategory から取れなかった場合は csvId から復元
+		if (country.isEmpty() || league.isEmpty()) {
+			String[] pair = extractCountryLeagueFromCsvId(csvId);
+			country = safe(pair[0]).trim();
+			league = safe(pair[1]).trim();
+
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG,
+					"csvId から country/league をフォールバック抽出. country=" + country
+							+ ", league=" + league + ", csvId=" + csvId);
+		}
+
+		if (country.isEmpty() || league.isEmpty()) {
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG,
+					"season取得スキップ: country/league を特定できません. dataCategory=" + dataCategory + ", csvId=" + csvId);
+			return "";
+		}
+
+		try {
+			String season = countryLeagueSeasonMasterBatchRepository.findSeasonYear(country, league);
+			return safe(season).trim();
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG,
+					"season取得失敗. country=" + country + ", league=" + league + ", csvId=" + csvId);
+			return "";
 		}
 	}
 
@@ -747,6 +804,30 @@ public class ExportCsvService {
 				safe(season).trim(),
 				safe(home).trim(),
 				safe(away).trim());
+	}
+
+	private String[] extractCountryLeagueFromCsvId(String csvId) {
+		if (csvId == null || csvId.isBlank()) {
+			return new String[] { "", "" };
+		}
+
+		String folder = parentPath(csvId); // 例: ブルガリア-パルヴァ・リーガ-ラウンド27
+		if (folder.isBlank()) {
+			return new String[] { "", "" };
+		}
+
+		int roundIdx = folder.lastIndexOf("-ラウンド");
+		String base = (roundIdx >= 0) ? folder.substring(0, roundIdx) : folder;
+
+		int firstHyphen = base.indexOf('-');
+		if (firstHyphen < 0) {
+			return new String[] { "", "" };
+		}
+
+		String country = base.substring(0, firstHyphen).trim();
+		String league = base.substring(firstHyphen + 1).trim();
+
+		return new String[] { country, league };
 	}
 
 	// =========================================================
