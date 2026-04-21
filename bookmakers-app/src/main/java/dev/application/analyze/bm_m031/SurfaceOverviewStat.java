@@ -8,12 +8,16 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
+import org.springframework.beans.BeanUtils;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.application.analyze.bm_m028.PastRankingQueryParam;
 import dev.application.analyze.bm_m028.PastRankingStat;
+import dev.application.analyze.bm_m032.SurfaceOverviewProcessEntity;
+import dev.application.analyze.bm_m032.SurfaceOverviewProcessStat;
 import dev.application.analyze.interf.AnalyzeEntityIF;
+import dev.application.domain.repository.bm.SurfaceOverviewProcessRepository;
 import dev.application.domain.repository.bm.SurfaceOverviewRepository;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
@@ -74,9 +78,17 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	@Autowired
 	private PastRankingStat pastRankingStat;
 
+	/** SurfaceOverview 差分生成 */
+	@Autowired
+	private SurfaceOverviewProcessStat surfaceOverviewProcessStat;
+
 	/** SurfaceOverview の CRUD */
 	@Autowired
 	private SurfaceOverviewRepository surfaceOverviewRepository;
+
+	/** SurfaceOverviewProcess の CRUD */
+	@Autowired
+	private SurfaceOverviewProcessRepository surfaceOverviewProcessRepository;
 
 	/** 例外ラッパ */
 	@Autowired
@@ -239,6 +251,9 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			SurfaceOverviewEntity row = resultMap.getOrDefault(homeKey,
 					loadOrNew(country, league, gameYear, gameMonth, home));
 
+			// 更新前スナップショット退避（差分作成用）
+			SurfaceOverviewEntity beforeRow = copyEntity(row);
+
 			row.setCountry(country);
 			row.setLeague(league);
 			row.setGameYear(Integer.parseInt(gameYear));
@@ -257,6 +272,11 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			ensureNotNullCounters(row);
 
 			resultMap.put(homeKey, row);
+
+			// 差分データ作成・保存
+			SurfaceOverviewProcessEntity homeProcessEntity =
+					surfaceOverviewProcessStat.createProcessEntity(beforeRow, row);
+			saveProcessEntity(homeProcessEntity);
 
 			if (roundNo != null) {
 				homeParam = PastRankingQueryParam.builder()
@@ -292,6 +312,9 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			SurfaceOverviewEntity row = resultMap.getOrDefault(awayKey,
 					loadOrNew(country, league, gameYear, gameMonth, away));
 
+			// 更新前スナップショット退避（差分作成用）
+			SurfaceOverviewEntity beforeRow = copyEntity(row);
+
 			row.setCountry(country);
 			row.setLeague(league);
 			row.setGameYear(Integer.parseInt(gameYear));
@@ -310,6 +333,11 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			ensureNotNullCounters(row);
 
 			resultMap.put(awayKey, row);
+
+			// 差分データ作成・保存
+			SurfaceOverviewProcessEntity awayProcessEntity =
+					surfaceOverviewProcessStat.createProcessEntity(beforeRow, row);
+			saveProcessEntity(awayProcessEntity);
 
 			if (roundNoAway != null) {
 				awayParam = PastRankingQueryParam.builder()
@@ -1182,6 +1210,69 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			e.setConsecutiveScoreCount("0");
 		if (e.getConsecutiveLoseCount() == null)
 			e.setConsecutiveLoseCount("0");
+	}
+
+	/**
+	 * SurfaceOverviewEntity のスナップショットを作成する。
+	 *
+	 * <p>
+	 * 差分計算前に更新前状態を退避するために使用する。
+	 * </p>
+	 *
+	 * @param src 元Entity
+	 * @return コピーしたEntity
+	 */
+	private SurfaceOverviewEntity copyEntity(SurfaceOverviewEntity src) {
+		if (src == null) {
+			return null;
+		}
+		SurfaceOverviewEntity dest = new SurfaceOverviewEntity();
+		BeanUtils.copyProperties(src, dest);
+		return dest;
+	}
+
+	/**
+	 * SurfaceOverviewProcess を upsert 保存する。
+	 *
+	 * @param entity 保存対象
+	 */
+	private void saveProcessEntity(SurfaceOverviewProcessEntity entity) {
+		final String METHOD_NAME = "saveProcessEntity";
+
+		if (entity == null || entity.getCurrentRoundNo() == null) {
+			return;
+		}
+
+		List<SurfaceOverviewProcessEntity> rows = surfaceOverviewProcessRepository.findByKey(
+				entity.getCountry(),
+				entity.getLeague(),
+				entity.getGameYear(),
+				entity.getGameMonth(),
+				entity.getTeam(),
+				entity.getCurrentRoundNo());
+
+		int result;
+		if (rows == null || rows.isEmpty()) {
+			result = surfaceOverviewProcessRepository.insert(entity);
+			if (result != 1) {
+				String messageCd = "surface_overview_process 新規登録エラー";
+				rootCauseWrapper.throwUnexpectedRowCount(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, 1, result,
+						String.format("country=%s, league=%s, gameYear=%s, gameMonth=%s, team=%s, round=%s",
+								entity.getCountry(), entity.getLeague(), entity.getGameYear(),
+								entity.getGameMonth(), entity.getTeam(), entity.getCurrentRoundNo()));
+			}
+		} else {
+			result = surfaceOverviewProcessRepository.update(entity);
+			if (result != 1) {
+				String messageCd = "surface_overview_process 更新エラー";
+				rootCauseWrapper.throwUnexpectedRowCount(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, 1, result,
+						String.format("country=%s, league=%s, gameYear=%s, gameMonth=%s, team=%s, round=%s",
+								entity.getCountry(), entity.getLeague(), entity.getGameYear(),
+								entity.getGameMonth(), entity.getTeam(), entity.getCurrentRoundNo()));
+			}
+		}
 	}
 
 	/**
