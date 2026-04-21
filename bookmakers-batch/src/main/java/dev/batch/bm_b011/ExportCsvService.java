@@ -75,16 +75,14 @@ public class ExportCsvService {
 
 	private static final String CSV_NEW_PREFIX = "mk";
 
-	private static final com.fasterxml.jackson.databind.ObjectMapper SEQ_JSON =
-			new com.fasterxml.jackson.databind.ObjectMapper();
+	private static final com.fasterxml.jackson.databind.ObjectMapper SEQ_JSON = new com.fasterxml.jackson.databind.ObjectMapper();
 
 	private static final Pattern ROUND_TOKEN = Pattern.compile("ラウンド\\s*[0-9０-９]+");
 
 	private static final Pattern ROUND_NO_PATTERN = Pattern.compile("ラウンド\\s*([0-9０-９]+)");
 
 	// "6089.csv" だけでなく "prefix/6089.csv" も解析できるようにしておく
-	private static final Pattern CSV_NO_PATTERN =
-			Pattern.compile("(^|.*/)(\\d+)\\.csv$", Pattern.CASE_INSENSITIVE);
+	private static final Pattern CSV_NO_PATTERN = Pattern.compile("(^|.*/)(\\d+)\\.csv$", Pattern.CASE_INSENSITIVE);
 
 	@Value("${exportcsv.local-only:false}")
 	private boolean localOnly;
@@ -196,8 +194,8 @@ public class ExportCsvService {
 		}
 
 		// ====== 対象グループを事前読込し、対象フォルダだけ既存CSV情報を読む ======
-		Map<String, List<DataEntity>> groupResultMap =
-				preloadGroupResults(currentGroups, csvArtifactResource, METHOD_NAME);
+		Map<String, List<DataEntity>> groupResultMap = preloadGroupResults(currentGroups, csvArtifactResource,
+				METHOD_NAME);
 
 		Set<String> targetFolders = collectTargetFolders(groupResultMap);
 
@@ -332,6 +330,13 @@ public class ExportCsvService {
 				String path = LOCAL_DIR.resolve(relativeKey).toString();
 				toCreate.add(new SimpleEntry<>(path, groups.get(i)));
 			}
+
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					"採番: folder=" + folderName
+							+ ", maxOnS3=" + maxOnS3
+							+ ", nextNo=" + nextNo
+							+ ", groupCount=" + groups.size());
 		}
 
 		int threads = Math.max(2, Runtime.getRuntime().availableProcessors() - 1);
@@ -491,8 +496,8 @@ public class ExportCsvService {
 			throw (e instanceof IOException) ? (IOException) e : new IOException(e);
 		}
 
-		Map<String, List<DataEntity>> groupResultMap =
-				preloadGroupResults(currentGroups, csvArtifactResource, METHOD_NAME);
+		Map<String, List<DataEntity>> groupResultMap = preloadGroupResults(currentGroups, csvArtifactResource,
+				METHOD_NAME);
 
 		List<SimpleEntry<String, List<DataEntity>>> recreateCandidates = new ArrayList<>();
 		List<List<DataEntity>> newCandidates = new ArrayList<>();
