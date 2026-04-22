@@ -1,7 +1,14 @@
 package dev.application.main.service;
 
+import java.nio.file.Paths;
+import java.util.ArrayList;
+import java.util.HashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
+import java.util.function.Function;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -27,116 +34,46 @@ import dev.application.domain.repository.master.CountryLeagueSeasonMasterReposit
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.entity.CsvDetailManageEntity;
-import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
-/**
- * 統計分析用サービスクラス
- * @author shiraishitoshio
- *
- */
 @Service
 @Transactional
 public class CoreStat implements StatIF {
 
-	/** プロジェクト名 */
 	private static final String PROJECT_NAME = CoreStat.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
-	/** クラス名 */
 	private static final String CLASS_NAME = CoreStat.class.getName();
 
-	/** 手動登録 */
-	private static final String CSV_ID_MANUAL = "-99";
+	private static final String CSV_ID_MANUAL = "<UNKNOWN_COUNTRY>-<UNKNOWN_LEAGUE>-<UNKNOWN_ROUND>/-99.csv";
 
-	/**
-	 * BM_M002統計分析ロジッククラス
-	 */
 	@Autowired
 	private ConditionResultDataStat conditionResultDataStat;
-
-	/**
-	 * BM_M003統計分析ロジッククラス
-	 */
 	@Autowired
 	private TeamMonthlyScoreSummaryStat teamMonthlyScoreSummaryStat;
-
-	/**
-	 * BM_M004統計分析ロジッククラス
-	 */
 	@Autowired
 	private TeamTimeSegmentShootingStat teamTimeSegmentShootingStat;
-
-	/**
-	 * BM_M005統計分析ロジッククラス
-	 */
 	@Autowired
 	private NoGoalMatchStat noGoalMatchStat;
-
-	/**
-	 * BM_M006統計分析ロジッククラス
-	 */
 	@Autowired
 	private CountryLeagueSummaryStat countryLeagueSummaryStat;
-
-	/**
-	 * BM_M007-BM_M016統計分析ロジッククラス
-	 */
-	//@Autowired
-	//private TimeRangeFeatureStat timeRangeFeatureStat;
-
-	/**
-	 * BM_M017-BM_M018統計分析ロジッククラス
-	 */
 	@Autowired
 	private LeagueScoreTimeBandStat leagueScoreTimeBandStat;
-
-	/**
-	 * BM_M019-BM_M020統計分析ロジッククラス
-	 */
 	@Autowired
 	private MatchClassificationResultStat matchClassificationResultStat;
-
-	/**
-	 * BM_M021統計分析ロジッククラス
-	 */
 	@Autowired
 	private TeamMatchFinalStat teamMatchFinalStat;
-
-	/**
-	 * BM_M023統計分析ロジッククラス
-	 */
 	@Autowired
 	private ScoreBasedFeatureStat scoreBasedFeatureStat;
-
-	/**
-	 * BM_M024統計分析ロジッククラス
-	 */
 	@Autowired
 	private CalcCorrelationStat calcCorrelationStat;
-
-	/**
-	 * BM_M025統計分析ロジッククラス
-	 */
 	@Autowired
 	private CalcCorrelationRankingStat calcCorrelationRankingStat;
-
-	/**
-	 * BM_M026統計分析ロジッククラス
-	 */
 	@Autowired
 	private EachTeamScoreBasedFeatureStat eachTeamScoreBasedFeatureStat;
-
-	/**
-	 * BM_M031統計分析ロジッククラス
-	 */
 	@Autowired
 	private SurfaceOverviewStat surfaceOverviewStat;
-
-	/**
-	 * BM_M033統計分析ロジッククラス
-	 */
 	@Autowired
 	private RankHistoryStat rankHistoryStat;
 
@@ -146,24 +83,12 @@ public class CoreStat implements StatIF {
 	@Autowired
 	private CsvDetailManageRepository csvDetailManageRepository;
 
-	/** ログ管理ラッパー*/
-	@Autowired
-	private RootCauseWrapper rootCauseWrapper;
-
-	/**
-	 * ログ管理クラス
-	 */
 	@Autowired
 	private ManageLoggerComponent loggerComponent;
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public int execute(Map<String, Map<String, List<BookDataEntity>>> stat, boolean manualFlg) throws Exception {
 		final String METHOD_NAME = "execute";
-
-		long startTime = System.nanoTime();
 
 		this.loggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
@@ -173,39 +98,46 @@ public class CoreStat implements StatIF {
 			this.loggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP,
-					"すでに統計反映しているデータ、または登録対象データがありません。");
+					"すでに統計反映済み、または登録対象データがありません。");
 			return 0;
 		}
 
-		// 統計ロジック呼び出し
-		if (!manualFlg)
+		if (!manualFlg) {
 			this.conditionResultDataStat.calcStat(stat);
+		}
 		this.teamMonthlyScoreSummaryStat.calcStat(stat);
-		if (!manualFlg)
+		if (!manualFlg) {
 			this.teamTimeSegmentShootingStat.calcStat(stat);
-		if (!manualFlg)
+		}
+		if (!manualFlg) {
 			this.countryLeagueSummaryStat.calcStat(stat);
+		}
 		this.noGoalMatchStat.calcStat(stat);
-		if (!manualFlg)
+		if (!manualFlg) {
 			this.leagueScoreTimeBandStat.calcStat(stat);
-		if (!manualFlg)
+		}
+		if (!manualFlg) {
 			this.matchClassificationResultStat.calcStat(stat);
+		}
 		this.teamMatchFinalStat.calcStat(stat);
-		if (!manualFlg)
+		if (!manualFlg) {
 			this.scoreBasedFeatureStat.calcStat(stat);
-		if (!manualFlg)
+		}
+		if (!manualFlg) {
 			this.calcCorrelationStat.calcStat(stat);
-		if (!manualFlg)
+		}
+		if (!manualFlg) {
 			this.calcCorrelationRankingStat.calcStat(stat);
-		if (!manualFlg)
+		}
+		if (!manualFlg) {
 			this.eachTeamScoreBasedFeatureStat.calcStat(stat);
+		}
 		this.surfaceOverviewStat.calcStat(stat);
 		this.rankHistoryStat.calcStat(stat);
 
-		// csv詳細管理登録
 		if (manualFlg) {
 			for (CsvDetailEntityOutputDTO dto : dtoList) {
-				insertCsvDetail(dto);
+				upsertCsvDetail(dto);
 			}
 		}
 
@@ -214,29 +146,22 @@ public class CoreStat implements StatIF {
 		this.loggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		long endTime = System.nanoTime();
-		long durationMs = (endTime - startTime) / 1_000_000;
-
-		System.out.println("時間: " + durationMs);
-
-		return 0;
+		return dtoList.size();
 	}
 
-	/**
-	 * CSV詳細管理データ取得
-	 * @param stat
-	 * @return
-	 */
 	private List<CsvDetailEntityOutputDTO> selectCsvDetail(
 			Map<String, Map<String, List<BookDataEntity>>> stat,
 			boolean manualFlg) {
-		final String METHOD_NAME = "selectCsvDetail";
 
-		List<CsvDetailEntityOutputDTO> result = new java.util.ArrayList<>();
+		final String METHOD_NAME = "selectCsvDetail";
+		List<CsvDetailEntityOutputDTO> candidates = new ArrayList<>();
 
 		if (stat == null || stat.isEmpty()) {
-			return result;
+			return candidates;
 		}
+
+		Map<String, String> seasonCache = new LinkedHashMap<>();
+		Set<String> candidateKeySet = new HashSet<>();
 
 		for (Map<String, List<BookDataEntity>> innerMap : stat.values()) {
 			if (innerMap == null || innerMap.isEmpty()) {
@@ -254,53 +179,35 @@ public class CoreStat implements StatIF {
 				}
 
 				String dataCategory = safe(row.getGameTeamCategory()).trim();
-				if (dataCategory.isEmpty()) {
-					continue;
-				}
-
-				String csvId;
-				if (manualFlg) {
-					csvId = CSV_ID_MANUAL;
-				} else {
-					String file = safe(row.getFilePath()).trim();
-					if (file.isEmpty()) {
-						continue;
-					}
-					String fileName = java.nio.file.Paths.get(file).getFileName().toString();
-					int dot = fileName.lastIndexOf('.');
-					csvId = (dot >= 0) ? fileName.substring(0, dot) : fileName;
-				}
-
-				List<String> dataList = ExecuteMainUtil.getCountryLeagueByRegex(dataCategory);
-				if (dataList == null || dataList.size() < 2) {
-					this.loggerComponent.debugWarnLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							MessageCdConst.MCD00099I_LOG,
-							"country/league の抽出に失敗: dataCategory=" + dataCategory);
-					continue;
-				}
-
-				String season = countryLeagueSeasonMasterBatchRepository
-						.findSeasonYear(dataList.get(0), dataList.get(1));
-
 				String home = safe(row.getHomeTeamName()).trim();
 				String away = safe(row.getAwayTeamName()).trim();
 
-				CsvDetailManageEntity entity = new CsvDetailManageEntity();
-				entity.setCsvId(csvId);
-				entity.setDataCategory(dataCategory);
-				entity.setSeason(season);
-				entity.setHomeTeamName(home);
-				entity.setAwayTeamName(away);
+				if (dataCategory.isEmpty() || home.isEmpty() || away.isEmpty()) {
+					continue;
+				}
 
-				CsvDetailManageEntity selEntity = this.csvDetailManageRepository.select(entity);
-				if (selEntity != null) {
-					this.loggerComponent.debugInfoLog(
+				String season = seasonCache.computeIfAbsent(
+						dataCategory,
+						this::resolveSeasonSafely);
+
+				if (season.isEmpty()) {
+					this.loggerComponent.debugWarnLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP,
-							"すでに csv_detail_manage 登録済みのためスキップ: "
-									+ buildCsvDetailContext(dataCategory, season, home, away)
-									+ ", csvId=" + csvId);
+							MessageCdConst.MCD00099I_LOG,
+							"season取得失敗のためスキップ: dataCategory=" + dataCategory);
+					continue;
+				}
+
+				String businessKey = buildCsvDetailKey(dataCategory, season, home, away);
+				if (!candidateKeySet.add(businessKey)) {
+					continue;
+				}
+
+				String csvId = manualFlg
+						? CSV_ID_MANUAL
+						: resolveCsvId(row.getFilePath());
+
+				if (csvId.isEmpty()) {
 					continue;
 				}
 
@@ -312,59 +219,102 @@ public class CoreStat implements StatIF {
 				dto.setAwayTeamName(away);
 				dto.setExistFlg(false);
 
-				result.add(dto);
+				candidates.add(dto);
 			}
 		}
 
-		return result;
+		if (candidates.isEmpty()) {
+			return candidates;
+		}
+
+		List<String> dataCategories = candidates.stream()
+				.map(CsvDetailEntityOutputDTO::getDataCategory)
+				.filter(s -> !safe(s).trim().isEmpty())
+				.distinct()
+				.collect(Collectors.toList());
+
+		if (dataCategories.isEmpty()) {
+			return candidates;
+		}
+
+		Set<String> existingKeySet = this.csvDetailManageRepository
+				.selectCheckedFinByDataCategories(dataCategories)
+				.stream()
+				.map(e -> buildCsvDetailKey(
+						e.getDataCategory(),
+						e.getSeason(),
+						e.getHomeTeamName(),
+						e.getAwayTeamName()))
+				.collect(Collectors.toSet());
+
+		return candidates.stream()
+				.filter(dto -> !existingKeySet.contains(buildCsvDetailKey(
+						dto.getDataCategory(),
+						dto.getSeason(),
+						dto.getHomeTeamName(),
+						dto.getAwayTeamName())))
+				.collect(Collectors.toList());
 	}
 
-	/**
-	 * CSV詳細管理登録
-	 * @param stat
-	 */
-	private void insertCsvDetail(
-			CsvDetailEntityOutputDTO existDto) {
-		final String METHOD_NAME = "insertCsvDetail";
+	private void upsertCsvDetail(CsvDetailEntityOutputDTO dto) {
+		final String METHOD_NAME = "upsertCsvDetail";
 
-		if (existDto == null) {
+		if (dto == null) {
 			return;
 		}
 
 		CsvDetailManageEntity entity = new CsvDetailManageEntity();
-		entity.setCsvId(existDto.getCsvId());
-		entity.setDataCategory(existDto.getDataCategory());
-		entity.setSeason(existDto.getSeason());
-		entity.setHomeTeamName(existDto.getHomeTeamName());
-		entity.setAwayTeamName(existDto.getAwayTeamName());
+		entity.setCsvId(dto.getCsvId());
+		entity.setDataCategory(dto.getDataCategory());
+		entity.setSeason(dto.getSeason());
+		entity.setHomeTeamName(dto.getHomeTeamName());
+		entity.setAwayTeamName(dto.getAwayTeamName());
 		entity.setCheckFinFlg("1");
 
-		String context = buildCsvDetailContext(
-				existDto.getDataCategory(), existDto.getSeason(),
-				existDto.getHomeTeamName(), existDto.getAwayTeamName());
-		int resultLog = -99;
-		int result = this.csvDetailManageRepository.insert(entity);
-		resultLog = result;
-		if (result != 1) {
-			// 基本はここにこない
-			entity.setCheckFinFlg("0");
-			int result2 = this.csvDetailManageRepository.insert(entity);
-			if (result2 != 1) {
-				String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-				this.rootCauseWrapper.throwUnexpectedRowCount(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						messageCd,
-						1, result2,
-						context);
-			}
-			resultLog = result2;
-		}
+		int result = this.csvDetailManageRepository.upsert(entity);
 
 		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 		this.loggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-				"csv_detail_manage 登録件数: " + resultLog + "件 "
-						+ "(" + context + ", csvId=" + existDto.getCsvId() + ")");
+				"csv_detail_manage upsert件数: " + result + "件 ("
+						+ buildCsvDetailContext(
+								dto.getDataCategory(),
+								dto.getSeason(),
+								dto.getHomeTeamName(),
+								dto.getAwayTeamName())
+						+ ", csvId=" + dto.getCsvId() + ")");
+	}
+
+	private String resolveSeasonSafely(String dataCategory) {
+		List<String> dataList = ExecuteMainUtil.getCountryLeagueByRegex(dataCategory);
+		if (dataList == null || dataList.size() < 2) {
+			return "";
+		}
+		return safe(countryLeagueSeasonMasterBatchRepository
+				.findSeasonYear(dataList.get(0), dataList.get(1))).trim();
+	}
+
+	private String resolveCsvId(String filePath) {
+		String file = safe(filePath).trim();
+		if (file.isEmpty()) {
+			return "";
+		}
+		String fileName = Paths.get(file).getFileName().toString();
+		int dot = fileName.lastIndexOf('.');
+		return (dot >= 0) ? fileName.substring(0, dot) : fileName;
+	}
+
+	private String buildCsvDetailKey(
+			String dataCategory,
+			String season,
+			String home,
+			String away) {
+
+		return String.join("||",
+				safe(dataCategory).trim(),
+				safe(season).trim(),
+				safe(home).trim(),
+				safe(away).trim());
 	}
 
 	private BookDataEntity buildRepresentativeRow(List<BookDataEntity> rows) {
@@ -380,18 +330,14 @@ public class CoreStat implements StatIF {
 		row.setTime(firstNonBlank(rows, BookDataEntity::getTime));
 		row.setHomeScore(firstNonBlank(rows, BookDataEntity::getHomeScore));
 		row.setAwayScore(firstNonBlank(rows, BookDataEntity::getAwayScore));
-		row.setFilePath(firstNonBlank(rows, BookDataEntity::getFilePath));   // 追加
-		row.setSeq(firstNonBlank(rows, BookDataEntity::getSeq));             // あってもよい
+		row.setFilePath(firstNonBlank(rows, BookDataEntity::getFilePath));
+		row.setSeq(firstNonBlank(rows, BookDataEntity::getSeq));
 		return row;
-	}
-
-	private static String safe(String s) {
-		return (s == null) ? "" : s;
 	}
 
 	private String firstNonBlank(
 			List<BookDataEntity> rows,
-			java.util.function.Function<BookDataEntity, String> getter) {
+			Function<BookDataEntity, String> getter) {
 
 		if (rows == null || rows.isEmpty()) {
 			return null;
@@ -422,4 +368,7 @@ public class CoreStat implements StatIF {
 				safe(away).trim());
 	}
 
+	private static String safe(String s) {
+		return (s == null) ? "" : s;
+	}
 }

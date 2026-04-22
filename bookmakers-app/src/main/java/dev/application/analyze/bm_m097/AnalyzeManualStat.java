@@ -25,7 +25,6 @@ import dev.application.main.service.CoreStat;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
-import dev.common.entity.CsvDetailManageEntity;
 import dev.common.entity.DataEntity;
 import dev.common.entity.FutureEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
@@ -57,10 +56,8 @@ public class AnalyzeManualStat {
 	/** 1回のIN句件数（DB負荷対策） */
 	private static final int MATCH_ID_BATCH_SIZE = 500;
 
+	/** JST */
 	private static final ZoneId JST = ZoneId.of("Asia/Tokyo");
-
-	/** CSVID */
-	private static final String CSV_ID = "<UNKNOWN_COUNTRY>-<UNKNOWN_LEAGUE>-<UNKNOWN_ROUND>/-99.csv";
 
 	@Autowired
 	private BookDataRepository bookDataRepository;
@@ -83,7 +80,7 @@ public class AnalyzeManualStat {
 	@Autowired
 	private GetStatInfo getStatInfo;
 
-	/** ログ管理ラッパー*/
+	/** ログ管理ラッパー */
 	@Autowired
 	private RootCauseWrapper rootCauseWrapper;
 
@@ -135,8 +132,7 @@ public class AnalyzeManualStat {
 			return 0;
 		}
 
-		// 3) 終了済み or PENALTY含み かつ
-		//    home/away/date が future_master と一致するものだけ対象
+		// 3) 終了済み or PENALTY含み かつ home/away/date が future_master と一致するものだけ対象
 		List<DataEntity> finishedList = finList.stream()
 				.filter(this::isFinishedTarget)
 				.filter(e -> futureTargetMap.containsKey(buildDataFutureKey(e)))
@@ -157,7 +153,7 @@ public class AnalyzeManualStat {
 			return 0;
 		}
 
-		// 3) 同一 match_id の重複を正規化
+		// 4) 同一 match_id の重複を正規化
 		List<DataEntity> normalizedFinishedList = normalizeFinishedData(finishedList);
 
 		this.manageLoggerComponent.debugInfoLog(
@@ -174,7 +170,7 @@ public class AnalyzeManualStat {
 			return 0;
 		}
 
-		// 4) matchId をユニーク抽出
+		// 5) matchId をユニーク抽出
 		List<String> matchIds = normalizedFinishedList.stream()
 				.map(DataEntity::getMatchId)
 				.map(this::nvl)
@@ -182,7 +178,7 @@ public class AnalyzeManualStat {
 				.distinct()
 				.collect(Collectors.toList());
 
-		// 5) analyze_manual_data に既にあるものを一括取得
+		// 6) analyze_manual_data に既にあるものを一括取得
 		//    match_id がある場合は match_id を優先して重複判定する
 		Set<String> analyzedKeySet = new HashSet<>();
 
@@ -205,7 +201,7 @@ public class AnalyzeManualStat {
 			}
 		}
 
-		// 6) 未反映データだけを抽出
+		// 7) 未反映データだけを抽出
 		List<DataEntity> targetList = normalizedFinishedList.stream()
 				.filter(e -> !analyzedKeySet.contains(buildAnalyzeKey(
 						e.getDataCategory(),
@@ -224,7 +220,7 @@ public class AnalyzeManualStat {
 			return 0;
 		}
 
-		// 7) CoreStat に渡せるデータだけに絞る
+		// 8) CoreStat に渡せるデータだけに絞る
 		List<DataEntity> validTargetList = targetList.stream()
 				.filter(this::isValidForCoreStat)
 				.collect(Collectors.toList());
@@ -238,101 +234,51 @@ public class AnalyzeManualStat {
 			return 0;
 		}
 
-		// 8) 以降に進むには条件がある
-		// 手動データに対応するデータカテゴリ,ホームチーム,アウェーチーム,matchIdがdataテーブルに存在しない（CSVにできる状態にない）
-		// csv_detail_manage（CSV一覧情報), data (データテーブル)にないこと
+		// 9) 以降に進むには条件がある
+		// csv_detail_manage(check_fin_flg='1') に存在しないこと
+		// data テーブルに存在しないこと
+		List<DataEntity> analyzeTargetList = filterAnalyzeTargets(validTargetList);
 
-		List<DataEntity> analyzeTargetList = new ArrayList<>();
-
-		Map<String, String> seasonCache = new LinkedHashMap<>();
-		Map<String, Boolean> csvExistsCache = new LinkedHashMap<>();
-		Map<String, Boolean> dataExistsCache = new LinkedHashMap<>();
-
-		for (DataEntity dataEntity : validTargetList) {
-			// シーズン取得をキャッシュ
-			String dataCategory = nvl(dataEntity.getDataCategory());
-			String season = seasonCache.computeIfAbsent(
-					dataCategory,
-					this::resolveSeasonSafely);
-
-			// csv_detail_manage 用キー
-			String csvKey = buildCsvDetailKey(
-					dataEntity.getDataCategory(),
-					season,
-					dataEntity.getHomeTeamName(),
-					dataEntity.getAwayTeamName());
-
-			boolean csvExists = csvExistsCache.computeIfAbsent(csvKey, k ->
-					csvDetailManageRepository.checkAnalyzeManualRestrictCount(
-							dataEntity.getDataCategory(),
-							season,
-							dataEntity.getHomeTeamName(),
-							dataEntity.getAwayTeamName()) > 0
-			);
-
-			// data 用キー
-			String dataKey = buildDataRestrictKey(
-					dataEntity.getDataCategory(),
-					dataEntity.getHomeTeamName(),
-					dataEntity.getAwayTeamName(),
-					dataEntity.getMatchId());
-
-			boolean dataExists = dataExistsCache.computeIfAbsent(dataKey, k ->
-					bookDataRepository.getAnalyzeManualRestrictCount(
-							dataEntity.getDataCategory(),
-							dataEntity.getHomeTeamName(),
-							dataEntity.getAwayTeamName(),
-							dataEntity.getMatchId()) > 0
-			);
-
-			// どちらも存在しない場合
-			if (!csvExists && !dataExists) {
-				analyzeTargetList.add(dataEntity);
-
-				CsvDetailManageEntity entity = new CsvDetailManageEntity();
-				entity.setCsvId(CSV_ID);
-				entity.setDataCategory(dataEntity.getDataCategory());
-				entity.setSeason(season);
-				entity.setHomeTeamName(dataEntity.getHomeTeamName());
-				entity.setAwayTeamName(dataEntity.getAwayTeamName());
-				entity.setCheckFinFlg("2");
-
-				int result = this.csvDetailManageRepository.insert(entity);
-				if (result != 1) {
-					String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-					this.rootCauseWrapper.throwUnexpectedRowCount(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							messageCd,
-							1, result,
-							null);
-				}
-
-				String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-						"csv_detail_manage 登録件数: " + result + "件");
-			}
+		if (analyzeTargetList.isEmpty()) {
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
+					null,
+					"analyzeTargetList not found");
+			return 0;
 		}
 
-		// 9) CoreStat に渡すMapを作成して実行
+		// 10) CoreStat に渡すMapを作成して実行
 		List<BookDataEntity> bookDataList = analyzeTargetList.stream()
 				.map(this::toBookDataEntity)
 				.collect(Collectors.toList());
 
-		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.buildStatMapFromEntities(bookDataList);
+		Map<String, Map<String, List<BookDataEntity>>> entities =
+				getStatInfo.buildStatMapFromEntities(bookDataList);
 
+		int processedCount;
 		try {
-			coreStat.execute(entities, true);
+			processedCount = coreStat.execute(entities, true);
 		} catch (Exception e1) {
 			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e1, "coreStat error");
 			this.manageLoggerComponent.createSystemException(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, null);
+			return 0;
 		}
 
-		// 10) 成功したデータを analyze_manual_data に登録
-		for (DataEntity entity : validTargetList) {
+		if (processedCount <= 0) {
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
+					null,
+					"coreStat processedCount=0");
+			return 0;
+		}
+
+		// 11) 成功した対象のみ analyze_manual_data に登録
+		for (DataEntity entity : analyzeTargetList) {
 			AnalyzeManualEntity manualEntity = new AnalyzeManualEntity();
 			manualEntity.setGameCategory(nvl(entity.getDataCategory()));
 			manualEntity.setTimes(nvl(entity.getTimes()));
@@ -355,7 +301,7 @@ public class AnalyzeManualStat {
 			String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-					BM_NUMBER + " ホーム登録件数: " + result + "件 ("
+					BM_NUMBER + " analyze_manual_data登録件数: " + result + "件 ("
 							+ entity.getDataCategory() + ": "
 							+ entity.getHomeTeamName() + "-"
 							+ entity.getAwayTeamName() + ")");
@@ -366,6 +312,71 @@ public class AnalyzeManualStat {
 		this.manageLoggerComponent.clear();
 
 		return 0;
+	}
+
+	/**
+	 * 分析対象の最終抽出
+	 * csv_detail_manage(check_fin_flg='1') に存在せず、
+	 * data テーブルにも存在しないものだけを残す
+	 *
+	 * @param validTargetList
+	 * @return
+	 */
+	private List<DataEntity> filterAnalyzeTargets(List<DataEntity> validTargetList) {
+		Map<String, String> seasonCache = new LinkedHashMap<>();
+		Map<String, Boolean> csvExistsCache = new LinkedHashMap<>();
+		Map<String, Boolean> dataExistsCache = new LinkedHashMap<>();
+
+		List<DataEntity> analyzeTargetList = new ArrayList<>();
+
+		for (DataEntity dataEntity : validTargetList) {
+			// シーズン取得をキャッシュ
+			String dataCategory = nvl(dataEntity.getDataCategory());
+			String season = seasonCache.computeIfAbsent(
+					dataCategory,
+					this::resolveSeasonSafely);
+
+			if (season.isEmpty()) {
+				continue;
+			}
+
+			// csv_detail_manage 用キー
+			String csvKey = buildCsvDetailKey(
+					dataEntity.getDataCategory(),
+					season,
+					dataEntity.getHomeTeamName(),
+					dataEntity.getAwayTeamName());
+
+			boolean csvExists = csvExistsCache.computeIfAbsent(csvKey, k ->
+					this.csvDetailManageRepository.existsCheckedFinCount(
+							dataEntity.getDataCategory(),
+							season,
+							dataEntity.getHomeTeamName(),
+							dataEntity.getAwayTeamName()) > 0
+			);
+
+			// data 用キー
+			String dataKey = buildDataRestrictKey(
+					dataEntity.getDataCategory(),
+					dataEntity.getHomeTeamName(),
+					dataEntity.getAwayTeamName(),
+					dataEntity.getMatchId());
+
+			boolean dataExists = dataExistsCache.computeIfAbsent(dataKey, k ->
+					this.bookDataRepository.getAnalyzeManualRestrictCount(
+							dataEntity.getDataCategory(),
+							dataEntity.getHomeTeamName(),
+							dataEntity.getAwayTeamName(),
+							dataEntity.getMatchId()) > 0
+			);
+
+			// どちらも存在しない場合のみ対象
+			if (!csvExists && !dataExists) {
+				analyzeTargetList.add(dataEntity);
+			}
+		}
+
+		return analyzeTargetList;
 	}
 
 	/**
@@ -760,53 +771,51 @@ public class AnalyzeManualStat {
 	 * String / OffsetDateTime の両方を吸収
 	 */
 	private String toTokyoDateString(Object dateTime) {
-	    if (dateTime == null) {
-	        return "";
-	    }
+		if (dateTime == null) {
+			return "";
+		}
 
-	    if (dateTime instanceof OffsetDateTime) {
-	        OffsetDateTime odt = (OffsetDateTime) dateTime;
-	        return odt.toInstant()
-	                .atZone(JST)
-	                .toLocalDate()
-	                .toString();
-	    }
+		if (dateTime instanceof OffsetDateTime) {
+			OffsetDateTime odt = (OffsetDateTime) dateTime;
+			return odt.toInstant()
+					.atZone(JST)
+					.toLocalDate()
+					.toString();
+		}
 
-	    String value = String.valueOf(dateTime).trim();
-	    if (value.isEmpty()) {
-	        return "";
-	    }
+		String value = String.valueOf(dateTime).trim();
+		if (value.isEmpty()) {
+			return "";
+		}
 
-	    List<DateTimeFormatter> formatters = List.of(
-	            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssX"),
-	            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX")
-	    );
+		List<DateTimeFormatter> formatters = List.of(
+				DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssX"),
+				DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX"));
 
-	    for (DateTimeFormatter formatter : formatters) {
-	        try {
-	            return OffsetDateTime.parse(value, formatter)
-	                    .toInstant()
-	                    .atZone(JST)
-	                    .toLocalDate()
-	                    .toString();
-	        } catch (Exception ignore) {
-	            // 次の formatter を試す
-	        }
-	    }
+		for (DateTimeFormatter formatter : formatters) {
+			try {
+				return OffsetDateTime.parse(value, formatter)
+						.toInstant()
+						.atZone(JST)
+						.toLocalDate()
+						.toString();
+			} catch (Exception ignore) {
+				// 次の formatter を試す
+			}
+		}
 
-	    try {
-	        return OffsetDateTime.parse(value)
-	                .toInstant()
-	                .atZone(JST)
-	                .toLocalDate()
-	                .toString();
-	    } catch (Exception ignore) {
-	        return "";
-	    }
+		try {
+			return OffsetDateTime.parse(value)
+					.toInstant()
+					.atZone(JST)
+					.toLocalDate()
+					.toString();
+		} catch (Exception ignore) {
+			return "";
+		}
 	}
 
 	private static String safe(String s) {
 		return (s == null) ? "" : s;
 	}
-
 }
