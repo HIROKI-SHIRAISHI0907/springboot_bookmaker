@@ -27,7 +27,7 @@ public class CsvDetailManageEntity extends MetaEntity implements Serializable {
     /** アウェーチーム */
     private String awayTeamName;
 
-    /** 統計反映フラグ */
+    /** 統計反映フラグ（0: 未反映, 1: 反映済み, 2:手動データのためダミー用） */
     private String checkFinFlg;
 
 }
