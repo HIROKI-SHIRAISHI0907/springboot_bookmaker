@@ -691,6 +691,12 @@ public class ExportCsvService {
 		}
 	}
 
+	/**
+	 * シーズン取得
+	 * @param csvId
+	 * @param dataCategory
+	 * @return
+	 */
 	private String resolveSeasonSafely(String csvId, String dataCategory) {
 		final String METHOD_NAME = "resolveSeasonSafely";
 
