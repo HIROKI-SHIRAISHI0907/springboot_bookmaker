@@ -84,7 +84,7 @@ public class AutoSeasonHyphenStat {
 			String normalizedEndSeasonDate = endSeasonDate.substring(0, 19);
 			LocalDateTime endDateTime = LocalDateTime.parse(normalizedEndSeasonDate, formatter);
 
-			// シーズン終了日をシステム日時が超えていたら「---」に更新
+			// シーズン終了日をシステム日時が超えていたらNULLに更新
 			if (now.isAfter(endDateTime)) {
 				String[] keyArray = key.split("-", 2);
 				String country = keyArray[0];
