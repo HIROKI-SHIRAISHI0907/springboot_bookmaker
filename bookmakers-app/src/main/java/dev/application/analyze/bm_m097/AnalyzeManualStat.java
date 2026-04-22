@@ -18,16 +18,20 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.domain.repository.bm.AnalyzeManualRepository;
 import dev.application.domain.repository.bm.BookDataRepository;
+import dev.application.domain.repository.bm.CsvDetailManageRepository;
+import dev.application.domain.repository.master.CountryLeagueSeasonMasterRepository;
 import dev.application.domain.repository.master.FutureMasterRepository;
 import dev.application.main.service.CoreStat;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
+import dev.common.entity.CsvDetailManageEntity;
 import dev.common.entity.DataEntity;
 import dev.common.entity.FutureEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.getinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.util.ExecuteMainUtil;
 
 /**
  * BM_M097統計分析ロジック（手動データ統計適用ロジック）
@@ -55,14 +59,23 @@ public class AnalyzeManualStat {
 
 	private static final ZoneId JST = ZoneId.of("Asia/Tokyo");
 
+	/** CSVID */
+	private static final String CSV_ID = "<UNKNOWN_COUNTRY>-<UNKNOWN_LEAGUE>-<UNKNOWN_ROUND>/-99.csv";
+
 	@Autowired
 	private BookDataRepository bookDataRepository;
+
+	@Autowired
+	private CsvDetailManageRepository csvDetailManageRepository;
 
 	@Autowired
 	private FutureMasterRepository futureMasterRepository;
 
 	@Autowired
 	private AnalyzeManualRepository analyzeManualDataRepository;
+
+	@Autowired
+	private CountryLeagueSeasonMasterRepository countryLeagueSeasonMasterRepository;
 
 	@Autowired
 	private CoreStat coreStat;
@@ -225,16 +238,64 @@ public class AnalyzeManualStat {
 			return 0;
 		}
 
-		// 8) CoreStat に渡すMapを作成して実行
-		List<BookDataEntity> bookDataList = validTargetList.stream()
+		// 8) 以降に進むには条件がある
+		// 手動データに対応するデータカテゴリ,ホームチーム,アウェーチーム,matchIdがdataテーブルに存在しない（CSVにできる状態にない）
+		// csv_detail_manage（CSV一覧情報), data (データテーブル)にないこと
+
+		List<DataEntity> analyzeTargetList = new ArrayList<>();
+		for (DataEntity dataEntity : validTargetList) {
+			// シーズン取得
+			String season = resolveSeasonSafely(dataEntity.getDataCategory());
+			// CSV一覧情報
+			int csvDetailCount = csvDetailManageRepository.
+					checkAnalyzeManualRestrictCount(
+							dataEntity.getDataCategory(),
+							season,
+							dataEntity.getHomeTeamName(),
+							dataEntity.getAwayTeamName());
+			// データ情報
+			int dataCount = bookDataRepository.
+					getAnalyzeManualRestrictCount(
+							dataEntity.getDataCategory(),
+							dataEntity.getHomeTeamName(),
+							dataEntity.getAwayTeamName(),
+							dataEntity.getMatchId()
+					);
+			// どちらも存在しない場合
+			if (csvDetailCount == 0 && dataCount == 0) {
+				analyzeTargetList.add(dataEntity);
+
+				CsvDetailManageEntity entity = new CsvDetailManageEntity();
+				entity.setCsvId(CSV_ID);
+				entity.setDataCategory(dataEntity.getDataCategory());
+				entity.setSeason(season);
+				entity.setHomeTeamName(dataEntity.getHomeTeamName());
+				entity.setAwayTeamName(dataEntity.getAwayTeamName());
+				entity.setCheckFinFlg("2");
+
+				int result = this.csvDetailManageRepository.insert(entity);
+				if (result != 1) {
+					String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
+					this.rootCauseWrapper.throwUnexpectedRowCount(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+							messageCd,
+							1, result,
+							null);
+				}
+
+				String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
+				this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+						"csv_detail_manage 登録件数: " + result + "件");
+			}
+		}
+
+		// 9) CoreStat に渡すMapを作成して実行
+		List<BookDataEntity> bookDataList = analyzeTargetList.stream()
 				.map(this::toBookDataEntity)
 				.collect(Collectors.toList());
 
 		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.buildStatMapFromEntities(bookDataList);
-
-		// 9) 以降に進むには条件がある
-		// 手動データに対応するデータカテゴリ,ホームチーム,アウェーチーム,matchIdがdataテーブルに存在しない（CSVにできる状態にない）
-
 
 		try {
 			coreStat.execute(entities, true);
@@ -281,6 +342,42 @@ public class AnalyzeManualStat {
 		this.manageLoggerComponent.clear();
 
 		return 0;
+	}
+
+	/**
+	 * シーズン取得
+	 * @param dataCategory
+	 * @return
+	 */
+	private String resolveSeasonSafely(String dataCategory) {
+		final String METHOD_NAME = "resolveSeasonSafely";
+
+		String country = "";
+		String league = "";
+
+		try {
+			List<String> dataList = ExecuteMainUtil.getCountryLeagueByRegex(dataCategory);
+			if (dataList != null && dataList.size() >= 2) {
+				country = safe(dataList.get(0)).trim();
+				league = safe(dataList.get(1)).trim();
+			}
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG,
+					"dataCategory から country/league 抽出失敗. dataCategory=" + dataCategory);
+		}
+
+		try {
+			String season = countryLeagueSeasonMasterRepository.findSeasonYear(country, league);
+			return safe(season).trim();
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG,
+					"season取得失敗. country=" + country + ", league=" + league);
+			return "";
+		}
 	}
 
 	/**
@@ -664,6 +761,10 @@ public class AnalyzeManualStat {
 	    } catch (Exception ignore) {
 	        return "";
 	    }
+	}
+
+	private static String safe(String s) {
+		return (s == null) ? "" : s;
 	}
 
 }

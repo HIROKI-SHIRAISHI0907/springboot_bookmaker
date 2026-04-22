@@ -78,4 +78,26 @@ public interface CsvDetailManageRepository {
 			@Param("awayTeamName") String awayTeamName,
 			@Param("checkFinFlg") String checkFinFlg);
 
+	@Select("""
+			SELECT
+				COUNT(*)
+			FROM
+				csv_detail_manage
+			WHERE
+			    data_category = #{dataCategory}
+			AND
+			    season = #{season}
+			AND
+			    home_team_name = #{homeTeamName}
+			AND
+			    away_team_name = #{awayTeamName}
+			AND
+				check_fin_flg = '1'
+			""")
+	int checkAnalyzeManualRestrictCount(
+			@Param("dataCategory") String dataCategory,
+			@Param("season") String season,
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
+
 }
