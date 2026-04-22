@@ -60,6 +60,15 @@ public class LeaguesRepository {
 		public String link;
 	}
 
+	/** リーグのシーズン状態確認用 */
+	@Data
+	public static class LeagueSeasonRow {
+		public String seasonYear;
+		public String startSeasonDate;
+		public String endSeasonDate;
+		public String path;
+	}
+
 	private static final Pattern TEAM_LINK_PATTERN = Pattern.compile("^/team/([^/]+)/([^/]+)",
 			Pattern.CASE_INSENSITIVE);
 
@@ -214,6 +223,36 @@ public class LeaguesRepository {
 	    return masterJdbcTemplate.query(sql, params, new BeanPropertyRowMapper<>(TeamRow.class));
 	}
 
+	/**
+	 * スラグからシーズン情報を取得
+	 * end_season_date が null / 空 ならシーズン終了扱いにするため使用
+	 */
+	public LeagueSeasonRow findLeagueSeasonBySlug(String country, String league) {
+		String sql = """
+				SELECT
+				    season_year,
+				    start_season_date,
+				    end_season_date,
+				    path
+				FROM country_league_season_master
+				WHERE path = :path
+				  AND valid_flg = '0'
+				  AND del_flg   = '0'
+				ORDER BY season_year DESC NULLS LAST
+				LIMIT 1
+				""";
+
+		MapSqlParameterSource params = new MapSqlParameterSource()
+				.addValue("path", "/soccer/" + country + "/" + league + "/");
+
+		List<LeagueSeasonRow> list = masterJdbcTemplate.query(
+				sql,
+				params,
+				new BeanPropertyRowMapper<>(LeagueSeasonRow.class));
+
+		return list.isEmpty() ? null : list.get(0);
+	}
+
 	private String normalizeSubLeague(String subLeague) {
 	    if (subLeague == null || subLeague.trim().isEmpty()) {
 	        return null;
@@ -280,5 +319,4 @@ public class LeaguesRepository {
 
 	    return masterJdbcTemplate.queryForList(sql, params, String.class);
 	}
-
 }

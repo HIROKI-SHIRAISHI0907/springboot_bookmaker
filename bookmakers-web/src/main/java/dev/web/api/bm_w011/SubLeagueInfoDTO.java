@@ -16,4 +16,13 @@ public class SubLeagueInfoDTO {
     // チーム件数
     private int teamCount;
 
+    /** シーズン終了済みか */
+    private boolean seasonEnded;
+
+    /** リンク活性可否 */
+    private boolean linkEnabled;
+
+    /** 画面表示用ラベル */
+    private String seasonEndedLabel;
+
 }

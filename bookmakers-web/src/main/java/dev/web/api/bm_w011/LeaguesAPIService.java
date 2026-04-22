@@ -1,4 +1,3 @@
-// dev/web/api/bm_w011/LeaguesService.java
 package dev.web.api.bm_w011;
 
 import java.net.URLEncoder;
@@ -8,10 +7,13 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
+import org.springframework.web.server.ResponseStatusException;
 
 import dev.web.repository.bm.LeaguesRepository;
 import dev.web.repository.bm.LeaguesRepository.LeagueCountRow;
+import dev.web.repository.bm.LeaguesRepository.LeagueSeasonRow;
 import dev.web.repository.bm.LeaguesRepository.TeamRow;
 import lombok.RequiredArgsConstructor;
 
@@ -23,6 +25,10 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class LeaguesAPIService {
+
+    private static final String SEASON_ENDED_LABEL = "シーズン終了";
+    private static final String SEASON_ENDED_MESSAGE =
+            "シーズンが終了しています。来シーズンまでお待ちください。";
 
     private final LeaguesRepository repo;
 
@@ -56,6 +62,8 @@ public class LeaguesAPIService {
             String leagueGroup = safeTrim(row.getLeagueGroup());
             String rawSubLeague = normalizeSubLeague(row.getSubLeague());
 
+            boolean seasonEnded = isSeasonEnded(row.getEndSeasonDate());
+
             // country作成
             LeagueGroupedResponse countryDto = countryMap.computeIfAbsent(country, c -> {
                 LeagueGroupedResponse dto = new LeagueGroupedResponse();
@@ -78,7 +86,10 @@ public class LeaguesAPIService {
                 dto.setVariantCount(row.getVariantCount() == null ? 0 : row.getVariantCount().intValue());
                 dto.setTeamCount(row.getTeamCount() == null ? 0 : row.getTeamCount().intValue());
                 dto.setPath(normalizeNoTrailingSlash(row.getPath()));
-                dto.setRoutingPath(normalizeNoTrailingSlash(row.getPath()));
+                dto.setRoutingPath(seasonEnded ? null : normalizeNoTrailingSlash(row.getPath()));
+                dto.setSeasonEnded(seasonEnded);
+                dto.setLinkEnabled(!seasonEnded);
+                dto.setSeasonEndedLabel(seasonEnded ? SEASON_ENDED_LABEL : null);
                 dto.setSubLeagues(new ArrayList<>());
                 countryDto.getLeagues().add(dto);
                 return dto;
@@ -95,8 +106,11 @@ public class LeaguesAPIService {
                 SubLeagueInfoDTO dto = new SubLeagueInfoDTO();
                 dto.setRawName(sl);
                 dto.setName("▶︎" + sl);
-                dto.setRoutingPath(buildSubLeagueRoutingPath(leagueDto.getRoutingPath(), sl));
+                dto.setRoutingPath(seasonEnded ? null : buildSubLeagueRoutingPath(leagueDto.getPath(), sl));
                 dto.setTeamCount(0);
+                dto.setSeasonEnded(seasonEnded);
+                dto.setLinkEnabled(!seasonEnded);
+                dto.setSeasonEndedLabel(seasonEnded ? SEASON_ENDED_LABEL : null);
                 leagueDto.getSubLeagues().add(dto);
                 return dto;
             });
@@ -120,6 +134,10 @@ public class LeaguesAPIService {
         return value == null ? "" : value.trim();
     }
 
+    private boolean isSeasonEnded(String endSeasonDate) {
+        return endSeasonDate == null || endSeasonDate.trim().isEmpty();
+    }
+
     private String normalizeNoTrailingSlash(String p) {
         if (p == null) return null;
         String s = p.trim();
@@ -129,12 +147,17 @@ public class LeaguesAPIService {
 
     private String buildSubLeagueRoutingPath(String basePath, String subLeague) {
         String normalizedBase = normalizeNoTrailingSlash(basePath);
+        if (normalizedBase == null || normalizedBase.isEmpty()) {
+            return null;
+        }
         String encoded = URLEncoder.encode(subLeague, StandardCharsets.UTF_8);
         return normalizedBase + "?subLeague=" + encoded;
     }
 
-    /** GET /api/leagues/{country}/{league} country:england, league:premier-league*/
+    /** GET /api/leagues/{country}/{league} country:england, league:premier-league */
     public TeamsInLeagueResponse getTeamsInLeague(String country, String league, String subLeague) {
+        validateSeasonOpen(country, league);
+
         List<TeamRow> rows = repo.findTeamsInLeagueOnSlug(country, league, subLeague);
 
         TeamsInLeagueResponse res = new TeamsInLeagueResponse();
@@ -156,7 +179,6 @@ public class LeaguesAPIService {
             t.setPath(path);
             String apiPath = "/api/leagues/" + repo.toPath(r.country) + "/" + repo.toPath(r.league) + "/" + english;
             t.setApiPath(apiPath);
-            // ルーティングをlinkにする
             t.setRoutingPath(r.link);
 
             teams.add(t);
@@ -169,6 +191,7 @@ public class LeaguesAPIService {
     public TeamDetailResponse getTeamDetail(String teamEnglish, String teamHash) {
         TeamRow row = repo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
         if (row == null) return null;
+
         TeamDetailResponse res = new TeamDetailResponse();
         res.setId(row.id);
         res.setCountry(row.country);
@@ -186,5 +209,17 @@ public class LeaguesAPIService {
 
         res.setPaths(paths);
         return res;
+    }
+
+    private void validateSeasonOpen(String country, String league) {
+        LeagueSeasonRow row = repo.findLeagueSeasonBySlug(country, league);
+
+        if (row == null) {
+            throw new ResponseStatusException(HttpStatus.NOT_FOUND, "league not found");
+        }
+
+        if (isSeasonEnded(row.getEndSeasonDate())) {
+            throw new ResponseStatusException(HttpStatus.GONE, SEASON_ENDED_MESSAGE);
+        }
     }
 }
