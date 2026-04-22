@@ -243,26 +243,50 @@ public class AnalyzeManualStat {
 		// csv_detail_manage（CSV一覧情報), data (データテーブル)にないこと
 
 		List<DataEntity> analyzeTargetList = new ArrayList<>();
+
+		Map<String, String> seasonCache = new LinkedHashMap<>();
+		Map<String, Boolean> csvExistsCache = new LinkedHashMap<>();
+		Map<String, Boolean> dataExistsCache = new LinkedHashMap<>();
+
 		for (DataEntity dataEntity : validTargetList) {
-			// シーズン取得
-			String season = resolveSeasonSafely(dataEntity.getDataCategory());
-			// CSV一覧情報
-			int csvDetailCount = csvDetailManageRepository.
-					checkAnalyzeManualRestrictCount(
+			// シーズン取得をキャッシュ
+			String dataCategory = nvl(dataEntity.getDataCategory());
+			String season = seasonCache.computeIfAbsent(
+					dataCategory,
+					this::resolveSeasonSafely);
+
+			// csv_detail_manage 用キー
+			String csvKey = buildCsvDetailKey(
+					dataEntity.getDataCategory(),
+					season,
+					dataEntity.getHomeTeamName(),
+					dataEntity.getAwayTeamName());
+
+			boolean csvExists = csvExistsCache.computeIfAbsent(csvKey, k ->
+					csvDetailManageRepository.checkAnalyzeManualRestrictCount(
 							dataEntity.getDataCategory(),
 							season,
 							dataEntity.getHomeTeamName(),
-							dataEntity.getAwayTeamName());
-			// データ情報
-			int dataCount = bookDataRepository.
-					getAnalyzeManualRestrictCount(
+							dataEntity.getAwayTeamName()) > 0
+			);
+
+			// data 用キー
+			String dataKey = buildDataRestrictKey(
+					dataEntity.getDataCategory(),
+					dataEntity.getHomeTeamName(),
+					dataEntity.getAwayTeamName(),
+					dataEntity.getMatchId());
+
+			boolean dataExists = dataExistsCache.computeIfAbsent(dataKey, k ->
+					bookDataRepository.getAnalyzeManualRestrictCount(
 							dataEntity.getDataCategory(),
 							dataEntity.getHomeTeamName(),
 							dataEntity.getAwayTeamName(),
-							dataEntity.getMatchId()
-					);
+							dataEntity.getMatchId()) > 0
+			);
+
 			// どちらも存在しない場合
-			if (csvDetailCount == 0 && dataCount == 0) {
+			if (!csvExists && !dataExists) {
 				analyzeTargetList.add(dataEntity);
 
 				CsvDetailManageEntity entity = new CsvDetailManageEntity();
@@ -655,6 +679,24 @@ public class AnalyzeManualStat {
 		dest.setFileCount(src.getFileCount());
 
 		return dest;
+	}
+
+	private String buildCsvDetailKey(String dataCategory, String season,
+			String homeTeamName, String awayTeamName) {
+		return String.join("||",
+				nvl(dataCategory),
+				nvl(season),
+				nvl(homeTeamName),
+				nvl(awayTeamName));
+	}
+
+	private String buildDataRestrictKey(String dataCategory,
+			String homeTeamName, String awayTeamName, String matchId) {
+		return String.join("||",
+				nvl(dataCategory),
+				nvl(homeTeamName),
+				nvl(awayTeamName),
+				nvl(matchId));
 	}
 
 	private boolean isValidForCoreStat(DataEntity e) {

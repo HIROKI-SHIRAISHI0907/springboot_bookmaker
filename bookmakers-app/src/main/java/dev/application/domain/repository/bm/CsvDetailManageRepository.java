@@ -28,6 +28,7 @@ public interface CsvDetailManageRepository {
 			    away_team_name = #{awayTeamName}
 			AND
 				check_fin_flg = '1'
+			LIMIT 1
 			""")
 	CsvDetailManageEntity select(CsvDetailManageEntity entity);
 
