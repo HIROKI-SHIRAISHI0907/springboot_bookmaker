@@ -4,6 +4,7 @@ import java.time.Instant;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
+import java.util.Locale;
 import java.util.Optional;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
@@ -27,22 +28,20 @@ import software.amazon.awssdk.services.ecs.model.ListTasksResponse;
 import software.amazon.awssdk.services.ecs.model.Task;
 import software.amazon.awssdk.services.ecs.model.TaskField;
 
-/**
- * ECSスクレイピングタスク進捗取得サービス
- * - batchCode(B002など)でクラスター/タスク定義/コンテナ/ロググループを切り替える
- */
 @Service
 public class EcsScrapeTaskProgressService {
 
-    /** 正規表現 */
+    /**
+     * 例:
+     * [PROGRESS] teams=3/20
+     * [PROGRESS] teams = ３ / ２０
+     */
     private static final Pattern PROGRESS_PATTERN =
-            Pattern.compile("\\[PROGRESS\\].*?teams=(\\d+)/(\\d+)");
+            Pattern.compile("\\[PROGRESS\\].*?teams\\s*=\\s*([0-9０-９]+)\\s*/\\s*([0-9０-９]+)");
 
-    /** エラーメッセージ */
     private static final String FALLBACK_MESSAGE =
             "進捗率を算出できませんでした。ECSスクレイピング用タスクが止まっている可能性があります。";
 
-    /** 設定関連 */
     private final EcsClient ecs;
     private final CloudWatchLogsClient logs;
     private final EcsScrapePropertiesConfig props;
@@ -54,18 +53,46 @@ public class EcsScrapeTaskProgressService {
     }
 
     /**
-     * 実行中（RUNNING）の最新タスクの進捗率を取得する（taskId指定不要）
-     * @param batchCode 例: B002
+     * batchCode を B002 形式に寄せる
+     * 受け入れ例:
+     * - B002
+     * - b002
+     * - 002
+     * - 2
+     */
+    public String normalizeBatchCode(String batchCode) {
+        if (batchCode == null || batchCode.isBlank()) {
+            throw new IllegalArgumentException("batchCode is blank");
+        }
+
+        String s = batchCode.trim().toUpperCase(Locale.ROOT);
+
+        if (s.matches("^B\\d+$")) {
+            int num = Integer.parseInt(s.substring(1));
+            return String.format("B%03d", num);
+        }
+
+        if (s.matches("^\\d+$")) {
+            int num = Integer.parseInt(s);
+            return String.format("B%03d", num);
+        }
+
+        return s;
+    }
+
+    /**
+     * 実行中の最新タスク進捗
      */
     public EcsScrapeTaskProgressResponse getLatestProgress(String batchCode) {
-    	EcsScrapePropertiesConfig.ScrapeConfig cfg = props.require(batchCode);
+        String normalizedBatchCode = normalizeBatchCode(batchCode);
+        EcsScrapePropertiesConfig.ScrapeConfig cfg = props.require(normalizedBatchCode);
+
+        String family = extractFamilyName(cfg.getTaskDefinition());
 
         ListTasksResponse list = ecs.listTasks(ListTasksRequest.builder()
                 .cluster(cfg.getCluster())
                 .desiredStatus(DesiredStatus.RUNNING)
-                // family には「タスク定義のファミリー名」を入れる（例: team-member-batch）
-                .family(cfg.getTaskDefinition())
-                // 注意：ListTasks は新しい順とは限らないので、必要なら maxResults を増やしてDescribeで開始時刻比較
+                .family(family)
                 .maxResults(10)
                 .build());
 
@@ -76,9 +103,10 @@ public class EcsScrapeTaskProgressService {
             return res;
         }
 
-        // 一旦先頭を使う（確実に「最新」にしたいなら下の getLatestTaskArnByStartedAt を使う）
-        String taskArn = getLatestTaskArnByStartedAt(cfg.getCluster(), list.taskArns()).orElse(list.taskArns().get(0));
-        EcsScrapeTaskProgressResponse res = getProgress(batchCode, taskArn);
+        String taskArn = getLatestTaskArnByStartedAt(cfg.getCluster(), list.taskArns())
+                .orElse(list.taskArns().get(0));
+
+        EcsScrapeTaskProgressResponse res = getProgress(normalizedBatchCode, taskArn);
         if (res.getStatus() == null) {
             res.setStatus("RUNNING");
         }
@@ -87,60 +115,57 @@ public class EcsScrapeTaskProgressService {
 
     /**
      * taskArn / taskId 指定で進捗取得
-     * @param batchCode 例: B002
-     * @param taskIdOrArn taskArn または taskId
      */
     public EcsScrapeTaskProgressResponse getProgress(String batchCode, String taskIdOrArn) {
-    	EcsScrapePropertiesConfig.ScrapeConfig sfg = props.require(batchCode);
+        String normalizedBatchCode = normalizeBatchCode(batchCode);
+        EcsScrapePropertiesConfig.ScrapeConfig cfg = props.require(normalizedBatchCode);
 
         EcsScrapeTaskProgressResponse res = new EcsScrapeTaskProgressResponse();
         res.setTaskId(taskIdOrArn);
 
-        // 1) DescribeTasks
         DescribeTasksResponse dt = ecs.describeTasks(DescribeTasksRequest.builder()
-                .cluster(sfg.getCluster())
+                .cluster(cfg.getCluster())
                 .tasks(taskIdOrArn)
                 .include(TaskField.TAGS)
                 .build());
 
         if (dt.tasks() == null || dt.tasks().isEmpty()) {
-        	res.setStatus("NOT_FOUND");
+            res.setStatus("NOT_FOUND");
             res.setMessage(FALLBACK_MESSAGE);
             return res;
         }
+
         Task task = dt.tasks().get(0);
-        res.setStatus(task.lastStatus()); // RUNNING / STOPPED / PROVISIONING など
-        res.setExitCd(task.containers().get(0).exitCode());
+        res.setStatus(task.lastStatus());
+
+        Integer exitCode = extractExitCode(task);
+        if (exitCode != null) {
+            res.setExitCd(exitCode);
+        }
 
         if (!"RUNNING".equals(task.lastStatus())) {
             res.setMessage("タスクは RUNNING ではありません: " + task.lastStatus());
             return res;
         }
 
-        // 2) taskId 抽出
         String taskArn = task.taskArn();
-        String taskId = (taskArn != null && taskArn.contains("/"))
-                ? taskArn.substring(taskArn.lastIndexOf('/') + 1)
-                : null;
+        String taskId = extractTaskId(taskArn);
 
         if (taskId == null || taskId.isBlank()) {
             res.setMessage(FALLBACK_MESSAGE);
             return res;
         }
 
-        // 3) awslogs-stream-prefix 取得
-        String streamPrefix = resolveAwslogsStreamPrefix(task.taskDefinitionArn(), sfg.getContainer());
+        String streamPrefix = resolveAwslogsStreamPrefix(task.taskDefinitionArn(), cfg.getContainer());
         if (streamPrefix == null || streamPrefix.isBlank()) {
             res.setMessage(FALLBACK_MESSAGE);
             return res;
         }
 
-        // 例: ecs/team-member-scraper/<taskId>
-        String logStreamName = streamPrefix + "/" + sfg.getContainer() + "/" + taskId;
+        String logStreamName = streamPrefix + "/" + cfg.getContainer() + "/" + taskId;
 
-        // 4) CloudWatch Logs
         GetLogEventsResponse gl = logs.getLogEvents(GetLogEventsRequest.builder()
-                .logGroupName(sfg.getLogGroup())
+                .logGroupName(cfg.getLogGroup())
                 .logStreamName(logStreamName)
                 .startFromHead(false)
                 .limit(300)
@@ -152,7 +177,6 @@ public class EcsScrapeTaskProgressService {
             return res;
         }
 
-        // 5) 最新の [PROGRESS] を探す
         Optional<ProgressHit> hit = findLatestProgress(events);
         if (hit.isEmpty()) {
             res.setMessage(FALLBACK_MESSAGE);
@@ -176,45 +200,54 @@ public class EcsScrapeTaskProgressService {
         return res;
     }
 
-    /** taskArns の中から startedAt が最大のものを返す（より「最新」っぽい判定） */
     private Optional<String> getLatestTaskArnByStartedAt(String cluster, List<String> taskArns) {
-        if (taskArns == null || taskArns.isEmpty()) return Optional.empty();
+        if (taskArns == null || taskArns.isEmpty()) {
+            return Optional.empty();
+        }
 
         DescribeTasksResponse dt = ecs.describeTasks(DescribeTasksRequest.builder()
                 .cluster(cluster)
                 .tasks(taskArns)
                 .build());
 
-        if (dt.tasks() == null || dt.tasks().isEmpty()) return Optional.empty();
+        if (dt.tasks() == null || dt.tasks().isEmpty()) {
+            return Optional.empty();
+        }
 
         Task latest = null;
         for (Task t : dt.tasks()) {
-            if (t.startedAt() == null) continue;
-            if (latest == null || (latest.startedAt() != null && t.startedAt().isAfter(latest.startedAt()))) {
+            if (t.startedAt() == null) {
+                continue;
+            }
+            if (latest == null || latest.startedAt() == null || t.startedAt().isAfter(latest.startedAt())) {
                 latest = t;
             }
         }
+
         return latest == null ? Optional.empty() : Optional.ofNullable(latest.taskArn());
     }
 
-    /** 最新の進捗ログ行を探す */
     private Optional<ProgressHit> findLatestProgress(List<OutputLogEvent> events) {
         for (int i = events.size() - 1; i >= 0; i--) {
             OutputLogEvent e = events.get(i);
             String msg = e.message();
-            if (msg == null) continue;
+            if (msg == null || msg.isBlank()) {
+                continue;
+            }
 
             Matcher m = PROGRESS_PATTERN.matcher(msg);
             if (m.find()) {
-                int done = Integer.parseInt(m.group(1));
-                int total = Integer.parseInt(m.group(2));
-                return Optional.of(new ProgressHit(done, total, msg.trim(), e.timestamp()));
+                Integer done = safeParseInt(m.group(1));
+                Integer total = safeParseInt(m.group(2));
+
+                if (done != null && total != null) {
+                    return Optional.of(new ProgressHit(done, total, msg.trim(), e.timestamp()));
+                }
             }
         }
         return Optional.empty();
     }
 
-    /** task definition のコンテナ定義から awslogs-stream-prefix を取得 */
     private String resolveAwslogsStreamPrefix(String taskDefinitionArn, String containerName) {
         DescribeTaskDefinitionResponse td = ecs.describeTaskDefinition(
                 DescribeTaskDefinitionRequest.builder()
@@ -222,16 +255,97 @@ public class EcsScrapeTaskProgressService {
                         .build()
         );
 
+        if (td.taskDefinition() == null || td.taskDefinition().containerDefinitions() == null) {
+            return null;
+        }
+
         for (ContainerDefinition cd : td.taskDefinition().containerDefinitions()) {
-            if (!containerName.equals(cd.name())) continue;
-            if (cd.logConfiguration() == null || cd.logConfiguration().options() == null) return null;
+            if (!containerName.equals(cd.name())) {
+                continue;
+            }
+            if (cd.logConfiguration() == null || cd.logConfiguration().options() == null) {
+                return null;
+            }
             return cd.logConfiguration().options().get("awslogs-stream-prefix");
         }
         return null;
     }
 
+    private Integer extractExitCode(Task task) {
+        if (task == null || task.containers() == null || task.containers().isEmpty()) {
+            return null;
+        }
+        return task.containers().get(0).exitCode();
+    }
+
+    private String extractTaskId(String taskArn) {
+        if (taskArn == null || taskArn.isBlank()) {
+            return null;
+        }
+        int idx = taskArn.lastIndexOf('/');
+        return idx >= 0 ? taskArn.substring(idx + 1) : taskArn;
+    }
+
+    /**
+     * taskDefinition から family 名を取り出す
+     * 例:
+     * - team-member-batch
+     * - team-member-batch:12
+     * - arn:aws:ecs:ap-northeast-1:xxx:task-definition/team-member-batch:12
+     */
+    private String extractFamilyName(String taskDefinition) {
+        if (taskDefinition == null || taskDefinition.isBlank()) {
+            return taskDefinition;
+        }
+
+        String s = taskDefinition.trim();
+
+        int slash = s.lastIndexOf('/');
+        if (slash >= 0) {
+            s = s.substring(slash + 1);
+        }
+
+        int colon = s.indexOf(':');
+        if (colon >= 0) {
+            s = s.substring(0, colon);
+        }
+
+        return s;
+    }
+
+    private Integer safeParseInt(String value) {
+        if (value == null || value.isBlank()) {
+            return null;
+        }
+
+        String normalized = toHalfWidthDigits(value).replaceAll("[^0-9\\-]", "");
+        if (normalized.isBlank() || "-".equals(normalized)) {
+            return null;
+        }
+
+        try {
+            return Integer.parseInt(normalized);
+        } catch (NumberFormatException e) {
+            return null;
+        }
+    }
+
+    private String toHalfWidthDigits(String s) {
+        StringBuilder sb = new StringBuilder();
+        for (char c : s.toCharArray()) {
+            if (c >= '０' && c <= '９') {
+                sb.append((char) (c - '０' + '0'));
+            } else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+
     private static String formatEpochMillisJst(Long ms) {
-        if (ms == null) return null;
+        if (ms == null) {
+            return null;
+        }
         return Instant.ofEpochMilli(ms)
                 .atZone(ZoneId.of("Asia/Tokyo"))
                 .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);

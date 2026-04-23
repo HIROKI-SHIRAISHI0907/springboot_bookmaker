@@ -22,7 +22,6 @@ import lombok.RequiredArgsConstructor;
 public class EcsScrapeTaskProgressController {
 
 	private final EcsScrapeTaskProgressService service;
-
 	private final EcsScrapeTaskRunner runService;
 
 	/**
@@ -45,13 +44,19 @@ public class EcsScrapeTaskProgressController {
 		return ResponseEntity.ok(service.getProgress(batchCode, taskId));
 	}
 
-	/** 手動実行
-	 * @throws Exception */
+	/**
+	 * 手動実行
+	 */
 	@PostMapping("/ecs/run")
 	public ResponseEntity<Map<String, String>> run(
 			@RequestBody EcsScrapeTaskProgressRequest req) throws Exception {
-		String taskArn = runService.runScrape(req.getBatchCd(), Map.of(), true);
-		return ResponseEntity.accepted().body(Map.of("taskArn", taskArn));
-	}
 
+		String normalizedBatchCd = service.normalizeBatchCode(req.getBatchCd());
+		String taskArn = runService.runScrape(normalizedBatchCd, Map.of(), true);
+
+		return ResponseEntity.accepted().body(Map.of(
+				"taskArn", taskArn,
+				"batchCd", normalizedBatchCd
+		));
+	}
 }
