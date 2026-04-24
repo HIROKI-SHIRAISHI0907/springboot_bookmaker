@@ -78,6 +78,7 @@ public class CountryLeagueSeasonDBService {
 		for (int i = 0; i < insertEntities.size(); i += BATCH_SIZE) {
 			int end = Math.min(i + BATCH_SIZE, insertEntities.size());
 			List<CountryLeagueSeasonMasterEntity> batch = insertEntities.subList(i, end);
+			String biko = null;
 			for (CountryLeagueSeasonMasterEntity entity : batch) {
 				try {
 					// シーズン年を元にシーズン開始日と終了日を埋める
@@ -86,6 +87,7 @@ public class CountryLeagueSeasonDBService {
 					String endDate = SeasonDateBuilder.buildDate(years[1], entity.getEndSeasonDate());
 					entity.setStartSeasonDate(startDate);
 					entity.setEndSeasonDate(endDate);
+					biko = "years,startDate,endDate: " + years + "," + startDate + "," + endDate;
 					// シーズンマスタ登録
 					int result = this.countryLeagueSeasonMasterRepository.insert(entity);
 					if (result != 1) {
@@ -102,6 +104,7 @@ public class CountryLeagueSeasonDBService {
 					eSettingEntity.setWin(PointSettingConstant.WIN);
 					eSettingEntity.setLose(PointSettingConstant.LOSE);
 					eSettingEntity.setDraw(PointSettingConstant.DRAW);
+					biko = "country,league: " + entity.getCountry() + "," + entity.getLeague();
 					// 備考はnull
 					int result2 = this.pointSettingMasterBatchRepository.insert(eSettingEntity);
 					if (result2 != 1) {
@@ -114,13 +117,13 @@ public class CountryLeagueSeasonDBService {
 				} catch (DuplicateKeyException e) {
 					String messageCd = MessageCdConst.MCD00002W_DUPLICATION_WARNING;
 					this.manageLoggerComponent.debugWarnLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, biko);
 					// 重複は特に例外として出さない
 					continue;
 				} catch (Exception e) {
 					String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 					this.manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, biko);
 					return 9;
 				}
 			}
