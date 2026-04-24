@@ -87,39 +87,36 @@ public class MainStat implements ServiceIF {
 
 	        int process = 1;
 	        for (String key : keys) {
-	            // ✅ 1CSVだけ読む（重いのはここだけ）
 	            Map<String, Map<String, List<BookDataEntity>>> oneMap =
-	                getStatInfo.getStatMapForSingleKey(key);
+	                    getStatInfo.getStatMapForSingleKey(key);
 
-	            // 空ならスキップ
 	            if (oneMap.isEmpty()) {
 	                lastProcessed = Math.max(lastProcessed, extractSeq(key));
 	                process++;
 	                continue;
 	            }
 
-	            log.info("[String key : keys "
-	            		+ "info] country-league = {}", oneMap.keySet());
+	            log.info("[String key : keys info] key = {}", key);
+	            log.info("[String key : keys info] country-league = {}", oneMap.keySet());
 
-	            // ✅ 1CSV分だけ処理（メモリ溜めない）
+	            log.info("[MainStat] statService start key={}", key);
 	            statService.execute(oneMap, false);
-	            rankingService.execute(oneMap, false);
+	            log.info("[MainStat] statService end key={}", key);
 
-	            // ✅ “このCSVまでは成功” を進める（途中成功を確定）
+	            log.info("[MainStat] rankingService start key={}", key);
+	            rankingService.execute(oneMap, false);
+	            log.info("[MainStat] rankingService end key={}", key);
+
 	            int seq = extractSeq(key);
 	            lastProcessed = Math.max(lastProcessed, seq);
 	            csvSeqManageService.markSuccess(lastProcessed);
 
-	            log.info("[stat calc fin "
-	            		+ "info] csv situation: {}/{}", process, range.getLastOnDb());
+	            log.info("[stat calc fin info] csv situation: {}/{}", process, range.getLastOnDb());
 
 	            process++;
-
-	            // ✅ 念のためヒント（JPA使ってるなら statService 側で flush/clear 推奨）
 	            oneMap.clear();
 	        }
 
-	        // 最後まで成功したら range.to() まで進んでいるはず
 	        csvSeqManageService.markSuccess(range.getTo());
 
 	    } catch (Exception e) {
