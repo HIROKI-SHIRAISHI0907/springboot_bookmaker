@@ -118,10 +118,10 @@ public interface SurfaceOverviewProcessRepository {
 				#{awayFirstGoalCountDiff},
 				#{awayWinBehindCountDiff},
 				#{awayLoseBehindCountDiff},
-				#{registerId},
-				CAST(#{registerTime} AS timestamptz),
-				#{updateId},
-				CAST(#{updateTime} AS timestamptz)
+				'SYSTEM',
+			    NOW(),
+			    'SYSTEM',
+			    NOW()
 			)
 			""")
 	int insert(SurfaceOverviewProcessEntity entity);
