@@ -2,6 +2,7 @@ package dev.application.domain.repository.bm;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -18,9 +19,9 @@ public interface RealDataProcessRepository {
 			  AND away_team_name = #{awayTeamName}
 			""")
 	int countByUniqueKey(
-			String dataCategory,
-			String homeTeamName,
-			String awayTeamName);
+			@Param("dataCategory") String dataCategory,
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
 
 	@Insert("""
 			INSERT INTO real_data_process (
