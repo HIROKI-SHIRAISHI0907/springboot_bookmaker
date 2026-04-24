@@ -404,7 +404,7 @@ public class AnalyzeManualStat {
 		}
 
 		try {
-			String season = countryLeagueSeasonMasterRepository.findSeasonYear(country, league);
+			String season = countryLeagueSeasonMasterRepository.findCurrentSeasonYear(country, league);
 			return safe(season).trim();
 		} catch (Exception e) {
 			this.manageLoggerComponent.debugWarnLog(

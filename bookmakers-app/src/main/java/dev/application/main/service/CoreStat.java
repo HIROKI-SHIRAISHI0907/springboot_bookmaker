@@ -291,7 +291,7 @@ public class CoreStat implements StatIF {
 			return "";
 		}
 		return safe(countryLeagueSeasonMasterBatchRepository
-				.findSeasonYear(dataList.get(0), dataList.get(1))).trim();
+				.findCurrentSeasonYear(dataList.get(0), dataList.get(1))).trim();
 	}
 
 	private String resolveCsvId(String filePath) {
