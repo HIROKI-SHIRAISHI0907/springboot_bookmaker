@@ -89,7 +89,7 @@ public class LeaguesAPIService {
             });
 
             int addTeamCount = row.getTeamCount() == null ? 0 : row.getTeamCount().intValue();
-            leagueDto.setTeamCount((leagueDto.getTeamCount() == 0 ? 0 : leagueDto.getTeamCount()) + addTeamCount);
+            leagueDto.setTeamCount((leagueDto.getTeamCount() == null ? 0 : leagueDto.getTeamCount()) + addTeamCount);
 
             // subLeague がないものはサブメニューに出さない
             if (rawSubLeague == null) {
@@ -114,7 +114,7 @@ public class LeaguesAPIService {
                 return dto;
             });
 
-            subLeagueDto.setTeamCount((subLeagueDto.getTeamCount() == 0 ? 0 : subLeagueDto.getTeamCount()) + addTeamCount);
+            subLeagueDto.setTeamCount((subLeagueDto.getTeamCount() == null ? 0 : subLeagueDto.getTeamCount()) + addTeamCount);
         }
 
         return new ArrayList<>(countryMap.values());

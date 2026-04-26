@@ -14,7 +14,7 @@ public class SubLeagueInfoDTO {
     private String routingPath;
 
     // チーム件数
-    private int teamCount;
+    private Integer teamCount;
 
     /** シーズン終了済みか */
     private boolean seasonEnded;

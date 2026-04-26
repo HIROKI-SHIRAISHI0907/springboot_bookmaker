@@ -36,7 +36,7 @@ public class LeagueInfoDTO {
     private String endSeasonDate;
 
     /** チーム件数 */
-    private int teamCount;
+    private Integer teamCount;
 
     /** アプリ内パス（例: "/日本/J2・J3リーグ" や "/日本/J2・J3リーグ - WEST A"） */
     private String path;
