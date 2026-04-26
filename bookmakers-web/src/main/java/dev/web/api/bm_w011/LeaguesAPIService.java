@@ -17,11 +17,6 @@ import dev.web.repository.bm.LeaguesRepository.LeagueSeasonRow;
 import dev.web.repository.bm.LeaguesRepository.TeamRow;
 import lombok.RequiredArgsConstructor;
 
-/**
- * LeaguesAPI用サービス
- * @author shiraishitoshio
- *
- */
 @Service
 @RequiredArgsConstructor
 public class LeaguesAPIService {
@@ -42,7 +37,7 @@ public class LeaguesAPIService {
             item.setCountry(r.country);
             item.setLeague(r.leagueGroup);
             item.setTeamCount(r.getTeamCount() != null ? r.getTeamCount().intValue() : 0);
-            String path = "/" + repo.toPath(r.country) + "/" + repo.toPath(r.leagueGroup);
+            String path = "/soccer/" + repo.toPath(r.country) + "/" + repo.toPath(r.leagueGroup);
             item.setPath(path);
             out.add(item);
         }
@@ -64,7 +59,6 @@ public class LeaguesAPIService {
 
             boolean seasonEnded = isSeasonEnded(row.getEndSeasonDate());
 
-            // country作成
             LeagueGroupedResponse countryDto = countryMap.computeIfAbsent(country, c -> {
                 LeagueGroupedResponse dto = new LeagueGroupedResponse();
                 dto.setCountry(c);
@@ -72,10 +66,9 @@ public class LeaguesAPIService {
                 return dto;
             });
 
-            // country配下のleague map
-            Map<String, LeagueInfoDTO> leagueMap = leagueMapByCountry.computeIfAbsent(country, c -> new LinkedHashMap<>());
+            Map<String, LeagueInfoDTO> leagueMap =
+                    leagueMapByCountry.computeIfAbsent(country, c -> new LinkedHashMap<>());
 
-            // league作成
             LeagueInfoDTO leagueDto = leagueMap.computeIfAbsent(leagueGroup, lg -> {
                 LeagueInfoDTO dto = new LeagueInfoDTO();
                 dto.setName(lg);
@@ -84,7 +77,7 @@ public class LeaguesAPIService {
                 dto.setStartSeasonDate(row.getStartSeasonDate());
                 dto.setEndSeasonDate(row.getEndSeasonDate());
                 dto.setVariantCount(row.getVariantCount() == null ? 0 : row.getVariantCount().intValue());
-                dto.setTeamCount(row.getTeamCount() == null ? 0 : row.getTeamCount().intValue());
+                dto.setTeamCount(0);
                 dto.setPath(normalizeNoTrailingSlash(row.getPath()));
                 dto.setRoutingPath(seasonEnded ? null : normalizeNoTrailingSlash(row.getPath()));
                 dto.setSeasonEnded(seasonEnded);
@@ -95,13 +88,19 @@ public class LeaguesAPIService {
                 return dto;
             });
 
-            // country + league 配下のsubLeague map
+            int addTeamCount = row.getTeamCount() == null ? 0 : row.getTeamCount().intValue();
+            leagueDto.setTeamCount((leagueDto.getTeamCount() == 0 ? 0 : leagueDto.getTeamCount()) + addTeamCount);
+
+            // subLeague がないものはサブメニューに出さない
+            if (rawSubLeague == null) {
+                continue;
+            }
+
             Map<String, Map<String, SubLeagueInfoDTO>> byLeague =
                     subLeagueMapByCountryLeague.computeIfAbsent(country, c -> new LinkedHashMap<>());
             Map<String, SubLeagueInfoDTO> subLeagueMap =
                     byLeague.computeIfAbsent(leagueGroup, lg -> new LinkedHashMap<>());
 
-            // subLeague作成
             SubLeagueInfoDTO subLeagueDto = subLeagueMap.computeIfAbsent(rawSubLeague, sl -> {
                 SubLeagueInfoDTO dto = new SubLeagueInfoDTO();
                 dto.setRawName(sl);
@@ -115,19 +114,25 @@ public class LeaguesAPIService {
                 return dto;
             });
 
-            // teamCount加算
-            int addTeamCount = row.getTeamCount() == null ? 0 : row.getTeamCount().intValue();
-            subLeagueDto.setTeamCount(subLeagueDto.getTeamCount() + addTeamCount);
+            subLeagueDto.setTeamCount((subLeagueDto.getTeamCount() == 0 ? 0 : subLeagueDto.getTeamCount()) + addTeamCount);
         }
 
         return new ArrayList<>(countryMap.values());
     }
 
     private String normalizeSubLeague(String value) {
-        if (value == null || value.trim().isEmpty()) {
-            return "未設定";
+        if (value == null) {
+            return null;
         }
-        return value.trim();
+        String s = value.trim();
+        if (s.isEmpty()) {
+            return null;
+        }
+        // 旧URL互換。未設定は「サブリーグなし」とみなす
+        if ("未設定".equals(s)) {
+            return null;
+        }
+        return s;
     }
 
     private String safeTrim(String value) {
@@ -154,15 +159,17 @@ public class LeaguesAPIService {
         return normalizedBase + "?subLeague=" + encoded;
     }
 
-    /** GET /api/leagues/{country}/{league} country:england, league:premier-league */
+    /** GET /api/leagues/{country}/{league} */
     public TeamsInLeagueResponse getTeamsInLeague(String country, String league, String subLeague) {
         validateSeasonOpen(country, league);
 
-        List<TeamRow> rows = repo.findTeamsInLeagueOnSlug(country, league, subLeague);
+        String normalizedSubLeague = normalizeSubLeague(subLeague);
+        List<TeamRow> rows = repo.findTeamsInLeagueOnSlug(country, league, normalizedSubLeague);
 
         TeamsInLeagueResponse res = new TeamsInLeagueResponse();
         res.setCountry(country);
         res.setLeague(league);
+        res.setSubLeague(normalizedSubLeague);
 
         List<TeamItemDTO> teams = new ArrayList<>();
         for (TeamRow r : rows) {
@@ -175,19 +182,21 @@ public class LeaguesAPIService {
             t.setEnglish(english);
             t.setHash(hash);
             t.setLink(r.link);
-            String path = "/" + repo.toPath(r.country) + "/" + repo.toPath(r.league);
-            t.setPath(path);
-            String apiPath = "/api/leagues/" + repo.toPath(r.country) + "/" + repo.toPath(r.league) + "/" + english;
-            t.setApiPath(apiPath);
-            t.setRoutingPath(r.link);
 
+            String leaguePath = "/soccer/" + repo.toPath(r.country) + "/" + repo.toPath(r.league);
+            t.setPath(leaguePath);
+
+            String apiPath = "/api/leagues/" + english + "/" + hash + "/teamDetail";
+            t.setApiPath(apiPath);
+
+            t.setRoutingPath(r.link);
             teams.add(t);
         }
         res.setTeams(teams);
         return res;
     }
 
-    /** GET /api/leagues/{teamEnglish}/{teamHash} */
+    /** GET /api/leagues/{teamEnglish}/{teamHash}/teamDetail */
     public TeamDetailResponse getTeamDetail(String teamEnglish, String teamHash) {
         TeamRow row = repo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
         if (row == null) return null;
@@ -202,8 +211,8 @@ public class LeaguesAPIService {
         res.setLink(row.link);
 
         TeamPathsDTO paths = new TeamPathsDTO();
-        String leaguePage = "/" + repo.toPath(row.country) + "/" + repo.toPath(row.league);
-        String apiSelf = "/api/leagues/" + repo.toPath(row.country) + "/" + repo.toPath(row.league) + "/" + teamEnglish;
+        String leaguePage = "/soccer/" + repo.toPath(row.country) + "/" + repo.toPath(row.league);
+        String apiSelf = "/api/leagues/" + teamEnglish + "/" + teamHash + "/teamDetail";
         paths.setLeaguePage(leaguePage);
         paths.setApiSelf(apiSelf);
 

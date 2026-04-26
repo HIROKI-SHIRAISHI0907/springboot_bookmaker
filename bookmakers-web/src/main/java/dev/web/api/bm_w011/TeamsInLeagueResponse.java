@@ -19,6 +19,9 @@ public class TeamsInLeagueResponse {
     /** リーグ */
     private String league;
 
+    /** サブリーグ */
+    private String subLeague;
+
     /** チームデータ */
     private List<TeamItemDTO> teams;
 }
