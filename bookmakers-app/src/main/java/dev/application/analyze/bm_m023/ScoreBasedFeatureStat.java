@@ -1,6 +1,7 @@
 package dev.application.analyze.bm_m023;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.nio.charset.StandardCharsets;
 import java.security.InvalidAlgorithmParameterException;
 import java.security.InvalidKeyException;
@@ -1399,6 +1400,12 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 
 		for (Field field : StatEncryptionEntity.class.getDeclaredFields()) {
 			field.setAccessible(true);
+
+			int modifiers = field.getModifiers();
+			if (Modifier.isStatic(modifiers) || Modifier.isFinal(modifiers)) {
+				continue;
+			}
+
 			field.set(target, field.get(source));
 		}
 
