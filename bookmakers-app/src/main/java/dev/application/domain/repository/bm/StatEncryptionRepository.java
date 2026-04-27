@@ -77,26 +77,26 @@ public interface StatEncryptionRepository {
 			"#{homeRedCardInfo}, #{awayRedCardInfo},",
 			"#{homeSlowInInfo}, #{awaySlowInInfo},",
 			"#{homeBoxTouchInfo}, #{awayBoxTouchInfo},",
-			"#{homePassCountInfoOnSuccessCount}, ",
-			"#{awayPassCountInfoOnSuccessCount}, ",
-			"#{homeLongPassCountInfoOnSuccessCount}, ",
-			"#{awayLongPassCountInfoOnSuccessCount}, ",
-			"#{homeFinalThirdPassCountInfoOnSuccessCount}, ",
+			"#{homePassCountInfoOnSuccessCount},",
+			"#{awayPassCountInfoOnSuccessCount},",
+			"#{homeLongPassCountInfoOnSuccessCount},",
+			"#{awayLongPassCountInfoOnSuccessCount},",
+			"#{homeFinalThirdPassCountInfoOnSuccessCount},",
 			"#{awayFinalThirdPassCountInfoOnSuccessCount},",
-			"#{homeCrossCountInfoOnSuccessCount}, ",
-			"#{awayCrossCountInfoOnSuccessCount}, ",
-			"#{homeTackleCountInfoOnSuccessCount}, ",
-			"#{awayTackleCountInfoOnSuccessCount}, ",
+			"#{homeCrossCountInfoOnSuccessCount},",
+			"#{awayCrossCountInfoOnSuccessCount},",
+			"#{homeTackleCountInfoOnSuccessCount},",
+			"#{awayTackleCountInfoOnSuccessCount},",
 			"#{homeClearCountInfo}, #{awayClearCountInfo},",
 			"#{homeDuelCountInfo}, #{awayDuelCountInfo},",
 			"#{homeInterceptCountInfo}, #{awayInterceptCountInfo},",
-			"#{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)",
+			"#{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime} AS timestamptz)",
 			")"
 	})
 	int insert(StatEncryptionEntity entity);
 
 	@Select({
-			"SELECT ",
+			"SELECT",
 			"id, country, league, home, away, team, chk_body,",
 			"home_exp_info, away_exp_info,",
 			"home_in_goal_exp_info, away_in_goal_exp_info,",
@@ -135,12 +135,18 @@ public interface StatEncryptionRepository {
 			"away_duel_count_info,",
 			"home_intercept_count_info,",
 			"away_intercept_count_info",
-			" FROM stat_encryption;"
+			"FROM stat_encryption"
 	})
 	List<StatEncryptionEntity> findAllEncData();
 
 	@Update({
 			"UPDATE stat_encryption SET",
+			"country = #{country},",
+			"league = #{league},",
+			"home = #{home},",
+			"away = #{away},",
+			"team = #{team},",
+			"chk_body = #{chkBody},",
 			"home_exp_info = #{homeExpInfo},",
 			"away_exp_info = #{awayExpInfo},",
 			"home_in_goal_exp_info = #{homeInGoalExpInfo},",
@@ -198,13 +204,13 @@ public interface StatEncryptionRepository {
 			"home_duel_count_info = #{homeDuelCountInfo},",
 			"away_duel_count_info = #{awayDuelCountInfo},",
 			"home_intercept_count_info = #{homeInterceptCountInfo},",
-			"away_intercept_count_info = #{awayInterceptCountInfo} ",
+			"away_intercept_count_info = #{awayInterceptCountInfo}",
 			"WHERE id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER)"
 	})
 	int updateEncValues(StatEncryptionEntity entity);
 
 	@Select({
-			"SELECT ",
+			"SELECT",
 			"id, country, league, home, away, team, chk_body,",
 			"home_exp_info, away_exp_info,",
 			"home_in_goal_exp_info, away_in_goal_exp_info,",
@@ -232,7 +238,7 @@ public interface StatEncryptionRepository {
 			"home_long_pass_count_info_on_success_count,",
 			"away_long_pass_count_info_on_success_count,",
 			"home_final_third_pass_count_info_on_success_count,",
-			"away_final_third_pass_count_info_on_success_count,",
+			"away_final_third_pass_count_infoOnSuccessCount,",
 			"home_cross_count_info_on_success_count,",
 			"away_cross_count_info_on_success_count,",
 			"home_tackle_count_info_on_success_count,",
@@ -243,16 +249,23 @@ public interface StatEncryptionRepository {
 			"away_duel_count_info,",
 			"home_intercept_count_info,",
 			"away_intercept_count_info",
-			" FROM stat_encryption ",
-			" WHERE country = #{country} AND league = #{league} AND "
-					+ "team = #{team} AND chk_body = #{chkBody};"
+			"FROM stat_encryption",
+			"WHERE country = #{country}",
+			"AND league = #{league}",
+			"AND team = #{team}",
+			"AND chk_body = #{chkBody}",
+			"ORDER BY id DESC",
+			"LIMIT 1"
 	})
-	List<StatEncryptionEntity> findEncData(@Param("country") String country, @Param("league") String league,
-			@Param("team") String team, @Param("chkBody") String chkBody);
+	List<StatEncryptionEntity> findEncData(
+			@Param("country") String country,
+			@Param("league") String league,
+			@Param("team") String team,
+			@Param("chkBody") String chkBody);
 
 	@Select({
 			"<script>",
-			"SELECT ",
+			"SELECT",
 			"id, country, league, home, away, team, chk_body,",
 			"home_exp_info, away_exp_info,",
 			"home_in_goal_exp_info, away_in_goal_exp_info,",
@@ -300,6 +313,8 @@ public interface StatEncryptionRepository {
 			"  <if test='team != null and team != \"\"'>AND team = #{team}</if>",
 			"  <if test='chkBody != null and chkBody != \"\"'>AND chk_body = #{chkBody}</if>",
 			"</where>",
+			"ORDER BY id DESC",
+			"LIMIT 1",
 			"</script>"
 	})
 	List<StatEncryptionEntity> findEncDataByCondition(
@@ -309,5 +324,4 @@ public interface StatEncryptionRepository {
 			@Param("away") String away,
 			@Param("team") String team,
 			@Param("chkBody") String chkBody);
-
 }

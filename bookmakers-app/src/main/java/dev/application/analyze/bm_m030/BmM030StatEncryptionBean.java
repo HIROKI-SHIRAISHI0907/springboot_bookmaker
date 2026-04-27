@@ -8,7 +8,6 @@ import java.security.NoSuchAlgorithmException;
 import java.util.Base64;
 import java.util.Collections;
 import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
@@ -24,15 +23,16 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
-import dev.application.domain.repository.bm.StatEncryptionRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
+import jakarta.annotation.PostConstruct;
 
 /**
  * stat_encryptionのbeanロジック
- * @author shiraishitoshio
- *
+ * OOM対策版:
+ * - 旧実装の全件ロードはしない
+ * - 暗号化/復号と fieldMap 管理に専念する
  */
 @Component
 public class BmM030StatEncryptionBean {
@@ -57,10 +57,6 @@ public class BmM030StatEncryptionBean {
 	@Value("${bmbusiness.bmm030:bm030StatEncrypt}")
 	private String bmm030Key = "bm030StatEncrypt";
 
-	/** stat_encryptionレポジトリクラス */
-	@Autowired
-	private StatEncryptionRepository statEncryptionRepository;
-
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent loggerComponent;
@@ -74,14 +70,17 @@ public class BmM030StatEncryptionBean {
 	/** 初期化ベクトル */
 	private IvParameterSpec iv;
 
-	/** データマップ */
-	private ConcurrentHashMap<String, StatEncryptionEntity> encMap;
+	/**
+	 * 互換維持用Map
+	 * 実行中の一時保管用途のみ
+	 */
+	private final ConcurrentHashMap<String, StatEncryptionEntity> encMap = new ConcurrentHashMap<>();
 
 	/** 開始 */
-	private int startEncryptionIdx;
+	private int startEncryptionIdx = -1;
 
 	/** 終了 */
-	private int endEncryptionIdx;
+	private int endEncryptionIdx = -1;
 
 	/** フィールドマップ */
 	private static final Map<String, Function<BookDataEntity, String>> FIELDMAP;
@@ -146,128 +145,51 @@ public class BmM030StatEncryptionBean {
 		FIELDMAP = Collections.unmodifiableMap(fieldMap);
 	}
 
-	/** 初期化
-	 * @throws Exception */
-	public synchronized void init(String country, String league) throws Exception {
-		final String METHOD_NAME = "init";
-
-		if (this.encMap == null) {
-			this.encMap = new ConcurrentHashMap<>();
-		}
-
-		if (this.secretKey == null) {
-			this.secretKey = new SecretKeySpec(this.bmm030Key.getBytes(java.nio.charset.StandardCharsets.UTF_8), AES);
-		}
-		if (this.iv == null) {
-			this.iv = new IvParameterSpec(FIXED_IV);
-		}
-
-		List<StatEncryptionEntity> allEntities = this.statEncryptionRepository.findEncDataByCondition(country, league,
-				null, null, null, null);
-
-		for (StatEncryptionEntity entity : allEntities) {
-			StatEncryptionEntity newEntity = new StatEncryptionEntity();
-
-			String key = buildKey(entity, METHOD_NAME);
-
-			newEntity.setUpdFlg(true);
-			newEntity.setId(entity.getId());
-			newEntity.setCountry(entity.getCountry());
-			newEntity.setLeague(entity.getLeague());
-			newEntity.setHome(entity.getHome());
-			newEntity.setAway(entity.getAway());
-			newEntity.setTeam(entity.getTeam());
-			newEntity.setChkBody(entity.getChkBody());
-
-			Field[] fields = StatEncryptionEntity.class.getDeclaredFields();
-			int i = 0;
-			for (Field field : fields) {
-				if (i < 9) {
-					i++;
-					continue;
-				}
-				field.setAccessible(true);
-				try {
-					String value = (String) field.get(entity);
-					if (value == null || value.isBlank()) {
-						i++;
-						continue;
-					}
-					String standardData = decrypto(value, this.secretKey, this.iv);
-					field.set(newEntity, standardData);
-				} catch (Exception e) {
-					String fillChar = "復号エラー: " + field.getName();
-					this.loggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, e, fillChar);
-					break;
-				}
-				i++;
-			}
-
-			this.encMap.putIfAbsent(key, newEntity);
-		}
-
-		// start/end index 初期化は最初の1回で十分
-		if (this.startEncryptionIdx == 0 && this.endEncryptionIdx == 0) {
-			Field[] allFields = StatEncryptionEntity.class.getDeclaredFields();
-			int startEncryptionIdx = -1;
-			int endEncryptionIdx = -1;
-			for (int i = 0; i < allFields.length; i++) {
-				String name = allFields[i].getName();
-				if (name.equals("homeExpInfo"))
-					startEncryptionIdx = i;
-				if (name.equals("awayInterceptCountInfo"))
-					endEncryptionIdx = i;
-			}
-			this.startEncryptionIdx = startEncryptionIdx;
-			this.endEncryptionIdx = endEncryptionIdx;
+	@PostConstruct
+	public void initOnce() {
+		final String METHOD_NAME = "initOnce";
+		try {
+			ensureCryptoInitialized();
+			ensureIndexInitialized();
+		} catch (Exception e) {
+			String messageCd = MessageCdConst.MCD00013E_INITILIZATION_ERROR;
+			this.loggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, "BmM030StatEncryptionBean init error");
 		}
 	}
 
 	/**
-	 * 平文を暗号化
-	 * @param plainText 平文
-	 * @param key 共通鍵
-	 * @param iv 初期化ベクトル
-	 * @return
-	 * @throws Exception
+	 * 互換維持用
+	 * 旧実装ではここで全件ロードしていたが、OOM対策のため現在は何もしない
 	 */
+	public synchronized void init(String country, String league) throws Exception {
+		ensureCryptoInitialized();
+		ensureIndexInitialized();
+	}
+
+	public void resetForRun() {
+		this.encMap.clear();
+	}
+
 	public String encrypto(String plainText) throws Exception {
-		Cipher encrypter;
-		byte[] encByte;
 		try {
-			encrypter = Cipher.getInstance(AES_CBC_PKCS5Padding);
+			ensureCryptoInitialized();
+			Cipher encrypter = Cipher.getInstance(AES_CBC_PKCS5Padding);
 			encrypter.init(Cipher.ENCRYPT_MODE, this.secretKey, this.iv);
-			encByte = encrypter.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
+			byte[] encByte = encrypter.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
+			return BASE64_ENCODER.encodeToString(encByte);
 		} catch (NoSuchAlgorithmException | NoSuchPaddingException | InvalidKeyException
 				| InvalidAlgorithmParameterException | IllegalBlockSizeException | BadPaddingException e) {
 			throw e;
 		}
-		return BASE64_ENCODER.encodeToString(encByte);
 	}
 
-	/**
-	 * 暗号文を復号
-	 * @param encText 暗号文
-	 * @param key 共通鍵
-	 * @param iv 初期化ベクトル
-	 * @return
-	 * @throws Exception
-	 */
 	private String decrypto(String encText, Cipher decrypter)
 			throws IllegalBlockSizeException, BadPaddingException {
 		byte[] byteText = BASE64_DECODER.decode(encText);
 		return new String(decrypter.doFinal(byteText), StandardCharsets.UTF_8);
 	}
 
-	/**
-	 * 暗号文を復号
-	 * @param encText
-	 * @param key
-	 * @param iv
-	 * @return
-	 * @throws Exception
-	 */
 	public String decrypto(String encText, SecretKeySpec key, IvParameterSpec iv) throws Exception {
 		try {
 			Cipher decrypter = Cipher.getInstance(AES_CBC_PKCS5Padding);
@@ -279,88 +201,59 @@ public class BmM030StatEncryptionBean {
 		}
 	}
 
-	/**
-	 * 暗号キービルダー
-	 * @param entity
-	 * @param methodName
-	 * @return
-	 */
-	private String buildKey(StatEncryptionEntity entity, String methodName) {
-		String country = entity.getCountry();
-		String league = entity.getLeague();
-		String home = entity.getHome();
-		String away = entity.getAway();
-		String team = entity.getTeam();
-		String chkBody = entity.getChkBody();
-
-		String key = country + "-" + league;
-		if (home != null && !home.isBlank() && away != null && !away.isBlank()) {
-			key += ("-" + home + "-" + away + "-" + chkBody);
-		} else if (team != null && !team.isBlank()) {
-			key += ("-" + team + "-" + chkBody);
-		} else {
-			String messageCd = MessageCdConst.MCD00013E_INITILIZATION_ERROR;
-			String fillErr = "home, away, team Err";
-			this.loggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, methodName, messageCd, null, fillErr);
-			this.loggerComponent.createBusinessException(
-					PROJECT_NAME,
-					CLASS_NAME,
-					methodName,
-					messageCd,
-					null,
-					null);
-			return null;
+	private void ensureCryptoInitialized() {
+		if (this.secretKey == null) {
+			this.secretKey = new SecretKeySpec(this.bmm030Key.getBytes(StandardCharsets.UTF_8), AES);
 		}
-		return key;
+		if (this.iv == null) {
+			this.iv = new IvParameterSpec(FIXED_IV);
+		}
 	}
 
-	/**
-	 * 共通鍵
-	 * @return
-	 */
+	private void ensureIndexInitialized() {
+		if (this.startEncryptionIdx >= 0 && this.endEncryptionIdx >= 0) {
+			return;
+		}
+
+		Field[] allFields = StatEncryptionEntity.class.getDeclaredFields();
+		int startIdx = -1;
+		int endIdx = -1;
+
+		for (int i = 0; i < allFields.length; i++) {
+			String name = allFields[i].getName();
+			if (name.equals("homeExpInfo")) {
+				startIdx = i;
+			}
+			if (name.equals("awayInterceptCountInfo")) {
+				endIdx = i;
+			}
+		}
+
+		this.startEncryptionIdx = startIdx;
+		this.endEncryptionIdx = endIdx;
+	}
+
 	public String getBmm030Key() {
 		return bmm030Key;
 	}
 
-	/**
-	 * 秘密鍵
-	 * @return
-	 */
 	public SecretKeySpec getSecretKey() {
 		return secretKey;
 	}
 
-	/**
-	 * 標準マップ
-	 * @return
-	 */
 	public ConcurrentHashMap<String, StatEncryptionEntity> getEncMap() {
 		return encMap;
 	}
 
-	/**
-	 * フィールドマップを返却する
-	 * @return
-	 */
 	public Map<String, Function<BookDataEntity, String>> getFieldMap() {
 		return FIELDMAP;
 	}
 
-	/**
-	 * 開始情報を返却
-	 * @return startEncryptionIdx
-	 */
 	public int getStartEncryptionIdx() {
 		return startEncryptionIdx;
 	}
 
-	/**
-	 * 終了情報を返却
-	 * @return endEncryptionIdx
-	 */
 	public int getEndEncryptionIdx() {
 		return endEncryptionIdx;
 	}
-
 }
