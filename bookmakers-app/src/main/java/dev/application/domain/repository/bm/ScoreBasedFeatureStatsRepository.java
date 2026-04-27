@@ -107,7 +107,7 @@ public interface ScoreBasedFeatureStatsRepository {
 			"home_keeper_save_stat, away_keeper_save_stat, home_free_kick_stat, away_free_kick_stat,",
 			"home_offside_stat, away_offside_stat, home_foul_stat, away_foul_stat,",
 			"home_yellow_card_stat, away_yellow_card_stat, home_red_card_stat, away_red_card_stat,",
-			"home_slow_in_stat, away_slow_in_stat, home_box_touch_stat, away_boxTouchStat,",
+			"home_slow_in_stat, away_slow_in_stat, home_box_touch_stat, away_box_touch_stat,",
 			"home_pass_count_stat, away_pass_count_stat, home_long_pass_count_stat, away_long_pass_count_stat,",
 			"home_final_third_pass_count_stat, away_final_third_pass_count_stat,",
 			"home_cross_count_stat, away_cross_count_stat, home_tackle_count_stat, away_tackle_count_stat,",

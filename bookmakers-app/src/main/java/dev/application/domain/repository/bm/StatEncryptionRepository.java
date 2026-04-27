@@ -238,7 +238,7 @@ public interface StatEncryptionRepository {
 			"home_long_pass_count_info_on_success_count,",
 			"away_long_pass_count_info_on_success_count,",
 			"home_final_third_pass_count_info_on_success_count,",
-			"away_final_third_pass_count_infoOnSuccessCount,",
+			"away_final_third_pass_count_info_on_success_count,",
 			"home_cross_count_info_on_success_count,",
 			"away_cross_count_info_on_success_count,",
 			"home_tackle_count_info_on_success_count,",
