@@ -201,7 +201,7 @@ public interface RealDataProcessRepository {
 			    #{awayDuelCount},
 			    #{homeInterceptCount},
 			    #{awayInterceptCount},
-			    #{recordTime},
+			    CAST(#{recordTime} AS timestamptz),
 			    #{weather},
 			    #{temparature},
 			    #{humid},
