@@ -71,7 +71,7 @@ public class StandingsAPIService {
 
 		TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
 		if (teamInfo == null)
-			return null;
+			return new TeamsStandingsResponse(null, 0, List.of(), List.of());
 
 		final String country = teamInfo.getCountry();
 		final String league = teamInfo.getLeague();
