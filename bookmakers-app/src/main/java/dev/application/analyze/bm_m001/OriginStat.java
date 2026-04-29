@@ -25,7 +25,7 @@ import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
 
 /**
- * BM_M001統計分析ロジック（並列）
+ * BM_M001統計分析ロジック（逐次）
  */
 @Component
 public class OriginStat implements OriginEntityIF {
@@ -64,9 +64,12 @@ public class OriginStat implements OriginEntityIF {
 
 	/**
 	 * CSVごとに独立トランザクションで登録。
-	 * 各CSVの登録完了（コミット）直後に進捗ログを出力。
-	 * 最後に、全て成功した場合のみ、全CSVを削除。
-	 * 一部失敗があれば例外を投げる（成功分はコミット済のまま保持）。
+	 *
+	 * 仕様:
+	 * - 成功したCSVのみ successPaths に積む
+	 * - skipしたCSV（times空 / match_key重複）は削除対象にしない
+	 * - 失敗が1件でもあれば削除フェーズは実施しない
+	 * - 失敗が無い場合のみ、successPaths のCSVだけ削除する
 	 */
 	@Override
 	@Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -80,22 +83,29 @@ public class OriginStat implements OriginEntityIF {
 
 		List<String> successPaths = new ArrayList<>(total);
 		List<String> failedPaths = new ArrayList<>();
+		List<String> skippedPaths = new ArrayList<>();
 		Exception firstThrown = null;
 
-		// ここで並列禁止：順番に1件ずつ処理
 		for (Map.Entry<String, List<DataEntity>> entry : entities.entrySet()) {
 			final String filePath = entry.getKey();
 			final List<DataEntity> dataList = entry.getValue();
 			final String fillChar = "ファイル名: " + filePath;
-			// timesが入っていないデータはスキップ
+
+			// times が無い場合はスキップ（削除対象にしない）
 			if (dataList == null || dataList.isEmpty()
 					|| dataList.get(0).getTimes() == null
 					|| "".equals(dataList.get(0).getTimes())) {
+
 				skipped++;
+				skippedPaths.add(filePath);
+
+				manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						String.format("timesが空のためスキップ（削除対象外）: %s", filePath));
 				continue;
 			}
 
-			// マッチキーをDBから取得し、あればスキップ
+			// マッチキーをDBから取得し、既存ならスキップ（削除対象にしない）
 			List<String> matchIdList = dataList.stream()
 					.filter(Objects::nonNull)
 					.map(DataEntity::getMatchId)
@@ -103,19 +113,28 @@ public class OriginStat implements OriginEntityIF {
 					.collect(Collectors.toList());
 
 			boolean existsMatchKey = false;
+			String existsMatchId = null;
+
 			for (String matchId : matchIdList) {
 				if (matchKeySaveRepository.findMatchKeys(matchId) > 0) {
 					manageLoggerComponent.debugInfoLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							String.format("match_keyが存在するため別データです。"
-									+ "（%s: skip）", matchId));
+							String.format("match_keyが存在するため別データです。（%s: skip, 削除対象外, file=%s）",
+									matchId, filePath));
 					existsMatchKey = true;
+					existsMatchId = matchId;
 					break;
 				}
 			}
 
 			if (existsMatchKey) {
 				skipped++;
+				skippedPaths.add(filePath);
+
+				manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						String.format("match_key重複スキップ確定（削除対象外）: matchId=%s, file=%s",
+								existsMatchId, filePath));
 				continue;
 			}
 
@@ -123,20 +142,22 @@ public class OriginStat implements OriginEntityIF {
 				// 事前準備はトランザクション外
 				List<DataEntity> insertEntities = originDBService.selectInBatch(dataList, fillChar);
 
-				// CSV 1本＝1トランザクション（逐次）
+				// CSV 1本 = 1トランザクション
 				TransactionTemplate tpl = new TransactionTemplate(txManager);
 				tpl.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
 
 				Boolean ok = tpl.execute(status -> {
 					try {
 						int r = originDBService.insertInBatch(insertEntities);
-						if (r == -99)
+						if (r == -99) {
 							throw new Exception("新規登録エラー");
+						}
 						return true;
 					} catch (Exception e) {
 						status.setRollbackOnly();
 						manageLoggerComponent.debugErrorLog(
-								PROJECT_NAME, CLASS_NAME, METHOD_NAME, "insertInBatch失敗", e, filePath);
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+								"insertInBatch失敗", e, filePath);
 						return false;
 					}
 				});
@@ -144,6 +165,7 @@ public class OriginStat implements OriginEntityIF {
 				if (Boolean.TRUE.equals(ok)) {
 					successPaths.add(filePath);
 					done++;
+
 					manageLoggerComponent.debugInfoLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 							String.format("CSV登録完了: %d/%d （%s）", done, total, filePath));
@@ -153,14 +175,17 @@ public class OriginStat implements OriginEntityIF {
 						firstThrown = new Exception("CSV登録に失敗しました: " + filePath);
 					}
 				}
+
 			} catch (Exception e) {
-				// 準備(select)での失敗など
+				// selectInBatch等の失敗
 				failedPaths.add(filePath);
 				if (firstThrown == null) {
 					firstThrown = new Exception("CSV登録に失敗しました: " + filePath, e);
 				}
+
 				manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, "逐次処理中に失敗", e, filePath);
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						"逐次処理中に失敗", e, filePath);
 			}
 		}
 
@@ -170,35 +195,43 @@ public class OriginStat implements OriginEntityIF {
 				String.format("CSV登録結果（最終）: 成功=%d, 失敗=%d, スキップ=%d, 全体=%d",
 						successPaths.size(), failedPaths.size(), skipped, total));
 
-		// 全成功時のみ全削除
+		manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+				String.format("削除対象サマリ: successPaths=%d, skippedPaths=%d, failedPaths=%d",
+						successPaths.size(), skippedPaths.size(), failedPaths.size()));
+
+		// 失敗が無い場合のみ、成功したCSVだけ削除
 		if (failedPaths.isEmpty()) {
 			String bucket = config.getS3BucketsOutputs();
 			List<String> s3KeysToDelete = new ArrayList<>();
 
 			manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					"削除フェーズ開始: total=" + entities.size());
+					"削除フェーズ開始: successOnly=" + successPaths.size());
 
 			int deleteIndex = 0;
-			for (String localPath : entities.keySet()) {
+			for (String localPath : successPaths) {
 				deleteIndex++;
 
-				if (deleteIndex % 100 == 0 || deleteIndex == entities.size()) {
+				if (deleteIndex % 100 == 0 || deleteIndex == successPaths.size()) {
 					manageLoggerComponent.debugInfoLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							String.format("ローカル削除進捗: %d/%d", deleteIndex, entities.size()));
+							String.format("削除進捗: %d/%d", deleteIndex, successPaths.size()));
 				}
 
 				// ローカル削除
 				try {
 					Files.deleteIfExists(Paths.get(localPath));
+					manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+							String.format("ローカルCSV削除完了: %s", localPath));
 				} catch (IOException e) {
 					manageLoggerComponent.debugErrorLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 							"ローカルCSV削除失敗", e, localPath);
 				}
 
-				// S3 key 収集
+				// S3 key 収集（successPathsのみ）
 				List<DataEntity> list = entities.get(localPath);
 				if (list != null && !list.isEmpty()) {
 					String s3Key = list.get(0).getFile(); // 例: 2026-02-05/mid=xxx/seq=....csv
@@ -213,11 +246,12 @@ public class OriginStat implements OriginEntityIF {
 
 			manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					"全CSV削除を完了しました（S3 + ローカル）（全登録成功）");
+					"成功したCSVのみ削除を完了しました（S3 + ローカル）。skipファイルは削除していません。");
 		} else {
 			manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					"失敗があったためCSVは残します。失敗数: " + failedPaths.size());
+					String.format("失敗があったため削除フェーズは実施しません。成功=%d, 失敗=%d, スキップ=%d",
+							successPaths.size(), failedPaths.size(), skippedPaths.size()));
 		}
 
 		manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
@@ -243,6 +277,12 @@ public class OriginStat implements OriginEntityIF {
 		for (int from = 0; from < total; from += S3_DELETE_BATCH_SIZE) {
 			int to = Math.min(from + S3_DELETE_BATCH_SIZE, total);
 			List<String> chunk = s3Keys.subList(from, to);
+
+			manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, methodName,
+					String.format("S3削除実行: from=%d, to=%d, batchSize=%d",
+							from, to, chunk.size()));
+
 			s3Operator.deleteObjects(bucket, chunk);
 		}
 	}
