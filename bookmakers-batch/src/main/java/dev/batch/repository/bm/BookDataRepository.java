@@ -1,5 +1,6 @@
 package dev.batch.repository.bm;
 
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
@@ -258,5 +259,20 @@ public interface BookDataRepository {
 			  AND away_team_name = #{awayTeamName}
 			""")
 	int findFinCount(DataEntity entity);
+
+	@Delete("""
+			DELETE
+			FROM data
+			WHERE (
+			      data_category LIKE CONCAT(#{dataCategory}, '%')
+			  AND home_team_name = #{homeTeamName}
+			  AND away_team_name = #{awayTeamName}
+			)
+			   OR (
+			      home_team_name = #{homeTeamName}
+			  AND away_team_name = #{awayTeamName}
+			)
+			""")
+	int deleteByDataCategory(DataEntity entity);
 
 }

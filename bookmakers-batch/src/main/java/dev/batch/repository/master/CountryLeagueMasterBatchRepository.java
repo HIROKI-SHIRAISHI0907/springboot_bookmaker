@@ -153,4 +153,14 @@ public interface CountryLeagueMasterBatchRepository {
 			""")
 	int reviveById(@Param("id") Integer id);
 
+	@Update("""
+		    UPDATE country_league_master
+		    SET
+				del_flg = '1',
+				update_time = CURRENT_TIMESTAMP
+		    WHERE country = #{country} AND league = #{league} AND del_flg = '0';
+		""")
+	int logicalDeleteByCountryLeague(@Param("country") String country,
+			@Param("league") String league);
+
 }

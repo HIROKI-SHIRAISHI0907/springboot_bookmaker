@@ -60,14 +60,13 @@ public class AutoSeasonHyphenBatch extends AbstractJobBatchTemplate {
 
 	/** AutoSeasonHyphenStatクラス */
 	@Autowired
-	private AutoSeasonHyphenStat autoSeasonHyphenStat;
+	private SeasonDataWrapper seasonDataWrapper;
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	protected void doExecute(JobContext ctx) throws Exception {
-		// AutoSeasonHyphenStat(Transactional)
-		this.autoSeasonHyphenStat.execute();
+		this.seasonDataWrapper.execute();
 	}
 }

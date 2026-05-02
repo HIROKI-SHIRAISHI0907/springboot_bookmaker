@@ -2,35 +2,30 @@ package dev.batch.bm_b013;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.LinkedHashMap;
-import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.stereotype.Service;
+import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
-import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
-import dev.common.util.DateUtil;
 
 /**
  * シーズン終了日ハイフン更新ロジック
  * @author shiraishitoshio
  *
  */
-@Service
-public class AutoSeasonHyphenStat {
+@Component
+@Transactional
+public class AutoSeasonHyphenTransaction {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = AutoSeasonHyphenStat.class.getProtectionDomain()
+	private static final String PROJECT_NAME = AutoSeasonHyphenTransaction.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = AutoSeasonHyphenStat.class.getName();
+	private static final String CLASS_NAME = AutoSeasonHyphenTransaction.class.getName();
 
 	/** シーズンバッチレポジトリ */
 	@Autowired
@@ -44,32 +39,11 @@ public class AutoSeasonHyphenStat {
 	 * 実行メソッド
 	 * @throws Exception
 	 */
-	@Transactional
-	public void execute() throws Exception {
+	public void execute(TransactionDTO dto) throws Exception {
 		final String METHOD_NAME = "execute";
-		// ログ出力
-		this.manageLoggerComponent.debugStartInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-
-		// システム日時取得
-		String sysDate = DateUtil.getSysDate();
-		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-		LocalDateTime now = LocalDateTime.parse(sysDate, formatter);
-
-		// シーズン終了日リストを保持
-		List<CountryLeagueSeasonMasterEntity> list = countryLeagueSeasonMasterBatchRepository.
-			findDateList();
-		Map<String, String> countryLeagueMap = list.stream()
-				.filter(Objects::nonNull)
-				.filter(entity -> entity.getCountry() != null)
-				.filter(entity -> entity.getLeague() != null)
-				.filter(entity -> entity.getEndSeasonDate() != null)
-				.collect(Collectors.toMap(
-						entity -> entity.getCountry() + "-" + entity.getLeague(),
-						CountryLeagueSeasonMasterEntity::getEndSeasonDate,
-						(oldValue, newValue) -> newValue,
-						LinkedHashMap::new
-				));
+		Map<String, String> countryLeagueMap = dto.getCountryLeagueMap();
+		LocalDateTime now = dto.getNow();
+		DateTimeFormatter formatter = dto.getFormatter();
 
 		for (Map.Entry<String, String> entry : countryLeagueMap.entrySet()) {
 			String key = entry.getKey();
@@ -106,9 +80,6 @@ public class AutoSeasonHyphenStat {
 			}
 		}
 
-		// endLog
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 	}
 
 }
