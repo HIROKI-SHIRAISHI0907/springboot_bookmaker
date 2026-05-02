@@ -2,6 +2,7 @@ package dev.batch.bm_b013;
 
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 import java.util.Map;
 
 import lombok.Data;
@@ -22,5 +23,8 @@ public class TransactionDTO {
 
 	/** now */
 	private LocalDateTime now;
+
+	/** now */
+	private List<String> countryLeague;
 
 }

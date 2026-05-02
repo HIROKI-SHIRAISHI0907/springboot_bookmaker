@@ -47,41 +47,81 @@ public class EachTableTransaction {
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// country_league_masterのdel_flg=1に変更
-		int delCLResultSum = 0;
-		try {
-			int delCLResult = countryLeagueMasterBatchRepository.logicalDeleteByCountryLeague(null, null);
-			delCLResultSum += delCLResult;
-		} catch (Exception e) {
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e);
+		for (String countryLeague : dto.getCountryLeague()) {
+			String[] pair = splitCountryLeague(countryLeague);
+			String country = pair[0];
+			String league = pair[1];
+
+			// country_league_masterのdel_flg=1に変更
+			int delCLResultSum = 0;
+			try {
+				int delCLResult = countryLeagueMasterBatchRepository.logicalDeleteByCountryLeague(country, league);
+				delCLResultSum += delCLResult;
+			} catch (Exception e) {
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e);
+				throw e;
+			}
+
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					"country_league_master_delete_sum=" + delCLResultSum);
 		}
 
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-				"country_league_master_delete_sum=" + delCLResultSum);
+		for (String countryLeague : dto.getCountryLeague()) {
+			String[] pair = splitCountryLeague(countryLeague);
+			String country = pair[0];
+			String league = pair[1];
+			// data_category は「国: リーグ - ラウンドxx」形式を想定
+			String dataCategoryPrefix = country + ": " + league;
 
-		// Dataテーブル該当データ削除
-		DataEntity entity = new DataEntity();
+			// Dataテーブル該当データ削除
+			DataEntity entity = new DataEntity();
+			entity.setDataCategory(dataCategoryPrefix);
+			entity.setHomeTeamName(METHOD_NAME);
+			entity.setAwayTeamName(METHOD_NAME);
 
-		int delDResultSum = 0;
-		try {
-			int delDResult = bookDataRepository.deleteByDataCategory(entity);
-			delDResultSum += delDResult;
-		} catch (Exception e) {
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e);
+			int delDResultSum = 0;
+			try {
+				int delDResult = bookDataRepository.deleteByDataCategory(entity);
+				delDResultSum += delDResult;
+			} catch (Exception e) {
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e);
+				throw e;
+			}
+
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					"data_delete_sum=" + delDResultSum);
 		}
-
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-				"data_delete_sum=" + delDResultSum);
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	}
+
+	/**
+	 * "country-league" を country / league に分解
+	 *
+	 * league 側に "-" が含まれる可能性があるので、最初の "-" だけで分割する
+	 */
+	private String[] splitCountryLeague(String countryLeague) {
+		if (countryLeague == null || countryLeague.isBlank()) {
+			return new String[] { "", "" };
+		}
+
+		int idx = countryLeague.indexOf('-');
+		if (idx < 0) {
+			return new String[] { "", "" };
+		}
+
+		String country = countryLeague.substring(0, idx).trim();
+		String league = countryLeague.substring(idx + 1).trim();
+
+		return new String[] { country, league };
 	}
 
 }

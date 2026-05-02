@@ -60,8 +60,15 @@ public class SeasonDataWrapper {
 		DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 		LocalDateTime now = LocalDateTime.parse(sysDate, formatter);
 
+		TransactionDTO dto = new TransactionDTO();
+
+		dto.setFormatter(formatter);
+		dto.setNow(now);
+
 		// シーズン終了日リストを保持
 		List<CountryLeagueSeasonMasterEntity> list = countryLeagueSeasonMasterBatchRepository.findDateList();
+
+		// country-league -> endSeasonDate のMap
 		Map<String, String> countryLeagueMap = list.stream()
 				.filter(Objects::nonNull)
 				.filter(entity -> entity.getCountry() != null)
@@ -72,6 +79,30 @@ public class SeasonDataWrapper {
 						CountryLeagueSeasonMasterEntity::getEndSeasonDate,
 						(oldValue, newValue) -> newValue,
 						LinkedHashMap::new));
+
+		dto.setCountryLeagueMap(countryLeagueMap);
+
+		// country-league の一覧を DTO に保持
+		List<String> countryLeagueList = list.stream()
+				.filter(Objects::nonNull)
+				.filter(entity -> entity.getCountry() != null)
+				.filter(entity -> entity.getLeague() != null)
+				.map(entity -> entity.getCountry() + "-" + entity.getLeague())
+				.collect(Collectors.toList());
+
+		dto.setCountryLeague(countryLeagueList);
+
+		try {
+			this.autoSeasonHyphenTransaction.execute(dto);
+		} catch (Exception e) {
+			// TODO: handle exception
+		}
+
+		try {
+			this.eachTableTransaction.execute(dto);
+		} catch (Exception e) {
+			// TODO: handle exception
+		}
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
