@@ -1,168 +1,349 @@
 package dev.batch.bm_b013;
 
+import java.io.IOException;
+import java.nio.charset.StandardCharsets;
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+import java.nio.file.StandardOpenOption;
 import java.util.ArrayList;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.batch.repository.bm.CsvDetailManageBatchRepository;
-import dev.batch.repository.bm.CsvInfoBatchRepository;
+import dev.common.config.PathConfig;
+import dev.common.constant.MessageCdConst;
+import dev.common.entity.CsvDetailManageEntity;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.s3.S3Operator;
 
 /**
  * CSV関係の削除
- *
- * Transaction範囲:
- * - csv_detail_manage（season_yearがあるもの）
- * - csv_detail_manage と紐付く csv情報
- *
- * @author shiraishitoshio
  */
 @Component
 @Transactional(rollbackFor = Exception.class)
 public class EachCsvTransaction {
 
-	/** プロジェクト名 */
-	private static final String PROJECT_NAME = EachCsvTransaction.class.getProtectionDomain()
-			.getCodeSource().getLocation().getPath();
+    private static final String PROJECT_NAME = EachCsvTransaction.class.getProtectionDomain()
+            .getCodeSource().getLocation().getPath();
 
-	/** クラス名 */
-	private static final String CLASS_NAME = EachCsvTransaction.class.getName();
+    private static final String CLASS_NAME = EachCsvTransaction.class.getName();
 
-	/** csv_detail_manage */
-	@Autowired
-	private CsvDetailManageBatchRepository csvDetailManageBatchRepository;
+    @Value("${exportcsv.local-only:false}")
+    private boolean localOnly;
 
-	/**
-	 * csv_detail_manage と紐付く csv情報テーブル削除用
-	 */
-	@Autowired
-	private CsvInfoBatchRepository csvInfoBatchRepository;
+    @Value("${exportcsv.final-prefix:}")
+    private String finalPrefix;
 
-	/** ログ管理 */
-	@Autowired
-	private ManageLoggerComponent manageLoggerComponent;
+    @Autowired
+    private CsvDetailManageBatchRepository csvDetailManageBatchRepository;
 
-	/**
-	 * 実行メソッド
-	 *
-	 * @throws Exception
-	 */
-	public void execute(TransactionDTO dto) throws Exception {
-		final String METHOD_NAME = "execute";
+    @Autowired
+    private PathConfig config;
 
-		this.manageLoggerComponent.debugStartInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+    @Autowired
+    private S3Operator s3Operator;
 
-		try {
-			if (dto == null || dto.getCountryLeague() == null || dto.getCountryLeague().isEmpty()) {
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						"対象countryLeagueが無いため、CSV削除処理をスキップします。");
-				return;
-			}
+    @Autowired
+    private ManageLoggerComponent manageLoggerComponent;
 
-			int totalCountryLeague = 0;
-			int totalCsvInfoDelete = 0;
-			int totalCsvDetailDelete = 0;
+    /**
+     * 実行メソッド
+     */
+    public void execute(TransactionDTO dto) throws Exception {
+        final String METHOD_NAME = "execute";
 
-			for (String countryLeague : dto.getCountryLeague()) {
-				if (countryLeague == null || countryLeague.isBlank()) {
-					continue;
-				}
+        this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "start");
 
-				totalCountryLeague++;
+        List<String> prefixes = buildDataCategoryPrefixes(dto);
+        if (prefixes.isEmpty()) {
+            this.manageLoggerComponent.debugInfoLog(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                    MessageCdConst.MCD00099I_LOG,
+                    "削除対象の countryLeague が空のため処理終了");
+            this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "end");
+            return;
+        }
 
-				String[] pair = splitCountryLeague(countryLeague);
-				String country = pair[0];
-				String league = pair[1];
+        List<CsvDetailManageEntity> targets =
+                this.csvDetailManageBatchRepository.findDeleteTargetsByDataCategoryPrefixes(prefixes);
 
-				if (country.isBlank() || league.isBlank()) {
-					this.manageLoggerComponent.debugInfoLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							"country/league の分解に失敗したためスキップ: " + countryLeague);
-					continue;
-				}
+        if (targets == null || targets.isEmpty()) {
+            this.manageLoggerComponent.debugInfoLog(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                    MessageCdConst.MCD00099I_LOG,
+                    "削除対象の csv_detail_manage が存在しません");
+            this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "end");
+            return;
+        }
 
-				// data_category は「国: リーグ - ラウンドxx」形式を想定
-				String dataCategoryPrefix = country + ": " + league;
+        Set<String> csvIdSet = new LinkedHashSet<>();
+        for (CsvDetailManageEntity entity : targets) {
+            if (entity == null) {
+                continue;
+            }
+            String csvId = safe(entity.getCsvId()).trim();
+            if (!csvId.isEmpty()) {
+                csvIdSet.add(csvId);
+            }
+        }
 
-				// season_year がある csv_detail_manage から csv_id を取得
-				List<String> csvIds = csvDetailManageBatchRepository
-						.findCsvIdsByDataCategoryPrefixAndSeasonYearExists(dataCategoryPrefix);
+        if (csvIdSet.isEmpty()) {
+            this.manageLoggerComponent.debugInfoLog(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                    MessageCdConst.MCD00099I_LOG,
+                    "削除対象 csv_id が存在しません");
+            this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "end");
+            return;
+        }
 
-				if (csvIds == null || csvIds.isEmpty()) {
-					this.manageLoggerComponent.debugInfoLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							"削除対象なし: " + dataCategoryPrefix);
-					continue;
-				}
+        List<String> csvIds = new ArrayList<>(csvIdSet);
 
-				// 重複除去
-				Set<String> distinctSet = new LinkedHashSet<>(csvIds);
-				List<String> distinctCsvIds = new ArrayList<>(distinctSet);
+        this.manageLoggerComponent.debugInfoLog(
+                PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                MessageCdConst.MCD00099I_LOG,
+                "削除対象 csv_id 件数=" + csvIds.size());
 
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						"削除対象csv_id取得: dataCategoryPrefix=" + dataCategoryPrefix
-								+ ", csvIds.size=" + distinctCsvIds.size());
+        // 1) 実CSV削除（local / S3）
+        deletePhysicalCsvFiles(csvIds, METHOD_NAME);
 
-				// 先に紐付きCSV情報を削除
-				int csvInfoDeleteCount = csvInfoBatchRepository.deleteByCsvIds(distinctCsvIds);
+        // 2) data_team_list.txt からも除去
+        updateDataTeamList(csvIdSet, METHOD_NAME);
 
-				// 次に csv_detail_manage を削除
-				int csvDetailDeleteCount = csvDetailManageBatchRepository.deleteByCsvIds(distinctCsvIds);
+        // 3) csv_detail_manage 削除
+        int deleted = this.csvDetailManageBatchRepository.deleteByCsvIds(csvIds);
 
-				totalCsvInfoDelete += csvInfoDeleteCount;
-				totalCsvDetailDelete += csvDetailDeleteCount;
+        this.manageLoggerComponent.debugInfoLog(
+                PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                MessageCdConst.MCD00099I_LOG,
+                "csv_detail_manage 削除件数=" + deleted);
 
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						"削除完了: dataCategoryPrefix=" + dataCategoryPrefix
-								+ ", csvInfoDeleteCount=" + csvInfoDeleteCount
-								+ ", csvDetailDeleteCount=" + csvDetailDeleteCount);
-			}
+        this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "end");
+    }
 
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					"EachCsvTransaction 完了"
-							+ ", 対象countryLeague数=" + totalCountryLeague
-							+ ", csvInfo削除件数=" + totalCsvInfoDelete
-							+ ", csvDetailManage削除件数=" + totalCsvDetailDelete);
+    /**
+     * DTO の countryLeague から data_category prefix を作成
+     * 例: 日本-J1リーグ -> 日本: J1リーグ
+     */
+    private List<String> buildDataCategoryPrefixes(TransactionDTO dto) {
+        List<String> prefixes = new ArrayList<>();
+        if (dto == null || dto.getCountryLeague() == null) {
+            return prefixes;
+        }
 
-		} catch (Exception e) {
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					"CSV削除処理で例外発生", e);
-			throw e;
-		} finally {
-			this.manageLoggerComponent.debugEndInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		}
-	}
+        for (String value : dto.getCountryLeague()) {
+            String[] pair = splitCountryLeague(value);
+            String country = safe(pair[0]).trim();
+            String league = safe(pair[1]).trim();
 
-	/**
-	 * "country-league" を country / league に分解
-	 *
-	 * league 側に "-" が含まれる可能性があるので、最初の "-" だけで分割する
-	 */
-	private String[] splitCountryLeague(String countryLeague) {
-		if (countryLeague == null || countryLeague.isBlank()) {
-			return new String[] { "", "" };
-		}
+            if (country.isEmpty() || league.isEmpty()) {
+                continue;
+            }
 
-		int idx = countryLeague.indexOf('-');
-		if (idx < 0) {
-			return new String[] { "", "" };
-		}
+            prefixes.add(country + ": " + league);
+        }
 
-		String country = countryLeague.substring(0, idx).trim();
-		String league = countryLeague.substring(idx + 1).trim();
+        return prefixes;
+    }
 
-		return new String[] { country, league };
-	}
+    /**
+     * ExportCsvService が作成した CSV 実体を削除
+     * - ローカル: csvFolder/csv_id
+     * - S3: finalPrefix/csv_id
+     */
+    private void deletePhysicalCsvFiles(List<String> csvIds, String parentMethod) throws IOException {
+        final String METHOD_NAME = "deletePhysicalCsvFiles";
+
+        Path baseDir = Paths.get(config.getCsvFolder()).toAbsolutePath().normalize();
+        String bucket = config.getS3BucketsStats();
+        String prefix = normalizePrefix(finalPrefix);
+
+        for (String csvId : csvIds) {
+            if (csvId == null || csvId.isBlank()) {
+                continue;
+            }
+
+            Path localPath = baseDir.resolve(csvId).normalize();
+
+            try {
+                boolean deletedLocal = Files.deleteIfExists(localPath);
+
+                this.manageLoggerComponent.debugInfoLog(
+                        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                        MessageCdConst.MCD00099I_LOG,
+                        "ローカルCSV削除: csvId=" + csvId
+                                + ", path=" + localPath
+                                + ", deleted=" + deletedLocal);
+            } catch (Exception e) {
+                this.manageLoggerComponent.debugErrorLog(
+                        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                        MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+                        "ローカルCSV削除失敗: csvId=" + csvId + ", path=" + localPath);
+                throw (e instanceof IOException) ? (IOException) e : new IOException(e);
+            }
+
+            if (!localOnly) {
+                String s3Key = normalizeS3Key(joinS3Key(prefix, csvId));
+
+                try {
+                    // 実際の S3Operator の削除メソッド名に合わせてここだけ調整してください
+                    // 例: s3Operator.deleteObject(bucket, s3Key);
+                    s3Operator.delete(bucket, s3Key);
+                    this.manageLoggerComponent.debugInfoLog(
+                            PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                            MessageCdConst.MCD00099I_LOG,
+                            "S3 CSV削除: bucket=" + bucket + ", key=" + s3Key);
+                } catch (Exception e) {
+                    this.manageLoggerComponent.debugErrorLog(
+                            PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                            MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+                            "S3 CSV削除失敗: bucket=" + bucket + ", key=" + s3Key);
+                    throw new IOException(e);
+                }
+            }
+        }
+    }
+
+    /**
+     * ExportCsvService が管理している data_team_list.txt から対象 csv_id を削除
+     */
+    private void updateDataTeamList(Set<String> deleteCsvIds, String parentMethod) throws IOException {
+        final String METHOD_NAME = "updateDataTeamList";
+
+        Path baseDir = Paths.get(config.getCsvFolder()).toAbsolutePath().normalize();
+        Path localTeamPath = baseDir.resolve("data_team_list.txt");
+
+        String bucket = config.getS3BucketsStats();
+        String prefix = normalizePrefix(finalPrefix);
+        String teamKey = normalizeS3Key(joinS3Key(prefix, "data_team_list.txt"));
+
+        if (!localOnly) {
+            try {
+                if (localTeamPath.getParent() != null) {
+                    Files.createDirectories(localTeamPath.getParent());
+                }
+                s3Operator.downloadToFile(bucket, teamKey, localTeamPath);
+            } catch (Exception e) {
+                this.manageLoggerComponent.debugWarnLog(
+                        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                        MessageCdConst.MCD00099I_LOG,
+                        "data_team_list.txt ダウンロード失敗または未存在. bucket=" + bucket + ", key=" + teamKey);
+            }
+        }
+
+        if (!Files.exists(localTeamPath)) {
+            this.manageLoggerComponent.debugInfoLog(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                    MessageCdConst.MCD00099I_LOG,
+                    "data_team_list.txt が存在しないため更新スキップ");
+            return;
+        }
+
+        List<String> lines = Files.readAllLines(localTeamPath, StandardCharsets.UTF_8);
+        List<String> newLines = new ArrayList<>();
+
+        for (String line : lines) {
+            if (line == null || line.isBlank()) {
+                continue;
+            }
+
+            String[] parts = line.split("\t", 2);
+            String csvKey = safe(parts[0]).trim();
+
+            if (deleteCsvIds.contains(csvKey)) {
+                continue;
+            }
+
+            newLines.add(line);
+        }
+
+        Files.write(
+                localTeamPath,
+                newLines,
+                StandardCharsets.UTF_8,
+                StandardOpenOption.CREATE,
+                StandardOpenOption.TRUNCATE_EXISTING);
+
+        this.manageLoggerComponent.debugInfoLog(
+                PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                MessageCdConst.MCD00099I_LOG,
+                "data_team_list.txt 更新完了. path=" + localTeamPath + ", remaining=" + newLines.size());
+
+        if (!localOnly) {
+            try {
+                s3Operator.uploadFile(bucket, teamKey, localTeamPath);
+
+                this.manageLoggerComponent.debugInfoLog(
+                        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                        MessageCdConst.MCD00099I_LOG,
+                        "data_team_list.txt S3反映完了. bucket=" + bucket + ", key=" + teamKey);
+            } catch (Exception e) {
+                this.manageLoggerComponent.debugErrorLog(
+                        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                        MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+                        "data_team_list.txt S3反映失敗. bucket=" + bucket + ", key=" + teamKey);
+                throw new IOException(e);
+            }
+        }
+    }
+
+    private String[] splitCountryLeague(String value) {
+        if (value == null || value.isBlank()) {
+            return new String[] { "", "" };
+        }
+
+        int idx = value.indexOf('-');
+        if (idx < 0) {
+            return new String[] { value.trim(), "" };
+        }
+
+        String country = value.substring(0, idx).trim();
+        String league = value.substring(idx + 1).trim();
+        return new String[] { country, league };
+    }
+
+    private static String safe(String s) {
+        return (s == null) ? "" : s;
+    }
+
+    private static String normalizePrefix(String prefix) {
+        if (prefix == null) {
+            return "";
+        }
+        String p = prefix.trim();
+        p = p.replaceAll("^/+", "");
+        p = p.replaceAll("/+$", "");
+        return p;
+    }
+
+    private static String normalizeS3Key(String key) {
+        if (key == null) {
+            return null;
+        }
+        String k = key;
+        while (k.startsWith("/")) {
+            k = k.substring(1);
+        }
+        return k;
+    }
+
+    private static String joinS3Key(String prefix, String fileName) {
+        String p = (prefix == null) ? "" : prefix.trim();
+        p = p.replaceAll("^/+", "");
+        p = p.replaceAll("/+$", "");
+
+        String f = (fileName == null) ? "" : fileName.trim();
+        f = f.replaceAll("^/+", "");
+
+        if (p.isBlank()) {
+            return f;
+        }
+        return p + "/" + f;
+    }
 }
