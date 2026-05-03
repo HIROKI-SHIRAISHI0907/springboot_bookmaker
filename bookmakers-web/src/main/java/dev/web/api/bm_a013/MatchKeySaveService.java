@@ -11,7 +11,7 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 @Transactional(readOnly = true)
-public class MatchKeySaveAdminService {
+public class MatchKeySaveService {
 
     private final MatchKeyRepository matchKeyRepository;
 

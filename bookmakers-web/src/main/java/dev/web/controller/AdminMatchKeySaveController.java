@@ -6,16 +6,16 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.web.api.bm_a013.MatchKeySaveAdminService;
+import dev.web.api.bm_a013.MatchKeySaveService;
 import dev.web.api.bm_a013.MatchKeySaveListResponse;
 import lombok.RequiredArgsConstructor;
 
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
-public class MatchKeySaveAdminController {
+public class AdminMatchKeySaveController {
 
-    private final MatchKeySaveAdminService matchKeySaveAdminService;
+    private final MatchKeySaveService matchKeySaveAdminService;
 
     /**
      * match_key_save 一覧取得
