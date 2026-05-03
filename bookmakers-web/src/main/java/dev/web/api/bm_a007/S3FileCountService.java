@@ -5,8 +5,10 @@ import java.time.LocalDate;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -15,8 +17,11 @@ import dev.common.constant.MessageCdConst;
 import dev.common.logger.ManageLoggerComponent;
 import dev.web.config.S3JobPropertiesConfig;
 import software.amazon.awssdk.services.s3.S3Client;
+import software.amazon.awssdk.services.s3.model.CommonPrefix;
+import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
 import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 /**
@@ -308,4 +313,150 @@ public class S3FileCountService {
 			this.onDay = onDay;
 		}
 	}
+
+	/**
+	 * オブジェクト存在確認
+	 */
+	public boolean existsObject(String bucket, String key) {
+		if (bucket == null || bucket.isBlank() || key == null || key.isBlank()) {
+			return false;
+		}
+
+		try {
+			s3.headObject(HeadObjectRequest.builder()
+					.bucket(bucket)
+					.key(key)
+					.build());
+			return true;
+		} catch (S3Exception e) {
+			if (e.statusCode() == 404) {
+				return false;
+			}
+			throw e;
+		}
+	}
+
+	/**
+	 * バケット直下のファイル一覧取得
+	 */
+	public List<String> listDirectFileKeys(String bucket) {
+		return listDirectFileKeys(bucket, null);
+	}
+
+	/**
+	 * 指定prefix直下のファイル一覧取得
+	 */
+	public List<String> listDirectFileKeys(String bucket, String prefix) {
+		DirectChildren children = listDirectChildren(bucket, prefix);
+		return children.fileKeys;
+	}
+
+	/**
+	 * バケット直下のフォルダ一覧取得
+	 */
+	public List<String> listDirectFolderNames(String bucket) {
+		return listDirectFolderNames(bucket, null);
+	}
+
+	/**
+	 * 指定prefix直下のフォルダ一覧取得
+	 */
+	public List<String> listDirectFolderNames(String bucket, String prefix) {
+		DirectChildren children = listDirectChildren(bucket, prefix);
+		return children.folderNames;
+	}
+
+	/**
+	 * delimiter='/' を使って直下のファイル/フォルダを取得
+	 */
+	private DirectChildren listDirectChildren(String bucket, String prefix) {
+		String normalizedPrefix = normalizeListPrefix(prefix);
+
+		Set<String> fileKeys = new LinkedHashSet<>();
+		Set<String> folderNames = new LinkedHashSet<>();
+
+		String token = null;
+
+		do {
+			ListObjectsV2Request.Builder req = ListObjectsV2Request.builder()
+					.bucket(bucket)
+					.continuationToken(token)
+					.maxKeys(1000)
+					.delimiter("/");
+
+			if (normalizedPrefix != null) {
+				req.prefix(normalizedPrefix);
+			}
+
+			ListObjectsV2Response resp = s3.listObjectsV2(req.build());
+
+			if (resp.contents() != null) {
+				for (S3Object obj : resp.contents()) {
+					if (obj == null || obj.key() == null) {
+						continue;
+					}
+
+					// prefix自身のプレースホルダ除外
+					if (normalizedPrefix != null && Objects.equals(obj.key(), normalizedPrefix)) {
+						continue;
+					}
+
+					// フォルダプレースホルダ除外
+					if (obj.key().endsWith("/")) {
+						continue;
+					}
+
+					fileKeys.add(obj.key());
+				}
+			}
+
+			if (resp.commonPrefixes() != null) {
+				for (CommonPrefix cp : resp.commonPrefixes()) {
+					if (cp == null || cp.prefix() == null) {
+						continue;
+					}
+
+					String name = cp.prefix();
+
+					if (normalizedPrefix != null && name.startsWith(normalizedPrefix)) {
+						name = name.substring(normalizedPrefix.length());
+					}
+
+					while (name.endsWith("/")) {
+						name = name.substring(0, name.length() - 1);
+					}
+
+					if (!name.isBlank()) {
+						folderNames.add(name);
+					}
+				}
+			}
+
+			token = resp.isTruncated() ? resp.nextContinuationToken() : null;
+		} while (token != null);
+
+		return new DirectChildren(new ArrayList<>(fileKeys), new ArrayList<>(folderNames));
+	}
+
+	/**
+	 * list系専用prefix正規化
+	 * null / blank はルート扱い
+	 */
+	private String normalizeListPrefix(String prefix) {
+		if (prefix == null || prefix.isBlank()) {
+			return null;
+		}
+		return prefix.endsWith("/") ? prefix : prefix + "/";
+	}
+
+	private static class DirectChildren {
+		private final List<String> fileKeys;
+		private final List<String> folderNames;
+
+		private DirectChildren(List<String> fileKeys, List<String> folderNames) {
+			this.fileKeys = fileKeys;
+			this.folderNames = folderNames;
+		}
+	}
+
 }
