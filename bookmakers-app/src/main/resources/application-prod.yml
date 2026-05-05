@@ -19,7 +19,7 @@ process:
       outputs: ${S3_OUTPUTS:aws-s3-outputs-csv}
       future: ${S3_FUTURE:aws-s3-future-csv}
       stats: ${S3_STATS:aws-s3-stat-csv}
-      allLeague: ${S3_STATS:aws-s3-all-league-csv}
+      allLeague: ${S3_ALL_LEAGUE:aws-s3-all-league-csv}
       
 batch:
   mode: ${BATCH_MODE:worker}
@@ -34,16 +34,20 @@ spring:
     web-application-type: none
     
   datasource:
-    bm:
-      url: ${BM_DB_URL}
-      username: ${BM_DB_USER}
-      password: ${BM_DB_PASS}
-      driver-class-name: org.postgresql.Driver
-    master:
-      url: ${MASTER_DB_URL}
-      username: ${MASTER_DB_USER}
-      password: ${MASTER_DB_PASS}
-      driver-class-name: org.postgresql.Driver
+    driver-class-name: com.amazonaws.secretsmanager.sql.AWSSecretsManagerMySQLDriver
+    url: jdbc-secretsmanager:mysql://${BM_DB_HOST}:${BM_DB_PORT}/${BM_DB_NAME}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Tokyo&useSSL=false&allowPublicKeyRetrieval=true
+    username: ${BM_DB_SECRET_ARN}
+    hikari:
+      pool-name: bookmakersAppHikariPool
+      maximum-pool-size: 10
+      minimum-idle: 2
+      connection-timeout: 30000
+      validation-timeout: 5000
+      idle-timeout: 600000
+      max-lifetime: 900000
+      keepalive-time: 300000
+      initialization-fail-timeout: 1
+      leak-detection-threshold: 0
 
   flyway:
     enabled: false
