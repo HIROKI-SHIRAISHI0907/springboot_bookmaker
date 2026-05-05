@@ -34,20 +34,16 @@ spring:
     web-application-type: none
     
   datasource:
-    driver-class-name: com.amazonaws.secretsmanager.sql.AWSSecretsManagerMySQLDriver
-    url: jdbc-secretsmanager:mysql://${BM_DB_HOST}:${BM_DB_PORT}/${BM_DB_NAME}?useUnicode=true&characterEncoding=UTF-8&serverTimezone=Asia/Tokyo&useSSL=false&allowPublicKeyRetrieval=true
-    username: ${BM_DB_SECRET_ARN}
-    hikari:
-      pool-name: bookmakersAppHikariPool
-      maximum-pool-size: 10
-      minimum-idle: 2
-      connection-timeout: 30000
-      validation-timeout: 5000
-      idle-timeout: 600000
-      max-lifetime: 900000
-      keepalive-time: 300000
-      initialization-fail-timeout: 1
-      leak-detection-threshold: 0
+    bm:
+      driver-class-name: com.amazonaws.secretsmanager.sql.AWSSecretsManagerPostgreSQLDriver
+      url: ${BM_DB_URL}
+      username: ${BM_DB_SECRET_ARN}
+
+    master:
+      driver-class-name: com.amazonaws.secretsmanager.sql.AWSSecretsManagerPostgreSQLDriver
+      url: ${MASTER_DB_URL}
+      username: ${MASTER_DB_SECRET_ARN}
+
 
   flyway:
     enabled: false
