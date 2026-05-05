@@ -12,7 +12,7 @@ import dev.web.wrapper.BatchFileCheckResponseWrapper;
  * バッチ実行前のS3ファイル状態確認API
  */
 @RestController
-@RequestMapping("/v1/api/admin")
+@RequestMapping("/api/admin")
 public class AdminBatchFileCheckController {
 
 	@Autowired
