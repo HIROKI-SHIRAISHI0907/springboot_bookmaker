@@ -100,6 +100,7 @@ public class RealDataConvertJsonBatch extends AbstractJobBatchTemplate {
 		String seasonBucket = pathConfig.getS3BucketsTeamSeasonDateData();
 		String teamBucket = pathConfig.getS3BucketsTeamData();
 		String teamMemberBucket = pathConfig.getS3BucketsTeamMemberData();
+		String futureBucket = pathConfig.getS3BucketsFuture();
 
 		final String jsonFolder = pathConfig.getB001JsonFolder(); // /tmp/json/
 		final String jsonPath = jsonFolder + "b001_country_league.json";
@@ -122,6 +123,7 @@ public class RealDataConvertJsonBatch extends AbstractJobBatchTemplate {
 		upload(seasonBucket, s3Key, jsonFilePath);
 		upload(teamBucket, s3Key, jsonFilePath);
 		upload(teamMemberBucket, s3Key, jsonFilePath);
+		upload(futureBucket, s3Key, jsonFilePath);
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
@@ -179,6 +181,9 @@ public class RealDataConvertJsonBatch extends AbstractJobBatchTemplate {
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e,
 					"bucket: " + bucket + ", key: " + key + ", file: " + file);
 		}
+
+		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
+			    "bucket: " + bucket + ", key: " + key + ", file: " + file);
 	}
 
 }
