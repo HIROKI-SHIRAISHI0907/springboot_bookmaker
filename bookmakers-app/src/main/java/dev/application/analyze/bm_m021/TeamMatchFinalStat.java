@@ -1,8 +1,11 @@
 package dev.application.analyze.bm_m021;
 
+import java.util.Collections;
 import java.util.List;
 import java.util.Map;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -16,9 +19,8 @@ import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
 /**
- * BM_M021統計分析ロジック
+ * BM_M021統計分析ロジック（安全な逐次版 + 詳細ログ）
  * @author shiraishitoshio
- *
  */
 @Component
 public class TeamMatchFinalStat implements AnalyzeEntityIF {
@@ -36,6 +38,9 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 	/** BM_STAT_NUMBER */
 	private static final String BM_NUMBER = "BM_M021";
 
+	/** SLF4J Logger */
+	private static final Logger log = LoggerFactory.getLogger(TeamMatchFinalStat.class);
+
 	/** TeamMatchFinalStatsRepositoryレポジトリクラス */
 	@Autowired
 	private TeamMatchFinalStatsRepository teamMatchFinalStatsRepository;
@@ -44,7 +49,7 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 	@Autowired
 	private BookDataToTeamMatchFinalMapper bookDataToTeamMatchFinalMapper;
 
-	/** ログ管理ラッパー*/
+	/** ログ管理ラッパー */
 	@Autowired
 	private RootCauseWrapper rootCauseWrapper;
 
@@ -58,54 +63,179 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 	@Override
 	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) {
 		final String METHOD_NAME = "calcStat";
-		// ログ出力
+
 		this.manageLoggerComponent.init(EXEC_MODE, null);
-		this.manageLoggerComponent.debugStartInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		entities.entrySet().parallelStream().forEach(entry -> {
-			Map<String, List<BookDataEntity>> matchMap = entry.getValue();
-			for (List<BookDataEntity> dataList : matchMap.values()) {
-				BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(dataList);
-				String messageCd = MessageCdConst.MCD00099I_LOG;
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, returnMaxEntity.getFilePath());
-				if (!finDataExistsChk(returnMaxEntity))
-					continue;
-				// 支配率,3分割データについて設定
-				TeamMatchFinalOutputDTO dto = setFinalData(dataList, returnMaxEntity);
-				// その他情報設定,BM_M021登録
-				setFinal(dto, returnMaxEntity);
+		long started = System.currentTimeMillis();
+
+		try {
+			if (entities == null || entities.isEmpty()) {
+				log.info("[BM_M021] entities is empty. nothing to process.");
+				this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+				return;
 			}
-		});
 
-		// endLog
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		this.manageLoggerComponent.clear();
+			log.info("[BM_M021] start calcStat. leagueCount={}", entities.size());
+
+			int leagueIndex = 0;
+			int processedMatchCount = 0;
+			int skippedNotFinCount = 0;
+			int savedEntityCount = 0;
+
+			for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
+				leagueIndex++;
+
+				String leagueKey = entry.getKey();
+				Map<String, List<BookDataEntity>> matchMap = entry.getValue();
+
+				int matchGroupSize = (matchMap == null) ? 0 : matchMap.size();
+				log.info("[BM_M021] league start. leagueIndex={}/{}, leagueKey={}, matchGroupSize={}",
+						leagueIndex, entities.size(), leagueKey, matchGroupSize);
+
+				if (matchMap == null || matchMap.isEmpty()) {
+					log.warn("[BM_M021] matchMap is empty. leagueKey={}", leagueKey);
+					continue;
+				}
+
+				int matchIndex = 0;
+
+				for (Map.Entry<String, List<BookDataEntity>> matchEntry : matchMap.entrySet()) {
+					matchIndex++;
+
+					String matchKey = matchEntry.getKey();
+					List<BookDataEntity> dataList = matchEntry.getValue();
+
+					if (dataList == null || dataList.isEmpty()) {
+						log.warn("[BM_M021] dataList is empty. leagueKey={}, matchKey={}", leagueKey, matchKey);
+						continue;
+					}
+
+					BookDataEntity returnMaxEntity = null;
+					try {
+						returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(dataList);
+					} catch (Exception e) {
+						log.error("[BM_M021] getMaxSeqEntities failed. leagueKey={}, matchKey={}, dataSize={}",
+								leagueKey, matchKey, dataList.size(), e);
+						throw e;
+					}
+
+					if (returnMaxEntity == null) {
+						log.warn("[BM_M021] returnMaxEntity is null. leagueKey={}, matchKey={}, dataSize={}",
+								leagueKey, matchKey, dataList.size());
+						continue;
+					}
+
+					String fillChar = setLoggerFillChar(
+							returnMaxEntity.getGameTeamCategory(),
+							returnMaxEntity.getHomeTeamName(),
+							returnMaxEntity.getAwayTeamName());
+
+					String filePath = safe(returnMaxEntity.getFilePath());
+					String time = safe(returnMaxEntity.getTime());
+
+					String messageCd = MessageCdConst.MCD00099I_LOG;
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, filePath);
+
+					log.info(
+							"[BM_M021] match start. leagueKey={}, matchIndex={}/{}, matchKey={}, dataSize={}, time={}, fillChar={}, filePath={}",
+							leagueKey, matchIndex, matchGroupSize, matchKey, dataList.size(), time, fillChar, filePath);
+
+					if (!finDataExistsChk(returnMaxEntity)) {
+						skippedNotFinCount++;
+						log.info("[BM_M021] skip not FIN data. leagueKey={}, matchKey={}, fillChar={}",
+								leagueKey, matchKey, fillChar);
+						continue;
+					}
+
+					TeamMatchFinalOutputDTO dto;
+					try {
+						log.info("[BM_M021] setFinalData start. leagueKey={}, matchKey={}, fillChar={}",
+								leagueKey, matchKey, fillChar);
+
+						dto = setFinalData(dataList, returnMaxEntity);
+
+						log.info("[BM_M021] setFinalData done. leagueKey={}, matchKey={}, fillChar={}",
+								leagueKey, matchKey, fillChar);
+					} catch (Exception e) {
+						log.error("[BM_M021] setFinalData failed. leagueKey={}, matchKey={}, fillChar={}",
+								leagueKey, matchKey, fillChar, e);
+						throw e;
+					}
+
+					try {
+						log.info("[BM_M021] setFinal start. leagueKey={}, matchKey={}, fillChar={}",
+								leagueKey, matchKey, fillChar);
+
+						int beforeSaveCount = this.localSaveCount;
+						setFinal(dto, returnMaxEntity);
+						int afterSaveCount = this.localSaveCount;
+
+						int savedThisMatch = Math.max(0, afterSaveCount - beforeSaveCount);
+						savedEntityCount += savedThisMatch;
+						processedMatchCount++;
+
+						log.info("[BM_M021] setFinal done. leagueKey={}, matchKey={}, fillChar={}, savedThisMatch={}",
+								leagueKey, matchKey, fillChar, savedThisMatch);
+					} catch (Exception e) {
+						log.error("[BM_M021] setFinal failed. leagueKey={}, matchKey={}, fillChar={}",
+								leagueKey, matchKey, fillChar, e);
+						throw e;
+					}
+				}
+
+				log.info("[BM_M021] league done. leagueIndex={}/{}, leagueKey={}",
+						leagueIndex, entities.size(), leagueKey);
+			}
+
+			long elapsed = System.currentTimeMillis() - started;
+			log.info("[BM_M021] calcStat finished. processedMatchCount={}, skippedNotFinCount={}, savedEntityCount={}, elapsedMs={}",
+					processedMatchCount, skippedNotFinCount, savedEntityCount, elapsed);
+
+			this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+
+		} finally {
+			this.manageLoggerComponent.clear();
+		}
 	}
+
+	/**
+	 * ローカル保存件数カウンタ
+	 * calcStat は逐次処理前提なのでシンプルな int で管理
+	 */
+	private int localSaveCount = 0;
 
 	/**
 	 * 登録メソッド
 	 * @param entities エンティティ
 	 * @param fillChar 埋め字
 	 */
-	private synchronized void saveTeamMatchData(TeamMatchFinalStatsEntity entities, String fillChar) {
+	private void saveTeamMatchData(TeamMatchFinalStatsEntity entities, String fillChar) {
 		final String METHOD_NAME = "saveTeamMatchData";
+
+		log.info("[BM_M021] before insert. fillChar={}, entity={}", fillChar, summarizeEntity(entities));
+
 		int result = this.teamMatchFinalStatsRepository.insert(entities);
+
+		log.info("[BM_M021] after insert. fillChar={}, result={}", fillChar, result);
+
 		if (result != 1) {
 			String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 			this.rootCauseWrapper.throwUnexpectedRowCount(
-			        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-			        messageCd,
-			        1, result,
-			        null
-			    );
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					messageCd,
+					1, result,
+					null
+			);
 		}
+
+		this.localSaveCount++;
 
 		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: " + result + "件 (" + fillChar + ")");
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+				BM_NUMBER + " 登録件数: " + result + "件 (" + fillChar + ")");
 	}
 
 	/**
@@ -117,7 +247,7 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 		final String METHOD_NAME = "finDataExistsChk";
 		String fillChar = setLoggerFillChar(entity.getGameTeamCategory(),
 				entity.getHomeTeamName(), entity.getAwayTeamName());
-		// 最大通番を持つデータを取得
+
 		if (!BookMakersCommonConst.FIN.equals(entity.getTime())) {
 			String messageCd = MessageCdConst.MCD00013I_NO_FIN_DATA;
 			this.manageLoggerComponent.debugInfoLog(
@@ -136,9 +266,9 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 	 */
 	private String setLoggerFillChar(String detaKey, String home, String away) {
 		StringBuilder stringBuilder = new StringBuilder();
-		stringBuilder.append("国,リーグ: " + detaKey + ", ");
-		stringBuilder.append("ホーム: " + home + ", ");
-		stringBuilder.append("アウェー: " + away);
+		stringBuilder.append("国,リーグ: ").append(safe(detaKey)).append(", ");
+		stringBuilder.append("ホーム: ").append(safe(home)).append(", ");
+		stringBuilder.append("アウェー: ").append(safe(away));
 		return stringBuilder.toString();
 	}
 
@@ -150,11 +280,20 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 	 */
 	private TeamMatchFinalOutputDTO setFinalData(List<BookDataEntity> entity, BookDataEntity returnMaxEntity) {
 		TeamMatchFinalOutputDTO teamMatchFinalOutputDTO = new TeamMatchFinalOutputDTO();
+
+		String fillChar = setLoggerFillChar(
+				returnMaxEntity.getGameTeamCategory(),
+				returnMaxEntity.getHomeTeamName(),
+				returnMaxEntity.getAwayTeamName());
+
+		log.info("[BM_M021] setFinalData detail start. fillChar={}, entitySize={}", fillChar, entity == null ? 0 : entity.size());
+
 		// ボール保持率
 		double totalHomePossession = 0.0;
 		double totalAwayPossession = 0.0;
 		int countHome = 0;
 		int countAway = 0;
+
 		for (BookDataEntity e : entity) {
 			String homePossStr = e.getHomeBallPossesion();
 			if (homePossStr != null && homePossStr.endsWith("%")) {
@@ -163,7 +302,7 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 					totalHomePossession += value;
 					countHome++;
 				} catch (NumberFormatException ex) {
-					// パースできなかった場合は無視
+					log.warn("[BM_M021] invalid home possession. fillChar={}, raw={}", fillChar, homePossStr);
 				}
 			}
 
@@ -174,44 +313,75 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 					totalAwayPossession += value;
 					countAway++;
 				} catch (NumberFormatException ex) {
-					// パースできなかった場合は無視
+					log.warn("[BM_M021] invalid away possession. fillChar={}, raw={}", fillChar, awayPossStr);
 				}
 			}
 		}
-		// 平均値
-		String avgHomePossession = countHome > 0 ? String.format("%.2f%%", totalHomePossession / countHome)
+
+		String avgHomePossession = countHome > 0
+				? String.format("%.2f%%", totalHomePossession / countHome)
 				: String.format("%.2f%%", totalHomePossession);
-		String avgAwayPossession = countAway > 0 ? String.format("%.2f%%", totalAwayPossession / countAway)
+
+		String avgAwayPossession = countAway > 0
+				? String.format("%.2f%%", totalAwayPossession / countAway)
 				: String.format("%.2f%%", totalAwayPossession);
 
+		log.info("[BM_M021] possession calculated. fillChar={}, avgHomePossession={}, avgAwayPossession={}, countHome={}, countAway={}",
+				fillChar, avgHomePossession, avgAwayPossession, countHome, countAway);
+
 		// 3分割データ
-		List<String> homePassList = ExecuteMainUtil.splitGroup(returnMaxEntity.getHomePassCount());
-		List<String> awayPassList = ExecuteMainUtil.splitGroup(returnMaxEntity.getAwayPassCount());
-		List<String> homeFinalPassList = ExecuteMainUtil.splitGroup(returnMaxEntity.getHomeFinalThirdPassCount());
-		List<String> awayFinalPassList = ExecuteMainUtil.splitGroup(returnMaxEntity.getAwayFinalThirdPassCount());
-		List<String> homeCrossList = ExecuteMainUtil.splitGroup(returnMaxEntity.getHomeCrossCount());
-		List<String> awayCrossList = ExecuteMainUtil.splitGroup(returnMaxEntity.getAwayCrossCount());
-		List<String> homeTackleList = ExecuteMainUtil.splitGroup(returnMaxEntity.getHomeTackleCount());
-		List<String> awayTackleList = ExecuteMainUtil.splitGroup(returnMaxEntity.getAwayTackleCount());
+		List<String> homePassList = safeSplitGroup(returnMaxEntity.getHomePassCount(), "homePass", fillChar);
+		List<String> awayPassList = safeSplitGroup(returnMaxEntity.getAwayPassCount(), "awayPass", fillChar);
+		List<String> homeFinalPassList = safeSplitGroup(returnMaxEntity.getHomeFinalThirdPassCount(), "homeFinalThirdPass", fillChar);
+		List<String> awayFinalPassList = safeSplitGroup(returnMaxEntity.getAwayFinalThirdPassCount(), "awayFinalThirdPass", fillChar);
+		List<String> homeCrossList = safeSplitGroup(returnMaxEntity.getHomeCrossCount(), "homeCross", fillChar);
+		List<String> awayCrossList = safeSplitGroup(returnMaxEntity.getAwayCrossCount(), "awayCross", fillChar);
+		List<String> homeTackleList = safeSplitGroup(returnMaxEntity.getHomeTackleCount(), "homeTackle", fillChar);
+		List<String> awayTackleList = safeSplitGroup(returnMaxEntity.getAwayTackleCount(), "awayTackle", fillChar);
 
 		FinalData homeFinalData = new FinalData();
 		homeFinalData.setPossession(avgHomePossession);
-		homeFinalData.setPass(new RetentionData(homePassList.get(0), homePassList.get(1), homePassList.get(2)));
-		homeFinalData.setFinalThirdPass(new RetentionData(homeFinalPassList.get(0),
-				homeFinalPassList.get(1), homeFinalPassList.get(2)));
-		homeFinalData.setCross(new RetentionData(homeCrossList.get(0), homeCrossList.get(1), homeCrossList.get(2)));
-		homeFinalData.setTackle(new RetentionData(homeTackleList.get(0), homeTackleList.get(1), homeTackleList.get(2)));
+		homeFinalData.setPass(new RetentionData(
+				safeListGet(homePassList, 0, "homePass[0]", fillChar),
+				safeListGet(homePassList, 1, "homePass[1]", fillChar),
+				safeListGet(homePassList, 2, "homePass[2]", fillChar)));
+		homeFinalData.setFinalThirdPass(new RetentionData(
+				safeListGet(homeFinalPassList, 0, "homeFinalThirdPass[0]", fillChar),
+				safeListGet(homeFinalPassList, 1, "homeFinalThirdPass[1]", fillChar),
+				safeListGet(homeFinalPassList, 2, "homeFinalThirdPass[2]", fillChar)));
+		homeFinalData.setCross(new RetentionData(
+				safeListGet(homeCrossList, 0, "homeCross[0]", fillChar),
+				safeListGet(homeCrossList, 1, "homeCross[1]", fillChar),
+				safeListGet(homeCrossList, 2, "homeCross[2]", fillChar)));
+		homeFinalData.setTackle(new RetentionData(
+				safeListGet(homeTackleList, 0, "homeTackle[0]", fillChar),
+				safeListGet(homeTackleList, 1, "homeTackle[1]", fillChar),
+				safeListGet(homeTackleList, 2, "homeTackle[2]", fillChar)));
 
 		FinalData awayFinalData = new FinalData();
 		awayFinalData.setPossession(avgAwayPossession);
-		awayFinalData.setPass(new RetentionData(awayPassList.get(0), awayPassList.get(1), awayPassList.get(2)));
-		awayFinalData.setFinalThirdPass(new RetentionData(awayFinalPassList.get(0),
-				awayFinalPassList.get(1), awayFinalPassList.get(2)));
-		awayFinalData.setCross(new RetentionData(awayCrossList.get(0), awayCrossList.get(1), awayCrossList.get(2)));
-		awayFinalData.setTackle(new RetentionData(awayTackleList.get(0), awayTackleList.get(1), awayTackleList.get(2)));
+		awayFinalData.setPass(new RetentionData(
+				safeListGet(awayPassList, 0, "awayPass[0]", fillChar),
+				safeListGet(awayPassList, 1, "awayPass[1]", fillChar),
+				safeListGet(awayPassList, 2, "awayPass[2]", fillChar)));
+		awayFinalData.setFinalThirdPass(new RetentionData(
+				safeListGet(awayFinalPassList, 0, "awayFinalThirdPass[0]", fillChar),
+				safeListGet(awayFinalPassList, 1, "awayFinalThirdPass[1]", fillChar),
+				safeListGet(awayFinalPassList, 2, "awayFinalThirdPass[2]", fillChar)));
+		awayFinalData.setCross(new RetentionData(
+				safeListGet(awayCrossList, 0, "awayCross[0]", fillChar),
+				safeListGet(awayCrossList, 1, "awayCross[1]", fillChar),
+				safeListGet(awayCrossList, 2, "awayCross[2]", fillChar)));
+		awayFinalData.setTackle(new RetentionData(
+				safeListGet(awayTackleList, 0, "awayTackle[0]", fillChar),
+				safeListGet(awayTackleList, 1, "awayTackle[1]", fillChar),
+				safeListGet(awayTackleList, 2, "awayTackle[2]", fillChar)));
 
 		teamMatchFinalOutputDTO.setHomeObject(homeFinalData);
 		teamMatchFinalOutputDTO.setAwayObject(awayFinalData);
+
+		log.info("[BM_M021] setFinalData detail done. fillChar={}", fillChar);
+
 		return teamMatchFinalOutputDTO;
 	}
 
@@ -221,22 +391,26 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 	 * @param returnMaxEntity BookDataEntity
 	 */
 	private void setFinal(final TeamMatchFinalOutputDTO dto, final BookDataEntity returnMaxEntity) {
-		// 特殊データは詰め替える
 		BookDataEntity mappEntity = returnMaxEntity;
+
 		FinalData finalHomeData = dto.getHomeObject();
 		FinalData finalAwayData = dto.getAwayObject();
-		String resultHome = compareScore(returnMaxEntity.getHomeScore(),
-				returnMaxEntity.getAwayScore());
-		String resultAway = compareScore(returnMaxEntity.getAwayScore(),
-				returnMaxEntity.getHomeScore());
+
+		String resultHome = compareScore(returnMaxEntity.getHomeScore(), returnMaxEntity.getAwayScore());
+		String resultAway = compareScore(returnMaxEntity.getAwayScore(), returnMaxEntity.getHomeScore());
+
 		String fillChar = setLoggerFillChar(returnMaxEntity.getGameTeamCategory(),
 				returnMaxEntity.getHomeTeamName(), returnMaxEntity.getAwayTeamName());
+
+		log.info("[BM_M021] mapping home entity. fillChar={}, resultHome={}", fillChar, resultHome);
 		TeamMatchFinalStatsEntity homeMatchFinalStatsEntity = this.bookDataToTeamMatchFinalMapper.mapHomeStruct(
 				mappEntity, finalHomeData, finalAwayData,
-				"H", resultHome, setSymbol(resultHome) + returnMaxEntity.getHomeScore() + "-" + returnMaxEntity.getAwayScore());
+				"H", resultHome, setSymbol(resultHome) + safe(returnMaxEntity.getHomeScore()) + "-" + safe(returnMaxEntity.getAwayScore()));
+
+		log.info("[BM_M021] mapping away entity. fillChar={}, resultAway={}", fillChar, resultAway);
 		TeamMatchFinalStatsEntity awayMatchFinalStatsEntity = this.bookDataToTeamMatchFinalMapper.mapAwayStruct(
 				mappEntity, finalAwayData, finalHomeData,
-				"A", resultAway, setSymbol(resultAway) + returnMaxEntity.getAwayScore() + "-" + returnMaxEntity.getHomeScore());
+				"A", resultAway, setSymbol(resultAway) + safe(returnMaxEntity.getAwayScore()) + "-" + safe(returnMaxEntity.getHomeScore()));
 
 		saveTeamMatchData(homeMatchFinalStatsEntity, fillChar);
 		saveTeamMatchData(awayMatchFinalStatsEntity, fillChar);
@@ -250,32 +424,89 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 	 */
 	private String compareScore(final String homeScore, final String awayScore) {
 		try {
-	        int home = Integer.parseInt(homeScore);
-	        int away = Integer.parseInt(awayScore);
-	        if (home > away) return "WIN";
-	        if (home < away) return "LOSE";
-	        return "DRAW";
-	    } catch (NumberFormatException e) {
-	        return "DRAW"; // or handle error
-	    }
+			int home = Integer.parseInt(safe(homeScore));
+			int away = Integer.parseInt(safe(awayScore));
+			if (home > away) {
+				return "WIN";
+			}
+			if (home < away) {
+				return "LOSE";
+			}
+			return "DRAW";
+		} catch (NumberFormatException e) {
+			log.warn("[BM_M021] compareScore parse failed. homeScore={}, awayScore={}", homeScore, awayScore);
+			return "DRAW";
+		}
 	}
 
 	/**
 	 * 勝敗のマークを返す
-	 * @param homeScore
-	 * @param awayScore
+	 * @param result 勝敗
 	 * @return
 	 */
 	private String setSymbol(final String result) {
-		String mark = "";
 		if ("WIN".equals(result)) {
-			mark = "○";
+			return "○";
 		} else if ("LOSE".equals(result)) {
-			mark = "●";
-		} else {
-			mark = "△";
+			return "●";
 		}
-		return mark;
+		return "△";
 	}
 
+	/**
+	 * null安全
+	 */
+	private String safe(String value) {
+		return value == null ? "" : value;
+	}
+
+	/**
+	 * splitGroupの安全ラッパ
+	 */
+	private List<String> safeSplitGroup(String raw, String label, String fillChar) {
+		try {
+			List<String> list = ExecuteMainUtil.splitGroup(raw);
+			if (list == null) {
+				log.warn("[BM_M021] splitGroup returned null. label={}, fillChar={}, raw={}", label, fillChar, raw);
+				return Collections.emptyList();
+			}
+			log.info("[BM_M021] splitGroup done. label={}, fillChar={}, raw={}, size={}, values={}",
+					label, fillChar, raw, list.size(), list);
+			return list;
+		} catch (Exception e) {
+			log.error("[BM_M021] splitGroup failed. label={}, fillChar={}, raw={}", label, fillChar, raw, e);
+			return Collections.emptyList();
+		}
+	}
+
+	/**
+	 * List安全取得
+	 */
+	private String safeListGet(List<String> list, int index, String label, String fillChar) {
+		if (list == null) {
+			log.warn("[BM_M021] list is null. label={}, fillChar={}", label, fillChar);
+			return "";
+		}
+		if (index < 0 || index >= list.size()) {
+			log.warn("[BM_M021] list index out of range. label={}, fillChar={}, size={}, index={}",
+					label, fillChar, list.size(), index);
+			return "";
+		}
+		String value = list.get(index);
+		return value == null ? "" : value;
+	}
+
+	/**
+	 * insert前ログ用の簡易要約
+	 */
+	private String summarizeEntity(TeamMatchFinalStatsEntity entity) {
+		if (entity == null) {
+			return "null";
+		}
+		try {
+			return entity.toString();
+		} catch (Exception e) {
+			return entity.getClass().getSimpleName() + "@" + Integer.toHexString(System.identityHashCode(entity));
+		}
+	}
 }
