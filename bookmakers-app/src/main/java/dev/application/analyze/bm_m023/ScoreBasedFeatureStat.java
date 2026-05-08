@@ -25,6 +25,8 @@ import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
 import javax.crypto.spec.SecretKeySpec;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -68,6 +70,8 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	/** 固定IV（BmM030StatEncryptionBean と同じ仕様） */
 	private static final byte[] FIXED_IV = new byte[16];
 
+	private static final Logger log = LoggerFactory.getLogger(ScoreBasedFeatureStat.class);
+
 	/** ロック */
 	private final ConcurrentHashMap<String, Object> lockMap = new ConcurrentHashMap<>();
 
@@ -105,53 +109,137 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
+		long started = System.currentTimeMillis();
+
 		try {
-			// 実行単位の一時Map（Beanスコープに持たない）
+			if (entities == null || entities.isEmpty()) {
+				log.info("[BM_M023] entities is empty. nothing to process.");
+				this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+				return;
+			}
+
+			log.info("[BM_M023] calcStat start. leagueCount={}", entities.size());
+
 			ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map = new ConcurrentHashMap<>();
 
-			for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
+			int leagueIndex = 0;
+			int processedMatchCount = 0;
+			int statWriteCount = 0;
 
-				String[] dataCategory = safeLeague(entry.getKey());
+			for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
+				leagueIndex++;
+
+				String rawLeagueKey = entry.getKey();
+				String[] dataCategory = safeLeague(rawLeagueKey);
 				String country = dataCategory[0];
 				String league = dataCategory[1];
 
+				Map<String, List<BookDataEntity>> entrySub = entry.getValue();
+				int entrySubSize = entrySub == null ? 0 : entrySub.size();
+
+				log.info("[BM_M023] league start. leagueIndex={}/{}, rawLeagueKey={}, country={}, league={}, matchGroupSize={}",
+						leagueIndex, entities.size(), rawLeagueKey, country, league, entrySubSize);
+
 				if (country.isBlank() || league.isBlank()) {
+					log.warn("[BM_M023] skip invalid league key. rawLeagueKey={}", rawLeagueKey);
 					manageLoggerComponent.debugInfoLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							"skip: invalid league key", null, "key=" + entry.getKey());
+							"skip: invalid league key", null, "key=" + rawLeagueKey);
 					continue;
 				}
 
-				Map<String, List<BookDataEntity>> entrySub = entry.getValue();
 				if (entrySub == null || entrySub.isEmpty()) {
+					log.info("[BM_M023] entrySub empty. country={}, league={}", country, league);
 					continue;
 				}
 
-				for (List<BookDataEntity> entityList : entrySub.values()) {
+				int matchIndex = 0;
+
+				for (Map.Entry<String, List<BookDataEntity>> sub : entrySub.entrySet()) {
+					matchIndex++;
+
+					String rawMatchKey = sub.getKey();
+					List<BookDataEntity> entityList = sub.getValue();
+
+					int entitySize = entityList == null ? 0 : entityList.size();
+					log.info("[BM_M023] match start. leagueIndex={}/{}, matchIndex={}/{}, rawMatchKey={}, entitySize={}, country={}, league={}",
+							leagueIndex, entities.size(), matchIndex, entrySubSize, rawMatchKey, entitySize, country, league);
+
 					if (entityList == null || entityList.isEmpty()) {
+						log.warn("[BM_M023] skip empty entityList. rawMatchKey={}, country={}, league={}",
+								rawMatchKey, country, league);
 						continue;
 					}
 
-					List<ScoreBasedFeatureStatsEntity> stats =
-							decideBasedMain(entityList, country, league, bmM30Map);
+					List<ScoreBasedFeatureStatsEntity> stats;
+					try {
+						log.info("[BM_M023] decideBasedMain start. rawMatchKey={}, country={}, league={}",
+								rawMatchKey, country, league);
+
+						stats = decideBasedMain(entityList, country, league, bmM30Map);
+
+						log.info("[BM_M023] decideBasedMain done. rawMatchKey={}, country={}, league={}, statsSize={}",
+								rawMatchKey, country, league, stats == null ? 0 : stats.size());
+					} catch (Exception e) {
+						log.error("[BM_M023] decideBasedMain failed. rawMatchKey={}, country={}, league={}",
+								rawMatchKey, country, league, e);
+						throw e;
+					}
 
 					if (stats == null || stats.isEmpty()) {
+						log.info("[BM_M023] no stats generated. rawMatchKey={}, country={}, league={}",
+								rawMatchKey, country, league);
 						continue;
 					}
 
-					// メモリを増やさないよう逐次保存
+					int statIndex = 0;
 					for (ScoreBasedFeatureStatsEntity stat : stats) {
-						if (stat.isUpd()) {
-							update(stat);
-						} else {
-							insert(stat);
+						statIndex++;
+
+						if (stat == null) {
+							log.warn("[BM_M023] skip null stat. rawMatchKey={}, statIndex={}", rawMatchKey, statIndex);
+							continue;
+						}
+
+						try {
+							String fillChar = setLoggerFillChar(
+									stat.getSituation(), stat.getScore(), stat.getCountry(), stat.getLeague());
+
+							if (stat.isUpd()) {
+								log.info("[BM_M023] update start. rawMatchKey={}, statIndex={}, {}",
+										rawMatchKey, statIndex, fillChar);
+								update(stat);
+								log.info("[BM_M023] update done. rawMatchKey={}, statIndex={}, {}",
+										rawMatchKey, statIndex, fillChar);
+							} else {
+								log.info("[BM_M023] insert start. rawMatchKey={}, statIndex={}, {}",
+										rawMatchKey, statIndex, fillChar);
+								insert(stat);
+								log.info("[BM_M023] insert done. rawMatchKey={}, statIndex={}, {}",
+										rawMatchKey, statIndex, fillChar);
+							}
+							statWriteCount++;
+						} catch (Exception e) {
+							log.error("[BM_M023] stat write failed. rawMatchKey={}, statIndex={}",
+									rawMatchKey, statIndex, e);
+							throw e;
 						}
 					}
+
+					processedMatchCount++;
 				}
+
+				log.info("[BM_M023] league done. leagueIndex={}/{}, country={}, league={}",
+						leagueIndex, entities.size(), country, league);
 			}
 
-			// BM_M030保存
+			log.info("[BM_M023] BM_M030 save start. mapSize={}", bmM30Map.size());
 			saveStatEncryptionEntities(bmM30Map);
+			log.info("[BM_M023] BM_M030 save done. mapSize={}", bmM30Map.size());
+
+			long elapsed = System.currentTimeMillis() - started;
+			log.info("[BM_M023] calcStat finished. processedMatchCount={}, statWriteCount={}, bmM30MapSize={}, elapsedMs={}",
+					processedMatchCount, statWriteCount, bmM30Map.size(), elapsed);
 
 			this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		} finally {
@@ -168,21 +256,40 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			String league,
 			ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map) throws Exception {
 
-		BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, null, null, returnMaxEntity.getFilePath());
+		final String METHOD_NAME = "decideBasedMain";
 
-		if (!BookMakersCommonConst.FIN.equals(returnMaxEntity.getTime())) {
+		BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
+
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+				MessageCdConst.MCD00099I_LOG,
+				returnMaxEntity == null ? "returnMaxEntity=null" : returnMaxEntity.getFilePath());
+
+		if (returnMaxEntity == null) {
+			log.warn("[BM_M023] returnMaxEntity is null. country={}, league={}, entitySize={}",
+					country, league, entities == null ? 0 : entities.size());
 			return List.of();
 		}
 
-		String home = returnMaxEntity.getHomeTeamName();
-		String away = returnMaxEntity.getAwayTeamName();
+		log.info("[BM_M023] decideBasedMain detail start. filePath={}, time={}, country={}, league={}",
+				returnMaxEntity.getFilePath(), returnMaxEntity.getTime(), country, league);
 
-		String situation = (Integer.parseInt(returnMaxEntity.getHomeScore()) == 0
-				&& Integer.parseInt(returnMaxEntity.getAwayScore()) == 0)
+		if (!BookMakersCommonConst.FIN.equals(returnMaxEntity.getTime())) {
+			log.info("[BM_M023] skip non-FIN data. filePath={}, time={}, country={}, league={}",
+					returnMaxEntity.getFilePath(), returnMaxEntity.getTime(), country, league);
+			return List.of();
+		}
+
+		String home = nvl(returnMaxEntity.getHomeTeamName());
+		String away = nvl(returnMaxEntity.getAwayTeamName());
+
+		String situation = ("0".equals(nvl(returnMaxEntity.getHomeScore()))
+				&& "0".equals(nvl(returnMaxEntity.getAwayScore())))
 						? AverageStatisticsSituationConst.NOSCORE
 						: AverageStatisticsSituationConst.SCORE;
+
+		log.info("[BM_M023] situation decided. country={}, league={}, home={}, away={}, situation={}",
+				country, league, home, away, situation);
 
 		List<ScoreBasedFeatureStatsEntity> results = new ArrayList<>();
 
@@ -194,28 +301,52 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 
 		List<String> allScores = extractExistingScorePatterns(entities);
 
+		log.info("[BM_M023] flg loop start. country={}, league={}, home={}, away={}, flgCount={}, scorePatternCount={}",
+				country, league, home, away, flgs.size(), allScores.size());
+
 		for (String flg : flgs) {
+			log.info("[BM_M023] flg start. country={}, league={}, home={}, away={}, flg={}",
+					country, league, home, away, flg);
+
 			if (AverageStatisticsSituationConst.EACH_SCORE.equals(flg)) {
 				if (!AverageStatisticsSituationConst.NOSCORE.equals(situation)) {
 					for (String score : allScores) {
 						if ("0-0".equals(score)) {
 							continue;
 						}
+
+						log.info("[BM_M023] basedEntities start. country={}, league={}, home={}, away={}, flg={}, score={}",
+								country, league, home, away, flg, score);
+
 						ScoreBasedFeatureStatsEntity stat = basedEntities(
 								entities, score, situation, flg, country, league, home, away, bmM30Map);
+
+						log.info("[BM_M023] basedEntities done. country={}, league={}, home={}, away={}, flg={}, score={}, statNull={}",
+								country, league, home, away, flg, score, stat == null);
+
 						if (stat != null) {
 							results.add(stat);
 						}
 					}
 				}
 			} else {
+				log.info("[BM_M023] basedEntities start. country={}, league={}, home={}, away={}, flg={}",
+						country, league, home, away, flg);
+
 				ScoreBasedFeatureStatsEntity stat = basedEntities(
 						entities, null, situation, flg, country, league, home, away, bmM30Map);
+
+				log.info("[BM_M023] basedEntities done. country={}, league={}, home={}, away={}, flg={}, statNull={}",
+						country, league, home, away, flg, stat == null);
+
 				if (stat != null) {
 					results.add(stat);
 				}
 			}
 		}
+
+		log.info("[BM_M023] decideBasedMain detail done. country={}, league={}, home={}, away={}, resultSize={}",
+				country, league, home, away, results.size());
 
 		return results;
 	}
@@ -236,6 +367,9 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 
 		final String METHOD_NAME = "basedEntities";
 
+		log.info("[BM_M023] basedEntities entered. country={}, league={}, home={}, away={}, flg={}, connectScore={}, entitySize={}",
+				country, league, home, away, flg, connectScore, entities == null ? 0 : entities.size());
+
 		List<BookDataEntity> filteredList = null;
 
 		if (AverageStatisticsSituationConst.EACH_SCORE.equals(flg)) {
@@ -253,6 +387,8 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 								+ ", size=" + entities.size()
 								+ ", country=" + country + ", league=" + league
 								+ ", home=" + home + ", away=" + away);
+				log.warn("[BM_M023] half not found. country={}, league={}, home={}, away={}, flg={}",
+						country, league, home, away, flg);
 				return null;
 			}
 
@@ -268,6 +404,9 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			}
 		}
 
+		log.info("[BM_M023] filteredList ready. country={}, league={}, home={}, away={}, flg={}, connectScore={}, filteredSize={}",
+				country, league, home, away, flg, connectScore, filteredList == null ? 0 : filteredList.size());
+
 		if (filteredList == null || filteredList.isEmpty()) {
 			return null;
 		}
@@ -282,13 +421,29 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				|| AverageStatisticsSituationConst.SECOND_DATA.equals(flg)) {
 
 			chkBody = flg;
+
+			log.info("[BM_M023] before getData(normal). country={}, league={}, flg={}, situation={}",
+					country, league, flg, situation);
+
 			ScoreBasedFeatureOutputDTO dto = getData(flg, situation, country, league);
+
+			log.info("[BM_M023] after getData(normal). country={}, league={}, flg={}, situation={}, updFlg={}, statListSize={}",
+					country, league, flg, situation, dto.isUpdFlg(), dto.getList() == null ? 0 : dto.getList().size());
+
 			statList = dto.getList();
 			updFlg = dto.isUpdFlg();
 			id = dto.getId();
 		} else {
 			chkBody = connectScore;
+
+			log.info("[BM_M023] before getData(score). country={}, league={}, score={}, situation={}",
+					country, league, connectScore, situation);
+
 			ScoreBasedFeatureOutputDTO dto = getData(connectScore, situation, country, league);
+
+			log.info("[BM_M023] after getData(score). country={}, league={}, score={}, situation={}, updFlg={}, statListSize={}",
+					country, league, connectScore, situation, dto.isUpdFlg(), dto.getList() == null ? 0 : dto.getList().size());
+
 			statList = dto.getList();
 			updFlg = dto.isUpdFlg();
 			id = dto.getId();
@@ -301,9 +456,10 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		synchronized (getLock(key)) {
 			StatEncryptionEntity exist = bmM30Map.get(key);
 
-			// 実行中Mapになければ、そのキー1件だけDBから読む
 			if (exist == null) {
+				log.info("[BM_M023] before findAndDecryptExistingStatEncryption. key={}", key);
 				exist = findAndDecryptExistingStatEncryption(country, league, home, away, chkBody);
+				log.info("[BM_M023] after findAndDecryptExistingStatEncryption. key={}, existNull={}", key, exist == null);
 			}
 
 			if (exist != null) {
@@ -325,10 +481,14 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			decidedEntity = bmM30Map.get(key);
 		}
 
+		log.info("[BM_M023] bmM30 decided. key={}, decidedNull={}, bmM30MapSize={}",
+				key, decidedEntity == null, bmM30Map.size());
+
 		if (decidedEntity == null) {
 			return null;
 		}
 
+		// ここから下は既存ロジックそのまま
 		String[] minList = this.bmM023M024M026InitBean.getMinList().clone();
 		String[] maxList = this.bmM023M024M026InitBean.getMaxList().clone();
 		String[] aveList = this.bmM023M024M026InitBean.getAvgList().clone();
@@ -442,6 +602,9 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			entity = setOtherEntity(connectScore, situation, country, league, updFlg, id, entity);
 		}
 
+		log.info("[BM_M023] basedEntities return entity. country={}, league={}, home={}, away={}, flg={}, chkBody={}, updFlg={}",
+				country, league, home, away, flg, chkBody, updFlg);
+
 		return entity;
 	}
 
@@ -451,8 +614,14 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	private ScoreBasedFeatureOutputDTO getData(String score, String situation, String country, String league) {
 		ScoreBasedFeatureOutputDTO dto = new ScoreBasedFeatureOutputDTO();
 
+		log.info("[BM_M023] before scoreBasedFeatureStatsRepository.findStatData. score={}, situation={}, country={}, league={}",
+				score, situation, country, league);
+
 		List<ScoreBasedFeatureStatsEntity> data =
 				this.scoreBasedFeatureStatsRepository.findStatData(score, situation, country, league);
+
+		log.info("[BM_M023] after scoreBasedFeatureStatsRepository.findStatData. score={}, situation={}, country={}, league={}, size={}",
+				score, situation, country, league, data == null ? 0 : data.size());
 
 		if (data != null && !data.isEmpty()) {
 			dto.setUpdFlg(true);
@@ -473,16 +642,29 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 
 		final String METHOD_NAME = "saveStatEncryptionEntities";
 
+		int index = 0;
 		for (StatEncryptionEntity entity : bmM30Map.values()) {
+			index++;
+
 			if (entity == null) {
+				log.warn("[BM_M023] skip null BM_M030 entity. index={}", index);
 				continue;
 			}
+
+			log.info("[BM_M023] BM_M030 entity start. index={}, updFlg={}, country={}, league={}, home={}, away={}, chkBody={}",
+					index, entity.isUpdFlg(), entity.getCountry(), entity.getLeague(),
+					entity.getHome(), entity.getAway(), entity.getChkBody());
 
 			StatEncryptionEntity encrypted = encryptStatEncryptionEntity(entity);
 
 			int result;
 			if (entity.isUpdFlg()) {
+				log.info("[BM_M023] before statEncryptionRepository.updateEncValues. index={}", index);
+
 				result = this.statEncryptionRepository.updateEncValues(encrypted);
+
+				log.info("[BM_M023] after statEncryptionRepository.updateEncValues. index={}, result={}", index, result);
+
 				if (result != 1) {
 					String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
 					this.rootCauseWrapper.throwUnexpectedRowCount(
@@ -497,7 +679,12 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
 						BM_NUMBER + " 更新件数: " + result + "件 (BM_M030)");
 			} else {
+				log.info("[BM_M023] before statEncryptionRepository.insert. index={}", index);
+
 				result = this.statEncryptionRepository.insert(encrypted);
+
+				log.info("[BM_M023] after statEncryptionRepository.insert. index={}, result={}", index, result);
+
 				if (result != 1) {
 					String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 					this.rootCauseWrapper.throwUnexpectedRowCount(
@@ -518,12 +705,17 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	/**
 	 * 登録
 	 */
-	private synchronized void insert(ScoreBasedFeatureStatsEntity entity) {
+	private void insert(ScoreBasedFeatureStatsEntity entity) {
 		final String METHOD_NAME = "insert";
 		String fillChar = setLoggerFillChar(
 				entity.getSituation(), entity.getScore(), entity.getCountry(), entity.getLeague());
 
+		log.info("[BM_M023] before scoreBasedFeatureStatsRepository.insert. {}", fillChar);
+
 		int result = this.scoreBasedFeatureStatsRepository.insert(entity);
+
+		log.info("[BM_M023] after scoreBasedFeatureStatsRepository.insert. {} result={}", fillChar, result);
+
 		if (result != 1) {
 			String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, fillChar);
@@ -544,7 +736,12 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		String fillChar = setLoggerFillChar(
 				entity.getSituation(), entity.getScore(), entity.getCountry(), entity.getLeague());
 
+		log.info("[BM_M023] before scoreBasedFeatureStatsRepository.updateStatValues. {}", fillChar);
+
 		int result = this.scoreBasedFeatureStatsRepository.updateStatValues(entity);
+
+		log.info("[BM_M023] after scoreBasedFeatureStatsRepository.updateStatValues. {} result={}", fillChar, result);
+
 		if (result != 1) {
 			String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
 			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, fillChar);
