@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import dev.web.api.bm_a007.S3FileCountService;
+import dev.web.repository.bm.MatchKeyRepository;
 import dev.web.wrapper.BatchFileCheckItemWrapper;
 import dev.web.wrapper.BatchFileCheckResponseWrapper;
 import dev.web.wrapper.BatchFileCheckTaskWrapper;
@@ -28,13 +29,15 @@ public class BatchFileCheckService {
 
 	/** 共通キー */
 	private static final String JSON_B001_COUNTRY_LEAGUE = "json/b001_country_league.json";
-	private static final String FIN_B008_GETTING_JSON = "fin/b008_fin_getting_data.json";
 	private static final String FILE_DATA_TEAM_LIST = "data_team_list.txt";
 	private static final String FILE_SEQ_LIST = "seqList.txt";
 	private static final String FILE_SEASON_DATA = "season_data.csv";
 
 	@Autowired
 	private S3FileCountService s3FileCountService;
+
+	@Autowired
+	private MatchKeyRepository matchKeyRepository;
 
 	/**
 	 * 全タスク分の状態を返す
@@ -189,43 +192,47 @@ public class BatchFileCheckService {
 
 	/**
 	 * B010
-	 * aws-s3-outputs-csv の fin/b008_fin_getting_data.json が存在
+	 * match_key_service テーブル件数が 0以上なら実行可
+	 * = 件数取得に成功すれば ready
 	 */
 	private BatchFileCheckTaskWrapper buildB010() {
-		String bucket = BUCKET_OUTPUTS;
+		long count = -1L;
+		boolean success = false;
 
-		boolean jsonExists = exists(bucket, FIN_B008_GETTING_JSON);
-		boolean ready = jsonExists;
+		try {
+			count = this.matchKeyRepository.countAll();
+			success = count >= 0;
+		} catch (Exception e) {
+			success = false;
+		}
+
+		boolean ready = success;
 
 		List<BatchFileCheckItemWrapper> items = new ArrayList<>();
-		items.add(fileItem("入力JSON", bucket, FIN_B008_GETTING_JSON, jsonExists, true, "json"));
+		items.add(countItem("match_key_service 件数", "DB", success ? count : null, false, success));
 
-		return task("B010", ready, summary(ready), items);
+		return task("B010", ready, ready ? "準備OK" : "件数取得失敗", items);
 	}
 
 	/**
 	 * B011
-	 * aws-s3-stat-csv に data_team_list.txt / seqList.txt が存在
-	 * かつ aws-s3-future-csv に data_team_list.txt / seqList.txt 以外の直フォルダが1以上
+	 * 必須情報なし
+	 * 常時実行可
 	 */
 	private BatchFileCheckTaskWrapper buildB011() {
-		String statBucket = BUCKET_STAT;
-		String futureBucket = BUCKET_FUTURE;
-
-		boolean dataTeamListExists = exists(statBucket, FILE_DATA_TEAM_LIST);
-		boolean seqListExists = exists(statBucket, FILE_SEQ_LIST);
-
-		// 直フォルダ数なので、ファイル名除外は実質影響しないが仕様に合わせて除外セットは渡す
-		long futureDirectFolderCount = countDirectFoldersExcluding(futureBucket, Set.of(FILE_DATA_TEAM_LIST, FILE_SEQ_LIST));
-
-		boolean ready = dataTeamListExists && seqListExists && futureDirectFolderCount >= 1;
-
 		List<BatchFileCheckItemWrapper> items = new ArrayList<>();
-		items.add(fileItem("data_team_list.txt", statBucket, FILE_DATA_TEAM_LIST, dataTeamListExists, true, "txt"));
-		items.add(fileItem("seqList.txt", statBucket, FILE_SEQ_LIST, seqListExists, true, "txt"));
-		items.add(countItem("future直フォルダ数", futureBucket, futureDirectFolderCount, true, futureDirectFolderCount >= 1));
 
-		return task("B011", ready, summary(ready), items);
+		// 参考情報として表示したいなら入れる
+		long futureDirectFolderCount = 0L;
+		try {
+			futureDirectFolderCount = countDirectFoldersExcluding(BUCKET_FUTURE, Set.of(FILE_DATA_TEAM_LIST, FILE_SEQ_LIST));
+		} catch (Exception e) {
+			// 参考情報なので握りつぶし
+		}
+
+		items.add(countItem("future直フォルダ数（参考）", BUCKET_FUTURE, futureDirectFolderCount, false, true));
+
+		return task("B011", true, "準備OK", items);
 	}
 
 	// =========================================================

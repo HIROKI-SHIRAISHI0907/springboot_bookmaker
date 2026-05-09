@@ -52,6 +52,26 @@ public class MatchKeyRepository {
     }
 
     /**
+     * match_key_save 全件数取得
+     *
+     * @return 件数
+     */
+    public long countAll() {
+        String sql = """
+            SELECT COUNT(1)
+            FROM match_key_save
+            """;
+
+        Long count = bmJdbcTemplate.queryForObject(
+                sql,
+                new MapSqlParameterSource(),
+                Long.class
+        );
+
+        return count == null ? 0L : count;
+    }
+
+    /**
      * match_key 一覧取得
      */
     public List<String> findAllMatchKeys() {
