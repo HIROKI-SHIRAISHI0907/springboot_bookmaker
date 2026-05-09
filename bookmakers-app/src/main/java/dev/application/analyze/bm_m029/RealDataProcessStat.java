@@ -141,6 +141,18 @@ public class RealDataProcessStat {
 
 			RealDataProcessEntity entity = buildDiffEntity(dataCategory, latest, previous);
 
+			String matchId = trimToNull(entity.getMatchId());
+			if (isBlank(matchId)) {
+				this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+						"skip: matchId不足 matchKey=" + matchKey
+								+ ", dataCategory=" + dataCategory
+								+ ", home=" + homeTeamName
+								+ ", away=" + awayTeamName
+								+ ", gameId=" + entity.getGameId());
+				return;
+			}
+
 			saveOrUpdate(entity);
 		});
 
@@ -274,27 +286,20 @@ public class RealDataProcessStat {
 	/**
 	 * insert / update
 	 *
-	 * 更新判定キー:
-	 * data_category + home_team_name + away_team_name
+	 * match_id 基準で UPSERT
 	 */
-	private synchronized void saveOrUpdate(RealDataProcessEntity entity) {
+	private void saveOrUpdate(RealDataProcessEntity entity) {
 		final String METHOD_NAME = "saveOrUpdate";
 
-		int count = this.realDataProcessStatsRepository.countByUniqueKey(
-				entity.getDataCategory(),
-				entity.getHomeTeamName(),
-				entity.getAwayTeamName());
-
-		int result;
-		String messageCd;
-
-		if (count > 0) {
-			result = this.realDataProcessStatsRepository.updateByUniqueKey(entity);
-			messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
-		} else {
-			result = this.realDataProcessStatsRepository.insert(entity);
-			messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
+		String matchId = trimToNull(entity.getMatchId());
+		if (isBlank(matchId)) {
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					BM_NUMBER + " skip: matchId が空のため保存スキップ (" + setLoggerFillChar(entity) + ")");
+			return;
 		}
+
+		int result = this.realDataProcessStatsRepository.upsertByMatchId(entity);
 
 		if (result != 1) {
 			String errorCd = MessageCdConst.MCD00007E_INSERT_FAILED;
@@ -307,8 +312,8 @@ public class RealDataProcessStat {
 		}
 
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-				BM_NUMBER + " 登録/更新件数: 1件 (" + setLoggerFillChar(entity) + ")");
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+				BM_NUMBER + " UPSERT件数: 1件 (" + setLoggerFillChar(entity) + ")");
 	}
 
 	/**
