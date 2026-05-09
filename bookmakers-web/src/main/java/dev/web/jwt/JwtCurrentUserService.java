@@ -38,8 +38,8 @@ public class JwtCurrentUserService {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "JWT token is invalid.");
         }
 
-        String email = jwt.getSubject();
-        if (email == null || email.isBlank()) {
+        String email = normalizeEmail(jwt.getSubject());
+        if (email.isEmpty()) {
             throw new ResponseStatusException(HttpStatus.UNAUTHORIZED, "JWT subject is missing.");
         }
 
@@ -52,6 +52,11 @@ public class JwtCurrentUserService {
         currentUser.setAuthFlg(user.authFlg);
 
         return currentUser;
+    }
+
+    private String normalizeEmail(String email) {
+        if (email == null) return "";
+        return email.trim().toLowerCase();
     }
 
     @Data

@@ -45,13 +45,24 @@ public class AuthController {
 
         int authFlg = res.getAuthFlg() == null ? 2 : res.getAuthFlg();
 
-        List<String> roles = switch (authFlg) {
-            case 1 -> List.of("ROLE_ADMIN", "ROLE_USER");
-            case 2 -> List.of("ROLE_USER");
-            default -> List.of("ROLE_USER");
-        };
+        List<String> roles;
+        switch (authFlg) {
+            case 1:
+                roles = List.of("ROLE_ADMIN", "ROLE_USER");
+                break;
+            case 2:
+            default:
+                roles = List.of("ROLE_USER");
+                break;
+        }
 
-        String subject = req.getEmail();
+        String subject = normalizeEmail(req.getEmail());
+        if (subject.isEmpty()) {
+            res.setResponseCode("400");
+            res.setMessage("メールアドレスが不正です。");
+            return ResponseEntity.badRequest().body(res);
+        }
+
         String token = jwtService.generateToken(subject, roles);
 
         DecodedJWT decoded = jwtService.verifyToken(token);
@@ -75,9 +86,17 @@ public class AuthController {
 
     private static int parseStatus(String code) {
         try {
-            return Integer.parseInt(code);
+            int status = Integer.parseInt(code);
+            return (status >= 100 && status <= 599) ? status : 500;
         } catch (Exception e) {
             return 500;
         }
+    }
+
+    private static String normalizeEmail(String email) {
+        if (email == null) {
+            return "";
+        }
+        return email.trim().toLowerCase();
     }
 }
