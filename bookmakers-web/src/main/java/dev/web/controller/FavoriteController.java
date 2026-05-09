@@ -1,7 +1,6 @@
 package dev.web.controller;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -20,7 +19,6 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api")
-@CrossOrigin(origins = "${app.cors.allowed-origins:*}")
 public class FavoriteController {
 
     private final FavoriteService favoriteService;
@@ -28,38 +26,50 @@ public class FavoriteController {
 
     @PostMapping("/favorites")
     public ResponseEntity<FavoriteResponse> upsert(
-        @RequestHeader("Authorization") String authorization,
-        @RequestBody FavoriteInsertRequest req
-    ) {
-        var currentUser = jwtCurrentUserService.resolve(authorization);
+            @RequestHeader("Authorization") String authorizationHeader,
+            @RequestBody FavoriteInsertRequest req) {
+
+        JwtCurrentUserService.CurrentUser currentUser =
+                jwtCurrentUserService.resolve(authorizationHeader);
 
         FavoriteResponse res = favoriteService.upsert(
-            currentUser.getUserId(),
-            currentUser.getEmail(),
-            req
+                currentUser.getUserId(),
+                currentUser.getEmail(),
+                req
         );
 
-        return ResponseEntity.ok(res);
+        return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
     }
 
     @PostMapping("/favorite/view")
     public ResponseEntity<FavoriteScopeResponse> view(
-        @RequestHeader("Authorization") String authorization
-    ) {
-        var currentUser = jwtCurrentUserService.resolve(authorization);
+            @RequestHeader("Authorization") String authorizationHeader) {
+
+        JwtCurrentUserService.CurrentUser currentUser =
+                jwtCurrentUserService.resolve(authorizationHeader);
 
         FavoriteScopeResponse res = favoriteService.getView(currentUser.getUserId());
-        return ResponseEntity.ok(res);
+        return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
     }
 
     @DeleteMapping("/favorites/{id}")
     public ResponseEntity<FavoriteResponse> delete(
-        @RequestHeader("Authorization") String authorization,
-        @PathVariable("id") Long id
-    ) {
-        var currentUser = jwtCurrentUserService.resolve(authorization);
+            @RequestHeader("Authorization") String authorizationHeader,
+            @PathVariable("id") Long id) {
+
+        JwtCurrentUserService.CurrentUser currentUser =
+                jwtCurrentUserService.resolve(authorizationHeader);
 
         FavoriteResponse res = favoriteService.delete(currentUser.getUserId(), id);
-        return ResponseEntity.ok(res);
+        return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
+    }
+
+    private int parseStatus(String code) {
+        try {
+            int status = Integer.parseInt(code);
+            return (status >= 100 && status <= 599) ? status : 200;
+        } catch (Exception e) {
+            return 200;
+        }
     }
 }
