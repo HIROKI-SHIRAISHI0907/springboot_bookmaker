@@ -43,8 +43,8 @@ public class AuthService {
         String hash = encoder.encode(password);
 
         try {
-            Long id = userRepository.insertUser(email, hash, name, op);
-            return AuthResponse.ok("登録しました。", id);
+        	Long id = userRepository.insertUser(email, hash, name, 2, op);
+            return AuthResponse.ok("登録しました。", id, null);
         } catch (DuplicateKeyException e) {
             return AuthResponse.of("409", "すでに登録済みです。");
         }
@@ -73,7 +73,7 @@ public class AuthService {
             return AuthResponse.of("401", "email または password が違います。");
         }
 
-        return AuthResponse.ok("ログイン成功。", user.userId);
+        return AuthResponse.ok("ログイン成功。", user.userId, user.authFlg);
     }
 
     /**

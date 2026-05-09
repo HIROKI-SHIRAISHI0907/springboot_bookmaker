@@ -24,6 +24,9 @@ public class AuthResponse {
     /** アクセストークン（JWT） */
     private String accessToken;
 
+    /** 権限フラグ */
+    private Integer authFlg;
+
     /** 例: "Bearer" */
     private String tokenType;
 
@@ -43,9 +46,10 @@ public class AuthResponse {
         return r;
     }
 
-    public static AuthResponse ok(String msg, Long userId) {
+    public static AuthResponse ok(String msg, Long userId, Integer authFlg) {
         AuthResponse r = of("200", msg);
         r.setUserId(userId);
+        r.setAuthFlg(authFlg);
         return r;
     }
 
