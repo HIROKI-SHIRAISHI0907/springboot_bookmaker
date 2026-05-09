@@ -13,6 +13,7 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 
 import dev.web.api.bm_u004.AuthResponse;
 import dev.web.api.bm_u004.AuthService;
+import dev.web.api.bm_u004.ForgotPasswordRequest;
 import dev.web.api.bm_u004.LoginRequest;
 import dev.web.api.bm_u004.SignUpRequest;
 import dev.web.jwt.JwtService;
@@ -64,6 +65,13 @@ public class AuthController {
         res.setRoles(roles);
 
         return ResponseEntity.ok(res);
+    }
+
+    // forgot-password
+    @PostMapping("/forgot-password")
+    public ResponseEntity<AuthResponse> forgotPassword(@RequestBody ForgotPasswordRequest req) {
+        AuthResponse res = authService.forgotPassword(req);
+        return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
     }
 
     // ★ tokenエンドポイントは重複元なので削除推奨

@@ -5,16 +5,13 @@ import lombok.Data;
 @Data
 public class SignUpRequest {
 
+	/** 氏名 */
+    private String name; // optional
+
 	/** E-mail */
     private String email;
 
     /** パスワード */
     private String password;
-
-    /** 氏名 */
-    private String name; // optional
-
-    /** operatorId */
-    private String operatorId; // optional (register_id/update_id用)
 
 }

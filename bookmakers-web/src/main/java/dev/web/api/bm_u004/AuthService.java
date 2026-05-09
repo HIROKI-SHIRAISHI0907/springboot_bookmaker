@@ -24,8 +24,7 @@ public class AuthService {
         String email = norm(req.getEmail()).toLowerCase();
         String password = norm(req.getPassword());
         String name = emptyToNull(norm(req.getName()));
-        String op = norm(req.getOperatorId());
-        if (op.isEmpty()) op = "system";
+        String op = "system";
 
         if (email.isEmpty() || password.isEmpty()) {
             return AuthResponse.of("400", "email/password は必須です。");
@@ -51,6 +50,11 @@ public class AuthService {
         }
     }
 
+    /**
+     * ログイン
+     * @param req
+     * @return
+     */
     public AuthResponse login(LoginRequest req) {
         String email = norm(req.getEmail()).toLowerCase();
         String password = norm(req.getPassword());
@@ -70,6 +74,21 @@ public class AuthService {
         }
 
         return AuthResponse.ok("ログイン成功。", user.userId);
+    }
+
+    /**
+     * パスワード再設定
+     * @param req
+     * @return
+     */
+    public AuthResponse forgotPassword(ForgotPasswordRequest req) {
+        // TODO:
+        // 1. メールアドレス存在確認
+        // 2. 再設定トークン生成
+        // 3. DB保存（有効期限つき）
+        // 4. メール送信
+
+        return AuthResponse.of("200", "再設定リンクを送信しました。");
     }
 
     private static String norm(String v) {
