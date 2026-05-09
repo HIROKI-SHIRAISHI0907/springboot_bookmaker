@@ -5,17 +5,19 @@ import java.util.List;
 import lombok.Data;
 
 /**
- * FavoriteRequestAPIリクエスト
- * @author shiraishitoshio
+ * FavoriteRequest APIリクエスト
+ * userId / operatorId は後方互換のため残すが、
+ * backend では Authorization ヘッダーの JWT から解決する。
  *
+ * @author shiraishitoshio
  */
 @Data
 public class FavoriteInsertRequest {
 
-	/** ユーザーID（共通） */
+    /** 後方互換用（backendでは未使用） */
     private Long userId;
 
-    /** 登録者ID（共通） */
+    /** 後方互換用（backendでは未使用） */
     private String operatorId;
 
     /** まとめて登録する項目 */
