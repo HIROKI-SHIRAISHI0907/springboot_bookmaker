@@ -51,9 +51,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	private static final String BM_NUMBER = "BM_M026";
 
 	// ===== Striped Lock（固定本数ロック）=====
-	// 長期運用で lockMap が増え続ける問題を根本解決する
-
-	private static final int LOCK_STRIPES = 2048; // 1024でもOK。並列度が高いなら増やす
+	private static final int LOCK_STRIPES = 2048;
 	private final Object[] locks = new Object[LOCK_STRIPES];
 
 	{
@@ -94,18 +92,34 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) throws Exception {
 		final String METHOD_NAME = "calcStat";
 
-		// ログ出力
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
+		long startedAt = System.currentTimeMillis();
+
+		int totalLeagueCount = (entities == null) ? 0 : entities.size();
+		int leagueIndex = 0;
+		int processedMatchCount = 0;
+		int skippedNotFinCount = 0;
+		int savedEntityCount = 0;
+		int encInsertCount = 0;
+		int encUpdateCount = 0;
+
 		try {
+			// ★ 実行単位で共有一時Mapをクリア
+			this.bmM030StatEncryptionBean.resetForRun();
+
 			if (entities == null || entities.isEmpty()) {
+				log.info("[BM_M026] calcStat skip. entities empty");
 				return;
 			}
 
+			log.info("[BM_M026] calcStat start. leagueCount={}", totalLeagueCount);
+
 			// 全リーグ・国を走査
 			for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
+				leagueIndex++;
 
 				String[] data = safeLeague(entry.getKey());
 				String country = data[0];
@@ -116,28 +130,59 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 					this.manageLoggerComponent.debugInfoLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 							"skip: invalid league key", null, "key=" + entry.getKey());
+					log.warn("[BM_M026] league skip. invalid key={}", entry.getKey());
 					continue;
 				}
 
-				// league単位で暗号化データを初期化
+				log.info("[BM_M026] league start. leagueIndex={}/{}, country={}, league={}",
+						leagueIndex, totalLeagueCount, country, league);
+
+				// 互換維持（暗号鍵・index 初期化）
 				this.bmM030StatEncryptionBean.init(country, league);
 
-				// 保存データを取得（このleague分）
-				ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map = this.bmM030StatEncryptionBean.getEncMap();
-				if (bmM30Map == null) {
-					bmM30Map = new ConcurrentHashMap<>();
-				}
+				// ★ 共有Mapは使わず、league単位ローカルMapに変更
+				ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map = new ConcurrentHashMap<>();
 
 				Map<String, List<BookDataEntity>> entrySub = entry.getValue();
 				if (entrySub == null || entrySub.isEmpty()) {
+					log.info("[BM_M026] league skip. inner map empty. country={}, league={}", country, league);
 					continue;
 				}
 
+				int leagueSavedCount = 0;
+				int matchIndex = 0;
+				int totalMatchCount = entrySub.size();
+
 				// team単位の統計作成・保存
 				for (List<BookDataEntity> entityList : entrySub.values()) {
+					matchIndex++;
 
-					// null や空リストはスキップ
 					if (entityList == null || entityList.isEmpty()) {
+						log.info("[BM_M026] match skip. empty list. leagueIndex={}/{}, matchIndex={}/{} country={}, league={}",
+								leagueIndex, totalLeagueCount, matchIndex, totalMatchCount, country, league);
+						continue;
+					}
+
+					BookDataEntity maxEntity = ExecuteMainUtil.getMaxSeqEntities(entityList);
+					if (maxEntity == null) {
+						log.warn("[BM_M026] match skip. maxEntity null. leagueIndex={}/{}, matchIndex={}/{} country={}, league={}",
+								leagueIndex, totalLeagueCount, matchIndex, totalMatchCount, country, league);
+						continue;
+					}
+
+					String home = safe(maxEntity.getHomeTeamName());
+					String away = safe(maxEntity.getAwayTeamName());
+					String score = safe(maxEntity.getHomeScore()) + "-" + safe(maxEntity.getAwayScore());
+					String time = safe(maxEntity.getTime());
+
+					log.info("[BM_M026] match start. leagueIndex={}/{}, matchIndex={}/{}, country={}, league={}, home={}, away={}, score={}, time={}, rows={}",
+							leagueIndex, totalLeagueCount, matchIndex, totalMatchCount,
+							country, league, home, away, score, time, entityList.size());
+
+					if (!BookMakersCommonConst.FIN.equals(time)) {
+						skippedNotFinCount++;
+						log.info("[BM_M026] match skip non-FIN. country={}, league={}, home={}, away={}, score={}, time={}",
+								country, league, home, away, score, time);
 						continue;
 					}
 
@@ -145,8 +190,12 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 							entityList, country, league, bmM30Map);
 
 					if (resultMap == null || resultMap.isEmpty()) {
+						log.info("[BM_M026] match done(no output). country={}, league={}, home={}, away={}, resultMapSize=0, bmM30MapSize={}",
+								country, league, home, away, bmM30Map.size());
 						continue;
 					}
+
+					int savedThisMatch = 0;
 
 					// 統計テーブル登録・更新
 					for (Map.Entry<String, List<EachTeamScoreBasedFeatureEntity>> entrys : resultMap.entrySet()) {
@@ -159,25 +208,57 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 								continue;
 							}
 							save(subSubEntity);
+							savedThisMatch++;
+							savedEntityCount++;
+							leagueSavedCount++;
 						}
 					}
+
+					processedMatchCount++;
+
+					log.info("[BM_M026] match done. leagueIndex={}/{}, matchIndex={}/{}, country={}, league={}, home={}, away={}, resultMapSize={}, savedThisMatch={}, bmM30MapSize={}",
+							leagueIndex, totalLeagueCount, matchIndex, totalMatchCount,
+							country, league, home, away, resultMap.size(), savedThisMatch, bmM30Map.size());
 				}
 
 				// 暗号化保存テーブル登録・更新（このleague分）
+				log.info("[BM_M026] stat_encryption save start. country={}, league={}, mapSize={}",
+						country, league, bmM30Map.size());
+
+				int encIndex = 0;
+				int encTotal = bmM30Map.size();
+
 				for (Map.Entry<String, StatEncryptionEntity> encEntry : bmM30Map.entrySet()) {
+					encIndex++;
+
+					String encKey = encEntry.getKey();
 					StatEncryptionEntity e = encEntry.getValue();
 					if (e == null) {
+						log.warn("[BM_M026] stat_encryption skip null. encIndex={}/{}, key={}", encIndex, encTotal, encKey);
 						continue;
 					}
 
+					log.info("[BM_M026] before encryption. encIndex={}/{}, key={}, summary={}",
+							encIndex, encTotal, encKey, summarizeEnc(e));
+
 					StatEncryptionEntity newEntrys = encryption(e);
+
+					log.info("[BM_M026] after encryption. encIndex={}/{}, key={}, updFlg={}, id={}",
+							encIndex, encTotal, encKey, newEntrys.isUpdFlg(), safe(newEntrys.getId()));
 
 					boolean shouldUpdate = newEntrys.isUpdFlg()
 							&& newEntrys.getId() != null
 							&& !newEntrys.getId().isBlank();
 
 					if (shouldUpdate) {
+						log.info("[BM_M026] before stat_encryption update. encIndex={}/{}, key={}, id={}",
+								encIndex, encTotal, encKey, newEntrys.getId());
+
 						int result = this.statEncryptionRepository.updateEncValues(newEntrys);
+
+						log.info("[BM_M026] after stat_encryption update. encIndex={}/{}, key={}, result={}",
+								encIndex, encTotal, encKey, result);
+
 						if (result != 1) {
 							String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
 							this.rootCauseWrapper.throwUnexpectedRowCount(
@@ -192,13 +273,22 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 											e.getChkBody()));
 						}
 
+						encUpdateCount += result;
+
 						String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
 						this.manageLoggerComponent.debugInfoLog(
 								PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 								messageCd, BM_NUMBER + " 更新件数: " + result + "件");
 
 					} else {
+						log.info("[BM_M026] before stat_encryption insert. encIndex={}/{}, key={}",
+								encIndex, encTotal, encKey);
+
 						int result = this.statEncryptionRepository.insert(newEntrys);
+
+						log.info("[BM_M026] after stat_encryption insert. encIndex={}/{}, key={}, result={}",
+								encIndex, encTotal, encKey, result);
+
 						if (result != 1) {
 							String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 							this.rootCauseWrapper.throwUnexpectedRowCount(
@@ -213,13 +303,30 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 											e.getChkBody()));
 						}
 
+						encInsertCount += result;
+
 						String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 						this.manageLoggerComponent.debugInfoLog(
 								PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 								messageCd, BM_NUMBER + " 登録件数: " + result + "件");
 					}
 				}
+
+				log.info("[BM_M026] league done. leagueIndex={}/{}, country={}, league={}, processedMatchCount={}, skippedNotFinCount={}, savedEntityCount={}, leagueSavedCount={}, encInsertCount={}, encUpdateCount={}, bmM30MapSize={}",
+						leagueIndex, totalLeagueCount, country, league,
+						processedMatchCount, skippedNotFinCount, savedEntityCount, leagueSavedCount,
+						encInsertCount, encUpdateCount, bmM30Map.size());
 			}
+
+			log.info("[BM_M026] calcStat finished. leagueCount={}, processedMatchCount={}, skippedNotFinCount={}, savedEntityCount={}, encInsertCount={}, encUpdateCount={}, elapsedMs={}",
+					totalLeagueCount, processedMatchCount, skippedNotFinCount,
+					savedEntityCount, encInsertCount, encUpdateCount,
+					(System.currentTimeMillis() - startedAt));
+
+		} catch (Exception e) {
+			log.error("[BM_M026] calcStat failed. processedMatchCount={}, skippedNotFinCount={}, savedEntityCount={}, encInsertCount={}, encUpdateCount={}",
+					processedMatchCount, skippedNotFinCount, savedEntityCount, encInsertCount, encUpdateCount, e);
+			throw e;
 		} finally {
 			// endLog
 			this.manageLoggerComponent.debugEndInfoLog(
@@ -239,15 +346,37 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	private ConcurrentHashMap<String, List<EachTeamScoreBasedFeatureEntity>> decideBasedMain(
 			List<BookDataEntity> entities,
 			String country, String league, ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map) {
-		BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, null, null, returnMaxEntity.getFilePath());
-		if (!BookMakersCommonConst.FIN.equals(returnMaxEntity.getTime())) {
+
+		final String METHOD_NAME = "decideBasedMain";
+
+		if (entities == null || entities.isEmpty()) {
+			log.info("[BM_M026] decideBasedMain skip. empty entities. country={}, league={}", country, league);
 			return null;
 		}
+
+		BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
+		if (returnMaxEntity == null) {
+			log.warn("[BM_M026] decideBasedMain skip. maxEntity null. country={}, league={}", country, league);
+			return null;
+		}
+
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, safe(returnMaxEntity.getFilePath()));
+
+		if (!BookMakersCommonConst.FIN.equals(returnMaxEntity.getTime())) {
+			log.info("[BM_M026] decideBasedMain skip non-FIN. country={}, league={}, home={}, away={}, score={}, time={}",
+					country, league,
+					safe(returnMaxEntity.getHomeTeamName()),
+					safe(returnMaxEntity.getAwayTeamName()),
+					safe(returnMaxEntity.getHomeScore()) + "-" + safe(returnMaxEntity.getAwayScore()),
+					safe(returnMaxEntity.getTime()));
+			return null;
+		}
+
 		// situation決定
 		String situation = (Integer.parseInt(returnMaxEntity.getHomeScore()) == 0
-				&& Integer.parseInt(returnMaxEntity.getAwayScore()) == 0) ? AverageStatisticsSituationConst.NOSCORE
+				&& Integer.parseInt(returnMaxEntity.getAwayScore()) == 0)
+						? AverageStatisticsSituationConst.NOSCORE
 						: AverageStatisticsSituationConst.SCORE;
 
 		// 各種flg + connectScoreの組み合わせ
@@ -257,11 +386,17 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				AverageStatisticsSituationConst.SECOND_DATA,
 				AverageStatisticsSituationConst.EACH_SCORE);
 
-		// 各スコアの組み合わせ(例: ["0-0", "1-0", "1-1", ...])
+		// 各スコアの組み合わせ
 		List<String> allScores = extractExistingScorePatterns(entities);
 
-		// ===== 逐次実行に変更：並列撤去 =====
 		ConcurrentHashMap<String, List<EachTeamScoreBasedFeatureEntity>> allMap = new ConcurrentHashMap<>();
+
+		log.info("[BM_M026] decideBasedMain start. country={}, league={}, home={}, away={}, finalScore={}, situation={}, rows={}, scorePatternSize={}",
+				country, league,
+				safe(returnMaxEntity.getHomeTeamName()),
+				safe(returnMaxEntity.getAwayTeamName()),
+				safe(returnMaxEntity.getHomeScore()) + "-" + safe(returnMaxEntity.getAwayScore()),
+				situation, entities.size(), allScores.size());
 
 		for (int i = 1; i <= 2; i++) {
 			String team = (i == 1) ? returnMaxEntity.getHomeTeamName() : returnMaxEntity.getAwayTeamName();
@@ -270,21 +405,24 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				if (AverageStatisticsSituationConst.EACH_SCORE.equals(flg)) {
 					if (!AverageStatisticsSituationConst.NOSCORE.equals(situation)) {
 						for (String score : allScores) {
-							if ("0-0".equals(score))
-								continue; // 0-0 スコアはEACH_SCOREから除外
+							if ("0-0".equals(score)) {
+								continue;
+							}
 							basedEntities(allMap, entities, score, situation, flg, country, league, team, ha, bmM30Map);
-						}
-					} else {
-						if (!AverageStatisticsSituationConst.EACH_SCORE.equals(flg)) {
-							basedEntities(allMap, entities, null, situation, flg, country, league, team, ha, bmM30Map);
 						}
 					}
 				} else {
-					// ALL_DATA / FIRST_DATA / SECOND_DATA → スコア単位でなく全体処理なので null を渡す
 					basedEntities(allMap, entities, null, situation, flg, country, league, team, ha, bmM30Map);
 				}
 			}
 		}
+
+		log.info("[BM_M026] decideBasedMain done. country={}, league={}, home={}, away={}, resultMapSize={}, bmM30MapSize={}",
+				country, league,
+				safe(returnMaxEntity.getHomeTeamName()),
+				safe(returnMaxEntity.getAwayTeamName()),
+				allMap.size(), bmM30Map.size());
+
 		return allMap;
 	}
 
@@ -312,9 +450,9 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			String team,
 			String ha,
 			ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map) {
+
 		final String METHOD_NAME = "basedEntities";
 
-		// 既存のリスト
 		List<BookDataEntity> filteredList = null;
 		if (AverageStatisticsSituationConst.EACH_SCORE.equals(flg)) {
 			filteredList = entities.stream()
@@ -330,7 +468,9 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 						"half not found -> skip FIRST/SECOND. file=" + entities.get(0).getFilePath()
 								+ ", size=" + entities.size()
 								+ ", country=" + country + ", league=" + league);
-				return; // ← FIRST/SECOND は計算不能なのでスキップ
+				log.info("[BM_M026] basedEntities skip. half not found. country={}, league={}, team={}, flg={}, rows={}",
+						country, league, team, flg, entities.size());
+				return;
 			}
 			String halfTimeSeq = half.getSeq();
 			if (AverageStatisticsSituationConst.FIRST_DATA.equals(flg)) {
@@ -346,6 +486,8 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 
 		// 空ならskip
 		if (filteredList == null || filteredList.isEmpty()) {
+			log.info("[BM_M026] basedEntities skip. filtered empty. country={}, league={}, team={}, ha={}, flg={}, connectScore={}",
+					country, league, team, ha, flg, safe(connectScore));
 			return;
 		}
 
@@ -361,29 +503,38 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 
 			chkBody = flg;
 
+			log.info("[BM_M026] before getData. country={}, league={}, team={}, situation={}, score={}",
+					country, league, team, situation, flg);
+
 			EachTeamScoreBasedFeatureOutputDTO dto = getData(flg, situation, country, league, team);
 			statList = dto.getList();
 			updFlg = dto.isUpdFlg();
 			id = dto.getId();
 
+			log.info("[BM_M026] after getData. country={}, league={}, team={}, situation={}, score={}, updFlg={}, id={}, existingSize={}",
+					country, league, team, situation, flg, updFlg, safe(id), sizeOf(statList));
+
 		} else {
 			chkBody = connectScore;
+
+			log.info("[BM_M026] before getData. country={}, league={}, team={}, situation={}, score={}",
+					country, league, team, situation, connectScore);
 
 			EachTeamScoreBasedFeatureOutputDTO dto = getData(connectScore, situation, country, league, team);
 			statList = dto.getList();
 			updFlg = dto.isUpdFlg();
 			id = dto.getId();
+
+			log.info("[BM_M026] after getData. country={}, league={}, team={}, situation={}, score={}, updFlg={}, id={}, existingSize={}",
+					country, league, team, situation, connectScore, updFlg, safe(id), sizeOf(statList));
 		}
 
 		Map<String, Function<BookDataEntity, String>> fieldMap = this.bmM030StatEncryptionBean.getFieldMap();
 		final List<BookDataEntity> filteredFinalList = filteredList;
 		final String chkFinalBody = chkBody;
 
-		// ★ 常にこのキーだけ使う（長期運用でキー種類は増える可能性があるので lockMapは使わない）
 		final String key = country + "-" + league + "-" + team + "-" + chkFinalBody;
 
-		// ===== ここが「保存マップの更新」処理（排他）=====
-		// Striped Lock なので lock オブジェクトは固定本数、肥大化しない
 		StatEncryptionEntity decidedEntity;
 		synchronized (getLock(key)) {
 			StatEncryptionEntity exist = bmM30Map.get(key);
@@ -414,15 +565,17 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				bmM30Map.put(key, fresh);
 			}
 
-			// ★ ロック内で参照を確定させて持ち出す
 			decidedEntity = bmM30Map.get(key);
 		}
 
 		if (decidedEntity == null) {
+			log.warn("[BM_M026] basedEntities skip. decidedEntity null. key={}", key);
 			return;
 		}
 
-		// ===== ここから先は統計計算（decidedEntity を参照するだけ）=====
+		log.info("[BM_M026] basedEntities merged. key={}, team={}, ha={}, flg={}, chkBody={}, filteredSize={}, bmM30MapSize={}",
+				key, team, ha, flg, chkBody, filteredList.size(), bmM30Map.size());
+
 		String[] minList = this.bmM023M024M026InitBean.getMinList().clone();
 		String[] maxList = this.bmM023M024M026InitBean.getMaxList().clone();
 		String[] aveList = this.bmM023M024M026InitBean.getAvgList().clone();
@@ -441,13 +594,11 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 		Integer[] tAveCntList = this.bmM023M024M026InitBean.getTimeCntList().clone();
 		Integer[] tSigmaCntList = this.bmM023M024M026InitBean.getTimeCntList().clone();
 
-		// 既存統計がある場合は初期値上書き
 		setInitData(minList, minCntList, maxList, maxCntList, aveList, aveCntList, sigmaList, sigmaCntList,
 				tMinList, tMinCntList, tMaxList, tMaxCntList,
 				tAveList, tAveCntList, tSigmaList, tSigmaCntList,
 				statList, ha);
 
-		// 最小/最大/平均合計
 		BookDataEntity returnDataEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
 		initFormat(returnDataEntity, minList, "Min");
 		initFormat(returnDataEntity, maxList, "Max");
@@ -462,17 +613,14 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			tAveList = setTimeSumAve(filter, tAveList, tAveCntList, ha);
 		}
 
-		// 平均導出
 		aveList = commonDivision(aveList, aveCntList, "", ha);
 		tAveList = commonDivision(tAveList, tAveCntList, "'", ha);
 
-		// 標準偏差合計
 		for (BookDataEntity filter : filteredList) {
 			sigmaList = setSumSigma(filter, aveList, sigmaList, sigmaCntList, ha);
 			tSigmaList = setTimeSumSigma(filter, tAveList, tSigmaList, tSigmaCntList, ha);
 		}
 
-		// 標準偏差導出
 		sigmaList = commonDivision(sigmaList, sigmaCntList, "", ha);
 		tSigmaList = commonDivision(tSigmaList, tSigmaCntList, "'", ha);
 
@@ -484,7 +632,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			tSigmaList[i] = String.format("%.2f", Math.sqrt(Double.parseDouble(tSigmaList[i].replace("'", ""))));
 		}
 
-		// 歪度/尖度
 		String[] aveSkewKurtList = this.bmM023M024M026InitBean.getAvgList().clone();
 		String[] sigmaSkewKurtList = this.bmM023M024M026InitBean.getSigmaList().clone();
 		String[] skewnessList = this.bmM023M024M026InitBean.getSkewnessList().clone();
@@ -496,7 +643,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 		kurtosisList = setKurtosis(decidedEntity, kurtosisList, aveSkewKurtList, sigmaSkewKurtList, kurtosisCntList,
 				ha);
 
-		// エンティティ組み立て
 		EachTeamScoreBasedFeatureEntity entity = new EachTeamScoreBasedFeatureEntity();
 		StringBuilder sb = new StringBuilder();
 
@@ -541,7 +687,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			sb.setLength(0);
 		}
 
-		// その他情報
 		if (AverageStatisticsSituationConst.ALL_DATA.equals(flg) ||
 				AverageStatisticsSituationConst.FIRST_DATA.equals(flg) ||
 				AverageStatisticsSituationConst.SECOND_DATA.equals(flg)) {
@@ -550,8 +695,10 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			entity = setOtherEntity(connectScore, situation, country, league, team, updFlg, id, entity);
 		}
 
-		// insertMap 格納（逐次処理なので CopyOnWriteArrayList は不要）
 		insertMap.computeIfAbsent(flg, k -> new ArrayList<>()).add(entity);
+
+		log.info("[BM_M026] basedEntities done. country={}, league={}, team={}, ha={}, flg={}, chkBody={}, insertMapKeyCount={}, currentListSize={}",
+				country, league, team, ha, flg, chkBody, insertMap.size(), insertMap.get(flg).size());
 	}
 
 	/**
@@ -585,17 +732,22 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	 */
 	private void save(EachTeamScoreBasedFeatureEntity entity) {
 		String key = String.format(
-				"country=%s, league=%s, team=%s, situation=%s",
-				entity.getCountry(),
-				entity.getLeague(),
-				entity.getTeam(),
-				entity.getSituation());
+				"score=%s, country=%s, league=%s, team=%s, situation=%s",
+				safe(entity.getScore()),
+				safe(entity.getCountry()),
+				safe(entity.getLeague()),
+				safe(entity.getTeam()),
+				safe(entity.getSituation()));
 
 		try {
+			log.info("[BM_M026] before each_team_score_based_feature_stats update. {}", key);
+
 			int updated = eachTeamScoreBasedFeatureStatsRepository.updateStatValues(entity);
 
+			log.info("[BM_M026] after each_team_score_based_feature_stats update. updated={}, {}", updated, key);
+
 			if (updated == 1) {
-				log.info("score_based_feature_stats updated: {}", key);
+				log.info("[BM_M026] each_team_score_based_feature_stats updated. {}", key);
 				return;
 			}
 
@@ -605,13 +757,17 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			}
 
 			// updated == 0
-			log.warn("No row updated. try insert. key={}", key);
+			log.warn("[BM_M026] no row updated. try insert. {}", key);
 
 			try {
+				log.info("[BM_M026] before each_team_score_based_feature_stats insert. {}", key);
+
 				int inserted = eachTeamScoreBasedFeatureStatsRepository.insert(entity);
 
+				log.info("[BM_M026] after each_team_score_based_feature_stats insert. inserted={}, {}", inserted, key);
+
 				if (inserted == 1) {
-					log.info("score_based_feature_stats inserted: {}", key);
+					log.info("[BM_M026] each_team_score_based_feature_stats inserted. {}", key);
 					return;
 				}
 
@@ -619,11 +775,13 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 						"Unexpected insert row count (expected=1, actual=" + inserted + "), key=" + key);
 
 			} catch (org.springframework.dao.DuplicateKeyException e) {
-				log.warn("Duplicate on insert, retry update. key={}", key, e);
+				log.warn("[BM_M026] duplicate on insert, retry update. {}", key, e);
 
 				int retried = eachTeamScoreBasedFeatureStatsRepository.updateStatValues(entity);
+				log.info("[BM_M026] after retry update. retried={}, {}", retried, key);
+
 				if (retried == 1) {
-					log.info("score_based_feature_stats updated after duplicate: {}", key);
+					log.info("[BM_M026] each_team_score_based_feature_stats updated after duplicate. {}", key);
 					return;
 				}
 
@@ -632,7 +790,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			}
 
 		} catch (RuntimeException e) {
-			log.error("save failed. key={}, entity={}", key, entity, e);
+			log.error("[BM_M026] save failed. key={}, entity={}", key, entity, e);
 			throw e;
 		}
 	}
@@ -666,7 +824,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			List<EachTeamScoreBasedFeatureEntity> list, String ha) {
 		final String METHOD_NAME = "setInitData";
 		if (list != null && !list.isEmpty()) {
-			EachTeamScoreBasedFeatureEntity statEntity = list.get(0); // 最新データのみ使用
+			EachTeamScoreBasedFeatureEntity statEntity = list.get(0);
 			Field[] fields = EachTeamScoreBasedFeatureEntity.class.getDeclaredFields();
 			for (int i = this.bmM023M024M026InitBean.getStartScoreInsertIdx(); i < this.bmM023M024M026InitBean
 					.getEndScoreInsertIdx(); i++) {
@@ -677,7 +835,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				Field field = fields[i];
 				field.setAccessible(true);
 				try {
-					String statValue = (String) field.get(statEntity); // 例: "12.5, 33.8, 25.1, 5.3"
+					String statValue = (String) field.get(statEntity);
 					if (statValue == null || statValue.isBlank())
 						continue;
 					String[] values = statValue.split(",");
@@ -719,7 +877,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	 */
 	private String[] setMin(BookDataEntity filter, String[] minList, Integer[] cntList, String ha) {
 		final String METHOD_NAME = "setMin";
-		// BookDataEntityの全フィールドを取得
 		Field[] allFields = BookDataEntity.class.getDeclaredFields();
 		String fillChar = "";
 		for (int i = this.bmM023M024M026InitBean.getStartIdx(); i <= this.bmM023M024M026InitBean.getEndIdx(); i++) {
@@ -736,7 +893,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				if (currentValue == null || currentValue.isBlank())
 					continue;
 
-				// 現在の最小値の形式に合わせて、同じ形式のみ比較
 				String minValue = minList[idx];
 				if (!isSameFormat(minValue, currentValue))
 					continue;
@@ -745,9 +901,8 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				String minCompNumeric = parseStatValue(minValue);
 				if (currentCompNumeric != null && minCompNumeric != null &&
 						Double.parseDouble(currentCompNumeric) < Double.parseDouble(minCompNumeric)) {
-					minList[idx] = currentValue; // 文字列ごと差し替え（形式維持）
+					minList[idx] = currentValue;
 				}
-				// 件数カウント
 				cntList[idx]++;
 			} catch (Exception e) {
 				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
@@ -767,7 +922,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	 */
 	private String[] setTimeMin(BookDataEntity filter, String[] minList, Integer[] cntList, String ha) {
 		final String METHOD_NAME = "setTimeMin";
-		// BookDataEntityの全フィールドを取得
 		String fillChar = "";
 		for (int i = this.bmM023M024M026InitBean.getStartScoreInsertIdx(); i < this.bmM023M024M026InitBean
 				.getEndScoreInsertIdx(); i++) {
@@ -785,7 +939,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				if (currentTimeValue < minTimeTmpsValue) {
 					minList[idx] = String.valueOf(currentTimeTmpValue) + "'";
 				}
-				// 件数カウント
 				cntList[idx]++;
 			} catch (Exception e) {
 				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
@@ -805,7 +958,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	 */
 	private String[] setMax(BookDataEntity filter, String[] maxList, Integer[] cntList, String ha) {
 		final String METHOD_NAME = "setMax";
-		// BookDataEntityの全フィールドを取得
 		Field[] allFields = BookDataEntity.class.getDeclaredFields();
 		String fillChar = "";
 		for (int i = this.bmM023M024M026InitBean.getStartIdx(); i <= this.bmM023M024M026InitBean.getEndIdx(); i++) {
@@ -822,7 +974,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				if (currentValue == null || currentValue.isBlank())
 					continue;
 
-				// 現在の最小値の形式に合わせて、同じ形式のみ比較
 				String maxValue = maxList[idx];
 				if (!isSameFormat(maxValue, currentValue))
 					continue;
@@ -831,9 +982,8 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				String maxCompNumeric = parseStatValue(maxValue);
 				if (currentCompNumeric != null && maxCompNumeric != null &&
 						Double.parseDouble(currentCompNumeric) > Double.parseDouble(maxCompNumeric)) {
-					maxList[idx] = currentValue; // 文字列ごと差し替え（形式維持）
+					maxList[idx] = currentValue;
 				}
-				// 件数カウント
 				cntList[idx]++;
 			} catch (Exception e) {
 				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
@@ -853,7 +1003,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	 */
 	private String[] setTimeMax(BookDataEntity filter, String[] maxList, Integer[] cntList, String ha) {
 		final String METHOD_NAME = "setTimeMax";
-		// BookDataEntityの全フィールドを取得
 		String fillChar = "";
 		for (int i = this.bmM023M024M026InitBean.getStartScoreInsertIdx(); i < this.bmM023M024M026InitBean
 				.getEndScoreInsertIdx(); i++) {
@@ -871,7 +1020,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				if (currentTimeValue > maxTimeTmpsValue) {
 					maxList[idx] = String.valueOf(currentTimeTmpValue) + "'";
 				}
-				// 件数カウント
 				cntList[idx]++;
 			} catch (Exception e) {
 				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
@@ -883,7 +1031,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	}
 
 	/**
-	 * 平均値計算のための加算処理（値を加算し、件数もインクリメント）
+	 * 平均値計算のための加算処理
 	 * @param filter BookDataEntity（1レコード分）
 	 * @param aveList 平均値用の一時加算リスト（String型）
 	 * @param cntList 件数カウント（Integer型）
@@ -908,12 +1056,10 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				if (currentValue == null || currentValue.isBlank())
 					continue;
 
-				// 数値化（成功数・もしくは%・通常値）
 				String numericStr = parseStatValue(currentValue);
 				if (numericStr == null || numericStr.isBlank() || isPercentAndFractionFormat(currentValue))
 					continue;
 
-				// 文字列 → double → 加算
 				double numeric = Double.parseDouble(numericStr);
 				double prev = 0.0;
 				if (aveList[idx] != null && !aveList[idx].isBlank()) {
@@ -921,7 +1067,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				}
 				double sum = prev + numeric;
 				aveList[idx] = String.valueOf(sum);
-				// 件数カウント
 				cntList[idx]++;
 			} catch (NumberFormatException e) {
 				String messageCd = MessageCdConst.MCD00015E_NUMBERFORMAT_ERROR;
@@ -946,7 +1091,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	 */
 	private String[] setTimeSumAve(BookDataEntity filter, String[] aveList, Integer[] cntList, String ha) {
 		final String METHOD_NAME = "setTimeSumAve";
-		// BookDataEntityの全フィールドを取得
 		String fillChar = "";
 		for (int i = this.bmM023M024M026InitBean.getStartScoreInsertIdx(); i < this.bmM023M024M026InitBean
 				.getEndScoreInsertIdx(); i++) {
@@ -977,7 +1121,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	}
 
 	/**
-	 * 標準偏差用の差分²加算処理（X% (X/X) 形式は除外）
+	 * 標準偏差用の差分²加算処理
 	 * @param filter BookDataEntity（1行分）
 	 * @param avgList 平均値リスト（String[]）
 	 * @param sigmaList 差分²加算リスト（String[]）
@@ -1002,13 +1146,12 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				String currentValue = (String) field.get(filter);
 				fillChar += " , 値: " + currentValue;
 				String avgStr = avgList[idx];
-				// スキップ条件：空 or null or X% (X/X) 形式
 				if (currentValue == null || currentValue.isBlank() || isPercentAndFractionFormat(currentValue)) {
 					continue;
 				}
 				if (avgStr == null || avgStr.isBlank())
 					continue;
-				// 値と平均を double にして差分²を計算
+
 				double value = Double.parseDouble(parseStatValue(currentValue));
 				double avg = Double.parseDouble(avgStr);
 				double diffSquared = Math.pow(value - avg, 2);
@@ -1047,7 +1190,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 		final String METHOD_NAME = "setTimeSumSigma";
 		String fillChar = "連番No: " + filter.getSeq();
 		try {
-			// 試合時間（文字列）→ 分に変換
 			double currentTimeValue = ExecuteMainUtil.convertToMinutes(filter.getTime());
 
 			for (int i = this.bmM023M024M026InitBean.getStartScoreInsertIdx(); i < this.bmM023M024M026InitBean
@@ -1056,7 +1198,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				if (("H".equals(ha) && idx % 2 == 1) || ("A".equals(ha) && idx % 2 == 0)) {
 					continue;
 				}
-				// 平均値とsigmaの取得
 				String aveStr = aveList[idx];
 				String sigmaStr = sigmaList[idx];
 				if (aveStr == null || aveStr.isBlank())
@@ -1066,10 +1207,8 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				if (sigmaStr != null && !sigmaStr.isBlank()) {
 					sigmaValue = Double.parseDouble(sigmaStr.replace("'", ""));
 				}
-				// 差分²を加算
 				double diffSquared = Math.pow(currentTimeValue - averageValue, 2);
 				double updated = sigmaValue + diffSquared;
-				// 更新
 				sigmaList[idx] = String.valueOf(updated) + "'";
 				cntList[idx]++;
 			}
@@ -1087,7 +1226,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	}
 
 	/**
-	 * 歪度設定(n/(n-1)(n-2)*sum(i=1->n((xi - xver) / sigma)^3)
+	 * 歪度設定
 	 * @param entity
 	 * @param skewnessList
 	 * @param aveList
@@ -1103,7 +1242,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 		for (int i = 0; i < skewness.length; i++) {
 			skewness[i] = 0.0;
 		}
-		// StatEncryptionEntityの全フィールドを取得
 		Field[] allFields = StatEncryptionEntity.class.getDeclaredFields();
 		String fillChar = "";
 		for (int i = this.bmM030StatEncryptionBean.getStartEncryptionIdx(); i <= this.bmM030StatEncryptionBean
@@ -1121,9 +1259,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				if (currentValue == null || currentValue.isBlank() || isPercentAndFractionFormat(currentValue))
 					continue;
 
-				// カンマ分割
 				String[] skewList = currentValue.split(",");
-				// 平均値,標準偏差導出
 				int cnt = 0;
 				ScoreBasedFeatureOutputDTO dto1 = setSkewnessOrKurtosisSumAve(skewList, cnt);
 				String skewSumAve = dto1.getAve();
@@ -1135,15 +1271,12 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				ScoreBasedFeatureOutputDTO dto2 = setSkewnessOrKurtosisSumSigma(skewList, skewAve, cnt);
 				String skewSumSigma = dto2.getSigma();
 				cnt = Integer.parseInt(dto2.getCnt());
-				// 不偏分散のルート
 				String skewSigma = (cnt == 1) ? ""
 						: String.valueOf(
 								Math.sqrt(Double.parseDouble(skewSumSigma) / (cnt - 1)));
-				// 導出できなければskip
 				if ("".equals(skewAve) || "".equals(skewSigma))
 					continue;
 
-				// 現在の歪度情報を加算
 				for (String skew : skewList) {
 					String currentSkewnessNumeric = parseStatValue(skew);
 					if (currentSkewnessNumeric == null)
@@ -1151,7 +1284,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 					skewness[idx] += Math.pow((Double.parseDouble(currentSkewnessNumeric)
 							- Double.parseDouble(skewAve)) / Double.parseDouble(skewSigma), 3);
 				}
-				// 件数カウント
 				cntList[idx] = cnt;
 			} catch (Exception e) {
 				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
@@ -1159,7 +1291,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 			}
 		}
-		// n/(n-1)(n-2)との積をとる
 		for (int i = 0; i < skewness.length; i++) {
 			if (("H".equals(ha) && i % 2 == 1) ||
 					("A".equals(ha) && i % 2 == 0)) {
@@ -1174,7 +1305,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	}
 
 	/**
-	 * 尖度設定((n(n+1))/(n-1)(n-2)(n-3)*sum(i=1->n((xi - xver)^4 / sigma^3 - 3*(n-1)^2 / (n-2)(n-3))
+	 * 尖度設定
 	 * @param entity
 	 * @param kurtosisList
 	 * @param aveList
@@ -1190,7 +1321,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 		for (int i = 0; i < kurtosis.length; i++) {
 			kurtosis[i] = 0.0;
 		}
-		// StatEncryptionEntityの全フィールドを取得
 		Field[] allFields = StatEncryptionEntity.class.getDeclaredFields();
 		String fillChar = "";
 		for (int i = this.bmM030StatEncryptionBean.getStartEncryptionIdx(); i <= this.bmM030StatEncryptionBean
@@ -1208,9 +1338,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				if (currentValue == null || currentValue.isBlank() || isPercentAndFractionFormat(currentValue))
 					continue;
 
-				// カンマ分割
 				String[] kurtList = currentValue.split(",");
-				// 平均値,標準偏差導出
 				int cnt = 0;
 				ScoreBasedFeatureOutputDTO dto1 = setSkewnessOrKurtosisSumAve(kurtList, cnt);
 				String kurtSumAve = dto1.getAve();
@@ -1222,15 +1350,12 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				ScoreBasedFeatureOutputDTO dto2 = setSkewnessOrKurtosisSumSigma(kurtList, kurtAve, cnt);
 				String kurtSumSigma = dto2.getSigma();
 				cnt = Integer.parseInt(dto2.getCnt());
-				// 不偏分散のルート
 				String kurtSigma = (cnt == 1) ? ""
 						: String.valueOf(
 								Math.sqrt(Double.parseDouble(kurtSumSigma) / (cnt - 1)));
-				// 導出できなければskip
 				if ("".equals(kurtAve) || "".equals(kurtSigma))
 					continue;
 
-				// 現在の尖度情報を加算
 				for (String kurt : kurtList) {
 					String currentKurtosisNumeric = parseStatValue(kurt);
 					if (currentKurtosisNumeric == null)
@@ -1239,7 +1364,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 							- Double.parseDouble(kurtAve)), 4) / Math.pow(
 									Double.parseDouble(kurtSigma), 4));
 				}
-				// 件数カウント
 				cntList[idx] = cnt;
 			} catch (Exception e) {
 				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
@@ -1247,21 +1371,19 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 			}
 		}
-		// (n(n+1))/(n-1)(n-2)(n-3)との積をとり,3(n-1)^2 / (n-2)(n-3)を引く
 		for (int i = 0; i < kurtosis.length; i++) {
 			int cnt = cntList[i];
 			double kurt = kurtosis[i];
 			double result;
 			if (cnt >= 4 && Double.isFinite(kurt)) {
 				double a = (cnt * (cnt + 1.0)) / ((cnt - 1.0) * (cnt - 2.0) * (cnt - 3.0));
-				double b = (3.0 * Math.pow(cnt - 1.0, 2.0)) / ((cnt - 2.0) * (cnt - 3.0)); // ← 括弧で積に！
-				result = a * kurt - b; // ← 補正項は “1回だけ” 引く
+				double b = (3.0 * Math.pow(cnt - 1.0, 2.0)) / ((cnt - 2.0) * (cnt - 3.0));
+				result = a * kurt - b;
 			} else if (cnt > 0 && Double.isFinite(kurt)) {
-				// n<4 は補正式未定義。フォールバック（例：過剰尖度 = moment - 3）
-				double moment = kurt / cnt; // 標準化4次モーメント
-				result = moment - 3.0; // 過剰尖度が欲しい場合
+				double moment = kurt / cnt;
+				result = moment - 3.0;
 			} else {
-				result = Double.NaN; // cnt==0 や std==0 など
+				result = Double.NaN;
 			}
 			kurtosisList[i] = String.format("%.3f", result);
 		}
@@ -1307,7 +1429,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	 * @return
 	 */
 	private String[] commonDivision(String[] list, Integer[] cntList, String suffix, String ha) {
-		// 平均導出
 		for (int i = 0; i < this.bmM023M024M026InitBean.getEndScoreInsertIdx()
 				- this.bmM023M024M026InitBean.getStartScoreInsertIdx(); i++) {
 			if (isPercentAndFractionFormat(list[i])) {
@@ -1326,18 +1447,16 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	/**
 	 * insertStr の値を ScoreBasedFeatureStatsEntity に反映する
 	 * @param entity 対象の ScoreBasedFeatureStatsEntity
-	 * @param insertStr カンマ区切りの統計値（min,max,avg,sigma,...） ※順序は BookDataEntity の homeExp ～ awayInterceptCount に対応
+	 * @param insertStr カンマ区切りの統計値
 	 * @param ind インデックス
 	 */
 	private EachTeamScoreBasedFeatureEntity setStatValuesToEntity(EachTeamScoreBasedFeatureEntity entity,
 			String insertStr, int ind) {
 		final String METHOD_NAME = "setStatValuesToEntity";
 		try {
-			// エンティティの全フィールド取得
 			Field[] allFields = EachTeamScoreBasedFeatureEntity.class.getDeclaredFields();
 			Field field = allFields[ind];
 			field.setAccessible(true);
-			// String 型のフィールドに値を代入
 			field.set(entity, insertStr);
 		} catch (Exception e) {
 			String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
@@ -1377,14 +1496,10 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	 * ビルドメソッド
 	 * @param entities
 	 * @param country
-	 * @param league
-	 * @param ha
-	 * @param chkBody
-	 * @param fieldMap
-	 * @return
-	 */
+	*/
 	private StatEncryptionEntity buildBmM30Form(final List<BookDataEntity> entities,
-			String country, String league, String ha, String chkBody,
+			String country
+			, String league, String ha, String chkBody,
 			Map<String, Function<BookDataEntity, String>> fieldMap) {
 
 		final String METHOD_NAME = "buildBmM30Form";
@@ -1399,7 +1514,7 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				continue;
 			}
 
-			// ★ joining をやめて逐次追加（巨大な中間Stringを作りにくくする）
+			// joining をやめて逐次追加（巨大な中間Stringを作りにくくする）
 			java.util.StringJoiner joiner = new java.util.StringJoiner(",");
 			for (BookDataEntity e : entities) {
 				String v;
@@ -1408,7 +1523,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				} catch (Exception ex) {
 					v = "";
 				}
-				// nullは空として扱う
 				joiner.add(v == null ? "" : v);
 			}
 
@@ -1463,7 +1577,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				if (targetValue == null || targetValue.isEmpty()) {
 					field.set(target, sourceValue);
 				} else {
-					// ★ 毎回コピー連結をやめて、必要最小限の1回のバッファで作る
 					StringBuilder sb = new StringBuilder(targetValue.length() + 1 + sourceValue.length());
 					sb.append(targetValue).append(',').append(sourceValue);
 					field.set(target, sb.toString());
@@ -1546,16 +1659,13 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 		double sum = 0.0;
 		for (int i = 0; i < skewOrKurtList.length; i++) {
 			String currentValue = skewOrKurtList[i];
-			// 数値化（成功数・もしくは%・通常値）XX% (XX/XX)の形式は分子の数を足す
 			String numericStr = parseStatValue(currentValue);
 			if (numericStr == null || numericStr.isBlank() || isPercentAndFractionFormat(currentValue))
 				continue;
 
 			try {
-				// 文字列 → double → 加算
 				double numeric = Double.parseDouble(numericStr);
 				sum += numeric;
-				// 件数カウント
 				cnt++;
 			} catch (NumberFormatException e) {
 				String messageCd = MessageCdConst.MCD00015E_NUMBERFORMAT_ERROR;
@@ -1577,9 +1687,9 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	/**
 	 * 歪度or尖度標準偏差導出のための加算処理（値を加算し、件数もインクリメント）
 	 * @param skewOrKurtList 加算リスト（String型）
-	 * @param skewOrKurtAve
+	 * @param skewOrKurtAve 平均値
 	 * @param cnt 件数カウント（Integer型）
-	 * @return 加算後のaveList
+	 * @return 加算後のsigma
 	 */
 	private ScoreBasedFeatureOutputDTO setSkewnessOrKurtosisSumSigma(String[] skewOrKurtList, String skewOrKurtAve,
 			Integer cnt) {
@@ -1588,18 +1698,15 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 		double sum = 0.0;
 		for (int i = 0; i < skewOrKurtList.length; i++) {
 			String currentValue = skewOrKurtList[i];
-			// 数値化（成功数・もしくは%・通常値）XX% (XX/XX)の形式は分子の数を足す
 			String numericStr = parseStatValue(currentValue);
 			if (numericStr == null || numericStr.isBlank() || isPercentAndFractionFormat(currentValue))
 				continue;
 
 			try {
-				// 文字列 → double → 加算
 				double numeric = Double.parseDouble(numericStr);
 				double ave = Double.parseDouble(skewOrKurtAve);
 				numeric = Math.pow((numeric - ave), 2);
 				sum += numeric;
-				// 件数カウント
 				cnt++;
 			} catch (NumberFormatException e) {
 				String messageCd = MessageCdConst.MCD00015E_NUMBERFORMAT_ERROR;
@@ -1630,7 +1737,6 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 
 	/** 「国,リーグ」を安全に分割（null/形式不正でも長さ2を返す） */
 	private static String[] safeLeague(String key) {
-		// 既存の ExecuteMainUtil.splitLeagueInfo を使うなら例外時フォールバック
 		try {
 			String[] a = ExecuteMainUtil.splitLeagueInfo(key);
 			if (a != null && a.length >= 2)
@@ -1639,9 +1745,28 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				return new String[] { a[0], "" };
 			return new String[] { "", "" };
 		} catch (Exception ignore) {
-			// 想定フォーマット「国,リーグ」でのフォールバック
 			return split2(key, ",");
 		}
 	}
 
+	private static String safe(String s) {
+		return (s == null) ? "" : s;
+	}
+
+	private static int sizeOf(List<?> list) {
+		return (list == null) ? 0 : list.size();
+	}
+
+	private static String summarizeEnc(StatEncryptionEntity e) {
+		if (e == null) {
+			return "null";
+		}
+		return String.format("id=%s, updFlg=%s, country=%s, league=%s, team=%s, chkBody=%s",
+				safe(e.getId()),
+				e.isUpdFlg(),
+				safe(e.getCountry()),
+				safe(e.getLeague()),
+				safe(e.getTeam()),
+				safe(e.getChkBody()));
+	}
 }
