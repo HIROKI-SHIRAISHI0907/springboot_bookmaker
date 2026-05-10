@@ -220,19 +220,7 @@ public class BatchFileCheckService {
 	 * 常時実行可
 	 */
 	private BatchFileCheckTaskWrapper buildB011() {
-		List<BatchFileCheckItemWrapper> items = new ArrayList<>();
-
-		// 参考情報として表示したいなら入れる
-		long futureDirectFolderCount = 0L;
-		try {
-			futureDirectFolderCount = countDirectFoldersExcluding(BUCKET_FUTURE, Set.of(FILE_DATA_TEAM_LIST, FILE_SEQ_LIST));
-		} catch (Exception e) {
-			// 参考情報なので握りつぶし
-		}
-
-		items.add(countItem("future直フォルダ数（参考）", BUCKET_FUTURE, futureDirectFolderCount, false, true));
-
-		return task("B011", true, "準備OK", items);
+	    return task("B011", true, "準備OK", new ArrayList<>());
 	}
 
 	// =========================================================
