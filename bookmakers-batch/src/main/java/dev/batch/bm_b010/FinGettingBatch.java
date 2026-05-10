@@ -118,48 +118,62 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 		final String s3Key = "fin/" + jsonFilePath.getFileName().toString();
 		insertPath.add(s3Key);
 
-		// マッチキーDBから保存済マッチキーを取得
-		List<MatchKeyItem> items = matchKeySaveRepository.findMatchKeys().stream()
-			    .map(k -> { MatchKeyItem e = new MatchKeyItem(); e.setMatchKey(k); return e; })
-			    .collect(Collectors.toList());
+		try {
+			// マッチキーDBから保存済マッチキーを取得
+			List<MatchKeyItem> items = matchKeySaveRepository.findMatchKeys().stream()
+					.map(k -> {
+						MatchKeyItem e = new MatchKeyItem();
+						e.setMatchKey(k);
+						return e;
+					})
+					.collect(Collectors.toList());
 
-		// 取得できなかった場合は誤ってリアルタイムデータを登録してしまうのを防ぐためErrorを出力
-		if (items.isEmpty()) {
-			/** エラーコード（運用ルールに合わせて変更） */
-			String ERROR_CODE = MessageCdConst.MCD00003E_EXECUTION_SKIP;
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, null,
-					"items.isEmpty() マッチキーが取得できなかったため処理を終了します。");
-			// 念の為ここでもフラグ更新(対象マップは絞らない)
-			updateFlg(null);
-			return;
+			// 取得できなかった場合は誤ってリアルタイムデータを登録してしまうのを防ぐためErrorを出力
+			if (items.isEmpty()) {
+				/** エラーコード（運用ルールに合わせて変更） */
+				String ERROR_CODE = MessageCdConst.MCD00003E_EXECUTION_SKIP;
+				this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, null,
+						"items.isEmpty() マッチキーが取得できなかったため処理を終了します。");
+				// 念の為ここでもフラグ更新(対象マップは絞らない)
+				updateFlg(null);
+				return;
+			}
+
+			// ObjectをダウンロードしEntityにマッピング
+			Map<String, List<DataEntity>> map = getOriginInfo.getData(items);
+			this.finGettingStat.finGettingStat(map);
+
+			// 削除
+			finGettingTruncate.truncate();
+
+			String bucket = pathConfig.getS3BucketsOutputs(); // バケット名取得
+			FileDeleteUtil.deleteS3Files(
+					insertPath,
+					bucket,
+					s3Operator,
+					manageLoggerComponent,
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					"b008_fin_getting_data.json");
+
+			// 以降は処理に失敗しても次の処理のタイミングで更新がかけられるので問題ない
+			updateFlg(map);
+
+			// endLog
+			this.manageLoggerComponent.debugEndInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+			this.manageLoggerComponent.clear();
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					ERROR_CODE,
+					e);
+			throw e;
 		}
-
-		// ObjectをダウンロードしEntityにマッピング
-		Map<String, List<DataEntity>> map = getOriginInfo.getData(items);
-		this.finGettingStat.finGettingStat(map);
-
-		// 削除
-		finGettingTruncate.truncate();
-
-		String bucket = pathConfig.getS3BucketsOutputs(); // バケット名取得
-		FileDeleteUtil.deleteS3Files(
-				insertPath,
-				bucket,
-				s3Operator,
-				manageLoggerComponent,
-				PROJECT_NAME,
-				CLASS_NAME,
-				METHOD_NAME,
-				"b008_fin_getting_data.json");
-
-		// 以降は処理に失敗しても次の処理のタイミングで更新がかけられるので問題ない
-		updateFlg(map);
-
-		// endLog
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		this.manageLoggerComponent.clear();
 	}
 
 	/**
