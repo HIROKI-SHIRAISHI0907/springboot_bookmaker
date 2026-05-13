@@ -1,6 +1,8 @@
 package dev.application.analyze.bm_m002;
 
 import java.util.Arrays;
+import java.util.Collections;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -9,13 +11,12 @@ import org.springframework.stereotype.Component;
 
 import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
-import dev.application.domain.repository.bm.ConditionResultDataRepository;
 import dev.common.entity.BookDataEntity;
-import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
  * BM_M002統計分析ロジック（手動データ投入の場合は適用対象外）
+ *
  * @author shiraishitoshio
  *
  */
@@ -32,17 +33,32 @@ public class ConditionResultDataStat implements AnalyzeEntityIF {
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M002_CONDITION_RESULT_DATA";
 
+	/** 件数配列サイズ */
+	private static final int COUNT_SIZE = 11;
+
+	/** 添字定義 */
+	private static final int IDX_MAIL_TARGET = 0;
+	private static final int IDX_MAIL_ANONYMOUS_TARGET = 1;
+	private static final int IDX_MAIL_TARGET_SUCCESS = 2;
+	private static final int IDX_MAIL_TARGET_FAIL = 3;
+	private static final int IDX_MAIL_TARGET_TO_RESULT_UNKNOWN = 4;
+	private static final int IDX_MAIL_FIN_NO_DATA_TO_RESULT_UNKNOWN = 5;
+	private static final int IDX_GOAL_DELETE = 6;
+	private static final int IDX_DUE_TO_GOAL_DELETE_MAIL_TARGET_MAIL_ANONYMOUS_TARGET_ALTER = 7;
+	private static final int IDX_DUE_TO_GOAL_DELETE_MAIL_TARGET_SUCCESS_MAIL_TARGET_FAIL_ALTER = 8;
+	private static final int IDX_RESULT_UNKNOWN = 9;
+	private static final int IDX_UNEXPECTED_ERROR = 10;
+
+	/** 判定→添字変換Map */
+	private static final Map<String, Integer> JUDGE_TO_INDEX_MAP = createJudgeToIndexMap();
+
 	/** Beanクラス */
 	@Autowired
 	private BmM002ConditionResultDataBean bean;
 
-	/** ConditionResultDataRepositoryレポジトリクラス */
+	/** Writerクラス */
 	@Autowired
-	private ConditionResultDataRepository conditionResultDataRepository;
-
-	/** ログ管理ラッパー*/
-	@Autowired
-	private RootCauseWrapper rootCauseWrapper;
+	private ConditionResultDataWriter conditionResultDataWriter;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -54,169 +70,168 @@ public class ConditionResultDataStat implements AnalyzeEntityIF {
 	@Override
 	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) {
 		final String METHOD_NAME = "calcStat";
-		// ログ出力
+
 		this.manageLoggerComponent.init(EXEC_MODE, null);
-		this.manageLoggerComponent.debugStartInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// 初期化
-		bean.init();
+		try {
+			// 初期化
+			bean.init();
 
-		// condition_result_data bean
-		Integer[] conditionCountIntList = Arrays.stream(bean.getConditionCountList())
-				.map(s -> {
-					try {
-						return Integer.parseInt(s);
-					} catch (NumberFormatException e) {
-						return 0;
+			// condition_result_data bean
+			Integer[] conditionCountIntList = toConditionCountArray(bean.getConditionCountList());
+
+			// 一時的に別リストに保管
+			Integer[] updConditionCountIntList = conditionCountIntList.clone();
+
+			// Mapを回す
+			if (entities != null) {
+				for (Map<String, List<BookDataEntity>> innerMap : entities.values()) {
+					if (innerMap == null) {
+						continue;
 					}
-				})
-				.toArray(Integer[]::new);
 
-		// 一時的に別リストに保管
-		Integer[] updConditionCountIntList = conditionCountIntList.clone();
+					for (List<BookDataEntity> list : innerMap.values()) {
+						if (list == null) {
+							continue;
+						}
 
-		Map<String, Integer> judgeToIndexMap = Map.ofEntries(
-				Map.entry(BookMakersCommonConst.MAIL_TARGET, 0),
-				Map.entry(BookMakersCommonConst.MAIL_ANONYMOUS_TARGET, 1),
-				Map.entry(BookMakersCommonConst.MAIL_TARGET_SUCCESS, 2),
-				Map.entry(BookMakersCommonConst.MAIL_TARGET_FAIL, 3),
-				Map.entry(BookMakersCommonConst.MAIL_TARGET_TO_RESULT_UNKNOWN, 4),
-				Map.entry(BookMakersCommonConst.MAIL_FIN_NO_DATA_TO_RESULT_UNKNOWN, 5),
-				Map.entry(BookMakersCommonConst.GOAL_DELETE, 6),
-				Map.entry(BookMakersCommonConst.DUE_TO_GOAL_DELETE_MAIL_TARGET_MAIL_ANONYMOUS_TARGET_ALTER, 7),
-				Map.entry(BookMakersCommonConst.DUE_TO_GOAL_DELETE_MAIL_TARGET_SUCCESS_MAIL_TARGET_FAIL_ALTER, 8));
+						for (BookDataEntity entity : list) {
+							if (entity == null) {
+								updConditionCountIntList[IDX_UNEXPECTED_ERROR]++;
+								continue;
+							}
 
-		// Mapを回す
-		for (Map<String, List<BookDataEntity>> innerMap : entities.values()) {
-			for (List<BookDataEntity> list : innerMap.values()) {
-				for (BookDataEntity entity : list) {
-					this.manageLoggerComponent.debugInfoLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, entity.getFilePath());
-					String judge = entity.getJudge();
+							this.manageLoggerComponent.debugInfoLog(
+									PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, entity.getFilePath());
 
-					if (judge != null) {
-		                int index = judgeToIndexMap.getOrDefault(judge, 9); // 該当しない場合は未定義扱い
-		                updConditionCountIntList[index]++;
-		            } else {
-		                updConditionCountIntList[10]++; // null → 異常系としてカウント
-		            }
+							String judge = entity.getJudge();
+
+							if (judge == null) {
+								updConditionCountIntList[IDX_UNEXPECTED_ERROR]++;
+								continue;
+							}
+
+							int index = JUDGE_TO_INDEX_MAP.getOrDefault(judge, IDX_RESULT_UNKNOWN);
+							updConditionCountIntList[index]++;
+						}
+					}
 				}
 			}
+
+			// 件数用ログ設定
+			String fillChar = setLogCount(conditionCountIntList, updConditionCountIntList);
+
+			// 登録,更新
+			this.conditionResultDataWriter.save(
+					bean.getUpdFlg(),
+					updConditionCountIntList,
+					bean.getConditionKeyData(),
+					bean.getHash(),
+					fillChar);
+
+		} finally {
+			this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+			this.manageLoggerComponent.clear();
+		}
+	}
+
+	/**
+	 * 判定→添字変換Map生成
+	 * @return 判定→添字変換Map
+	 */
+	private static Map<String, Integer> createJudgeToIndexMap() {
+		Map<String, Integer> map = new HashMap<String, Integer>();
+		map.put(BookMakersCommonConst.MAIL_TARGET, IDX_MAIL_TARGET);
+		map.put(BookMakersCommonConst.MAIL_ANONYMOUS_TARGET, IDX_MAIL_ANONYMOUS_TARGET);
+		map.put(BookMakersCommonConst.MAIL_TARGET_SUCCESS, IDX_MAIL_TARGET_SUCCESS);
+		map.put(BookMakersCommonConst.MAIL_TARGET_FAIL, IDX_MAIL_TARGET_FAIL);
+		map.put(BookMakersCommonConst.MAIL_TARGET_TO_RESULT_UNKNOWN, IDX_MAIL_TARGET_TO_RESULT_UNKNOWN);
+		map.put(BookMakersCommonConst.MAIL_FIN_NO_DATA_TO_RESULT_UNKNOWN, IDX_MAIL_FIN_NO_DATA_TO_RESULT_UNKNOWN);
+		map.put(BookMakersCommonConst.GOAL_DELETE, IDX_GOAL_DELETE);
+		map.put(BookMakersCommonConst.DUE_TO_GOAL_DELETE_MAIL_TARGET_MAIL_ANONYMOUS_TARGET_ALTER,
+				IDX_DUE_TO_GOAL_DELETE_MAIL_TARGET_MAIL_ANONYMOUS_TARGET_ALTER);
+		map.put(BookMakersCommonConst.DUE_TO_GOAL_DELETE_MAIL_TARGET_SUCCESS_MAIL_TARGET_FAIL_ALTER,
+				IDX_DUE_TO_GOAL_DELETE_MAIL_TARGET_SUCCESS_MAIL_TARGET_FAIL_ALTER);
+		return Collections.unmodifiableMap(map);
+	}
+
+	/**
+	 * 件数配列変換
+	 * @param countList 文字列配列
+	 * @return Integer配列
+	 */
+	private Integer[] toConditionCountArray(String[] countList) {
+		Integer[] result = new Integer[COUNT_SIZE];
+		Arrays.fill(result, Integer.valueOf(0));
+
+		if (countList == null) {
+			return result;
 		}
 
-		// 件数用ログ設定
-		String fillChar = setLogCount(conditionCountIntList, updConditionCountIntList);
+		int loopSize = Math.min(countList.length, COUNT_SIZE);
+		for (int i = 0; i < loopSize; i++) {
+			result[i] = parseCount(countList[i]);
+		}
 
-		// 登録,更新
-		boolean updFlg = bean.getUpdFlg();
-		newData(updFlg, updConditionCountIntList, bean.getConditionKeyData(), bean.getHash(), fillChar);
+		return result;
+	}
 
-		// endLog
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		this.manageLoggerComponent.clear();
-
+	/**
+	 * 件数文字列変換
+	 * @param value 件数
+	 * @return 件数
+	 */
+	private Integer parseCount(String value) {
+		try {
+			return Integer.parseInt(value);
+		} catch (NumberFormatException e) {
+			return 0;
+		}
 	}
 
 	/**
 	 * ログ設定
 	 * @param conditionCountIntList 更新前件数
 	 * @param updConditionCountIntList 更新後件数
-	 * @return
+	 * @return ログ文字列
 	 */
-	private String setLogCount(Integer[] conditionCountIntList,
-			Integer[] updConditionCountIntList) {
+	private String setLogCount(Integer[] conditionCountIntList, Integer[] updConditionCountIntList) {
 		StringBuilder sBuilder = new StringBuilder();
-		sBuilder.append(BookMakersCommonConst.MAIL_TARGET + ": {" + conditionCountIntList[0] + "} → "
-				+ "{" + updConditionCountIntList[0] + "}, ");
-		sBuilder.append(BookMakersCommonConst.MAIL_ANONYMOUS_TARGET + ": {" + conditionCountIntList[1] + "} → "
-				+ "{" + updConditionCountIntList[1] + "}, ");
-		sBuilder.append(BookMakersCommonConst.MAIL_TARGET_SUCCESS + ": {" + conditionCountIntList[2] + "} → "
-				+ "{" + updConditionCountIntList[2] + "}, ");
-		sBuilder.append(BookMakersCommonConst.MAIL_TARGET_FAIL + ": {" + conditionCountIntList[3] + "} → "
-				+ "{" + updConditionCountIntList[3] + "}, ");
-		sBuilder.append(BookMakersCommonConst.MAIL_TARGET_TO_RESULT_UNKNOWN + ": {" + conditionCountIntList[4] + "} → "
-				+ "{" + updConditionCountIntList[4] + "}, ");
-		sBuilder.append(
-				BookMakersCommonConst.MAIL_FIN_NO_DATA_TO_RESULT_UNKNOWN + ": {" + conditionCountIntList[5] + "} → "
-						+ "{" + updConditionCountIntList[5] + "}, ");
-		sBuilder.append(BookMakersCommonConst.GOAL_DELETE + ": {" + conditionCountIntList[6] + "} → "
-				+ "{" + updConditionCountIntList[6] + "}, ");
+		sBuilder.append(BookMakersCommonConst.MAIL_TARGET + ": {" + conditionCountIntList[IDX_MAIL_TARGET] + "} → "
+				+ "{" + updConditionCountIntList[IDX_MAIL_TARGET] + "}, ");
+		sBuilder.append(BookMakersCommonConst.MAIL_ANONYMOUS_TARGET + ": {"
+				+ conditionCountIntList[IDX_MAIL_ANONYMOUS_TARGET] + "} → "
+				+ "{" + updConditionCountIntList[IDX_MAIL_ANONYMOUS_TARGET] + "}, ");
+		sBuilder.append(BookMakersCommonConst.MAIL_TARGET_SUCCESS + ": {"
+				+ conditionCountIntList[IDX_MAIL_TARGET_SUCCESS] + "} → "
+				+ "{" + updConditionCountIntList[IDX_MAIL_TARGET_SUCCESS] + "}, ");
+		sBuilder.append(BookMakersCommonConst.MAIL_TARGET_FAIL + ": {"
+				+ conditionCountIntList[IDX_MAIL_TARGET_FAIL] + "} → "
+				+ "{" + updConditionCountIntList[IDX_MAIL_TARGET_FAIL] + "}, ");
+		sBuilder.append(BookMakersCommonConst.MAIL_TARGET_TO_RESULT_UNKNOWN + ": {"
+				+ conditionCountIntList[IDX_MAIL_TARGET_TO_RESULT_UNKNOWN] + "} → "
+				+ "{" + updConditionCountIntList[IDX_MAIL_TARGET_TO_RESULT_UNKNOWN] + "}, ");
+		sBuilder.append(BookMakersCommonConst.MAIL_FIN_NO_DATA_TO_RESULT_UNKNOWN + ": {"
+				+ conditionCountIntList[IDX_MAIL_FIN_NO_DATA_TO_RESULT_UNKNOWN] + "} → "
+				+ "{" + updConditionCountIntList[IDX_MAIL_FIN_NO_DATA_TO_RESULT_UNKNOWN] + "}, ");
+		sBuilder.append(BookMakersCommonConst.GOAL_DELETE + ": {"
+				+ conditionCountIntList[IDX_GOAL_DELETE] + "} → "
+				+ "{" + updConditionCountIntList[IDX_GOAL_DELETE] + "}, ");
 		sBuilder.append(BookMakersCommonConst.DUE_TO_GOAL_DELETE_MAIL_TARGET_MAIL_ANONYMOUS_TARGET_ALTER + ": {"
-				+ conditionCountIntList[7] + "} → "
-				+ "{" + updConditionCountIntList[7] + "}, ");
+				+ conditionCountIntList[IDX_DUE_TO_GOAL_DELETE_MAIL_TARGET_MAIL_ANONYMOUS_TARGET_ALTER] + "} → "
+				+ "{"
+				+ updConditionCountIntList[IDX_DUE_TO_GOAL_DELETE_MAIL_TARGET_MAIL_ANONYMOUS_TARGET_ALTER] + "}, ");
 		sBuilder.append(BookMakersCommonConst.DUE_TO_GOAL_DELETE_MAIL_TARGET_SUCCESS_MAIL_TARGET_FAIL_ALTER + ": {"
-				+ conditionCountIntList[8] + "} → "
-				+ "{" + updConditionCountIntList[8] + "}, ");
-		sBuilder.append(BookMakersCommonConst.RESULT_UNKNOWN + ": {" + conditionCountIntList[9] + "} → "
-				+ "{" + updConditionCountIntList[9] + "}, ");
-		sBuilder.append(BookMakersCommonConst.UNEXPECTED_ERROR + ": {" + conditionCountIntList[10] + "} → "
-				+ "{" + updConditionCountIntList[10] + "}, ");
+				+ conditionCountIntList[IDX_DUE_TO_GOAL_DELETE_MAIL_TARGET_SUCCESS_MAIL_TARGET_FAIL_ALTER] + "} → "
+				+ "{"
+				+ updConditionCountIntList[IDX_DUE_TO_GOAL_DELETE_MAIL_TARGET_SUCCESS_MAIL_TARGET_FAIL_ALTER] + "}, ");
+		sBuilder.append(BookMakersCommonConst.RESULT_UNKNOWN + ": {"
+				+ conditionCountIntList[IDX_RESULT_UNKNOWN] + "} → "
+				+ "{" + updConditionCountIntList[IDX_RESULT_UNKNOWN] + "}, ");
+		sBuilder.append(BookMakersCommonConst.UNEXPECTED_ERROR + ": {"
+				+ conditionCountIntList[IDX_UNEXPECTED_ERROR] + "} → "
+				+ "{" + updConditionCountIntList[IDX_UNEXPECTED_ERROR] + "}, ");
 		return sBuilder.toString();
 	}
-
-	/**
-	 * 登録,更新メソッド
-	 * @param updFlg 更新フラグ
-	 * @param updConditionCountIntList 更新件数
-	 * @param condition 条件分岐データ
-	 * @param hash ハッシュ
-	 * @param fillChar 埋め字
-	 */
-	private synchronized void newData(boolean updFlg, Integer[] updConditionCountIntList, String condition, String hash,
-			String fillChar) {
-		final String METHOD_NAME = "newData";
-
-		// Entity設定
-		ConditionResultDataEntity conditionResultDataEntity = new ConditionResultDataEntity();
-		conditionResultDataEntity.setMailTargetCount(String.valueOf(updConditionCountIntList[0]));
-		conditionResultDataEntity.setMailAnonymousTargetCount(String.valueOf(updConditionCountIntList[1]));
-		conditionResultDataEntity.setMailTargetSuccessCount(String.valueOf(updConditionCountIntList[2]));
-		conditionResultDataEntity.setMailTargetFailCount(String.valueOf(updConditionCountIntList[3]));
-		conditionResultDataEntity.setExMailTargetToNoResultCount(String.valueOf(updConditionCountIntList[4]));
-		conditionResultDataEntity.setExNoFinDataToNoResultCount(String.valueOf(updConditionCountIntList[5]));
-		conditionResultDataEntity.setGoalDelete(String.valueOf(updConditionCountIntList[6]));
-		conditionResultDataEntity.setAlterTargetMailAnonymous(String.valueOf(updConditionCountIntList[7]));
-		conditionResultDataEntity.setAlterTargetMailFail(String.valueOf(updConditionCountIntList[8]));
-		conditionResultDataEntity.setNoResultCount(String.valueOf(updConditionCountIntList[9]));
-		conditionResultDataEntity.setErrData(String.valueOf(updConditionCountIntList[10]));
-		conditionResultDataEntity.setConditionData(condition);
-		conditionResultDataEntity.setHash(hash);
-
-		String messageCd = "";
-		boolean errFlg = false;
-		int result = -1;
-		if (updFlg) {
-			messageCd = "更新";
-			result = this.conditionResultDataRepository.update(conditionResultDataEntity);
-			if (result != 1) {
-				errFlg = true;
-				messageCd = "更新エラー";
-			}
-			fillChar += (", BM_M002 更新件数: 1件");
-		} else {
-			messageCd = "新規登録";
-			result = this.conditionResultDataRepository.insert(conditionResultDataEntity);
-			if (result != 1) {
-				errFlg = true;
-				messageCd = "新規登録エラー";
-			}
-			fillChar += (", BM_M002 登録件数: 1件");
-		}
-
-		if (errFlg) {
-			this.rootCauseWrapper.throwUnexpectedRowCount(
-			        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-			        messageCd,
-			        1, result,
-			        null
-			    );
-		}
-
-		// 途中ログ
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, fillChar);
-	}
-
 }

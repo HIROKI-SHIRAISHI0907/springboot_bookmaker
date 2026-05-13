@@ -1,25 +1,21 @@
 package dev.application.analyze.bm_m003;
 
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.concurrent.ConcurrentHashMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
-import dev.application.domain.repository.bm.TeamMonthlyScoreSummaryRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
-import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
 /**
  * BM_M003統計分析ロジック
- * @author shiraishitoshio
- *
  */
 @Component
 public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
@@ -34,321 +30,202 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M003_TEAM_MONTHLY_SCORE";
 
-	/** BM_STAT_NUMBER */
-	private static final String BM_NUMBER = "BM_M003";
-
-	/** TeamMonthlyScoreSummaryRepositoryレポジトリクラス */
 	@Autowired
-	private TeamMonthlyScoreSummaryRepository teamMonthlyScoreSummaryRepository;
+	private TeamMonthlyScoreSummaryWriter teamMonthlyScoreSummaryWriter;
 
-	/** ログ管理ラッパー*/
-	@Autowired
-	private RootCauseWrapper rootCauseWrapper;
-
-	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
 
-	/**
-	 * {@inheritDoc}
-	 */
 	@Override
 	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) {
 		final String METHOD_NAME = "calcStat";
+
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// スレッドセーフなマップ構造（逐次でも害はないので維持）
-		Map<String, Map<String, Map<String, Integer>>> goalCountMap = new ConcurrentHashMap<>();
+		try {
+			Map<String, Map<String, Map<String, Integer>>> goalCountMap = new HashMap<String, Map<String, Map<String, Integer>>>();
 
-		// ※並列不要なので逐次（parallelStream撤去）
-		for (Map.Entry<String, Map<String, List<BookDataEntity>>> outerEntry : entities.entrySet()) {
-			String countryLeague = outerEntry.getKey();
-			Map<String, List<BookDataEntity>> homeAwayMap = outerEntry.getValue();
+			if (entities == null || entities.isEmpty()) {
+				return;
+			}
 
-			for (Map.Entry<String, List<BookDataEntity>> innerEntry : homeAwayMap.entrySet()) {
-				// ここが「ファイル名-ホーム-アウェイ」形式のキー
-				String key = innerEntry.getKey(); // 例: "6089.csv-浦和-FC東京"
+			for (Map.Entry<String, Map<String, List<BookDataEntity>>> outerEntry : entities.entrySet()) {
+				String countryLeague = outerEntry.getKey();
+				Map<String, List<BookDataEntity>> homeAwayMap = outerEntry.getValue();
 
-				// 末尾空要素も保持（"-" -> ["", ""] になる）
-				String[] parts = (key == null) ? new String[0] : key.split("-", -1);
-
-				// 先頭はファイル名（あなたの要件）
-				String fileName = (parts.length >= 1) ? parts[0] : "";
-
-				// 想定：fileName-home-away... （最低3要素必要）
-				if (parts.length < 3) {
-					String messageCd = MessageCdConst.MCD00099I_LOG;
-					this.manageLoggerComponent.debugInfoLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-							"skip: invalid key format (need file-home-away). fileName=" + fileName
-							+ ", key=" + key
-							+ ", partsLen=" + parts.length
-							+ ", countryLeague=" + countryLeague);
+				if (homeAwayMap == null || homeAwayMap.isEmpty()) {
 					continue;
 				}
 
-				String homeTeam = parts[1];
-				// away側に '-' が混ざる可能性があるので残り全部を結合
-				String awayTeam;
-				if (parts.length == 3) {
-					awayTeam = parts[2];
-				} else {
-					StringBuilder sb = new StringBuilder();
-					for (int i = 2; i < parts.length; i++) {
-						if (i > 2) sb.append("-");
-						sb.append(parts[i]);
-					}
-					awayTeam = sb.toString();
-				}
+				for (Map.Entry<String, List<BookDataEntity>> innerEntry : homeAwayMap.entrySet()) {
+					String key = innerEntry.getKey();
+					String[] parts = (key == null) ? new String[0] : key.split("-", -1);
 
-				// 空ならスキップ（このとき fileName を必ず出す）
-				if (homeTeam == null || homeTeam.isBlank() || awayTeam == null || awayTeam.isBlank()) {
-					String messageCd = MessageCdConst.MCD00099I_LOG;
-					this.manageLoggerComponent.debugInfoLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-							"skip: blank home/away. fileName=" + fileName
-							+ ", key=" + key
-							+ ", home=" + homeTeam
-							+ ", away=" + awayTeam
-							+ ", countryLeague=" + countryLeague);
-					continue;
-				}
-
-				String home = homeTeam + "-home";
-				String away = awayTeam + "-away";
-
-				List<BookDataEntity> entityList = innerEntry.getValue();
-				if (entityList == null || entityList.isEmpty()) {
-					String messageCd = MessageCdConst.MCD00099I_LOG;
-					this.manageLoggerComponent.debugInfoLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-							"skip: empty entityList. fileName=" + fileName
-							+ ", key=" + key
-							+ ", countryLeague=" + countryLeague);
-					continue;
-				}
-
-				int prevHomeScore = 0;
-				int prevAwayScore = 0;
-
-				for (BookDataEntity entity : entityList) {
-					// 既存ログ（filePath）に加えて、ファイル名も欲しければここに出せます
-					String messageCd = MessageCdConst.MCD00099I_LOG;
-					this.manageLoggerComponent.debugInfoLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-							"fileName=" + fileName + ", filePath=" + entity.getFilePath());
-
-					String recordTime = entity.getRecordTime();
-					if (recordTime == null || recordTime.length() < 7)
+					String fileName = (parts.length >= 1) ? parts[0] : "";
+					if (parts.length < 3) {
+						String messageCd = MessageCdConst.MCD00099I_LOG;
+						this.manageLoggerComponent.debugInfoLog(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+								"skip: invalid key format (need file-home-away). fileName=" + fileName
+										+ ", key=" + key
+										+ ", partsLen=" + parts.length
+										+ ", countryLeague=" + countryLeague);
 						continue;
-					String yearMonth = recordTime.substring(0, 7);
+					}
 
-					// ゴール取り消しはスキップ
-					if (BookMakersCommonConst.GOAL_DELETE.equals(entity.getJudge()))
+					String homeTeam = parts[1];
+					String awayTeam = buildAwayTeam(parts);
+
+					if (isBlank(homeTeam) || isBlank(awayTeam)) {
+						String messageCd = MessageCdConst.MCD00099I_LOG;
+						this.manageLoggerComponent.debugInfoLog(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+								"skip: blank home/away. fileName=" + fileName
+										+ ", key=" + key
+										+ ", home=" + homeTeam
+										+ ", away=" + awayTeam
+										+ ", countryLeague=" + countryLeague);
 						continue;
-
-					int currentHomeScore = parseScore(entity.getHomeScore());
-					int currentAwayScore = parseScore(entity.getAwayScore());
-
-					// 差分でゴール検出
-					int diffHome = currentHomeScore - prevHomeScore;
-					int diffAway = currentAwayScore - prevAwayScore;
-
-					if (diffHome > 0) {
-						String team = home.replace("-home", "");
-						goalCountMap
-								.computeIfAbsent(countryLeague, k -> new ConcurrentHashMap<>())
-								.computeIfAbsent(team + "-H", k -> new ConcurrentHashMap<>())
-								.merge(yearMonth, diffHome, Integer::sum);
 					}
 
-					if (diffAway > 0) {
-						String team = away.replace("-away", "");
-						goalCountMap
-								.computeIfAbsent(countryLeague, k -> new ConcurrentHashMap<>())
-								.computeIfAbsent(team + "-A", k -> new ConcurrentHashMap<>())
-								.merge(yearMonth, diffAway, Integer::sum);
+					List<BookDataEntity> entityList = innerEntry.getValue();
+					if (entityList == null || entityList.isEmpty()) {
+						String messageCd = MessageCdConst.MCD00099I_LOG;
+						this.manageLoggerComponent.debugInfoLog(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+								"skip: empty entityList. fileName=" + fileName
+										+ ", key=" + key
+										+ ", countryLeague=" + countryLeague);
+						continue;
 					}
 
-					prevHomeScore = currentHomeScore;
-					prevAwayScore = currentAwayScore;
+					int prevHomeScore = 0;
+					int prevAwayScore = 0;
+
+					for (BookDataEntity entity : entityList) {
+						if (entity == null) {
+							continue;
+						}
+
+						String messageCd = MessageCdConst.MCD00099I_LOG;
+						this.manageLoggerComponent.debugInfoLog(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+								"fileName=" + fileName + ", filePath=" + entity.getFilePath());
+
+						String recordTime = entity.getRecordTime();
+						if (recordTime == null || recordTime.length() < 7) {
+							continue;
+						}
+
+						String yearMonth = recordTime.substring(0, 7);
+
+						if (BookMakersCommonConst.GOAL_DELETE.equals(entity.getJudge())) {
+							continue;
+						}
+
+						int currentHomeScore = parseScore(entity.getHomeScore());
+						int currentAwayScore = parseScore(entity.getAwayScore());
+
+						int diffHome = currentHomeScore - prevHomeScore;
+						int diffAway = currentAwayScore - prevAwayScore;
+
+						if (diffHome > 0) {
+							addGoal(goalCountMap, countryLeague, homeTeam, "H", yearMonth, diffHome);
+						}
+
+						if (diffAway > 0) {
+							addGoal(goalCountMap, countryLeague, awayTeam, "A", yearMonth, diffAway);
+						}
+
+						prevHomeScore = currentHomeScore;
+						prevAwayScore = currentAwayScore;
+					}
 				}
 			}
-		}
 
-		// 結果の登録/更新処理
+			flushGoalCount(goalCountMap);
+
+		} finally {
+			this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+			this.manageLoggerComponent.clear();
+		}
+	}
+
+	private void flushGoalCount(Map<String, Map<String, Map<String, Integer>>> goalCountMap) {
 		for (Map.Entry<String, Map<String, Map<String, Integer>>> leagueEntry : goalCountMap.entrySet()) {
-			String countryLeague = leagueEntry.getKey(); // 例: "Japan-J1"
+			String countryLeague = leagueEntry.getKey();
 			String[] split = ExecuteMainUtil.splitLeagueInfo(countryLeague);
 			String country = split[0];
 			String league = split[1];
 
 			Map<String, Map<String, Integer>> teamMap = leagueEntry.getValue();
+			if (teamMap == null) {
+				continue;
+			}
 
 			for (Map.Entry<String, Map<String, Integer>> teamEntry : teamMap.entrySet()) {
-				String teamWithHA = teamEntry.getKey(); // 例: "Kawasaki-H"
+				String teamWithHA = teamEntry.getKey();
 				Map<String, Integer> monthlyGoals = teamEntry.getValue();
 
-				// チーム名とHAを抽出
-				String teamName = teamWithHA.substring(0, teamWithHA.length() - 2); // "Kawasaki"
-				String ha = teamWithHA.substring(teamWithHA.length() - 1); // "H" or "A"
+				if (teamWithHA == null || teamWithHA.length() < 3 || monthlyGoals == null) {
+					continue;
+				}
+
+				String teamName = teamWithHA.substring(0, teamWithHA.length() - 2);
+				String ha = teamWithHA.substring(teamWithHA.length() - 1);
 
 				for (Map.Entry<String, Integer> monthEntry : monthlyGoals.entrySet()) {
-					String yearMonth = monthEntry.getKey(); // 例: "2025-07"
-					int goalCount = monthEntry.getValue();
+					String yearMonth = monthEntry.getKey();
+					Integer goalCount = monthEntry.getValue();
 
-					String year = yearMonth.substring(0, 4); // "2025"
-					String month = yearMonth.substring(5, 7); // "07"
-					int monthIndex = Integer.parseInt(month) - 1; // 0-based index
+					if (yearMonth == null || yearMonth.length() != 7 || goalCount == null || goalCount <= 0) {
+						continue;
+					}
 
-					// データ取得（getData）呼び出し
-					TeamStaticDataOutputDTO dto = getData(country, league, teamName, ha, year);
-					boolean chkFlg = dto.isUpdFlg();
-					String[] seasonCountList = dto.getScoreList();
-					String seq = dto.getSeq();
+					String year = yearMonth.substring(0, 4);
+					String month = yearMonth.substring(5, 7);
+					int monthIndex = Integer.parseInt(month) - 1;
 
-					// 加算処理
-					int existing = Integer.parseInt(seasonCountList[monthIndex]);
-					seasonCountList[monthIndex] = String.valueOf(existing + goalCount);
-
-					// 更新・登録処理
-					saveOrUpdate(country, league, teamName, ha, year, seasonCountList, chkFlg, seq);
+					this.teamMonthlyScoreSummaryWriter.addMonthlyGoal(
+							country, league, teamName, ha, year, monthIndex, goalCount.intValue());
 				}
 			}
 		}
-
-		this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		this.manageLoggerComponent.clear();
 	}
 
-	/**
-	 * データを取得する
-	 * @param country 国
-	 * @param league リーグ
-	 * @param ha Home,Away
-	 * @param team チーム
-	 * @param year 年
-	 * @param updFlg 更新フラグ
-	 */
-	private TeamStaticDataOutputDTO getData(String country, String league, String team, String ha,
-			String year) {
-		TeamStaticDataOutputDTO teamStaticDataOutputDTO = new TeamStaticDataOutputDTO();
-		TeamMonthlyScoreSummaryEntity teamMonthlyScoreSummaryEntity = new TeamMonthlyScoreSummaryEntity();
-		teamMonthlyScoreSummaryEntity.setCountry(country);
-		teamMonthlyScoreSummaryEntity.setLeague(league);
-		teamMonthlyScoreSummaryEntity.setTeamName(team);
-		teamMonthlyScoreSummaryEntity.setHa(ha);
-		teamMonthlyScoreSummaryEntity.setYear(year);
-		List<TeamMonthlyScoreSummaryEntity> entities = this.teamMonthlyScoreSummaryRepository
-				.findByCount(teamMonthlyScoreSummaryEntity);
-
-		String[] seasonCountList = new String[] {
-				"0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0", "0"
-		};
-		if (entities.isEmpty()) {
-			teamStaticDataOutputDTO.setUpdFlg(false);
-		} else {
-			teamStaticDataOutputDTO.setUpdFlg(true);
-			teamStaticDataOutputDTO.setSeq(entities.get(0).getSeq());
-			seasonCountList = new String[] {
-					entities.get(0).getJanuaryScoreSumCount(),
-					entities.get(0).getFebruaryScoreSumCount(),
-					entities.get(0).getMarchScoreSumCount(),
-					entities.get(0).getAprilScoreSumCount(),
-					entities.get(0).getMayScoreSumCount(),
-					entities.get(0).getJuneScoreSumCount(),
-					entities.get(0).getJulyScoreSumCount(),
-					entities.get(0).getAugustScoreSumCount(),
-					entities.get(0).getSeptemberScoreSumCount(),
-					entities.get(0).getOctoberScoreSumCount(),
-					entities.get(0).getNovemberScoreSumCount(),
-					entities.get(0).getDecemberScoreSumCount()
-			};
-		}
-		teamStaticDataOutputDTO.setScoreList(seasonCountList);
-		return teamStaticDataOutputDTO;
+	private void addGoal(Map<String, Map<String, Map<String, Integer>>> goalCountMap,
+			String countryLeague, String teamName, String ha, String yearMonth, int goalCount) {
+		goalCountMap
+				.computeIfAbsent(countryLeague, k -> new HashMap<String, Map<String, Integer>>())
+				.computeIfAbsent(teamName + "-" + ha, k -> new HashMap<String, Integer>())
+				.merge(yearMonth, Integer.valueOf(goalCount), Integer::sum);
 	}
 
-	/**
-	 *
-	 * @param country 国
-	 * @param league リーグ
-	 * @param ha Home,Away
-	 * @param team チーム
-	 * @param year 年
-	 * @param seasonCountList 件数リスト
-	 * @param seq 連番
-	 * @param 更新フラグ
-	 */
-	private synchronized void saveOrUpdate(String country, String league, String team, String ha,
-			String year, String[] seasonCountList, boolean updFlg, String seq) {
-		final String METHOD_NAME = "saveOrUpdate";
-
-		TeamMonthlyScoreSummaryEntity teamMonthlyScoreSummaryEntity = new TeamMonthlyScoreSummaryEntity();
-		teamMonthlyScoreSummaryEntity.setSeq(seq);
-		teamMonthlyScoreSummaryEntity.setCountry(country);
-		teamMonthlyScoreSummaryEntity.setLeague(league);
-		teamMonthlyScoreSummaryEntity.setTeamName(team);
-		teamMonthlyScoreSummaryEntity.setHa(ha);
-		teamMonthlyScoreSummaryEntity.setYear(year);
-		teamMonthlyScoreSummaryEntity.setJanuaryScoreSumCount(seasonCountList[0]);
-		teamMonthlyScoreSummaryEntity.setFebruaryScoreSumCount(seasonCountList[1]);
-		teamMonthlyScoreSummaryEntity.setMarchScoreSumCount(seasonCountList[2]);
-		teamMonthlyScoreSummaryEntity.setAprilScoreSumCount(seasonCountList[3]);
-		teamMonthlyScoreSummaryEntity.setMayScoreSumCount(seasonCountList[4]);
-		teamMonthlyScoreSummaryEntity.setJuneScoreSumCount(seasonCountList[5]);
-		teamMonthlyScoreSummaryEntity.setJulyScoreSumCount(seasonCountList[6]);
-		teamMonthlyScoreSummaryEntity.setAugustScoreSumCount(seasonCountList[7]);
-		teamMonthlyScoreSummaryEntity.setSeptemberScoreSumCount(seasonCountList[8]);
-		teamMonthlyScoreSummaryEntity.setOctoberScoreSumCount(seasonCountList[9]);
-		teamMonthlyScoreSummaryEntity.setNovemberScoreSumCount(seasonCountList[10]);
-		teamMonthlyScoreSummaryEntity.setDecemberScoreSumCount(seasonCountList[11]);
-		if (updFlg) {
-			int result = this.teamMonthlyScoreSummaryRepository.update(teamMonthlyScoreSummaryEntity);
-			if (result != 1) {
-				String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
-				this.rootCauseWrapper.throwUnexpectedRowCount(
-				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-				        messageCd,
-				        1, result,
-				        String.format("id=%s", seq)
-				    );
-			}
-
-			String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 更新件数: 1件");
-		} else {
-			int result = this.teamMonthlyScoreSummaryRepository.insertTeamMonthlyScore(teamMonthlyScoreSummaryEntity);
-			if (result != 1) {
-				String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-				this.rootCauseWrapper.throwUnexpectedRowCount(
-				        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-				        messageCd,
-				        1, result,
-				        null
-				    );
-			}
-
-			String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: 1件");
+	private String buildAwayTeam(String[] parts) {
+		if (parts.length == 3) {
+			return parts[2];
 		}
 
+		StringBuilder sb = new StringBuilder();
+		for (int i = 2; i < parts.length; i++) {
+			if (i > 2) {
+				sb.append("-");
+			}
+			sb.append(parts[i]);
+		}
+		return sb.toString();
 	}
 
-	/**
-	 * 得点があるかをチェックし,int型に変換する
-	 * @param scoreStr
-	 * @return
-	 */
 	private int parseScore(String scoreStr) {
 		try {
-			return (scoreStr == null || scoreStr.isBlank()) ? 0 : Integer.parseInt(scoreStr.trim());
+			return isBlank(scoreStr) ? 0 : Integer.parseInt(scoreStr.trim());
 		} catch (NumberFormatException e) {
 			return 0;
 		}
 	}
 
+	private boolean isBlank(String value) {
+		return value == null || value.trim().isEmpty();
+	}
 }

@@ -12,7 +12,6 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
-import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.bm_m002.ConditionResultDataStat;
 import dev.application.analyze.bm_m003.TeamMonthlyScoreSummaryStat;
@@ -38,7 +37,6 @@ import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
 @Service
-@Transactional
 public class CoreStat implements StatIF {
 
 	private static final String PROJECT_NAME = CoreStat.class.getProtectionDomain()

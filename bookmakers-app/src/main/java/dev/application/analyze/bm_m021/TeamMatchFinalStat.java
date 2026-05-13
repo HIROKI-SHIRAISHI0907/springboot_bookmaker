@@ -6,23 +6,25 @@ import java.util.Map;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.application.analyze.interf.AnalyzeEntityIF;
-import dev.application.domain.repository.bm.TeamMatchFinalStatsRepository;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
-import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
+import lombok.RequiredArgsConstructor;
 
 /**
- * BM_M021統計分析ロジック（安全な逐次版 + 詳細ログ）
+ * BM_M021統計分析ロジック
+ * - 集計/変換のみ担当
+ * - DB更新はWriterへ委譲
+ *
  * @author shiraishitoshio
  */
 @Component
+@RequiredArgsConstructor
 public class TeamMatchFinalStat implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */
@@ -35,27 +37,17 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M021_TEAM_MATCH_FINAL";
 
-	/** BM_STAT_NUMBER */
-	private static final String BM_NUMBER = "BM_M021";
-
 	/** SLF4J Logger */
 	private static final Logger log = LoggerFactory.getLogger(TeamMatchFinalStat.class);
 
-	/** TeamMatchFinalStatsRepositoryレポジトリクラス */
-	@Autowired
-	private TeamMatchFinalStatsRepository teamMatchFinalStatsRepository;
+	/** Mapper */
+	private final BookDataToTeamMatchFinalMapper bookDataToTeamMatchFinalMapper;
 
-	/** BookDataToTeamMatchFinalMapperマッパークラス */
-	@Autowired
-	private BookDataToTeamMatchFinalMapper bookDataToTeamMatchFinalMapper;
-
-	/** ログ管理ラッパー */
-	@Autowired
-	private RootCauseWrapper rootCauseWrapper;
+	/** Writer */
+	private final TeamMatchFinalWriter teamMatchFinalWriter;
 
 	/** ログ管理クラス */
-	@Autowired
-	private ManageLoggerComponent manageLoggerComponent;
+	private final ManageLoggerComponent manageLoggerComponent;
 
 	/**
 	 * {@inheritDoc}
@@ -111,7 +103,7 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 						continue;
 					}
 
-					BookDataEntity returnMaxEntity = null;
+					BookDataEntity returnMaxEntity;
 					try {
 						returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(dataList);
 					} catch (Exception e) {
@@ -168,11 +160,7 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 						log.info("[BM_M021] setFinal start. leagueKey={}, matchKey={}, fillChar={}",
 								leagueKey, matchKey, fillChar);
 
-						int beforeSaveCount = this.localSaveCount;
-						setFinal(dto, returnMaxEntity);
-						int afterSaveCount = this.localSaveCount;
-
-						int savedThisMatch = Math.max(0, afterSaveCount - beforeSaveCount);
+						int savedThisMatch = setFinal(dto, returnMaxEntity);
 						savedEntityCount += savedThisMatch;
 						processedMatchCount++;
 
@@ -201,47 +189,9 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 	}
 
 	/**
-	 * ローカル保存件数カウンタ
-	 * calcStat は逐次処理前提なのでシンプルな int で管理
-	 */
-	private int localSaveCount = 0;
-
-	/**
-	 * 登録メソッド
-	 * @param entities エンティティ
-	 * @param fillChar 埋め字
-	 */
-	private void saveTeamMatchData(TeamMatchFinalStatsEntity entities, String fillChar) {
-		final String METHOD_NAME = "saveTeamMatchData";
-
-		log.info("[BM_M021] before insert. fillChar={}, entity={}", fillChar, summarizeEntity(entities));
-
-		int result = this.teamMatchFinalStatsRepository.insert(entities);
-
-		log.info("[BM_M021] after insert. fillChar={}, result={}", fillChar, result);
-
-		if (result != 1) {
-			String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-			this.rootCauseWrapper.throwUnexpectedRowCount(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					messageCd,
-					1, result,
-					null
-			);
-		}
-
-		this.localSaveCount++;
-
-		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-				BM_NUMBER + " 登録件数: " + result + "件 (" + fillChar + ")");
-	}
-
-	/**
 	 * 終了済データ存在チェック
 	 * @param entity BookDataEntity
-	 * @return
+	 * @return true: FIN / false: FIN以外
 	 */
 	private boolean finDataExistsChk(BookDataEntity entity) {
 		final String METHOD_NAME = "finDataExistsChk";
@@ -262,7 +212,7 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 	 * @param detaKey 国リーグ
 	 * @param home ホーム
 	 * @param away アウェー
-	 * @return
+	 * @return 埋め字
 	 */
 	private String setLoggerFillChar(String detaKey, String home, String away) {
 		StringBuilder stringBuilder = new StringBuilder();
@@ -276,7 +226,7 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 	 * 特殊最終データ格納
 	 * @param entity List<BookDataEntity>
 	 * @param returnMaxEntity BookDataEntity
-	 * @return
+	 * @return TeamMatchFinalOutputDTO
 	 */
 	private TeamMatchFinalOutputDTO setFinalData(List<BookDataEntity> entity, BookDataEntity returnMaxEntity) {
 		TeamMatchFinalOutputDTO teamMatchFinalOutputDTO = new TeamMatchFinalOutputDTO();
@@ -386,11 +336,12 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 	}
 
 	/**
-	 * 最終登録データを格納
+	 * 最終登録データを作成し、Writerへ保存委譲
 	 * @param dto TeamMatchFinalOutputDTO
 	 * @param returnMaxEntity BookDataEntity
+	 * @return 保存件数
 	 */
-	private void setFinal(final TeamMatchFinalOutputDTO dto, final BookDataEntity returnMaxEntity) {
+	private int setFinal(final TeamMatchFinalOutputDTO dto, final BookDataEntity returnMaxEntity) {
 		BookDataEntity mappEntity = returnMaxEntity;
 
 		FinalData finalHomeData = dto.getHomeObject();
@@ -404,37 +355,44 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 
 		log.info("[BM_M021] mapping home entity. fillChar={}, resultHome={}", fillChar, resultHome);
 		TeamMatchFinalStatsEntity homeMatchFinalStatsEntity = this.bookDataToTeamMatchFinalMapper.mapHomeStruct(
-				mappEntity, finalHomeData, finalAwayData,
-				"H", resultHome, setSymbol(resultHome) + safe(returnMaxEntity.getHomeScore()) + "-" + safe(returnMaxEntity.getAwayScore()));
+				mappEntity,
+				finalHomeData,
+				finalAwayData,
+				"H",
+				setSymbol(resultHome) + safe(returnMaxEntity.getHomeScore()) + "-" + safe(returnMaxEntity.getAwayScore()),
+				resultHome);
 
 		log.info("[BM_M021] mapping away entity. fillChar={}, resultAway={}", fillChar, resultAway);
 		TeamMatchFinalStatsEntity awayMatchFinalStatsEntity = this.bookDataToTeamMatchFinalMapper.mapAwayStruct(
-				mappEntity, finalAwayData, finalHomeData,
-				"A", resultAway, setSymbol(resultAway) + safe(returnMaxEntity.getAwayScore()) + "-" + safe(returnMaxEntity.getHomeScore()));
+				mappEntity,
+				finalAwayData,
+				finalHomeData,
+				"A",
+				setSymbol(resultAway) + safe(returnMaxEntity.getAwayScore()) + "-" + safe(returnMaxEntity.getHomeScore()),
+				resultAway);
 
-		saveTeamMatchData(homeMatchFinalStatsEntity, fillChar);
-		saveTeamMatchData(awayMatchFinalStatsEntity, fillChar);
+		return this.teamMatchFinalWriter.writePair(homeMatchFinalStatsEntity, awayMatchFinalStatsEntity, fillChar);
 	}
 
 	/**
 	 * スコア比較
-	 * @param homeScore
-	 * @param awayScore
-	 * @return
+	 * @param ownScore 自チーム得点
+	 * @param oppositeScore 相手チーム得点
+	 * @return WIN / LOSE / DRAW
 	 */
-	private String compareScore(final String homeScore, final String awayScore) {
+	private String compareScore(final String ownScore, final String oppositeScore) {
 		try {
-			int home = Integer.parseInt(safe(homeScore));
-			int away = Integer.parseInt(safe(awayScore));
-			if (home > away) {
+			int own = Integer.parseInt(safe(ownScore));
+			int opposite = Integer.parseInt(safe(oppositeScore));
+			if (own > opposite) {
 				return "WIN";
 			}
-			if (home < away) {
+			if (own < opposite) {
 				return "LOSE";
 			}
 			return "DRAW";
 		} catch (NumberFormatException e) {
-			log.warn("[BM_M021] compareScore parse failed. homeScore={}, awayScore={}", homeScore, awayScore);
+			log.warn("[BM_M021] compareScore parse failed. ownScore={}, oppositeScore={}", ownScore, oppositeScore);
 			return "DRAW";
 		}
 	}
@@ -442,7 +400,7 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 	/**
 	 * 勝敗のマークを返す
 	 * @param result 勝敗
-	 * @return
+	 * @return ○ / ● / △
 	 */
 	private String setSymbol(final String result) {
 		if ("WIN".equals(result)) {
@@ -494,19 +452,5 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 		}
 		String value = list.get(index);
 		return value == null ? "" : value;
-	}
-
-	/**
-	 * insert前ログ用の簡易要約
-	 */
-	private String summarizeEntity(TeamMatchFinalStatsEntity entity) {
-		if (entity == null) {
-			return "null";
-		}
-		try {
-			return entity.toString();
-		} catch (Exception e) {
-			return entity.getClass().getSimpleName() + "@" + Integer.toHexString(System.identityHashCode(entity));
-		}
 	}
 }
