@@ -233,6 +233,11 @@ public class BmM030StatEncryptionBean {
 		this.endEncryptionIdx = endIdx;
 	}
 
+	public SecretKeySpec getCommonKey() {
+	    ensureCryptoInitialized();
+	    return this.secretKey;
+	}
+
 	public String getBmm030Key() {
 		return bmm030Key;
 	}

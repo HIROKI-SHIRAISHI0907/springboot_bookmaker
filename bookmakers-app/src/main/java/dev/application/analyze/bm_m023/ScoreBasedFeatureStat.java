@@ -2,12 +2,7 @@ package dev.application.analyze.bm_m023;
 
 import java.lang.reflect.Field;
 import java.lang.reflect.Modifier;
-import java.nio.charset.StandardCharsets;
-import java.security.InvalidAlgorithmParameterException;
-import java.security.InvalidKeyException;
-import java.security.NoSuchAlgorithmException;
 import java.util.ArrayList;
-import java.util.Base64;
 import java.util.Comparator;
 import java.util.LinkedHashSet;
 import java.util.List;
@@ -18,27 +13,23 @@ import java.util.concurrent.ConcurrentHashMap;
 import java.util.function.Function;
 import java.util.stream.Collectors;
 
-import javax.crypto.BadPaddingException;
-import javax.crypto.Cipher;
-import javax.crypto.IllegalBlockSizeException;
-import javax.crypto.NoSuchPaddingException;
 import javax.crypto.spec.IvParameterSpec;
-import javax.crypto.spec.SecretKeySpec;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.bm_m030.BmM030StatEncryptionBean;
 import dev.application.analyze.bm_m030.StatEncryptionEntity;
+import dev.application.analyze.bm_m030.StatEncryptionTxWriter;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.bm.ScoreBasedFeatureStatsRepository;
 import dev.application.domain.repository.bm.StatEncryptionRepository;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
-import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
@@ -58,51 +49,54 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M023_SCORE_BASED_FEATURE";
 
-	/** BM_STAT_NUMBER */
-	private static final String BM_NUMBER = "BM_M023";
-
-	/** 暗号アルゴリズム */
-	private static final String AES = "AES";
-
-	/** 暗号アルゴリズム */
-	private static final String AES_CBC_PKCS5Padding = "AES/CBC/PKCS5Padding";
-
-	/** 固定IV（BmM030StatEncryptionBean と同じ仕様） */
-	private static final byte[] FIXED_IV = new byte[16];
-
 	private static final Logger log = LoggerFactory.getLogger(ScoreBasedFeatureStat.class);
 
 	/** ロック */
 	private final ConcurrentHashMap<String, Object> lockMap = new ConcurrentHashMap<>();
 
 	/** Beanクラス */
-	@Autowired
-	private BmM023M024M026InitBean bmM023M024M026InitBean;
+	private final BmM023M024M026InitBean bmM023M024M026InitBean;
 
 	/** Beanクラス */
-	@Autowired
-	private BmM030StatEncryptionBean bmM030StatEncryptionBean;
+	private final BmM030StatEncryptionBean bmM030StatEncryptionBean;
 
 	/** ScoreBasedFeatureStatsRepository */
-	@Autowired
-	private ScoreBasedFeatureStatsRepository scoreBasedFeatureStatsRepository;
+	private final ScoreBasedFeatureStatsRepository scoreBasedFeatureStatsRepository;
 
 	/** StatEncryptionRepository */
-	@Autowired
-	private StatEncryptionRepository statEncryptionRepository;
-
-	/** ログ管理ラッパー */
-	@Autowired
-	private RootCauseWrapper rootCauseWrapper;
+	private final StatEncryptionRepository statEncryptionRepository;
 
 	/** ログ管理クラス */
-	@Autowired
-	private ManageLoggerComponent manageLoggerComponent;
+	private final ManageLoggerComponent manageLoggerComponent;
+
+	/** score_based_feature_stats 更新専用 */
+	private final ScoreBasedFeatureStatsTxWriter scoreBasedFeatureStatsTxWriter;
+
+	/** stat_encryption 更新専用 */
+	private final StatEncryptionTxWriter statEncryptionTxWriter;
+
+	public ScoreBasedFeatureStat(
+			BmM023M024M026InitBean bmM023M024M026InitBean,
+			BmM030StatEncryptionBean bmM030StatEncryptionBean,
+			ScoreBasedFeatureStatsRepository scoreBasedFeatureStatsRepository,
+			StatEncryptionRepository statEncryptionRepository,
+			ManageLoggerComponent manageLoggerComponent,
+			ScoreBasedFeatureStatsTxWriter scoreBasedFeatureStatsTxWriter,
+			StatEncryptionTxWriter statEncryptionTxWriter) {
+		this.bmM023M024M026InitBean = bmM023M024M026InitBean;
+		this.bmM030StatEncryptionBean = bmM030StatEncryptionBean;
+		this.scoreBasedFeatureStatsRepository = scoreBasedFeatureStatsRepository;
+		this.statEncryptionRepository = statEncryptionRepository;
+		this.manageLoggerComponent = manageLoggerComponent;
+		this.scoreBasedFeatureStatsTxWriter = scoreBasedFeatureStatsTxWriter;
+		this.statEncryptionTxWriter = statEncryptionTxWriter;
+	}
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
+	@Transactional(propagation = Propagation.NOT_SUPPORTED)
 	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) throws Exception {
 		final String METHOD_NAME = "calcStat";
 
@@ -208,16 +202,21 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 							if (stat.isUpd()) {
 								log.info("[BM_M023] update start. rawMatchKey={}, statIndex={}, {}",
 										rawMatchKey, statIndex, fillChar);
-								update(stat);
-								log.info("[BM_M023] update done. rawMatchKey={}, statIndex={}, {}",
-										rawMatchKey, statIndex, fillChar);
 							} else {
 								log.info("[BM_M023] insert start. rawMatchKey={}, statIndex={}, {}",
 										rawMatchKey, statIndex, fillChar);
-								insert(stat);
+							}
+
+							scoreBasedFeatureStatsTxWriter.write(stat);
+
+							if (stat.isUpd()) {
+								log.info("[BM_M023] update done. rawMatchKey={}, statIndex={}, {}",
+										rawMatchKey, statIndex, fillChar);
+							} else {
 								log.info("[BM_M023] insert done. rawMatchKey={}, statIndex={}, {}",
 										rawMatchKey, statIndex, fillChar);
 							}
+
 							statWriteCount++;
 						} catch (Exception e) {
 							log.error("[BM_M023] stat write failed. rawMatchKey={}, statIndex={}",
@@ -488,7 +487,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			return null;
 		}
 
-		// ここから下は既存ロジックそのまま
 		String[] minList = this.bmM023M024M026InitBean.getMinList().clone();
 		String[] maxList = this.bmM023M024M026InitBean.getMaxList().clone();
 		String[] aveList = this.bmM023M024M026InitBean.getAvgList().clone();
@@ -640,8 +638,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	private void saveStatEncryptionEntities(
 			ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map) throws Exception {
 
-		final String METHOD_NAME = "saveStatEncryptionEntities";
-
 		int index = 0;
 		for (StatEncryptionEntity entity : bmM30Map.values()) {
 			index++;
@@ -656,102 +652,12 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 					entity.getHome(), entity.getAway(), entity.getChkBody());
 
 			StatEncryptionEntity encrypted = encryptStatEncryptionEntity(entity);
+			this.statEncryptionTxWriter.save(encrypted);
 
-			int result;
-			if (entity.isUpdFlg()) {
-				log.info("[BM_M023] before statEncryptionRepository.updateEncValues. index={}", index);
-
-				result = this.statEncryptionRepository.updateEncValues(encrypted);
-
-				log.info("[BM_M023] after statEncryptionRepository.updateEncValues. index={}, result={}", index, result);
-
-				if (result != 1) {
-					String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
-					this.rootCauseWrapper.throwUnexpectedRowCount(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							messageCd,
-							1, result,
-							null);
-				}
-
-				String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-						BM_NUMBER + " 更新件数: " + result + "件 (BM_M030)");
-			} else {
-				log.info("[BM_M023] before statEncryptionRepository.insert. index={}", index);
-
-				result = this.statEncryptionRepository.insert(encrypted);
-
-				log.info("[BM_M023] after statEncryptionRepository.insert. index={}, result={}", index, result);
-
-				if (result != 1) {
-					String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-					this.rootCauseWrapper.throwUnexpectedRowCount(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							messageCd,
-							1, result,
-							null);
-				}
-
-				String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-						BM_NUMBER + " 登録件数: " + result + "件 (BM_M030)");
-			}
+			log.info("[BM_M023] BM_M030 entity done. index={}, updFlg={}, country={}, league={}, home={}, away={}, chkBody={}",
+					index, encrypted.isUpdFlg(), encrypted.getCountry(), encrypted.getLeague(),
+					encrypted.getHome(), encrypted.getAway(), encrypted.getChkBody());
 		}
-	}
-
-	/**
-	 * 登録
-	 */
-	private void insert(ScoreBasedFeatureStatsEntity entity) {
-		final String METHOD_NAME = "insert";
-		String fillChar = setLoggerFillChar(
-				entity.getSituation(), entity.getScore(), entity.getCountry(), entity.getLeague());
-
-		log.info("[BM_M023] before scoreBasedFeatureStatsRepository.insert. {}", fillChar);
-
-		int result = this.scoreBasedFeatureStatsRepository.insert(entity);
-
-		log.info("[BM_M023] after scoreBasedFeatureStatsRepository.insert. {} result={}", fillChar, result);
-
-		if (result != 1) {
-			String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, fillChar);
-			this.manageLoggerComponent.createSystemException(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, null);
-		}
-
-		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-				BM_NUMBER + " 登録件数: " + result + "件 (" + fillChar + ")");
-	}
-
-	/**
-	 * 更新
-	 */
-	private void update(ScoreBasedFeatureStatsEntity entity) {
-		final String METHOD_NAME = "update";
-		String fillChar = setLoggerFillChar(
-				entity.getSituation(), entity.getScore(), entity.getCountry(), entity.getLeague());
-
-		log.info("[BM_M023] before scoreBasedFeatureStatsRepository.updateStatValues. {}", fillChar);
-
-		int result = this.scoreBasedFeatureStatsRepository.updateStatValues(entity);
-
-		log.info("[BM_M023] after scoreBasedFeatureStatsRepository.updateStatValues. {} result={}", fillChar, result);
-
-		if (result != 1) {
-			String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
-			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, fillChar);
-			this.manageLoggerComponent.createSystemException(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, null);
-		}
-
-		String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-				BM_NUMBER + " 更新件数: " + result + "件 (" + fillChar + ")");
 	}
 
 	/**
@@ -1137,85 +1043,154 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	 * 歪度
 	 */
 	private String[] setSkewness(
-			StatEncryptionEntity entity,
-			String[] skewnessList,
-			String[] aveList,
-			String[] sigmaList,
-			Integer[] cntList) {
+	        StatEncryptionEntity entity,
+	        String[] skewnessList,
+	        String[] aveList,
+	        String[] sigmaList,
+	        Integer[] cntList) {
 
-		final String METHOD_NAME = "setSkewness";
-		Double[] skewness = new Double[AverageStatisticsSituationConst.COUNTER];
-		for (int i = 0; i < skewness.length; i++) {
-			skewness[i] = 0.0;
-		}
+	    final String METHOD_NAME = "setSkewness";
+	    Double[] skewness = new Double[AverageStatisticsSituationConst.COUNTER];
+	    for (int i = 0; i < skewness.length; i++) {
+	        skewness[i] = 0.0;
+	    }
 
-		List<String> orderedFieldNames = new ArrayList<>(this.bmM030StatEncryptionBean.getFieldMap().keySet());
+	    List<String> orderedFieldNames = new ArrayList<>(this.bmM030StatEncryptionBean.getFieldMap().keySet());
 
-		for (int idx = 0; idx < orderedFieldNames.size() && idx < skewness.length; idx++) {
-			String fieldName = orderedFieldNames.get(idx);
-			String fillChar = "フィールド名: " + fieldName;
+	    for (int idx = 0; idx < orderedFieldNames.size() && idx < skewness.length; idx++) {
+	        String fieldName = orderedFieldNames.get(idx);
+	        String fillChar = "フィールド名: " + fieldName;
 
-			try {
-				Field field = StatEncryptionEntity.class.getDeclaredField(fieldName);
-				field.setAccessible(true);
+	        try {
+	            Field field = StatEncryptionEntity.class.getDeclaredField(fieldName);
+	            field.setAccessible(true);
 
-				String currentValue = (String) field.get(entity);
-				fillChar += " , 値: " + currentValue;
+	            String currentValue = (String) field.get(entity);
+	            fillChar += " , 値: " + currentValue;
 
-				if (currentValue == null || currentValue.isBlank() || isPercentAndFractionFormat(currentValue)) {
-					continue;
-				}
+	            if (currentValue == null || currentValue.isBlank()) {
+	                continue;
+	            }
 
-				String[] skewList = currentValue.split(",");
+	            String[] skewList = currentValue.split(",");
 
-				int cnt = 0;
-				ScoreBasedFeatureOutputDTO dto1 = setSkewnessOrKurtosisSumAve(skewList, cnt);
-				String skewSumAve = dto1.getAve();
-				cnt = Integer.parseInt(dto1.getCnt());
-				String skewAve = (cnt == 0) ? "" : String.valueOf(Double.parseDouble(skewSumAve) / cnt);
+	            int cnt = 0;
+	            ScoreBasedFeatureOutputDTO dto1 = setSkewnessOrKurtosisSumAve(skewList, cnt);
+	            String skewSumAve = dto1.getAve();
+	            cnt = Integer.parseInt(dto1.getCnt());
+	            String skewAve = (cnt == 0) ? "" : String.valueOf(Double.parseDouble(skewSumAve) / cnt);
 
-				cnt = 0;
-				ScoreBasedFeatureOutputDTO dto2 = setSkewnessOrKurtosisSumSigma(skewList, skewAve, cnt);
-				String skewSumSigma = dto2.getSigma();
-				cnt = Integer.parseInt(dto2.getCnt());
-				String skewSigma = (cnt <= 1) ? ""
-						: String.valueOf(Math.sqrt(Double.parseDouble(skewSumSigma) / (cnt - 1)));
+	            cnt = 0;
+	            ScoreBasedFeatureOutputDTO dto2 = setSkewnessOrKurtosisSumSigma(skewList, skewAve, cnt);
+	            String skewSumSigma = dto2.getSigma();
+	            cnt = Integer.parseInt(dto2.getCnt());
+	            String skewSigma = (cnt <= 1) ? ""
+	                    : String.valueOf(Math.sqrt(Double.parseDouble(skewSumSigma) / (cnt - 1)));
 
-				if ("".equals(skewAve) || "".equals(skewSigma)) {
-					continue;
-				}
+	            if (skewAve.isBlank() || skewSigma.isBlank()) {
+	                continue;
+	            }
 
-				for (String skew : skewList) {
-					String currentSkewnessNumeric = parseStatValue(skew);
-					if (currentSkewnessNumeric == null) {
-						continue;
-					}
-					skewness[idx] += Math.pow(
-							(Double.parseDouble(currentSkewnessNumeric) - Double.parseDouble(skewAve))
-									/ Double.parseDouble(skewSigma),
-							3);
-				}
-				cntList[idx] = cnt;
-			} catch (Exception e) {
-				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-			}
-		}
+	            double sigma = Double.parseDouble(skewSigma);
+	            if (sigma == 0.0 || !Double.isFinite(sigma)) {
+	                continue;
+	            }
 
-		for (int i = 0; i < skewness.length; i++) {
-			int cnt = cntList[i];
-			double skew = skewness[i];
+	            for (String skew : skewList) {
+	                String currentSkewnessNumeric = parseStatValue(skew);
+	                if (currentSkewnessNumeric == null || currentSkewnessNumeric.isBlank()) {
+	                    continue;
+	                }
 
-			if (cnt < 3 || !Double.isFinite(skew)) {
-				skewnessList[i] = "0.000";
-				continue;
-			}
+	                double z = (Double.parseDouble(currentSkewnessNumeric) - Double.parseDouble(skewAve)) / sigma;
+	                skewness[idx] += Math.pow(z, 3);
+	            }
+	            cntList[idx] = cnt;
+	        } catch (Exception e) {
+	            String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
+	            this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
+	        }
+	    }
 
-			double result = (cnt / ((cnt - 1.0) * (cnt - 2.0))) * skew;
-			skewnessList[i] = Double.isFinite(result) ? String.format("%.3f", result) : "0.000";
-		}
+	    for (int i = 0; i < skewness.length; i++) {
+	        int cnt = cntList[i];
+	        double skew = skewness[i];
 
-		return skewnessList;
+	        if (cnt < 3 || !Double.isFinite(skew)) {
+	            skewnessList[i] = "0.000";
+	            continue;
+	        }
+
+	        double result = (cnt / ((cnt - 1.0) * (cnt - 2.0))) * skew;
+	        skewnessList[i] = Double.isFinite(result) ? String.format("%.3f", result) : "0.000";
+	    }
+
+	    return skewnessList;
+	}
+
+	private ScoreBasedFeatureOutputDTO setSkewnessOrKurtosisSumAve(
+	        String[] valueList,
+	        int cnt) {
+
+	    double sum = 0.0;
+	    int count = cnt;
+
+	    for (String value : valueList) {
+	        if (value == null || value.isBlank()) {
+	            continue;
+	        }
+
+	        String numeric = parseStatValue(value);
+	        if (numeric == null || numeric.isBlank()) {
+	            continue;
+	        }
+
+	        sum += Double.parseDouble(numeric);
+	        count++;
+	    }
+
+	    ScoreBasedFeatureOutputDTO dto = new ScoreBasedFeatureOutputDTO();
+	    dto.setAve(String.valueOf(sum));   // 実体は合計
+	    dto.setCnt(String.valueOf(count));
+	    return dto;
+	}
+
+	private ScoreBasedFeatureOutputDTO setSkewnessOrKurtosisSumSigma(
+	        String[] valueList,
+	        String ave,
+	        int cnt) {
+
+	    double sumSigma = 0.0;
+	    int count = cnt;
+
+	    if (ave == null || ave.isBlank()) {
+	        ScoreBasedFeatureOutputDTO dto = new ScoreBasedFeatureOutputDTO();
+	        dto.setSigma("0");
+	        dto.setCnt(String.valueOf(count));
+	        return dto;
+	    }
+
+	    double mean = Double.parseDouble(ave);
+
+	    for (String value : valueList) {
+	        if (value == null || value.isBlank()) {
+	            continue;
+	        }
+
+	        String numeric = parseStatValue(value);
+	        if (numeric == null || numeric.isBlank()) {
+	            continue;
+	        }
+
+	        double d = Double.parseDouble(numeric) - mean;
+	        sumSigma += d * d;
+	        count++;
+	    }
+
+	    ScoreBasedFeatureOutputDTO dto = new ScoreBasedFeatureOutputDTO();
+	    dto.setSigma(String.valueOf(sumSigma)); // 偏差平方和
+	    dto.setCnt(String.valueOf(count));
+	    return dto;
 	}
 
 	/**
@@ -1305,6 +1280,8 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 
 		return kurtosisList;
 	}
+
+
 
 	/**
 	 * 初期フォーマット
@@ -1514,7 +1491,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				return null;
 			}
 
-			// 重複がある場合は最大IDを採用
 			StatEncryptionEntity latest = list.stream()
 					.filter(e -> e != null)
 					.max(Comparator.comparingInt(e -> safeParseInt(e.getId(), Integer.MIN_VALUE)))
@@ -1542,8 +1518,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		StatEncryptionEntity decrypted = shallowCopyStatEncryptionEntity(entity);
 
 		Set<String> dataFieldNames = new LinkedHashSet<>(this.bmM030StatEncryptionBean.getFieldMap().keySet());
-		SecretKeySpec secretKey = createSecretKey();
-		IvParameterSpec iv = new IvParameterSpec(FIXED_IV);
 
 		for (String fieldName : dataFieldNames) {
 			Field field = StatEncryptionEntity.class.getDeclaredField(fieldName);
@@ -1554,7 +1528,11 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				continue;
 			}
 
-			String plain = decrypto(value, secretKey, iv);
+			String plain = this.bmM030StatEncryptionBean.decrypto(
+					value,
+					this.bmM030StatEncryptionBean.getSecretKey(),
+					new IvParameterSpec(new byte[16]));
+
 			field.set(decrypted, plain);
 		}
 
@@ -1569,8 +1547,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		StatEncryptionEntity encrypted = shallowCopyStatEncryptionEntity(entity);
 
 		Set<String> dataFieldNames = new LinkedHashSet<>(this.bmM030StatEncryptionBean.getFieldMap().keySet());
-		SecretKeySpec secretKey = createSecretKey();
-		IvParameterSpec iv = new IvParameterSpec(FIXED_IV);
 
 		for (String fieldName : dataFieldNames) {
 			Field field = StatEncryptionEntity.class.getDeclaredField(fieldName);
@@ -1582,7 +1558,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				continue;
 			}
 
-			String cipher = encrypto(value, secretKey, iv);
+			String cipher = this.bmM030StatEncryptionBean.encrypto(value);
 			field.set(encrypted, cipher);
 		}
 
@@ -1596,13 +1572,10 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		StatEncryptionEntity target = new StatEncryptionEntity();
 
 		for (Field field : StatEncryptionEntity.class.getDeclaredFields()) {
-			field.setAccessible(true);
-
-			int modifiers = field.getModifiers();
-			if (Modifier.isStatic(modifiers) || Modifier.isFinal(modifiers)) {
+			if (Modifier.isStatic(field.getModifiers())) {
 				continue;
 			}
-
+			field.setAccessible(true);
 			field.set(target, field.get(source));
 		}
 
@@ -1610,44 +1583,16 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	}
 
 	/**
-	 * 暗号キー作成
-	 */
-	private SecretKeySpec createSecretKey() {
-		String raw = this.bmM030StatEncryptionBean.getBmm030Key();
-		return new SecretKeySpec(raw.getBytes(StandardCharsets.UTF_8), AES);
-	}
-
-	/**
-	 * 暗号化
-	 */
-	private String encrypto(String plainText, SecretKeySpec key, IvParameterSpec iv)
-			throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
-			InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
-
-		Cipher encrypter = Cipher.getInstance(AES_CBC_PKCS5Padding);
-		encrypter.init(Cipher.ENCRYPT_MODE, key, iv);
-		byte[] encByte = encrypter.doFinal(plainText.getBytes(StandardCharsets.UTF_8));
-		return Base64.getEncoder().encodeToString(encByte);
-	}
-
-	/**
-	 * 復号
-	 */
-	private String decrypto(String encText, SecretKeySpec key, IvParameterSpec iv)
-			throws NoSuchAlgorithmException, NoSuchPaddingException, InvalidKeyException,
-			InvalidAlgorithmParameterException, IllegalBlockSizeException, BadPaddingException {
-
-		Cipher decrypter = Cipher.getInstance(AES_CBC_PKCS5Padding);
-		decrypter.init(Cipher.DECRYPT_MODE, key, iv);
-		byte[] byteText = Base64.getDecoder().decode(encText);
-		return new String(decrypter.doFinal(byteText), StandardCharsets.UTF_8);
-	}
-
-	/**
-	 * キー生成
+	 * マッチキー生成
 	 */
 	private String buildMatchKey(String country, String league, String home, String away, String chkBody) {
-		return nvl(country) + "||" + nvl(league) + "||" + nvl(home) + "||" + nvl(away) + "||" + nvl(chkBody);
+		return new StringBuilder()
+				.append(nvl(country)).append('|')
+				.append(nvl(league)).append('|')
+				.append(nvl(home)).append('|')
+				.append(nvl(away)).append('|')
+				.append(nvl(chkBody))
+				.toString();
 	}
 
 	/**
@@ -1657,156 +1602,66 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		return lockMap.computeIfAbsent(key, k -> new Object());
 	}
 
+
 	/**
-	 * null安全
+	 * クォート除去
 	 */
-	private String nvl(String s) {
-		return s == null ? "" : s;
+	private String removeQuote(String value) {
+		return value == null ? null : value.replace("'", "").trim();
 	}
 
 	/**
-	 * quote除去
+	 * null回避
 	 */
-	private String removeQuote(String s) {
-		return s == null ? "" : s.replace("'", "");
+	private String nvl(String value) {
+		return value == null ? "" : value;
 	}
 
 	/**
-	 * 数値変換安全版
+	 * リーグキー分解
 	 */
-	private double safeParseDouble(String s, double defaultValue) {
+	private String[] safeLeague(String rawLeagueKey) {
+		if (rawLeagueKey == null || rawLeagueKey.isBlank()) {
+			return new String[] { "", "" };
+		}
+
+		String[] split = rawLeagueKey.split(",", 2);
+		if (split.length < 2) {
+			return new String[] { "", "" };
+		}
+
+		return new String[] {
+				nvl(split[0]).trim(),
+				nvl(split[1]).trim()
+		};
+	}
+
+	/**
+	 * double変換
+	 */
+	private double safeParseDouble(String value, double defaultValue) {
+		if (value == null || value.isBlank()) {
+			return defaultValue;
+		}
 		try {
-			if (s == null || s.isBlank()) {
-				return defaultValue;
-			}
-			return Double.parseDouble(s);
+			return Double.parseDouble(removeQuote(value).replace("%", "").trim());
 		} catch (Exception e) {
 			return defaultValue;
 		}
 	}
 
 	/**
-	 * int変換安全版
+	 * int変換
 	 */
-	private int safeParseInt(String s, int defaultValue) {
+	private int safeParseInt(String value, int defaultValue) {
+		if (value == null || value.isBlank()) {
+			return defaultValue;
+		}
 		try {
-			if (s == null || s.isBlank()) {
-				return defaultValue;
-			}
-			return Integer.parseInt(s);
+			return Integer.parseInt(value.trim());
 		} catch (Exception e) {
 			return defaultValue;
 		}
 	}
 
-	/** 区切り文字で2分割 */
-	private static String[] split2(String s, String sep) {
-		if (s == null) {
-			return new String[] { "", "" };
-		}
-		int i = s.indexOf(sep);
-		if (i < 0) {
-			return new String[] { s, "" };
-		}
-		return new String[] { s.substring(0, i), s.substring(i + sep.length()) };
-	}
-
-	/** 「国,リーグ」を安全に分割 */
-	private static String[] safeLeague(String key) {
-		try {
-			String[] a = ExecuteMainUtil.splitLeagueInfo(key);
-			if (a != null && a.length >= 2) {
-				return new String[] { a[0], a[1] };
-			}
-			if (a != null && a.length == 1) {
-				return new String[] { a[0], "" };
-			}
-			return new String[] { "", "" };
-		} catch (Exception ignore) {
-			return split2(key, ",");
-		}
-	}
-
-	/**
-	 * skew/kurt補助：平均
-	 */
-	private ScoreBasedFeatureOutputDTO setSkewnessOrKurtosisSumAve(String[] skewOrKurtList, Integer cnt) {
-		ScoreBasedFeatureOutputDTO out = new ScoreBasedFeatureOutputDTO();
-		final String METHOD_NAME = "setSkewnessOrKurtosisSumAve";
-		double sum = 0.0;
-
-		for (int i = 0; i < skewOrKurtList.length; i++) {
-			String currentValue = skewOrKurtList[i];
-			String numericStr = parseStatValue(currentValue);
-			if (numericStr == null || numericStr.isBlank() || isPercentAndFractionFormat(currentValue)) {
-				continue;
-			}
-
-			try {
-				sum += Double.parseDouble(numericStr);
-				cnt++;
-			} catch (NumberFormatException e) {
-				String messageCd = MessageCdConst.MCD00015E_NUMBERFORMAT_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, numericStr);
-			} catch (Exception e) {
-				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, numericStr);
-			}
-		}
-
-		out.setCnt(String.valueOf(cnt));
-		out.setAve(String.valueOf(sum));
-		return out;
-	}
-
-	/**
-	 * skew/kurt補助：分散和
-	 */
-	private ScoreBasedFeatureOutputDTO setSkewnessOrKurtosisSumSigma(String[] skewOrKurtList, String skewOrKurtAve, Integer cnt) {
-		ScoreBasedFeatureOutputDTO out = new ScoreBasedFeatureOutputDTO();
-		final String METHOD_NAME = "setSkewnessOrKurtosisSumSigma";
-		double sum = 0.0;
-
-		for (int i = 0; i < skewOrKurtList.length; i++) {
-			String currentValue = skewOrKurtList[i];
-			String numericStr = parseStatValue(currentValue);
-			if (numericStr == null || numericStr.isBlank() || isPercentAndFractionFormat(currentValue)) {
-				continue;
-			}
-
-			try {
-				double numeric = Double.parseDouble(numericStr);
-				double ave = Double.parseDouble(skewOrKurtAve);
-				sum += Math.pow((numeric - ave), 2);
-				cnt++;
-			} catch (NumberFormatException e) {
-				String messageCd = MessageCdConst.MCD00015E_NUMBERFORMAT_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, numericStr);
-			} catch (Exception e) {
-				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, numericStr);
-			}
-		}
-
-		out.setCnt(String.valueOf(cnt));
-		out.setSigma(String.valueOf(sum));
-		return out;
-	}
-
-	/**
-	 * 既存スコアパターン抽出
-	 */
-	protected List<String> extractExistingScorePatterns(List<BookDataEntity> entities) {
-		if (entities == null || entities.isEmpty()) {
-			return List.of();
-		}
-
-		return entities.stream()
-				.filter(e -> e != null)
-				.map(e -> nvl(e.getHomeScore()) + "-" + nvl(e.getAwayScore()))
-				.filter(s -> !"-".equals(s))
-				.distinct()
-				.sorted()
-				.collect(Collectors.toList());
-	}
 }
