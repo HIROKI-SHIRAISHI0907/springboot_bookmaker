@@ -17,25 +17,20 @@ import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.bm_m023.ScoreBasedFeatureStatsEntity;
 import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureEntity;
 import dev.application.analyze.interf.AnalyzeEntityIF;
-import dev.application.domain.repository.bm.EachTeamScoreBasedFeatureStatsRepository;
-import dev.application.domain.repository.bm.ScoreBasedFeatureStatsRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
-import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
  * BM_M027統計分析ロジック
- * @author shiraishitoshio
- *
  */
 @Component
-@Transactional
 public class AnalyzeRankingStat implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */
@@ -48,77 +43,66 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M027_ANALYZE_RANKING";
 
-	/** BM_STAT_NUMBER */
-	private static final String BM_NUMBER = "BM_M027";
-
-	/** SCORE_BASED_FEATURE */
-	private static final String SCORE_BASED_FEATURE = "scoreBasedFeatureStats";
-
-	/** EACH_SCORE_BASED_FEATURE */
-	private static final String EACH_SCORE_BASED_FEATURE = "eachTeamScoreBasedFeatureStats";
-
-	/** 上位件数（必要に応じて調整） */
+	/** 上位件数 */
 	private static final int TOP_N = 68;
 
 	/** Beanクラス */
 	@Autowired
 	private BmM023M026InitStatRankingBean bean;
 
-	/** ScoreBasedFeatureStatsRepositoryレポジトリクラス */
-	@Autowired
-	private ScoreBasedFeatureStatsRepository scoreBasedFeatureStatsRepository;
-
-	/** EachTeamScoreBasedFeatureStatsRepositoryレポジトリクラス */
-	@Autowired
-	private EachTeamScoreBasedFeatureStatsRepository eachTeamScoreBasedFeatureStatsRepository;
-
-	/** ログ管理ラッパー*/
-	@Autowired
-	private RootCauseWrapper rootCauseWrapper;
-
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
+
+	/** ScoreBasedFeature 更新Writer */
+	@Autowired
+	private AnalyzeRankingScoreBasedFeatureWriter analyzeRankingScoreBasedFeatureWriter;
+
+	/** EachTeamScoreBasedFeature 更新Writer */
+	@Autowired
+	private AnalyzeRankingEachTeamScoreBasedFeatureWriter analyzeRankingEachTeamScoreBasedFeatureWriter;
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
+	@Transactional(propagation = Propagation.NOT_SUPPORTED)
 	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) {
 		final String METHOD_NAME = "calcStat";
-		// ログ出力
+
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		bean.init();
 
-		// 並列実行基盤
 		int threads = Math.max(2, Runtime.getRuntime().availableProcessors());
 		ExecutorService exec = Executors.newFixedThreadPool(threads);
+
 		try {
 			// =========================
-			// 1) overall（country-league-score）→ score 単位で並列
+			// 1) overall
 			// =========================
 			Map<String, List<KeyRanking>> scoreMap = this.bean.getScoreMap();
 			if (scoreMap == null || scoreMap.isEmpty()) {
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "", null,
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, "", null,
 						"scoreMap empty");
 			} else {
-				// score → List<KeyRanking> に再グルーピング
 				Map<String, List<KeyRanking>> byScoreOverall = new HashMap<>();
 				for (Map.Entry<String, List<KeyRanking>> e : scoreMap.entrySet()) {
-					String sc = extractScoreFromOverallKey(e.getKey()); // country-league-score の3番目
-					if (sc == null)
+					String sc = extractScoreFromOverallKey(e.getKey());
+					if (sc == null) {
 						continue;
+					}
 					byScoreOverall.computeIfAbsent(sc, k -> new ArrayList<>()).addAll(e.getValue());
 				}
 
-				// score ごとに並列実行
 				List<CompletableFuture<List<ScoreBasedFeatureStatsEntity>>> tasks = new ArrayList<>();
 				for (Map.Entry<String, List<KeyRanking>> g : byScoreOverall.entrySet()) {
 					final String sc = g.getKey();
 					final List<KeyRanking> items = g.getValue();
+
 					tasks.add(CompletableFuture.supplyAsync(() -> {
 						try {
 							Map<ScoreFieldKey, List<KeyRanking>> ordered = rankByScoreField(items, TOP_N);
@@ -135,19 +119,18 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 					}, exec));
 				}
 
-				// 結果収集 & 更新（更新は必要に応じて parallel にしてOK）
 				List<ScoreBasedFeatureStatsEntity> overallEntities = tasks.stream()
 						.map(CompletableFuture::join)
 						.flatMap(Collection::stream)
 						.collect(Collectors.toList());
 
 				for (ScoreBasedFeatureStatsEntity entity : overallEntities) {
-					update(entity);
+					this.analyzeRankingScoreBasedFeatureWriter.write(entity);
 				}
 			}
 
 			// =========================
-			// 2) eachTeam（country-league-score-team）→ score 単位で並列
+			// 2) eachTeam
 			// =========================
 			Map<String, List<KeyRanking>> eachTeamScoreMap = this.bean.getEachScoreMap();
 			if (eachTeamScoreMap == null || eachTeamScoreMap.isEmpty()) {
@@ -156,11 +139,12 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 						messageCd, null, "eachTeamScoreMap empty");
 			} else {
-				Map<String, List<KeyRanking>> byScoreEachTeam = new java.util.HashMap<>();
+				Map<String, List<KeyRanking>> byScoreEachTeam = new HashMap<>();
 				for (Map.Entry<String, List<KeyRanking>> e : eachTeamScoreMap.entrySet()) {
-					String sc = extractScoreFromEachTeamKey(e.getKey()); // country-league-score-team の3番目
-					if (sc == null)
+					String sc = extractScoreFromEachTeamKey(e.getKey());
+					if (sc == null) {
 						continue;
+					}
 					byScoreEachTeam.computeIfAbsent(sc, k -> new ArrayList<>()).addAll(e.getValue());
 				}
 
@@ -168,6 +152,7 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 				for (Map.Entry<String, List<KeyRanking>> g : byScoreEachTeam.entrySet()) {
 					final String sc = g.getKey();
 					final List<KeyRanking> items = g.getValue();
+
 					tasks.add(CompletableFuture.supplyAsync(() -> {
 						try {
 							Map<ScoreFieldKey, List<KeyRanking>> ordered = rankByScoreField(items, TOP_N);
@@ -190,14 +175,14 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 						.collect(Collectors.toList());
 
 				for (EachTeamScoreBasedFeatureEntity entity : eachTeamEntities) {
-					update(entity);
+					this.analyzeRankingEachTeamScoreBasedFeatureWriter.write(entity);
 				}
 			}
 
-			// endLog
 			this.manageLoggerComponent.debugEndInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 			this.manageLoggerComponent.clear();
+
 		} finally {
 			exec.shutdown();
 		}
@@ -205,15 +190,13 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 
 	/**
 	 * (score, field) ごとにグルーピングし、
-	 * avg が数値のものだけを降順にソート（同点は country→league→team 昇順）、
-	 * avg 非数（null/空/NaN/非数）はソートせず元順で末尾に付ける。
-	 * さらに上位 N にトリム（N<=0 の場合はトリムなし）。
+	 * avg が数値のものだけを降順にソート
 	 */
 	private Map<ScoreFieldKey, List<KeyRanking>> rankByScoreField(List<KeyRanking> items, int topN) {
-		if (items == null || items.isEmpty())
+		if (items == null || items.isEmpty()) {
 			return Collections.emptyMap();
+		}
 
-		// (score, field) でグルーピング
 		Map<ScoreFieldKey, List<KeyRanking>> grouped = items.stream()
 				.collect(Collectors.groupingBy(
 						kr -> new ScoreFieldKey(nullToEmpty(kr.getScore()), nullToEmpty(kr.getField())),
@@ -222,20 +205,18 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 
 		Map<ScoreFieldKey, List<KeyRanking>> ordered = new LinkedHashMap<>();
 
-		// 並べ替え（avg があるものだけ）
 		grouped.forEach((key, group) -> {
 			List<KeyRanking> withAvg = new ArrayList<>();
 			List<KeyRanking> noAvg = new ArrayList<>();
 			for (KeyRanking kr : group) {
 				Double v = parseAvgOrNull(kr.getAvg());
 				if (v == null) {
-					noAvg.add(kr); // 並べ替え対象外：元順のまま最後に
+					noAvg.add(kr);
 				} else {
-					withAvg.add(kr); // 降順でソートする
+					withAvg.add(kr);
 				}
 			}
 
-			// 降順（同値時は country→league→team 昇順で安定）
 			withAvg.sort(
 					Comparator.comparingDouble((KeyRanking kr) -> parseAvgOrNull(kr.getAvg()))
 							.reversed()
@@ -243,12 +224,10 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 							.thenComparing(KeyRanking::getLeague, Comparator.nullsLast(String::compareTo))
 							.thenComparing(KeyRanking::getTeam, Comparator.nullsLast(String::compareTo)));
 
-			// 上位 N 件にトリム（topN <= 0 ならトリムしない）
 			if (topN > 0 && withAvg.size() > topN) {
 				withAvg = new ArrayList<>(withAvg.subList(0, topN));
 			}
 
-			// 連結：ソート済み + 非ソート（avgなし）
 			List<KeyRanking> orderedList = new ArrayList<>(withAvg);
 			orderedList.addAll(noAvg);
 
@@ -256,58 +235,6 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 		});
 
 		return ordered;
-	}
-
-	/**
-	 * 更新メソッド
-	 * @param entity エンティティ
-	 */
-	private synchronized void update(ScoreBasedFeatureStatsEntity entity) {
-		final String METHOD_NAME = "update";
-		String fillChar = setLoggerFillChar(
-				entity.getScore(),
-				entity.getCountry(),
-				entity.getLeague(),
-				SCORE_BASED_FEATURE);
-		int result = this.scoreBasedFeatureStatsRepository.updateStatValues(entity);
-		if (result != 1) {
-			String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
-			this.rootCauseWrapper.throwUnexpectedRowCount(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					messageCd, 1, result,
-					String.format("id=%s", entity.getId()));
-		}
-
-		String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-				BM_NUMBER + " 更新件数: " + result + "件 (" + fillChar + ")");
-	}
-
-	/**
-	 * 更新メソッド
-	 * @param entity エンティティ
-	 */
-	private synchronized void update(EachTeamScoreBasedFeatureEntity entity) {
-		final String METHOD_NAME = "update";
-		String fillChar = setLoggerFillChar(
-				entity.getScore(),
-				entity.getCountry(),
-				entity.getLeague(),
-				EACH_SCORE_BASED_FEATURE);
-		int result = this.eachTeamScoreBasedFeatureStatsRepository.updateStatValues(entity);
-		if (result != 1) {
-			String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
-			this.rootCauseWrapper.throwUnexpectedRowCount(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					messageCd, 1, result,
-					String.format("id=%s", entity.getId()));
-		}
-
-		String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-				BM_NUMBER + " 更新件数: " + result + "件 (" + fillChar + ")");
 	}
 
 	/**
@@ -324,10 +251,12 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 
 		@Override
 		public boolean equals(Object o) {
-			if (this == o)
+			if (this == o) {
 				return true;
-			if (!(o instanceof ScoreFieldKey))
+			}
+			if (!(o instanceof ScoreFieldKey)) {
 				return false;
+			}
 			ScoreFieldKey that = (ScoreFieldKey) o;
 			return Objects.equals(score, that.score) &&
 					Objects.equals(field, that.field);
@@ -344,54 +273,46 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 		}
 	}
 
-	/** avg を数値にパース。null/空/非数/NaN/∞ は null を返す（＝並べ替え対象外） */
 	private static Double parseAvgOrNull(String in) {
-		if (in == null)
+		if (in == null) {
 			return null;
+		}
 		String s = in.trim();
-		if (s.isEmpty())
+		if (s.isEmpty()) {
 			return null;
-		if (s.endsWith("%"))
+		}
+		if (s.endsWith("%")) {
 			s = s.substring(0, s.length() - 1);
+		}
 		s = s.replace(",", "");
 		try {
 			double v = Double.parseDouble(s);
-			if (Double.isNaN(v) || Double.isInfinite(v))
+			if (Double.isNaN(v) || Double.isInfinite(v)) {
 				return null;
+			}
 			return v;
 		} catch (NumberFormatException e) {
 			return null;
 		}
 	}
 
-	/**
-	 * 空チェック
-	 * @param s
-	 * @return
-	 */
 	private static String nullToEmpty(String s) {
 		return s == null ? "" : s;
 	}
 
-	/**
-	 * 各 (score, field) グループ内で、avg が数値のものだけに "X位" を付与
-	 * 同値 avg に同じ順位を付与（標準競技順位: 1,1,3…）。avg 無効は順位なし
-	 * @param ordered
-	 */
 	private static void assignRanksWithTies(Map<ScoreFieldKey, List<KeyRanking>> ordered) {
 		ordered.forEach((key, list) -> {
-			int i = 0; // ソート済みの先頭からのインデックス（avgありのみを数える）
-			int rankNo = 1; // 表示する順位
-			Double prev = null; // 直前の avg（数値）
+			int i = 0;
+			int rankNo = 1;
+			Double prev = null;
 			for (KeyRanking kr : list) {
 				Double v = parseAvgOrNull(kr.getAvg());
-				if (v == null) { // 無効 → 順位なし
+				if (v == null) {
 					kr.setRank(null);
 					continue;
 				}
-				i++; // avg が数値の要素だけカウント
+				i++;
 				if (prev != null && Double.compare(v, prev) != 0) {
-					// 値が変わったら次の順位は現在のカウント i
 					rankNo = i;
 				}
 				kr.setRank(rankNo + "位");
@@ -400,43 +321,33 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 		});
 	}
 
-	/**
-	 * 各 (score, field) グループの要素に対して、value と rank を「value,rank」で連結して value に格納
-	 */
 	private static void concatValueWithRank(Map<ScoreFieldKey, List<KeyRanking>> ordered) {
 		ordered.forEach((k, list) -> {
 			for (KeyRanking kr : list) {
 				String r = kr.getRank();
 				if (r == null || r.isBlank()) {
-					continue; // 順位が無いものは変更しない
+					continue;
 				}
 				kr.setValue(joinComma(kr.getValue(), r));
 			}
 		});
 	}
 
-	/**
-	 * null/空文字を無視してカンマ連結（どちらか片方が空なら空でない方だけ返す）
-	 */
 	private static String joinComma(String a, String b) {
 		String s1 = (a == null) ? "" : a.trim();
 		String s2 = (b == null) ? "" : b.trim();
-		if (s1.isEmpty())
+		if (s1.isEmpty()) {
 			return s2;
-		if (s2.isEmpty())
+		}
+		if (s2.isEmpty()) {
 			return s1;
+		}
 		return s1 + "," + s2;
 	}
 
-	/**
-	 *  (score, field) → List<KeyRanking> をフラット化し、id でまとめて ScoreBasedFeatureStatsEntity を作成
-	 * @param ordered
-	 * @return
-	 */
 	private List<ScoreBasedFeatureStatsEntity> mergeToScoreBased(
 			Map<ScoreFieldKey, List<KeyRanking>> ordered) {
 
-		// すべてをフラット化 → id ごとにグルーピング
 		Map<String, List<KeyRanking>> byId = ordered.values().stream()
 				.flatMap(Collection::stream)
 				.collect(Collectors.groupingBy(
@@ -447,10 +358,10 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 		List<ScoreBasedFeatureStatsEntity> out = new ArrayList<>();
 
 		byId.forEach((id, list) -> {
-			if (list == null || list.isEmpty())
+			if (list == null || list.isEmpty()) {
 				return;
+			}
 
-			// ベース情報（country/league/score）は最初の要素から採る（不一致があれば先勝ち）
 			KeyRanking base = list.get(0);
 
 			ScoreBasedFeatureStatsEntity e = new ScoreBasedFeatureStatsEntity();
@@ -458,19 +369,17 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 			e.setCountry(base.getCountry());
 			e.setLeague(base.getLeague());
 			e.setScore(base.getScore());
-			// situation は KeyRanking に無いので、必要ならここで埋める
-			e.setSituation("得点あり"); // 例
+			e.setSituation("得点あり");
 
-			// 同一 id 内の各 field を ScoreBasedFeatureStatsEntity の同名プロパティへ反映
 			for (KeyRanking kr : list) {
-				if (kr == null)
+				if (kr == null) {
 					continue;
+				}
 				String fieldName = kr.getField();
-				String val = kr.getValue(); // すでに "value,rank" 形式
-				if (isBlank(fieldName) || isBlank(val))
+				String val = kr.getValue();
+				if (isBlank(fieldName) || isBlank(val)) {
 					continue;
-
-				// まだ値が入っていない場合のみセット（重複 field が来たら先勝ち）
+				}
 				setIfEmptyByReflection(e, normalizeToCamel(fieldName), val);
 			}
 
@@ -480,29 +389,23 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 		return out;
 	}
 
-	/**
-	 *  (score, field) → List<KeyRanking> をフラット化し、id でまとめて EachTeamScoreBasedFeatureEntity を作成
-	 * @param ordered
-	 * @return
-	 */
 	private List<EachTeamScoreBasedFeatureEntity> mergeToEachScoreBased(
 			Map<ScoreFieldKey, List<KeyRanking>> ordered) {
 
-		// すべてをフラット化 → id ごとにグルーピング
 		Map<String, List<KeyRanking>> byId = ordered.values().stream()
-				.flatMap(java.util.Collection::stream)
+				.flatMap(Collection::stream)
 				.collect(Collectors.groupingBy(
 						KeyRanking::getId,
 						LinkedHashMap::new,
-						Collectors.toCollection(java.util.ArrayList::new)));
+						Collectors.toCollection(ArrayList::new)));
 
 		List<EachTeamScoreBasedFeatureEntity> out = new ArrayList<>();
 
 		byId.forEach((id, list) -> {
-			if (list == null || list.isEmpty())
+			if (list == null || list.isEmpty()) {
 				return;
+			}
 
-			// ベース情報（country/league/score/team）は最初の要素から採る（不一致があれば先勝ち）
 			KeyRanking base = list.get(0);
 
 			EachTeamScoreBasedFeatureEntity e = new EachTeamScoreBasedFeatureEntity();
@@ -511,19 +414,17 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 			e.setLeague(base.getLeague());
 			e.setScore(base.getScore());
 			e.setTeam(base.getTeam());
-			// situation は KeyRanking に無いので、必要ならここで埋める
-			e.setSituation("得点あり"); // 例
+			e.setSituation("得点あり");
 
-			// 同一 id 内の各 field を ScoreBasedFeatureStatsEntity の同名プロパティへ反映
 			for (KeyRanking kr : list) {
-				if (kr == null)
+				if (kr == null) {
 					continue;
+				}
 				String fieldName = kr.getField();
-				String val = kr.getValue(); // すでに "value,rank" 形式
-				if (isBlank(fieldName) || isBlank(val))
+				String val = kr.getValue();
+				if (isBlank(fieldName) || isBlank(val)) {
 					continue;
-
-				// まだ値が入っていない場合のみセット（重複 field が来たら先勝ち）
+				}
 				setIfEmptyByReflection(e, normalizeToCamel(fieldName), val);
 			}
 
@@ -533,42 +434,29 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 		return out;
 	}
 
-	/**
-	 *  文字列が null/空白のみ なら true
-	 * @param s
-	 * @return
-	 */
 	private static boolean isBlank(String s) {
 		return s == null || s.trim().isEmpty();
 	}
 
-	/**
-	 *  フィールド名を camel に正規化（snake_case → camelCase）。既に camel の場合はそのまま
-	 * @param name
-	 * @return
-	 */
 	private static String normalizeToCamel(String name) {
-		if (name == null)
+		if (name == null) {
 			return null;
-		if (!name.contains("_"))
+		}
+		if (!name.contains("_")) {
 			return name.trim();
+		}
 		String[] parts = name.toLowerCase().split("_");
 		StringBuilder sb = new StringBuilder(parts[0]);
 		for (int i = 1; i < parts.length; i++) {
-			if (parts[i].isEmpty())
+			if (parts[i].isEmpty()) {
 				continue;
+			}
 			sb.append(Character.toUpperCase(parts[i].charAt(0)))
 					.append(parts[i].substring(1));
 		}
 		return sb.toString().trim();
 	}
 
-	/**
-	 *  反射でプロパティへ文字列をセット。既に値があれば上書きしない（先勝ち）。一致するフィールドが無ければログだけ。
-	 * @param target
-	 * @param fieldName
-	 * @param value
-	 */
 	private void setIfEmptyByReflection(ScoreBasedFeatureStatsEntity target, String fieldName, String value) {
 		final String METHOD_NAME = "setIfEmptyByReflection";
 		try {
@@ -591,12 +479,6 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 		}
 	}
 
-	/**
-	 *  反射でプロパティへ文字列をセット。既に値があれば上書きしない（先勝ち）。一致するフィールドが無ければログだけ。
-	 * @param target
-	 * @param fieldName
-	 * @param value
-	 */
 	private void setIfEmptyByReflection(EachTeamScoreBasedFeatureEntity target, String fieldName, String value) {
 		final String METHOD_NAME = "setIfEmptyByReflection";
 		try {
@@ -620,44 +502,24 @@ public class AnalyzeRankingStat implements AnalyzeEntityIF {
 	}
 
 	/**
-	 * "country-league-score" → score
-	 * @param key
-	 * @return
+	 * "country_league_score" → score
 	 */
 	private static String extractScoreFromOverallKey(String key) {
-		if (key == null)
+		if (key == null) {
 			return null;
-		String[] parts = key.split("-", 3); // 3パーツに限定
+		}
+		String[] parts = key.split("_", 3);
 		return parts.length == 3 ? parts[2].trim() : null;
 	}
 
 	/**
-	 * "country-league-score-team" → score（team にハイフンが含まれてもOK）
-	 * @param key
-	 * @return
+	 * "country_league_team_score" → score
 	 */
 	private static String extractScoreFromEachTeamKey(String key) {
-		if (key == null)
+		if (key == null) {
 			return null;
-		String[] parts = key.split("-", 4); // 先頭3つを country/league/score として確定
-		return parts.length >= 3 ? parts[2].trim() : null;
-	}
-
-	/**
-	 * 埋め字設定
-	 * @param score スコア
-	 * @param country 国
-	 * @param league リーグ
-	 * @param bikou 備考
-	 * @return
-	 */
-	private String setLoggerFillChar(String score,
-			String country, String league, String bikou) {
-		StringBuilder stringBuilder = new StringBuilder();
-		stringBuilder.append("スコア: " + score + ", ");
-		stringBuilder.append("国: " + country + ", ");
-		stringBuilder.append("リーグ: " + league + ", ");
-		stringBuilder.append("備考: " + bikou);
-		return stringBuilder.toString();
+		}
+		String[] parts = key.split("_", 4);
+		return parts.length == 4 ? parts[3].trim() : null;
 	}
 }

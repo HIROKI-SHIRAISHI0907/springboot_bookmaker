@@ -12,10 +12,8 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.domain.repository.bm.BookDataRepository;
-import dev.application.domain.repository.bm.RealDataProcessRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
-import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
@@ -26,7 +24,7 @@ import dev.common.logger.ManageLoggerComponent;
  * 2. dataテーブルから dataCategory + home_team_name + away_team_name で検索
  * 3. seq降順で最新1件と1件前を取得
  * 4. 差分を計算して RealDataProcessEntity に詰め替え
- * 5. 既存があれば更新、無ければ登録
+ * 5. Writer に委譲して保存
  */
 @Component
 public class RealDataProcessStat {
@@ -59,17 +57,13 @@ public class RealDataProcessStat {
 	@Autowired
 	private BookDataRepository dataRepository;
 
-	/** 差分保存Repository */
-	@Autowired
-	private RealDataProcessRepository realDataProcessStatsRepository;
-
-	/** 例外ラッパー */
-	@Autowired
-	private RootCauseWrapper rootCauseWrapper;
-
 	/** ログ */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
+
+	/** 差分保存Writer */
+	@Autowired
+	private RealDataProcessWriter realDataProcessWriter;
 
 	/**
 	 * 差分保存処理
@@ -80,84 +74,94 @@ public class RealDataProcessStat {
 	 *
 	 * 実際の差分計算は data テーブルの最新2件を使用する
 	 */
-	@Transactional(propagation = Propagation.REQUIRES_NEW)
+	@Transactional(propagation = Propagation.NOT_SUPPORTED)
 	public void calcStat(Map<String, List<DataEntity>> entities) {
 		final String METHOD_NAME = "calcStat";
+
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		entities.entrySet().parallelStream().forEach(entry -> {
-			String matchKey = entry.getKey();
-			List<DataEntity> candidates = entry.getValue();
-
-			if (candidates == null || candidates.isEmpty()) {
+		try {
+			if (entities == null || entities.isEmpty()) {
+				this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+						BM_NUMBER + " skip: entities empty");
 				return;
 			}
 
-			DataEntity seed = findFirstNonNull(candidates);
-			if (seed == null) {
-				return;
-			}
+			entities.entrySet().parallelStream().forEach(entry -> {
+				String matchKey = entry.getKey();
+				List<DataEntity> candidates = entry.getValue();
 
-			String dataCategory = trimToNull(seed.getDataCategory());
-			String homeTeamName = trimToNull(seed.getHomeTeamName());
-			String awayTeamName = trimToNull(seed.getAwayTeamName());
+				if (candidates == null || candidates.isEmpty()) {
+					return;
+				}
 
-			if (isBlank(dataCategory) || isBlank(homeTeamName) || isBlank(awayTeamName)) {
+				DataEntity seed = findFirstNonNull(candidates);
+				if (seed == null) {
+					return;
+				}
+
+				String dataCategory = trimToNull(seed.getDataCategory());
+				String homeTeamName = trimToNull(seed.getHomeTeamName());
+				String awayTeamName = trimToNull(seed.getAwayTeamName());
+
+				if (isBlank(dataCategory) || isBlank(homeTeamName) || isBlank(awayTeamName)) {
+					String messageCd = MessageCdConst.MCD00099I_LOG;
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+							"skip: key不足 matchKey=" + matchKey
+									+ ", dataCategory=" + dataCategory
+									+ ", home=" + homeTeamName
+									+ ", away=" + awayTeamName);
+					return;
+				}
+
 				String messageCd = MessageCdConst.MCD00099I_LOG;
 				this.manageLoggerComponent.debugInfoLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-						"skip: key不足 matchKey=" + matchKey
+						"差分対象取得 matchKey=" + matchKey
 								+ ", dataCategory=" + dataCategory
 								+ ", home=" + homeTeamName
 								+ ", away=" + awayTeamName);
-				return;
-			}
 
-			String messageCd = MessageCdConst.MCD00099I_LOG;
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-					"差分対象取得 matchKey=" + matchKey
-							+ ", dataCategory=" + dataCategory
-							+ ", home=" + homeTeamName
-							+ ", away=" + awayTeamName);
+				List<DataEntity> latestTwo = this.dataRepository.findLatestTwoByTeams(
+						dataCategory, homeTeamName, awayTeamName);
 
-			// dataテーブルから最新2件取得（seq DESC）
-			List<DataEntity> latestTwo = this.dataRepository.findLatestTwoByTeams(
-					dataCategory, homeTeamName, awayTeamName);
+				if (latestTwo == null || latestTwo.isEmpty()) {
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+							"dataテーブル対象なし matchKey=" + matchKey
+									+ ", dataCategory=" + dataCategory
+									+ ", home=" + homeTeamName
+									+ ", away=" + awayTeamName);
+					return;
+				}
 
-			if (latestTwo == null || latestTwo.isEmpty()) {
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-						"dataテーブル対象なし matchKey=" + matchKey
-								+ ", dataCategory=" + dataCategory
-								+ ", home=" + homeTeamName
-								+ ", away=" + awayTeamName);
-				return;
-			}
+				DataEntity latest = latestTwo.get(0);
+				DataEntity previous = latestTwo.size() >= 2 ? latestTwo.get(1) : null;
 
-			DataEntity latest = latestTwo.get(0);
-			DataEntity previous = latestTwo.size() >= 2 ? latestTwo.get(1) : null;
+				RealDataProcessEntity entity = buildDiffEntity(dataCategory, latest, previous);
 
-			RealDataProcessEntity entity = buildDiffEntity(dataCategory, latest, previous);
+				String matchId = trimToNull(entity.getMatchId());
+				if (isBlank(matchId)) {
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+							"skip: matchId不足 matchKey=" + matchKey
+									+ ", dataCategory=" + dataCategory
+									+ ", home=" + homeTeamName
+									+ ", away=" + awayTeamName
+									+ ", gameId=" + entity.getGameId());
+					return;
+				}
 
-			String matchId = trimToNull(entity.getMatchId());
-			if (isBlank(matchId)) {
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-						"skip: matchId不足 matchKey=" + matchKey
-								+ ", dataCategory=" + dataCategory
-								+ ", home=" + homeTeamName
-								+ ", away=" + awayTeamName
-								+ ", gameId=" + entity.getGameId());
-				return;
-			}
+				this.realDataProcessWriter.write(entity);
+			});
 
-			saveOrUpdate(entity);
-		});
-
-		this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		this.manageLoggerComponent.clear();
+		} finally {
+			this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+			this.manageLoggerComponent.clear();
+		}
 	}
 
 	/**
@@ -284,39 +288,6 @@ public class RealDataProcessStat {
 	}
 
 	/**
-	 * insert / update
-	 *
-	 * match_id 基準で UPSERT
-	 */
-	private void saveOrUpdate(RealDataProcessEntity entity) {
-		final String METHOD_NAME = "saveOrUpdate";
-
-		String matchId = trimToNull(entity.getMatchId());
-		if (isBlank(matchId)) {
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-					BM_NUMBER + " skip: matchId が空のため保存スキップ (" + setLoggerFillChar(entity) + ")");
-			return;
-		}
-
-		int result = this.realDataProcessStatsRepository.upsertByMatchId(entity);
-
-		if (result != 1) {
-			String errorCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-			this.rootCauseWrapper.throwUnexpectedRowCount(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					errorCd,
-					1, result,
-					null
-			);
-		}
-
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-				BM_NUMBER + " UPSERT件数: 1件 (" + setLoggerFillChar(entity) + ")");
-	}
-
-	/**
 	 * 差分文字列作成
 	 */
 	private String diffValue(String current, String previous) {
@@ -427,18 +398,6 @@ public class RealDataProcessStat {
 			}
 		}
 		return null;
-	}
-
-	private String setLoggerFillChar(RealDataProcessEntity entity) {
-		StringBuilder sb = new StringBuilder();
-		sb.append("国,リーグ: ").append(entity.getDataCategory()).append(", ");
-		sb.append("ホームチーム: ").append(entity.getHomeTeamName()).append(", ");
-		sb.append("アウェーチーム: ").append(entity.getAwayTeamName()).append(", ");
-		sb.append("試合時間: ").append(entity.getTimes()).append(", ");
-		sb.append("記録時間: ").append(entity.getRecordTime()).append(", ");
-		sb.append("gameId: ").append(entity.getGameId()).append(", ");
-		sb.append("matchId: ").append(entity.getMatchId());
-		return sb.toString();
 	}
 
 	private String firstNonBlank(String a, String b) {

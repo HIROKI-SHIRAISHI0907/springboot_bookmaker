@@ -22,7 +22,7 @@ public class StatEncryptionTxWriter {
 	private static final String CLASS_NAME = StatEncryptionTxWriter.class.getName();
 
 	/** BM_STAT_NUMBER */
-	private static final String BM_NUMBER = "BM_M023";
+	private static final String BM_NUMBER = "BM_M023_BM_M026";
 
 	private static final Logger log = LoggerFactory.getLogger(StatEncryptionTxWriter.class);
 

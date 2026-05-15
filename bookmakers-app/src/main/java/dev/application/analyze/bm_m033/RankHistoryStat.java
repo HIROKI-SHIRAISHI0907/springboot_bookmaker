@@ -1,28 +1,31 @@
 package dev.application.analyze.bm_m033;
 
+import java.math.BigDecimal;
 import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.bm.BookDataRepository;
-import dev.application.domain.repository.bm.RankHistoryStatRepository;
 import dev.application.domain.repository.master.CountryLeagueSeasonMasterRepository;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
-import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
 /**
  * BM_M033統計分析ロジック
- * @author shiraishitoshio
- *
+ * 集計・判定のみ担当
  */
 @Component
 public class RankHistoryStat implements AnalyzeEntityIF {
@@ -44,17 +47,13 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 	@Autowired
 	private BookDataRepository bookDataRepository;
 
-	/** RankHistoryStatRepositoryレポジトリクラス */
-	@Autowired
-	private RankHistoryStatRepository rankHistoryStatRepository;
-
 	/** CountryLeagueSeasonMasterRepositoryレポジトリクラス */
 	@Autowired
 	private CountryLeagueSeasonMasterRepository countryLeagueSeasonMasterRepository;
 
-	/** ログ管理ラッパー*/
+	/** Writer */
 	@Autowired
-	private RootCauseWrapper rootCauseWrapper;
+	private RankHistoryWriter rankHistoryWriter;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -62,250 +61,216 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 
 	/**
 	 * {@inheritDoc}
-	 * @throws Exception
 	 */
 	@Override
+	@Transactional(propagation = Propagation.NOT_SUPPORTED)
 	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) {
 		final String METHOD_NAME = "calcStat";
-		// ログ出力
+
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// 全リーグ・国を走査
-		for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
-			Map<String, List<BookDataEntity>> entrySub = entry.getValue();
+		try {
+			if (entities == null || entities.isEmpty()) {
+				this.manageLoggerComponent.debugEndInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+				return;
+			}
 
-			for (List<BookDataEntity> entityList : entrySub.values()) {
-				// null や空リストはスキップ
-				if (entityList == null || entityList.isEmpty()) {
+			// seasonYear キャッシュ
+			Map<String, String> seasonCache = new HashMap<>();
+
+			// 同じ match の後付け順位を何回も実行しないための制御
+			Set<String> processedBackfillKeys = new HashSet<>();
+
+			for (Map<String, List<BookDataEntity>> entrySub : entities.values()) {
+				if (entrySub == null || entrySub.isEmpty()) {
 					continue;
 				}
 
-				int match = -1;
-
-				// 1チームぶんの試合リスト
-				for (BookDataEntity entity : entityList) {
-
-					// gameTeamCategory から match 抽出（null/blank ケア）
-					String category = entity.getGameTeamCategory();
-					if (category != null && !category.isBlank()) {
-						match = ExecuteMainUtil.extractRoundNumbers(category);
-					}
-
-					// 終了済以外はスキップ
-					if (!BookMakersCommonConst.FIN.equals(entity.getTime())
-							&& !entity.getTime().contains(BookMakersCommonConst.PENALTY)) {
+				for (List<BookDataEntity> entityList : entrySub.values()) {
+					if (entityList == null || entityList.isEmpty()) {
 						continue;
 					}
 
-					List<String> countryLeague = ExecuteMainUtil
-							.getCountryLeagueByRegex(category);
-					if (countryLeague.isEmpty()) {
-						String messageCd = MessageCdConst.MCD00001W_COUNTRY_LEAGUE_SPLIT_FAIL_WARNING;
-						this.manageLoggerComponent.debugWarnLog(
-								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-								"ExecuteMainUtil.getCountryLeagueByRegex(分割失敗: " + category + ")");
-						continue;
-					}
-
-					String country = countryLeague.get(0);
-					String league  = countryLeague.get(1);
-
-					String seasonYear = countryLeagueSeasonMasterRepository.findCurrentSeasonYear(country, league);
-					if (seasonYear == null || seasonYear.isBlank()) {
-					    // 今シーズンが未登録ならスキップ or 警告
-					    this.manageLoggerComponent.debugWarnLog(
-					        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					        MessageCdConst.MCD00001W_COUNTRY_LEAGUE_SPLIT_FAIL_WARNING,
-					        "season_year not found: " + country + " / " + league
-					    );
-					    continue;
-					}
-
-					// 試合ごとに homeRank / awayRank をリセット
-					int homeRank = -1;
-					int awayRank = -1;
-
-					// 基本はアプリ稼働の同タイミングでhome, awayが同じチームがある、
-					// home,awayに同じチームが登録される場合でもmatchが異なる
-					// 順位が設定済み（ホーム）
-					String homeRankStr = entity.getHomeRank();
-					if (homeRankStr != null && !homeRankStr.isBlank()) {
-						RankHistoryEntity rankHistoryEntity = new RankHistoryEntity();
-						homeRank = Integer.parseInt(homeRankStr.replace(".0", "").replace(".", ""));
-						rankHistoryEntity.setCountry(country);
-						rankHistoryEntity.setLeague(league);
-						rankHistoryEntity.setSeasonYear(seasonYear);
-						rankHistoryEntity.setTeam(entity.getHomeTeamName());
-						rankHistoryEntity.setMatch(match);
-						rankHistoryEntity.setRank(homeRank);
-						String key = country + ": " + league + ": "
-								+ entity.getHomeTeamName();
-
-						if (this.rankHistoryStatRepository.select(rankHistoryEntity) > 0) {
-							int result = this.rankHistoryStatRepository.update(rankHistoryEntity);
-							if (result != 1) {
-								String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
-								this.rootCauseWrapper.throwUnexpectedRowCount(
-										PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-										messageCd,
-										1, result,
-										key);
-							}
-
-							String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
-							this.manageLoggerComponent.debugInfoLog(
-									PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-									BM_NUMBER + " ホーム更新件数: " + result + "件 (" + key + ")");
-						} else {
-							int result = this.rankHistoryStatRepository.insert(rankHistoryEntity);
-							if (result != 1) {
-								String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-								this.rootCauseWrapper.throwUnexpectedRowCount(
-										PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-										messageCd,
-										1, result,
-										key);
-							}
-
-							String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
-							this.manageLoggerComponent.debugInfoLog(
-									PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-									BM_NUMBER + " ホーム登録件数: " + result + "件 (" + key + ")");
+					for (BookDataEntity entity : entityList) {
+						if (entity == null) {
+							continue;
 						}
-					}
 
-					// 順位が設定済み（アウェイ）
-					String awayRankStr = entity.getAwayRank();
-					if (awayRankStr != null && !awayRankStr.isBlank()) {
-						RankHistoryEntity rankHistoryEntity2 = new RankHistoryEntity();
-						awayRank = Integer.parseInt(awayRankStr.replace(".0", "").replace(".", ""));
-						rankHistoryEntity2.setCountry(country);
-						rankHistoryEntity2.setLeague(league);
-						rankHistoryEntity2.setSeasonYear(seasonYear);
-						rankHistoryEntity2.setTeam(entity.getAwayTeamName());
-						rankHistoryEntity2.setMatch(match);
-						rankHistoryEntity2.setRank(awayRank);
-						String key = country + ": " + league + ": "
-								+ entity.getAwayTeamName();
-
-						if (this.rankHistoryStatRepository.select(rankHistoryEntity2) > 0) {
-							int result = this.rankHistoryStatRepository.update(rankHistoryEntity2);
-							if (result != 1) {
-								String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
-								this.rootCauseWrapper.throwUnexpectedRowCount(
-										PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-										messageCd,
-										1, result,
-										key);
-							}
-
-							String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
-							this.manageLoggerComponent.debugInfoLog(
-									PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-									BM_NUMBER + " アウェー更新件数: " + result + "件 (" + key + ")");
-						} else {
-							int result = this.rankHistoryStatRepository.insert(rankHistoryEntity2);
-							if (result != 1) {
-								String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-								this.rootCauseWrapper.throwUnexpectedRowCount(
-										PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-										messageCd,
-										1, result,
-										key);
-							}
-
-							String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
-							this.manageLoggerComponent.debugInfoLog(
-									PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-									BM_NUMBER + " アウェー登録件数: " + result + "件 (" + key + ")");
-						}
-					}
-
-					// 片方だけ順位が入っている場合 → 自前ロジックで順位を補完
-					if (homeRank == -1 || awayRank == -1) {
 						try {
-							List<TeamPoints> teamPoints = getOriginRank(
-									country,
-									league,
-									String.valueOf(match));
-							List<RankedTeamPoints> ranks = rankTeams(teamPoints);
-
-							for (RankedTeamPoints pointDTO : ranks) {
-								RankHistoryEntity rankHistoryEntity = new RankHistoryEntity();
-								rankHistoryEntity.setCountry(country);
-								rankHistoryEntity.setLeague(league);
-								rankHistoryEntity.setSeasonYear(seasonYear);
-								rankHistoryEntity.setTeam(pointDTO.getTeam());
-								rankHistoryEntity.setMatch(match);
-								rankHistoryEntity.setRank(pointDTO.getRank());
-								String key = country + ": " + league + ": "
-										+ pointDTO.getTeam();
-
-								if (this.rankHistoryStatRepository.select(rankHistoryEntity) > 0) {
-									int result = this.rankHistoryStatRepository.update(rankHistoryEntity);
-									if (result != 1) {
-										String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
-										this.rootCauseWrapper.throwUnexpectedRowCount(
-												PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-												messageCd,
-												1, result,
-												String.join(",", country, league,
-														pointDTO.getTeam()),
-												String.valueOf(match),
-												String.valueOf(pointDTO.getRank()));
-									}
-
-									String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
-									this.manageLoggerComponent.debugInfoLog(
-											PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-											BM_NUMBER + " 順位後付け更新件数: " + result + "件 (" + key + ")");
-								} else {
-									int result = this.rankHistoryStatRepository.insert(rankHistoryEntity);
-									if (result != 1) {
-										String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-										this.rootCauseWrapper.throwUnexpectedRowCount(
-												PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-												messageCd,
-												1, result,
-												String.join(",", country, league,
-														pointDTO.getTeam()),
-												String.valueOf(match),
-												String.valueOf(pointDTO.getRank()));
-									}
-
-									String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
-									this.manageLoggerComponent.debugInfoLog(
-											PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-											BM_NUMBER + " 順位後付け登録件数: " + result + "件 (" + key + ")");
-								}
-							}
+							processEntity(entity, seasonCache, processedBackfillKeys, METHOD_NAME);
 						} catch (Exception e) {
 							String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 							this.manageLoggerComponent.debugErrorLog(
-									PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, "DBエラー");
-							this.manageLoggerComponent.createSystemException(
-									PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, null);
+									PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e,
+									"RankHistory processing failed. category="
+											+ safe(entity.getGameTeamCategory())
+											+ ", homeTeam=" + safe(entity.getHomeTeamName())
+											+ ", awayTeam=" + safe(entity.getAwayTeamName()));
 						}
 					}
 				}
 			}
-		}
 
-		// endLog
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		this.manageLoggerComponent.clear();
+			this.manageLoggerComponent.debugEndInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+
+		} finally {
+			this.manageLoggerComponent.clear();
+		}
 	}
 
 	/**
-	 * 国,リーグから勝利,敗北,引き分け,得失点差を導出し,<br>
+	 * 1試合ぶん処理
+	 */
+	private void processEntity(BookDataEntity entity,
+			Map<String, String> seasonCache,
+			Set<String> processedBackfillKeys,
+			String methodName) throws Exception {
+
+		// 終了済み以外は対象外
+		if (!isFinished(entity.getTime())) {
+			return;
+		}
+
+		String category = trim(entity.getGameTeamCategory());
+		if (category.isEmpty()) {
+			warn(methodName, "gameTeamCategory is blank.");
+			return;
+		}
+
+		Integer match = extractMatch(category);
+		if (match == null) {
+			warn(methodName, "match extract failed. category=" + category);
+			return;
+		}
+
+		List<String> countryLeague = ExecuteMainUtil.getCountryLeagueByRegex(category);
+		if (countryLeague == null || countryLeague.size() < 2) {
+			String messageCd = MessageCdConst.MCD00001W_COUNTRY_LEAGUE_SPLIT_FAIL_WARNING;
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, methodName, messageCd,
+					"ExecuteMainUtil.getCountryLeagueByRegex(分割失敗: " + category + ")");
+			return;
+		}
+
+		String country = trim(countryLeague.get(0));
+		String league = trim(countryLeague.get(1));
+
+		if (country.isEmpty() || league.isEmpty()) {
+			warn(methodName, "country or league is blank. category=" + category);
+			return;
+		}
+
+		String seasonYear = resolveSeasonYear(country, league, seasonCache, methodName);
+		if (seasonYear.isEmpty()) {
+			return;
+		}
+
+		boolean homeRankSaved = saveRankIfPresent(
+				country, league, seasonYear,
+				entity.getHomeTeamName(), entity.getHomeRank(), match,
+				methodName, "ホーム");
+
+		boolean awayRankSaved = saveRankIfPresent(
+				country, league, seasonYear,
+				entity.getAwayTeamName(), entity.getAwayRank(), match,
+				methodName, "アウェー");
+
+		// 片方でも順位欠損なら後付け順位計算
+		if (!homeRankSaved || !awayRankSaved) {
+			String backfillKey = String.join("|",
+					country, league, seasonYear, String.valueOf(match));
+
+			if (processedBackfillKeys.add(backfillKey)) {
+				backfillRanks(country, league, seasonYear, match, methodName);
+			}
+		}
+	}
+
+	/**
+	 * 順位があれば保存
+	 */
+	private boolean saveRankIfPresent(String country, String league, String seasonYear,
+			String teamName, String rankStr, Integer match,
+			String methodName, String sideLabel) {
+
+		String team = trim(teamName);
+		if (team.isEmpty()) {
+			return false;
+		}
+
+		Integer rank = parseRank(rankStr);
+		if (rank == null) {
+			return false;
+		}
+
+		RankHistoryEntity rankHistoryEntity = new RankHistoryEntity();
+		rankHistoryEntity.setCountry(country);
+		rankHistoryEntity.setLeague(league);
+		rankHistoryEntity.setSeasonYear(seasonYear);
+		rankHistoryEntity.setTeam(team);
+		rankHistoryEntity.setMatch(match);
+		rankHistoryEntity.setRank(rank);
+
+		this.rankHistoryWriter.write(rankHistoryEntity);
+
+		String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, methodName, messageCd,
+				BM_NUMBER + " " + sideLabel + "順位保存: "
+						+ String.join(" / ", country, league, seasonYear,
+								String.valueOf(match), team, String.valueOf(rank)));
+
+		return true;
+	}
+
+	/**
+	 * 順位欠損時の後付け処理
+	 */
+	private void backfillRanks(String country, String league, String seasonYear,
+			Integer match, String methodName) throws Exception {
+
+		List<TeamPoints> teamPoints = getOriginRank(country, league, String.valueOf(match));
+		if (teamPoints == null || teamPoints.isEmpty()) {
+			String messageCd = MessageCdConst.MCD00001W_COUNTRY_LEAGUE_SPLIT_FAIL_WARNING;
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, methodName, messageCd,
+					"No team points found. " + country + " / " + league + " / " + match);
+			return;
+		}
+
+		List<RankedTeamPoints> ranks = rankTeams(teamPoints);
+
+		for (RankedTeamPoints pointDTO : ranks) {
+			if (pointDTO == null || isBlank(pointDTO.getTeam()) || pointDTO.getRank() == null) {
+				continue;
+			}
+
+			RankHistoryEntity rankHistoryEntity = new RankHistoryEntity();
+			rankHistoryEntity.setCountry(country);
+			rankHistoryEntity.setLeague(league);
+			rankHistoryEntity.setSeasonYear(seasonYear);
+			rankHistoryEntity.setTeam(pointDTO.getTeam());
+			rankHistoryEntity.setMatch(match);
+			rankHistoryEntity.setRank(pointDTO.getRank());
+
+			this.rankHistoryWriter.write(rankHistoryEntity);
+		}
+
+		String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, methodName, messageCd,
+				BM_NUMBER + " 順位後付け完了: "
+						+ String.join(" / ", country, league, seasonYear, String.valueOf(match))
+						+ " teams=" + ranks.size());
+	}
+
+	/**
+	 * 国,リーグから勝利,敗北,引き分け,得失点差を導出し、
 	 * 現在実施済みの試合から最終的な順位を出す
-	 * @param country 国
-	 * @param league リーグ
-	 * @param match 節
-	 * @return
 	 */
 	private List<TeamPoints> getOriginRank(String country, String league, String match) throws Exception {
 		return this.bookDataRepository.selectTeamPoints(country, league, match);
@@ -313,36 +278,48 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 
 	/**
 	 * 順位付け
-	 * @param teamPoints
-	 * @return
+	 * 1. 勝ち点 desc
+	 * 2. 得失点差 desc
+	 * 3. 総得点 desc
+	 * 4. チーム名 asc（安定ソート用）
 	 */
 	private List<RankedTeamPoints> rankTeams(List<TeamPoints> teamPoints) {
 
-		// 1. ソート（勝ち点 → 得失点差 → 得点）
-		List<TeamPoints> sorted = teamPoints.stream()
-				.sorted((a, b) -> {
-					int pointsA = a.getPoints() != null ? a.getPoints() : 0;
-					int pointsB = b.getPoints() != null ? b.getPoints() : 0;
-					int cmpPoints = Integer.compare(pointsB, pointsA);
-					if (cmpPoints != 0)
-						return cmpPoints;
+		if (teamPoints == null || teamPoints.isEmpty()) {
+			return new ArrayList<>();
+		}
 
-					int gfA = a.getGf() != null ? a.getGf() : 0;
-					int gaA = a.getGa() != null ? a.getGa() : 0;
-					int gfB = b.getGf() != null ? b.getGf() : 0;
-					int gaB = b.getGa() != null ? b.getGa() : 0;
+		List<TeamPoints> sorted = teamPoints.stream()
+				.filter(tp -> tp != null && !isBlank(tp.getTeam()))
+				.sorted((a, b) -> {
+					int pointsA = nvl(a.getPoints());
+					int pointsB = nvl(b.getPoints());
+					int cmpPoints = Integer.compare(pointsB, pointsA);
+					if (cmpPoints != 0) {
+						return cmpPoints;
+					}
+
+					int gfA = nvl(a.getGf());
+					int gaA = nvl(a.getGa());
+					int gfB = nvl(b.getGf());
+					int gaB = nvl(b.getGa());
 
 					int goalDiffA = gfA - gaA;
 					int goalDiffB = gfB - gaB;
 					int cmpGoalDiff = Integer.compare(goalDiffB, goalDiffA);
-					if (cmpGoalDiff != 0)
+					if (cmpGoalDiff != 0) {
 						return cmpGoalDiff;
+					}
 
-					return Integer.compare(gfB, gfA);
+					int cmpGf = Integer.compare(gfB, gfA);
+					if (cmpGf != 0) {
+						return cmpGf;
+					}
+
+					return safe(a.getTeam()).compareTo(safe(b.getTeam()));
 				})
 				.collect(Collectors.toList());
 
-		// 2. 順位付け
 		List<RankedTeamPoints> rankedList = new ArrayList<>();
 
 		int rank = 1;
@@ -353,19 +330,17 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 		Integer prevGf = null;
 
 		for (TeamPoints tp : sorted) {
-			int points = tp.getPoints() != null ? tp.getPoints() : 0;
-			int gf = tp.getGf() != null ? tp.getGf() : 0;
-			int ga = tp.getGa() != null ? tp.getGa() : 0;
+			int points = nvl(tp.getPoints());
+			int gf = nvl(tp.getGf());
+			int ga = nvl(tp.getGa());
 			int goalDiff = gf - ga;
 
-			// 前のチームと比較して順位決定
-			if (prevPoints != null &&
-					points == prevPoints &&
-					goalDiff == prevGoalDiff &&
-					gf == prevGf) {
-				// 同順位 → rank そのまま
+			if (prevPoints != null
+					&& points == prevPoints
+					&& goalDiff == prevGoalDiff
+					&& gf == prevGf) {
+				// 同順位
 			} else {
-				// 新しい順位
 				rank = index + 1;
 			}
 
@@ -375,18 +350,107 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 			rtp.setPoints(points);
 			rtp.setGf(gf);
 			rtp.setGa(ga);
-			rtp.setPlayed(tp.getPlayed());
+			rtp.setPlayed(nvl(tp.getPlayed()));
 
 			rankedList.add(rtp);
 
 			prevPoints = points;
 			prevGoalDiff = goalDiff;
 			prevGf = gf;
-
 			index++;
 		}
 
 		return rankedList;
 	}
 
+	/**
+	 * 終了済み判定
+	 */
+	private boolean isFinished(String time) {
+		if (time == null || time.isBlank()) {
+			return false;
+		}
+		return BookMakersCommonConst.FIN.equals(time)
+				|| time.contains(BookMakersCommonConst.PENALTY);
+	}
+
+	/**
+	 * 節抽出
+	 */
+	private Integer extractMatch(String category) {
+		if (category == null || category.isBlank()) {
+			return null;
+		}
+
+		int match = ExecuteMainUtil.extractRoundNumbers(category);
+		return match < 0 ? null : match;
+	}
+
+	/**
+	 * seasonYear 解決
+	 */
+	private String resolveSeasonYear(String country, String league,
+			Map<String, String> seasonCache, String methodName) {
+
+		String cacheKey = country + "|" + league;
+		if (seasonCache.containsKey(cacheKey)) {
+			return seasonCache.get(cacheKey);
+		}
+
+		String seasonYear = this.countryLeagueSeasonMasterRepository
+				.findCurrentSeasonYear(country, league);
+
+		if (seasonYear == null || seasonYear.isBlank()) {
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, methodName,
+					MessageCdConst.MCD00001W_COUNTRY_LEAGUE_SPLIT_FAIL_WARNING,
+					"season_year not found: " + country + " / " + league);
+			seasonCache.put(cacheKey, "");
+			return "";
+		}
+
+		seasonCache.put(cacheKey, seasonYear);
+		return seasonYear;
+	}
+
+	/**
+	 * 順位文字列を安全に整数化
+	 * 例: "1", "1.0", " 2 "
+	 */
+	private Integer parseRank(String rankStr) {
+		if (rankStr == null || rankStr.isBlank()) {
+			return null;
+		}
+
+		try {
+			String normalized = rankStr.trim().replace(",", "");
+			BigDecimal bd = new BigDecimal(normalized).stripTrailingZeros();
+			return Integer.valueOf(bd.intValueExact());
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	private int nvl(Integer value) {
+		return value == null ? 0 : value;
+	}
+
+	private boolean isBlank(String value) {
+		return value == null || value.isBlank();
+	}
+
+	private String trim(String value) {
+		return value == null ? "" : value.trim();
+	}
+
+	private String safe(String value) {
+		return value == null ? "" : value;
+	}
+
+	private void warn(String methodName, String msg) {
+		this.manageLoggerComponent.debugWarnLog(
+				PROJECT_NAME, CLASS_NAME, methodName,
+				MessageCdConst.MCD00001W_COUNTRY_LEAGUE_SPLIT_FAIL_WARNING,
+				msg);
+	}
 }

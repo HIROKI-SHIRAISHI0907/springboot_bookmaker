@@ -16,10 +16,8 @@ import dev.application.analyze.bm_m023.AverageStatisticsSituationConst;
 import dev.application.analyze.bm_m023.StatFormatResolver;
 import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
-import dev.application.domain.repository.bm.CalcCorrelationRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
-import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
@@ -56,16 +54,9 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
     /** 実行モード（ログ用） */
     private static final String EXEC_MODE = "BM_M024_CALC_CORRELATION";
 
-    /** BM_STAT_NUMBER */
-	private static final String BM_NUMBER = "BM_M024";
-
-    /** 相関結果登録レポジトリ */
-    @Autowired
-    private CalcCorrelationRepository calcCorrelationRepository;
-
-    /** 例外ラッパー（件数不整合などの例外化） */
-    @Autowired
-    private RootCauseWrapper rootCauseWrapper;
+	/** 相関結果DB永続化サービス */
+	@Autowired
+	private CalcCorrelationWriter calcCorrelationWriter;
 
     /** ログ管理コンポーネント */
     @Autowired
@@ -85,35 +76,37 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
         manageLoggerComponent.init(EXEC_MODE, null);
         manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-        // 国×リーグを横断して解析結果を集約
-        ConcurrentHashMap<String, CalcCorrelationEntity> resultMap = new ConcurrentHashMap<>();
+        try {
+            ConcurrentHashMap<String, CalcCorrelationEntity> resultMap = new ConcurrentHashMap<>();
 
-        for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
-            String[] data_category = ExecuteMainUtil.splitLeagueInfo(entry.getKey());
-            String country = data_category[0];
-            String league  = data_category[1];
+            for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
+                String[] data_category = ExecuteMainUtil.splitLeagueInfo(entry.getKey());
+                String country = data_category[0];
+                String league  = data_category[1];
 
-            Map<String, List<BookDataEntity>> entrySub = entry.getValue();
-            for (List<BookDataEntity> entityList : entrySub.values()) {
-                if (entityList == null || entityList.isEmpty()) continue;
+                Map<String, List<BookDataEntity>> entrySub = entry.getValue();
+                for (List<BookDataEntity> entityList : entrySub.values()) {
+                    if (entityList == null || entityList.isEmpty()) {
+                        continue;
+                    }
 
-                String home = entityList.get(0).getHomeTeamName();
-                String away = entityList.get(0).getAwayTeamName();
+                    String home = entityList.get(0).getHomeTeamName();
+                    String away = entityList.get(0).getAwayTeamName();
 
-                // 計算は同期（軽量）で実施
-                ConcurrentHashMap<String, CalcCorrelationEntity> partialMap =
-                        decideBasedMain(entityList, country, league, home, away);
+                    ConcurrentHashMap<String, CalcCorrelationEntity> partialMap =
+                            decideBasedMain(entityList, country, league, home, away);
 
-                resultMap.putAll(partialMap);
+                    resultMap.putAll(partialMap);
+                }
             }
-        }
 
-        for (CalcCorrelationEntity entity : resultMap.values()) {
-            insert(entity);
+            for (CalcCorrelationEntity entity : resultMap.values()) {
+            	calcCorrelationWriter.insert(entity);
+            }
+        } finally {
+            manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+            manageLoggerComponent.clear();
         }
-
-        manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-        manageLoggerComponent.clear();
     }
 
     /**
@@ -365,36 +358,6 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
     }
 
     /**
-     * 相関結果を 1 件登録します。結果件数が 1 以外の場合は例外化します。
-     * <p><b>スレッドセーフ</b>のため {@code synchronized} としています。</p>
-     *
-     * @param entity 登録対象
-     * @throws RuntimeException 期待件数不一致時
-     */
-    private void insert(CalcCorrelationEntity entity) {
-        final String METHOD_NAME = "insert";
-        String fillChar = setLoggerFillChar(
-                entity.getChkBody(),
-                entity.getScore(),
-                entity.getCountry(),
-                entity.getLeague(),
-                entity.getHome(),
-                entity.getAway());
-
-        int result = this.calcCorrelationRepository.insert(entity);
-        if (result != 1) {
-        	String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-        	this.rootCauseWrapper.throwUnexpectedRowCount(
-                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-                    messageCd, 1, result, fillChar);
-        }
-
-        String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, BM_NUMBER + " 登録件数: " + result + "件 (" + fillChar + ")");
-    }
-
-    /**
      * ピアソン相関係数を安全に算出します。
      * <ul>
      *   <li>NaN/∞ を除外</li>
@@ -477,29 +440,6 @@ public class CalcCorrelationStat extends StatFormatResolver implements AnalyzeEn
             ind++;
         }
         return result;
-    }
-
-    /**
-     * ログの埋め字を生成します。
-     *
-     * @param chk_body 状況（例：PEARSON）
-     * @param score    スコア種別（ALL/FIRST/SECOND）
-     * @param country  国
-     * @param league   リーグ
-     * @param home     ホーム
-     * @param away     アウェー
-     * @return ログ用の連結文字列
-     */
-    private String setLoggerFillChar(String chk_body, String score,
-                                     String country, String league, String home, String away) {
-        StringBuilder sb = new StringBuilder();
-        sb.append("調査内容: ").append(chk_body).append(", ");
-        sb.append("スコア: ").append(score).append(", ");
-        sb.append("国: ").append(country).append(", ");
-        sb.append("リーグ: ").append(league).append(", ");
-        sb.append("ホーム: ").append(home).append(", ");
-        sb.append("アウェー: ").append(away);
-        return sb.toString();
     }
 
 }

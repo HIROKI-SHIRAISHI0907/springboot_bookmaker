@@ -16,16 +16,16 @@ import dev.application.analyze.bm_m023.AverageStatisticsSituationConst;
 import dev.application.analyze.bm_m024.CalcCorrelationConst;
 import dev.application.analyze.bm_m024.CalcCorrelationEntity;
 import dev.application.analyze.interf.AnalyzeEntityIF;
-import dev.application.domain.repository.bm.CalcCorrelationRankingRepository;
 import dev.application.domain.repository.bm.CalcCorrelationRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
-import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
 
 /**
- * BM_M025統計分析ロジック（安全な逐次版 + 詳細ログ）
+ * BM_M025統計分析ロジック
+ * DB登録処理は Transactional な別サービスへ委譲する。
+ *
  * @author shiraishitoshio
  */
 @Component
@@ -41,23 +41,16 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M025_CALC_CORRELATION_RANKING";
 
-	/** BM_STAT_NUMBER */
-	private static final String BM_NUMBER = "BM_M025";
-
 	/** SLF4J Logger */
 	private static final Logger log = LoggerFactory.getLogger(CalcCorrelationRankingStat.class);
 
-	/** CalcCorrelationRepositoryレポジトリクラス */
+	/** 相関取得レポジトリ */
 	@Autowired
 	private CalcCorrelationRepository calcCorrelationRepository;
 
-	/** CalcCorrelationRankingRepositoryレポジトリクラス */
+	/** DB永続化サービス */
 	@Autowired
-	private CalcCorrelationRankingRepository calcCorrelationRankingRepository;
-
-	/** ログ管理ラッパー */
-	@Autowired
-	private RootCauseWrapper rootCauseWrapper;
+	private CalcCorrelationRankingWriter calcCorrelationRankingWriter;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -78,7 +71,6 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 		try {
 			if (entities == null || entities.isEmpty()) {
 				log.info("[BM_M025] entities is empty. nothing to process.");
-				this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 				return;
 			}
 
@@ -145,7 +137,10 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 				try {
 					log.info("[BM_M025] insert start. insertIndex={}/{}, fillChar={}",
 							insertIndex, resultMap.size(), buildFillChar(entity));
-					insert(entity);
+
+					// DB登録は別Transactionalサービスへ委譲
+					this.calcCorrelationRankingWriter.insert(entity);
+
 					log.info("[BM_M025] insert done. insertIndex={}/{}, fillChar={}",
 							insertIndex, resultMap.size(), buildFillChar(entity));
 				} catch (Exception e) {
@@ -159,15 +154,15 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 			log.info("[BM_M025] calcStat finished. resultMapSize={}, processedMatchCount={}, elapsedMs={}",
 					resultMap.size(), matchCount, elapsed);
 
-			this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-
 		} finally {
+			this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 			this.manageLoggerComponent.clear();
 		}
 	}
 
 	/**
-	 * 処理メインロジック（逐次版）
+	 * 処理メインロジック
+	 *
 	 * @param resultMap エンティティ
 	 * @param country 国
 	 * @param league リーグ
@@ -202,6 +197,7 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 
 	/**
 	 * 基準エンティティ指定
+	 *
 	 * @param resultMap エンティティ
 	 * @param country 国
 	 * @param league リーグ
@@ -283,7 +279,6 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 		enti.setScore(flg);
 		enti.setChkBody(chkBody);
 
-		// ここは元コードのバグを修正
 		// outputFields の 8番目以降へ、sortList を先頭から順に詰める
 		for (int rankIdx = 0; rankIdx < sortList.size(); rankIdx++) {
 			int outIdx = rankIdx + 8;
@@ -300,7 +295,7 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 			setOut(outputFields, enti, outIdx, field + "," + value);
 		}
 
-		String key = country + "-" + league + "-" + home + "-" + away + "-" + flg + "-" + chkBody;
+		String key = String.join("|", country, league, home, away, flg, chkBody);
 		resultMap.put(key, enti);
 
 		log.info("[BM_M025] entity put done. key={}, {}", key, fillChar);
@@ -308,8 +303,9 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 
 	/**
 	 * 堅牢な相関係数のソート準備
-	 * @param in
-	 * @return
+	 *
+	 * @param in 入力値
+	 * @return ソートキー
 	 */
 	private static double safeCorrKey(String in) {
 		if (in == null) {
@@ -329,6 +325,7 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 
 	/**
 	 * 相関係数出力
+	 *
 	 * @param outFields output field array
 	 * @param entity entity
 	 * @param idx field index
@@ -356,35 +353,8 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 	}
 
 	/**
-	 * 登録メソッド
-	 * @param entity エンティティ
-	 */
-	private void insert(CalcCorrelationRankingEntity entity) {
-		final String METHOD_NAME = "insert";
-
-		String fillChar = buildFillChar(entity);
-
-		log.info("[BM_M025] before insert. {}", fillChar);
-
-		int result = this.calcCorrelationRankingRepository.insert(entity);
-
-		log.info("[BM_M025] after insert. {} result={}", fillChar, result);
-
-		if (result != 1) {
-			String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-			this.rootCauseWrapper.throwUnexpectedRowCount(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					messageCd, 1, result, fillChar);
-		}
-
-		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-				BM_NUMBER + " 登録件数: " + result + "件 (" + fillChar + ")");
-	}
-
-	/**
 	 * 埋め字設定
+	 *
 	 * @param chkBody 調査内容
 	 * @param score スコア
 	 * @param country 国
@@ -405,6 +375,12 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 		return stringBuilder.toString();
 	}
 
+	/**
+	 * エンティティから埋め字生成
+	 *
+	 * @param entity エンティティ
+	 * @return 埋め字
+	 */
 	private String buildFillChar(CalcCorrelationRankingEntity entity) {
 		if (entity == null) {
 			return "entity=null";
@@ -418,10 +394,23 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 				entity.getAway());
 	}
 
+	/**
+	 * null safe
+	 *
+	 * @param value 値
+	 * @return 非null文字列
+	 */
 	private String safe(String value) {
 		return value == null ? "" : value;
 	}
 
+	/**
+	 * 配列安全取得
+	 *
+	 * @param arr 配列
+	 * @param idx index
+	 * @return 値
+	 */
 	private String getArrayValue(String[] arr, int idx) {
 		if (arr == null || idx < 0 || idx >= arr.length || arr[idx] == null) {
 			return "";
@@ -429,6 +418,12 @@ public class CalcCorrelationRankingStat implements AnalyzeEntityIF {
 		return arr[idx];
 	}
 
+	/**
+	 * home-away 分解
+	 *
+	 * @param subEntry 入力キー
+	 * @return [home, away]
+	 */
 	private String[] splitHomeAway(String subEntry) {
 		if (subEntry == null) {
 			return new String[] { "", "" };
