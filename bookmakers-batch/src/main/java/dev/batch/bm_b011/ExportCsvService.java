@@ -6,7 +6,6 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
-import java.util.AbstractMap.SimpleEntry;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -46,23 +45,7 @@ import dev.common.s3.S3Operator;
 import dev.common.util.ExecuteMainUtil;
 
 /**
- * StatデータCSV出力ロジック（S3 ラウンド別フォルダアップロード版）
- *
- * 流れ（S3モード）：
- * 1) S3（本番prefix）から seqList.txt / data_team_list.txt をローカルへDL
- * 2) DBからグルーピング作成 → 差分計画（recreate/new）作成
- * 3) 対象データをDBから取得し、フィルタ、補完
- * 4) CSV生成（並列）→ ローカル書き出し → S3へPUT
- * 5) data_team_list.txt 更新 → S3へPUT
- * 6) seqList.txt 更新 → S3へPUT
- *
- * CSV保存先：
- * s3バケット/<国>-<リーグ>-ラウンド<番号>/X.csv
- *
- * 同一フォルダに既存CSVがある場合は、その最大番号+1から採番する。
- *
- * localOnly=true のとき：
- * - S3操作を一切行わず、ローカルのみで完結
+ * StatデータCSV出力ロジック（チャンク処理版）
  */
 @Component
 @Transactional
@@ -81,24 +64,19 @@ public class ExportCsvService {
 
 	private static final Pattern ROUND_NO_PATTERN = Pattern.compile("ラウンド\\s*([0-9０-９]+)");
 
-	// "6089.csv" だけでなく "prefix/6089.csv" も解析できるようにしておく
 	private static final Pattern CSV_NO_PATTERN = Pattern.compile("(^|.*/)(\\d+)\\.csv$", Pattern.CASE_INSENSITIVE);
 
 	@Value("${exportcsv.local-only:false}")
 	private boolean localOnly;
 
-	/**
-	 * S3の本番配置プレフィックス（空文字ならバケット直下）
-	 * 例: "" / "stats" / "it/20260309-001"
-	 */
 	@Value("${exportcsv.final-prefix:}")
 	private String finalPrefix;
 
-	/**
-	 * 「追加が無い回でも管理ファイルをPUTする」(true推奨)
-	 */
 	@Value("${exportcsv.always-put-manage-files:true}")
 	private boolean alwaysPutManageFiles;
+
+	@Value("${exportcsv.work-chunk-size:20}")
+	private int workChunkSize;
 
 	@Autowired
 	private S3Operator s3Operator;
@@ -124,7 +102,6 @@ public class ExportCsvService {
 	@Autowired
 	private CountryLeagueSeasonMasterBatchRepository countryLeagueSeasonMasterBatchRepository;
 
-	/** ログ管理ラッパー */
 	@Autowired
 	private RootCauseWrapper rootCauseWrapper;
 
@@ -174,13 +151,13 @@ public class ExportCsvService {
 						+ ", finalPrefix=" + prefix
 						+ ", localDir=" + LOCAL_DIR
 						+ ", seqKeyFinal=" + seqKeyFinal
-						+ ", teamKeyFinal=" + teamKeyFinal);
+						+ ", teamKeyFinal=" + teamKeyFinal
+						+ ", workChunkSize=" + workChunkSize);
 
 		boolean seqExists = downloadIfExists(statsBucket, seqKeyFinal, localSeqPath, "seqList.txt download");
 		downloadIfExists(statsBucket, teamKeyFinal, localTeamPath, "data_team_list.txt download");
 
-		List<List<Integer>> currentGroups = sortSeqs();
-		currentGroups = normalizeGroups(currentGroups);
+		List<List<Integer>> currentGroups = normalizeGroups(sortSeqs());
 
 		boolean firstRun = !seqExists || !Files.exists(localSeqPath);
 		List<List<Integer>> textGroups;
@@ -189,20 +166,20 @@ public class ExportCsvService {
 			writeSeqListJson(localSeqPath, currentGroups);
 			textGroups = Collections.emptyList();
 		} else {
-			textGroups = readSeqListJson(localSeqPath);
-			textGroups = normalizeGroups(textGroups);
+			textGroups = normalizeGroups(readSeqListJson(localSeqPath));
 		}
 
-		// ====== 対象グループを事前読込し、対象フォルダだけ既存CSV情報を読む ======
-		Map<String, List<DataEntity>> groupResultMap = preloadGroupResults(currentGroups, csvArtifactResource,
-				METHOD_NAME);
-
-		Set<String> targetFolders = collectTargetFolders(groupResultMap);
-
-		// S3全件走査ではなく、対象フォルダだけ既存CSV情報を読み込む
-		bean.init(targetFolders);
-
-		Map<String, List<Integer>> csvInfoRow = bean.getCsvInfo();
+		Map<String, List<Integer>> csvInfoRow;
+		try {
+			bean.init();
+			csvInfoRow = bean.getCsvInfo();
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+					"ReaderCurrentCsvInfoBean.init() 失敗");
+			throw e;
+		}
 		csvInfoRow = (csvInfoRow != null) ? csvInfoRow : Collections.emptyMap();
 
 		CsvBuildPlan plan;
@@ -229,168 +206,64 @@ public class ExportCsvService {
 			return;
 		}
 
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-				"csvInfoRow.size=" + csvInfoRow.size()
-						+ ", plan.recreate=" + plan.recreateByCsvKey.size()
-						+ ", plan.newTargets=" + plan.newTargets.size()
-						+ ", firstRun=" + firstRun);
+		List<CsvWorkItem> workItems = buildWorkItems(
+				LOCAL_DIR,
+				plan,
+				csvArtifactResource,
+				METHOD_NAME,
+				true);
 
-		List<SimpleEntry<String, List<DataEntity>>> recreateCandidates = new ArrayList<>();
-		List<List<DataEntity>> newCandidates = new ArrayList<>();
-
-		// recreate
-		for (Map.Entry<String, List<Integer>> entry : plan.recreateByCsvKey.entrySet()) {
-			String relativeKey = entry.getKey();
-			if (relativeKey == null || relativeKey.isBlank()) {
-				continue;
-			}
-
-			List<Integer> ids = normalizeSeqList(entry.getValue());
-			if (ids.isEmpty()) {
-				continue;
-			}
-
-			String gk = groupKey(ids);
-			List<DataEntity> result = groupResultMap.get(gk);
-			if (result == null || result.isEmpty()) {
-				continue;
-			}
-
-			if (matchCsvInfo(csvInfoRow, result)) {
-				continue;
-			}
-
-			String path = LOCAL_DIR.resolve(relativeKey).toString();
-			recreateCandidates.add(new SimpleEntry<>(path, result));
-		}
-
-		// new
-		for (Map.Entry<String, List<Integer>> entry : plan.newTargets.entrySet()) {
-			List<Integer> ids = normalizeSeqList(entry.getValue());
-			if (ids.isEmpty()) {
-				continue;
-			}
-
-			String gk = groupKey(ids);
-			List<DataEntity> result = groupResultMap.get(gk);
-			if (result == null || result.isEmpty()) {
-				continue;
-			}
-
-			if (matchCsvInfo(csvInfoRow, result)) {
-				continue;
-			}
-			newCandidates.add(result);
-		}
-
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-				"candidates: recreate=" + recreateCandidates.size() + ", new=" + newCandidates.size());
-
-		if (recreateCandidates.isEmpty() && newCandidates.isEmpty()) {
-
+		if (workItems.isEmpty()) {
 			if (alwaysPutManageFiles) {
 				putManageFilesEvenIfNoCsv(statsBucket, prefix, LOCAL_DIR, localSeqPath, localTeamPath, currentGroups);
 			}
 
 			String messageCd = MessageCdConst.MCD00014I_NO_MAP_DATA;
-			String fillChar = "追加レコードがないため処理終了 (既存CSV数: " + csvInfoRow.size() + "件)";
+			String fillChar = "追加レコードがないため処理終了 (workItems=0)";
 			endLog(METHOD_NAME, messageCd, fillChar);
 			return;
 		}
 
-		// new をフォルダ単位に振り分け
-		Map<String, List<List<DataEntity>>> newCandidatesByFolder = new LinkedHashMap<>();
-		for (List<DataEntity> result : newCandidates) {
-			String folderName = resolveRoundFolderName(result);
-			newCandidatesByFolder.computeIfAbsent(folderName, k -> new ArrayList<>()).add(result);
-		}
-
-		List<SimpleEntry<String, List<DataEntity>>> toCreate = new ArrayList<>();
-
-		recreateCandidates.sort(Comparator.comparing(e -> toRelativeCsvKey(LOCAL_DIR, e.getKey())));
-		toCreate.addAll(recreateCandidates);
-
-		Set<String> newTargetFolders = new LinkedHashSet<>(newCandidatesByFolder.keySet());
-		Map<String, Integer> s3MaxByFolder = getStatInfo.getMaxCsvNoByFolders(newTargetFolders);
-		for (Map.Entry<String, List<List<DataEntity>>> e : newCandidatesByFolder.entrySet()) {
-			String folderName = e.getKey();
-			List<List<DataEntity>> groups = e.getValue();
-
-			groups.sort(Comparator.comparingInt(ExportCsvService::minSeqOfResult));
-
-			// S3モードでは最終配置先である S3 上の番号だけを基準に採番する
-			int maxOnS3 = s3MaxByFolder.getOrDefault(folderName, 0);
-			int nextNo = maxOnS3 + 1;
-
-			for (int i = 0; i < groups.size(); i++) {
-				int csvNo = nextNo + i;
-				String relativeKey = joinS3Key(folderName, csvNo + BookMakersCommonConst.CSV);
-				String path = LOCAL_DIR.resolve(relativeKey).toString();
-				toCreate.add(new SimpleEntry<>(path, groups.get(i)));
-			}
-
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-					"採番: folder=" + folderName
-							+ ", maxOnS3=" + maxOnS3
-							+ ", nextNo=" + nextNo
-							+ ", groupCount=" + groups.size());
-		}
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+				"workItems.size=" + workItems.size()
+						+ ", recreate=" + plan.recreateByCsvKey.size()
+						+ ", newTargets=" + plan.newTargets.size()
+						+ ", firstRun=" + firstRun);
 
 		int threads = Math.max(2, Runtime.getRuntime().availableProcessors() - 1);
 		ExecutorService pool = Executors.newFixedThreadPool(threads);
 
-		List<CompletableFuture<CsvArtifact>> futures = new ArrayList<>(toCreate.size());
-		for (SimpleEntry<String, List<DataEntity>> e : toCreate) {
-			final String path = e.getKey();
-			final List<DataEntity> group = e.getValue();
-			futures.add(CompletableFuture.supplyAsync(
-					() -> buildCsvArtifact(path, group, csvArtifactResource), pool));
-		}
-
-		int success = 0, failed = 0;
-		List<SimpleEntry<String, List<DataEntity>>> succeeded = new ArrayList<>();
-		List<SimpleEntry<String, List<DataEntity>>> failedEntries = new ArrayList<>();
-
-		for (int i = 0; i < futures.size(); i++) {
-			try {
-				CsvArtifact art = futures.get(i).join();
-				if (art == null || art.getContent() == null || art.getContent().isEmpty()) {
-					continue;
-				}
-
-				writeLocalCsv(art);
-				putLocalFileToFinal(statsBucket, prefix, LOCAL_DIR, Paths.get(art.getFilePath()));
-
-				success++;
-				succeeded.add(toCreate.get(i));
-			} catch (Exception ex) {
-				failed++;
-				failedEntries.add(toCreate.get(i));
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, ex,
-						"CSV作成/PUT(final) 失敗");
-			}
-		}
-
-		pool.shutdown();
+		ProcessResult processResult;
 		try {
-			pool.awaitTermination(1, TimeUnit.MINUTES);
-		} catch (InterruptedException ignore) {
-			Thread.currentThread().interrupt();
+			processResult = processWorkItemsInChunks(
+					workItems,
+					csvArtifactResource,
+					pool,
+					LOCAL_DIR,
+					false,
+					statsBucket,
+					prefix,
+					METHOD_NAME);
+		} finally {
+			pool.shutdown();
+			try {
+				pool.awaitTermination(1, TimeUnit.MINUTES);
+			} catch (InterruptedException ignore) {
+				Thread.currentThread().interrupt();
+			}
 		}
 
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-				"CSVアップロード結果(final put) (成功: " + success + "件, 失敗: " + failed + "件)");
+				"CSVアップロード結果(final put) (成功: " + processResult.successCount
+						+ "件, 失敗: " + processResult.failedCount
+						+ "件, スキップ: " + processResult.skippedCount + "件)");
 
-		registerCsvDetailManage(LOCAL_DIR, succeeded, METHOD_NAME);
+		registerCsvDetailManage(processResult.succeeded, METHOD_NAME);
 
 		try {
-			upsertDataTeamList(LOCAL_DIR, localTeamPath, succeeded, failedEntries);
+			upsertDataTeamList(localTeamPath, processResult.succeeded, processResult.failedRelativeKeys);
 			putLocalFileToFinal(statsBucket, prefix, LOCAL_DIR, localTeamPath);
 		} catch (Exception e) {
 			this.manageLoggerComponent.debugErrorLog(
@@ -411,7 +284,7 @@ public class ExportCsvService {
 			throw (e instanceof IOException) ? (IOException) e : new IOException(e);
 		}
 
-		if (failed > 0) {
+		if (processResult.failedCount > 0) {
 			this.manageLoggerComponent.debugWarnLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00099I_LOG,
@@ -421,9 +294,6 @@ public class ExportCsvService {
 		endLog(METHOD_NAME, null, null);
 	}
 
-	// =========================================================
-	// localOnly
-	// =========================================================
 	private void executeLocalOnly(Path outDir) throws IOException {
 		final String METHOD_NAME = "executeLocalOnly";
 
@@ -435,7 +305,8 @@ public class ExportCsvService {
 
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-				"localOnly=true: S3処理を完全にスキップします。localDir=" + LOCAL_DIR);
+				"localOnly=true: S3処理を完全にスキップします。localDir=" + LOCAL_DIR
+						+ ", workChunkSize=" + workChunkSize);
 
 		Map<String, List<Integer>> csvInfoRow;
 		try {
@@ -450,8 +321,7 @@ public class ExportCsvService {
 		}
 		csvInfoRow = (csvInfoRow != null) ? csvInfoRow : Collections.emptyMap();
 
-		List<List<Integer>> currentGroups = sortSeqs();
-		currentGroups = normalizeGroups(currentGroups);
+		List<List<Integer>> currentGroups = normalizeGroups(sortSeqs());
 
 		boolean firstRun = !Files.exists(localSeqPath);
 		List<List<Integer>> textGroups;
@@ -460,8 +330,7 @@ public class ExportCsvService {
 			writeSeqListJson(localSeqPath, currentGroups);
 			textGroups = Collections.emptyList();
 		} else {
-			textGroups = readSeqListJson(localSeqPath);
-			textGroups = normalizeGroups(textGroups);
+			textGroups = normalizeGroups(readSeqListJson(localSeqPath));
 		}
 
 		CsvBuildPlan plan;
@@ -477,7 +346,7 @@ public class ExportCsvService {
 		}
 
 		if (plan == null || (plan.recreateByCsvKey.isEmpty() && plan.newTargets.isEmpty())) {
-			upsertDataTeamList(LOCAL_DIR, localTeamPath, Collections.emptyList(), Collections.emptyList());
+			upsertDataTeamList(localTeamPath, Collections.emptyList(), Collections.emptySet());
 			writeSeqListJson(localSeqPath, currentGroups);
 
 			String messageCd = MessageCdConst.MCD00014I_NO_MAP_DATA;
@@ -496,142 +365,58 @@ public class ExportCsvService {
 			throw (e instanceof IOException) ? (IOException) e : new IOException(e);
 		}
 
-		Map<String, List<DataEntity>> groupResultMap = preloadGroupResults(currentGroups, csvArtifactResource,
-				METHOD_NAME);
+		List<CsvWorkItem> workItems = buildWorkItems(
+				LOCAL_DIR,
+				plan,
+				csvArtifactResource,
+				METHOD_NAME,
+				false);
 
-		List<SimpleEntry<String, List<DataEntity>>> recreateCandidates = new ArrayList<>();
-		List<List<DataEntity>> newCandidates = new ArrayList<>();
-
-		for (Map.Entry<String, List<Integer>> rt : plan.recreateByCsvKey.entrySet()) {
-			String relativeKey = rt.getKey();
-			if (relativeKey == null || relativeKey.isBlank()) {
-				continue;
-			}
-
-			List<Integer> ids = normalizeSeqList(rt.getValue());
-			String gk = groupKey(ids);
-
-			List<DataEntity> result = groupResultMap.get(gk);
-			if (result == null || result.isEmpty()) {
-				continue;
-			}
-
-			if (matchCsvInfo(csvInfoRow, result)) {
-				continue;
-			}
-
-			String path = LOCAL_DIR.resolve(relativeKey).toString();
-			recreateCandidates.add(new SimpleEntry<>(path, result));
-		}
-
-		for (Map.Entry<String, List<Integer>> entry : plan.newTargets.entrySet()) {
-			List<Integer> ids = normalizeSeqList(entry.getValue());
-			if (ids.isEmpty()) {
-				continue;
-			}
-
-			String gk = groupKey(ids);
-			List<DataEntity> result = groupResultMap.get(gk);
-			if (result == null || result.isEmpty()) {
-				continue;
-			}
-
-			if (matchCsvInfo(csvInfoRow, result)) {
-				continue;
-			}
-			newCandidates.add(result);
-		}
-
-		if (recreateCandidates.isEmpty() && newCandidates.isEmpty()) {
-			upsertDataTeamList(LOCAL_DIR, localTeamPath, Collections.emptyList(), Collections.emptyList());
+		if (workItems.isEmpty()) {
+			upsertDataTeamList(localTeamPath, Collections.emptyList(), Collections.emptySet());
 			writeSeqListJson(localSeqPath, currentGroups);
 
 			String messageCd = MessageCdConst.MCD00014I_NO_MAP_DATA;
-			String fillChar = "追加レコードがないため処理終了 (既存CSV数: " + csvInfoRow.size() + "件)";
+			String fillChar = "追加レコードがないため処理終了 (workItems=0)";
 			endLog(METHOD_NAME, messageCd, fillChar);
 			return;
-		}
-
-		Map<String, List<List<DataEntity>>> newCandidatesByFolder = new LinkedHashMap<>();
-		for (List<DataEntity> result : newCandidates) {
-			String folderName = resolveRoundFolderName(result);
-			newCandidatesByFolder.computeIfAbsent(folderName, k -> new ArrayList<>()).add(result);
-		}
-
-		List<SimpleEntry<String, List<DataEntity>>> toCreate = new ArrayList<>();
-
-		recreateCandidates.sort(Comparator.comparing(e -> toRelativeCsvKey(LOCAL_DIR, e.getKey())));
-		toCreate.addAll(recreateCandidates);
-
-		for (Map.Entry<String, List<List<DataEntity>>> e : newCandidatesByFolder.entrySet()) {
-			String folderName = e.getKey();
-			List<List<DataEntity>> groups = e.getValue();
-
-			groups.sort(Comparator.comparingInt(ExportCsvService::minSeqOfResult));
-
-			int maxLocal = getMaxCsvNoFromLocal(LOCAL_DIR.resolve(folderName));
-			int nextNo = maxLocal + 1;
-
-			for (int i = 0; i < groups.size(); i++) {
-				int csvNo = nextNo + i;
-				String relativeKey = joinS3Key(folderName, csvNo + BookMakersCommonConst.CSV);
-				String path = LOCAL_DIR.resolve(relativeKey).toString();
-				toCreate.add(new SimpleEntry<>(path, groups.get(i)));
-			}
 		}
 
 		int threads = Math.max(2, Runtime.getRuntime().availableProcessors() - 1);
 		ExecutorService pool = Executors.newFixedThreadPool(threads);
 
-		List<CompletableFuture<CsvArtifact>> futures = new ArrayList<>(toCreate.size());
-		for (SimpleEntry<String, List<DataEntity>> e : toCreate) {
-			final String path = e.getKey();
-			final List<DataEntity> group = e.getValue();
-			futures.add(CompletableFuture.supplyAsync(
-					() -> buildCsvArtifact(path, group, csvArtifactResource), pool));
-		}
-
-		int success = 0, failed = 0;
-		List<SimpleEntry<String, List<DataEntity>>> succeeded = new ArrayList<>();
-		List<SimpleEntry<String, List<DataEntity>>> failedEntries = new ArrayList<>();
-
-		for (int i = 0; i < futures.size(); i++) {
-			try {
-				CsvArtifact art = futures.get(i).join();
-				if (art == null || art.getContent() == null || art.getContent().isEmpty()) {
-					continue;
-				}
-				writeLocalCsv(art);
-
-				success++;
-				succeeded.add(toCreate.get(i));
-			} catch (Exception ex) {
-				failed++;
-				failedEntries.add(toCreate.get(i));
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, ex,
-						"CSV作成(ローカル) 失敗");
-			}
-		}
-
-		pool.shutdown();
+		ProcessResult processResult;
 		try {
-			pool.awaitTermination(1, TimeUnit.MINUTES);
-		} catch (InterruptedException ignore) {
-			Thread.currentThread().interrupt();
+			processResult = processWorkItemsInChunks(
+					workItems,
+					csvArtifactResource,
+					pool,
+					LOCAL_DIR,
+					true,
+					null,
+					null,
+					METHOD_NAME);
+		} finally {
+			pool.shutdown();
+			try {
+				pool.awaitTermination(1, TimeUnit.MINUTES);
+			} catch (InterruptedException ignore) {
+				Thread.currentThread().interrupt();
+			}
 		}
 
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-				"localOnly: CSV生成結果 (成功: " + success + "件, 失敗: " + failed + "件)");
+				"localOnly: CSV生成結果 (成功: " + processResult.successCount
+						+ "件, 失敗: " + processResult.failedCount
+						+ "件, スキップ: " + processResult.skippedCount + "件)");
 
-		registerCsvDetailManage(LOCAL_DIR, succeeded, METHOD_NAME);
+		registerCsvDetailManage(processResult.succeeded, METHOD_NAME);
 
-		upsertDataTeamList(LOCAL_DIR, localTeamPath, succeeded, failedEntries);
+		upsertDataTeamList(localTeamPath, processResult.succeeded, processResult.failedRelativeKeys);
 		writeSeqListJson(localSeqPath, currentGroups);
 
-		if (failed > 0) {
+		if (processResult.failedCount > 0) {
 			this.manageLoggerComponent.debugWarnLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00099I_LOG,
@@ -641,12 +426,251 @@ public class ExportCsvService {
 		endLog(METHOD_NAME, null, null);
 	}
 
-	// =========================================================
-	// csv_detail_manage 更新
-	// =========================================================
-	private void registerCsvDetailManage(
+	private List<CsvWorkItem> buildWorkItems(
+			Path localDir,
+			CsvBuildPlan plan,
+			CsvArtifactResource csvArtifactResource,
+			String parentMethod,
+			boolean s3Mode) {
+
+		List<CsvWorkItem> workItems = new ArrayList<>();
+
+		for (Map.Entry<String, List<Integer>> entry : plan.recreateByCsvKey.entrySet()) {
+			String relativeKey = entry.getKey();
+			List<Integer> ids = normalizeSeqList(entry.getValue());
+
+			if (relativeKey == null || relativeKey.isBlank() || ids.isEmpty()) {
+				continue;
+			}
+
+			workItems.add(new CsvWorkItem(relativeKey, ids));
+		}
+
+		Map<String, List<List<Integer>>> newTargetsByFolder = resolveNewTargetsByFolder(
+				plan.newTargets,
+				csvArtifactResource,
+				parentMethod);
+
+		if (!newTargetsByFolder.isEmpty()) {
+			if (s3Mode) {
+				Map<String, Integer> s3MaxByFolder = getStatInfo.getMaxCsvNoByFolders(newTargetsByFolder.keySet());
+
+				for (Map.Entry<String, List<List<Integer>>> e : newTargetsByFolder.entrySet()) {
+					String folderName = e.getKey();
+					List<List<Integer>> groups = e.getValue();
+
+					groups.sort(Comparator.comparingInt(ExportCsvService::minSeqOfIds));
+
+					int maxOnS3 = s3MaxByFolder.getOrDefault(folderName, 0);
+					int nextNo = maxOnS3 + 1;
+
+					for (int i = 0; i < groups.size(); i++) {
+						int csvNo = nextNo + i;
+						String relativeKey = joinS3Key(folderName, csvNo + BookMakersCommonConst.CSV);
+						workItems.add(new CsvWorkItem(relativeKey, groups.get(i)));
+					}
+
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, parentMethod, MessageCdConst.MCD00099I_LOG,
+							"採番(S3): folder=" + folderName
+									+ ", maxOnS3=" + maxOnS3
+									+ ", nextNo=" + nextNo
+									+ ", groupCount=" + groups.size());
+				}
+			} else {
+				for (Map.Entry<String, List<List<Integer>>> e : newTargetsByFolder.entrySet()) {
+					String folderName = e.getKey();
+					List<List<Integer>> groups = e.getValue();
+
+					groups.sort(Comparator.comparingInt(ExportCsvService::minSeqOfIds));
+
+					int maxLocal = getMaxCsvNoFromLocal(localDir.resolve(folderName));
+					int nextNo = maxLocal + 1;
+
+					for (int i = 0; i < groups.size(); i++) {
+						int csvNo = nextNo + i;
+						String relativeKey = joinS3Key(folderName, csvNo + BookMakersCommonConst.CSV);
+						workItems.add(new CsvWorkItem(relativeKey, groups.get(i)));
+					}
+
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, parentMethod, MessageCdConst.MCD00099I_LOG,
+							"採番(Local): folder=" + folderName
+									+ ", maxLocal=" + maxLocal
+									+ ", nextNo=" + nextNo
+									+ ", groupCount=" + groups.size());
+				}
+			}
+		}
+
+		workItems.sort((a, b) -> compareCsvRelativeKey(a.getRelativeKey(), b.getRelativeKey()));
+		return workItems;
+	}
+
+	private Map<String, List<List<Integer>>> resolveNewTargetsByFolder(
+			Map<String, List<Integer>> newTargets,
+			CsvArtifactResource csvArtifactResource,
+			String parentMethod) {
+
+		Map<String, List<List<Integer>>> newTargetsByFolder = new LinkedHashMap<>();
+		if (newTargets == null || newTargets.isEmpty()) {
+			return newTargetsByFolder;
+		}
+
+		for (Map.Entry<String, List<Integer>> entry : newTargets.entrySet()) {
+			List<Integer> ids = normalizeSeqList(entry.getValue());
+			if (ids.isEmpty()) {
+				continue;
+			}
+
+			List<DataEntity> preview = fetchAndFilter(ids, csvArtifactResource, parentMethod, "resolveNewTargetsByFolder");
+			if (preview == null || preview.isEmpty()) {
+				continue;
+			}
+
+			String folderName = resolveRoundFolderName(preview);
+			newTargetsByFolder.computeIfAbsent(folderName, k -> new ArrayList<>()).add(ids);
+		}
+
+		return newTargetsByFolder;
+	}
+
+	private ProcessResult processWorkItemsInChunks(
+			List<CsvWorkItem> workItems,
+			CsvArtifactResource csvArtifactResource,
+			ExecutorService pool,
 			Path baseDir,
-			List<SimpleEntry<String, List<DataEntity>>> succeeded,
+			boolean localMode,
+			String bucket,
+			String prefix,
+			String parentMethod) {
+
+		ProcessResult processResult = new ProcessResult();
+		if (workItems == null || workItems.isEmpty()) {
+			return processResult;
+		}
+
+		int chunkSize = Math.max(1, workChunkSize);
+
+		for (int from = 0; from < workItems.size(); from += chunkSize) {
+			int to = Math.min(from + chunkSize, workItems.size());
+			List<CsvWorkItem> chunk = workItems.subList(from, to);
+
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, parentMethod, MessageCdConst.MCD00099I_LOG,
+					"chunk start: from=" + (from + 1) + ", to=" + to + ", total=" + workItems.size());
+
+			List<CompletableFuture<CsvTaskResult>> futures = new ArrayList<>(chunk.size());
+
+			for (CsvWorkItem item : chunk) {
+				futures.add(CompletableFuture.supplyAsync(
+						() -> processSingleWorkItem(
+								item,
+								csvArtifactResource,
+								baseDir,
+								localMode,
+								bucket,
+								prefix,
+								parentMethod),
+						pool));
+			}
+
+			for (CompletableFuture<CsvTaskResult> future : futures) {
+				CsvTaskResult taskResult = future.join();
+				if (taskResult == null) {
+					continue;
+				}
+
+				switch (taskResult.getStatus()) {
+				case SUCCESS:
+					processResult.successCount++;
+					if (taskResult.getMeta() != null) {
+						processResult.succeeded.add(taskResult.getMeta());
+					}
+					break;
+				case FAILED:
+					processResult.failedCount++;
+					if (taskResult.getRelativeKey() != null && !taskResult.getRelativeKey().isBlank()) {
+						processResult.failedRelativeKeys.add(taskResult.getRelativeKey());
+					}
+					break;
+				case SKIPPED:
+				default:
+					processResult.skippedCount++;
+					break;
+				}
+			}
+
+			futures.clear();
+
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, parentMethod, MessageCdConst.MCD00099I_LOG,
+					"chunk end: from=" + (from + 1)
+							+ ", to=" + to
+							+ ", success=" + processResult.successCount
+							+ ", failed=" + processResult.failedCount
+							+ ", skipped=" + processResult.skippedCount);
+		}
+
+		return processResult;
+	}
+
+	private CsvTaskResult processSingleWorkItem(
+			CsvWorkItem item,
+			CsvArtifactResource csvArtifactResource,
+			Path baseDir,
+			boolean localMode,
+			String bucket,
+			String prefix,
+			String parentMethod) {
+
+		final String METHOD_NAME = "processSingleWorkItem";
+
+		try {
+			List<DataEntity> result = fetchAndFilter(
+					item.getSeqIds(),
+					csvArtifactResource,
+					parentMethod,
+					"processSingleWorkItem: " + item.getRelativeKey());
+
+			if (result == null || result.isEmpty()) {
+				return CsvTaskResult.skipped(item.getRelativeKey());
+			}
+
+			String filePath = baseDir.resolve(item.getRelativeKey()).toString();
+			CsvArtifact art = buildCsvArtifact(filePath, result, csvArtifactResource);
+
+			if (art == null || art.getContent() == null || art.getContent().isEmpty()) {
+				return CsvTaskResult.skipped(item.getRelativeKey());
+			}
+
+			DataEntity row = findRowWithTeams(result);
+			CsvOutputMeta meta = new CsvOutputMeta(
+					item.getRelativeKey(),
+					safe(row.getDataCategory()).trim(),
+					safe(row.getHomeTeamName()).trim(),
+					safe(row.getAwayTeamName()).trim());
+
+			writeLocalCsv(art);
+
+			if (!localMode) {
+				putLocalFileToFinal(bucket, prefix, baseDir, Paths.get(art.getFilePath()));
+			}
+
+			return CsvTaskResult.success(item.getRelativeKey(), meta);
+
+		} catch (Exception ex) {
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, ex,
+					"CSV作成処理失敗 relativeKey=" + item.getRelativeKey());
+
+			return CsvTaskResult.failed(item.getRelativeKey());
+		}
+	}
+
+	private void registerCsvDetailManage(
+			List<CsvOutputMeta> succeeded,
 			String parentMethod) {
 
 		final String METHOD_NAME = "registerCsvDetailManage";
@@ -655,26 +679,19 @@ public class ExportCsvService {
 			return;
 		}
 
-		for (SimpleEntry<String, List<DataEntity>> e : succeeded) {
-			if (e == null) {
+		for (CsvOutputMeta meta : succeeded) {
+			if (meta == null) {
 				continue;
 			}
 
-			String csvId = toRelativeCsvKey(baseDir, e.getKey());
-			List<DataEntity> list = e.getValue();
+			String csvId = meta.getRelativeCsvKey();
+			String dataCategory = safe(meta.getDataCategory()).trim();
+			String home = safe(meta.getHomeTeamName()).trim();
+			String away = safe(meta.getAwayTeamName()).trim();
 
-			if (csvId == null || csvId.isBlank() || list == null || list.isEmpty()) {
+			if (csvId == null || csvId.isBlank()) {
 				continue;
 			}
-
-			DataEntity row = findRowWithTeams(list);
-			if (row == null) {
-				continue;
-			}
-
-			String dataCategory = safe(row.getDataCategory()).trim();
-			String home = safe(row.getHomeTeamName()).trim();
-			String away = safe(row.getAwayTeamName()).trim();
 
 			String season = resolveSeasonSafely(csvId, dataCategory);
 
@@ -691,12 +708,6 @@ public class ExportCsvService {
 		}
 	}
 
-	/**
-	 * シーズン取得
-	 * @param csvId
-	 * @param dataCategory
-	 * @return
-	 */
 	private String resolveSeasonSafely(String csvId, String dataCategory) {
 		final String METHOD_NAME = "resolveSeasonSafely";
 
@@ -716,7 +727,6 @@ public class ExportCsvService {
 					"dataCategory から country/league 抽出失敗. dataCategory=" + dataCategory + ", csvId=" + csvId);
 		}
 
-		// dataCategory から取れなかった場合は csvId から復元
 		if (country.isEmpty() || league.isEmpty()) {
 			String[] pair = extractCountryLeagueFromCsvId(csvId);
 			country = safe(pair[0]).trim();
@@ -749,9 +759,6 @@ public class ExportCsvService {
 		}
 	}
 
-	/**
-	 * CSV詳細管理
-	 */
 	private void upsertCsvDetailManage(
 			String csvId,
 			String dataCategory,
@@ -824,7 +831,7 @@ public class ExportCsvService {
 			return new String[] { "", "" };
 		}
 
-		String folder = parentPath(csvId); // 例: ブルガリア-パルヴァ・リーガ-ラウンド27
+		String folder = parentPath(csvId);
 		if (folder.isBlank()) {
 			return new String[] { "", "" };
 		}
@@ -843,9 +850,6 @@ public class ExportCsvService {
 		return new String[] { country, league };
 	}
 
-	// =========================================================
-	// seqList.txt JSON形式読み書き
-	// =========================================================
 	private void writeSeqListJson(Path out, List<List<Integer>> groups) throws IOException {
 		String json = SEQ_JSON.writeValueAsString(groups);
 		Files.writeString(out, json, StandardCharsets.UTF_8,
@@ -899,9 +903,6 @@ public class ExportCsvService {
 		}
 	}
 
-	// =========================================================
-	// S3 upload
-	// =========================================================
 	private String putLocalFileToFinal(String bucket, String finalPrefix, Path baseDir, Path localFile) {
 		final String METHOD_NAME = "putLocalFileToFinal";
 
@@ -986,9 +987,6 @@ public class ExportCsvService {
 		}
 	}
 
-	// =========================================================
-	// 既存ロジック
-	// =========================================================
 	private List<List<Integer>> sortSeqs() {
 		List<SeqWithKey> rows = this.bookCsvDataRepository.findAllSeqsWithKey();
 		List<List<Integer>> result = new ArrayList<>();
@@ -1120,37 +1118,6 @@ public class ExportCsvService {
 		Files.createDirectories(dir);
 	}
 
-	private boolean matchCsvInfo(Map<String, List<Integer>> csvInfoRow, List<DataEntity> resource) {
-		if (csvInfoRow == null || csvInfoRow.isEmpty() || resource == null || resource.isEmpty()) {
-			return false;
-		}
-		StringBuilder resourceBuilder = new StringBuilder();
-		for (DataEntity d : resource) {
-			if (resourceBuilder.length() > 0) {
-				resourceBuilder.append("-");
-			}
-			resourceBuilder.append(d.getSeq());
-		}
-		for (Map.Entry<String, List<Integer>> list : csvInfoRow.entrySet()) {
-			List<Integer> vals = list.getValue();
-			if (vals == null || vals.isEmpty()) {
-				continue;
-			}
-
-			StringBuilder sBuilder = new StringBuilder();
-			for (Integer d : vals) {
-				if (sBuilder.length() > 0) {
-					sBuilder.append("-");
-				}
-				sBuilder.append(d);
-			}
-			if (resourceBuilder.toString().equals(sBuilder.toString())) {
-				return true;
-			}
-		}
-		return false;
-	}
-
 	private CsvBuildPlan matchSeqCombPlan(
 			List<List<Integer>> textSeqs,
 			List<List<Integer>> dbSeqs,
@@ -1225,14 +1192,10 @@ public class ExportCsvService {
 		}
 	}
 
-	// =========================================================
-	// data_team_list.txt 更新
-	// =========================================================
 	private void upsertDataTeamList(
-			Path baseDir,
 			Path out,
-			List<SimpleEntry<String, List<DataEntity>>> succeeded,
-			List<SimpleEntry<String, List<DataEntity>>> failed) throws IOException {
+			List<CsvOutputMeta> succeeded,
+			Set<String> failedRelativeKeys) throws IOException {
 
 		Map<String, String> csvKeyToLine = new LinkedHashMap<>();
 
@@ -1257,30 +1220,36 @@ public class ExportCsvService {
 				csvKeyToLine.put(csvKey, csvKey + "\t" + desc);
 			}
 		} else {
-			Files.createDirectories(out.getParent());
-			Files.writeString(out, "", StandardCharsets.UTF_8);
+			if (out.getParent() != null) {
+				Files.createDirectories(out.getParent());
+			}
+			Files.writeString(out, "", StandardCharsets.UTF_8,
+					StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 		}
 
-		if (failed != null) {
-			for (SimpleEntry<String, List<DataEntity>> e : failed) {
-				String csvKey = toRelativeCsvKey(baseDir, e.getKey());
+		if (failedRelativeKeys != null) {
+			for (String csvKey : failedRelativeKeys) {
+				if (csvKey == null || csvKey.isBlank()) {
+					continue;
+				}
 				csvKeyToLine.remove(csvKey);
 			}
 		}
 
 		if (succeeded != null) {
-			for (SimpleEntry<String, List<DataEntity>> e : succeeded) {
-				String csvKey = toRelativeCsvKey(baseDir, e.getKey());
-				List<DataEntity> list = e.getValue();
-				if (list == null || list.isEmpty()) {
+			for (CsvOutputMeta meta : succeeded) {
+				if (meta == null) {
 					continue;
 				}
 
-				DataEntity row = findRowWithTeams(list);
+				String csvKey = meta.getRelativeCsvKey();
+				if (csvKey == null || csvKey.isBlank()) {
+					continue;
+				}
 
-				String dataCategory = safe(row.getDataCategory()).trim();
-				String home = safe(row.getHomeTeamName()).trim();
-				String away = safe(row.getAwayTeamName()).trim();
+				String dataCategory = safe(meta.getDataCategory()).trim();
+				String home = safe(meta.getHomeTeamName()).trim();
+				String away = safe(meta.getAwayTeamName()).trim();
 
 				String vsPart;
 				if (!home.isEmpty() && !away.isEmpty()) {
@@ -1314,7 +1283,8 @@ public class ExportCsvService {
 			outLines.add(en.getValue());
 		}
 
-		Files.write(out, outLines, StandardCharsets.UTF_8, StandardOpenOption.TRUNCATE_EXISTING);
+		Files.write(out, outLines, StandardCharsets.UTF_8,
+				StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 	}
 
 	private static DataEntity findRowWithTeams(List<DataEntity> list) {
@@ -1332,9 +1302,6 @@ public class ExportCsvService {
 		return (s == null) ? "" : s;
 	}
 
-	// =========================================================
-	// score / category 補完
-	// =========================================================
 	private static void backfillScores(List<DataEntity> list) {
 		if (list == null || list.isEmpty()) {
 			return;
@@ -1404,9 +1371,6 @@ public class ExportCsvService {
 		}
 	}
 
-	// =========================================================
-	// フォルダ/パス補助
-	// =========================================================
 	private String resolveRoundFolderName(List<DataEntity> group) {
 		DataEntity row = findRowWithTeams(group);
 		String dataCategory = safe(row.getDataCategory()).trim();
@@ -1443,12 +1407,6 @@ public class ExportCsvService {
 		} catch (NumberFormatException e) {
 			return null;
 		}
-	}
-
-	private String toRelativeCsvKey(Path baseDir, String filePath) {
-		Path base = baseDir.toAbsolutePath().normalize();
-		Path file = Paths.get(filePath).toAbsolutePath().normalize();
-		return base.relativize(file).toString().replace('\\', '/');
 	}
 
 	private static String sanitizePathToken(String value) {
@@ -1511,9 +1469,6 @@ public class ExportCsvService {
 		return (idx >= 0) ? key.substring(0, idx) : "";
 	}
 
-	// =========================================================
-	// util
-	// =========================================================
 	private static boolean isBlank(String s) {
 		return s == null || s.trim().isEmpty();
 	}
@@ -1553,21 +1508,17 @@ public class ExportCsvService {
 		return p + "/" + f;
 	}
 
-	private static int minSeqOfResult(List<DataEntity> list) {
-		if (list == null || list.isEmpty()) {
+	private static int minSeqOfIds(List<Integer> ids) {
+		if (ids == null || ids.isEmpty()) {
 			return Integer.MAX_VALUE;
 		}
 		int min = Integer.MAX_VALUE;
-		for (DataEntity d : list) {
-			if (d == null || d.getSeq() == null) {
+		for (Integer id : ids) {
+			if (id == null) {
 				continue;
 			}
-			try {
-				int v = Integer.parseInt(String.valueOf(d.getSeq()));
-				if (v < min) {
-					min = v;
-				}
-			} catch (NumberFormatException ignore) {
+			if (id < min) {
+				min = id;
 			}
 		}
 		return min;
@@ -1581,7 +1532,7 @@ public class ExportCsvService {
 			Path localTeamPath,
 			List<List<Integer>> currentGroups) throws IOException {
 
-		upsertDataTeamList(baseDir, localTeamPath, Collections.emptyList(), Collections.emptyList());
+		upsertDataTeamList(localTeamPath, Collections.emptyList(), Collections.emptySet());
 		putLocalFileToFinal(statsBucket, prefix, baseDir, localTeamPath);
 
 		writeSeqListJson(localSeqPath, currentGroups);
@@ -1595,9 +1546,6 @@ public class ExportCsvService {
 		this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, method, "end");
 	}
 
-	// =========================================================
-	// inner classes
-	// =========================================================
 	private static final class CsvBuildPlan {
 		private final Map<String, List<Integer>> recreateByCsvKey = new LinkedHashMap<>();
 		private final Map<String, List<Integer>> newTargets = new LinkedHashMap<>();
@@ -1621,63 +1569,105 @@ public class ExportCsvService {
 		}
 	}
 
-	/**
-	 * 現在のグループ一覧から、CSV生成対象として有効な DataEntity リストを事前読込する。
-	 *
-	 * @param currentGroups 現在グループ
-	 * @param csvArtifactResource 条件リソース
-	 * @param methodName 呼び出し元メソッド名
-	 * @return key: groupKey, value: DataEntity一覧
-	 */
-	private Map<String, List<DataEntity>> preloadGroupResults(
-			List<List<Integer>> currentGroups,
-			CsvArtifactResource csvArtifactResource,
-			String methodName) {
+	private static final class CsvWorkItem {
+		private final String relativeKey;
+		private final List<Integer> seqIds;
 
-		Map<String, List<DataEntity>> groupResultMap = new LinkedHashMap<>();
-
-		if (currentGroups == null || currentGroups.isEmpty()) {
-			return groupResultMap;
+		private CsvWorkItem(String relativeKey, List<Integer> seqIds) {
+			this.relativeKey = relativeKey;
+			this.seqIds = seqIds;
 		}
 
-		for (List<Integer> group : currentGroups) {
-			List<Integer> ids = normalizeSeqList(group);
-			if (ids.isEmpty()) {
-				continue;
-			}
-
-			List<DataEntity> result = fetchAndFilter(ids, csvArtifactResource, methodName, "preload findByData");
-			if (result == null || result.isEmpty()) {
-				continue;
-			}
-
-			groupResultMap.put(groupKey(ids), result);
+		public String getRelativeKey() {
+			return relativeKey;
 		}
 
-		return groupResultMap;
+		public List<Integer> getSeqIds() {
+			return seqIds;
+		}
 	}
 
-	/**
-	 * 事前読込したグループ結果から対象フォルダ一覧を抽出する。
-	 *
-	 * @param groupResultMap group結果
-	 * @return 対象フォルダ一覧
-	 */
-	private Set<String> collectTargetFolders(Map<String, List<DataEntity>> groupResultMap) {
-		Set<String> targetFolders = new LinkedHashSet<>();
+	private static final class CsvOutputMeta {
+		private final String relativeCsvKey;
+		private final String dataCategory;
+		private final String homeTeamName;
+		private final String awayTeamName;
 
-		if (groupResultMap == null || groupResultMap.isEmpty()) {
-			return targetFolders;
+		private CsvOutputMeta(
+				String relativeCsvKey,
+				String dataCategory,
+				String homeTeamName,
+				String awayTeamName) {
+			this.relativeCsvKey = relativeCsvKey;
+			this.dataCategory = dataCategory;
+			this.homeTeamName = homeTeamName;
+			this.awayTeamName = awayTeamName;
 		}
 
-		for (List<DataEntity> result : groupResultMap.values()) {
-			if (result == null || result.isEmpty()) {
-				continue;
-			}
-			targetFolders.add(resolveRoundFolderName(result));
+		public String getRelativeCsvKey() {
+			return relativeCsvKey;
 		}
 
-		return targetFolders;
+		public String getDataCategory() {
+			return dataCategory;
+		}
+
+		public String getHomeTeamName() {
+			return homeTeamName;
+		}
+
+		public String getAwayTeamName() {
+			return awayTeamName;
+		}
 	}
 
+	private enum CsvTaskStatus {
+		SUCCESS,
+		FAILED,
+		SKIPPED
+	}
+
+	private static final class CsvTaskResult {
+		private final CsvTaskStatus status;
+		private final String relativeKey;
+		private final CsvOutputMeta meta;
+
+		private CsvTaskResult(CsvTaskStatus status, String relativeKey, CsvOutputMeta meta) {
+			this.status = status;
+			this.relativeKey = relativeKey;
+			this.meta = meta;
+		}
+
+		public static CsvTaskResult success(String relativeKey, CsvOutputMeta meta) {
+			return new CsvTaskResult(CsvTaskStatus.SUCCESS, relativeKey, meta);
+		}
+
+		public static CsvTaskResult failed(String relativeKey) {
+			return new CsvTaskResult(CsvTaskStatus.FAILED, relativeKey, null);
+		}
+
+		public static CsvTaskResult skipped(String relativeKey) {
+			return new CsvTaskResult(CsvTaskStatus.SKIPPED, relativeKey, null);
+		}
+
+		public CsvTaskStatus getStatus() {
+			return status;
+		}
+
+		public String getRelativeKey() {
+			return relativeKey;
+		}
+
+		public CsvOutputMeta getMeta() {
+			return meta;
+		}
+	}
+
+	private static final class ProcessResult {
+		private int successCount;
+		private int failedCount;
+		private int skippedCount;
+		private final List<CsvOutputMeta> succeeded = new ArrayList<>();
+		private final Set<String> failedRelativeKeys = new LinkedHashSet<>();
+	}
 }
