@@ -10,7 +10,7 @@ import org.springframework.stereotype.Repository;
 import dev.web.api.bm_a017.TodayCreatedCsvItemResource;
 
 /**
- * 本日作成CSV情報取得Repository
+ * 作成CSV情報取得Repository
  */
 @Repository
 public class TodayCreatedCsvRepository {
@@ -24,9 +24,10 @@ public class TodayCreatedCsvRepository {
     }
 
     /**
-     * 本日作成されたCSV情報を取得
+     * 指定日作成CSV情報を取得
+     * targetDate: yyyy-MM-dd
      */
-    public List<TodayCreatedCsvItemResource> findTodayCreatedCsvs() {
+    public List<TodayCreatedCsvItemResource> findCreatedCsvsByDate(String targetDate) {
         String sql = """
             SELECT
               cdm.csv_id         AS csvId,
@@ -37,14 +38,15 @@ public class TodayCreatedCsvRepository {
               cdm.check_fin_flg  AS checkFinFlg,
               TO_CHAR(cdm.register_time, 'YYYY-MM-DD HH24:MI:SS') AS registerTime
             FROM csv_detail_manage cdm
-            WHERE cdm.register_time >= CURRENT_DATE
-              AND cdm.register_time < CURRENT_DATE + INTERVAL '1 day'
+            WHERE cdm.register_time >= CAST(:targetDate AS DATE)
+              AND cdm.register_time < CAST(:targetDate AS DATE) + INTERVAL '1 day'
             ORDER BY cdm.register_time DESC, cdm.csv_id ASC
         """;
 
         return bmJdbcTemplate.query(
             sql,
-            new MapSqlParameterSource(),
+            new MapSqlParameterSource()
+                .addValue("targetDate", targetDate),
             (rs, n) -> {
                 TodayCreatedCsvItemResource item = new TodayCreatedCsvItemResource();
                 item.setCsvId(rs.getString("csvId"));

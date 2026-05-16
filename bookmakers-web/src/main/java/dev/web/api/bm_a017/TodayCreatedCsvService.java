@@ -1,6 +1,7 @@
 package dev.web.api.bm_a017;
 
-import java.util.ArrayList;
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -14,26 +15,28 @@ public class TodayCreatedCsvService {
 	@Autowired
 	private TodayCreatedCsvRepository todayCreatedCsvRepository;
 
-	public TodayCreatedCsvListResponse getTodayCreatedCsvs() {
-		List<TodayCreatedCsvItemResource> rows = todayCreatedCsvRepository.findTodayCreatedCsvs();
+	public TodayCreatedCsvListResponse getCreatedCsvs(String targetDate) {
+        String normalizedDate = normalizeTargetDate(targetDate);
 
-		TodayCreatedCsvListResponse response = new TodayCreatedCsvListResponse();
-		List<TodayCreatedCsvItemResource> items = new ArrayList<>();
+        List<TodayCreatedCsvItemResource> items =
+                todayCreatedCsvRepository.findCreatedCsvsByDate(normalizedDate);
 
-		for (TodayCreatedCsvItemResource row : rows) {
-			TodayCreatedCsvItemResource item = new TodayCreatedCsvItemResource();
-			item.setCsvId(row.getCsvId());
-			item.setDataCategory(row.getDataCategory());
-			item.setSeason(row.getSeason());
-			item.setHomeTeamName(row.getHomeTeamName());
-			item.setAwayTeamName(row.getAwayTeamName());
-			item.setCheckFinFlg(row.getCheckFinFlg());
-			item.setRegisterTime(row.getRegisterTime());
-			items.add(item);
-		}
+        TodayCreatedCsvListResponse response = new TodayCreatedCsvListResponse();
+        response.setTargetDate(normalizedDate);
+        response.setItems(items);
+        response.setCount(items.size());
+        return response;
+    }
 
-		response.setItems(items);
-		response.setCount(items.size());
-		return response;
-	}
+    private String normalizeTargetDate(String targetDate) {
+        if (targetDate == null || targetDate.isBlank()) {
+            return LocalDate.now().toString();
+        }
+
+        try {
+            return LocalDate.parse(targetDate.trim()).toString();
+        } catch (DateTimeParseException e) {
+            throw new IllegalArgumentException("targetDate は yyyy-MM-dd 形式で指定してください。");
+        }
+    }
 }
