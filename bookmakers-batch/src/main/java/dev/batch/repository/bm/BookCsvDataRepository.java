@@ -117,16 +117,72 @@ public interface BookCsvDataRepository {
     /**
      * 対象グループに属する seq 一覧を取得.
      *
-     * これが重要。
-     * グループに紐づく seq を全部取るので、
-     * 同じ組み合わせのデータが離れた seq に散っていても拾える。
+     * 優先順位:
+     * 1) home_team_name + away_team_name + match_id
+     * 2) home_team_name + away_team_name + data_category
+     * 3) home_team_name + away_team_name
+     *
+     * ※ matchId / dataCategory は引数で受けず、
+     *   同一 home/away 内で代表値をSQL側で決定する。
      */
     @Select("""
-            SELECT DISTINCT
+            WITH base AS (
+              SELECT
+                seq,
+                home_team_name,
+                away_team_name,
+                match_id,
+                data_category
+              FROM data
+              WHERE home_team_name = #{homeTeamName}
+                AND away_team_name = #{awayTeamName}
+            ),
+            best_match AS (
+              SELECT
+                match_id
+              FROM base
+              WHERE match_id IS NOT NULL
+                AND BTRIM(match_id) <> ''
+              GROUP BY match_id
+              ORDER BY COUNT(*) DESC, MIN(seq) ASC, match_id ASC
+              LIMIT 1
+            ),
+            best_category AS (
+              SELECT
+                data_category
+              FROM base
+              WHERE data_category IS NOT NULL
+                AND BTRIM(data_category) <> ''
+              GROUP BY data_category
+              ORDER BY COUNT(*) DESC, MIN(seq) ASC, data_category ASC
+              LIMIT 1
+            ),
+            prioritized AS (
+              SELECT DISTINCT
+                seq,
+                CASE
+                  WHEN EXISTS (
+                    SELECT 1
+                    FROM best_match bm
+                    WHERE bm.match_id = base.match_id
+                  ) THEN 1
+                  WHEN NOT EXISTS (SELECT 1 FROM best_match)
+                       AND EXISTS (
+                         SELECT 1
+                         FROM best_category bc
+                         WHERE bc.data_category = base.data_category
+                       ) THEN 2
+                  ELSE 3
+                END AS priority
+              FROM base
+            )
+            SELECT
               seq
-            FROM data
-            WHERE home_team_name = #{homeTeamName}
-              AND away_team_name = #{awayTeamName}
+            FROM prioritized
+            WHERE priority = (
+              SELECT MIN(priority)
+              FROM prioritized
+            )
             ORDER BY seq ASC
             """)
     List<Integer> findSeqListByGroup(@Param("homeTeamName") String homeTeamName,
