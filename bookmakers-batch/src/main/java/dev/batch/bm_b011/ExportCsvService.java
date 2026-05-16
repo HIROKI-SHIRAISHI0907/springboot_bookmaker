@@ -1546,29 +1546,6 @@ public class ExportCsvService {
 		this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, method, "end");
 	}
 
-	private static final class CsvBuildPlan {
-		private final Map<String, List<Integer>> recreateByCsvKey = new LinkedHashMap<>();
-		private final Map<String, List<Integer>> newTargets = new LinkedHashMap<>();
-	}
-
-	private static final class CsvArtifact {
-		private final String filePath;
-		private final List<DataEntity> content;
-
-		private CsvArtifact(String filePath, List<DataEntity> content) {
-			this.filePath = filePath;
-			this.content = content;
-		}
-
-		public String getFilePath() {
-			return filePath;
-		}
-
-		public List<DataEntity> getContent() {
-			return content;
-		}
-	}
-
 	private static final class CsvWorkItem {
 		private final String relativeKey;
 		private final List<Integer> seqIds;
