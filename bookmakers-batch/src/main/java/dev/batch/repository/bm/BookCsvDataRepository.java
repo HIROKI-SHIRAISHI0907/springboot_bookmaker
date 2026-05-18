@@ -3,9 +3,11 @@ package dev.batch.repository.bm;
 import java.util.List;
 
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import dev.batch.bm_b011.CsvPreviewRow;
 import dev.batch.bm_b011.SeqWithKey;
 import dev.common.entity.DataEntity;
 
@@ -128,55 +130,26 @@ public interface BookCsvDataRepository {
     /**
      * 対象グループに属する seq 一覧を取得.
      *
-     * 優先順位:
-     * 1) home_team_name + away_team_name + match_id
-     * 2) home_team_name + away_team_name + data_category
-     * 3) home_team_name + away_team_name
      */
     @Select("""
-            WITH base AS (
-              SELECT
-                seq,
-                home_team_name,
-                away_team_name,
-                NULLIF(BTRIM(match_id), '')      AS match_id,
-                NULLIF(BTRIM(data_category), '') AS data_category
-              FROM data
-              WHERE home_team_name = #{homeTeamName}
-                AND away_team_name = #{awayTeamName}
-            ),
-            prioritized AS (
-              SELECT DISTINCT
-                seq,
-                CASE
-                  WHEN #{matchId} IS NOT NULL
-                   AND #{matchId} <> ''
-                   AND base.match_id = #{matchId}
-                  THEN 1
-
-                  WHEN (#{matchId} IS NULL OR #{matchId} = '')
-                   AND #{dataCategory} IS NOT NULL
-                   AND #{dataCategory} <> ''
-                   AND base.data_category = #{dataCategory}
-                  THEN 2
-
-                  WHEN #{dataCategory} IS NOT NULL
-                   AND #{dataCategory} <> ''
-                   AND base.data_category = #{dataCategory}
-                  THEN 3
-
-                  ELSE 4
-                END AS priority
-              FROM base
-            )
-            SELECT
+            <script>
+            SELECT DISTINCT
               seq
-            FROM prioritized
-            WHERE priority = (
-              SELECT MIN(priority)
-              FROM prioritized
-            )
+            FROM data
+            WHERE home_team_name = #{homeTeamName}
+              AND away_team_name = #{awayTeamName}
+            <choose>
+              <when test="matchId != null and matchId != ''">
+                AND match_id = #{matchId}
+              </when>
+              <when test="dataCategory != null and dataCategory != ''">
+                AND data_category = #{dataCategory}
+              </when>
+              <otherwise>
+              </otherwise>
+            </choose>
             ORDER BY seq ASC
+            </script>
             """)
     List<Integer> findSeqListByGroup(@Param("homeTeamName") String homeTeamName,
                                      @Param("awayTeamName") String awayTeamName,
@@ -186,9 +159,10 @@ public interface BookCsvDataRepository {
     /**
      * seq 指定で詳細データ取得.
      */
+    @Options(useCache = false, flushCache = Options.FlushCachePolicy.TRUE)
     @Select("""
             <script>
-            SELECT DISTINCT
+            SELECT
               seq                               AS seq,
               condition_result_data_seq_id      AS conditionResultDataSeqId,
               data_category                     AS dataCategory,
@@ -313,4 +287,36 @@ public interface BookCsvDataRepository {
             </script>
             """)
     List<DataEntity> findByData(@Param("seqList") List<Integer> seqList);
+
+    @Options(useCache = false, flushCache = Options.FlushCachePolicy.TRUE)
+    @Select("""
+            <script>
+            SELECT
+              seq            AS seq,
+              data_category  AS dataCategory,
+              home_team_name AS homeTeamName,
+              away_team_name AS awayTeamName,
+              record_time    AS recordTime,
+              home_score     AS homeScore,
+              away_score     AS awayScore,
+              match_id       AS matchId
+            FROM data
+            <where>
+              <choose>
+                <when test="seqList != null and seqList.size() > 0">
+                  seq IN
+                  <foreach collection="seqList" item="item" open="(" separator="," close=")">
+                    #{item}
+                  </foreach>
+                </when>
+                <otherwise>
+                  1 = 0
+                </otherwise>
+              </choose>
+            </where>
+            ORDER BY record_time ASC
+            </script>
+            """)
+    List<CsvPreviewRow> findPreviewByData(@Param("seqList") List<Integer> seqList);
+
 }

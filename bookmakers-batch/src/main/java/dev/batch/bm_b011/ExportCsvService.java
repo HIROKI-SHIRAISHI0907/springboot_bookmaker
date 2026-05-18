@@ -658,7 +658,7 @@ public class ExportCsvService {
 			}
 
 			logInfo(METHOD_NAME, "preview fetch 開始 tempKey=" + tempKey + ", ids=" + summarizeIds(ids));
-			List<DataEntity> preview = fetchAndFilter(ids, csvArtifactResource, parentMethod, "resolveNewTargetsByFolder");
+			List<CsvPreviewRow> preview = fetchPreview(ids, "resolveNewTargetsByFolder");
 			logInfo(METHOD_NAME, "preview fetch 終了 tempKey=" + tempKey
 					+ ", preview.size=" + (preview == null ? 0 : preview.size()));
 
@@ -667,7 +667,7 @@ public class ExportCsvService {
 				continue;
 			}
 
-			String folderName = resolveRoundFolderName(preview);
+			String folderName = resolveRoundFolderNamePreview(preview);
 			logInfo(METHOD_NAME, "folder resolve tempKey=" + tempKey + ", folderName=" + folderName);
 
 			newTargetsByFolder.computeIfAbsent(folderName, k -> new ArrayList<>()).add(ids);
@@ -1489,6 +1489,124 @@ public class ExportCsvService {
 		return plan;
 	}
 
+	/**
+	 * 軽量版
+	 * @param ids
+	 * @param label
+	 * @return
+	 */
+	private List<CsvPreviewRow> fetchPreview(List<Integer> ids, String label) {
+		final String METHOD_NAME = "fetchPreview";
+		logInfo(METHOD_NAME, "開始 label=" + label + ", ids=" + summarizeIds(ids));
+
+		if (ids == null || ids.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		List<CsvPreviewRow> result = this.bookCsvDataRepository.findPreviewByData(ids);
+		logInfo(METHOD_NAME, "findPreviewByData() 終了 label=" + label
+				+ ", result.size=" + (result == null ? 0 : result.size()));
+
+		if (result == null || result.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		result = new ArrayList<>(result);
+		backfillPreviewScores(result);
+		applyCanonicalPreviewCategory(result);
+
+		logInfo(METHOD_NAME, "終了 label=" + label + ", final.size=" + result.size());
+		return result;
+	}
+
+	/**
+	 * folder 判定用オーバーロード
+	 * @param group
+	 * @return
+	 */
+	private String resolveRoundFolderNamePreview(List<CsvPreviewRow> group) {
+		CsvPreviewRow row = findPreviewRowWithTeams(group);
+		String dataCategory = safe(row.getDataCategory()).trim();
+
+		List<String> countryLeague = ExecuteMainUtil.getCountryLeagueByRegex(dataCategory);
+
+		String country = (countryLeague != null && countryLeague.size() >= 1)
+				? sanitizePathToken(countryLeague.get(0))
+				: "unknown";
+
+		String league = (countryLeague != null && countryLeague.size() >= 2)
+				? sanitizePathToken(countryLeague.get(1))
+				: "unknown";
+
+		Integer roundNo = extractRoundNo(dataCategory);
+		String roundPart = (roundNo == null) ? "不明" : String.valueOf(roundNo);
+
+		return country + "-" + league + "-ラウンド" + roundPart;
+	}
+
+	private static CsvPreviewRow findPreviewRowWithTeams(List<CsvPreviewRow> list) {
+		for (CsvPreviewRow d : list) {
+			String home = safe(d.getHomeTeamName()).trim();
+			String away = safe(d.getAwayTeamName()).trim();
+			if (!home.isEmpty() || !away.isEmpty()) {
+				return d;
+			}
+		}
+		return list.get(0);
+	}
+
+	private static void backfillPreviewScores(List<CsvPreviewRow> list) {
+		if (list == null || list.isEmpty()) {
+			return;
+		}
+
+		list.sort(Comparator
+				.comparing((CsvPreviewRow d) -> d.getRecordTime() == null ? "" : d.getRecordTime())
+				.thenComparingInt(d -> d.getSeq() == null ? Integer.MAX_VALUE : d.getSeq()));
+
+		String lastHome = null;
+		String lastAway = null;
+		for (CsvPreviewRow d : list) {
+			if (isBlank(d.getHomeScore()) && lastHome != null) {
+				d.setHomeScore(lastHome);
+			}
+			if (isBlank(d.getAwayScore()) && lastAway != null) {
+				d.setAwayScore(lastAway);
+			}
+
+			if (!isBlank(d.getHomeScore())) {
+				lastHome = d.getHomeScore();
+			}
+			if (!isBlank(d.getAwayScore())) {
+				lastAway = d.getAwayScore();
+			}
+		}
+	}
+
+	private static void applyCanonicalPreviewCategory(List<CsvPreviewRow> group) {
+		String canonical = "";
+		for (CsvPreviewRow d : group) {
+			String cat = d.getDataCategory();
+			if (cat != null && hasRound(cat)) {
+				canonical = cat.trim();
+				break;
+			}
+		}
+		if (canonical.isBlank() && !group.isEmpty()) {
+			canonical = safe(group.get(0).getDataCategory()).trim();
+		}
+		if (canonical.isBlank()) {
+			return;
+		}
+
+		for (CsvPreviewRow d : group) {
+			String cat = d.getDataCategory();
+			if (cat == null || cat.trim().isEmpty() || !hasRound(cat)) {
+				d.setDataCategory(canonical);
+			}
+		}
+	}
+
 	private static String groupKey(List<Integer> ids) {
 		StringBuilder sb = new StringBuilder();
 		for (Integer n : ids) {
@@ -1719,26 +1837,6 @@ public class ExportCsvService {
 				d.setDataCategory(canonical);
 			}
 		}
-	}
-
-	private String resolveRoundFolderName(List<DataEntity> group) {
-		DataEntity row = findRowWithTeams(group);
-		String dataCategory = safe(row.getDataCategory()).trim();
-
-		List<String> countryLeague = ExecuteMainUtil.getCountryLeagueByRegex(dataCategory);
-
-		String country = (countryLeague != null && countryLeague.size() >= 1)
-				? sanitizePathToken(countryLeague.get(0))
-				: "unknown";
-
-		String league = (countryLeague != null && countryLeague.size() >= 2)
-				? sanitizePathToken(countryLeague.get(1))
-				: "unknown";
-
-		Integer roundNo = extractRoundNo(dataCategory);
-		String roundPart = (roundNo == null) ? "不明" : String.valueOf(roundNo);
-
-		return country + "-" + league + "-ラウンド" + roundPart;
 	}
 
 	private Integer extractRoundNo(String dataCategory) {
