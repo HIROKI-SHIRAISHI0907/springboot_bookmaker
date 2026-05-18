@@ -15,13 +15,13 @@ import dev.web.api.bm_a017.TodayCreatedCsvService;
  *
  */
 @RestController
-@RequestMapping("/api")
+@RequestMapping("/api/admin")
 public class AdminTodayCreatedCsvController {
 
 	@Autowired
 	private TodayCreatedCsvService todayCreatedCsvAdminService;
 
-	@GetMapping("/admin/csv/today")
+	@GetMapping("/csv/today")
 	public TodayCreatedCsvListResponse getTodayCreatedCsvs(
             @RequestParam(value = "targetDate", required = false) String targetDate) {
 		return todayCreatedCsvAdminService.getCreatedCsvs(targetDate);
