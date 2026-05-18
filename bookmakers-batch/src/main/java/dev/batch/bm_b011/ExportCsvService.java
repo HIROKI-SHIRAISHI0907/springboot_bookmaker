@@ -1314,6 +1314,12 @@ public class ExportCsvService {
 				}
 
 				result.add(seqs);
+
+				if (result.size() % 100 == 0) {
+				    logInfo(METHOD_NAME, "進捗 groupCount=" + result.size()
+				            + ", offset=" + offset
+				            + ", pageNo=" + pageNo);
+				}
 			}
 
 			offset += page.size();
