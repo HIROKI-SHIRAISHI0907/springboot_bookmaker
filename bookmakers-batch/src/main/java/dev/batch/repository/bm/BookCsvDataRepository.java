@@ -12,11 +12,10 @@ import dev.common.entity.DataEntity;
 /**
  * CSV出力用のデータ取得リポジトリ.
  *
- * 対象グループ単位で処理する版。
- * - data の生行を seq 範囲でページングしない
- * - まず対象グループ一覧を取得
- * - グループごとに seq 一覧を取得
- * - その seq 一覧で詳細データを取得
+ * 改善版:
+ * - 対象グループは home_team_name + away_team_name 単位で取得
+ * - 代表値として match_id / data_category / seq を返す
+ * - seq一覧取得時は match_id を最優先、次に data_category、最後に home/away でフォールバック
  */
 @Mapper
 public interface BookCsvDataRepository {
@@ -24,16 +23,15 @@ public interface BookCsvDataRepository {
     /**
      * CSV対象グループ件数取得.
      *
-     * ここで数えるのは data の生行数ではなく、
-     * 「home_team_name + away_team_name + times」単位の対象グループ件数。
+     * 粒度:
+     * - home_team_name + away_team_name
      */
     @Select("""
             SELECT COUNT(*)
             FROM (
               SELECT
                 d.home_team_name,
-                d.away_team_name,
-                d.times
+                d.away_team_name
               FROM data d
               WHERE
                 EXISTS (
@@ -53,7 +51,7 @@ public interface BookCsvDataRepository {
                       OR REPLACE(BTRIM(y.times), ' ', '') LIKE '%ペナルティ%'
                     )
                 )
-              GROUP BY d.home_team_name, d.away_team_name, d.times
+              GROUP BY d.home_team_name, d.away_team_name
             ) t
             """)
     int countGroupTargets();
@@ -61,32 +59,45 @@ public interface BookCsvDataRepository {
     /**
      * CSV対象グループ一覧をページング取得.
      *
-     * 注意:
-     * - seq範囲で data を切るのではない
-     * - まず全体から対象グループを確定し、その結果一覧を LIMIT/OFFSET でページングする
+     * 粒度:
+     * - home_team_name + away_team_name
+     *
+     * 代表値:
+     * - seq         : ラウンド付き data_category の最小seqを優先
+     * - dataCategory: ラウンド付き data_category を優先
+     * - matchId     : 非空の match_id があれば代表値を返す
      */
     @Select("""
             SELECT
               t.dataCategory,
               t.homeTeamName,
               t.awayTeamName,
-              t.times,
+              t.matchId,
               t.seq
             FROM (
               SELECT
                 d.home_team_name AS homeTeamName,
                 d.away_team_name AS awayTeamName,
-                d.times          AS times,
+
+                COALESCE(
+                  MAX(CASE
+                        WHEN d.match_id IS NOT NULL
+                         AND BTRIM(d.match_id) <> ''
+                        THEN d.match_id
+                      END),
+                  ''
+                ) AS matchId,
+
+                COALESCE(
+                  MAX(CASE WHEN d.data_category LIKE '%ラウンド%' THEN d.data_category END),
+                  MAX(d.data_category),
+                  ''
+                ) AS dataCategory,
 
                 COALESCE(
                   MIN(CASE WHEN d.data_category LIKE '%ラウンド%' THEN d.seq END),
                   MIN(d.seq)
-                ) AS seq,
-
-                COALESCE(
-                  MAX(CASE WHEN d.data_category LIKE '%ラウンド%' THEN d.data_category END),
-                  MAX(d.data_category)
-                ) AS dataCategory
+                ) AS seq
               FROM data d
               WHERE
                 EXISTS (
@@ -106,9 +117,9 @@ public interface BookCsvDataRepository {
                       OR REPLACE(BTRIM(y.times), ' ', '') LIKE '%ペナルティ%'
                     )
                 )
-              GROUP BY d.home_team_name, d.away_team_name, d.times
+              GROUP BY d.home_team_name, d.away_team_name
             ) t
-            ORDER BY t.homeTeamName, t.awayTeamName, t.times, t.seq
+            ORDER BY t.homeTeamName, t.awayTeamName, t.seq
             LIMIT #{limit} OFFSET #{offset}
             """)
     List<SeqWithKey> findGroupTargetsPage(@Param("limit") int limit,
@@ -121,9 +132,6 @@ public interface BookCsvDataRepository {
      * 1) home_team_name + away_team_name + match_id
      * 2) home_team_name + away_team_name + data_category
      * 3) home_team_name + away_team_name
-     *
-     * ※ matchId / dataCategory は引数で受けず、
-     *   同一 home/away 内で代表値をSQL側で決定する。
      */
     @Select("""
             WITH base AS (
@@ -131,48 +139,33 @@ public interface BookCsvDataRepository {
                 seq,
                 home_team_name,
                 away_team_name,
-                match_id,
-                data_category
+                NULLIF(BTRIM(match_id), '')      AS match_id,
+                NULLIF(BTRIM(data_category), '') AS data_category
               FROM data
               WHERE home_team_name = #{homeTeamName}
                 AND away_team_name = #{awayTeamName}
-            ),
-            best_match AS (
-              SELECT
-                match_id
-              FROM base
-              WHERE match_id IS NOT NULL
-                AND BTRIM(match_id) <> ''
-              GROUP BY match_id
-              ORDER BY COUNT(*) DESC, MIN(seq) ASC, match_id ASC
-              LIMIT 1
-            ),
-            best_category AS (
-              SELECT
-                data_category
-              FROM base
-              WHERE data_category IS NOT NULL
-                AND BTRIM(data_category) <> ''
-              GROUP BY data_category
-              ORDER BY COUNT(*) DESC, MIN(seq) ASC, data_category ASC
-              LIMIT 1
             ),
             prioritized AS (
               SELECT DISTINCT
                 seq,
                 CASE
-                  WHEN EXISTS (
-                    SELECT 1
-                    FROM best_match bm
-                    WHERE bm.match_id = base.match_id
-                  ) THEN 1
-                  WHEN NOT EXISTS (SELECT 1 FROM best_match)
-                       AND EXISTS (
-                         SELECT 1
-                         FROM best_category bc
-                         WHERE bc.data_category = base.data_category
-                       ) THEN 2
-                  ELSE 3
+                  WHEN #{matchId} IS NOT NULL
+                   AND #{matchId} <> ''
+                   AND base.match_id = #{matchId}
+                  THEN 1
+
+                  WHEN (#{matchId} IS NULL OR #{matchId} = '')
+                   AND #{dataCategory} IS NOT NULL
+                   AND #{dataCategory} <> ''
+                   AND base.data_category = #{dataCategory}
+                  THEN 2
+
+                  WHEN #{dataCategory} IS NOT NULL
+                   AND #{dataCategory} <> ''
+                   AND base.data_category = #{dataCategory}
+                  THEN 3
+
+                  ELSE 4
                 END AS priority
               FROM base
             )
@@ -186,14 +179,12 @@ public interface BookCsvDataRepository {
             ORDER BY seq ASC
             """)
     List<Integer> findSeqListByGroup(@Param("homeTeamName") String homeTeamName,
-                                     @Param("awayTeamName") String awayTeamName);
+                                     @Param("awayTeamName") String awayTeamName,
+                                     @Param("matchId") String matchId,
+                                     @Param("dataCategory") String dataCategory);
 
     /**
      * seq 指定で詳細データ取得.
-     *
-     * 既存仕様を維持。
-     * ただし呼び出し元では「全体一括」ではなく、
-     * グループ単位で使うこと。
      */
     @Select("""
             <script>
@@ -322,5 +313,4 @@ public interface BookCsvDataRepository {
             </script>
             """)
     List<DataEntity> findByData(@Param("seqList") List<Integer> seqList);
-
 }

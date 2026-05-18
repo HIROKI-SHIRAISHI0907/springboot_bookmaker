@@ -2,21 +2,27 @@ package dev.batch.bm_b011;
 
 import lombok.Data;
 
+/**
+ * CSVグループ対象の代表行DTO
+ */
 @Data
 public class SeqWithKey {
 
-	/** データカテゴリ */
-	private String dataCategory;
+    /** 代表seq */
+    private Integer seq;
 
-	/** ホームチーム */
-	private String homeTeamName;
+    /** データカテゴリ */
+    private String dataCategory;
 
-	/** アウェーチーム */
-	private String awayTeamName;
+    /** ホームチーム名 */
+    private String homeTeamName;
 
-	/** 途中時間 */
-	private String times;
+    /** アウェイチーム名 */
+    private String awayTeamName;
 
-	/** 通番 */
-	private Integer seq;
+    /** 代表matchId */
+    private String matchId;
+
+    /** times（互換用。現状未使用でも残したければ残して可） */
+    private String times;
 }

@@ -27,6 +27,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.batch.repository.bm.BookCsvDataRepository;
@@ -48,7 +49,6 @@ import dev.common.util.ExecuteMainUtil;
  * StatデータCSV出力ロジック（チャンク処理版）
  */
 @Component
-@Transactional
 public class ExportCsvService {
 
 	private static final String PROJECT_NAME = ExportCsvService.class.getProtectionDomain()
@@ -117,6 +117,7 @@ public class ExportCsvService {
 	 * 実行メソッド
 	 * @throws IOException
 	 */
+	@Transactional(propagation = Propagation.NOT_SUPPORTED)
 	public void execute() throws IOException {
 		final String METHOD_NAME = "execute";
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "start");
@@ -1222,6 +1223,12 @@ public class ExportCsvService {
 	 * 連番をソートする
 	 * @return
 	 */
+	/**
+	 * 連番をソートする
+	 * 改善版:
+	 * - findGroupTargetsPage() は home/away 単位
+	 * - 同一グループに対する findSeqListByGroup() の重複実行を防止
+	 */
 	private List<List<Integer>> sortSeqs() {
 		final String METHOD_NAME = "sortSeqs";
 		logInfo(METHOD_NAME, "開始 GROUP_PAGE_SIZE=" + GROUP_PAGE_SIZE);
@@ -1231,12 +1238,13 @@ public class ExportCsvService {
 		int offset = 0;
 		int pageNo = 1;
 
-		String currentHome = null;
-		String currentAway = null;
-		TreeSet<Integer> currentBucket = new TreeSet<>();
+		// 同一グループの重複SQL実行防止
+		Map<String, List<Integer>> seqCache = new LinkedHashMap<>();
+		Set<String> processedGroupKeys = new LinkedHashSet<>();
 
 		while (true) {
 			logInfo(METHOD_NAME, "findGroupTargetsPage() 開始 offset=" + offset + ", pageNo=" + pageNo);
+
 			List<SeqWithKey> page = this.bookCsvDataRepository.findGroupTargetsPage(GROUP_PAGE_SIZE, offset);
 
 			if (page == null || page.isEmpty()) {
@@ -1254,49 +1262,62 @@ public class ExportCsvService {
 
 				String home = safe(r.getHomeTeamName()).trim();
 				String away = safe(r.getAwayTeamName()).trim();
+				String matchId = safe(r.getMatchId()).trim();
+				String dataCategory = safe(r.getDataCategory()).trim();
 
-				boolean newGroup = currentHome == null
-						|| !Objects.equals(currentHome, home)
-						|| !Objects.equals(currentAway, away);
-
-				if (newGroup) {
-					if (!currentBucket.isEmpty()) {
-						logInfo(METHOD_NAME, "group確定 home=" + currentHome
-								+ ", away=" + currentAway
-								+ ", seqCount=" + currentBucket.size());
-						result.add(new ArrayList<>(currentBucket));
-						currentBucket.clear();
-					}
-					currentHome = home;
-					currentAway = away;
-					logInfo(METHOD_NAME, "新グループ開始 home=" + currentHome + ", away=" + currentAway);
+				if (home.isEmpty() && away.isEmpty()) {
+					logWarn(METHOD_NAME, "home/away empty をスキップ");
+					continue;
 				}
 
-				logInfo(METHOD_NAME, "findSeqListByGroup() 開始 home=" + home + ", away=" + away);
-				List<Integer> seqs = normalizeSeqList(
-						this.bookCsvDataRepository.findSeqListByGroup(home, away));
-				logInfo(METHOD_NAME, "findSeqListByGroup() 終了 home=" + home
-						+ ", away=" + away
-						+ ", " + summarizeIds(seqs));
+				String groupKey = String.join("\u0001",
+						home,
+						away,
+						matchId,
+						dataCategory);
 
-				if (!seqs.isEmpty()) {
-					currentBucket.addAll(seqs);
-					logInfo(METHOD_NAME, "bucket addAll 後 size=" + currentBucket.size()
-							+ ", home=" + currentHome + ", away=" + currentAway);
+				// 念のため重複防止
+				if (!processedGroupKeys.add(groupKey)) {
+					logInfo(METHOD_NAME, "重複グループをスキップ home=" + home
+							+ ", away=" + away
+							+ ", matchId=" + matchId);
+					continue;
 				}
+
+				List<Integer> seqs = seqCache.get(groupKey);
+				if (seqs == null) {
+					logInfo(METHOD_NAME, "findSeqListByGroup() 開始 home=" + home
+							+ ", away=" + away
+							+ ", matchId=" + matchId
+							+ ", dataCategory=" + dataCategory);
+
+					seqs = normalizeSeqList(
+							this.bookCsvDataRepository.findSeqListByGroup(
+									home,
+									away,
+									matchId,
+									dataCategory));
+
+					logInfo(METHOD_NAME, "findSeqListByGroup() 終了 home=" + home
+							+ ", away=" + away
+							+ ", matchId=" + matchId
+							+ ", " + summarizeIds(seqs));
+
+					seqCache.put(groupKey, seqs);
+				}
+
+				if (seqs.isEmpty()) {
+					logWarn(METHOD_NAME, "seq empty のためスキップ home=" + home
+							+ ", away=" + away
+							+ ", matchId=" + matchId);
+					continue;
+				}
+
+				result.add(seqs);
 			}
 
-			int fetched = page.size();
-			page.clear();
-			offset += fetched;
+			offset += page.size();
 			pageNo++;
-		}
-
-		if (!currentBucket.isEmpty()) {
-			logInfo(METHOD_NAME, "最終グループ確定 home=" + currentHome
-					+ ", away=" + currentAway
-					+ ", seqCount=" + currentBucket.size());
-			result.add(new ArrayList<>(currentBucket));
 		}
 
 		logInfo(METHOD_NAME, "終了 result.groupCount=" + result.size());
