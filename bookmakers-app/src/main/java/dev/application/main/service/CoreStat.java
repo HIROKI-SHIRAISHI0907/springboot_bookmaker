@@ -1,6 +1,7 @@
 package dev.application.main.service;
 
 import java.nio.file.Paths;
+import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
@@ -11,7 +12,11 @@ import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.dao.RecoverableDataAccessException;
+import org.springframework.dao.TransientDataAccessException;
+import org.springframework.jdbc.CannotGetJdbcConnectionException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.CannotCreateTransactionException;
 
 import dev.application.analyze.bm_m002.ConditionResultDataStat;
 import dev.application.analyze.bm_m003.TeamMonthlyScoreSummaryStat;
@@ -45,6 +50,12 @@ public class CoreStat implements StatIF {
 	private static final String CLASS_NAME = CoreStat.class.getName();
 
 	private static final String CSV_ID_MANUAL = "<UNKNOWN_COUNTRY>-<UNKNOWN_LEAGUE>-<UNKNOWN_ROUND>/-99.csv";
+
+	/** 接続断系の再試行回数 */
+	private static final int DB_RETRY_MAX = 3;
+
+	/** 再試行待機(ms) */
+	private static final long DB_RETRY_WAIT_MILLIS = 3000L;
 
 	@Autowired
 	private ConditionResultDataStat conditionResultDataStat;
@@ -91,60 +102,111 @@ public class CoreStat implements StatIF {
 		this.loggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		List<CsvDetailEntityOutputDTO> dtoList = selectCsvDetail(stat, manualFlg);
-		if (dtoList == null || dtoList.isEmpty()) {
-			this.loggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP,
-					"すでに統計反映済み、または登録対象データがありません。");
-			return 0;
-		}
+		try {
+			List<CsvDetailEntityOutputDTO> dtoList = runWithRetry(
+					"selectCsvDetail",
+					() -> selectCsvDetail(stat, manualFlg));
 
-		if (!manualFlg) {
-			this.conditionResultDataStat.calcStat(stat);
-		}
-		this.teamMonthlyScoreSummaryStat.calcStat(stat);
-		if (!manualFlg) {
-			this.teamTimeSegmentShootingStat.calcStat(stat);
-		}
-		if (!manualFlg) {
-			this.countryLeagueSummaryStat.calcStat(stat);
-		}
-		this.noGoalMatchStat.calcStat(stat);
-		if (!manualFlg) {
-			this.leagueScoreTimeBandStat.calcStat(stat);
-		}
-		if (!manualFlg) {
-			this.matchClassificationResultStat.calcStat(stat);
-		}
-		this.teamMatchFinalStat.calcStat(stat);
-		if (!manualFlg) {
-			this.scoreBasedFeatureStat.calcStat(stat);
-		}
-		if (!manualFlg) {
-			this.calcCorrelationStat.calcStat(stat);
-		}
-		if (!manualFlg) {
-			this.calcCorrelationRankingStat.calcStat(stat);
-		}
-		if (!manualFlg) {
-			this.eachTeamScoreBasedFeatureStat.calcStat(stat);
-		}
-		this.surfaceOverviewStat.calcStat(stat);
-		this.rankHistoryStat.calcStat(stat);
-
-		if (manualFlg) {
-			for (CsvDetailEntityOutputDTO dto : dtoList) {
-				upsertCsvDetail(dto);
+			if (dtoList == null || dtoList.isEmpty()) {
+				this.loggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP,
+						"すでに統計反映済み、または登録対象データがありません。");
+				return 0;
 			}
+
+			if (!manualFlg) {
+				runStatWithRetry("conditionResultDataStat",
+						() -> this.conditionResultDataStat.calcStat(stat));
+			}
+
+			runStatWithRetry("teamMonthlyScoreSummaryStat",
+					() -> this.teamMonthlyScoreSummaryStat.calcStat(stat));
+
+			if (!manualFlg) {
+				runStatWithRetry("teamTimeSegmentShootingStat",
+						() -> this.teamTimeSegmentShootingStat.calcStat(stat));
+			}
+
+			if (!manualFlg) {
+				runStatWithRetry("countryLeagueSummaryStat",
+						() -> this.countryLeagueSummaryStat.calcStat(stat));
+			}
+
+			runStatWithRetry("noGoalMatchStat",
+					() -> this.noGoalMatchStat.calcStat(stat));
+
+			if (!manualFlg) {
+				runStatWithRetry("leagueScoreTimeBandStat",
+						() -> this.leagueScoreTimeBandStat.calcStat(stat));
+			}
+
+			if (!manualFlg) {
+				runStatWithRetry("matchClassificationResultStat",
+						() -> this.matchClassificationResultStat.calcStat(stat));
+			}
+
+			runStatWithRetry("teamMatchFinalStat",
+					() -> this.teamMatchFinalStat.calcStat(stat));
+
+			if (!manualFlg) {
+				runStatWithRetry("scoreBasedFeatureStat",
+						() -> this.scoreBasedFeatureStat.calcStat(stat));
+			}
+
+			if (!manualFlg) {
+				runStatWithRetry("calcCorrelationStat",
+						() -> this.calcCorrelationStat.calcStat(stat));
+			}
+
+			if (!manualFlg) {
+				runStatWithRetry("calcCorrelationRankingStat",
+						() -> this.calcCorrelationRankingStat.calcStat(stat));
+			}
+
+			if (!manualFlg) {
+				runStatWithRetry("eachTeamScoreBasedFeatureStat",
+						() -> this.eachTeamScoreBasedFeatureStat.calcStat(stat));
+			}
+
+			runStatWithRetry("surfaceOverviewStat",
+					() -> this.surfaceOverviewStat.calcStat(stat));
+
+			runStatWithRetry("rankHistoryStat",
+					() -> this.rankHistoryStat.calcStat(stat));
+
+			if (manualFlg) {
+				for (CsvDetailEntityOutputDTO dto : dtoList) {
+					runWithRetry(
+							"upsertCsvDetail:" + buildCsvDetailContext(
+									dto.getDataCategory(),
+									dto.getSeason(),
+									dto.getHomeTeamName(),
+									dto.getAwayTeamName()),
+							() -> {
+								upsertCsvDetail(dto);
+								return null;
+							});
+				}
+			}
+
+			return dtoList.size();
+
+		} catch (Exception e) {
+			this.loggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG, null,
+					"CoreStat execute failed. message=" + safe(e.getMessage()));
+			throw e;
+
+		} finally {
+			if (stat != null) {
+				stat.clear();
+			}
+
+			this.loggerComponent.debugEndInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		}
-
-		stat.clear();
-
-		this.loggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-
-		return dtoList.size();
 	}
 
 	private List<CsvDetailEntityOutputDTO> selectCsvDetail(
@@ -364,6 +426,129 @@ public class CoreStat implements StatIF {
 				safe(season).trim(),
 				safe(home).trim(),
 				safe(away).trim());
+	}
+
+	private void runStatWithRetry(String statName, CheckedRunnable job) throws Exception {
+		final String METHOD_NAME = "runStatWithRetry";
+
+		runWithRetry("stat:" + statName, () -> {
+			this.loggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG,
+					"stat start: " + statName);
+			job.run();
+			this.loggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG,
+					"stat end: " + statName);
+			return null;
+		});
+	}
+
+	private <T> T runWithRetry(String processName, CheckedSupplier<T> supplier) throws Exception {
+		final String METHOD_NAME = "runWithRetry";
+
+		int attempt = 0;
+		while (true) {
+			attempt++;
+			try {
+				return supplier.get();
+			} catch (Exception e) {
+				boolean retryable = isRetryableDbException(e);
+
+				if (!retryable || attempt >= DB_RETRY_MAX) {
+					this.loggerComponent.debugErrorLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+							MessageCdConst.MCD00099I_LOG, null,
+							"retry give up. process=" + processName
+									+ ", attempt=" + attempt
+									+ ", retryable=" + retryable
+									+ ", message=" + safe(e.getMessage()));
+					throw e;
+				}
+
+				this.loggerComponent.debugWarnLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						MessageCdConst.MCD00099I_LOG,
+						"retry execute. process=" + processName
+								+ ", attempt=" + attempt
+								+ "/" + DB_RETRY_MAX
+								+ ", waitMillis=" + DB_RETRY_WAIT_MILLIS
+								+ ", message=" + safe(e.getMessage()));
+
+				sleepQuietly(DB_RETRY_WAIT_MILLIS);
+			}
+		}
+	}
+
+	private boolean isRetryableDbException(Throwable t) {
+		Throwable current = t;
+
+		while (current != null) {
+			if (current instanceof CannotGetJdbcConnectionException) {
+				return true;
+			}
+			if (current instanceof CannotCreateTransactionException) {
+				return true;
+			}
+			if (current instanceof TransientDataAccessException) {
+				return true;
+			}
+			if (current instanceof RecoverableDataAccessException) {
+				return true;
+			}
+			if (current instanceof SQLException) {
+				String state = ((SQLException) current).getSQLState();
+				if (state != null && state.startsWith("08")) {
+					return true;
+				}
+			}
+
+			String className = safe(current.getClass().getName());
+			String message = safe(current.getMessage()).toLowerCase();
+
+			if (className.contains("SQLTransientConnectionException")
+					|| className.contains("SQLRecoverableException")) {
+				return true;
+			}
+
+			if (message.contains("connection is closed")
+					|| message.contains("connection has been closed")
+					|| message.contains("broken pipe")
+					|| message.contains("connection reset")
+					|| message.contains("communications link failure")
+					|| message.contains("could not open jdbc connection")
+					|| message.contains("failed to obtain jdbc connection")
+					|| message.contains("the connection attempt failed")
+					|| message.contains("socket closed")
+					|| message.contains("connection refused")
+					|| message.contains("i/o error occurred while sending to the backend")) {
+				return true;
+			}
+
+			current = current.getCause();
+		}
+
+		return false;
+	}
+
+	private void sleepQuietly(long millis) throws InterruptedException {
+		try {
+			Thread.sleep(millis);
+		} catch (InterruptedException e) {
+			Thread.currentThread().interrupt();
+			throw e;
+		}
+	}
+
+	@FunctionalInterface
+	private interface CheckedRunnable {
+		void run() throws Exception;
+	}
+
+	@FunctionalInterface
+	private interface CheckedSupplier<T> {
+		T get() throws Exception;
 	}
 
 	private static String safe(String s) {
