@@ -14,6 +14,15 @@ public class TodayCreatedCsvListResponse {
 	/** 件数 */
 	private int count;
 
+	/** 総件数 */
+	private int totalCount;
+
+	/** 開始データ */
+	private int startOffset;
+
+	/** 終了データ */
+	private int endOffset;
+
 	/** item */
 	private List<TodayCreatedCsvItemResource> items = new ArrayList<>();
 

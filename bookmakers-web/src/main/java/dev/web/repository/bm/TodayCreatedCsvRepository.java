@@ -27,7 +27,12 @@ public class TodayCreatedCsvRepository {
      * 指定日作成CSV情報を取得
      * targetDate: yyyy-MM-dd
      */
-    public List<TodayCreatedCsvItemResource> findCreatedCsvsByDate(String targetDate) {
+    public List<TodayCreatedCsvItemResource> findCreatedCsvsByDate(String targetDate, int startOffset, int endOffset) {
+    	int limit = endOffset - startOffset;
+        if (limit <= 0) {
+            throw new IllegalArgumentException("endOffset must be greater than startOffset");
+        }
+
         String sql = """
             SELECT
               cdm.csv_id         AS csvId,
@@ -41,12 +46,15 @@ public class TodayCreatedCsvRepository {
             WHERE cdm.register_time >= CAST(:targetDate AS DATE)
               AND cdm.register_time < CAST(:targetDate AS DATE) + INTERVAL '1 day'
             ORDER BY cdm.register_time DESC, cdm.csv_id ASC
+            LIMIT :limit OFFSET :offset
         """;
 
         return bmJdbcTemplate.query(
             sql,
             new MapSqlParameterSource()
-                .addValue("targetDate", targetDate),
+            .addValue("targetDate", targetDate)
+            .addValue("limit", limit)
+            .addValue("offset", startOffset),
             (rs, n) -> {
                 TodayCreatedCsvItemResource item = new TodayCreatedCsvItemResource();
                 item.setCsvId(rs.getString("csvId"));
@@ -58,6 +66,26 @@ public class TodayCreatedCsvRepository {
                 item.setRegisterTime(rs.getString("registerTime"));
                 return item;
             }
+        );
+    }
+
+    /**
+     * 全件の総数を取得
+     * @param targetDate
+     * @return
+     */
+    public int countCreatedCsvsByDate(String targetDate) {
+        String sql = """
+            SELECT COUNT(*)
+            FROM csv_detail_manage cdm
+            WHERE cdm.register_time >= CAST(:targetDate AS DATE)
+              AND cdm.register_time < CAST(:targetDate AS DATE) + INTERVAL '1 day'
+        """;
+
+        return bmJdbcTemplate.queryForObject(
+            sql,
+            new MapSqlParameterSource().addValue("targetDate", targetDate),
+            Integer.class
         );
     }
 }

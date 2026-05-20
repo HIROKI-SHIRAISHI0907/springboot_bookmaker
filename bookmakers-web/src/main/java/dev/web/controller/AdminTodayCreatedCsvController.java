@@ -23,7 +23,9 @@ public class AdminTodayCreatedCsvController {
 
 	@GetMapping("/csv/today")
 	public TodayCreatedCsvListResponse getTodayCreatedCsvs(
-            @RequestParam(value = "targetDate", required = false) String targetDate) {
-		return todayCreatedCsvAdminService.getCreatedCsvs(targetDate);
+			@RequestParam(value = "targetDate", required = false) String targetDate,
+            @RequestParam(value = "startOffset", required = false) Integer startOffset,
+            @RequestParam(value = "endOffset", required = false) Integer endOffset) {
+		return todayCreatedCsvAdminService.getCreatedCsvs(targetDate, startOffset, endOffset);
 	}
 }
