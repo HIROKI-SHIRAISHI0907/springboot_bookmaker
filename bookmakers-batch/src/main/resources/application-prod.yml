@@ -21,6 +21,15 @@ process:
       stats: ${S3_STATS:aws-s3-stat-csv}
       allLeague: ${S3_ALL_LEAGUE:aws-s3-all-league-csv}
       
+cleanup:
+  enabled: true
+  cron: "0 */5 * * * *"   # 5分おき
+  db-name: soccer_bm
+  user-name: bmadmin
+  application-name: PostgreSQL JDBC Driver
+  idle-in-tx-minutes: 10
+  long-running-minutes: 30
+
 batch:
   mode: control
 
