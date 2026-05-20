@@ -28,7 +28,7 @@ public class PgConnectionCleanupMasterBatch {
 
     private static final String CLASS_NAME = PgConnectionCleanupMasterBatch.class.getName();
 
-    @Value("${cleanup.db-name:soccer_bm}")
+    @Value("${cleanup.db-name-master:soccer_bm_master}")
     private String dbName;
 
     @Value("${cleanup.user-name:bmadmin}")

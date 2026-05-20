@@ -24,7 +24,8 @@ process:
 cleanup:
   enabled: true
   cron: "0 */5 * * * *"   # 5分おき
-  db-name: soccer_bm
+  db-name-bm: soccer_bm
+  db-name-master: soccer_bm_master
   user-name: bmadmin
   application-name: PostgreSQL JDBC Driver
   idle-in-tx-minutes: 10
