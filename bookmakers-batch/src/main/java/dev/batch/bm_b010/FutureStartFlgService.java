@@ -133,7 +133,7 @@ public class FutureStartFlgService {
 
         this.manageLoggerComponent.debugInfoLog(
                 PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-                MessageCdConst.MCD00099I_LOG,
+                MessageCdConst.MCD00006I_UPDATE_SUCCESS,
                 "更新件数: " + result + "件");
     }
 
