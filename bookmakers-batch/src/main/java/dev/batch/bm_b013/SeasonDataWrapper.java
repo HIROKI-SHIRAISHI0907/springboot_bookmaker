@@ -12,6 +12,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.DateUtil;
@@ -42,14 +43,19 @@ public class SeasonDataWrapper {
 	@Autowired
 	private EachTableTransaction eachTableTransaction;
 
+	/** CSV関係の更新 */
+	@Autowired
+	private EachCsvTransaction eachCsvTransaction;
+
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
 
 	/**
 	 * 実行クラス
+	 * @throws Exception
 	 */
-	public void execute() {
+	public void execute() throws Exception {
 		final String METHOD_NAME = "execute";
 		// ログ出力
 		this.manageLoggerComponent.debugStartInfoLog(
@@ -95,13 +101,31 @@ public class SeasonDataWrapper {
 		try {
 			this.autoSeasonHyphenTransaction.execute(dto);
 		} catch (Exception e) {
-			// TODO: handle exception
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+					"autoSeasonHyphenTransaction");
+			throw e;
+		}
+
+		try {
+			this.eachCsvTransaction.execute(dto);
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+					"eachCsvTransaction");
+			throw e;
 		}
 
 		try {
 			this.eachTableTransaction.execute(dto);
 		} catch (Exception e) {
-			// TODO: handle exception
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+					"eachTableTransaction");
+			throw e;
 		}
 
 		// endLog

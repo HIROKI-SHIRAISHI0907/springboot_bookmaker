@@ -30,6 +30,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.batch.fileservice.FileExistsService;
 import dev.batch.repository.bm.BookCsvDataRepository;
 import dev.batch.repository.bm.BookCsvDetailManageRepository;
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
@@ -82,6 +83,9 @@ public class ExportCsvService {
 	 * グルーピングサイズ
 	 */
 	private static final int GROUP_PAGE_SIZE = 300;
+
+	@Autowired
+	private FileExistsService fileExistsService;
 
 	@Autowired
 	private S3Operator s3Operator;
@@ -143,9 +147,6 @@ public class ExportCsvService {
 		final String seqFileName = "seqList.txt";
 		final String teamFileName = "data_team_list.txt";
 
-		final String seqKeyFinal = normalizeS3Key(joinS3Key(prefix, seqFileName));
-		final String teamKeyFinal = normalizeS3Key(joinS3Key(prefix, teamFileName));
-
 		final Path LOCAL_DIR = outDir;
 		ensureDir(LOCAL_DIR);
 
@@ -177,8 +178,20 @@ public class ExportCsvService {
 			logWarn(METHOD_NAME, "countGroupTargets() 失敗。処理継続");
 		}
 
-		boolean seqExists = downloadIfExists(statsBucket, seqKeyFinal, localSeqPath, "seqList.txt download");
-		boolean teamExists = downloadIfExists(statsBucket, teamKeyFinal, localTeamPath, "data_team_list.txt download");
+		boolean seqExists = fileExistsService.downloadIfExists(
+		        statsBucket,
+		        prefix,
+		        seqFileName,
+		        localSeqPath,
+		        "seqList.txt download");
+
+		boolean teamExists = fileExistsService.downloadIfExists(
+		        statsBucket,
+		        prefix,
+		        teamFileName,
+		        localTeamPath,
+		        "data_team_list.txt download");
+
 		logInfo(METHOD_NAME, "管理ファイル取得結果 seqExists=" + seqExists + ", teamExists=" + teamExists);
 
 		logInfo(METHOD_NAME, "sortSeqs() 開始");
@@ -320,7 +333,7 @@ public class ExportCsvService {
 			logInfo(METHOD_NAME, "data_team_list 更新終了");
 
 			logInfo(METHOD_NAME, "data_team_list S3 PUT 開始");
-			putLocalFileToFinal(statsBucket, prefix, LOCAL_DIR, localTeamPath);
+			fileExistsService.uploadDataTeamListIfExists(statsBucket, prefix);
 			logInfo(METHOD_NAME, "data_team_list S3 PUT 終了");
 		} catch (Exception e) {
 			logError(METHOD_NAME, "data_team_list.txt 更新/PUT(final) 失敗", e);
@@ -333,7 +346,7 @@ public class ExportCsvService {
 			logInfo(METHOD_NAME, "seqListJson 更新終了");
 
 			logInfo(METHOD_NAME, "seqListJson S3 PUT 開始");
-			putLocalFileToFinal(statsBucket, prefix, LOCAL_DIR, localSeqPath);
+			fileExistsService.uploadSeqListIfExists(statsBucket, prefix);
 			logInfo(METHOD_NAME, "seqListJson S3 PUT 終了");
 		} catch (Exception e) {
 			logError(METHOD_NAME, "seqList.txt 更新/PUT(final) 失敗", e);
@@ -1199,27 +1212,6 @@ public class ExportCsvService {
 	}
 
 	/**
-	 * ダウンロード
-	 * @param bucket
-	 * @param key
-	 * @param out
-	 * @param label
-	 * @return
-	 */
-	private boolean downloadIfExists(String bucket, String key, Path out, String label) {
-		final String METHOD_NAME = "downloadIfExists";
-		logInfo(METHOD_NAME, "開始 label=" + label + ", bucket=" + bucket + ", key=" + key + ", out=" + out);
-		try {
-			s3Operator.downloadToFile(bucket, key, out);
-			logInfo(METHOD_NAME, "成功 label=" + label + ", outExists=" + Files.exists(out));
-			return true;
-		} catch (Exception e) {
-			logWarn(METHOD_NAME, "failed or not found label=" + label + ", bucket=" + bucket + ", key=" + key);
-			return false;
-		}
-	}
-
-	/**
 	 * 連番をソートする
 	 * @return
 	 */
@@ -1997,12 +1989,12 @@ public class ExportCsvService {
 
 		upsertDataTeamList(localTeamPath, Collections.emptyList(), Collections.emptySet());
 		logInfo(METHOD_NAME, "data_team_list 更新完了");
-		putLocalFileToFinal(statsBucket, prefix, baseDir, localTeamPath);
+		fileExistsService.uploadDataTeamListIfExists(statsBucket, prefix);
 		logInfo(METHOD_NAME, "data_team_list PUT完了");
 
 		writeSeqListJson(localSeqPath, currentGroups);
 		logInfo(METHOD_NAME, "seqListJson 更新完了");
-		putLocalFileToFinal(statsBucket, prefix, baseDir, localSeqPath);
+		fileExistsService.uploadSeqListIfExists(statsBucket, prefix);
 		logInfo(METHOD_NAME, "seqListJson PUT完了");
 
 		logInfo(METHOD_NAME, "終了");
