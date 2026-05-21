@@ -130,12 +130,4 @@ public class ManageLoggerComponentImpl implements ManageLoggerComponent {
 				exceptionExp);
 	}
 
-
-
-
-
-
-
-
-
 }

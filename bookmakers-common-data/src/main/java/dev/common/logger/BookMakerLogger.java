@@ -94,35 +94,49 @@ public class BookMakerLogger {
 	 * [project][Class#method][INFO] もしくは [..][..][INFO:埋め字...]（必要なら）
 	 */
 	private static String buildMessage(String projectName, String className, String methodName,
-			String level, String messageCd, Exception e, String... fillChar) {
+	        String level, String messageCd, Exception e, String... fillChar) {
 
-		String messageText = null;
-		if (messageCd != null && !messageCd.isBlank()) {
-			messageText = MessageSourceProvider.getMessage(messageCd, fillChar);
-		}
+	    String messageText = null;
+	    if (messageCd != null && !messageCd.isBlank()) {
+	        messageText = MessageSourceProvider.getMessage(messageCd, fillChar);
+	    }
 
-		StringBuilder sb = new StringBuilder();
-		sb.append("[").append(lastName(className)).append("#").append(lastName(methodName)).append("]");
+	    String extra = null;
+	    if (fillChar != null && fillChar.length > 0) {
+	        extra = String.join(", ", fillChar);
+	        if (extra != null && extra.isBlank()) {
+	            extra = null;
+	        }
+	    }
 
-		// 先にレベル
-		sb.append("[").append(level);
+	    StringBuilder sb = new StringBuilder();
+	    sb.append("[").append(lastName(className)).append("#").append(lastName(methodName)).append("]");
+	    sb.append("[").append(level);
 
-		// messageCd（キー）は表示したいので key を出す（messageCd が INFO:付きで来ても key を表示）
-		if (messageCd != null && !messageCd.isBlank()) {
-			sb.append(":").append(messageCd);
+	    if (messageCd != null && !messageCd.isBlank()) {
+	        sb.append(":").append(messageCd);
 
-			// 文言が取れたときだけ表示（取れない場合はコードのみ）
-			if (messageText != null && !messageText.isBlank() && !messageText.equals(messageCd)) {
-				sb.append(":").append(messageText);
-			}
-		}
+	        if (messageText != null && !messageText.isBlank() && !messageText.equals(messageCd)) {
+	            sb.append(":").append(messageText);
+	        }
+	    }
 
-		sb.append("]");
+	    if (extra != null) {
+	        if (messageCd == null || messageCd.isBlank()) {
+	            sb.append(":").append(extra);
+	        } else if (messageText == null || messageText.isBlank() || messageText.equals(messageCd)) {
+	            sb.append(":").append(extra);
+	        } else {
+	            sb.append(" (備考: ").append(extra).append(")");
+	        }
+	    }
 
-		if (e != null) {
-			sb.append(" - ").append(e);
-		}
-		return sb.toString();
+	    sb.append("]");
+
+	    if (e != null) {
+	        sb.append(" - ").append(e);
+	    }
+	    return sb.toString();
 	}
 
 	/**
