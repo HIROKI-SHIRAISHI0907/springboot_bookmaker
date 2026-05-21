@@ -133,7 +133,7 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 				/** エラーコード（運用ルールに合わせて変更） */
 				String ERROR_CODE = MessageCdConst.MCD00003E_EXECUTION_SKIP;
 				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, null,
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE,
 						"items.isEmpty() マッチキーが取得できなかったため処理を終了します。");
 				// 念の為ここでもフラグ更新(対象マップは絞らない)
 				updateFlg(null);
