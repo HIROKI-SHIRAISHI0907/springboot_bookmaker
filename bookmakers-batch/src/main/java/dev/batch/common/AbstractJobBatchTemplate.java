@@ -1,5 +1,7 @@
 package dev.batch.common;
 
+import java.time.LocalDateTime;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 
@@ -29,6 +31,9 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
     protected jobExecControlIF jobExecControl;
 
     @Autowired
+    protected BatchExecutionHistoryService executionHistoryService;
+
+    @Autowired
     protected ManageLoggerComponent manageLoggerComponent;
 
     /** バッチコード（例: B002） */
@@ -56,6 +61,29 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
         return this.getClass().getName();
     }
 
+    /**
+     * 履歴表示用の実行名。
+     *
+     * @return 実行名
+     */
+    protected String executionName() {
+        return this.getClass().getSimpleName();
+    }
+
+    /**
+     * バッチ名。
+     *
+     * <p>
+     * 履歴テーブル上での表示名として使用する。
+     * 必要に応じてサブクラスで override してよい。
+     * </p>
+     *
+     * @return バッチ名
+     */
+    protected String batchName() {
+        return this.getClass().getSimpleName();
+    }
+
     @Override
     public final int execute() {
         final String METHOD_NAME = "execute";
@@ -69,6 +97,7 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 
         final String code = batchCode();
         final String jobId = JobIdUtil.generate(code);
+        final LocalDateTime startTime = LocalDateTime.now();
 
         boolean jobInserted = false;
 
@@ -88,6 +117,16 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 
             JobContext ctx = new JobContext(jobId, code);
 
+            // 実行履歴テーブルにも QUEUED を同期登録
+            executionHistoryService.registerBatchStart(
+                    jobId,
+                    executionName(),
+                    code,
+                    className(),
+                    METHOD_NAME,
+                    startTime
+            );
+
             // 必要なら受付直後に1回生存通知（任意）
             // ctx.heartbeat();
 
@@ -95,6 +134,13 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 
             // 2: SUCCESS（成功）
             jobExecControl.jobEnd(jobId);
+
+            // 成功結果
+            executionHistoryService.markBatchSuccess(
+                    jobId,
+                    startTime,
+                    LocalDateTime.now()
+            );
 
             manageLoggerComponent.debugInfoLog(
                     projectName(), className(), METHOD_NAME, null,
@@ -112,6 +158,14 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
                 try {
                     jobExecControl.jobException(jobId);
                 } catch (Exception ignore) {}
+
+                // 失敗結果
+                executionHistoryService.markBatchFailure(
+                        jobId,
+                        startTime,
+                        LocalDateTime.now(),
+                        e
+                );
             }
             return BatchConstant.BATCH_ERROR;
 
