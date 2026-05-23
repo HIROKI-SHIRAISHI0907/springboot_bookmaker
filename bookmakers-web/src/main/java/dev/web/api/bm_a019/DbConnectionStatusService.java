@@ -1,11 +1,13 @@
 package dev.web.api.bm_a019;
 
+import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
 
 import javax.sql.DataSource;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
 import com.zaxxer.hikari.HikariConfigMXBean;
@@ -21,18 +23,20 @@ public class DbConnectionStatusService {
     private final DbConnectionStatusRepository dbConnectionStatusRepository;
 
     public DbConnectionStatusService(
-            DataSource dataSource,
+            @Qualifier("bmDataSource") DataSource dataSource,
             DbConnectionStatusRepository dbConnectionStatusRepository) {
         this.hikariDataSource = resolveHikariDataSource(dataSource);
         this.dbConnectionStatusRepository = dbConnectionStatusRepository;
     }
 
     public DbConnectionStatusResponse getStatus() {
+        initializePoolIfNeeded();
+
         HikariPoolMXBean poolMxBean = hikariDataSource.getHikariPoolMXBean();
         HikariConfigMXBean configMxBean = hikariDataSource.getHikariConfigMXBean();
 
         if (poolMxBean == null) {
-            throw new IllegalStateException("HikariPoolMXBean を取得できません。");
+            throw new IllegalStateException("HikariPoolMXBean を取得できません。対象DataSourceのプールが初期化されていない可能性があります。");
         }
         if (configMxBean == null) {
             throw new IllegalStateException("HikariConfigMXBean を取得できません。");
@@ -98,6 +102,18 @@ public class DbConnectionStatusService {
         return response;
     }
 
+    private void initializePoolIfNeeded() {
+        if (hikariDataSource.getHikariPoolMXBean() != null) {
+            return;
+        }
+
+        try (Connection ignored = hikariDataSource.getConnection()) {
+            // 初回接続でプールを初期化
+        } catch (SQLException e) {
+            throw new IllegalStateException("Hikariプール初期化用の接続取得に失敗しました。", e);
+        }
+    }
+
     private HikariDataSource resolveHikariDataSource(DataSource dataSource) {
         if (dataSource instanceof HikariDataSource) {
             return (HikariDataSource) dataSource;
@@ -113,5 +129,4 @@ public class DbConnectionStatusService {
 
         throw new IllegalStateException("DataSource が HikariDataSource ではありません。");
     }
-
 }

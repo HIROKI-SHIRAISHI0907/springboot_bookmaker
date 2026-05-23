@@ -1,5 +1,6 @@
 package dev.web.repository.bm;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -11,7 +12,7 @@ public class DbConnectionStatusRepository {
 
     private final NamedParameterJdbcTemplate bmJdbcTemplate;
 
-    public DbConnectionStatusRepository(NamedParameterJdbcTemplate bmJdbcTemplate) {
+    public DbConnectionStatusRepository(@Qualifier("bmDataSource") NamedParameterJdbcTemplate bmJdbcTemplate) {
         this.bmJdbcTemplate = bmJdbcTemplate;
     }
 
