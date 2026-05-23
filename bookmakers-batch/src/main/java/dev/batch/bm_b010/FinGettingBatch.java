@@ -11,6 +11,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import dev.batch.common.AbstractJobBatchTemplate;
+import dev.batch.repository.bm.EcsScrapeTaskProgressBatchRepository;
 import dev.batch.repository.bm.MatchKeySaveRepository;
 import dev.common.config.PathConfig;
 import dev.common.constant.MessageCdConst;
@@ -72,6 +73,26 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 		return CLASS_NAME;
 	}
 
+	/**
+     * 同一バッチコードのECSタスクが起動要求中または実行中の場合はスキップする。
+     *
+     * @return true: スキップする / false: 実行する
+     */
+    @Override
+    protected boolean shouldSkipExecution() {
+        return ecsScrapeTaskProgressBatchRepository.existsRunningTask(batchCode());
+    }
+
+    /**
+     * スキップ理由を返す。
+     *
+     * @return スキップ理由
+     */
+    @Override
+    protected String skipReason() {
+        return "同一バッチコードのECSスクレイピングタスクが起動要求中または実行中のためスキップします。 batchCode=" + batchCode();
+    }
+
 	/** MatchKeySaveRepository */
 	@Autowired
 	private MatchKeySaveRepository matchKeySaveRepository;
@@ -98,6 +119,10 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 	/** S3Operator */
 	@Autowired
 	private S3Operator s3Operator;
+
+	 /** ECSスクレイプ進捗確認Repository */
+    @Autowired
+    private EcsScrapeTaskProgressBatchRepository ecsScrapeTaskProgressBatchRepository;
 
 	/**
 	 * {@inheritDoc}
