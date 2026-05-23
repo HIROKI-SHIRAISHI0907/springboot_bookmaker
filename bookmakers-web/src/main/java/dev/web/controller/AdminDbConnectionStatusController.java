@@ -4,12 +4,9 @@ import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.web.api.bm_a019.DbConnectionStatusResponse;
+import dev.web.api.bm_a019.DbConnectionStatusListResponse;
 import dev.web.api.bm_a019.DbConnectionStatusService;
 
-/**
- * DBコネクション監視情報を取得するコントローラー。
- */
 @RestController
 @RequestMapping("/api/admin")
 public class AdminDbConnectionStatusController {
@@ -21,7 +18,7 @@ public class AdminDbConnectionStatusController {
     }
 
     @GetMapping("/db/connections")
-    public DbConnectionStatusResponse getDbConnections() {
-        return dbConnectionStatusService.getStatus();
+    public DbConnectionStatusListResponse getDbConnections() {
+        return dbConnectionStatusService.getAllStatus();
     }
 }

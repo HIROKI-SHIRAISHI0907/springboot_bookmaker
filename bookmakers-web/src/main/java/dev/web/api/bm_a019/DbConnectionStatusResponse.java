@@ -295,4 +295,23 @@ public class DbConnectionStatusResponse {
          */
         private int currentUserConnections;
     }
+
+    /**
+     * 監視対象データソースキー。
+     *
+     * <p>
+     * 例: bm, master, user
+     * </p>
+     */
+    private String dataSourceKey;
+
+    /**
+     * 監視対象表示名。
+     *
+     * <p>
+     * 例: soccer_bm, soccer_bm_master, soccer_bm_user
+     * </p>
+     */
+    private String displayName;
+
 }

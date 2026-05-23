@@ -1,6 +1,5 @@
 package dev.web.repository.bm;
 
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -10,13 +9,7 @@ import dev.web.api.bm_a019.PostgresConnectionStatsDto;
 @Repository
 public class DbConnectionStatusRepository {
 
-    private final NamedParameterJdbcTemplate bmJdbcTemplate;
-
-    public DbConnectionStatusRepository(@Qualifier("bmDataSource") NamedParameterJdbcTemplate bmJdbcTemplate) {
-        this.bmJdbcTemplate = bmJdbcTemplate;
-    }
-
-    public PostgresConnectionStatsDto findPostgresConnectionStats() {
+    public PostgresConnectionStatsDto findPostgresConnectionStats(NamedParameterJdbcTemplate jdbcTemplate) {
         String sql = """
             WITH settings AS (
                 SELECT
@@ -67,7 +60,6 @@ public class DbConnectionStatusRepository {
                 s.max_connections AS maxConnections,
                 s.superuser_reserved_connections AS superuserReservedConnections,
                 s.reserved_connections AS reservedConnections,
-
                 ss.total_backend_processes AS totalBackendProcesses,
                 ss.current_client_connections AS currentClientConnections,
                 ss.active_connections AS activeConnections,
@@ -75,7 +67,6 @@ public class DbConnectionStatusRepository {
                 ss.idle_in_transaction_connections AS idleInTransactionConnections,
                 ss.idle_in_transaction_aborted_connections AS idleInTransactionAbortedConnections,
                 ss.waiting_connections AS waitingConnections,
-
                 GREATEST(
                     s.max_connections
                     - s.superuser_reserved_connections
@@ -83,7 +74,6 @@ public class DbConnectionStatusRepository {
                     - ss.current_client_connections,
                     0
                 ) AS estimatedAvailableConnections,
-
                 pgdb.num_backends AS numBackends,
                 ds.current_db_connections AS currentDbConnections,
                 ds.current_db_active_connections AS currentDbActiveConnections,
@@ -98,7 +88,7 @@ public class DbConnectionStatusRepository {
             CROSS JOIN pgdb
         """;
 
-        return bmJdbcTemplate.queryForObject(
+        return jdbcTemplate.queryForObject(
             sql,
             new MapSqlParameterSource(),
             (rs, rowNum) -> {

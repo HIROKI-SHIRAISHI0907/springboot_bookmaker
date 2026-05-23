@@ -4,10 +4,12 @@ import java.sql.Connection;
 import java.sql.SQLException;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.util.List;
 
 import javax.sql.DataSource;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Service;
 
 import com.zaxxer.hikari.HikariConfigMXBean;
@@ -19,32 +21,70 @@ import dev.web.repository.bm.DbConnectionStatusRepository;
 @Service
 public class DbConnectionStatusService {
 
-    private final HikariDataSource hikariDataSource;
+    private final HikariDataSource bmDataSource;
+    private final HikariDataSource masterDataSource;
+    private final HikariDataSource userDataSource;
+
+    private final NamedParameterJdbcTemplate bmJdbcTemplate;
+    private final NamedParameterJdbcTemplate masterJdbcTemplate;
+    private final NamedParameterJdbcTemplate userJdbcTemplate;
+
     private final DbConnectionStatusRepository dbConnectionStatusRepository;
 
     public DbConnectionStatusService(
-            @Qualifier("bmDataSource") DataSource dataSource,
+            @Qualifier("bmDataSource") DataSource bmDataSource,
+            @Qualifier("webMasterDataSource") DataSource masterDataSource,
+            @Qualifier("webUserDataSource") DataSource userDataSource,
+            @Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate,
+            @Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate,
+            @Qualifier("webUserJdbcTemplate") NamedParameterJdbcTemplate userJdbcTemplate,
             DbConnectionStatusRepository dbConnectionStatusRepository) {
-        this.hikariDataSource = resolveHikariDataSource(dataSource);
+
+        this.bmDataSource = resolveHikariDataSource(bmDataSource);
+        this.masterDataSource = resolveHikariDataSource(masterDataSource);
+        this.userDataSource = resolveHikariDataSource(userDataSource);
+        this.bmJdbcTemplate = bmJdbcTemplate;
+        this.masterJdbcTemplate = masterJdbcTemplate;
+        this.userJdbcTemplate = userJdbcTemplate;
         this.dbConnectionStatusRepository = dbConnectionStatusRepository;
     }
 
-    public DbConnectionStatusResponse getStatus() {
-        initializePoolIfNeeded();
+    public DbConnectionStatusListResponse getAllStatus() {
+        List<DbConnectionStatusResponse> items = List.of(
+                buildStatus("bm", "soccer_bm", bmDataSource, bmJdbcTemplate),
+                buildStatus("master", "soccer_bm_master", masterDataSource, masterJdbcTemplate),
+                buildStatus("user", "soccer_bm_user", userDataSource, userJdbcTemplate)
+        );
+
+        DbConnectionStatusListResponse response = new DbConnectionStatusListResponse();
+        response.setCount(items.size());
+        response.setItems(items);
+        return response;
+    }
+
+    private DbConnectionStatusResponse buildStatus(
+            String dataSourceKey,
+            String displayName,
+            HikariDataSource hikariDataSource,
+            NamedParameterJdbcTemplate jdbcTemplate) {
+
+        initializePoolIfNeeded(hikariDataSource);
 
         HikariPoolMXBean poolMxBean = hikariDataSource.getHikariPoolMXBean();
         HikariConfigMXBean configMxBean = hikariDataSource.getHikariConfigMXBean();
 
         if (poolMxBean == null) {
-            throw new IllegalStateException("HikariPoolMXBean を取得できません。対象DataSourceのプールが初期化されていない可能性があります。");
+            throw new IllegalStateException("HikariPoolMXBean を取得できません。 dataSourceKey=" + dataSourceKey);
         }
         if (configMxBean == null) {
-            throw new IllegalStateException("HikariConfigMXBean を取得できません。");
+            throw new IllegalStateException("HikariConfigMXBean を取得できません。 dataSourceKey=" + dataSourceKey);
         }
 
-        PostgresConnectionStatsDto pg = dbConnectionStatusRepository.findPostgresConnectionStats();
+        PostgresConnectionStatsDto pg = dbConnectionStatusRepository.findPostgresConnectionStats(jdbcTemplate);
 
         DbConnectionStatusResponse response = new DbConnectionStatusResponse();
+        response.setDataSourceKey(dataSourceKey);
+        response.setDisplayName(displayName);
         response.setMeasuredAt(OffsetDateTime.now().format(DateTimeFormatter.ISO_OFFSET_DATE_TIME));
         response.setDatabaseName(pg.getCurrentDatabaseName());
 
@@ -102,7 +142,7 @@ public class DbConnectionStatusService {
         return response;
     }
 
-    private void initializePoolIfNeeded() {
+    private void initializePoolIfNeeded(HikariDataSource hikariDataSource) {
         if (hikariDataSource.getHikariPoolMXBean() != null) {
             return;
         }
