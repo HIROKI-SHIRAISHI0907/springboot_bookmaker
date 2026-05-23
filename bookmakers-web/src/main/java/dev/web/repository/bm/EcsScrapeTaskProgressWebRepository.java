@@ -3,6 +3,7 @@ package dev.web.repository.bm;
 import java.sql.Timestamp;
 import java.time.LocalDateTime;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -28,6 +29,7 @@ public class EcsScrapeTaskProgressWebRepository {
      * @param record 登録内容
      */
     public void insertStarted(EcsScrapeTaskProgressRecordEntity record) {
+    	debugConnection();
         String sql = """
             INSERT INTO ecs_scrape_task_progress (
                 progress_id,
@@ -73,6 +75,7 @@ public class EcsScrapeTaskProgressWebRepository {
      * @return 更新件数
      */
     public int updateStatus(String progressId, String status, String metadata, String updateId) {
+    	debugConnection();
         String sql = """
             UPDATE ecs_scrape_task_progress
                SET status = :status,
@@ -109,6 +112,7 @@ public class EcsScrapeTaskProgressWebRepository {
             String status,
             String metadata,
             String updateId) {
+    	debugConnection();
 
         String sql = """
             UPDATE ecs_scrape_task_progress
@@ -147,6 +151,7 @@ public class EcsScrapeTaskProgressWebRepository {
             String metadata,
             String errorMessage,
             String updateId) {
+    	debugConnection();
 
         String sql = """
             UPDATE ecs_scrape_task_progress
@@ -214,6 +219,22 @@ public class EcsScrapeTaskProgressWebRepository {
         return list.isEmpty() ? null : list.get(0);
     }
 
+    /**
+     * 接続先DB情報をデバッグ出力する。
+     */
+    public void debugConnection() {
+        String sql = """
+            SELECT
+                current_database() AS current_database,
+                current_schema()   AS current_schema,
+                current_user       AS current_user
+        """;
+
+        Map<String, Object> result =
+                this.bmJdbcTemplate.queryForMap(sql, new MapSqlParameterSource());
+
+        System.out.println("[DEBUG] ecs_scrape_task_progress connection = " + result);
+    }
 
     /**
      * LocalDateTime を Timestamp に変換する。
