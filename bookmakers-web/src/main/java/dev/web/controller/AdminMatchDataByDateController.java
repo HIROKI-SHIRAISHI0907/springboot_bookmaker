@@ -21,7 +21,9 @@ public class AdminMatchDataByDateController {
 
     @GetMapping("/matches/by-date")
     public MatchDataByDateListResponse getMatchDataByDate(
-            @RequestParam(value = "targetDate", required = false) String targetDate) {
-        return matchDataByDateService.getMatchDataByDate(targetDate);
+            @RequestParam(value = "targetDate", required = false) String targetDate,
+            @RequestParam(value = "page", required = false, defaultValue = "1") Integer page,
+            @RequestParam(value = "size", required = false, defaultValue = "10") Integer size) {
+        return matchDataByDateService.getMatchDataByDate(targetDate, page, size);
     }
 }

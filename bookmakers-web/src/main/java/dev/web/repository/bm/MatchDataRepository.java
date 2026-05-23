@@ -24,11 +24,42 @@ public class MatchDataRepository {
     }
 
     /**
-     * 指定日の対戦データを取得
+     * 指定日の対戦データ総件数を取得
+     */
+    public int countMatchDataByDate(String targetDate) {
+        String sql = """
+            WITH ranked AS (
+                SELECT
+                    ROW_NUMBER() OVER (
+                        PARTITION BY COALESCE(
+                            NULLIF(d.match_id, ''),
+                            NULLIF(d.game_id, ''),
+                            d.home_team_name || '|' || d.away_team_name || '|' || COALESCE(d.data_category, '')
+                        )
+                        ORDER BY d.record_time DESC NULLS LAST, d.seq DESC
+                    ) AS rn
+                FROM data d
+                WHERE CAST(d.record_time AS DATE) = CAST(:targetDate AS DATE)
+            )
+            SELECT COUNT(*)
+            FROM ranked
+            WHERE rn = 1
+        """;
+
+        Integer count = bmJdbcTemplate.queryForObject(
+                sql,
+                new MapSqlParameterSource().addValue("targetDate", targetDate),
+                Integer.class);
+
+        return count == null ? 0 : count;
+    }
+
+    /**
+     * 指定日の対戦データをページ単位で取得
      * - data.record_time を日付検索
      * - 同一試合内で最新1件だけ返す
      */
-    public List<MatchDataByDateItemResource> findMatchDataByDate(String targetDate) {
+    public List<MatchDataByDateItemResource> findMatchDataByDate(String targetDate, int limit, int offset) {
         String sql = """
             WITH ranked AS (
                 SELECT
@@ -68,12 +99,15 @@ public class MatchDataRepository {
             FROM ranked
             WHERE rn = 1
             ORDER BY sortRecordTime DESC, homeTeamName ASC, awayTeamName ASC
+            LIMIT :limit OFFSET :offset
         """;
 
         return bmJdbcTemplate.query(
             sql,
             new MapSqlParameterSource()
-                .addValue("targetDate", targetDate),
+                .addValue("targetDate", targetDate)
+                .addValue("limit", limit)
+                .addValue("offset", offset),
             (rs, n) -> {
                 MatchDataByDateItemResource item = new MatchDataByDateItemResource();
                 item.setMatchKey(rs.getString("matchKey"));
