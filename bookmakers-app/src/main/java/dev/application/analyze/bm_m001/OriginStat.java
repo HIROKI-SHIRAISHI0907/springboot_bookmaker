@@ -67,9 +67,10 @@ public class OriginStat implements OriginEntityIF {
 	 *
 	 * 仕様:
 	 * - 成功したCSVのみ successPaths に積む
-	 * - skipしたCSV（times空 / match_key重複）は削除対象にしない
+	 * - times空はDB登録しないが削除対象にする
+	 * - match_key重複は削除対象にしない
 	 * - 失敗が1件でもあれば削除フェーズは実施しない
-	 * - 失敗が無い場合のみ、successPaths のCSVだけ削除する
+	 * - 失敗が無い場合のみ、successPaths + timesEmptyPaths のCSVを削除する
 	 */
 	@Override
 	@Transactional(propagation = Propagation.NOT_SUPPORTED)
@@ -84,6 +85,7 @@ public class OriginStat implements OriginEntityIF {
 		List<String> successPaths = new ArrayList<>(total);
 		List<String> failedPaths = new ArrayList<>();
 		List<String> skippedPaths = new ArrayList<>();
+		List<String> timesEmptyPaths = new ArrayList<>();
 		Exception firstThrown = null;
 
 		for (Map.Entry<String, List<DataEntity>> entry : entities.entrySet()) {
@@ -91,17 +93,17 @@ public class OriginStat implements OriginEntityIF {
 			final List<DataEntity> dataList = entry.getValue();
 			final String fillChar = "ファイル名: " + filePath;
 
-			// times が無い場合はスキップ（削除対象にしない）
+			// times が無い場合はDB登録スキップ、ただし削除対象にはする
 			if (dataList == null || dataList.isEmpty()
 					|| dataList.get(0).getTimes() == null
 					|| "".equals(dataList.get(0).getTimes())) {
 
 				skipped++;
-				skippedPaths.add(filePath);
+				timesEmptyPaths.add(filePath);
 
 				manageLoggerComponent.debugInfoLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						String.format("timesが空のためスキップ（削除対象外）: %s", filePath));
+						String.format("timesが空のためDB登録スキップ（削除対象）: %s", filePath));
 				continue;
 			}
 
@@ -197,26 +199,32 @@ public class OriginStat implements OriginEntityIF {
 
 		manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-				String.format("削除対象サマリ: successPaths=%d, skippedPaths=%d, failedPaths=%d",
-						successPaths.size(), skippedPaths.size(), failedPaths.size()));
+				String.format("削除対象サマリ: successPaths=%d, timesEmptyPaths=%d, skippedPaths=%d, failedPaths=%d",
+						successPaths.size(), timesEmptyPaths.size(), skippedPaths.size(), failedPaths.size()));
 
-		// 失敗が無い場合のみ、成功したCSVだけ削除
+		// 失敗が無い場合のみ、成功したCSV + times空CSVを削除
 		if (failedPaths.isEmpty()) {
 			String bucket = config.getS3BucketsOutputs();
 			List<String> s3KeysToDelete = new ArrayList<>();
+			List<String> deleteTargets = new ArrayList<>();
+
+			deleteTargets.addAll(successPaths);
+			deleteTargets.addAll(timesEmptyPaths);
 
 			manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					"削除フェーズ開始: successOnly=" + successPaths.size());
+					"削除フェーズ開始: deleteTargets=" + deleteTargets.size()
+							+ " (successOnly=" + successPaths.size()
+							+ ", timesEmpty=" + timesEmptyPaths.size() + ")");
 
 			int deleteIndex = 0;
-			for (String localPath : successPaths) {
+			for (String localPath : deleteTargets) {
 				deleteIndex++;
 
-				if (deleteIndex % 100 == 0 || deleteIndex == successPaths.size()) {
+				if (deleteIndex % 100 == 0 || deleteIndex == deleteTargets.size()) {
 					manageLoggerComponent.debugInfoLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							String.format("削除進捗: %d/%d", deleteIndex, successPaths.size()));
+							String.format("削除進捗: %d/%d", deleteIndex, deleteTargets.size()));
 				}
 
 				// ローカル削除
@@ -231,7 +239,7 @@ public class OriginStat implements OriginEntityIF {
 							"ローカルCSV削除失敗", e, localPath);
 				}
 
-				// S3 key 収集（successPathsのみ）
+				// S3 key 収集
 				List<DataEntity> list = entities.get(localPath);
 				if (list != null && !list.isEmpty()) {
 					String s3Key = list.get(0).getFile(); // 例: 2026-02-05/mid=xxx/seq=....csv
@@ -246,12 +254,12 @@ public class OriginStat implements OriginEntityIF {
 
 			manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					"成功したCSVのみ削除を完了しました（S3 + ローカル）。skipファイルは削除していません。");
+					"成功したCSVおよびtimes空CSVの削除を完了しました（S3 + ローカル）。match_key重複skipファイルは削除していません。");
 		} else {
 			manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					String.format("失敗があったため削除フェーズは実施しません。成功=%d, 失敗=%d, スキップ=%d",
-							successPaths.size(), failedPaths.size(), skippedPaths.size()));
+					String.format("失敗があったため削除フェーズは実施しません。成功=%d, times空=%d, 失敗=%d, スキップ=%d",
+							successPaths.size(), timesEmptyPaths.size(), failedPaths.size(), skippedPaths.size()));
 		}
 
 		manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
