@@ -1,5 +1,6 @@
 package dev.web.repository.bm;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -11,7 +12,7 @@ public class ExecutionHistoryWebRepository {
 
     private final NamedParameterJdbcTemplate bmJdbcTemplate;
 
-    public ExecutionHistoryWebRepository(NamedParameterJdbcTemplate bmJdbcTemplate) {
+    public ExecutionHistoryWebRepository(@Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate) {
         this.bmJdbcTemplate = bmJdbcTemplate;
     }
 
