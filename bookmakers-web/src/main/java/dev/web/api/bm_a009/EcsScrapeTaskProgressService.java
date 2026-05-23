@@ -11,6 +11,7 @@ import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
 
+import dev.web.batch.EcsScrapeTaskProgressWebService;
 import dev.web.config.EcsScrapePropertiesConfig;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.cloudwatchlogs.model.GetLogEventsRequest;
@@ -31,11 +32,6 @@ import software.amazon.awssdk.services.ecs.model.TaskField;
 @Service
 public class EcsScrapeTaskProgressService {
 
-    /**
-     * 例:
-     * [PROGRESS] teams=3/20
-     * [PROGRESS] teams = ３ / ２０
-     */
     private static final Pattern PROGRESS_PATTERN =
             Pattern.compile("\\[PROGRESS\\].*?teams\\s*=\\s*([0-9０-９]+)\\s*/\\s*([0-9０-９]+)");
 
@@ -45,20 +41,21 @@ public class EcsScrapeTaskProgressService {
     private final EcsClient ecs;
     private final CloudWatchLogsClient logs;
     private final EcsScrapePropertiesConfig props;
+    private final EcsScrapeTaskProgressWebService progressWebService;
 
-    public EcsScrapeTaskProgressService(EcsClient ecs, CloudWatchLogsClient logs, EcsScrapePropertiesConfig props) {
+    public EcsScrapeTaskProgressService(
+            EcsClient ecs,
+            CloudWatchLogsClient logs,
+            EcsScrapePropertiesConfig props,
+            EcsScrapeTaskProgressWebService progressWebService) {
         this.ecs = ecs;
         this.logs = logs;
         this.props = props;
+        this.progressWebService = progressWebService;
     }
 
     /**
      * batchCode を B002 形式に寄せる
-     * 受け入れ例:
-     * - B002
-     * - b002
-     * - 002
-     * - 2
      */
     public String normalizeBatchCode(String batchCode) {
         if (batchCode == null || batchCode.isBlank()) {
@@ -97,6 +94,11 @@ public class EcsScrapeTaskProgressService {
                 .build());
 
         if (list.taskArns() == null || list.taskArns().isEmpty()) {
+            // 補完更新:
+            // 同一 batch_cd で REQUESTED/RUNNING のまま残っており、
+            // taskArn 未設定のレコードがあれば SUCCESS へ更新する
+            progressWebService.completeOpenRecordWithoutTaskArn(normalizedBatchCode);
+
             EcsScrapeTaskProgressResponse res = new EcsScrapeTaskProgressResponse();
             res.setStatus("NOT_FOUND");
             res.setMessage("実行中のECSタスクが見つかりません。");
@@ -286,13 +288,6 @@ public class EcsScrapeTaskProgressService {
         return idx >= 0 ? taskArn.substring(idx + 1) : taskArn;
     }
 
-    /**
-     * taskDefinition から family 名を取り出す
-     * 例:
-     * - team-member-batch
-     * - team-member-batch:12
-     * - arn:aws:ecs:ap-northeast-1:xxx:task-definition/team-member-batch:12
-     */
     private String extractFamilyName(String taskDefinition) {
         if (taskDefinition == null || taskDefinition.isBlank()) {
             return taskDefinition;

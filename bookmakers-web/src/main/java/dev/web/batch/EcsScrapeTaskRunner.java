@@ -1,6 +1,7 @@
 package dev.web.batch;
 
 import java.util.ArrayList;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
@@ -38,108 +39,192 @@ public class EcsScrapeTaskRunner {
     private final EcsClient ecs;
     private final EcsScrapePropertiesConfig props;
     private final EcsNetworkPropertiesConfig net;
+    private final EcsScrapeTaskProgressWebService progressService;
 
-    public EcsScrapeTaskRunner(EcsClient ecs, EcsScrapePropertiesConfig props, EcsNetworkPropertiesConfig net) {
+    public EcsScrapeTaskRunner(
+            EcsClient ecs,
+            EcsScrapePropertiesConfig props,
+            EcsNetworkPropertiesConfig net,
+            EcsScrapeTaskProgressWebService progressService) {
         this.ecs = ecs;
         this.props = props;
         this.net = net;
+        this.progressService = progressService;
     }
 
     /**
      * スクレイピング実行
+     *
      * @param batchCode 例: B002
      * @param extraEnv 追加env（任意）
      * @param preventDuplicateRunning true の場合、同familyのRUNNINGがあれば起動しない
      * @return 起動した taskArn
      */
     public String runScrape(String batchCode, Map<String, String> extraEnv, boolean preventDuplicateRunning) {
-        EcsScrapePropertiesConfig.ScrapeConfig cfg = props.require(batchCode);
+        String progressId = null;
 
-        if (preventDuplicateRunning) {
-            var running = ecs.listTasks(ListTasksRequest.builder()
+        try {
+            EcsScrapePropertiesConfig.ScrapeConfig cfg = props.require(batchCode);
+
+            Map<String, Object> requestedMetadata = new LinkedHashMap<>();
+            requestedMetadata.put("batchCode", batchCode);
+            requestedMetadata.put("preventDuplicateRunning", preventDuplicateRunning);
+            requestedMetadata.put("extraEnv", extraEnv);
+            requestedMetadata.put("cluster", cfg.getCluster());
+            requestedMetadata.put("taskDefinition", cfg.getTaskDefinition());
+            requestedMetadata.put("container", cfg.getContainer());
+
+            // 開始登録
+            progressId = progressService.insertStarted(batchCode, "REQUESTED", requestedMetadata);
+
+            if (preventDuplicateRunning) {
+                var running = ecs.listTasks(ListTasksRequest.builder()
+                        .cluster(cfg.getCluster())
+                        .family(cfg.getTaskDefinition())
+                        .desiredStatus(DesiredStatus.RUNNING)
+                        .maxResults(1)
+                        .build());
+
+                if (running.taskArns() != null && !running.taskArns().isEmpty()) {
+                    Map<String, Object> skippedMetadata = new LinkedHashMap<>(requestedMetadata);
+                    skippedMetadata.put("runningTaskArns", running.taskArns());
+
+                    progressService.updateFinished(
+                            progressId,
+                            "SKIPPED",
+                            skippedMetadata,
+                            "Already RUNNING task exists for " + batchCode);
+
+                    throw new IllegalStateException("Already RUNNING task exists for " + batchCode);
+                }
+            }
+
+            List<KeyValuePair> envs = new ArrayList<>();
+            envs.add(KeyValuePair.builder().name("BM_JOB").value(batchCode).build());
+
+            if (extraEnv != null && !extraEnv.isEmpty()) {
+                for (var e : extraEnv.entrySet()) {
+                    String k = e.getKey();
+                    String v = e.getValue();
+                    if (k == null || k.isBlank()) continue;
+                    if (v == null || v.isBlank()) continue;
+                    if ("BM_JOB".equals(k)) continue;
+                    envs.add(KeyValuePair.builder().name(k).value(v).build());
+                }
+            }
+
+            ContainerOverride containerOverride = ContainerOverride.builder()
+                    .name(cfg.getContainer())
+                    .environment(envs)
+                    .build();
+
+            List<String> subnets = net.getSubnets() == null ? List.of()
+                    : net.getSubnets().stream()
+                        .filter(Objects::nonNull)
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .collect(Collectors.toList());
+
+            List<String> sgs = net.getSecurityGroups() == null ? List.of()
+                    : net.getSecurityGroups().stream()
+                        .filter(Objects::nonNull)
+                        .map(String::trim)
+                        .filter(s -> !s.isEmpty())
+                        .collect(Collectors.toList());
+
+            if (sgs.isEmpty()) {
+                throw new IllegalStateException("ECS securityGroups are empty. Check EcsNetworkPropertiesConfig.");
+            }
+            if (subnets.isEmpty()) {
+                throw new IllegalStateException("ECS subnets are empty. Check EcsNetworkPropertiesConfig.");
+            }
+
+            AwsVpcConfiguration vpc = AwsVpcConfiguration.builder()
+                    .subnets(subnets)
+                    .securityGroups(sgs)
+                    .assignPublicIp(net.isAssignPublicIp() ? AssignPublicIp.ENABLED : AssignPublicIp.DISABLED)
+                    .build();
+
+            RunTaskRequest req = RunTaskRequest.builder()
                     .cluster(cfg.getCluster())
-                    // family は task definition の family 名
-                    .family(cfg.getTaskDefinition())
-                    .desiredStatus(DesiredStatus.RUNNING)
-                    .maxResults(1)
-                    .build());
-            if (running.taskArns() != null && !running.taskArns().isEmpty()) {
-                throw new IllegalStateException("Already RUNNING task exists for " + batchCode);
+                    .taskDefinition(cfg.getTaskDefinition())
+                    .launchType(LaunchType.FARGATE)
+                    .networkConfiguration(NetworkConfiguration.builder().awsvpcConfiguration(vpc).build())
+                    .overrides(TaskOverride.builder().containerOverrides(containerOverride).build())
+                    .tags(
+                            Tag.builder().key("batchCode").value(batchCode).build(),
+                            Tag.builder().key("trigger").value("admin-manual").build()
+                    )
+                    .count(1)
+                    .build();
+
+            RunTaskResponse resp = ecs.runTask(req);
+
+            if (resp.failures() != null && !resp.failures().isEmpty()) {
+                Map<String, Object> failedMetadata = new LinkedHashMap<>(requestedMetadata);
+                failedMetadata.put("failures", resp.failures());
+
+                progressService.updateFinished(
+                        progressId,
+                        "FAILED",
+                        failedMetadata,
+                        "RunTask failed: " + resp.failures());
+
+                throw new IllegalStateException("RunTask failed: " + resp.failures());
             }
-        }
 
-        // env（必要なら）
-        List<KeyValuePair> envs = new ArrayList<>();
-        // バッチ識別をコンテナへ渡したい場合（Python側で読める）
-        envs.add(KeyValuePair.builder().name("BM_JOB").value(batchCode).build());
+            if (resp.tasks() == null || resp.tasks().isEmpty()) {
+                progressService.updateFinished(
+                        progressId,
+                        "FAILED",
+                        requestedMetadata,
+                        "RunTask returned no task.");
 
-        if (extraEnv != null && !extraEnv.isEmpty()) {
-            for (var e : extraEnv.entrySet()) {
-                String k = e.getKey();
-                String v = e.getValue();
-                if (k == null || k.isBlank()) continue;
-                if (v == null || v.isBlank()) continue;
-                if ("BM_JOB".equals(k)) continue; // 保護
-                envs.add(KeyValuePair.builder().name(k).value(v).build());
+                throw new IllegalStateException("RunTask returned no task.");
             }
+
+            String taskArn = resp.tasks().get(0).taskArn();
+            String taskId = extractTaskId(taskArn);
+
+            Map<String, Object> runningMetadata = new LinkedHashMap<>(requestedMetadata);
+            runningMetadata.put("taskArn", taskArn);
+            runningMetadata.put("taskId", taskId);
+            runningMetadata.put("launchType", "FARGATE");
+            runningMetadata.put("subnets", subnets);
+            runningMetadata.put("securityGroups", sgs);
+
+            progressService.updateTaskInfo(
+                    progressId,
+                    taskId,
+                    taskArn,
+                    "RUNNING",
+                    runningMetadata);
+
+            return taskArn;
+
+        } catch (Exception e) {
+            if (progressId != null) {
+                progressService.updateFinished(
+                        progressId,
+                        "FAILED",
+                        null,
+                        e.getMessage());
+            }
+            throw e;
         }
+    }
 
-        ContainerOverride containerOverride = ContainerOverride.builder()
-                .name(cfg.getContainer())
-                .environment(envs)
-                .build();
-
-        // subnets / sgs sanitize（JOB側と同じ流儀）
-        List<String> subnets = net.getSubnets() == null ? List.of()
-                : net.getSubnets().stream()
-                    .filter(Objects::nonNull)
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .collect(Collectors.toList());
-
-        List<String> sgs = net.getSecurityGroups() == null ? List.of()
-                : net.getSecurityGroups().stream()
-                    .filter(Objects::nonNull)
-                    .map(String::trim)
-                    .filter(s -> !s.isEmpty())
-                    .collect(Collectors.toList());
-
-        if (sgs.isEmpty()) {
-            throw new IllegalStateException("ECS securityGroups are empty. Check EcsNetworkPropertiesConfig.");
+    /**
+     * taskArn から taskId を抽出する。
+     *
+     * @param taskArn ECS taskArn
+     * @return taskId
+     */
+    private String extractTaskId(String taskArn) {
+        if (taskArn == null || taskArn.isBlank()) {
+            return null;
         }
-        if (subnets.isEmpty()) {
-            throw new IllegalStateException("ECS subnets are empty. Check EcsNetworkPropertiesConfig.");
-        }
-
-        AwsVpcConfiguration vpc = AwsVpcConfiguration.builder()
-                .subnets(subnets)
-                .securityGroups(sgs)
-                .assignPublicIp(net.isAssignPublicIp() ? AssignPublicIp.ENABLED : AssignPublicIp.DISABLED)
-                .build();
-
-        RunTaskRequest req = RunTaskRequest.builder()
-                .cluster(cfg.getCluster())
-                .taskDefinition(cfg.getTaskDefinition())
-                .launchType(LaunchType.FARGATE)
-                .networkConfiguration(NetworkConfiguration.builder().awsvpcConfiguration(vpc).build())
-                .overrides(TaskOverride.builder().containerOverrides(containerOverride).build())
-                // タグ（警告が出ない Tag.builder 方式）
-                .tags(
-                        Tag.builder().key("batchCode").value(batchCode).build(),
-                        Tag.builder().key("trigger").value("admin-manual").build()
-                )
-                .count(1)
-                .build();
-
-        RunTaskResponse resp = ecs.runTask(req);
-
-        if (resp.failures() != null && !resp.failures().isEmpty()) {
-            throw new IllegalStateException("RunTask failed: " + resp.failures());
-        }
-        if (resp.tasks() == null || resp.tasks().isEmpty()) {
-            throw new IllegalStateException("RunTask returned no task.");
-        }
-
-        return resp.tasks().get(0).taskArn();
+        int idx = taskArn.lastIndexOf('/');
+        return idx >= 0 ? taskArn.substring(idx + 1) : taskArn;
     }
 }
