@@ -13,6 +13,7 @@ import org.springframework.stereotype.Service;
 
 import dev.web.batch.EcsScrapeTaskProgressWebService;
 import dev.web.config.EcsScrapePropertiesConfig;
+import dev.web.repository.bm.EcsScrapeTaskProgressWebRepository;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.cloudwatchlogs.model.GetLogEventsRequest;
 import software.amazon.awssdk.services.cloudwatchlogs.model.GetLogEventsResponse;
@@ -41,16 +42,19 @@ public class EcsScrapeTaskProgressService {
     private final EcsClient ecs;
     private final CloudWatchLogsClient logs;
     private final EcsScrapePropertiesConfig props;
+    private final EcsScrapeTaskProgressWebRepository repository;
     private final EcsScrapeTaskProgressWebService progressWebService;
 
     public EcsScrapeTaskProgressService(
             EcsClient ecs,
             CloudWatchLogsClient logs,
             EcsScrapePropertiesConfig props,
+            EcsScrapeTaskProgressWebRepository repository,
             EcsScrapeTaskProgressWebService progressWebService) {
         this.ecs = ecs;
         this.logs = logs;
         this.props = props;
+        this.repository = repository;
         this.progressWebService = progressWebService;
     }
 
@@ -97,12 +101,23 @@ public class EcsScrapeTaskProgressService {
             // 補完更新:
             // 同一 batch_cd で REQUESTED/RUNNING のまま残っており、
             // taskArn 未設定のレコードがあれば SUCCESS へ更新する
-            progressWebService.completeOpenRecordWithoutTaskArn(normalizedBatchCode);
+        	if (list.taskArns() == null || list.taskArns().isEmpty()) {
+        	    progressWebService.completeLatestOpenRecord(normalizedBatchCode, cfg.getCluster());
 
-            EcsScrapeTaskProgressResponse res = new EcsScrapeTaskProgressResponse();
-            res.setStatus("NOT_FOUND");
-            res.setMessage("実行中のECSタスクが見つかりません。");
-            return res;
+        	    EcsScrapeTaskProgressRecordEntity latest = repository.findLatestByBatchCd(normalizedBatchCode);
+
+        	    EcsScrapeTaskProgressResponse res = new EcsScrapeTaskProgressResponse();
+        	    if (latest == null) {
+        	        res.setStatus("NOT_FOUND");
+        	        res.setMessage("実行中のECSタスクが見つかりません。");
+        	        return res;
+        	    }
+
+        	    res.setTaskId(latest.getTaskId());
+        	    res.setStatus(latest.getStatus());
+        	    res.setMessage(latest.getErrorMessage());
+        	    return res;
+        	}
         }
 
         String taskArn = getLatestTaskArnByStartedAt(cfg.getCluster(), list.taskArns())

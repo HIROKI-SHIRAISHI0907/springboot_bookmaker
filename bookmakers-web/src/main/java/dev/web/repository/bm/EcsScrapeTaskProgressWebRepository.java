@@ -11,6 +11,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.web.api.bm_a009.EcsScrapeTaskProgressRecordEntity;
+import dev.web.com.OpenProgressRecord;
 
 
 @Repository
@@ -214,6 +215,72 @@ public class EcsScrapeTaskProgressWebRepository {
                 sql,
                 new MapSqlParameterSource().addValue("batchCd", batchCd),
                 (rs, rowNum) -> rs.getString("progress_id")
+        );
+
+        return list.isEmpty() ? null : list.get(0);
+    }
+
+    /**
+     * 通常実行時のレコードを取得
+     * @param batchCd
+     * @return
+     */
+    public OpenProgressRecord findLatestOpenRecord(String batchCd) {
+        String sql = """
+            SELECT progress_id, batch_cd, task_id, task_arn, status
+              FROM ecs_scrape_task_progress
+             WHERE batch_cd = :batchCd
+               AND status IN ('REQUESTED', 'PENDING', 'PROVISIONING', 'ACTIVATING', 'RUNNING')
+             ORDER BY register_time DESC
+             LIMIT 1
+        """;
+
+        List<OpenProgressRecord> list = this.bmJdbcTemplate.query(
+                sql,
+                new MapSqlParameterSource().addValue("batchCd", batchCd),
+                (rs, rowNum) -> {
+                    OpenProgressRecord r = new OpenProgressRecord();
+                    r.setProgressId(rs.getString("progress_id"));
+                    r.setBatchCd(rs.getString("batch_cd"));
+                    r.setTaskId(rs.getString("task_id"));
+                    r.setTaskArn(rs.getString("task_arn"));
+                    r.setStatus(rs.getString("status"));
+                    return r;
+                }
+        );
+
+        return list.isEmpty() ? null : list.get(0);
+    }
+
+    /**
+     * 最新のバッチコードレコードを取得
+     * @param batchCd
+     * @return
+     */
+    public EcsScrapeTaskProgressRecordEntity findLatestByBatchCd(String batchCd) {
+        String sql = """
+            SELECT progress_id, batch_cd, task_id, task_arn, status, metadata, error_message,
+                   start_time, end_time, register_id, register_time, update_id, update_time
+              FROM ecs_scrape_task_progress
+             WHERE batch_cd = :batchCd
+             ORDER BY register_time DESC
+             LIMIT 1
+        """;
+
+        List<EcsScrapeTaskProgressRecordEntity> list = this.bmJdbcTemplate.query(
+                sql,
+                new MapSqlParameterSource().addValue("batchCd", batchCd),
+                (rs, rowNum) -> {
+                    EcsScrapeTaskProgressRecordEntity e = new EcsScrapeTaskProgressRecordEntity();
+                    e.setProgressId(rs.getString("progress_id"));
+                    e.setBatchCd(rs.getString("batch_cd"));
+                    e.setTaskId(rs.getString("task_id"));
+                    e.setTaskArn(rs.getString("task_arn"));
+                    e.setStatus(rs.getString("status"));
+                    e.setMetadata(rs.getString("metadata"));
+                    e.setErrorMessage(rs.getString("error_message"));
+                    return e;
+                }
         );
 
         return list.isEmpty() ? null : list.get(0);

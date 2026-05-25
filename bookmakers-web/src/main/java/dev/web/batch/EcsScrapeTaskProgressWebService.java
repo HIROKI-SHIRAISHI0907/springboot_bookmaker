@@ -11,19 +11,27 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.web.api.bm_a009.EcsScrapeTaskProgressRecordEntity;
+import dev.web.com.OpenProgressRecord;
 import dev.web.repository.bm.EcsScrapeTaskProgressWebRepository;
+import software.amazon.awssdk.services.ecs.EcsClient;
+import software.amazon.awssdk.services.ecs.model.DescribeTasksRequest;
+import software.amazon.awssdk.services.ecs.model.DescribeTasksResponse;
+import software.amazon.awssdk.services.ecs.model.Task;
 
 @Service
 public class EcsScrapeTaskProgressWebService {
 
     private static final String SYSTEM_ID = "SYSTEM";
 
+    private final EcsClient ecs;
     private final EcsScrapeTaskProgressWebRepository repository;
     private final ObjectMapper objectMapper;
 
     public EcsScrapeTaskProgressWebService(
+    		EcsClient ecs,
             EcsScrapeTaskProgressWebRepository repository,
             ObjectMapper objectMapper) {
+    	this.ecs = ecs;
         this.repository = repository;
         this.objectMapper = objectMapper;
     }
@@ -125,6 +133,87 @@ public class EcsScrapeTaskProgressWebService {
                 null,
                 SYSTEM_ID
         );
+        return true;
+    }
+
+    public boolean completeLatestOpenRecord(String batchCd, String cluster) {
+        OpenProgressRecord record = repository.findLatestOpenRecord(batchCd);
+        if (record == null) {
+            return false;
+        }
+
+        // taskArn が無い場合は既存補完ロジック
+        if (record.getTaskArn() == null || record.getTaskArn().isBlank()) {
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("completedBy", "completeLatestOpenRecord");
+            metadata.put("reason", "taskArn was not assigned");
+            metadata.put("batchCd", batchCd);
+
+            repository.updateFinished(
+                    record.getProgressId(),
+                    "SUCCESS",
+                    toJson(metadata),
+                    null,
+                    SYSTEM_ID
+            );
+            return true;
+        }
+
+        DescribeTasksResponse dt = ecs.describeTasks(DescribeTasksRequest.builder()
+                .cluster(cluster)
+                .tasks(record.getTaskArn())
+                .build());
+
+        if (dt.tasks() == null || dt.tasks().isEmpty()) {
+            Map<String, Object> metadata = new LinkedHashMap<>();
+            metadata.put("completedBy", "completeLatestOpenRecord");
+            metadata.put("reason", "task not found in ECS");
+            metadata.put("batchCd", batchCd);
+            metadata.put("taskArn", record.getTaskArn());
+
+            repository.updateFinished(
+                    record.getProgressId(),
+                    "SUCCESS",
+                    toJson(metadata),
+                    null,
+                    SYSTEM_ID
+            );
+            return true;
+        }
+
+        Task task = dt.tasks().get(0);
+        if (!"STOPPED".equals(task.lastStatus())) {
+            return false;
+        }
+
+        Integer exitCode = null;
+        if (task.containers() != null && !task.containers().isEmpty()) {
+            exitCode = task.containers().get(0).exitCode();
+        }
+
+        String finalStatus = (exitCode != null && exitCode == 0) ? "SUCCESS" : "FAILED";
+
+        Map<String, Object> metadata = new LinkedHashMap<>();
+        metadata.put("completedBy", "completeLatestOpenRecord");
+        metadata.put("batchCd", batchCd);
+        metadata.put("taskArn", record.getTaskArn());
+        metadata.put("lastStatus", task.lastStatus());
+        metadata.put("stopCode", task.stopCodeAsString());
+        metadata.put("stoppedReason", task.stoppedReason());
+        metadata.put("exitCode", exitCode);
+
+        String errorMessage = "FAILED".equals(finalStatus)
+                ? "ECS task stopped abnormally. stoppedReason=" + task.stoppedReason() + ", exitCode=" + exitCode
+                : null;
+
+        repository.updateFinished(
+                record.getProgressId(),
+                finalStatus,
+                toJson(metadata),
+                errorMessage,
+                SYSTEM_ID
+        );
+
         return true;
     }
 
