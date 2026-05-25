@@ -17,12 +17,18 @@ public interface EcsScrapeTaskProgressBatchRepository {
      * @return true: 存在する / false: 存在しない
      */
     @Select("""
-        SELECT EXISTS (
+    	    SELECT EXISTS (
             SELECT 1
-              FROM ecs_scrape_task_progress
-             WHERE batch_cd = #{batchCode}
-               AND status IN ('REQUESTED', 'PENDING', 'PROVISIONING', 'ACTIVATING', 'RUNNING')
+              FROM (
+                  SELECT status
+                    FROM ecs_scrape_task_progress
+                   WHERE batch_cd = #{batchCode}
+                   ORDER BY register_time DESC
+                   LIMIT 1
+              ) latest
+             WHERE latest.status IN ('REQUESTED', 'PENDING', 'PROVISIONING', 'ACTIVATING', 'RUNNING')
         )
     """)
     boolean existsRunningTask(@Param("batchCode") String batchCode);
+
 }
