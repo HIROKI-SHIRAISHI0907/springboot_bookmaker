@@ -386,4 +386,57 @@ public class S3Operator {
 	        return Integer.MAX_VALUE;
 	    }
 	}
+
+	/**
+	 * 指定prefix配下のキーを走査し、patternに一致する連番の最大値 + 1 を返す
+	 *
+	 * 例:
+	 * - keyPrefix: "fin/b008_fin_getting_data_"
+	 * - pattern  : ^fin/b008_fin_getting_data_(\d+)\.json$
+	 *
+	 * 戻り値:
+	 * - 既存なし -> 1
+	 * - 最大が 7 -> 8
+	 */
+	public int findNextSequenceNumber(String bucket, String keyPrefix, Pattern pattern) {
+		int max = 0;
+		String token = null;
+
+		do {
+			ListObjectsV2Request req = ListObjectsV2Request.builder()
+					.bucket(bucket)
+					.prefix(keyPrefix)
+					.continuationToken(token)
+					.build();
+
+			ListObjectsV2Response res = s3.listObjectsV2(req);
+
+			for (S3Object obj : res.contents()) {
+				String key = obj.key();
+				if (key == null) {
+					continue;
+				}
+
+				Matcher matcher = pattern.matcher(key);
+				if (!matcher.matches()) {
+					continue;
+				}
+
+				try {
+					int seq = Integer.parseInt(matcher.group(1));
+					if (seq > max) {
+						max = seq;
+					}
+				} catch (NumberFormatException e) {
+					// 想定外は無視
+				}
+			}
+
+			token = res.nextContinuationToken();
+		} while (token != null);
+
+		return max + 1;
+	}
+
+
 }
