@@ -4,7 +4,6 @@ import java.time.Duration;
 import java.time.LocalDateTime;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.scheduling.annotation.Async;
 import org.springframework.stereotype.Service;
 
 import dev.batch.repository.bm.ExecutionHistoryBatchRepository;
@@ -15,8 +14,7 @@ import dev.common.entity.ExecutionHistoryRecordEntity;
  *
  * <p>
  * API・バッチ共通で使用する。
- * 開始登録と RUNNING 更新は同期、
- * SUCCESS / FAILED 更新は非同期で行う。
+ * 開始登録 / RUNNING 更新 / SUCCESS / FAILED 更新はすべて同期で行う。
  * </p>
  */
 @Service
@@ -74,7 +72,6 @@ public class BatchExecutionHistoryService {
      * @param startTime 開始日時
      * @param endTime 終了日時
      */
-    @Async("executionHistoryExecutor")
     public void markBatchSuccess(
             String executionId,
             LocalDateTime startTime,
@@ -83,10 +80,10 @@ public class BatchExecutionHistoryService {
         long durationMs = Duration.between(startTime, endTime).toMillis();
 
         executionHistoryRepository.updateSuccess(
-            executionId,
-            "SUCCESS",
-            endTime,
-            durationMs
+                executionId,
+                "SUCCESS",
+                endTime,
+                durationMs
         );
     }
 
@@ -98,7 +95,6 @@ public class BatchExecutionHistoryService {
      * @param endTime 終了日時
      * @param throwable 例外
      */
-    @Async("executionHistoryExecutor")
     public void markBatchFailure(
             String executionId,
             LocalDateTime startTime,
@@ -108,14 +104,20 @@ public class BatchExecutionHistoryService {
         long durationMs = Duration.between(startTime, endTime).toMillis();
 
         executionHistoryRepository.updateFailure(
-            executionId,
-            "FAILED",
-            endTime,
-            durationMs,
-            buildErrorMessage(throwable)
+                executionId,
+                "FAILED",
+                endTime,
+                durationMs,
+                buildErrorMessage(throwable)
         );
     }
 
+    /**
+     * 例外情報からエラーメッセージを組み立てる。
+     *
+     * @param throwable 例外
+     * @return エラーメッセージ
+     */
     private String buildErrorMessage(Throwable throwable) {
         if (throwable == null) {
             return null;
