@@ -7,6 +7,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -39,47 +41,66 @@ import dev.common.util.FileDeleteUtil;
 @Service("B010")
 public class FinGettingBatch extends AbstractJobBatchTemplate {
 
-	/** プロジェクト名 */
-	private static final String PROJECT_NAME = FinGettingBatch.class.getProtectionDomain()
-			.getCodeSource().getLocation().getPath();
+    private static final Logger log = LoggerFactory.getLogger(FinGettingBatch.class);
 
-	/** クラス名 */
-	private static final String CLASS_NAME = FinGettingBatch.class.getName();
+    /** プロジェクト名 */
+    private static final String PROJECT_NAME = FinGettingBatch.class.getProtectionDomain()
+            .getCodeSource().getLocation().getPath();
 
-	/** エラーコード（運用ルールに合わせて変更） */
-	private static final String ERROR_CODE = "BM_B010_ERROR";
+    /** クラス名 */
+    private static final String CLASS_NAME = FinGettingBatch.class.getName();
 
-	/** バッチコード */
-	private static final String BATCH_CODE = "B010";
+    /** エラーコード */
+    private static final String ERROR_CODE = "BM_B010_ERROR";
 
-	/** オーバーライド */
-	@Override
-	protected String batchCode() {
-		return BATCH_CODE;
-	}
+    /** バッチコード */
+    private static final String BATCH_CODE = "B010";
 
-	@Override
-	protected String errorCode() {
-		return ERROR_CODE;
-	}
+    /** 自動FAILED化のタイムアウト（分） */
+    private static final int AUTO_FAIL_TIMEOUT_MINUTES = 20;
 
-	@Override
-	protected String projectName() {
-		return PROJECT_NAME;
-	}
+    /** 自動FAILED時のエラーメッセージ */
+    private static final String AUTO_FAIL_ERROR_MESSAGE = "AUTO_FAILED_TIMEOUT_20_MINUTES";
 
-	@Override
-	protected String className() {
-		return CLASS_NAME;
-	}
+    @Override
+    protected String batchCode() {
+        return BATCH_CODE;
+    }
 
-	/**
+    @Override
+    protected String errorCode() {
+        return ERROR_CODE;
+    }
+
+    @Override
+    protected String projectName() {
+        return PROJECT_NAME;
+    }
+
+    @Override
+    protected String className() {
+        return CLASS_NAME;
+    }
+
+    /**
      * 同一バッチコードのECSタスクが起動要求中または実行中の場合はスキップする。
      *
-     * @return true: スキップする / false: 実行する
+     * ただし、最新1件が20分以上放置されている open status なら
+     * 自動で FAILED に更新してから判定する。
      */
     @Override
     protected boolean shouldSkipExecution() {
+        int updated = ecsScrapeTaskProgressBatchRepository.failLatestTimedOutTask(
+                batchCode(),
+                AUTO_FAIL_TIMEOUT_MINUTES,
+                AUTO_FAIL_ERROR_MESSAGE
+        );
+
+        if (updated > 0) {
+            log.warn("Auto failed stale ECS scrape task. batchCode={}, timeoutMinutes={}, errorMessage={}",
+                    batchCode(), AUTO_FAIL_TIMEOUT_MINUTES, AUTO_FAIL_ERROR_MESSAGE);
+        }
+
         return ecsScrapeTaskProgressBatchRepository.existsRunningTask(batchCode());
     }
 
@@ -93,132 +114,109 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
         return "同一バッチコードのECSスクレイピングタスクが起動要求中または実行中のためスキップします。 batchCode=" + batchCode();
     }
 
-	/** MatchKeySaveRepository */
-	@Autowired
-	private MatchKeySaveRepository matchKeySaveRepository;
+    @Autowired
+    private MatchKeySaveRepository matchKeySaveRepository;
 
-	@Autowired
-	private GetOriginInfo getOriginInfo;
+    @Autowired
+    private GetOriginInfo getOriginInfo;
 
-	/** 終了済ロジック */
-	@Autowired
-	private FinGettingStat finGettingStat;
+    @Autowired
+    private FinGettingStat finGettingStat;
 
-	/** Truncateロジック */
-	@Autowired
-	private FinGettingTruncate finGettingTruncate;
+    @Autowired
+    private FinGettingTruncate finGettingTruncate;
 
-	/** FutureStartFlgServiceロジック */
-	@Autowired
-	private FutureStartFlgService futureStartFlgService;
+    @Autowired
+    private FutureStartFlgService futureStartFlgService;
 
-	/** パスや外部実行設定（Python/S3等）を保持する設定クラス。 */
-	@Autowired
-	private PathConfig pathConfig;
+    @Autowired
+    private PathConfig pathConfig;
 
-	/** S3Operator */
-	@Autowired
-	private S3Operator s3Operator;
+    @Autowired
+    private S3Operator s3Operator;
 
-	 /** ECSスクレイプ進捗確認Repository */
     @Autowired
     private EcsScrapeTaskProgressBatchRepository ecsScrapeTaskProgressBatchRepository;
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	protected void doExecute(JobContext ctx) throws Exception {
-		final String METHOD_NAME = "doExecute";
+    @Override
+    protected void doExecute(JobContext ctx) throws Exception {
+        final String METHOD_NAME = "doExecute";
 
-		// ログ出力
-		this.manageLoggerComponent.init(null, null);
-		this.manageLoggerComponent.debugStartInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+        this.manageLoggerComponent.init(null, null);
+        this.manageLoggerComponent.debugStartInfoLog(
+                PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		List<String> insertPath = new ArrayList<String>();
-		final String jsonFolder = pathConfig.getB008JsonFolder(); // /tmp/json/
-		final String jsonPath = jsonFolder + "b008_fin_getting_data.json";
-		final Path jsonFilePath = Paths.get(jsonPath);
-		final String s3Key = "fin/" + jsonFilePath.getFileName().toString();
-		insertPath.add(s3Key);
+        List<String> insertPath = new ArrayList<String>();
+        final String jsonFolder = pathConfig.getB008JsonFolder();
+        final String jsonPath = jsonFolder + "b008_fin_getting_data.json";
+        final Path jsonFilePath = Paths.get(jsonPath);
+        final String s3Key = "fin/" + jsonFilePath.getFileName().toString();
+        insertPath.add(s3Key);
 
-		try {
-			// マッチキーDBから保存済マッチキーを取得
-			List<MatchKeyItem> items = matchKeySaveRepository.findMatchKeys().stream()
-					.map(k -> {
-						MatchKeyItem e = new MatchKeyItem();
-						e.setMatchKey(k);
-						return e;
-					})
-					.collect(Collectors.toList());
+        try {
+            List<MatchKeyItem> items = matchKeySaveRepository.findMatchKeys().stream()
+                    .map(k -> {
+                        MatchKeyItem e = new MatchKeyItem();
+                        e.setMatchKey(k);
+                        return e;
+                    })
+                    .collect(Collectors.toList());
 
-			// 取得できなかった場合は誤ってリアルタイムデータを登録してしまうのを防ぐためErrorを出力
-			if (items.isEmpty()) {
-				/** エラーコード（運用ルールに合わせて変更） */
-				String ERROR_CODE = MessageCdConst.MCD00003E_EXECUTION_SKIP;
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE,
-						"items.isEmpty() マッチキーが取得できなかったため処理を終了します。");
-				// 念の為ここでもフラグ更新(対象マップは絞らない)
-				updateFlg(null);
-				return;
-			}
+            if (items.isEmpty()) {
+                String ERROR_CODE = MessageCdConst.MCD00003E_EXECUTION_SKIP;
+                this.manageLoggerComponent.debugInfoLog(
+                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE,
+                        "items.isEmpty() マッチキーが取得できなかったため処理を終了します。");
+                updateFlg(null);
+                return;
+            }
 
-			// ObjectをダウンロードしEntityにマッピング
-			Map<String, List<DataEntity>> map = getOriginInfo.getData(items);
-			this.finGettingStat.finGettingStat(map);
+            Map<String, List<DataEntity>> map = getOriginInfo.getData(items);
+            this.finGettingStat.finGettingStat(map);
 
-			// 削除
-			finGettingTruncate.truncate();
+            finGettingTruncate.truncate();
 
-			String bucket = pathConfig.getS3BucketsOutputs(); // バケット名取得
-			FileDeleteUtil.deleteS3Files(
-					insertPath,
-					bucket,
-					s3Operator,
-					manageLoggerComponent,
-					PROJECT_NAME,
-					CLASS_NAME,
-					METHOD_NAME,
-					"b008_fin_getting_data.json");
+            String bucket = pathConfig.getS3BucketsOutputs();
+            FileDeleteUtil.deleteS3Files(
+                    insertPath,
+                    bucket,
+                    s3Operator,
+                    manageLoggerComponent,
+                    PROJECT_NAME,
+                    CLASS_NAME,
+                    METHOD_NAME,
+                    "b008_fin_getting_data.json");
 
-			// 以降は処理に失敗しても次の処理のタイミングで更新がかけられるので問題ない
-			updateFlg(map);
+            updateFlg(map);
 
-			// endLog
-			this.manageLoggerComponent.debugEndInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-			this.manageLoggerComponent.clear();
-		} catch (Exception e) {
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME,
-					CLASS_NAME,
-					METHOD_NAME,
-					ERROR_CODE,
-					e);
-			throw e;
-		}
-	}
+            this.manageLoggerComponent.debugEndInfoLog(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+            this.manageLoggerComponent.clear();
+        } catch (Exception e) {
+            this.manageLoggerComponent.debugErrorLog(
+                    PROJECT_NAME,
+                    CLASS_NAME,
+                    METHOD_NAME,
+                    ERROR_CODE,
+                    e);
+            throw e;
+        }
+    }
 
-	/**
-	 * フラグ更新
-	 * @param map
-	 */
-	private void updateFlg(Map<String, List<DataEntity>> map) {
-		final String METHOD_NAME = "updateFlg";
+    private void updateFlg(Map<String, List<DataEntity>> map) {
+        final String METHOD_NAME = "updateFlg";
 
-		try {
-			futureStartFlgService.execute(map);
-		} catch (Exception e) {
-			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
-			this.manageLoggerComponent.createSystemException(
-					PROJECT_NAME,
-					CLASS_NAME,
-					METHOD_NAME,
-					messageCd,
-					null,
-					e);
-		}
-	}
+        try {
+            futureStartFlgService.execute(map);
+        } catch (Exception e) {
+            String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+            this.manageLoggerComponent.createSystemException(
+                    PROJECT_NAME,
+                    CLASS_NAME,
+                    METHOD_NAME,
+                    messageCd,
+                    null,
+                    e);
+        }
+    }
 }
