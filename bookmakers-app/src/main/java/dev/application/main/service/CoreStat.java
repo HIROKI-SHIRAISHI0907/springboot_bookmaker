@@ -102,6 +102,9 @@ public class CoreStat implements StatIF {
 		this.loggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
+		// gameTeamCategory が空文字の行は filePath の親フォルダ名から補完する
+		fillBlankGameTeamCategoryFromFilePath(stat);
+
 		try {
 			List<CsvDetailEntityOutputDTO> dtoList = runWithRetry(
 					"selectCsvDetail",
@@ -549,6 +552,94 @@ public class CoreStat implements StatIF {
 	@FunctionalInterface
 	private interface CheckedSupplier<T> {
 		T get() throws Exception;
+	}
+
+	private void fillBlankGameTeamCategoryFromFilePath(
+			Map<String, Map<String, List<BookDataEntity>>> stat) {
+
+		final String METHOD_NAME = "fillBlankGameTeamCategoryFromFilePath";
+
+		if (stat == null || stat.isEmpty()) {
+			return;
+		}
+
+		for (Map<String, List<BookDataEntity>> innerMap : stat.values()) {
+			if (innerMap == null || innerMap.isEmpty()) {
+				continue;
+			}
+
+			for (List<BookDataEntity> rows : innerMap.values()) {
+				if (rows == null || rows.isEmpty()) {
+					continue;
+				}
+
+				int fillCount = 0;
+
+				for (BookDataEntity row : rows) {
+					if (row == null) {
+						continue;
+					}
+
+					// 既に入っているものは触らない
+					if (!safe(row.getGameTeamCategory()).trim().isEmpty()) {
+						continue;
+					}
+
+					String fillValue = extractCategoryFromFilePath(row.getFilePath());
+					if (fillValue.isEmpty()) {
+						continue;
+					}
+
+					row.setGameTeamCategory(fillValue);
+					fillCount++;
+				}
+
+				if (fillCount > 0) {
+					BookDataEntity sample = rows.stream()
+							.filter(e -> e != null)
+							.findFirst()
+							.orElse(null);
+
+					this.loggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+							MessageCdConst.MCD00099I_LOG,
+							"gameTeamCategory を filePath から補完しました: fillCount=" + fillCount
+									+ ", filePath=" + safe(sample == null ? null : sample.getFilePath())
+									+ ", category=" + safe(sample == null ? null : sample.getGameTeamCategory()));
+				}
+			}
+		}
+	}
+
+	/**
+	 * S3 key からカテゴリ名を抽出する。
+	 *
+	 * 例:
+	 * - Japan-J1-ラウンド5/9.csv                -> Japan-J1-ラウンド5
+	 * - stats/Japan-J1-ラウンド5/9.csv          -> Japan-J1-ラウンド5
+	 * - 9.csv                                  -> ""
+	 */
+	private String extractCategoryFromFilePath(String filePath) {
+		String path = safe(filePath).trim();
+		if (path.isEmpty()) {
+			return "";
+		}
+
+		path = path.replace("\\", "/");
+
+		int lastSlash = path.lastIndexOf('/');
+		if (lastSlash <= 0) {
+			return "";
+		}
+
+		String parentPath = path.substring(0, lastSlash);
+		int parentSlash = parentPath.lastIndexOf('/');
+
+		String folderName = (parentSlash >= 0)
+				? parentPath.substring(parentSlash + 1)
+				: parentPath;
+
+		return safe(folderName).trim();
 	}
 
 	private static String safe(String s) {
