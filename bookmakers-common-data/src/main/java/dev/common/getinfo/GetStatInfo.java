@@ -231,33 +231,52 @@ public class GetStatInfo {
 
 	/** 指定 country / league に一致するキー一覧を返す */
 	public List<String> listCsvKeysInRangeByCountryLeague(
-			String csvNumber,
-			String csvBackNumber,
-			String country,
-			String league) {
+	        String csvNumber,
+	        String csvBackNumber,
+	        String country,
+	        String league) {
 
-		String targetCountry = safe(country).trim();
-		String targetLeague = safe(league).trim();
+	    String targetCountry = safe(country).trim();
+	    String targetLeague = safe(league).trim();
 
-		String bucket = config.getS3BucketsStats();
-		List<String> keys = listAllSeqCsvKeys(bucket);
-		keys = filterKeysBySeqRange(keys, csvNumber, csvBackNumber);
+	    String bucket = config.getS3BucketsStats();
 
-		// country 未指定なら全件
-		if (targetCountry.isEmpty()) {
-			keys.sort(GetStatInfo::compareCsvKey);
-			return keys;
-		}
+	    List<String> rawKeys = s3Operator.listKeys(bucket, "");
+	    log.info("[DEBUG rawKeys] size={}, sample={}",
+	            rawKeys == null ? -1 : rawKeys.size(),
+	            rawKeys == null ? "null" : rawKeys.stream().limit(20).collect(Collectors.toList()));
 
-		List<String> filtered = keys.stream()
-				.filter(key -> matchesCountryLeague(key, targetCountry, targetLeague))
-				.sorted(GetStatInfo::compareCsvKey)
-				.collect(Collectors.toList());
+	    List<String> seqKeys = (rawKeys == null ? Collections.<String>emptyList() : rawKeys.stream()
+	            .filter(k -> k != null && SEQ_CSV_KEY.matcher(k).matches())
+	            .collect(Collectors.toList()));
+	    log.info("[DEBUG seqKeys] size={}, sample={}",
+	            seqKeys.size(),
+	            seqKeys.stream().limit(20).collect(Collectors.toList()));
 
-		log.info("[listCsvKeysInRangeByCountryLeague] bucket={}, country={}, league={}, keys.size={}",
-				bucket, targetCountry, targetLeague, filtered.size());
+	    List<String> rangedKeys = filterKeysBySeqRange(seqKeys, csvNumber, csvBackNumber);
+	    log.info("[DEBUG rangedKeys] size={}, sample={}",
+	            rangedKeys.size(),
+	            rangedKeys.stream().limit(20).collect(Collectors.toList()));
 
-		return filtered;
+	    List<String> filtered = rangedKeys.stream()
+	            .filter(key -> {
+	                boolean match = matchesCountryLeague(key, targetCountry, targetLeague);
+	                if (!match) {
+	                    String folder = extractCategoryFolderName(key);
+	                    List<String> parsed = ExecuteMainUtil.getCountryLeagueByRegex(folder);
+	                    log.info("[DEBUG noMatch] key={}, folder={}, parsed={}, targetCountry={}, targetLeague={}",
+	                            key, folder, parsed, targetCountry, targetLeague);
+	                }
+	                return match;
+	            })
+	            .sorted(GetStatInfo::compareCsvKey)
+	            .collect(Collectors.toList());
+
+	    log.info("[DEBUG filtered] size={}, sample={}",
+	            filtered.size(),
+	            filtered.stream().limit(20).collect(Collectors.toList()));
+
+	    return filtered;
 	}
 
 	/** 1ファイル分だけ Map を作る */
