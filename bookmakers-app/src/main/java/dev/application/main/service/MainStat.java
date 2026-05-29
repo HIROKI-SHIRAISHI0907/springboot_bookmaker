@@ -90,9 +90,20 @@ public class MainStat implements ServiceIF {
 			String from = String.valueOf(range.getFrom());
 			String to = String.valueOf(range.getTo());
 
+			String country = safe(System.getenv("BM_COUNTRY")).trim();
+			String league = safe(System.getenv("BM_LEAGUE")).trim();
+
+			if (country.isEmpty() && !league.isEmpty()) {
+				throw new IllegalArgumentException("BM_LEAGUE を指定する場合は BM_COUNTRY も指定してください。");
+			}
+
 			List<String> keys = runWithRetry(
-					"getStatInfo.listCsvKeysInRange:" + from + "-" + to,
-					() -> getStatInfo.listCsvKeysInRange(from, to));
+					"getStatInfo.listCsvKeysInRangeByCountryLeague:" + from + "-" + to + ":" + country + ":" + league,
+					() -> getStatInfo.listCsvKeysInRangeByCountryLeague(from, to, country, league));
+
+			log.info("[MainStat filter info] BM_COUNTRY={}, BM_LEAGUE={}, keys.size={}",
+					country, league, (keys == null ? 0 : keys.size()));
+
 
 			if (keys == null || keys.isEmpty()) {
 				log.info("[getStatInfo.listCsvKeysInRange END] keys is empty");

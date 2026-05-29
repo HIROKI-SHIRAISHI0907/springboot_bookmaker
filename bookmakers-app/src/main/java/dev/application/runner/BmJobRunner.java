@@ -16,25 +16,27 @@ import lombok.extern.slf4j.Slf4j;
 public class BmJobRunner implements ApplicationRunner {
 
 	@Autowired
-	private MainStat mainStat; // 例: B006 で使う
+	private MainStat mainStat;
 
 	@Autowired
-	private CoreHistoryStat coreHistoryStat; // 例: B007 で使う
+	private CoreHistoryStat coreHistoryStat;
 
 	@Autowired
-	private OriginService originService; // 例: B008 で使う
+	private OriginService originService;
 
 	@Autowired
-	private AnalyzeManualStat analyzeManualStat; // 例: B012 で使う
+	private AnalyzeManualStat analyzeManualStat;
 
 	@Override
 	public void run(ApplicationArguments args) throws Exception {
 		String mode = System.getenv().getOrDefault("BATCH_MODE", "worker");
 		String job = System.getenv("BM_JOB");
+		String country = System.getenv("BM_COUNTRY");
+		String league = System.getenv("BM_LEAGUE");
 
-		log.info("BmJobRunner start: BATCH_MODE={}, BM_JOB={}", mode, job);
+		log.info("BmJobRunner start: BATCH_MODE={}, BM_JOB={}, BM_COUNTRY={}, BM_LEAGUE={}",
+				mode, job, country, league);
 
-		// worker じゃないなら何もしない、など運用方針に合わせる
 		if (!"worker".equalsIgnoreCase(mode)) {
 			log.info("Not worker mode. skip.");
 			return;
@@ -51,6 +53,10 @@ public class BmJobRunner implements ApplicationRunner {
 			switch (job) {
 			case "B006" -> {
 				log.info("Execute B006 -> MainStat");
+				exit = mainStat.execute();
+			}
+			case "B014" -> {
+				log.info("Execute B014 -> MainStat. country={}, league={}", country, league);
 				exit = mainStat.execute();
 			}
 			case "B007" -> {
@@ -76,8 +82,6 @@ public class BmJobRunner implements ApplicationRunner {
 		}
 
 		log.info("BmJobRunner end: BM_JOB={}, exit={}", job, exit);
-
-		// ECS タスクを確実に終了させる（重要）
 		System.exit(exit);
 	}
 }
