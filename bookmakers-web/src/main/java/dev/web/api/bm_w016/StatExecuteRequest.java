@@ -1,4 +1,4 @@
-package dev.web.api.bm_w013;
+package dev.web.api.bm_w016;
 
 import lombok.Data;
 
@@ -8,11 +8,11 @@ import lombok.Data;
  *
  */
 @Data
-public class StatRequestResource {
+public class StatExecuteRequest {
 	/** 国 */
 	private String country;
 	/** リーグ */
 	private String league;
-	/** シーズン */
+	/** シーズン*/
 	private String season;
 }
