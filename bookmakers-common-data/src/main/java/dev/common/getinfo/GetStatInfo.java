@@ -26,6 +26,7 @@ import dev.common.entity.BookDataEntity;
 import dev.common.readfile.ReadStat;
 import dev.common.readfile.StatCsvIndexDTO;
 import dev.common.s3.S3Operator;
+import dev.common.util.ExecuteMainUtil;
 
 @Component
 public class GetStatInfo {
@@ -226,6 +227,37 @@ public class GetStatInfo {
 		keys = filterKeysBySeqRange(keys, csvNumber, csvBackNumber);
 		keys.sort(GetStatInfo::compareCsvKey);
 		return keys;
+	}
+
+	/** 指定 country / league に一致するキー一覧を返す */
+	public List<String> listCsvKeysInRangeByCountryLeague(
+			String csvNumber,
+			String csvBackNumber,
+			String country,
+			String league) {
+
+		String targetCountry = safe(country).trim();
+		String targetLeague = safe(league).trim();
+
+		String bucket = config.getS3BucketsStats();
+		List<String> keys = listAllSeqCsvKeys(bucket);
+		keys = filterKeysBySeqRange(keys, csvNumber, csvBackNumber);
+
+		// country 未指定なら全件
+		if (targetCountry.isEmpty()) {
+			keys.sort(GetStatInfo::compareCsvKey);
+			return keys;
+		}
+
+		List<String> filtered = keys.stream()
+				.filter(key -> matchesCountryLeague(key, targetCountry, targetLeague))
+				.sorted(GetStatInfo::compareCsvKey)
+				.collect(Collectors.toList());
+
+		log.info("[listCsvKeysInRangeByCountryLeague] bucket={}, country={}, league={}, keys.size={}",
+				bucket, targetCountry, targetLeague, filtered.size());
+
+		return filtered;
 	}
 
 	/** 1ファイル分だけ Map を作る */
@@ -513,6 +545,55 @@ public class GetStatInfo {
 					return true;
 				})
 				.collect(Collectors.toList());
+	}
+
+	private boolean matchesCountryLeague(String key, String country, String league) {
+		String folder = extractCategoryFolderName(key);
+		if (folder.isEmpty()) {
+			return false;
+		}
+
+		List<String> countryLeague = ExecuteMainUtil.getCountryLeagueByRegex(folder);
+		if (countryLeague == null || countryLeague.size() < 2) {
+			return false;
+		}
+
+		String keyCountry = safe(countryLeague.get(0)).trim();
+		String keyLeague = safe(countryLeague.get(1)).trim();
+
+		if (!safe(country).trim().equals(keyCountry)) {
+			return false;
+		}
+
+		String targetLeague = safe(league).trim();
+		if (targetLeague.isEmpty()) {
+			return true;
+		}
+
+		return targetLeague.equals(keyLeague);
+	}
+
+	private String extractCategoryFolderName(String key) {
+		if (key == null || key.isBlank()) {
+			return "";
+		}
+
+		String normalized = key.replace("\\", "/");
+		int lastSlash = normalized.lastIndexOf('/');
+		if (lastSlash <= 0) {
+			return "";
+		}
+
+		String parentPath = normalized.substring(0, lastSlash);
+		int parentSlash = parentPath.lastIndexOf('/');
+
+		return parentSlash >= 0
+				? parentPath.substring(parentSlash + 1)
+				: parentPath;
+	}
+
+	private static String safe(String s) {
+		return s == null ? "" : s;
 	}
 
 	private static Integer extractSeqFromKey(String key) {
