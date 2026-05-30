@@ -273,6 +273,40 @@ public class ExecuteMainUtil {
 	}
 
 	/**
+	 * フォルダ名から国とリーグを取得する
+	 * @param folder
+	 * @return
+	 */
+	public static List<String> getCountryLeagueByFolderName(String folder) {
+	    if (folder == null || folder.isBlank()) {
+	        return Collections.emptyList();
+	    }
+
+	    String s = folder.trim();
+
+	    // 末尾 "/" が来ても一応吸収
+	    if (s.endsWith("/")) {
+	        s = s.substring(0, s.length() - 1);
+	    }
+
+	    int firstDash = s.indexOf('-');
+	    int roundIdx = s.lastIndexOf("-ラウンド");
+
+	    if (firstDash <= 0 || roundIdx <= firstDash) {
+	        return Collections.emptyList();
+	    }
+
+	    String country = s.substring(0, firstDash).trim();
+	    String league = s.substring(firstDash + 1, roundIdx).trim();
+
+	    if (country.isEmpty() || league.isEmpty()) {
+	        return Collections.emptyList();
+	    }
+
+	    return List.of(country, league);
+	}
+
+	/**
 	 * 以下の特徴量の値を分割する
 	 * @param feature_value
 	 */

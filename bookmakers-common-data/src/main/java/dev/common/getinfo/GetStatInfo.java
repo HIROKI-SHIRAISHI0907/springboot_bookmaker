@@ -567,29 +567,35 @@ public class GetStatInfo {
 	}
 
 	private boolean matchesCountryLeague(String key, String country, String league) {
-		String folder = extractCategoryFolderName(key);
-		if (folder.isEmpty()) {
-			return false;
-		}
+	    String folder = extractCategoryFolderName(key);
+	    if (folder.isEmpty()) {
+	        return false;
+	    }
 
-		List<String> countryLeague = ExecuteMainUtil.getCountryLeagueByRegex(folder);
-		if (countryLeague == null || countryLeague.size() < 2) {
-			return false;
-		}
+	    List<String> countryLeague = ExecuteMainUtil.getCountryLeagueByFolderName(folder);
+	    if (countryLeague == null || countryLeague.size() < 2) {
+	        return false;
+	    }
 
-		String keyCountry = safe(countryLeague.get(0)).trim();
-		String keyLeague = safe(countryLeague.get(1)).trim();
+	    String keyCountry = normalize(countryLeague.get(0));
+	    String keyLeague = normalize(countryLeague.get(1));
 
-		if (!safe(country).trim().equals(keyCountry)) {
-			return false;
-		}
+	    String targetCountry = normalize(country);
+	    String targetLeague = normalize(league);
 
-		String targetLeague = safe(league).trim();
-		if (targetLeague.isEmpty()) {
-			return true;
-		}
+	    if (!targetCountry.equals(keyCountry)) {
+	        return false;
+	    }
 
-		return targetLeague.equals(keyLeague);
+	    if (targetLeague.isEmpty()) {
+	        return true;
+	    }
+
+	    return targetLeague.equals(keyLeague);
+	}
+
+	private static String normalize(String s) {
+	    return s == null ? "" : s.replace('\u3000', ' ').trim().replaceAll("\\s+", " ");
 	}
 
 	private String extractCategoryFolderName(String key) {
