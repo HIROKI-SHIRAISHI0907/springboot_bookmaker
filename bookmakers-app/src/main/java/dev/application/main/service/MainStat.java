@@ -3,6 +3,8 @@ package dev.application.main.service;
 import java.sql.SQLException;
 import java.util.List;
 import java.util.Map;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.RecoverableDataAccessException;
@@ -23,289 +25,305 @@ import lombok.extern.slf4j.Slf4j;
 
 /**
  * 統計バッチ実行クラス
- * @author shiraishitoshio
- *
  */
 @Service
 @Slf4j
 public class MainStat implements ServiceIF {
 
-	/** プロジェクト名 */
-	private static final String PROJECT_NAME = MainStat.class.getProtectionDomain()
-			.getCodeSource().getLocation().getPath();
+    private static final String PROJECT_NAME = MainStat.class.getProtectionDomain()
+            .getCodeSource().getLocation().getPath();
 
-	/** クラス名 */
-	private static final String CLASS_NAME = MainStat.class.getName();
+    private static final String CLASS_NAME = MainStat.class.getName();
 
-	/** 接続断系の再試行回数 */
-	private static final int DB_RETRY_MAX = 3;
+    private static final int DB_RETRY_MAX = 3;
 
-	/** 再試行待機(ms) */
-	private static final long DB_RETRY_WAIT_MILLIS = 3000L;
+    private static final long DB_RETRY_WAIT_MILLIS = 3000L;
 
-	/**
-	 * 統計情報取得管理クラス
-	 */
-	@Autowired
-	private GetStatInfo getStatInfo;
+    private static final Pattern SEQ_FROM_KEY =
+            Pattern.compile("(?:^|.*/)([0-9]+)\\.csv$");
 
-	/**
-	 * CSV管理クラス
-	 */
-	@Autowired
-	private CsvSeqManageService csvSeqManageService;
+    @Autowired
+    private GetStatInfo getStatInfo;
 
-	/** StatService */
-	@Autowired
-	private CoreStat statService;
+    @Autowired
+    private CsvSeqManageService csvSeqManageService;
 
-	/** RankingService */
-	@Autowired
-	private RankingService rankingService;
+    @Autowired
+    private CoreStat statService;
 
-	/** ログ管理クラス */
-	@Autowired
-	private ManageLoggerComponent manageLoggerComponent;
+    @Autowired
+    private RankingService rankingService;
 
-	/**
-	 * {@inheritDoc}
-	 */
-	@Override
-	public int execute() throws Exception {
-		final String METHOD_NAME = "execute";
-		manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+    @Autowired
+    private ManageLoggerComponent manageLoggerComponent;
 
-		try {
-			CsvSeqManageService.CsvSeqRange range = runWithRetry(
-					"csvSeqManageService.decideRangeOrNull",
-					() -> csvSeqManageService.decideRangeOrNull());
+    @Override
+    public int execute() throws Exception {
+        final String METHOD_NAME = "execute";
+        manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-			if (range == null) {
-				log.info("[CsvSeqManageService END] range == null");
-				return BatchResultConst.BATCH_OK;
-			}
+        try {
+            // ------------------------------------------------------------------
+            // B014 の場合は CsvSeqManage を使わない
+            // ------------------------------------------------------------------
+            String job = safe(System.getenv("BM_JOB")).trim();
+            boolean ignoreCsvSeqManage = "B014".equals(job);
 
-			log.info("[CsvSeqManageService INFO] range = {}:{}", range.getFrom(), range.getTo());
+            String tmpFrom = null;
+            String tmpTo   = null;
+            CsvSeqManageService.CsvSeqRange tmpRange = null;
 
-			String from = String.valueOf(range.getFrom());
-			String to = String.valueOf(range.getTo());
+            if (!ignoreCsvSeqManage) {
+                tmpRange = runWithRetry(
+                        "csvSeqManageService.decideRangeOrNull",
+                        () -> csvSeqManageService.decideRangeOrNull());
 
-			String country = safe(System.getenv("BM_COUNTRY")).trim();
-			String league = safe(System.getenv("BM_LEAGUE")).trim();
+                if (tmpRange == null) {
+                    log.info("[CsvSeqManageService END] range == null");
+                    return BatchResultConst.BATCH_OK;
+                }
 
-			if (country.isEmpty() && !league.isEmpty()) {
-				throw new IllegalArgumentException("BM_LEAGUE を指定する場合は BM_COUNTRY も指定してください。");
-			}
+                log.info("[CsvSeqManageService INFO] range = {}:{}",
+                        tmpRange.getFrom(), tmpRange.getTo());
 
-			List<String> keys = runWithRetry(
-					"getStatInfo.listCsvKeysInRangeByCountryLeague:" + from + "-" + to + ":" + country + ":" + league,
-					() -> getStatInfo.listCsvKeysInRangeByCountryLeague(from, to, country, league));
+                tmpFrom = String.valueOf(tmpRange.getFrom());
+                tmpTo   = String.valueOf(tmpRange.getTo());
 
-			log.info("[MainStat filter info] BM_COUNTRY={}, BM_LEAGUE={}, keys.size={}",
-					country, league, (keys == null ? 0 : keys.size()));
+            } else {
+                log.info("[MainStat] BM_JOB=B014 のため CsvSeqManage はスキップします");
+            }
 
+            // ラムダ内で使うために final 化
+            final String from  = tmpFrom;
+            final String to    = tmpTo;
+            final CsvSeqManageService.CsvSeqRange range = tmpRange;
 
-			if (keys == null || keys.isEmpty()) {
-				log.info("[getStatInfo.listCsvKeysInRange END] keys is empty");
-				return BatchResultConst.BATCH_OK;
-			}
+            // ------------------------------------------------------------------
+            // 絞り込み条件
+            // ------------------------------------------------------------------
+            String country = safe(System.getenv("BM_COUNTRY")).trim();
+            String league  = safe(System.getenv("BM_LEAGUE")).trim();
 
-			log.info("[getStatInfo.listCsvKeysInRange size info] keys.size = {}", keys.size());
+            if (country.isEmpty() && !league.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "BM_LEAGUE を指定する場合は BM_COUNTRY も指定してください。");
+            }
 
-			int lastProcessed = range.getFrom() - 1;
-			int process = 1;
+            List<String> keys = runWithRetry(
+                    "getStatInfo.listCsvKeysInRangeByCountryLeague:"
+                            + country + ":" + league,
+                    () -> getStatInfo.listCsvKeysInRangeByCountryLeague(
+                            from, to, country, league));
 
-			for (String key : keys) {
-				Map<String, Map<String, List<BookDataEntity>>> loadedMap = null;
+            log.info("[MainStat filter info] BM_COUNTRY={}, BM_LEAGUE={}, keys.size={}",
+                    country, league, keys == null ? 0 : keys.size());
 
-				try {
-					loadedMap = runWithRetry(
-							"getStatInfo.getStatMapForSingleKey:" + key,
-							() -> getStatInfo.getStatMapForSingleKey(key));
+            if (keys == null || keys.isEmpty()) {
+                log.info("[getStatInfo.listCsvKeysInRange END] keys is empty");
+                return BatchResultConst.BATCH_OK;
+            }
 
-					if (loadedMap == null || loadedMap.isEmpty()) {
-						lastProcessed = Math.max(lastProcessed, extractSeq(key));
-						log.info("[MainStat] oneMap empty. skip key={}", key);
-						process++;
-						continue;
-					}
+            log.info("[getStatInfo.listCsvKeysInRange size info] keys.size = {}", keys.size());
 
-					final Map<String, Map<String, List<BookDataEntity>>> oneMap = loadedMap;
+            // ------------------------------------------------------------------
+            // メインループ
+            // ------------------------------------------------------------------
+            int lastProcessed = ignoreCsvSeqManage ? -1 : range.getFrom() - 1;
+            int process = 1;
 
-					log.info("[String key : keys info] key = {}", key);
-					log.info("[String key : keys info] country-league = {}", oneMap.keySet());
+            for (String key : keys) {
+                Map<String, Map<String, List<BookDataEntity>>> loadedMap = null;
 
-					runWithRetry("statService.execute:" + key, () -> {
-						log.info("[MainStat] statService start key={}", key);
-						statService.execute(oneMap, false);
-						log.info("[MainStat] statService end key={}", key);
-						return null;
-					});
+                try {
+                    loadedMap = runWithRetry(
+                            "getStatInfo.getStatMapForSingleKey:" + key,
+                            () -> getStatInfo.getStatMapForSingleKey(key));
 
-					runWithRetry("rankingService.execute:" + key, () -> {
-						log.info("[MainStat] rankingService start key={}", key);
-						rankingService.execute(oneMap, false);
-						log.info("[MainStat] rankingService end key={}", key);
-						return null;
-					});
+                    if (loadedMap == null || loadedMap.isEmpty()) {
+                        if (!ignoreCsvSeqManage) {
+                            lastProcessed = Math.max(lastProcessed, extractSeq(key));
+                        }
+                        log.info("[MainStat] oneMap empty. skip key={}", key);
+                        process++;
+                        continue;
+                    }
 
-					int seq = extractSeq(key);
-					lastProcessed = Math.max(lastProcessed, seq);
+                    final Map<String, Map<String, List<BookDataEntity>>> oneMap = loadedMap;
 
-					final int markSeq = lastProcessed;
-					runWithRetry("csvSeqManageService.markSuccess:" + markSeq, () -> {
-						csvSeqManageService.markSuccess(markSeq);
-						return null;
-					});
+                    log.info("[String key : keys info] key = {}", key);
+                    log.info("[String key : keys info] country-league = {}",
+                            oneMap.keySet());
 
-					log.info("[stat calc fin info] csv situation: {}/{}", process, range.getLastOnDb());
+                    runWithRetry("statService.execute:" + key, () -> {
+                        log.info("[MainStat] statService start key={}", key);
+                        statService.execute(oneMap, false);
+                        log.info("[MainStat] statService end key={}", key);
+                        return null;
+                    });
 
-				} finally {
-					if (loadedMap != null) {
-						loadedMap.clear();
-					}
-				}
+                    runWithRetry("rankingService.execute:" + key, () -> {
+                        log.info("[MainStat] rankingService start key={}", key);
+                        rankingService.execute(oneMap, false);
+                        log.info("[MainStat] rankingService end key={}", key);
+                        return null;
+                    });
 
-				process++;
-			}
+                    if (!ignoreCsvSeqManage && range != null) {
+                        int seq = extractSeq(key);
+                        lastProcessed = Math.max(lastProcessed, seq);
 
-			final int finalMarkSeq = range.getTo();
-			runWithRetry("csvSeqManageService.markSuccess:" + finalMarkSeq, () -> {
-				csvSeqManageService.markSuccess(finalMarkSeq);
-				return null;
-			});
+                        final int markSeq = lastProcessed;
+                        runWithRetry("csvSeqManageService.markSuccess:" + markSeq, () -> {
+                            csvSeqManageService.markSuccess(markSeq);
+                            return null;
+                        });
 
-			return BatchResultConst.BATCH_OK;
+                        log.info("[stat calc fin info] csv situation: {}/{}",
+                                process, range.getLastOnDb());
+                    } else {
+                        log.info("[stat calc fin info] csv situation: {}", process);
+                    }
 
-		} catch (Exception e) {
-			log.error("[MainStat] failed", e);
-			manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00099I_LOG, null,
-					"MainStat execute failed. message=" + safe(e.getMessage()));
-			return BatchResultConst.BATCH_ERR;
+                } finally {
+                    if (loadedMap != null) {
+                        loadedMap.clear();
+                    }
+                }
 
-		} finally {
-			manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		}
-	}
+                process++;
+            }
 
-	private static int extractSeq(String key) {
-		// "6819.csv" -> 6819
-		int dot = key.indexOf('.');
-		if (dot <= 0) {
-			return -1;
-		}
-		try {
-			return Integer.parseInt(key.substring(0, dot));
-		} catch (Exception e) {
-			return -1;
-		}
-	}
+            // ------------------------------------------------------------------
+            // 最終 mark（CsvSeqManage 使用時のみ）
+            // ------------------------------------------------------------------
+            if (!ignoreCsvSeqManage && range != null) {
+                final int finalMarkSeq = range.getTo();
+                runWithRetry("csvSeqManageService.markSuccess:" + finalMarkSeq, () -> {
+                    csvSeqManageService.markSuccess(finalMarkSeq);
+                    return null;
+                });
+            }
 
-	private <T> T runWithRetry(String processName, CheckedSupplier<T> supplier) throws Exception {
-		final String METHOD_NAME = "runWithRetry";
+            return BatchResultConst.BATCH_OK;
 
-		int attempt = 0;
-		while (true) {
-			attempt++;
-			try {
-				return supplier.get();
+        } catch (Exception e) {
+            log.error("[MainStat] failed", e);
+            manageLoggerComponent.debugErrorLog(
+                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                    MessageCdConst.MCD00099I_LOG, null,
+                    "MainStat execute failed. message=" + safe(e.getMessage()));
+            return BatchResultConst.BATCH_ERR;
 
-			} catch (Exception e) {
-				boolean retryable = isRetryableDbException(e);
+        } finally {
+            manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+        }
+    }
 
-				if (!retryable || attempt >= DB_RETRY_MAX) {
-					manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							MessageCdConst.MCD00099I_LOG, null,
-							"retry give up. process=" + processName
-									+ ", attempt=" + attempt
-									+ ", retryable=" + retryable
-									+ ", message=" + safe(e.getMessage()));
-					throw e;
-				}
+    // ネストパス対応: 日本-J1 リーグ-ラウンド9/18.csv -> 18
+    private static int extractSeq(String key) {
+        if (key == null) {
+            return -1;
+        }
+        Matcher m = SEQ_FROM_KEY.matcher(key);
+        if (!m.find()) {
+            return -1;
+        }
+        try {
+            return Integer.parseInt(m.group(1));
+        } catch (NumberFormatException e) {
+            return -1;
+        }
+    }
 
-				manageLoggerComponent.debugWarnLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						MessageCdConst.MCD00099I_LOG,
-						"retry execute. process=" + processName
-								+ ", attempt=" + attempt
-								+ "/" + DB_RETRY_MAX
-								+ ", waitMillis=" + DB_RETRY_WAIT_MILLIS
-								+ ", message=" + safe(e.getMessage()));
+    private <T> T runWithRetry(String processName, CheckedSupplier<T> supplier)
+            throws Exception {
+        final String METHOD_NAME = "runWithRetry";
 
-				sleepQuietly(DB_RETRY_WAIT_MILLIS);
-			}
-		}
-	}
+        int attempt = 0;
+        while (true) {
+            attempt++;
+            try {
+                return supplier.get();
 
-	private boolean isRetryableDbException(Throwable t) {
-		Throwable current = t;
+            } catch (Exception e) {
+                boolean retryable = isRetryableDbException(e);
 
-		while (current != null) {
-			if (current instanceof CannotGetJdbcConnectionException) {
-				return true;
-			}
-			if (current instanceof CannotCreateTransactionException) {
-				return true;
-			}
-			if (current instanceof TransientDataAccessException) {
-				return true;
-			}
-			if (current instanceof RecoverableDataAccessException) {
-				return true;
-			}
-			if (current instanceof SQLException) {
-				String state = ((SQLException) current).getSQLState();
-				if (state != null && state.startsWith("08")) {
-					return true;
-				}
-			}
+                if (!retryable || attempt >= DB_RETRY_MAX) {
+                    manageLoggerComponent.debugErrorLog(
+                            PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                            MessageCdConst.MCD00099I_LOG, null,
+                            "retry give up. process=" + processName
+                                    + ", attempt=" + attempt
+                                    + ", retryable=" + retryable
+                                    + ", message=" + safe(e.getMessage()));
+                    throw e;
+                }
 
-			String className = safe(current.getClass().getName());
-			String message = safe(current.getMessage()).toLowerCase();
+                manageLoggerComponent.debugWarnLog(
+                        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+                        MessageCdConst.MCD00099I_LOG,
+                        "retry execute. process=" + processName
+                                + ", attempt=" + attempt
+                                + "/" + DB_RETRY_MAX
+                                + ", waitMillis=" + DB_RETRY_WAIT_MILLIS
+                                + ", message=" + safe(e.getMessage()));
 
-			if (className.contains("SQLTransientConnectionException")
-					|| className.contains("SQLRecoverableException")) {
-				return true;
-			}
+                sleepQuietly(DB_RETRY_WAIT_MILLIS);
+            }
+        }
+    }
 
-			if (message.contains("connection is closed")
-					|| message.contains("connection has been closed")
-					|| message.contains("broken pipe")
-					|| message.contains("connection reset")
-					|| message.contains("communications link failure")
-					|| message.contains("could not open jdbc connection")
-					|| message.contains("failed to obtain jdbc connection")
-					|| message.contains("the connection attempt failed")
-					|| message.contains("socket closed")
-					|| message.contains("connection refused")
-					|| message.contains("i/o error occurred while sending to the backend")) {
-				return true;
-			}
+    private boolean isRetryableDbException(Throwable t) {
+        Throwable current = t;
+        while (current != null) {
+            if (current instanceof CannotGetJdbcConnectionException)    return true;
+            if (current instanceof CannotCreateTransactionException)    return true;
+            if (current instanceof TransientDataAccessException)        return true;
+            if (current instanceof RecoverableDataAccessException)      return true;
+            if (current instanceof SQLException) {
+                String state = ((SQLException) current).getSQLState();
+                if (state != null && state.startsWith("08"))            return true;
+            }
 
-			current = current.getCause();
-		}
+            String cn  = safe(current.getClass().getName());
+            String msg = safe(current.getMessage()).toLowerCase();
 
-		return false;
-	}
+            if (cn.contains("SQLTransientConnectionException")
+                    || cn.contains("SQLRecoverableException"))          return true;
 
-	private void sleepQuietly(long millis) throws InterruptedException {
-		try {
-			Thread.sleep(millis);
-		} catch (InterruptedException e) {
-			Thread.currentThread().interrupt();
-			throw e;
-		}
-	}
+            if (msg.contains("connection is closed")
+                    || msg.contains("connection has been closed")
+                    || msg.contains("broken pipe")
+                    || msg.contains("connection reset")
+                    || msg.contains("communications link failure")
+                    || msg.contains("could not open jdbc connection")
+                    || msg.contains("failed to obtain jdbc connection")
+                    || msg.contains("the connection attempt failed")
+                    || msg.contains("socket closed")
+                    || msg.contains("connection refused")
+                    || msg.contains("i/o error occurred while sending to the backend"))
+                return true;
 
-	@FunctionalInterface
-	private interface CheckedSupplier<T> {
-		T get() throws Exception;
-	}
+            current = current.getCause();
+        }
+        return false;
+    }
 
-	private static String safe(String s) {
-		return (s == null) ? "" : s;
-	}
+    private void sleepQuietly(long millis) throws InterruptedException {
+        try {
+            Thread.sleep(millis);
+        } catch (InterruptedException e) {
+            Thread.currentThread().interrupt();
+            throw e;
+        }
+    }
+
+    @FunctionalInterface
+    private interface CheckedSupplier<T> {
+        T get() throws Exception;
+    }
+
+    private static String safe(String s) {
+        return s == null ? "" : s;
+    }
 }
