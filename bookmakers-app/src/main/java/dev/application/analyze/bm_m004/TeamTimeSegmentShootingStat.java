@@ -421,7 +421,16 @@ public class TeamTimeSegmentShootingStat implements AnalyzeEntityIF {
 	}
 
 	private int safeValue(String string) {
-		return string == null ? 0 : Integer.parseInt(string.trim());
+		if (string == null) {
+			return 0;
+		}
+
+		String value = string.trim();
+		if (value.isEmpty()) {
+			return 0;
+		}
+
+		return Integer.parseInt(value);
 	}
 
 	private String formatAvg(double value) {

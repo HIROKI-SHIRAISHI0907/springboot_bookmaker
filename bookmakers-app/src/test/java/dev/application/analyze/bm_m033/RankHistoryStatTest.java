@@ -162,7 +162,7 @@ class RankHistoryStatTest {
 		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 
 		// when
-		rankHistoryStat.calcStat(entities);
+		rankHistoryStat.calcStat(entities, true);
 	}
 
 	@Test
@@ -190,7 +190,7 @@ class RankHistoryStatTest {
 		entities.put("松本山雅FC-SC相模原", leagueMap);
 
 		// --- when ---
-		rankHistoryStat.calcStat(entities);
+		rankHistoryStat.calcStat(entities, true);
 	}
 
 	@Test
@@ -201,7 +201,7 @@ class RankHistoryStatTest {
 		List<String> list = this.getStatInfo.listCsvKeysInRange(csvNumber, csvNumberAfter);
 		Map<String, Map<String, List<BookDataEntity>>> entities = getStatInfo.getStatMapForSingleKey(list.get(0));
 		// --- when ---
-		rankHistoryStat.calcStat(entities);
+		rankHistoryStat.calcStat(entities, true);
 	}
 
 }

@@ -63,14 +63,20 @@ public class MainStat implements ServiceIF {
         manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
         try {
-            // ------------------------------------------------------------------
-            // B014 の場合は CsvSeqManage を使わない
-            // ------------------------------------------------------------------
             String job = safe(System.getenv("BM_JOB")).trim();
-            boolean ignoreCsvSeqManage = "B014".equals(job);
+            String country = safe(System.getenv("BM_COUNTRY")).trim();
+            String league = safe(System.getenv("BM_LEAGUE")).trim();
+
+            if (country.isEmpty() && !league.isEmpty()) {
+                throw new IllegalArgumentException(
+                        "BM_LEAGUE を指定する場合は BM_COUNTRY も指定してください。");
+            }
+
+            boolean countryLeagueMode = !country.isEmpty() && !league.isEmpty();
+            boolean ignoreCsvSeqManage = "B014".equals(job) || countryLeagueMode;
 
             String tmpFrom = null;
-            String tmpTo   = null;
+            String tmpTo = null;
             CsvSeqManageService.CsvSeqRange tmpRange = null;
 
             if (!ignoreCsvSeqManage) {
@@ -87,49 +93,54 @@ public class MainStat implements ServiceIF {
                         tmpRange.getFrom(), tmpRange.getTo());
 
                 tmpFrom = String.valueOf(tmpRange.getFrom());
-                tmpTo   = String.valueOf(tmpRange.getTo());
+                tmpTo = String.valueOf(tmpRange.getTo());
 
             } else {
-                log.info("[MainStat] BM_JOB=B014 のため CsvSeqManage はスキップします");
+                if ("B014".equals(job)) {
+                    log.info("[MainStat] BM_JOB=B014 のため CsvSeqManage はスキップします");
+                }
+                if (countryLeagueMode) {
+                    log.info("[MainStat] BM_COUNTRY/BM_LEAGUE 指定モードのため CsvSeqManage はスキップします. BM_COUNTRY={}, BM_LEAGUE={}",
+                            country, league);
+                }
             }
 
-            // ラムダ内で使うために final 化
-            final String from  = tmpFrom;
-            final String to    = tmpTo;
+            final String from = tmpFrom;
+            final String to = tmpTo;
             final CsvSeqManageService.CsvSeqRange range = tmpRange;
 
-            // ------------------------------------------------------------------
-            // 絞り込み条件
-            // ------------------------------------------------------------------
-            String country = safe(System.getenv("BM_COUNTRY")).trim();
-            String league  = safe(System.getenv("BM_LEAGUE")).trim();
+            List<String> keys;
 
-            if (country.isEmpty() && !league.isEmpty()) {
-                throw new IllegalArgumentException(
-                        "BM_LEAGUE を指定する場合は BM_COUNTRY も指定してください。");
+            if (countryLeagueMode) {
+                keys = runWithRetry(
+                        "getStatInfo.listCsvKeysByCountryLeague:" + country + ":" + league,
+                        () -> getStatInfo.listCsvKeysByCountryLeague(country, league));
+
+                log.info("[MainStat filter info] countryLeagueMode=true, BM_COUNTRY={}, BM_LEAGUE={}, keys.size={}",
+                        country, league, keys == null ? 0 : keys.size());
+
+            } else {
+                keys = runWithRetry(
+                        "getStatInfo.listCsvKeysInRange",
+                        () -> getStatInfo.listCsvKeysInRange(from, to));
+
+                log.info("[MainStat filter info] countryLeagueMode=false, from={}, to={}, keys.size={}",
+                        from, to, keys == null ? 0 : keys.size());
             }
 
-            List<String> keys = runWithRetry(
-                    "getStatInfo.listCsvKeysInRangeByCountryLeague:"
-                            + country + ":" + league,
-                    () -> getStatInfo.listCsvKeysInRangeByCountryLeague(
-                            from, to, country, league));
-
-            log.info("[MainStat filter info] BM_COUNTRY={}, BM_LEAGUE={}, keys.size={}",
-                    country, league, keys == null ? 0 : keys.size());
-
             if (keys == null || keys.isEmpty()) {
-                log.info("[getStatInfo.listCsvKeysInRange END] keys is empty");
+                log.info("[MainStat] target keys is empty");
                 return BatchResultConst.BATCH_OK;
             }
 
-            log.info("[getStatInfo.listCsvKeysInRange size info] keys.size = {}", keys.size());
+            log.info("[MainStat] target keys.size = {}", keys.size());
 
-            // ------------------------------------------------------------------
-            // メインループ
-            // ------------------------------------------------------------------
-            int lastProcessed = ignoreCsvSeqManage ? -1 : range.getFrom() - 1;
+            int lastProcessed = (!ignoreCsvSeqManage && range != null)
+                    ? range.getFrom() - 1
+                    : -1;
+
             int process = 1;
+            int total = keys.size();
 
             for (String key : keys) {
                 Map<String, Map<String, List<BookDataEntity>>> loadedMap = null;
@@ -143,6 +154,7 @@ public class MainStat implements ServiceIF {
                         if (!ignoreCsvSeqManage) {
                             lastProcessed = Math.max(lastProcessed, extractSeq(key));
                         }
+
                         log.info("[MainStat] oneMap empty. skip key={}", key);
                         process++;
                         continue;
@@ -150,15 +162,14 @@ public class MainStat implements ServiceIF {
 
                     final Map<String, Map<String, List<BookDataEntity>>> oneMap = loadedMap;
 
-                    log.info("[String key : keys info] key = {}", key);
-                    log.info("[String key : keys info] country-league = {}",
-                            oneMap.keySet());
+                    log.info("[MainStat] process start key={}", key);
+                    log.info("[MainStat] process category={}", oneMap.keySet());
 
-                    runWithRetry("statService.execute:" + key, () -> {
+                    Integer statResult = runWithRetry("statService.execute:" + key, () -> {
                         log.info("[MainStat] statService start key={}", key);
-                        statService.execute(oneMap, false);
-                        log.info("[MainStat] statService end key={}", key);
-                        return null;
+                        int result = statService.execute(oneMap, false);
+                        log.info("[MainStat] statService end key={}, result={}", key, result);
+                        return result;
                     });
 
                     runWithRetry("rankingService.execute:" + key, () -> {
@@ -178,10 +189,11 @@ public class MainStat implements ServiceIF {
                             return null;
                         });
 
-                        log.info("[stat calc fin info] csv situation: {}/{}",
-                                process, range.getLastOnDb());
+                        log.info("[MainStat] progress {}/{}, key={}, statResult={}, markSeq={}",
+                                process, range.getLastOnDb(), key, statResult, markSeq);
                     } else {
-                        log.info("[stat calc fin info] csv situation: {}", process);
+                        log.info("[MainStat] progress {}/{}, key={}, statResult={}",
+                                process, total, key, statResult);
                     }
 
                 } finally {
@@ -193,15 +205,14 @@ public class MainStat implements ServiceIF {
                 process++;
             }
 
-            // ------------------------------------------------------------------
-            // 最終 mark（CsvSeqManage 使用時のみ）
-            // ------------------------------------------------------------------
             if (!ignoreCsvSeqManage && range != null) {
                 final int finalMarkSeq = range.getTo();
                 runWithRetry("csvSeqManageService.markSuccess:" + finalMarkSeq, () -> {
                     csvSeqManageService.markSuccess(finalMarkSeq);
                     return null;
                 });
+
+                log.info("[MainStat] final mark success. seq={}", finalMarkSeq);
             }
 
             return BatchResultConst.BATCH_OK;
@@ -219,7 +230,6 @@ public class MainStat implements ServiceIF {
         }
     }
 
-    // ネストパス対応: 日本-J1 リーグ-ラウンド9/18.csv -> 18
     private static int extractSeq(String key) {
         if (key == null) {
             return -1;
@@ -276,20 +286,23 @@ public class MainStat implements ServiceIF {
     private boolean isRetryableDbException(Throwable t) {
         Throwable current = t;
         while (current != null) {
-            if (current instanceof CannotGetJdbcConnectionException)    return true;
-            if (current instanceof CannotCreateTransactionException)    return true;
-            if (current instanceof TransientDataAccessException)        return true;
-            if (current instanceof RecoverableDataAccessException)      return true;
+            if (current instanceof CannotGetJdbcConnectionException) return true;
+            if (current instanceof CannotCreateTransactionException) return true;
+            if (current instanceof TransientDataAccessException) return true;
+            if (current instanceof RecoverableDataAccessException) return true;
+
             if (current instanceof SQLException) {
                 String state = ((SQLException) current).getSQLState();
-                if (state != null && state.startsWith("08"))            return true;
+                if (state != null && state.startsWith("08")) return true;
             }
 
-            String cn  = safe(current.getClass().getName());
+            String cn = safe(current.getClass().getName());
             String msg = safe(current.getMessage()).toLowerCase();
 
             if (cn.contains("SQLTransientConnectionException")
-                    || cn.contains("SQLRecoverableException"))          return true;
+                    || cn.contains("SQLRecoverableException")) {
+                return true;
+            }
 
             if (msg.contains("connection is closed")
                     || msg.contains("connection has been closed")
@@ -301,8 +314,9 @@ public class MainStat implements ServiceIF {
                     || msg.contains("the connection attempt failed")
                     || msg.contains("socket closed")
                     || msg.contains("connection refused")
-                    || msg.contains("i/o error occurred while sending to the backend"))
+                    || msg.contains("i/o error occurred while sending to the backend")) {
                 return true;
+            }
 
             current = current.getCause();
         }

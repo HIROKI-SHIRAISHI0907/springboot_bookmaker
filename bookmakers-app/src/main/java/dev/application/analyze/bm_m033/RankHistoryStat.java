@@ -2,7 +2,6 @@ package dev.application.analyze.bm_m033;
 
 import java.math.BigDecimal;
 import java.util.ArrayList;
-import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
@@ -14,7 +13,6 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.bm.BookDataRepository;
 import dev.application.domain.repository.master.CountryLeagueSeasonMasterRepository;
 import dev.common.constant.BookMakersCommonConst;
@@ -28,7 +26,7 @@ import dev.common.util.ExecuteMainUtil;
  * 集計・判定のみ担当
  */
 @Component
-public class RankHistoryStat implements AnalyzeEntityIF {
+public class RankHistoryStat {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = RankHistoryStat.class.getProtectionDomain()
@@ -60,11 +58,10 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 	private ManageLoggerComponent manageLoggerComponent;
 
 	/**
-	 * {@inheritDoc}
+	 * 実行メソッド
 	 */
-	@Override
 	@Transactional(propagation = Propagation.NOT_SUPPORTED)
-	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) {
+	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities, boolean manualFlg) {
 		final String METHOD_NAME = "calcStat";
 
 		this.manageLoggerComponent.init(EXEC_MODE, null);
@@ -77,9 +74,6 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 				return;
 			}
-
-			// seasonYear キャッシュ
-			Map<String, String> seasonCache = new HashMap<>();
 
 			// 同じ match の後付け順位を何回も実行しないための制御
 			Set<String> processedBackfillKeys = new HashSet<>();
@@ -100,7 +94,7 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 						}
 
 						try {
-							processEntity(entity, seasonCache, processedBackfillKeys, METHOD_NAME);
+							processEntity(entity, processedBackfillKeys, METHOD_NAME, manualFlg);
 						} catch (Exception e) {
 							String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 							this.manageLoggerComponent.debugErrorLog(
@@ -126,12 +120,12 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 	 * 1試合ぶん処理
 	 */
 	private void processEntity(BookDataEntity entity,
-			Map<String, String> seasonCache,
 			Set<String> processedBackfillKeys,
-			String methodName) throws Exception {
+			String methodName,
+			boolean manualFlg) throws Exception {
 
-		// 終了済み以外は対象外
-		if (!isFinished(entity.getTime())) {
+		// 通常時は終了済み以外をスキップ。手動時は通す。
+		if (!manualFlg && !isFinished(entity.getTime())) {
 			return;
 		}
 
@@ -164,7 +158,7 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 			return;
 		}
 
-		String seasonYear = resolveSeasonYear(country, league, seasonCache, methodName);
+		String seasonYear = resolveSeasonYear(country, league, methodName);
 		if (seasonYear.isEmpty()) {
 			return;
 		}
@@ -389,27 +383,18 @@ public class RankHistoryStat implements AnalyzeEntityIF {
 	/**
 	 * seasonYear 解決
 	 */
-	private String resolveSeasonYear(String country, String league,
-			Map<String, String> seasonCache, String methodName) {
-
-		String cacheKey = country + "|" + league;
-		if (seasonCache.containsKey(cacheKey)) {
-			return seasonCache.get(cacheKey);
-		}
-
+	private String resolveSeasonYear(String country, String league, String methodName) {
 		String seasonYear = this.countryLeagueSeasonMasterRepository
-				.findCurrentSeasonYear(country, league);
+				.findSeasonYear(country, league);
 
 		if (seasonYear == null || seasonYear.isBlank()) {
 			this.manageLoggerComponent.debugWarnLog(
 					PROJECT_NAME, CLASS_NAME, methodName,
 					MessageCdConst.MCD00001W_COUNTRY_LEAGUE_SPLIT_FAIL_WARNING,
 					"season_year not found: " + country + " / " + league);
-			seasonCache.put(cacheKey, "");
 			return "";
 		}
 
-		seasonCache.put(cacheKey, seasonYear);
 		return seasonYear;
 	}
 

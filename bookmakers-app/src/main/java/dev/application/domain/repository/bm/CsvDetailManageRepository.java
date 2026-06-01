@@ -7,6 +7,7 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
+import dev.application.main.service.CsvDetailEntityOutputDTO;
 import dev.common.entity.CsvDetailManageEntity;
 
 @Mapper
@@ -31,8 +32,7 @@ public interface CsvDetailManageRepository {
 			@Param("awayTeamName") String awayTeamName);
 
 	/**
-	 * data_category 単位で check_fin_flg='1' の既存行をまとめて取得
-	 * CoreStat 側のN+1回避用
+	 * 各条件に当てはまるcheck_fin_flg='0' のデータ
 	 */
 	@Select({
 		"<script>",
@@ -44,15 +44,22 @@ public interface CsvDetailManageRepository {
 		"    away_team_name AS awayTeamName,",
 		"    check_fin_flg AS checkFinFlg",
 		"FROM csv_detail_manage",
-		"WHERE check_fin_flg = '1'",
-		"  AND data_category IN",
-		"  <foreach collection='dataCategories' item='dataCategory' open='(' separator=',' close=')'>",
-		"    #{dataCategory}",
+		"WHERE check_fin_flg = '0'",
+		"  AND (",
+		"  <foreach collection='candidates' item='item' separator=' OR '>",
+		"    (",
+		"      csv_id = #{item.csvId}",
+		"      AND data_category = #{item.dataCategory}",
+		"      AND season = #{item.season}",
+		"      AND home_team_name = #{item.homeTeamName}",
+		"      AND away_team_name = #{item.awayTeamName}",
+		"    )",
 		"  </foreach>",
+		"  )",
 		"</script>"
 	})
-	List<CsvDetailManageEntity> selectCheckedFinByDataCategories(
-			@Param("dataCategories") List<String> dataCategories);
+	List<CsvDetailManageEntity> selectCheckedNotFinByExactKeys(
+			@Param("candidates") List<CsvDetailEntityOutputDTO> candidates);
 
 	/**
 	 * manual用UPSERT

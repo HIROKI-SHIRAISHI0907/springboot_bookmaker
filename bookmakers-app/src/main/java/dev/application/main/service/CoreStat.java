@@ -1,6 +1,5 @@
 package dev.application.main.service;
 
-import java.nio.file.Paths;
 import java.sql.SQLException;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -114,7 +113,8 @@ public class CoreStat implements StatIF {
 				this.loggerComponent.debugInfoLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 						MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP,
-						"すでに統計反映済み、または登録対象データがありません。");
+						"すでに統計反映済み、または登録対象データがありません。 inputStatSummary="
+								+ buildStatSummaryForLog(stat));
 				return 0;
 			}
 
@@ -176,21 +176,19 @@ public class CoreStat implements StatIF {
 					() -> this.surfaceOverviewStat.calcStat(stat));
 
 			runStatWithRetry("rankHistoryStat",
-					() -> this.rankHistoryStat.calcStat(stat));
+					() -> this.rankHistoryStat.calcStat(stat, manualFlg));
 
-			if (manualFlg) {
-				for (CsvDetailEntityOutputDTO dto : dtoList) {
-					runWithRetry(
-							"upsertCsvDetail:" + buildCsvDetailContext(
-									dto.getDataCategory(),
-									dto.getSeason(),
-									dto.getHomeTeamName(),
-									dto.getAwayTeamName()),
-							() -> {
-								upsertCsvDetail(dto);
-								return null;
-							});
-				}
+			for (CsvDetailEntityOutputDTO dto : dtoList) {
+				runWithRetry(
+						"upsertCsvDetail:" + buildCsvDetailContext(
+								dto.getDataCategory(),
+								dto.getSeason(),
+								dto.getHomeTeamName(),
+								dto.getAwayTeamName()),
+						() -> {
+							upsertCsvDetail(dto);
+							return null;
+						});
 			}
 
 			return dtoList.size();
@@ -212,6 +210,12 @@ public class CoreStat implements StatIF {
 		}
 	}
 
+	/**
+	 * データ取得およびcsv_detail_manageで完了フラグ更新用の保持設定メソッド
+	 * @param stat
+	 * @param manualFlg
+	 * @return
+	 */
 	private List<CsvDetailEntityOutputDTO> selectCsvDetail(
 			Map<String, Map<String, List<BookDataEntity>>> stat,
 			boolean manualFlg) {
@@ -268,7 +272,7 @@ public class CoreStat implements StatIF {
 
 				String csvId = manualFlg
 						? CSV_ID_MANUAL
-						: resolveCsvId(row.getFilePath());
+						: row.getFilePath();
 
 				if (csvId.isEmpty()) {
 					continue;
@@ -300,23 +304,27 @@ public class CoreStat implements StatIF {
 			return candidates;
 		}
 
-		Set<String> existingKeySet = this.csvDetailManageRepository
-				.selectCheckedFinByDataCategories(dataCategories)
-				.stream()
-				.map(e -> buildCsvDetailKey(
-						e.getDataCategory(),
-						e.getSeason(),
-						e.getHomeTeamName(),
-						e.getAwayTeamName()))
-				.collect(Collectors.toSet());
+		// 完了フラグが0のデータ（すでに統計データ反映済み）を取得
+		List<CsvDetailManageEntity> existingList = this.csvDetailManageRepository
+				.selectCheckedNotFinByExactKeys(candidates);
 
-		return candidates.stream()
-				.filter(dto -> !existingKeySet.contains(buildCsvDetailKey(
-						dto.getDataCategory(),
-						dto.getSeason(),
-						dto.getHomeTeamName(),
-						dto.getAwayTeamName())))
+		if (existingList == null || existingList.isEmpty()) {
+			return new ArrayList<>();
+		}
+
+		return existingList.stream()
+				.map(e -> {
+					CsvDetailEntityOutputDTO out = new CsvDetailEntityOutputDTO();
+					out.setCsvId(e.getCsvId());
+					out.setDataCategory(e.getDataCategory());
+					out.setSeason(e.getSeason());
+					out.setHomeTeamName(e.getHomeTeamName());
+					out.setAwayTeamName(e.getAwayTeamName());
+					out.setExistFlg(true);
+					return out;
+				})
 				.collect(Collectors.toList());
+
 	}
 
 	private void upsertCsvDetail(CsvDetailEntityOutputDTO dto) {
@@ -354,17 +362,7 @@ public class CoreStat implements StatIF {
 			return "";
 		}
 		return safe(countryLeagueSeasonMasterBatchRepository
-				.findCurrentSeasonYear(dataList.get(0), dataList.get(1))).trim();
-	}
-
-	private String resolveCsvId(String filePath) {
-		String file = safe(filePath).trim();
-		if (file.isEmpty()) {
-			return "";
-		}
-		String fileName = Paths.get(file).getFileName().toString();
-		int dot = fileName.lastIndexOf('.');
-		return (dot >= 0) ? fileName.substring(0, dot) : fileName;
+				.findSeasonYear(dataList.get(0), dataList.get(1))).trim();
 	}
 
 	private String buildCsvDetailKey(
@@ -640,6 +638,63 @@ public class CoreStat implements StatIF {
 				: parentPath;
 
 		return safe(folderName).trim();
+	}
+
+	/**
+	 * ログ詳細用ビルダー
+	 * @param stat
+	 * @return
+	 */
+	private String buildStatSummaryForLog(
+			Map<String, Map<String, List<BookDataEntity>>> stat) {
+
+		if (stat == null || stat.isEmpty()) {
+			return "stat is empty";
+		}
+
+		List<String> details = new ArrayList<>();
+		int maxLogCount = 10;
+		int count = 0;
+
+		for (Map.Entry<String, Map<String, List<BookDataEntity>>> outer : stat.entrySet()) {
+			String categoryKey = safe(outer.getKey());
+
+			Map<String, List<BookDataEntity>> innerMap = outer.getValue();
+			if (innerMap == null || innerMap.isEmpty()) {
+				continue;
+			}
+
+			for (Map.Entry<String, List<BookDataEntity>> inner : innerMap.entrySet()) {
+				List<BookDataEntity> rows = inner.getValue();
+				if (rows == null || rows.isEmpty()) {
+					continue;
+				}
+
+				BookDataEntity row = buildRepresentativeRow(rows);
+				if (row == null) {
+					continue;
+				}
+
+				details.add(String.format(
+						"{categoryKey=%s, gameTeamCategory=%s, home=%s, away=%s, filePath=%s}",
+						categoryKey,
+						safe(row.getGameTeamCategory()).trim(),
+						safe(row.getHomeTeamName()).trim(),
+						safe(row.getAwayTeamName()).trim(),
+						safe(row.getFilePath()).trim()));
+
+				count++;
+				if (count >= maxLogCount) {
+					break;
+				}
+			}
+
+			if (count >= maxLogCount) {
+				break;
+			}
+		}
+
+		return "size=" + details.size() + ", details=" + details;
 	}
 
 	private static String safe(String s) {
