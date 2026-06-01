@@ -105,11 +105,14 @@ public class CoreStat implements StatIF {
 		fillBlankGameTeamCategoryFromFilePath(stat);
 
 		try {
+			// CSVが作成済み→CSV情報取得可能→その後未完了フラグを完了に更新
+			// 手動データの場合はCSV情報取得できないため、ダミーデータをCSV詳細情報に登録
 			List<CsvDetailEntityOutputDTO> dtoList = runWithRetry(
 					"selectCsvDetail",
 					() -> selectCsvDetail(stat, manualFlg));
 
-			if (dtoList == null || dtoList.isEmpty()) {
+			// CSV作成済データで未完了データが取得できなかった場合or手動データでCSV詳細情報にダミーデータが存在する場合
+			if (dtoList != null && !dtoList.isEmpty() && !dtoList.get(0).isExistFlg()) {
 				this.loggerComponent.debugInfoLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 						MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP,
@@ -180,7 +183,8 @@ public class CoreStat implements StatIF {
 
 			for (CsvDetailEntityOutputDTO dto : dtoList) {
 				runWithRetry(
-						"upsertCsvDetail:" + buildCsvDetailContext(
+						"upsertCsvDetail:" + buildCsvDetailContextCsvId(
+								dto.getCsvId(),
 								dto.getDataCategory(),
 								dto.getSeason(),
 								dto.getHomeTeamName(),
@@ -294,25 +298,51 @@ public class CoreStat implements StatIF {
 			return candidates;
 		}
 
-		List<String> dataCategories = candidates.stream()
-				.map(CsvDetailEntityOutputDTO::getDataCategory)
-				.filter(s -> !safe(s).trim().isEmpty())
-				.distinct()
-				.collect(Collectors.toList());
+		// 手動データ:
+		// 既存データが1件でもあれば、すでに反映済みなので処理しない
+		if (manualFlg) {
+			List<CsvDetailManageEntity> existingAnyList = this.csvDetailManageRepository
+					.selectByExactKeys(candidates);
 
-		if (dataCategories.isEmpty()) {
-			return candidates;
+			if (existingAnyList != null && !existingAnyList.isEmpty()) {
+				this.loggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						MessageCdConst.MCD00099I_LOG,
+						"manual data already exists. skip. existing="
+								+ buildCsvDetailManageSummaryForLog(existingAnyList));
+				return new ArrayList<>();
+			}
+
+			// 手動1回目はDBに存在しないので、そのまま処理対象
+			return candidates.stream()
+					.map(dto -> {
+						CsvDetailEntityOutputDTO out = new CsvDetailEntityOutputDTO();
+						out.setCsvId(dto.getCsvId());
+						out.setDataCategory(dto.getDataCategory());
+						out.setSeason(dto.getSeason());
+						out.setHomeTeamName(dto.getHomeTeamName());
+						out.setAwayTeamName(dto.getAwayTeamName());
+						out.setExistFlg(false);
+						return out;
+					})
+					.collect(Collectors.toList());
 		}
 
-		// 完了フラグが0のデータ（すでに統計データ反映済み）を取得
-		List<CsvDetailManageEntity> existingList = this.csvDetailManageRepository
+		// CSV反映済みデータ:
+		// 未完了(check_fin_flg='0') のデータだけ処理対象
+		List<CsvDetailManageEntity> existingNotFinList = this.csvDetailManageRepository
 				.selectCheckedNotFinByExactKeys(candidates);
 
-		if (existingList == null || existingList.isEmpty()) {
+		if (existingNotFinList == null || existingNotFinList.isEmpty()) {
+			this.loggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG,
+					"csv data not found as check_fin_flg=0. skip. candidates="
+							+ buildDtoSummaryForLog(candidates));
 			return new ArrayList<>();
 		}
 
-		return existingList.stream()
+		return existingNotFinList.stream()
 				.map(e -> {
 					CsvDetailEntityOutputDTO out = new CsvDetailEntityOutputDTO();
 					out.setCsvId(e.getCsvId());
@@ -324,7 +354,6 @@ public class CoreStat implements StatIF {
 					return out;
 				})
 				.collect(Collectors.toList());
-
 	}
 
 	private void upsertCsvDetail(CsvDetailEntityOutputDTO dto) {
@@ -423,6 +452,21 @@ public class CoreStat implements StatIF {
 			String away) {
 
 		return String.format("%s(%s): %s vs %s",
+				safe(dataCategory).trim(),
+				safe(season).trim(),
+				safe(home).trim(),
+				safe(away).trim());
+	}
+
+	private String buildCsvDetailContextCsvId(
+			String csvId,
+			String dataCategory,
+			String season,
+			String home,
+			String away) {
+
+		return String.format("%s:%s(%s): %s vs %s",
+				safe(csvId).trim(),
 				safe(dataCategory).trim(),
 				safe(season).trim(),
 				safe(home).trim(),
@@ -695,6 +739,52 @@ public class CoreStat implements StatIF {
 		}
 
 		return "size=" + details.size() + ", details=" + details;
+	}
+
+	/**
+	 * ログ詳細用ビルダー
+	 * @param dtoList
+	 * @return
+	 */
+	private String buildDtoSummaryForLog(List<CsvDetailEntityOutputDTO> dtoList) {
+		if (dtoList == null || dtoList.isEmpty()) {
+			return "dtoList is empty";
+		}
+
+		return dtoList.stream()
+				.limit(10)
+				.map(dto -> String.format(
+						"{csvId=%s, dataCategory=%s, season=%s, home=%s, away=%s, existFlg=%s}",
+						safe(dto.getCsvId()).trim(),
+						safe(dto.getDataCategory()).trim(),
+						safe(dto.getSeason()).trim(),
+						safe(dto.getHomeTeamName()).trim(),
+						safe(dto.getAwayTeamName()).trim(),
+						dto.isExistFlg()))
+				.collect(Collectors.joining(", ", "[", "]"));
+	}
+
+	/**
+	 * ログ詳細用ビルダー
+	 * @param entityList
+	 * @return
+	 */
+	private String buildCsvDetailManageSummaryForLog(List<CsvDetailManageEntity> entityList) {
+		if (entityList == null || entityList.isEmpty()) {
+			return "entityList is empty";
+		}
+
+		return entityList.stream()
+				.limit(10)
+				.map(e -> String.format(
+						"{csvId=%s, dataCategory=%s, season=%s, home=%s, away=%s, checkFinFlg=%s}",
+						safe(e.getCsvId()).trim(),
+						safe(e.getDataCategory()).trim(),
+						safe(e.getSeason()).trim(),
+						safe(e.getHomeTeamName()).trim(),
+						safe(e.getAwayTeamName()).trim(),
+						safe(e.getCheckFinFlg()).trim()))
+				.collect(Collectors.joining(", ", "[", "]"));
 	}
 
 	private static String safe(String s) {

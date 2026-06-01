@@ -62,6 +62,35 @@ public interface CsvDetailManageRepository {
 			@Param("candidates") List<CsvDetailEntityOutputDTO> candidates);
 
 	/**
+	 * 各条件に当てはまるのデータ
+	 */
+	@Select({
+		"<script>",
+		"SELECT",
+		"    csv_id AS csvId,",
+		"    data_category AS dataCategory,",
+		"    season AS season,",
+		"    home_team_name AS homeTeamName,",
+		"    away_team_name AS awayTeamName,",
+		"    check_fin_flg AS checkFinFlg",
+		"FROM csv_detail_manage",
+		"WHERE (",
+		"  <foreach collection='candidates' item='item' separator=' OR '>",
+		"    (",
+		"      csv_id = #{item.csvId}",
+		"      AND data_category = #{item.dataCategory}",
+		"      AND season = #{item.season}",
+		"      AND home_team_name = #{item.homeTeamName}",
+		"      AND away_team_name = #{item.awayTeamName}",
+		"    )",
+		"  </foreach>",
+		")",
+		"</script>"
+	})
+	List<CsvDetailManageEntity> selectByExactKeys(
+			@Param("candidates") List<CsvDetailEntityOutputDTO> candidates);
+
+	/**
 	 * manual用UPSERT
 	 * UNIQUE(data_category, season, home_team_name, away_team_name) 前提
 	 */
