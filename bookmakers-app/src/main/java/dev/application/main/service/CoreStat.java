@@ -181,18 +181,35 @@ public class CoreStat implements StatIF {
 			runStatWithRetry("rankHistoryStat",
 					() -> this.rankHistoryStat.calcStat(stat, manualFlg));
 
-			for (CsvDetailEntityOutputDTO dto : dtoList) {
-				runWithRetry(
-						"upsertCsvDetail:" + buildCsvDetailContextCsvId(
-								dto.getCsvId(),
-								dto.getDataCategory(),
-								dto.getSeason(),
-								dto.getHomeTeamName(),
-								dto.getAwayTeamName()),
-						() -> {
-							upsertCsvDetail(dto);
-							return null;
-						});
+			// 統計反映フラグの場合は反映済更新、手動フラグの場合はダミーデータ新規登録
+			if (!manualFlg) {
+				for (CsvDetailEntityOutputDTO dto : dtoList) {
+					runWithRetry(
+							"updateCsvDetail:" + buildCsvDetailContextCsvId(
+									dto.getCsvId(),
+									dto.getDataCategory(),
+									dto.getSeason(),
+									dto.getHomeTeamName(),
+									dto.getAwayTeamName()),
+							() -> {
+								updateCsvDetail(dto);
+								return null;
+							});
+				}
+			} else {
+				for (CsvDetailEntityOutputDTO dto : dtoList) {
+					runWithRetry(
+							"insertCsvDetail:" + buildCsvDetailContextCsvId(
+									dto.getCsvId(),
+									dto.getDataCategory(),
+									dto.getSeason(),
+									dto.getHomeTeamName(),
+									dto.getAwayTeamName()),
+							() -> {
+								insertCsvDetail(dto);
+								return null;
+							});
+				}
 			}
 
 			return dtoList.size();
@@ -356,7 +373,11 @@ public class CoreStat implements StatIF {
 				.collect(Collectors.toList());
 	}
 
-	private void upsertCsvDetail(CsvDetailEntityOutputDTO dto) {
+	/**
+	 * 登録
+	 * @param dto
+	 */
+	private void insertCsvDetail(CsvDetailEntityOutputDTO dto) {
 		final String METHOD_NAME = "upsertCsvDetail";
 
 		if (dto == null) {
@@ -371,12 +392,44 @@ public class CoreStat implements StatIF {
 		entity.setAwayTeamName(dto.getAwayTeamName());
 		entity.setCheckFinFlg("1");
 
-		int result = this.csvDetailManageRepository.upsert(entity);
+		int result = this.csvDetailManageRepository.insert(entity);
 
 		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 		this.loggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-				"csv_detail_manage upsert件数: " + result + "件 ("
+				"csv_detail_manage insert件数: " + result + "件 ("
+						+ buildCsvDetailContext(
+								dto.getDataCategory(),
+								dto.getSeason(),
+								dto.getHomeTeamName(),
+								dto.getAwayTeamName())
+						+ ", csvId=" + dto.getCsvId() + ")");
+	}
+
+	/**
+	 * 更新
+	 * @param dto
+	 */
+	private void updateCsvDetail(CsvDetailEntityOutputDTO dto) {
+		final String METHOD_NAME = "updateCsvDetail";
+
+		if (dto == null) {
+			return;
+		}
+
+		CsvDetailManageEntity entity = new CsvDetailManageEntity();
+		entity.setCsvId(dto.getCsvId());
+		entity.setDataCategory(dto.getDataCategory());
+		entity.setSeason(dto.getSeason());
+		entity.setHomeTeamName(dto.getHomeTeamName());
+		entity.setAwayTeamName(dto.getAwayTeamName());
+
+		int result = this.csvDetailManageRepository.update(entity);
+
+		String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
+		this.loggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+				"csv_detail_manage update件数: " + result + "件 ("
 						+ buildCsvDetailContext(
 								dto.getDataCategory(),
 								dto.getSeason(),

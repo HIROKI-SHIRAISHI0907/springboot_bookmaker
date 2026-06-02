@@ -6,6 +6,7 @@ import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import dev.application.main.service.CsvDetailEntityOutputDTO;
 import dev.common.entity.CsvDetailManageEntity;
@@ -91,7 +92,7 @@ public interface CsvDetailManageRepository {
 			@Param("candidates") List<CsvDetailEntityOutputDTO> candidates);
 
 	/**
-	 * manual用UPSERT
+	 * manual用INSERT
 	 * UNIQUE(data_category, season, home_team_name, away_team_name) 前提
 	 */
 	@Insert("""
@@ -125,5 +126,22 @@ public interface CsvDetailManageRepository {
 			    update_id = 'ADMIN',
 			    update_time = CURRENT_TIMESTAMP
 			""")
-	int upsert(CsvDetailManageEntity entity);
+	int insert(CsvDetailManageEntity entity);
+
+	/**
+	 * manual用UPDATE
+	 */
+	@Update("""
+			UPDATE csv_detail_manage SET
+				check_fin_flg = '1',
+				update_id = 'ADMIN',
+			    update_time = CURRENT_TIMESTAMP
+			WHERE
+			    csv_id = #{csvId} AND
+			    data_category = #{dataCategory} AND
+			    season = #{season} AND
+			    home_team_name = #{homeTeamName} AND
+			    away_team_name = #{awayTeamName};
+			""")
+	int update(CsvDetailManageEntity entity);
 }
