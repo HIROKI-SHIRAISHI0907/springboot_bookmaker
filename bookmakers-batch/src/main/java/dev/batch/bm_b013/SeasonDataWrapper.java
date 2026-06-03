@@ -80,7 +80,7 @@ public class SeasonDataWrapper {
 				.filter(Objects::nonNull)
 				.filter(entity -> entity.getCountry() != null)
 				.filter(entity -> entity.getLeague() != null)
-				.filter(entity -> isAfterNow(entity.getEndSeasonDate(), formatter, now))
+				.filter(entity -> isBeforeNow(entity.getEndSeasonDate(), formatter, now))
 				.collect(Collectors.toMap(
 						entity -> entity.getCountry() + "-" + entity.getLeague(),
 						CountryLeagueSeasonMasterEntity::getEndSeasonDate,
@@ -103,7 +103,7 @@ public class SeasonDataWrapper {
 				.filter(entity -> entity.getCountry() != null)
 				.filter(entity -> entity.getLeague() != null)
 				.filter(entity -> entity.getEndSeasonDate() != null)
-				.filter(entity -> isAfterNow(entity.getEndSeasonDate(), formatter, now))
+				.filter(entity -> isBeforeNow(entity.getEndSeasonDate(), formatter, now))
 				.map(entity -> entity.getCountry() + "-" + entity.getLeague())
 				.collect(Collectors.toList());
 
@@ -151,13 +151,13 @@ public class SeasonDataWrapper {
 	 * @param now
 	 * @return
 	 */
-	private boolean isAfterNow(String endSeasonDate, DateTimeFormatter formatter, LocalDateTime now) {
+	private boolean isBeforeNow(String endSeasonDate, DateTimeFormatter formatter, LocalDateTime now) {
 		if (endSeasonDate == null || endSeasonDate.length() < 19) {
 			return false;
 		}
 		String normalizedEndSeasonDate = endSeasonDate.substring(0, 19);
 		LocalDateTime endDateTime = LocalDateTime.parse(normalizedEndSeasonDate, formatter);
-		return endDateTime.isAfter(now);
+		return endDateTime.isBefore(now);
 	}
 
 

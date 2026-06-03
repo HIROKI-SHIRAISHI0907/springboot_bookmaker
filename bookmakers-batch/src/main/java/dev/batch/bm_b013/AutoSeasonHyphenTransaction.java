@@ -1,7 +1,5 @@
 package dev.batch.bm_b013;
 
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,8 +40,6 @@ public class AutoSeasonHyphenTransaction {
 	public void execute(TransactionDTO dto) throws Exception {
 		final String METHOD_NAME = "execute";
 		Map<String, String> countryLeagueMap = dto.getCountryLeagueMap();
-		LocalDateTime now = dto.getNow();
-		DateTimeFormatter formatter = dto.getFormatter();
 
 		for (Map.Entry<String, String> entry : countryLeagueMap.entrySet()) {
 			String key = entry.getKey();
@@ -53,33 +49,24 @@ public class AutoSeasonHyphenTransaction {
 				continue;
 			}
 
-			// DB値例: 2026-05-24 00:00:00+09
-			// 比較用に先頭19文字だけ使う
-			String normalizedEndSeasonDate = endSeasonDate.substring(0, 19);
-			LocalDateTime endDateTime = LocalDateTime.parse(normalizedEndSeasonDate, formatter);
+			// シーズン終了日をNULLに更新
+			String[] keyArray = key.split("-", 2);
+			String country = keyArray[0];
+			String league = keyArray[1];
 
-			// シーズン終了日をシステム日時が超えていたらNULLに更新
-			if (now.isAfter(endDateTime)) {
-				String[] keyArray = key.split("-", 2);
-				String country = keyArray[0];
-				String league = keyArray[1];
+			int result = countryLeagueSeasonMasterBatchRepository
+					.clearEndSeasonDate(country, league);
 
-				int result = countryLeagueSeasonMasterBatchRepository
-						.clearEndSeasonDate(country, league);
-
-				if (result == 0) {
-					this.manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, null,
-							"clearEndSeasonDate result==0 country=" + country + ", league=" + league);
-					continue;
-				}
-
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						"シーズン終了更新: country=" + country + ", league=" + league);
+			if (result == 0) {
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, null,
+						"clearEndSeasonDate result==0 country=" + country + ", league=" + league);
+				continue;
 			}
+
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					"シーズン終了更新: country=" + country + ", league=" + league);
 		}
-
 	}
-
 }
