@@ -96,7 +96,6 @@ public class AnalyzeManualStat {
 			this.manageLoggerComponent.debugWarnLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
-					null,
 					"finList not found");
 			return 0;
 		}
