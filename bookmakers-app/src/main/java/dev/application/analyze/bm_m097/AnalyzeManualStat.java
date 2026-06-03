@@ -115,7 +115,6 @@ public class AnalyzeManualStat {
 			this.manageLoggerComponent.debugWarnLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
-					null,
 					"finishedList not found");
 			return 0;
 		}
@@ -132,7 +131,6 @@ public class AnalyzeManualStat {
 			this.manageLoggerComponent.debugWarnLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
-					null,
 					"normalizedFinishedList not found");
 			return 0;
 		}
