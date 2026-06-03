@@ -384,10 +384,10 @@ public class RankHistoryStat {
 	 * seasonYear 解決
 	 */
 	private String resolveSeasonYear(String country, String league, String methodName) {
-		String seasonYear = this.countryLeagueSeasonMasterRepository
+		List<String> seasonYear = this.countryLeagueSeasonMasterRepository
 				.findSeasonYear(country, league);
 
-		if (seasonYear == null || seasonYear.isBlank()) {
+		if (seasonYear == null || seasonYear.get(0).isBlank()) {
 			this.manageLoggerComponent.debugWarnLog(
 					PROJECT_NAME, CLASS_NAME, methodName,
 					MessageCdConst.MCD00001W_COUNTRY_LEAGUE_SPLIT_FAIL_WARNING,
@@ -395,7 +395,7 @@ public class RankHistoryStat {
 			return "";
 		}
 
-		return seasonYear;
+		return seasonYear.get(0);
 	}
 
 	/**

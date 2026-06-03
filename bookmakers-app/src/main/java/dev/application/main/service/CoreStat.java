@@ -112,7 +112,8 @@ public class CoreStat implements StatIF {
 					() -> selectCsvDetail(stat, manualFlg));
 
 			// CSV作成済データで未完了データが取得できなかった場合or手動データでCSV詳細情報にダミーデータが存在する場合
-			if (dtoList != null && !dtoList.isEmpty() && !dtoList.get(0).isExistFlg()) {
+			if ((manualFlg && dtoList != null && !dtoList.isEmpty() && dtoList.get(0).isExistFlg()) ||
+					(!manualFlg && dtoList != null && dtoList.isEmpty())) {
 				this.loggerComponent.debugInfoLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 						MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP,
@@ -378,7 +379,7 @@ public class CoreStat implements StatIF {
 	 * @param dto
 	 */
 	private void insertCsvDetail(CsvDetailEntityOutputDTO dto) {
-		final String METHOD_NAME = "upsertCsvDetail";
+		final String METHOD_NAME = "insertCsvDetail";
 
 		if (dto == null) {
 			return;
