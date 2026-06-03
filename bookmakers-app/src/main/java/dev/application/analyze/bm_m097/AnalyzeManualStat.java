@@ -233,9 +233,30 @@ public class AnalyzeManualStat {
 					Map<String, Map<String, List<BookDataEntity>>> singleEntityMap = new LinkedHashMap<>();
 					singleEntityMap.put(outerKey, singleInnerMap);
 
-					processedCount += coreStat.execute(singleEntityMap, true);
+					int currentProcessedCount = coreStat.execute(singleEntityMap, true);
+					processedCount += currentProcessedCount;
+
+					String messageCd = MessageCdConst.MCD00099I_LOG;
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME,
+							CLASS_NAME,
+							METHOD_NAME,
+							messageCd,
+							"CoreStat SUCCESS : currentProcessedCount=" + currentProcessedCount
+									+ ", totalProcessedCount=" + processedCount
+									+ ", outerKey=" + outerKey
+									+ ", innerKey=" + innerKey);
 				}
 			}
+
+			String messageCd = MessageCdConst.MCD00099I_LOG;
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					messageCd,
+					"CoreStat FINISH : totalProcessedCount=" + processedCount);
+
 		} catch (Exception e1) {
 			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			this.manageLoggerComponent.debugErrorLog(
@@ -244,7 +265,6 @@ public class AnalyzeManualStat {
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, null);
 			return 0;
 		}
-
 
 		if (processedCount <= 0) {
 			this.manageLoggerComponent.debugWarnLog(
