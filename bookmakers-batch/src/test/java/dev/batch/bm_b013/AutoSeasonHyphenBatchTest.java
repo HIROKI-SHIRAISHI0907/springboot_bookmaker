@@ -7,16 +7,21 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
-@SpringBootTest(properties = {
-	    "MASTER_DB_URL=jdbc:postgresql://localhost:54320/soccer_bm_master",
-	    "MASTER_DB_USER=postgres",
-	    "MASTER_DB_PASS=sonic3717",
+@SpringBootTest(
+	    webEnvironment = SpringBootTest.WebEnvironment.NONE,
+	    properties = {
+	        "spring.datasource.master.url=jdbc:postgresql://localhost:54320/soccer_bm_master",
+	        "spring.datasource.master.username=postgres",
+	        "spring.datasource.master.password=sonic3717",
+	        "spring.datasource.master.driver-class-name=org.postgresql.Driver",
 
-	    "BM_DB_URL=jdbc:postgresql://localhost:54320/soccer_bm",
-	    "BM_DB_USER=postgres",
-	    "BM_DB_PASS=sonic3717",
-	})
-@ActiveProfiles("prod")
+	        "spring.datasource.bm.url=jdbc:postgresql://localhost:54320/soccer_bm",
+	        "spring.datasource.bm.username=postgres",
+	        "spring.datasource.bm.password=sonic3717",
+	        "spring.datasource.bm.driver-class-name=org.postgresql.Driver"
+	    }
+	)
+	@ActiveProfiles("prod")
 public class AutoSeasonHyphenBatchTest {
 
 	@Autowired

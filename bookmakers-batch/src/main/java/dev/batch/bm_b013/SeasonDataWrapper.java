@@ -74,17 +74,26 @@ public class SeasonDataWrapper {
 		// シーズン終了日リストを保持
 		List<CountryLeagueSeasonMasterEntity> list = countryLeagueSeasonMasterBatchRepository.findDateList();
 
+		// シーズン終了日をシステム日時が超えているものをMap化
 		// country-league -> endSeasonDate のMap
 		Map<String, String> countryLeagueMap = list.stream()
 				.filter(Objects::nonNull)
 				.filter(entity -> entity.getCountry() != null)
 				.filter(entity -> entity.getLeague() != null)
-				.filter(entity -> entity.getEndSeasonDate() != null)
+				.filter(entity -> isAfterNow(entity.getEndSeasonDate(), formatter, now))
 				.collect(Collectors.toMap(
 						entity -> entity.getCountry() + "-" + entity.getLeague(),
 						CountryLeagueSeasonMasterEntity::getEndSeasonDate,
 						(oldValue, newValue) -> newValue,
 						LinkedHashMap::new));
+
+		if (countryLeagueMap.isEmpty()) {
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00001I_BATCH_EXECUTION_GREEN_FIN,
+					"システム日時が超えているシーズンデータがありません。");
+			return;
+		}
 
 		dto.setCountryLeagueMap(countryLeagueMap);
 
@@ -93,6 +102,8 @@ public class SeasonDataWrapper {
 				.filter(Objects::nonNull)
 				.filter(entity -> entity.getCountry() != null)
 				.filter(entity -> entity.getLeague() != null)
+				.filter(entity -> entity.getEndSeasonDate() != null)
+				.filter(entity -> isAfterNow(entity.getEndSeasonDate(), formatter, now))
 				.map(entity -> entity.getCountry() + "-" + entity.getLeague())
 				.collect(Collectors.toList());
 
@@ -132,5 +143,22 @@ public class SeasonDataWrapper {
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 	}
+
+	/**
+	 * 特定の日時をすぎているか
+	 * @param endSeasonDate
+	 * @param formatter
+	 * @param now
+	 * @return
+	 */
+	private boolean isAfterNow(String endSeasonDate, DateTimeFormatter formatter, LocalDateTime now) {
+		if (endSeasonDate == null || endSeasonDate.length() < 19) {
+			return false;
+		}
+		String normalizedEndSeasonDate = endSeasonDate.substring(0, 19);
+		LocalDateTime endDateTime = LocalDateTime.parse(normalizedEndSeasonDate, formatter);
+		return endDateTime.isAfter(now);
+	}
+
 
 }

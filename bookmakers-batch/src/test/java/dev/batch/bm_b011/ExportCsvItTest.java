@@ -88,7 +88,6 @@ class ExportCsvItTest {
 		rows.add(seqRow("A", "B", 2));
 		rows.add(seqRow("C", "D", 10));
 		rows.add(seqRow("C", "D", 11));
-		when(repo.findAllSeqsWithKey()).thenReturn(rows);
 
 		when(repo.findByData(anyList())).thenAnswer(inv -> {
 			@SuppressWarnings("unchecked")
@@ -198,7 +197,6 @@ class ExportCsvItTest {
 	    rows.add(seqRow("A", "B", 2));
 	    rows.add(seqRow("C", "D", 10));
 	    rows.add(seqRow("C", "D", 11));
-	    when(repo.findAllSeqsWithKey()).thenReturn(rows);
 
 	    when(repo.findByData(anyList())).thenAnswer(inv -> {
 	        @SuppressWarnings("unchecked")
