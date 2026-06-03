@@ -182,7 +182,6 @@ public class AnalyzeManualStat {
 			this.manageLoggerComponent.debugWarnLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
-					null,
 					"targetList not found");
 			return 0;
 		}
@@ -196,7 +195,6 @@ public class AnalyzeManualStat {
 			this.manageLoggerComponent.debugWarnLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
-					null,
 					"analyzeTargetList not found");
 			return 0;
 		}
@@ -270,7 +268,6 @@ public class AnalyzeManualStat {
 			this.manageLoggerComponent.debugWarnLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
-					null,
 					"coreStat processedCount=0");
 			return 0;
 		}
