@@ -54,7 +54,7 @@ public interface FutureMasterRepository {
 			    seq,
 			    home_team_name AS homeTeamName,
 			    away_team_name AS awayTeamName,
-			    future_time    AS futureTime
+			    future_time AS futureTime
 			FROM future_master
 			WHERE future_time IS NOT NULL
 			  AND home_team_name IS NOT NULL

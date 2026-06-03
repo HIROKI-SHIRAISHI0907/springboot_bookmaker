@@ -444,7 +444,7 @@ public class CoreStat implements StatIF {
 			return "";
 		}
 		return safe(countryLeagueSeasonMasterBatchRepository
-				.findSeasonYear(dataList.get(0), dataList.get(1))).trim();
+				.findSeasonYear(dataList.get(0), dataList.get(1)).get(0)).trim();
 	}
 
 	private String buildCsvDetailKey(

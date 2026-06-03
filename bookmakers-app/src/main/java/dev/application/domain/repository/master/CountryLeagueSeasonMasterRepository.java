@@ -71,6 +71,12 @@ public interface CountryLeagueSeasonMasterRepository {
 	String findCurrentSeasonYear(@Param("country") String country,
 			@Param("league") String league);
 
+	/**
+	 * 1件以上引っかかった場合を想定
+	 * @param country
+	 * @param league
+	 * @return
+	 */
 	@Select("""
 			    SELECT
 			     	season_year
@@ -81,7 +87,7 @@ public interface CountryLeagueSeasonMasterRepository {
 				    AND league = #{league}
 				    AND del_flg = '0';
 			""")
-	String findSeasonYear(@Param("country") String country,
+	List<String> findSeasonYear(@Param("country") String country,
 			@Param("league") String league);
 
 }

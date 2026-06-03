@@ -478,9 +478,16 @@ public interface BookDataRepository {
 			    match_id AS matchId,
 			    time_sort_seconds AS timeSortSeconds,
 			    add_manual_flg AS addManualFlg
-			FROM data
-			WHERE add_manual_flg = '1'
-			  AND (times = '終了済' OR times LIKE 'ペナルティ%')
+			FROM data d
+			WHERE d.add_manual_flg = '1'
+			  AND (d.times = '終了済' OR d.times LIKE 'ペナルティ%')
+			  AND d.match_id IS NOT NULL
+			  AND d.match_id <> ''
+			  AND (
+			      SELECT COUNT(*)
+			      FROM data d2
+			      WHERE d2.match_id = d.match_id
+			  ) = 1
 			""")
 	List<DataEntity> getFinData();
 

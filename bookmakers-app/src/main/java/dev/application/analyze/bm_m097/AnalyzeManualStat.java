@@ -1,7 +1,6 @@
 package dev.application.analyze.bm_m097;
 
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.HashSet;
@@ -9,7 +8,6 @@ import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.function.Function;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -20,13 +18,11 @@ import dev.application.domain.repository.bm.AnalyzeManualRepository;
 import dev.application.domain.repository.bm.BookDataRepository;
 import dev.application.domain.repository.bm.CsvDetailManageRepository;
 import dev.application.domain.repository.master.CountryLeagueSeasonMasterRepository;
-import dev.application.domain.repository.master.FutureMasterRepository;
 import dev.application.main.service.CoreStat;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.entity.DataEntity;
-import dev.common.entity.FutureEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.getinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
@@ -56,17 +52,11 @@ public class AnalyzeManualStat {
 	/** 1回のIN句件数（DB負荷対策） */
 	private static final int MATCH_ID_BATCH_SIZE = 500;
 
-	/** JST */
-	private static final ZoneId JST = ZoneId.of("Asia/Tokyo");
-
 	@Autowired
 	private BookDataRepository bookDataRepository;
 
 	@Autowired
 	private CsvDetailManageRepository csvDetailManageRepository;
-
-	@Autowired
-	private FutureMasterRepository futureMasterRepository;
 
 	@Autowired
 	private AnalyzeManualRepository analyzeManualDataRepository;
@@ -100,7 +90,7 @@ public class AnalyzeManualStat {
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// 1) 手動データ取得
+		// 1) データが1件しかない手動データ取得
 		List<DataEntity> finList = bookDataRepository.getFinData();
 		if (finList == null || finList.isEmpty()) {
 			this.manageLoggerComponent.debugWarnLog(
@@ -111,37 +101,14 @@ public class AnalyzeManualStat {
 			return 0;
 		}
 
-		// 2) future_master から比較用の試合キーを取得
-		Map<String, FutureEntity> futureTargetMap = futureMasterRepository.findFutureDatesForManualStat().stream()
-				.filter(e -> e != null)
-				.filter(e -> !nvl(e.getHomeTeamName()).isEmpty())
-				.filter(e -> !nvl(e.getAwayTeamName()).isEmpty())
-				.filter(e -> !toTokyoDateString(e.getFutureTime()).isEmpty())
-				.collect(Collectors.toMap(
-						this::buildFutureMasterKey,
-						Function.identity(),
-						(a, b) -> a,
-						LinkedHashMap::new));
-
-		if (futureTargetMap.isEmpty()) {
-			this.manageLoggerComponent.debugWarnLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
-					null,
-					"futureTargetMap not found");
-			return 0;
-		}
-
-		// 3) 終了済み or PENALTY含み かつ home/away/date が future_master と一致するものだけ対象
+		// 2) 終了済み or PENALTY含み 一致するものだけ対象
 		List<DataEntity> finishedList = finList.stream()
 				.filter(this::isFinishedTarget)
-				.filter(e -> futureTargetMap.containsKey(buildDataFutureKey(e)))
 				.collect(Collectors.toList());
 
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
-				"manual target by future key: futureTargetMap=" + futureTargetMap.size()
-						+ ", finList=" + finList.size()
+						"finList=" + finList.size()
 						+ ", finishedList=" + finishedList.size());
 
 		if (finishedList.isEmpty()) {
@@ -153,7 +120,7 @@ public class AnalyzeManualStat {
 			return 0;
 		}
 
-		// 4) 同一 match_id の重複を正規化
+		// 3) 同一 match_id の重複を正規化
 		List<DataEntity> normalizedFinishedList = normalizeFinishedData(finishedList);
 
 		this.manageLoggerComponent.debugInfoLog(
@@ -170,7 +137,7 @@ public class AnalyzeManualStat {
 			return 0;
 		}
 
-		// 5) matchId をユニーク抽出
+		// 4) matchId をユニーク抽出
 		List<String> matchIds = normalizedFinishedList.stream()
 				.map(DataEntity::getMatchId)
 				.map(this::nvl)
@@ -178,7 +145,7 @@ public class AnalyzeManualStat {
 				.distinct()
 				.collect(Collectors.toList());
 
-		// 6) analyze_manual_data に既にあるものを一括取得
+		// 5) analyze_manual_data に既にあるものを一括取得
 		//    match_id がある場合は match_id を優先して重複判定する
 		Set<String> analyzedKeySet = new HashSet<>();
 
@@ -201,7 +168,7 @@ public class AnalyzeManualStat {
 			}
 		}
 
-		// 7) 未反映データだけを抽出
+		// 6) 未反映データだけを抽出
 		List<DataEntity> targetList = normalizedFinishedList.stream()
 				.filter(e -> !analyzedKeySet.contains(buildAnalyzeKey(
 						e.getDataCategory(),
@@ -220,24 +187,10 @@ public class AnalyzeManualStat {
 			return 0;
 		}
 
-		// 8) CoreStat に渡せるデータだけに絞る
-		List<DataEntity> validTargetList = targetList.stream()
-				.filter(this::isValidForCoreStat)
-				.collect(Collectors.toList());
-
-		if (validTargetList.isEmpty()) {
-			this.manageLoggerComponent.debugWarnLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00004I_OTHER_EXECUTION_GREEN_FIN,
-					null,
-					"validTargetList not found");
-			return 0;
-		}
-
-		// 9) 以降に進むには条件がある
+		// 7) 以降に進むには条件がある
 		// csv_detail_manage(check_fin_flg='1') に存在しないこと
-		// data テーブルに存在しないこと
-		List<DataEntity> analyzeTargetList = filterAnalyzeTargets(validTargetList);
+		// data テーブルに1件しか存在しないこと
+		List<DataEntity> analyzeTargetList = filterAnalyzeTargets(targetList);
 
 		if (analyzeTargetList.isEmpty()) {
 			this.manageLoggerComponent.debugWarnLog(
@@ -248,7 +201,7 @@ public class AnalyzeManualStat {
 			return 0;
 		}
 
-		// 10) CoreStat に渡すMapを作成して実行
+		// 8) CoreStat に渡すMapを作成して実行
 		List<BookDataEntity> bookDataList = analyzeTargetList.stream()
 				.map(this::toBookDataEntity)
 				.collect(Collectors.toList());
@@ -256,9 +209,33 @@ public class AnalyzeManualStat {
 		Map<String, Map<String, List<BookDataEntity>>> entities =
 				getStatInfo.buildStatMapFromEntities(bookDataList);
 
-		int processedCount;
+		int processedCount = 0;
 		try {
-			processedCount = coreStat.execute(entities, true);
+			for (Map.Entry<String, Map<String, List<BookDataEntity>>> outerEntry : entities.entrySet()) {
+				String outerKey = outerEntry.getKey();
+				Map<String, List<BookDataEntity>> innerMap = outerEntry.getValue();
+
+				if (innerMap == null || innerMap.isEmpty()) {
+					continue;
+				}
+
+				for (Map.Entry<String, List<BookDataEntity>> innerEntry : innerMap.entrySet()) {
+					String innerKey = innerEntry.getKey();
+					List<BookDataEntity> singleBookDataList = innerEntry.getValue();
+
+					if (singleBookDataList == null || singleBookDataList.isEmpty()) {
+						continue;
+					}
+
+					Map<String, List<BookDataEntity>> singleInnerMap = new LinkedHashMap<>();
+					singleInnerMap.put(innerKey, singleBookDataList);
+
+					Map<String, Map<String, List<BookDataEntity>>> singleEntityMap = new LinkedHashMap<>();
+					singleEntityMap.put(outerKey, singleInnerMap);
+
+					processedCount += coreStat.execute(singleEntityMap, true);
+				}
+			}
 		} catch (Exception e1) {
 			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			this.manageLoggerComponent.debugErrorLog(
@@ -267,6 +244,7 @@ public class AnalyzeManualStat {
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, null);
 			return 0;
 		}
+
 
 		if (processedCount <= 0) {
 			this.manageLoggerComponent.debugWarnLog(
@@ -277,7 +255,7 @@ public class AnalyzeManualStat {
 			return 0;
 		}
 
-		// 11) 成功した対象のみ analyze_manual_data に登録
+		// 9) 成功した対象のみ analyze_manual_data に登録
 		for (DataEntity entity : analyzeTargetList) {
 			AnalyzeManualEntity manualEntity = new AnalyzeManualEntity();
 			manualEntity.setGameCategory(nvl(entity.getDataCategory()));
@@ -362,16 +340,17 @@ public class AnalyzeManualStat {
 					dataEntity.getAwayTeamName(),
 					dataEntity.getMatchId());
 
-			boolean dataExists = dataExistsCache.computeIfAbsent(dataKey, k ->
+			boolean dataOneExists = dataExistsCache.computeIfAbsent(dataKey, k ->
 					this.bookDataRepository.getAnalyzeManualRestrictCount(
 							dataEntity.getDataCategory(),
 							dataEntity.getHomeTeamName(),
 							dataEntity.getAwayTeamName(),
-							dataEntity.getMatchId()) > 0
+							dataEntity.getMatchId()) == 1
 			);
 
-			// どちらも存在しない場合のみ対象
-			if (!csvExists && !dataExists) {
+			// csv_detail_manageには存在せず、dataテーブルには1件のみ（終了済orペナルティ終了データのみの想定）
+			// パターンのみ対象
+			if (!csvExists && dataOneExists) {
 				analyzeTargetList.add(dataEntity);
 			}
 		}
@@ -404,8 +383,8 @@ public class AnalyzeManualStat {
 		}
 
 		try {
-			String season = countryLeagueSeasonMasterRepository.findCurrentSeasonYear(country, league);
-			return safe(season).trim();
+			List<String> season = countryLeagueSeasonMasterRepository.findSeasonYear(country, league);
+			return safe(season.get(0)).trim();
 		} catch (Exception e) {
 			this.manageLoggerComponent.debugWarnLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
@@ -710,27 +689,6 @@ public class AnalyzeManualStat {
 				nvl(matchId));
 	}
 
-	private boolean isValidForCoreStat(DataEntity e) {
-		return !nvl(e.getDataCategory()).isEmpty()
-				&& !nvl(e.getHomeTeamName()).isEmpty()
-				&& !nvl(e.getAwayTeamName()).isEmpty()
-				&& isInteger(nvl(e.getHomeScore()))
-				&& isInteger(nvl(e.getAwayScore()))
-				&& e.getSeq() != null;
-	}
-
-	private boolean isInteger(String value) {
-		if (value == null || value.isBlank()) {
-			return false;
-		}
-		try {
-			Integer.parseInt(value.trim());
-			return true;
-		} catch (NumberFormatException ex) {
-			return false;
-		}
-	}
-
 	/**
 	 * 終了済み対象判定
 	 */
@@ -742,77 +700,6 @@ public class AnalyzeManualStat {
 
 	private String nvl(String value) {
 		return value == null ? "" : value.trim();
-	}
-
-	/**
-	 * future_master 側の照合キー
-	 * home_team_name + away_team_name + future_time(JST日付)
-	 */
-	private String buildFutureMasterKey(FutureEntity e) {
-		return String.join("||",
-				nvl(e.getHomeTeamName()),
-				nvl(e.getAwayTeamName()),
-				toTokyoDateString(e.getFutureTime()));
-	}
-
-	/**
-	 * data 側の照合キー
-	 * home_team_name + away_team_name + record_time(JST日付)
-	 */
-	private String buildDataFutureKey(DataEntity e) {
-		return String.join("||",
-				nvl(e.getHomeTeamName()),
-				nvl(e.getAwayTeamName()),
-				toTokyoDateString(e.getRecordTime()));
-	}
-
-	/**
-	 * JST日付文字列へ変換
-	 * String / OffsetDateTime の両方を吸収
-	 */
-	private String toTokyoDateString(Object dateTime) {
-		if (dateTime == null) {
-			return "";
-		}
-
-		if (dateTime instanceof OffsetDateTime) {
-			OffsetDateTime odt = (OffsetDateTime) dateTime;
-			return odt.toInstant()
-					.atZone(JST)
-					.toLocalDate()
-					.toString();
-		}
-
-		String value = String.valueOf(dateTime).trim();
-		if (value.isEmpty()) {
-			return "";
-		}
-
-		List<DateTimeFormatter> formatters = List.of(
-				DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssX"),
-				DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX"));
-
-		for (DateTimeFormatter formatter : formatters) {
-			try {
-				return OffsetDateTime.parse(value, formatter)
-						.toInstant()
-						.atZone(JST)
-						.toLocalDate()
-						.toString();
-			} catch (Exception ignore) {
-				// 次の formatter を試す
-			}
-		}
-
-		try {
-			return OffsetDateTime.parse(value)
-					.toInstant()
-					.atZone(JST)
-					.toLocalDate()
-					.toString();
-		} catch (Exception ignore) {
-			return "";
-		}
 	}
 
 	private static String safe(String s) {
