@@ -133,10 +133,10 @@ ecs:
       logGroup: ${ECS_B010_LOG_GROUP:/ecs/bm-fin-batch}
       
     B014:
-      cluster: ${ECS_B006_CLUSTER:stats-backend}
-      taskDefinition: ${ECS_B006_TASK_DEF:bookmakers-app}
-      container: ${ECS_B006_CONTAINER:bookmakers-app}
-      logGroup: ${ECS_B006_LOG_GROUP:/ecs/bookmakers-app}
+      cluster: ${ECS_B014_CLUSTER:stats-backend}
+      taskDefinition: ${ECS_B014_TASK_DEF:bookmakers-app}
+      container: ${ECS_B014_CONTAINER:bookmakers-app}
+      logGroup: ${ECS_B014_LOG_GROUP:/ecs/bookmakers-app}
     
   defaults:
     region: ${AWS_REGION:ap-northeast-1}
