@@ -24,8 +24,9 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.batch.bm_b011.ReaderCurrentCsvInfoBean;
-import dev.batch.fileservice.FileExistsService;
 import dev.batch.repository.bm.CsvDetailManageBatchRepository;
+import dev.batch.service.CsvFileNameService;
+import dev.batch.service.FileExistsService;
 import dev.common.config.PathConfig;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.CsvDetailManageEntity;
@@ -40,6 +41,7 @@ import dev.common.s3.S3Operator;
  * - 削除前に csvId -> seqList の snapshot を保存
  * - 途中失敗時は failed 分だけ snapshot を残す
  * - data_team_list.txt / seqList.txt の削除内容を詳細ログ出力
+ * - 削除対象は country-league 単位の folder prefix（例: 日本-J1）で判定
  */
 @Component
 @Transactional(rollbackFor = Exception.class)
@@ -76,6 +78,9 @@ public class EachCsvTransaction {
     private ManageLoggerComponent manageLoggerComponent;
 
     @Autowired
+    private CsvFileNameService csvFileNameService;
+
+    @Autowired
     private FileExistsService fileExistsService;
 
     @Autowired
@@ -89,17 +94,19 @@ public class EachCsvTransaction {
 
         this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "start");
 
-        List<String> prefixes = buildDataCategoryPrefixes(dto);
-        if (prefixes.isEmpty()) {
-            logInfo(METHOD_NAME, "削除対象の countryLeague が空のため処理終了");
+        // 1) season終了対象の country-league から csv_id folder prefix を作成
+        List<String> folderPrefixes = buildCsvFolderPrefixes(dto);
+        if (folderPrefixes.isEmpty()) {
+            logInfo(METHOD_NAME, "削除対象の csv folder prefix が空のため処理終了");
             endLog(METHOD_NAME);
             return;
         }
 
-        logInfo(METHOD_NAME, "削除対象 data_category prefixes=" + prefixes);
+        logInfo(METHOD_NAME, "削除対象 csv_id prefixes=" + folderPrefixes);
 
+        // 2) csv_id prefix で削除対象 csv_detail_manage を取得
         List<CsvDetailManageEntity> targets =
-                this.csvDetailManageBatchRepository.findDeleteTargetsByDataCategoryPrefixes(prefixes);
+                this.csvDetailManageBatchRepository.findDeleteTargetsByCsvIdPrefixes(folderPrefixes);
 
         if (targets == null || targets.isEmpty()) {
             logInfo(METHOD_NAME, "削除対象の csv_detail_manage が存在しません");
@@ -107,6 +114,7 @@ public class EachCsvTransaction {
             return;
         }
 
+        // 3) csv_id 一覧化
         Set<String> csvIdSet = new LinkedHashSet<>();
         for (CsvDetailManageEntity entity : targets) {
             if (entity == null) {
@@ -162,7 +170,8 @@ public class EachCsvTransaction {
         }
 
         // 2) 実CSV削除
-        DeleteResult deleteResult = deletePhysicalCsvFiles(csvIds, METHOD_NAME);
+        Map<String, String> countryLeagueMap = dto.getCountryLeagueMap();
+        DeleteResult deleteResult = deletePhysicalCsvFiles(csvIds, countryLeagueMap, METHOD_NAME);
 
         logInfo(METHOD_NAME, "CSV削除結果 success=" + deleteResult.deletedCsvIds.size()
                 + ", failed=" + deleteResult.failedCsvIds.size());
@@ -173,6 +182,9 @@ public class EachCsvTransaction {
             endLog(METHOD_NAME);
             return;
         }
+
+        // 2.5) 空親フォルダ削除（ローカルのみ）
+        cleanupEmptyParentFolders(deleteResult.deletedCsvIds, METHOD_NAME);
 
         // 3) data_team_list.txt 更新
         updateDataTeamList(deleteResult.deletedCsvIds, METHOD_NAME);
@@ -398,11 +410,12 @@ public class EachCsvTransaction {
     }
 
     /**
-     * DTO の countryLeague から data_category prefix を作成
-     * 例: 日本-J1リーグ -> 日本: J1リーグ
+     * DTO の countryLeague から csv_id 用 folder prefix を作成
+     * 例: 日本-J1リーグ -> 日本-J1リーグ
      */
-    private List<String> buildDataCategoryPrefixes(TransactionDTO dto) {
+    private List<String> buildCsvFolderPrefixes(TransactionDTO dto) {
         List<String> prefixes = new ArrayList<>();
+
         if (dto == null || dto.getCountryLeague() == null) {
             return prefixes;
         }
@@ -416,10 +429,12 @@ public class EachCsvTransaction {
                 continue;
             }
 
-            prefixes.add(country + ": " + league);
+            prefixes.add(csvFileNameService.makeFolderPrefix(country, league));
         }
 
-        return prefixes;
+        return prefixes.stream()
+                .distinct()
+                .collect(Collectors.toList());
     }
 
     /**
@@ -427,7 +442,18 @@ public class EachCsvTransaction {
      * - 成功/失敗を分離して返す
      * - 途中で throw しない
      */
-    private DeleteResult deletePhysicalCsvFiles(List<String> csvIds, String parentMethod) {
+    /**
+     * CSV実体削除
+     * - countryLeagueMap の country / league から folder prefix を生成
+     * - その prefix に一致する csvId のみ削除
+     * - 成功/失敗を分離して返す
+     * - 途中で throw しない
+     */
+    private DeleteResult deletePhysicalCsvFiles(
+            List<String> csvIds,
+            Map<String, String> countryLeagueMap,
+            String parentMethod) {
+
         final String METHOD_NAME = "deletePhysicalCsvFiles";
 
         Path baseDir = Paths.get(config.getCsvFolder()).toAbsolutePath().normalize();
@@ -436,8 +462,22 @@ public class EachCsvTransaction {
 
         DeleteResult result = new DeleteResult();
 
+        List<String> folderPrefixes = buildDeleteFolderPrefixes(countryLeagueMap);
+
+        if (folderPrefixes.isEmpty()) {
+            logWarn(METHOD_NAME, "削除対象 folder prefix が空のためCSV削除スキップ");
+            return result;
+        }
+
+        logInfo(METHOD_NAME, "削除対象 folder prefixes=" + folderPrefixes);
+
         for (String csvId : csvIds) {
             if (csvId == null || csvId.isBlank()) {
+                continue;
+            }
+
+            if (!startsWithAnyFolderPrefix(csvId, folderPrefixes)) {
+                logInfo(METHOD_NAME, "削除対象外 csvId=" + csvId);
                 continue;
             }
 
@@ -453,7 +493,6 @@ public class EachCsvTransaction {
                 if (!localOnly) {
                     String s3Key = normalizeS3Key(joinS3Key(prefix, csvId));
 
-                    // S3Operator の削除メソッド名は必要に応じて調整
                     s3Operator.delete(bucket, s3Key);
 
                     logInfo(METHOD_NAME, "S3 CSV削除 csvId=" + csvId
@@ -474,6 +513,101 @@ public class EachCsvTransaction {
         }
 
         return result;
+    }
+
+    /**
+     * 削除成功した CSV の親フォルダが空なら削除
+     */
+    private void cleanupEmptyParentFolders(Set<String> deletedCsvIds, String parentMethod) {
+        final String METHOD_NAME = "cleanupEmptyParentFolders";
+
+        Path baseDir = Paths.get(config.getCsvFolder()).toAbsolutePath().normalize();
+        Set<Path> parentDirs = new LinkedHashSet<>();
+
+        for (String csvId : deletedCsvIds) {
+            if (csvId == null || csvId.isBlank()) {
+                continue;
+            }
+
+            Path parent = baseDir.resolve(csvId).normalize().getParent();
+            if (parent != null) {
+                parentDirs.add(parent);
+            }
+        }
+
+        for (Path dir : parentDirs) {
+            try {
+                if (!Files.isDirectory(dir)) {
+                    continue;
+                }
+
+                try (var stream = Files.list(dir)) {
+                    boolean empty = !stream.findAny().isPresent();
+                    if (empty) {
+                        Files.deleteIfExists(dir);
+                        logInfo(METHOD_NAME, "空フォルダ削除 path=" + dir);
+                    }
+                }
+            } catch (Exception e) {
+                logWarn(METHOD_NAME, "空フォルダ削除失敗 path=" + dir + ", reason=" + e.getMessage());
+            }
+        }
+    }
+
+    /**
+     * countryLeagueMap から削除対象 folder prefix を作成
+     * 例:
+     *   key = 日本-J1
+     *   -> csvFileNameService.makeFolderPrefix("日本", "J1")
+     *   -> 日本-J1
+     */
+    private List<String> buildDeleteFolderPrefixes(Map<String, String> countryLeagueMap) {
+        List<String> prefixes = new ArrayList<>();
+
+        if (countryLeagueMap == null || countryLeagueMap.isEmpty()) {
+            return prefixes;
+        }
+
+        for (String countryLeague : countryLeagueMap.keySet()) {
+            String[] pair = splitCountryLeague(countryLeague);
+            String country = safe(pair[0]).trim();
+            String league = safe(pair[1]).trim();
+
+            if (country.isEmpty() || league.isEmpty()) {
+                continue;
+            }
+
+            prefixes.add(csvFileNameService.makeFolderPrefix(country, league));
+        }
+
+        return prefixes.stream()
+                .distinct()
+                .collect(Collectors.toList());
+    }
+
+    /**
+     * csvId が指定 prefix のいずれかに一致するか
+     * 例:
+     *   prefix = 日本-J1
+     *   csvId   = 日本-J1-ラウンド12/1.csv
+     *   -> true
+     */
+    private boolean startsWithAnyFolderPrefix(String csvId, List<String> folderPrefixes) {
+        if (csvId == null || csvId.isBlank() || folderPrefixes == null || folderPrefixes.isEmpty()) {
+            return false;
+        }
+
+        for (String folderPrefix : folderPrefixes) {
+            if (folderPrefix == null || folderPrefix.isBlank()) {
+                continue;
+            }
+
+            if (csvId.startsWith(folderPrefix + "-")) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     /**

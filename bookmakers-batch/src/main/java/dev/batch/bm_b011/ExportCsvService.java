@@ -30,10 +30,11 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.batch.fileservice.FileExistsService;
 import dev.batch.repository.bm.BookCsvDataRepository;
 import dev.batch.repository.bm.BookCsvDetailManageRepository;
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
+import dev.batch.service.CsvFileNameService;
+import dev.batch.service.FileExistsService;
 import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
@@ -63,8 +64,6 @@ public class ExportCsvService {
 
 	private static final Pattern ROUND_TOKEN = Pattern.compile("ラウンド\\s*[0-9０-９]+");
 
-	private static final Pattern ROUND_NO_PATTERN = Pattern.compile("ラウンド\\s*([0-9０-９]+)");
-
 	private static final Pattern CSV_NO_PATTERN = Pattern.compile("(^|.*/)(\\d+)\\.csv$", Pattern.CASE_INSENSITIVE);
 
 	@Value("${exportcsv.local-only:false}")
@@ -86,6 +85,9 @@ public class ExportCsvService {
 
 	@Autowired
 	private FileExistsService fileExistsService;
+
+	@Autowired
+	private CsvFileNameService csvFileNameService;
 
 	@Autowired
 	private S3Operator s3Operator;
@@ -1518,22 +1520,15 @@ public class ExportCsvService {
 	 */
 	private String resolveRoundFolderNamePreview(List<CsvPreviewRow> group) {
 		CsvPreviewRow row = findPreviewRowWithTeams(group);
-		String dataCategory = safe(row.getDataCategory()).trim();
 
-		List<String> countryLeague = ExecuteMainUtil.getCountryLeagueByRegex(dataCategory);
+		String folderBase = csvFileNameService.makeFolderNameFromTeams(
+				safe(row.getHomeTeamName()).trim(),
+				safe(row.getAwayTeamName()).trim());
 
-		String country = (countryLeague != null && countryLeague.size() >= 1)
-				? sanitizePathToken(countryLeague.get(0))
-				: "unknown";
+		String roundName = csvFileNameService.extractRoundName(
+				safe(row.getDataCategory()).trim());
 
-		String league = (countryLeague != null && countryLeague.size() >= 2)
-				? sanitizePathToken(countryLeague.get(1))
-				: "unknown";
-
-		Integer roundNo = extractRoundNo(dataCategory);
-		String roundPart = (roundNo == null) ? "不明" : String.valueOf(roundNo);
-
-		return country + "-" + league + "-ラウンド" + roundPart;
+		return folderBase + "-" + roundName;
 	}
 
 	private static CsvPreviewRow findPreviewRowWithTeams(List<CsvPreviewRow> list) {
@@ -1829,52 +1824,6 @@ public class ExportCsvService {
 				d.setDataCategory(canonical);
 			}
 		}
-	}
-
-	private Integer extractRoundNo(String dataCategory) {
-		if (dataCategory == null || dataCategory.isBlank()) {
-			return null;
-		}
-
-		Matcher m = ROUND_NO_PATTERN.matcher(dataCategory);
-		if (!m.find()) {
-			return null;
-		}
-
-		String digits = toHalfWidthDigits(m.group(1));
-		try {
-			return Integer.parseInt(digits);
-		} catch (NumberFormatException e) {
-			return null;
-		}
-	}
-
-	private static String sanitizePathToken(String value) {
-		if (value == null || value.isBlank()) {
-			return "unknown";
-		}
-		return value.trim()
-				.replace("/", "_")
-				.replace("\\", "_")
-				.replace(":", "_")
-				.replace("*", "_")
-				.replace("?", "_")
-				.replace("\"", "_")
-				.replace("<", "_")
-				.replace(">", "_")
-				.replace("|", "_");
-	}
-
-	private static String toHalfWidthDigits(String in) {
-		StringBuilder sb = new StringBuilder(in.length());
-		for (char ch : in.toCharArray()) {
-			if (ch >= '０' && ch <= '９') {
-				sb.append((char) ('0' + (ch - '０')));
-			} else {
-				sb.append(ch);
-			}
-		}
-		return sb.toString();
 	}
 
 	private static int compareCsvRelativeKey(String a, String b) {

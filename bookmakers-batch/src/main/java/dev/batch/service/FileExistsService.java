@@ -1,4 +1,4 @@
-package dev.batch.fileservice;
+package dev.batch.service;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
