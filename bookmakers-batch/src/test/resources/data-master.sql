@@ -3,7 +3,7 @@
 -- =========================
 
 INSERT INTO country_league_master
-(country, league, team, link, del_flg, register_id, register_time, update_id, update_time)
+(country, league, sub_league, team, link, del_flg, register_id, register_time, update_id, update_time)
 VALUES
 
 -- ---------- J1 ----------
@@ -74,24 +74,24 @@ VALUES
 
 
 -- ---------- リーガMX ----------
-('メキシコ','リーガ MX','トルーカ','/team/toluca/8hiBr2eQ/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('メキシコ','リーガ MX','ティグレス UNAL','/team/u-a-n-l-tigres/Iy4albIC/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('メキシコ','リーガ MX','クルス・アスル','/team/cruz-azul/G8PFBMll/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('メキシコ','リーガ MX','クラブ・アメリカ','/team/club-america/vyrswtJm/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('メキシコ','リーガ MX','モンテレイ','/team/monterrey/Ya23C2Zs/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('メキシコ','リーガ MX','ﾁｰﾊﾞｽ･ｸﾞｱﾀﾞﾗﾊﾗ','/team/guadalajara-chivas/Y5TaMKY6/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('メキシコ','リーガ MX','クラブ・ティフアナ','/team/club-tijuana/nuNVeQkr/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('メキシコ','リーガ MX','フアレス','/team/juarez/2wZp8NAh/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('メキシコ','リーガ MX','パチューカ','/team/pachuca/QT16qrtK/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('メキシコ','リーガ MX','UNAM プーマス','/team/u-n-a-m-pumas/UB73mIXI/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('メキシコ','リーガ MX','サントス・ラグナ','/team/santos-laguna/EBPEFrRQ/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('メキシコ','リーガ MX','ケレタロ','/team/queretaro/fqJAznPc/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('メキシコ','リーガ MX','ネカクサ','/team/necaxa/nw32pOQD/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('メキシコ','リーガ MX','アトラス','/team/atlas/AVOJAt4f/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('メキシコ','リーガ MX','ｱﾄﾚﾃｨｺ･ｻﾝﾙｲｽ','/team/atletico-san-luis/OYSN90J0/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('メキシコ','リーガ MX','マサトランFC','/team/mazatlan-fc/AXl5ehGE/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('メキシコ','リーガ MX','クラブレオン','/team/club-leon/l0iuHPBQ/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
-('メキシコ','リーガ MX','プエブラ','/team/puebla/pO5ijKm0/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP);
+('メキシコ','リーガ MX',NULL,'トルーカ','/team/toluca/8hiBr2eQ/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX',NULL,'ティグレス UNAL','/team/u-a-n-l-tigres/Iy4albIC/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX',NULL,'クルス・アスル','/team/cruz-azul/G8PFBMll/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX',NULL,'クラブ・アメリカ','/team/club-america/vyrswtJm/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX',NULL,'モンテレイ','/team/monterrey/Ya23C2Zs/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX',NULL,'ﾁｰﾊﾞｽ･ｸﾞｱﾀﾞﾗﾊﾗ','/team/guadalajara-chivas/Y5TaMKY6/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX',NULL,'クラブ・ティフアナ','/team/club-tijuana/nuNVeQkr/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX',NULL,'フアレス','/team/juarez/2wZp8NAh/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX',NULL,'パチューカ','/team/pachuca/QT16qrtK/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX',NULL,'UNAM プーマス','/team/u-n-a-m-pumas/UB73mIXI/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX',NULL,'サントス・ラグナ','/team/santos-laguna/EBPEFrRQ/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX',NULL,'ケレタロ','/team/queretaro/fqJAznPc/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX',NULL,'ネカクサ','/team/necaxa/nw32pOQD/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX',NULL,'アトラス','/team/atlas/AVOJAt4f/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX',NULL,'ｱﾄﾚﾃｨｺ･ｻﾝﾙｲｽ','/team/atletico-san-luis/OYSN90J0/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX',NULL,'マサトランFC','/team/mazatlan-fc/AXl5ehGE/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX',NULL,'クラブレオン','/team/club-leon/l0iuHPBQ/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP),
+('メキシコ','リーガ MX',NULL,'プエブラ','/team/puebla/pO5ijKm0/','0','ut',CURRENT_TIMESTAMP,'ut',CURRENT_TIMESTAMP);
 
 
 INSERT INTO country_league_season_master (
@@ -177,4 +177,7 @@ INSERT INTO country_league_season_master (
     (65, 'メキシコ', 'リーガ MX', '2025/2026', '2025-04-25 09:00:00+09', '9999-12-31 12:00:00', '17', '/soccer/mexico/liga-mx/', 'https://static.flashscore.com/res/image/data/rDKmIAfU-2Fx7CdeM.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:58+09', 'BATCH', '2026-05-20 00:10:52+09'),
     (66, '日本', 'J2・J3 リーグ', '2026', '2026-04-25 09:00:00+09', '2026-05-25 14:00:00+09', '17', '/soccer/japan/j2-j3-league/', 'https://static.flashscore.com/res/image/data/fuIQNs9j-lfNf5KwN.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:58+09', 'BATCH', '2026-05-20 00:10:52+09');
 
-
+INSERT INTO stat_size_finalize_master
+(id, option_num, options, valid_flg, register_id, register_time, update_id, update_time)
+VALUES
+(1,'1','0-0','0','SYSTEM', '2026-04-24 20:01:58+09', 'BATCH', '2026-05-20 00:10:52+09');
