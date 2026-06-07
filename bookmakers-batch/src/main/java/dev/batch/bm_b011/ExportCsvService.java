@@ -799,75 +799,93 @@ public class ExportCsvService {
 	 * @return
 	 */
 	private CsvTaskResult processSingleWorkItem(
-			CsvWorkItem item,
-			CsvArtifactResource csvArtifactResource,
-			Path baseDir,
-			boolean localMode,
-			String bucket,
-			String prefix,
-			String parentMethod) {
+	        CsvWorkItem item,
+	        CsvArtifactResource csvArtifactResource,
+	        Path baseDir,
+	        boolean localMode,
+	        String bucket,
+	        String prefix,
+	        String parentMethod) {
 
-		final String METHOD_NAME = "processSingleWorkItem";
-		logInfo(METHOD_NAME, "開始 relativeKey=" + shortKey(item.getRelativeKey())
-				+ ", ids=" + summarizeIds(item.getSeqIds())
-				+ ", localMode=" + localMode);
+	    final String METHOD_NAME = "processSingleWorkItem";
+	    String step = "start";
 
-		try {
-			logInfo(METHOD_NAME, "fetchAndFilter() 開始 relativeKey=" + shortKey(item.getRelativeKey()));
-			List<DataEntity> result = fetchAndFilter(
-					item.getSeqIds(),
-					csvArtifactResource,
-					parentMethod,
-					"processSingleWorkItem: " + item.getRelativeKey());
-			logInfo(METHOD_NAME, "fetchAndFilter() 終了 relativeKey=" + shortKey(item.getRelativeKey())
-					+ ", result.size=" + (result == null ? 0 : result.size()));
+	    logInfo(METHOD_NAME, "開始 relativeKey=" + shortKey(item.getRelativeKey())
+	            + ", ids=" + summarizeIds(item.getSeqIds())
+	            + ", localMode=" + localMode);
 
-			if (result == null || result.isEmpty()) {
-				logInfo(METHOD_NAME, "skip result empty relativeKey=" + shortKey(item.getRelativeKey()));
-				return CsvTaskResult.skipped(item.getRelativeKey());
-			}
+	    try {
+	        step = "fetchAndFilter";
+	        logInfo(METHOD_NAME, "fetchAndFilter() 開始 relativeKey=" + shortKey(item.getRelativeKey()));
+	        List<DataEntity> result = fetchAndFilter(
+	                item.getSeqIds(),
+	                csvArtifactResource,
+	                parentMethod,
+	                "processSingleWorkItem: " + item.getRelativeKey());
+	        logInfo(METHOD_NAME, "fetchAndFilter() 終了 relativeKey=" + shortKey(item.getRelativeKey())
+	                + ", result.size=" + (result == null ? 0 : result.size()));
 
-			String filePath = baseDir.resolve(item.getRelativeKey()).toString();
-			logInfo(METHOD_NAME, "buildCsvArtifact() 開始 filePath=" + filePath);
+	        if (result == null || result.isEmpty()) {
+	            logInfo(METHOD_NAME, "skip result empty relativeKey=" + shortKey(item.getRelativeKey()));
+	            return CsvTaskResult.skipped(item.getRelativeKey());
+	        }
 
-			CsvArtifact art = buildCsvArtifact(filePath, result, csvArtifactResource);
+	        step = "buildCsvArtifact";
+	        String filePath = baseDir.resolve(item.getRelativeKey()).toString();
+	        logInfo(METHOD_NAME, "buildCsvArtifact() 開始 filePath=" + filePath);
 
-			logInfo(METHOD_NAME, "buildCsvArtifact() 終了 hasArtifact=" + (art != null)
-					+ ", contentSize=" + ((art == null || art.getContent() == null) ? 0 : art.getContent().size()));
+	        CsvArtifact art = buildCsvArtifact(filePath, result, csvArtifactResource);
 
-			if (art == null || art.getContent() == null || art.getContent().isEmpty()) {
-				logInfo(METHOD_NAME, "skip artifact empty relativeKey=" + shortKey(item.getRelativeKey()));
-				return CsvTaskResult.skipped(item.getRelativeKey());
-			}
+	        logInfo(METHOD_NAME, "buildCsvArtifact() 終了 hasArtifact=" + (art != null)
+	                + ", contentSize=" + ((art == null || art.getContent() == null) ? 0 : art.getContent().size()));
 
-			DataEntity row = findRowWithTeams(result);
-			CsvOutputMeta meta = new CsvOutputMeta(
-					item.getRelativeKey(),
-					safe(row.getDataCategory()).trim(),
-					safe(row.getHomeTeamName()).trim(),
-					safe(row.getAwayTeamName()).trim());
+	        if (art == null || art.getContent() == null || art.getContent().isEmpty()) {
+	            logInfo(METHOD_NAME, "skip artifact empty relativeKey=" + shortKey(item.getRelativeKey()));
+	            return CsvTaskResult.skipped(item.getRelativeKey());
+	        }
 
-			logInfo(METHOD_NAME, "writeLocalCsv() 開始 filePath=" + art.getFilePath());
-			writeLocalCsv(art);
-			logInfo(METHOD_NAME, "writeLocalCsv() 終了 filePath=" + art.getFilePath());
+	        step = "findRowWithTeams";
+	        DataEntity row = findRowWithTeams(result);
+	        CsvOutputMeta meta = new CsvOutputMeta(
+	                item.getRelativeKey(),
+	                safe(row.getDataCategory()).trim(),
+	                safe(row.getHomeTeamName()).trim(),
+	                safe(row.getAwayTeamName()).trim());
 
-			if (!localMode) {
-				logInfo(METHOD_NAME, "putLocalFileToFinal() 開始 relativeKey=" + shortKey(item.getRelativeKey()));
-				putLocalFileToFinal(bucket, prefix, baseDir, Paths.get(art.getFilePath()));
-				logInfo(METHOD_NAME, "putLocalFileToFinal() 終了 relativeKey=" + shortKey(item.getRelativeKey()));
-			}
+	        step = "writeLocalCsv";
+	        logInfo(METHOD_NAME, "writeLocalCsv() 開始 filePath=" + art.getFilePath());
+	        writeLocalCsv(art);
+	        logInfo(METHOD_NAME, "writeLocalCsv() 終了 filePath=" + art.getFilePath());
 
-			logInfo(METHOD_NAME, "成功 relativeKey=" + shortKey(item.getRelativeKey())
-					+ ", dataCategory=" + meta.getDataCategory()
-					+ ", home=" + meta.getHomeTeamName()
-					+ ", away=" + meta.getAwayTeamName());
+	        step = "verifyLocalCsvExists";
+	        Path written = Paths.get(art.getFilePath());
+	        if (!Files.exists(written)) {
+	            throw new IllegalStateException("CSV file was not created: " + written);
+	        }
 
-			return CsvTaskResult.success(item.getRelativeKey(), meta);
+	        if (!localMode) {
+	            step = "putLocalFileToFinal";
+	            logInfo(METHOD_NAME, "putLocalFileToFinal() 開始 relativeKey=" + shortKey(item.getRelativeKey()));
+	            putLocalFileToFinal(bucket, prefix, baseDir, Paths.get(art.getFilePath()));
+	            logInfo(METHOD_NAME, "putLocalFileToFinal() 終了 relativeKey=" + shortKey(item.getRelativeKey()));
+	        }
 
-		} catch (Exception ex) {
-			logError(METHOD_NAME, "CSV作成処理失敗 relativeKey=" + shortKey(item.getRelativeKey()), ex);
-			return CsvTaskResult.failed(item.getRelativeKey());
-		}
+	        logInfo(METHOD_NAME, "成功 relativeKey=" + shortKey(item.getRelativeKey())
+	                + ", dataCategory=" + meta.getDataCategory()
+	                + ", home=" + meta.getHomeTeamName()
+	                + ", away=" + meta.getAwayTeamName());
+
+	        return CsvTaskResult.success(item.getRelativeKey(), meta);
+
+	    } catch (Exception ex) {
+	        logError(METHOD_NAME,
+	                "CSV作成処理失敗 step=" + step
+	                + ", relativeKey=" + shortKey(item.getRelativeKey())
+	                + ", fullPath=" + baseDir.resolve(item.getRelativeKey()),
+	                ex);
+	        ex.printStackTrace();
+	        return CsvTaskResult.failed(item.getRelativeKey());
+	    }
 	}
 
 	private void registerCsvDetailManage(
@@ -1378,6 +1396,11 @@ public class ExportCsvService {
 		} catch (Exception e) {
 			logError(METHOD_NAME, "findByData() 失敗 label=" + label + ", ids=" + summarizeIds(ids), e);
 			throw e;
+		}
+
+		if (result == null || result.isEmpty()) {
+		    logInfo(METHOD_NAME, "findByData() 結果なしのため null返却 label=" + label);
+		    return null;
 		}
 
 		boolean condition = this.helper.csvCondition(result, csvArtifactResource);
