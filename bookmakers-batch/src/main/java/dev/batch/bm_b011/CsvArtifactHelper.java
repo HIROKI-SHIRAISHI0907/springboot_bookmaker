@@ -182,7 +182,7 @@ public class CsvArtifactHelper {
 	 */
 	public List<ConditionData> statCondition(StatConditionDTO dto) {
 		// フラグ0
-		if (this.flgData != null) {
+		if (this.flgData == null) {
 			List<StatSizeFinalizeEntity> flgData = getMaster();
 			this.flgData = flgData;
 		}
@@ -272,6 +272,9 @@ public class CsvArtifactHelper {
 			// K リーグ 1 - チャンピオンシップグループ, WEリーグカップ - プレーオフ
 			// などのリーグに付与されているものは付与分を削除
 			// dataCategory
+			if (result == null || result.isEmpty()) {
+				return false;
+			}
 			String countryLeague = result.get(result.size() - 1).getDataCategory();
 			String[] split = ExecuteMainUtil.splitLeagueInfo(countryLeague);
 			String resultCountry = split[0].trim();
