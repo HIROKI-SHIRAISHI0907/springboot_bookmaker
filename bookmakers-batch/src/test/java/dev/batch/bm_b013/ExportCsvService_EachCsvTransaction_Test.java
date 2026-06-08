@@ -69,7 +69,7 @@ public class ExportCsvService_EachCsvTransaction_Test {
 	@MockBean
 	private PathConfig pathConfig;
 
-	@MockBean
+	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
 
 	@Autowired

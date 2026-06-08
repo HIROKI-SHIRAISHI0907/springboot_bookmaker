@@ -66,6 +66,87 @@ public class CsvFileNameService {
 		return normalizeRoundName(matcher.group(1));
 	}
 
+	/**
+	 * CSVIDからファイル名に変換
+	 */
+	public String toPhysicalCsvId(String csvId) {
+	    if (csvId == null || csvId.isBlank()) {
+	        return csvId;
+	    }
+
+	    String normalized = csvId.trim().replace('\\', '/');
+
+	    // すでに新形式ならそのまま返す
+	    if (normalized.contains(":")) {
+	        return normalized;
+	    }
+
+	    int slashIdx = normalized.lastIndexOf('/');
+	    if (slashIdx < 0) {
+	        return normalized;
+	    }
+
+	    String folder = normalized.substring(0, slashIdx).trim();
+	    String filePart = normalized.substring(slashIdx).trim(); // "/1.csv"
+
+	    // ラウンド部分を末尾から切り出す（無ければ空）
+	    String roundPart = "";
+	    int roundIdx = folder.lastIndexOf("-ラウンド");
+	    if (roundIdx < 0) {
+	        roundIdx = folder.lastIndexOf(" - ラウンド");
+	    }
+
+	    if (roundIdx >= 0) {
+	        roundPart = folder.substring(roundIdx).trim();
+	        folder = folder.substring(0, roundIdx).trim();
+	        roundPart = normalizeRoundPart(roundPart);
+	    }
+
+	    // country-league を分解
+	    int firstHyphen = folder.indexOf('-');
+	    if (firstHyphen < 0) {
+	        return normalized;
+	    }
+
+	    String country = folder.substring(0, firstHyphen).trim();
+	    String league = folder.substring(firstHyphen + 1).trim();
+
+	    StringBuilder sb = new StringBuilder();
+	    sb.append(country).append(": ").append(league);
+
+	    if (!roundPart.isBlank()) {
+	        sb.append(" - ").append(roundPart);
+	    }
+
+	    sb.append(filePart);
+
+	    return sb.toString();
+	}
+
+	private String normalizeRoundPart(String roundPart) {
+	    if (roundPart == null || roundPart.isBlank()) {
+	        return "";
+	    }
+
+	    String value = roundPart.trim();
+
+	    // 先頭の "-" を除去
+	    if (value.startsWith("-")) {
+	        value = value.substring(1).trim();
+	    }
+
+	    // "ラウンド18" → "ラウンド 18"
+	    if (value.startsWith("ラウンド")) {
+	        String num = value.substring("ラウンド".length()).trim();
+	        if (!num.isEmpty()) {
+	            return "ラウンド " + num;
+	        }
+	        return "ラウンド";
+	    }
+
+	    return value;
+	}
+
 	private CountryLeagueName resolveCountryLeagueByTeams(String homeTeamName, String awayTeamName) {
 		String home = safe(homeTeamName).trim();
 		String away = safe(awayTeamName).trim();

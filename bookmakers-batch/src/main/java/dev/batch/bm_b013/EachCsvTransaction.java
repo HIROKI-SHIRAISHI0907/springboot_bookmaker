@@ -170,8 +170,7 @@ public class EachCsvTransaction {
         }
 
         // 2) 実CSV削除
-        Map<String, String> countryLeagueMap = dto.getCountryLeagueMap();
-        DeleteResult deleteResult = deletePhysicalCsvFiles(csvIds, countryLeagueMap);
+        DeleteResult deleteResult = deletePhysicalCsvFiles(csvIds);
 
         logInfo(METHOD_NAME, "CSV削除結果 success=" + deleteResult.deletedCsvIds.size()
                 + ", failed=" + deleteResult.failedCsvIds.size());
@@ -419,15 +418,7 @@ public class EachCsvTransaction {
         }
 
         for (String value : dto.getCountryLeague()) {
-            String[] pair = splitCountryLeague(value);
-            String country = safe(pair[0]).trim();
-            String league = safe(pair[1]).trim();
-
-            if (country.isEmpty() || league.isEmpty()) {
-                continue;
-            }
-
-            prefixes.add(csvFileNameService.makeFolderPrefix(country, league));
+            prefixes.add(value);
         }
 
         return prefixes.stream()
@@ -441,11 +432,9 @@ public class EachCsvTransaction {
      * - その prefix に一致する csvId のみ削除
      * - 成功/失敗を分離して返す
      * - 途中で throw しない
+     * @throws IOException
      */
-    private DeleteResult deletePhysicalCsvFiles(
-            List<String> csvIds,
-            Map<String, String> countryLeagueMap) {
-
+    private DeleteResult deletePhysicalCsvFiles(List<String> csvIds) throws IOException {
         final String METHOD_NAME = "deletePhysicalCsvFiles";
 
         Path baseDir = Paths.get(config.getCsvFolder()).toAbsolutePath().normalize();
@@ -454,54 +443,44 @@ public class EachCsvTransaction {
 
         DeleteResult result = new DeleteResult();
 
-        List<String> folderPrefixes = buildDeleteFolderPrefixes(countryLeagueMap);
-
-        if (folderPrefixes.isEmpty()) {
-            logWarn(METHOD_NAME, "削除対象 folder prefix が空のためCSV削除スキップ");
-            return result;
-        }
-
-        logInfo(METHOD_NAME, "削除対象 folder prefixes=" + folderPrefixes);
-
         for (String csvId : csvIds) {
             if (csvId == null || csvId.isBlank()) {
                 continue;
             }
 
-            if (!startsWithAnyFolderPrefix(csvId, folderPrefixes)) {
-                logInfo(METHOD_NAME, "削除対象外 csvId=" + csvId);
-                continue;
-            }
+            String physicalCsvId = this.csvFileNameService.toPhysicalCsvId(csvId);
+            Path localPath = baseDir.resolve(physicalCsvId).normalize();
 
-            Path localPath = baseDir.resolve(csvId).normalize();
+            logInfo(METHOD_NAME, "削除前確認 csvId=" + csvId
+                    + ", physicalCsvId=" + physicalCsvId
+                    + ", localPath=" + localPath
+                    + ", exists=" + Files.exists(localPath)
+                    + ", isRegularFile=" + Files.isRegularFile(localPath)
+                    + ", parent=" + localPath.getParent()
+                    + ", parentExists=" + Files.exists(localPath.getParent()));
 
             try {
-                logInfo(METHOD_NAME, "削除前確認 csvId=" + csvId
-                        + ", localPath=" + localPath
-                        + ", exists=" + Files.exists(localPath)
-                        + ", isRegularFile=" + Files.isRegularFile(localPath)
-                        + ", parent=" + localPath.getParent()
-                        + ", parentExists=" + Files.exists(localPath.getParent()));
-
                 boolean deletedLocal = Files.deleteIfExists(localPath);
 
                 if (!deletedLocal) {
                     logWarn(METHOD_NAME, "ローカルCSV未削除(ファイル不存在) csvId=" + csvId
+                            + ", physicalCsvId=" + physicalCsvId
                             + ", path=" + localPath);
                     result.failedCsvIds.add(csvId);
                     continue;
                 }
 
                 logInfo(METHOD_NAME, "ローカルCSV削除 csvId=" + csvId
+                        + ", physicalCsvId=" + physicalCsvId
                         + ", path=" + localPath
                         + ", deleted=" + deletedLocal);
 
                 if (!localOnly) {
-                    String s3Key = normalizeS3Key(joinS3Key(prefix, csvId));
-
+                    String s3Key = normalizeS3Key(joinS3Key(prefix, physicalCsvId));
                     s3Operator.delete(bucket, s3Key);
 
                     logInfo(METHOD_NAME, "S3 CSV削除 csvId=" + csvId
+                            + ", physicalCsvId=" + physicalCsvId
                             + ", bucket=" + bucket
                             + ", key=" + s3Key);
                 }
@@ -514,7 +493,7 @@ public class EachCsvTransaction {
                 this.manageLoggerComponent.debugErrorLog(
                         PROJECT_NAME, CLASS_NAME, METHOD_NAME,
                         MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
-                        "CSV削除失敗 csvId=" + csvId + ", path=" + localPath);
+                        "CSV削除失敗 csvId=" + csvId + ", physicalCsvId=" + physicalCsvId + ", path=" + localPath);
             }
         }
 
@@ -558,62 +537,6 @@ public class EachCsvTransaction {
                 logWarn(METHOD_NAME, "空フォルダ削除失敗 path=" + dir + ", reason=" + e.getMessage());
             }
         }
-    }
-
-    /**
-     * countryLeagueMap から削除対象 folder prefix を作成
-     * 例:
-     *   key = 日本-J1
-     *   -> csvFileNameService.makeFolderPrefix("日本", "J1")
-     *   -> 日本-J1
-     */
-    private List<String> buildDeleteFolderPrefixes(Map<String, String> countryLeagueMap) {
-        List<String> prefixes = new ArrayList<>();
-
-        if (countryLeagueMap == null || countryLeagueMap.isEmpty()) {
-            return prefixes;
-        }
-
-        for (String countryLeague : countryLeagueMap.keySet()) {
-            String[] pair = splitCountryLeague(countryLeague);
-            String country = safe(pair[0]).trim();
-            String league = safe(pair[1]).trim();
-
-            if (country.isEmpty() || league.isEmpty()) {
-                continue;
-            }
-
-            prefixes.add(csvFileNameService.makeFolderPrefix(country, league));
-        }
-
-        return prefixes.stream()
-                .distinct()
-                .collect(Collectors.toList());
-    }
-
-    /**
-     * csvId が指定 prefix のいずれかに一致するか
-     * 例:
-     *   prefix = 日本-J1
-     *   csvId   = 日本-J1-ラウンド12/1.csv
-     *   -> true
-     */
-    private boolean startsWithAnyFolderPrefix(String csvId, List<String> folderPrefixes) {
-        if (csvId == null || csvId.isBlank() || folderPrefixes == null || folderPrefixes.isEmpty()) {
-            return false;
-        }
-
-        for (String folderPrefix : folderPrefixes) {
-            if (folderPrefix == null || folderPrefix.isBlank()) {
-                continue;
-            }
-
-            if (csvId.startsWith(folderPrefix)) {
-                return true;
-            }
-        }
-
-        return false;
     }
 
     /**
@@ -870,21 +793,6 @@ public class EachCsvTransaction {
         return normalizeSeqList(ids).stream()
                 .map(String::valueOf)
                 .collect(Collectors.joining("-"));
-    }
-
-    private String[] splitCountryLeague(String value) {
-        if (value == null || value.isBlank()) {
-            return new String[] { "", "" };
-        }
-
-        int idx = value.indexOf('-');
-        if (idx < 0) {
-            return new String[] { value.trim(), "" };
-        }
-
-        String country = value.substring(0, idx).trim();
-        String league = value.substring(idx + 1).trim();
-        return new String[] { country, league };
     }
 
     private static String safe(String s) {
