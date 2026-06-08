@@ -169,7 +169,7 @@ public class EachCsvTransaction {
             }
         }
 
-        // 2) 実CSV削除
+     // 2) 実CSV削除
         DeleteResult deleteResult = deletePhysicalCsvFiles(csvIds);
 
         logInfo(METHOD_NAME, "CSV削除結果 success=" + deleteResult.deletedCsvIds.size()
@@ -182,8 +182,8 @@ public class EachCsvTransaction {
             return;
         }
 
-        // 2.5) 空親フォルダ削除（ローカルのみ）
-        cleanupEmptyParentFolders(deleteResult.deletedCsvIds);
+        // 2.5) 空親フォルダ削除（ローカルファイルシステム上）
+        cleanupEmptyParentFolders(deleteResult.deletedPhysicalCsvIds);
 
         // 3) data_team_list.txt 更新
         updateDataTeamList(deleteResult.deletedCsvIds);
@@ -232,6 +232,11 @@ public class EachCsvTransaction {
      */
     private Map<String, List<Integer>> loadCsvInfoSnapshot() {
         final String METHOD_NAME = "loadCsvInfoSnapshot";
+
+        if (localOnly) {
+            logInfo(METHOD_NAME, "localOnly=true のため csvInfo snapshot 読込をスキップ");
+            return new LinkedHashMap<>();
+        }
 
         try {
             bean.init();
@@ -450,14 +455,16 @@ public class EachCsvTransaction {
 
             String physicalCsvId = this.csvFileNameService.toPhysicalCsvId(csvId);
             Path localPath = baseDir.resolve(physicalCsvId).normalize();
+            Path parent = localPath.getParent();
+            boolean parentExists = parent != null && Files.exists(parent);
 
             logInfo(METHOD_NAME, "削除前確認 csvId=" + csvId
                     + ", physicalCsvId=" + physicalCsvId
                     + ", localPath=" + localPath
                     + ", exists=" + Files.exists(localPath)
                     + ", isRegularFile=" + Files.isRegularFile(localPath)
-                    + ", parent=" + localPath.getParent()
-                    + ", parentExists=" + Files.exists(localPath.getParent()));
+                    + ", parent=" + parent
+                    + ", parentExists=" + parentExists);
 
             try {
                 boolean deletedLocal = Files.deleteIfExists(localPath);
@@ -486,6 +493,7 @@ public class EachCsvTransaction {
                 }
 
                 result.deletedCsvIds.add(csvId);
+                result.deletedPhysicalCsvIds.add(physicalCsvId);
 
             } catch (Exception e) {
                 result.failedCsvIds.add(csvId);
@@ -493,7 +501,9 @@ public class EachCsvTransaction {
                 this.manageLoggerComponent.debugErrorLog(
                         PROJECT_NAME, CLASS_NAME, METHOD_NAME,
                         MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
-                        "CSV削除失敗 csvId=" + csvId + ", physicalCsvId=" + physicalCsvId + ", path=" + localPath);
+                        "CSV削除失敗 csvId=" + csvId
+                                + ", physicalCsvId=" + physicalCsvId
+                                + ", path=" + localPath);
             }
         }
 
@@ -503,18 +513,18 @@ public class EachCsvTransaction {
     /**
      * 削除成功した CSV の親フォルダが空なら削除
      */
-    private void cleanupEmptyParentFolders(Set<String> deletedCsvIds) {
+    private void cleanupEmptyParentFolders(Set<String> deletedPhysicalCsvIds) {
         final String METHOD_NAME = "cleanupEmptyParentFolders";
 
         Path baseDir = Paths.get(config.getCsvFolder()).toAbsolutePath().normalize();
         Set<Path> parentDirs = new LinkedHashSet<>();
 
-        for (String csvId : deletedCsvIds) {
-            if (csvId == null || csvId.isBlank()) {
+        for (String physicalCsvId : deletedPhysicalCsvIds) {
+            if (physicalCsvId == null || physicalCsvId.isBlank()) {
                 continue;
             }
 
-            Path parent = baseDir.resolve(csvId).normalize().getParent();
+            Path parent = baseDir.resolve(physicalCsvId).normalize().getParent();
             if (parent != null) {
                 parentDirs.add(parent);
             }
@@ -522,17 +532,24 @@ public class EachCsvTransaction {
 
         for (Path dir : parentDirs) {
             try {
-                if (!Files.isDirectory(dir)) {
+                if (!Files.exists(dir) || !Files.isDirectory(dir)) {
+                    logInfo(METHOD_NAME, "削除対象フォルダ不存在 path=" + dir);
                     continue;
                 }
 
+                boolean empty;
                 try (var stream = Files.list(dir)) {
-                    boolean empty = !stream.findAny().isPresent();
-                    if (empty) {
-                        Files.deleteIfExists(dir);
-                        logInfo(METHOD_NAME, "空フォルダ削除 path=" + dir);
-                    }
+                    empty = stream.findAny().isEmpty();
                 }
+
+                if (!empty) {
+                    logInfo(METHOD_NAME, "フォルダにファイルが残っているため削除スキップ path=" + dir);
+                    continue;
+                }
+
+                boolean deleted = Files.deleteIfExists(dir);
+                logInfo(METHOD_NAME, "空フォルダ削除 path=" + dir + ", deleted=" + deleted);
+
             } catch (Exception e) {
                 logWarn(METHOD_NAME, "空フォルダ削除失敗 path=" + dir + ", reason=" + e.getMessage());
             }
@@ -853,5 +870,6 @@ public class EachCsvTransaction {
     private static final class DeleteResult {
         private final Set<String> deletedCsvIds = new LinkedHashSet<>();
         private final Set<String> failedCsvIds = new LinkedHashSet<>();
+        private final Set<String> deletedPhysicalCsvIds = new LinkedHashSet<>();
     }
 }

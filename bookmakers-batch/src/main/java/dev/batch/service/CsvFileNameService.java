@@ -76,75 +76,29 @@ public class CsvFileNameService {
 
 	    String normalized = csvId.trim().replace('\\', '/');
 
-	    // すでに新形式ならそのまま返す
-	    if (normalized.contains(":")) {
-	        return normalized;
-	    }
+	    int slashIndex = normalized.lastIndexOf('/');
+	    String folderPart = (slashIndex >= 0) ? normalized.substring(0, slashIndex) : normalized;
+	    String filePart = (slashIndex >= 0) ? normalized.substring(slashIndex) : "";
 
-	    int slashIdx = normalized.lastIndexOf('/');
-	    if (slashIdx < 0) {
-	        return normalized;
-	    }
-
-	    String folder = normalized.substring(0, slashIdx).trim();
-	    String filePart = normalized.substring(slashIdx).trim(); // "/1.csv"
-
-	    // ラウンド部分を末尾から切り出す（無ければ空）
-	    String roundPart = "";
-	    int roundIdx = folder.lastIndexOf("-ラウンド");
-	    if (roundIdx < 0) {
-	        roundIdx = folder.lastIndexOf(" - ラウンド");
-	    }
-
-	    if (roundIdx >= 0) {
-	        roundPart = folder.substring(roundIdx).trim();
-	        folder = folder.substring(0, roundIdx).trim();
-	        roundPart = normalizeRoundPart(roundPart);
-	    }
-
-	    // country-league を分解
-	    int firstHyphen = folder.indexOf('-');
-	    if (firstHyphen < 0) {
-	        return normalized;
-	    }
-
-	    String country = folder.substring(0, firstHyphen).trim();
-	    String league = folder.substring(firstHyphen + 1).trim();
-
-	    StringBuilder sb = new StringBuilder();
-	    sb.append(country).append(": ").append(league);
-
-	    if (!roundPart.isBlank()) {
-	        sb.append(" - ").append(roundPart);
-	    }
-
-	    sb.append(filePart);
-
-	    return sb.toString();
-	}
-
-	private String normalizeRoundPart(String roundPart) {
-	    if (roundPart == null || roundPart.isBlank()) {
-	        return "";
-	    }
-
-	    String value = roundPart.trim();
-
-	    // 先頭の "-" を除去
-	    if (value.startsWith("-")) {
-	        value = value.substring(1).trim();
-	    }
-
-	    // "ラウンド18" → "ラウンド 18"
-	    if (value.startsWith("ラウンド")) {
-	        String num = value.substring("ラウンド".length()).trim();
-	        if (!num.isEmpty()) {
-	            return "ラウンド " + num;
+	    // 1) 国名とリーグ名の区切りを、先頭の "-" だけ ":" に変換
+	    //    例: 日本-J2 リーグ - ラウンド 18 -> 日本: J2 リーグ - ラウンド 18
+	    if (!folderPart.contains(":")) {
+	        int firstHyphen = folderPart.indexOf('-');
+	        if (firstHyphen >= 0) {
+	            String country = folderPart.substring(0, firstHyphen).trim();
+	            String rest = folderPart.substring(firstHyphen + 1).trim();
+	            folderPart = country + ": " + rest;
 	        }
-	        return "ラウンド";
 	    }
 
-	    return value;
+	    // 2) ラウンド表記を物理ファイル側ルールに寄せる
+	    //    " - ラウンド 18" / "- ラウンド 18" / " -ラウンド18" などを "-ラウンド18" に統一
+	    folderPart = folderPart.replaceAll("[ 　]*-[ 　]*ラウンド[ 　]*(\\d+)", "-ラウンド$1");
+
+	    // 3) 余分な連続空白を整形（全角スペースは保持しつつ半角空白を圧縮）
+	    folderPart = folderPart.replaceAll(" {2,}", " ").trim();
+
+	    return folderPart + filePart;
 	}
 
 	private CountryLeagueName resolveCountryLeagueByTeams(String homeTeamName, String awayTeamName) {
