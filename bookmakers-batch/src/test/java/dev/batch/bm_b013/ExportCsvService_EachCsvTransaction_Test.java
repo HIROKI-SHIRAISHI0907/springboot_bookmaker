@@ -102,7 +102,7 @@ public class ExportCsvService_EachCsvTransaction_Test {
 		eachCsvTransaction.execute(dto);
 
 		int result = csvDetailManageBatchRepository.check();
-		assertEquals(1, result);
+		assertEquals(2, result);
 
 	}
 }

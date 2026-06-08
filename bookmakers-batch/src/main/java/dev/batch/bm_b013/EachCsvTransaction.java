@@ -171,7 +171,7 @@ public class EachCsvTransaction {
             }
         }
 
-     // 2) 実CSV削除
+        // 2) 実CSV削除
         DeleteResult deleteResult = deletePhysicalCsvFiles(csvIds);
 
         logInfo(METHOD_NAME, "CSV削除結果 success=" + deleteResult.deletedCsvIds.size()
