@@ -910,6 +910,23 @@ public class EachCsvTransaction {
             newLines.add(line);
         }
 
+        // 更新後に1行も残らない場合はファイル自体を削除
+        if (newLines.isEmpty()) {
+            boolean deletedLocal = Files.deleteIfExists(localTeamPath);
+            logInfo(METHOD_NAME, "data_team_list.txt 削除完了. path=" + localTeamPath
+                    + ", deleted=" + deletedLocal
+                    + ", removed=" + removedLines.size()
+                    + ", remaining=0");
+
+            if (!localOnly) {
+                String s3Key = normalizeS3Key(joinS3Key(prefix, FileExistsService.TEAM_FILE_NAME));
+                s3Operator.delete(bucket, s3Key);
+                logInfo(METHOD_NAME, "data_team_list.txt S3削除完了 bucket=" + bucket + ", key=" + s3Key);
+            }
+
+            return;
+        }
+
         Files.write(
                 localTeamPath,
                 newLines,
@@ -999,6 +1016,33 @@ public class EachCsvTransaction {
             if (!normalized.isEmpty()) {
                 newGroups.add(normalized);
             }
+        }
+
+        // 更新後に [] しか残らない = 実質 0件 ならファイル自体を削除
+        if (newGroups.isEmpty()) {
+            boolean deletedLocal = Files.deleteIfExists(localSeqPath);
+            logInfo(METHOD_NAME, "seqList.txt 削除完了. path=" + localSeqPath
+                    + ", deleted=" + deletedLocal
+                    + ", removed=" + removed
+                    + ", remaining=0");
+
+            for (Map.Entry<String, List<Integer>> e : deleteGroupMap.entrySet()) {
+                String csvId = e.getKey();
+                String gk = groupKey(e.getValue());
+                if (!removedGroupKeys.contains(gk)) {
+                    logWarn(METHOD_NAME, "seqList 未検出 csvId=" + csvId
+                            + ", seqList=" + e.getValue()
+                            + ", groupKey=" + gk);
+                }
+            }
+
+            if (!localOnly) {
+                String s3Key = normalizeS3Key(joinS3Key(prefix, FileExistsService.SEQ_FILE_NAME));
+                s3Operator.delete(bucket, s3Key);
+                logInfo(METHOD_NAME, "seqList.txt S3削除完了 bucket=" + bucket + ", key=" + s3Key);
+            }
+
+            return;
         }
 
         Files.writeString(
