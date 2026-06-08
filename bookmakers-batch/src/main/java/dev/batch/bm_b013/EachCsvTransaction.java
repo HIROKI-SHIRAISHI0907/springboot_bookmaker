@@ -149,11 +149,11 @@ public class EachCsvTransaction {
         prepareManageFilesLocalCache(bucket, prefix, METHOD_NAME);
 
         // 1) csvId -> seqList snapshot 構築
-        Map<String, List<Integer>> existingSnapshot = readSnapshot(snapshotPath, METHOD_NAME);
-        Map<String, List<Integer>> currentCsvInfo = loadCsvInfoSnapshot(METHOD_NAME);
+        Map<String, List<Integer>> existingSnapshot = readSnapshot(snapshotPath);
+        Map<String, List<Integer>> currentCsvInfo = loadCsvInfoSnapshot();
         Map<String, List<Integer>> deleteSnapshot = buildDeleteSnapshot(csvIds, currentCsvInfo, existingSnapshot);
 
-        writeSnapshot(snapshotPath, deleteSnapshot, METHOD_NAME);
+        writeSnapshot(snapshotPath, deleteSnapshot);
         logInfo(METHOD_NAME, "削除snapshot保存完了 path=" + snapshotPath
                 + ", snapshot.size=" + deleteSnapshot.size());
 
@@ -171,26 +171,26 @@ public class EachCsvTransaction {
 
         // 2) 実CSV削除
         Map<String, String> countryLeagueMap = dto.getCountryLeagueMap();
-        DeleteResult deleteResult = deletePhysicalCsvFiles(csvIds, countryLeagueMap, METHOD_NAME);
+        DeleteResult deleteResult = deletePhysicalCsvFiles(csvIds, countryLeagueMap);
 
         logInfo(METHOD_NAME, "CSV削除結果 success=" + deleteResult.deletedCsvIds.size()
                 + ", failed=" + deleteResult.failedCsvIds.size());
 
         if (deleteResult.deletedCsvIds.isEmpty()) {
             logWarn(METHOD_NAME, "CSV削除成功件数=0 のため txt / DB 更新をスキップ");
-            retainSnapshotForFailed(snapshotPath, deleteSnapshot, deleteResult.failedCsvIds, METHOD_NAME);
+            retainSnapshotForFailed(snapshotPath, deleteSnapshot, deleteResult.failedCsvIds);
             endLog(METHOD_NAME);
             return;
         }
 
         // 2.5) 空親フォルダ削除（ローカルのみ）
-        cleanupEmptyParentFolders(deleteResult.deletedCsvIds, METHOD_NAME);
+        cleanupEmptyParentFolders(deleteResult.deletedCsvIds);
 
         // 3) data_team_list.txt 更新
-        updateDataTeamList(deleteResult.deletedCsvIds, METHOD_NAME);
+        updateDataTeamList(deleteResult.deletedCsvIds);
 
         // 4) seqList.txt 更新
-        updateSeqList(deleteResult.deletedCsvIds, deleteSnapshot, METHOD_NAME);
+        updateSeqList(deleteResult.deletedCsvIds, deleteSnapshot);
 
         // 5) csv_detail_manage 更新（成功分のみ）
         int deleted = this.csvDetailManageBatchRepository.deleteByCsvIds(
@@ -199,7 +199,7 @@ public class EachCsvTransaction {
         logInfo(METHOD_NAME, "csv_detail_manage 削除件数=" + deleted);
 
         // 6) failed 分だけ snapshot を残す
-        retainSnapshotForFailed(snapshotPath, deleteSnapshot, deleteResult.failedCsvIds, METHOD_NAME);
+        retainSnapshotForFailed(snapshotPath, deleteSnapshot, deleteResult.failedCsvIds);
 
         if (!deleteResult.failedCsvIds.isEmpty()) {
             for (String failedCsvId : deleteResult.failedCsvIds) {
@@ -231,7 +231,7 @@ public class EachCsvTransaction {
     /**
      * ReaderCurrentCsvInfoBean から csvId -> seqList を取得
      */
-    private Map<String, List<Integer>> loadCsvInfoSnapshot(String parentMethod) {
+    private Map<String, List<Integer>> loadCsvInfoSnapshot() {
         final String METHOD_NAME = "loadCsvInfoSnapshot";
 
         try {
@@ -302,7 +302,7 @@ public class EachCsvTransaction {
     /**
      * snapshot 読込
      */
-    private Map<String, List<Integer>> readSnapshot(Path snapshotPath, String parentMethod) {
+    private Map<String, List<Integer>> readSnapshot(Path snapshotPath) {
         final String METHOD_NAME = "readSnapshot";
 
         try {
@@ -350,8 +350,7 @@ public class EachCsvTransaction {
      */
     private void writeSnapshot(
             Path snapshotPath,
-            Map<String, List<Integer>> snapshot,
-            String parentMethod) throws IOException {
+            Map<String, List<Integer>> snapshot) throws IOException {
 
         final String METHOD_NAME = "writeSnapshot";
 
@@ -378,8 +377,7 @@ public class EachCsvTransaction {
     private void retainSnapshotForFailed(
             Path snapshotPath,
             Map<String, List<Integer>> allSnapshot,
-            Set<String> failedCsvIds,
-            String parentMethod) throws IOException {
+            Set<String> failedCsvIds) throws IOException {
 
         final String METHOD_NAME = "retainSnapshotForFailed";
 
@@ -400,7 +398,7 @@ public class EachCsvTransaction {
             return;
         }
 
-        writeSnapshot(snapshotPath, remain, METHOD_NAME);
+        writeSnapshot(snapshotPath, remain);
 
         for (Map.Entry<String, List<Integer>> e : remain.entrySet()) {
             logWarn(METHOD_NAME, "snapshot残置 csvId=" + e.getKey()
@@ -439,11 +437,6 @@ public class EachCsvTransaction {
 
     /**
      * CSV実体削除
-     * - 成功/失敗を分離して返す
-     * - 途中で throw しない
-     */
-    /**
-     * CSV実体削除
      * - countryLeagueMap の country / league から folder prefix を生成
      * - その prefix に一致する csvId のみ削除
      * - 成功/失敗を分離して返す
@@ -451,8 +444,7 @@ public class EachCsvTransaction {
      */
     private DeleteResult deletePhysicalCsvFiles(
             List<String> csvIds,
-            Map<String, String> countryLeagueMap,
-            String parentMethod) {
+            Map<String, String> countryLeagueMap) {
 
         final String METHOD_NAME = "deletePhysicalCsvFiles";
 
@@ -484,7 +476,21 @@ public class EachCsvTransaction {
             Path localPath = baseDir.resolve(csvId).normalize();
 
             try {
+                logInfo(METHOD_NAME, "削除前確認 csvId=" + csvId
+                        + ", localPath=" + localPath
+                        + ", exists=" + Files.exists(localPath)
+                        + ", isRegularFile=" + Files.isRegularFile(localPath)
+                        + ", parent=" + localPath.getParent()
+                        + ", parentExists=" + Files.exists(localPath.getParent()));
+
                 boolean deletedLocal = Files.deleteIfExists(localPath);
+
+                if (!deletedLocal) {
+                    logWarn(METHOD_NAME, "ローカルCSV未削除(ファイル不存在) csvId=" + csvId
+                            + ", path=" + localPath);
+                    result.failedCsvIds.add(csvId);
+                    continue;
+                }
 
                 logInfo(METHOD_NAME, "ローカルCSV削除 csvId=" + csvId
                         + ", path=" + localPath
@@ -518,7 +524,7 @@ public class EachCsvTransaction {
     /**
      * 削除成功した CSV の親フォルダが空なら削除
      */
-    private void cleanupEmptyParentFolders(Set<String> deletedCsvIds, String parentMethod) {
+    private void cleanupEmptyParentFolders(Set<String> deletedCsvIds) {
         final String METHOD_NAME = "cleanupEmptyParentFolders";
 
         Path baseDir = Paths.get(config.getCsvFolder()).toAbsolutePath().normalize();
@@ -602,7 +608,7 @@ public class EachCsvTransaction {
                 continue;
             }
 
-            if (csvId.startsWith(folderPrefix + "-")) {
+            if (csvId.startsWith(folderPrefix)) {
                 return true;
             }
         }
@@ -614,7 +620,7 @@ public class EachCsvTransaction {
      * data_team_list.txt から対象 csv_id を削除
      * 削除した行をログ出力する
      */
-    private void updateDataTeamList(Set<String> deleteCsvIds, String parentMethod) throws IOException {
+    private void updateDataTeamList(Set<String> deleteCsvIds) throws IOException {
         final String METHOD_NAME = "updateDataTeamList";
 
         Path baseDir = Paths.get(config.getCsvFolder()).toAbsolutePath().normalize();
@@ -683,8 +689,7 @@ public class EachCsvTransaction {
      */
     private void updateSeqList(
             Set<String> deletedCsvIds,
-            Map<String, List<Integer>> deleteSnapshot,
-            String parentMethod) throws IOException {
+            Map<String, List<Integer>> deleteSnapshot) throws IOException {
 
         final String METHOD_NAME = "updateSeqList";
 

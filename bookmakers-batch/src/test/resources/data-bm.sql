@@ -1,3 +1,19 @@
+INSERT INTO csv_detail_manage (
+    id,
+    csv_id,
+    data_category,
+    season,
+    home_team_name,
+    away_team_name,
+    check_fin_flg,
+    register_id,
+    register_time,
+    update_id,
+    update_time
+) VALUES
+	('1', '日本: J2 リーグ - ラウンド 18/1.csv', '日本: J2 リーグ - ラウンド 18', '2026', 'ブラウブリッツ秋田', 'カターレ富山', '0',  NULL, NULL, NULL, NULL),
+	('2', 'ブラジル: セリエAベターノ - ラウンド 18/1.csv', 'ブラジル: セリエAベターノ - ラウンド 18', '2026', 'レッドブル・ブラガンチーノ', 'バイーア', '0',  NULL, NULL, NULL, NULL);
+
 INSERT INTO data (
     seq,
     condition_result_data_seq_id,

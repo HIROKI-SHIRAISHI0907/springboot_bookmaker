@@ -37,7 +37,7 @@ public class CsvFileNameService {
 	public String makeFolderPrefix(String country, String league) {
 		String safeCountry = sanitizePathToken(defaultIfBlank(country, "unknown"));
 		String safeLeague = sanitizePathToken(defaultIfBlank(league, "unknown"));
-		return safeCountry + "-" + safeLeague;
+		return safeCountry + ": " + safeLeague;
 	}
 
 	/**

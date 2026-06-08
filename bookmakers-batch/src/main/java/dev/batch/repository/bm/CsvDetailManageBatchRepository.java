@@ -56,24 +56,32 @@ public interface CsvDetailManageBatchRepository {
 	int deleteByCsvIds(@Param("csvIds") List<String> csvIds);
 
 	@Select({
-		"<script>",
-		"SELECT",
-		"    csv_id AS csvId,",
-		"    data_category AS dataCategory,",
-		"    season,",
-		"    home_team_name AS homeTeamName,",
-		"    away_team_name AS awayTeamName,",
-		"    check_fin_flg AS checkFinFlg",
-		"FROM",
-		"    csv_detail_manage",
-		"WHERE",
-		"    (",
-		"    <foreach collection='prefixes' item='prefix' separator=' OR '>",
-		"        csv_id LIKE CONCAT(#{prefix}, '-%')",
-		"    </foreach>",
-		"    )",
-		"</script>"
+	    "<script>",
+	    "SELECT",
+	    "    csv_id AS csvId,",
+	    "    data_category AS dataCategory,",
+	    "    season,",
+	    "    home_team_name AS homeTeamName,",
+	    "    away_team_name AS awayTeamName,",
+	    "    check_fin_flg AS checkFinFlg",
+	    "FROM",
+	    "    csv_detail_manage",
+	    "WHERE",
+	    "    <foreach collection='prefixes' item='prefix' separator=' OR ' open='(' close=')'>",
+	    "        csv_id LIKE CONCAT(#{prefix}, '%')",
+	    "    </foreach>",
+	    "</script>"
 	})
 	List<CsvDetailManageEntity> findDeleteTargetsByCsvIdPrefixes(@Param("prefixes") List<String> prefixes);
+
+	@Select({
+	    "<script>",
+	    "SELECT",
+	    "    COUNT(*)",
+	    "FROM",
+	    "    csv_detail_manage",
+	    "</script>"
+	})
+	int check();
 
 }

@@ -29,7 +29,7 @@ VALUES
 ('日本', 'J1 リーグ', 'WEST', 'V・ファーレン長崎', '/team/v-varen-nagasaki/hl74HAcF/', '0', 'bm_user', '2026-04-12 14:46:24+09', 'bm_user', '2026-04-12 14:46:24+09'),
 
 ('日本', 'J2・J3 リーグ', 'EAST-A', 'ベガルタ仙台', '/team/vegalta-sendai/lSW1nlRB/', '0', 'bm_user', '2026-04-12 14:46:24+09', 'bm_user', '2026-04-12 14:46:24+09'),
-('日本', 'J2・J3 リーグ', 'EAST-A', 'ブラウブリッツ秋田', '/team/blaublitz/fwDHgzFc/', '0', 'bm_user', '2026-04-12 14:46:24+09', 'bm_user', '2026-04-12 14:46:24+09'),
+('日本', 'J2 リーグ', 'EAST-A', 'ブラウブリッツ秋田', '/team/blaublitz/fwDHgzFc/', '0', 'bm_user', '2026-04-12 14:46:24+09', 'bm_user', '2026-04-12 14:46:24+09'),
 ('日本', 'J2・J3 リーグ', 'EAST-A', '湘南ベルマーレ', '/team/shonan/SIV5o8tI/', '0', 'bm_user', '2026-04-12 14:46:24+09', 'bm_user', '2026-04-12 14:46:24+09'),
 ('日本', 'J2・J3 リーグ', 'EAST-A', 'SC相模原', '/team/sc-sagamihara/nXumKCoo/', '0', 'bm_user', '2026-04-12 14:46:24+09', 'bm_user', '2026-04-12 14:46:24+09'),
 ('日本', 'J2・J3 リーグ', 'EAST-A', 'モンテディオ山形', '/team/montedio-yamagata/2uKzonBU/', '0', 'bm_user', '2026-04-12 14:46:24+09', 'bm_user', '2026-04-12 14:46:24+09'),
@@ -52,7 +52,7 @@ VALUES
 
 ('日本', 'J2・J3 リーグ', 'WEST-A', '徳島ヴォルティス', '/team/tokushima/IcwgwCCt/', '0', 'bm_user', '2026-04-12 14:46:24+09', 'bm_user', '2026-04-12 14:46:24+09'),
 ('日本', 'J2・J3 リーグ', 'WEST-A', '高知ユナイテッド', '/team/kochi-united/A13oDV39/', '0', 'bm_user', '2026-04-12 14:46:24+09', 'bm_user', '2026-04-12 14:46:24+09'),
-('日本', 'J2・J3 リーグ', 'WEST-A', 'カターレ富山', '/team/toyama/tdPByjKs/', '0', 'bm_user', '2026-04-12 14:46:24+09', 'bm_user', '2026-04-12 14:46:24+09'),
+('日本', 'J2 リーグ', 'WEST-A', 'カターレ富山', '/team/toyama/tdPByjKs/', '0', 'bm_user', '2026-04-12 14:46:24+09', 'bm_user', '2026-04-12 14:46:24+09'),
 ('日本', 'J2・J3 リーグ', 'WEST-A', 'アルビレックス新潟', '/team/albirex-niigata/CAwa47eB/', '0', 'bm_user', '2026-04-12 14:46:24+09', 'bm_user', '2026-04-12 14:46:24+09'),
 ('日本', 'J2・J3 リーグ', 'WEST-A', 'FC大阪', '/team/fc-osaka/E3uzKMdT/', '0', 'bm_user', '2026-04-12 14:46:24+09', 'bm_user', '2026-04-12 14:46:24+09'),
 ('日本', 'J2・J3 リーグ', 'WEST-A', 'ツエーゲン金沢', '/team/kanazawa/KY7LrA6d/', '0', 'bm_user', '2026-04-12 14:46:24+09', 'bm_user', '2026-04-12 14:46:24+09'),
@@ -113,7 +113,7 @@ INSERT INTO country_league_season_master (
 ) VALUES
     (1, 'ドイツ', 'ブンデスリーガ', '2025/2026', '2025-08-23 09:00:00+09', '9999-12-31 12:00:00', '34', '/soccer/germany/bundesliga/', 'https://static.flashscore.com/res/image/data/fqltz6CO-AssWKkrN.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:57+09', 'BATCH', '2026-05-27 00:11:03+09'),
     (2, '日本', 'J1 リーグ', '2026', '2026-02-06 09:00:00+09', '9999-12-31 12:00:00', '18', '/soccer/japan/j1-league/', 'https://static.flashscore.com/res/image/data/EPQtmZTp-A3C1xBG6.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:57+09', 'BATCH', '2026-05-25 00:11:02+09'),
-    (3, '日本', 'J2 リーグ', '2025', '2025-02-15 09:00:00+09', '9999-12-31 12:00:00', NULL, '/soccer/japan/j2-league/', 'https://static.flashscore.com/res/image/data/GCHND4ld-G6dyzNyF.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:57+09', 'BATCH', '2026-05-20 00:10:52+09'),
+    (3, '日本', 'J2 リーグ', '2026', '2025-02-15 09:00:00+09', '2026-06-01 12:00:00', NULL, '/soccer/japan/j2-league/', 'https://static.flashscore.com/res/image/data/GCHND4ld-G6dyzNyF.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:57+09', 'BATCH', '2026-05-20 00:10:52+09'),
     (4, '日本', 'J3 リーグ', '2025', '2025-02-15 09:00:00+09', '9999-12-31 12:00:00', NULL, '/soccer/japan/j3-league/', 'https://static.flashscore.com/res/image/data/pOVYADT1-QuAkrNPn.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:57+09', 'BATCH', '2026-05-20 00:10:52+09'),
     (5, 'アルゼンチン', 'スーペルリーガ', '2026', '2026-01-23 09:00:00+09', '9999-12-31 12:00:00', '16', '/soccer/argentina/liga-profesional/', 'https://static.flashscore.com/res/image/data/MHE5g4CO-trVJ9N3K.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:57+09', 'SYSTEM', '2026-04-24 20:01:57+09'),
     (6, 'イタリア', 'セリエ A', '2025/2026', '2025-08-24 09:00:00+09', '9999-12-31 12:00:00', '38', '/soccer/italy/serie-a/', 'https://static.flashscore.com/res/image/data/rFHMayEO-G0cMYJZK.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:57+09', 'BATCH', '2026-05-25 00:11:02+09'),
@@ -175,7 +175,7 @@ INSERT INTO country_league_season_master (
     (63, 'ベトナム', 'V リーグ.1', '2025/2026', '2025-04-24 09:00:00+09', '9999-12-31 12:00:00', '26', '/soccer/vietnam/v-league-1/', 'https://static.flashscore.com/res/image/data/Eu9ZTBSp-zJRFNpCs.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:58+09', 'SYSTEM', '2026-04-24 20:01:58+09'),
     (64, 'ベルギー', 'ジュピラー･プロリーグ', '2025/2026', '2025-07-26 09:00:00+09', '9999-12-31 12:00:00', '40', '/soccer/belgium/jupiler-pro-league/', 'https://static.flashscore.com/res/image/data/88Ble6kd-2mYPoNyI.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:58+09', 'BATCH', '2026-05-26 00:11:00+09'),
     (65, 'メキシコ', 'リーガ MX', '2025/2026', '2025-04-25 09:00:00+09', '9999-12-31 12:00:00', '17', '/soccer/mexico/liga-mx/', 'https://static.flashscore.com/res/image/data/rDKmIAfU-2Fx7CdeM.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:58+09', 'BATCH', '2026-05-20 00:10:52+09'),
-    (66, '日本', 'J2・J3 リーグ', '2026', '2026-02-25 09:00:00+09', '2026-06-07 14:00:00+09', '17', '/soccer/japan/j2-j3-league/', 'https://static.flashscore.com/res/image/data/fuIQNs9j-lfNf5KwN.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:58+09', 'BATCH', '2026-05-20 00:10:52+09');
+    (66, '日本', 'J2・J3 リーグ', '2026', '2026-02-25 09:00:00+09', '2026-06-24 14:00:00+09', '17', '/soccer/japan/j2-j3-league/', 'https://static.flashscore.com/res/image/data/fuIQNs9j-lfNf5KwN.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:58+09', 'BATCH', '2026-05-20 00:10:52+09');
 
 INSERT INTO stat_size_finalize_master
 (id, option_num, options, valid_flg, register_id, register_time, update_id, update_time)
