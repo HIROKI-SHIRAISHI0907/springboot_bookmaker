@@ -77,6 +77,21 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			""")
 	List<CountryLeagueSeasonMasterEntity> findDateList();
 
+	@Select("""
+			    SELECT
+			        country,
+			        league,
+			        end_season_date AS endSeasonDate
+			    FROM
+			        country_league_season_master
+			    WHERE
+			        country = #{country}
+			        AND league = #{league}
+			        AND del_flg = '0'
+			""")
+	List<CountryLeagueSeasonMasterEntity> findWhereData(@Param("country") String country,
+			@Param("league") String league);
+
 	@Insert({
 			"	    INSERT INTO country_league_season_master (",
 			"	        country,",

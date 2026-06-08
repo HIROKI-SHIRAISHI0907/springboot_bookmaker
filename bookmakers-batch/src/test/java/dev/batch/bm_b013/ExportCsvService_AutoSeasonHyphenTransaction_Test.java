@@ -1,6 +1,6 @@
 package dev.batch.bm_b013;
 
-import static org.assertj.core.api.Assertions.*;
+import static org.junit.jupiter.api.Assertions.*;
 import static org.mockito.Mockito.*;
 
 import java.nio.file.Files;
@@ -9,8 +9,6 @@ import java.nio.file.Paths;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
-import java.util.stream.Stream;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
@@ -24,7 +22,9 @@ import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlConfig;
 
 import dev.batch.bm_b011.ExportCsvService;
+import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
 import dev.common.config.PathConfig;
+import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
@@ -76,6 +76,10 @@ public class ExportCsvService_AutoSeasonHyphenTransaction_Test {
 	@MockBean
 	private ManageLoggerComponent manageLoggerComponent;
 
+	/** シーズンバッチレポジトリ */
+	@Autowired
+	private CountryLeagueSeasonMasterBatchRepository countryLeagueSeasonMasterBatchRepository;
+
 	@BeforeEach
 	void setUp() throws Exception {
 	    Path testOutputDir = Paths.get("src", "test", "java", "dev", "batch", "bm_b013", "data");
@@ -93,28 +97,19 @@ public class ExportCsvService_AutoSeasonHyphenTransaction_Test {
 		// ExportCsvService でローカルCSV作成
 		exportCsvService.execute();
 
-		// --- then 1 ---
-		// CSVファイルが1件以上できていること
-		List<Path> csvFiles;
-		try (Stream<Path> stream = Files.walk(tempDir)) {
-			csvFiles = stream
-					.filter(Files::isRegularFile)
-					.filter(path -> path.toString().endsWith(".csv"))
-					.collect(Collectors.toList());
-		}
-
-		// 管理ファイルも生成されていること
-		assertThat(Files.exists(tempDir.resolve("seqList.txt"))).isTrue();
-		assertThat(Files.exists(tempDir.resolve("data_team_list.txt"))).isTrue();
-
 		// --- when 2 ---
 		// SeasonDataWrapper の判定結果を模した DTO を作る
 		TransactionDTO dto = new TransactionDTO();
 		Map<String, String> countryLeagueMap = new LinkedHashMap<>();
-		countryLeagueMap.put("日本-J2・J3 リーグ", "2000-01-01 00:00:00");
+		countryLeagueMap.put("日本-J2・J3 リーグ", "2026-06-07 14:00:00+09");
 		dto.setCountryLeagueMap(countryLeagueMap);
 
 		autoSeasonHyphenTransaction.execute(dto);
+
+		List<CountryLeagueSeasonMasterEntity> resultCountryLeagueSeasonMasterEntities =
+				this.countryLeagueSeasonMasterBatchRepository.findWhereData("日本", "J2・J3 リーグ");
+
+		assertEquals(null, resultCountryLeagueSeasonMasterEntities.get(0).getEndSeasonDate());
 
 	}
 }

@@ -175,7 +175,7 @@ INSERT INTO country_league_season_master (
     (63, 'ベトナム', 'V リーグ.1', '2025/2026', '2025-04-24 09:00:00+09', '9999-12-31 12:00:00', '26', '/soccer/vietnam/v-league-1/', 'https://static.flashscore.com/res/image/data/Eu9ZTBSp-zJRFNpCs.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:58+09', 'SYSTEM', '2026-04-24 20:01:58+09'),
     (64, 'ベルギー', 'ジュピラー･プロリーグ', '2025/2026', '2025-07-26 09:00:00+09', '9999-12-31 12:00:00', '40', '/soccer/belgium/jupiler-pro-league/', 'https://static.flashscore.com/res/image/data/88Ble6kd-2mYPoNyI.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:58+09', 'BATCH', '2026-05-26 00:11:00+09'),
     (65, 'メキシコ', 'リーガ MX', '2025/2026', '2025-04-25 09:00:00+09', '9999-12-31 12:00:00', '17', '/soccer/mexico/liga-mx/', 'https://static.flashscore.com/res/image/data/rDKmIAfU-2Fx7CdeM.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:58+09', 'BATCH', '2026-05-20 00:10:52+09'),
-    (66, '日本', 'J2・J3 リーグ', '2026', '2026-04-25 09:00:00+09', '2026-05-25 14:00:00+09', '17', '/soccer/japan/j2-j3-league/', 'https://static.flashscore.com/res/image/data/fuIQNs9j-lfNf5KwN.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:58+09', 'BATCH', '2026-05-20 00:10:52+09');
+    (66, '日本', 'J2・J3 リーグ', '2026', '2026-02-25 09:00:00+09', '2026-06-07 14:00:00+09', '17', '/soccer/japan/j2-j3-league/', 'https://static.flashscore.com/res/image/data/fuIQNs9j-lfNf5KwN.png', '0', '0', 'SYSTEM', '2026-04-24 20:01:58+09', 'BATCH', '2026-05-20 00:10:52+09');
 
 INSERT INTO stat_size_finalize_master
 (id, option_num, options, valid_flg, register_id, register_time, update_id, update_time)
