@@ -151,7 +151,9 @@ public class EachCsvTransaction {
         // 1) csvId -> seqList snapshot 構築
         Map<String, List<Integer>> existingSnapshot = readSnapshot(snapshotPath);
         Map<String, List<Integer>> currentCsvInfo = loadCsvInfoSnapshot();
-        Map<String, List<Integer>> deleteSnapshot = buildDeleteSnapshot(csvIds, currentCsvInfo, existingSnapshot);
+        Map<String, List<Integer>> csvFileSnapshot = loadSeqSnapshotFromDeleteTargetCsvFiles(csvIds);
+        Map<String, List<Integer>> deleteSnapshot =
+                buildDeleteSnapshot(csvIds, csvFileSnapshot, currentCsvInfo, existingSnapshot);
 
         writeSnapshot(snapshotPath, deleteSnapshot);
         logInfo(METHOD_NAME, "削除snapshot保存完了 path=" + snapshotPath
@@ -186,7 +188,7 @@ public class EachCsvTransaction {
         cleanupEmptyParentFolders(deleteResult.deletedPhysicalCsvIds);
 
         // 3) data_team_list.txt 更新
-        updateDataTeamList(deleteResult.deletedCsvIds);
+        updateDataTeamList(deleteResult.deletedCsvIds, deleteResult.deletedPhysicalCsvIds);
 
         // 4) seqList.txt 更新
         updateSeqList(deleteResult.deletedCsvIds, deleteSnapshot);
@@ -275,6 +277,7 @@ public class EachCsvTransaction {
      */
     private Map<String, List<Integer>> buildDeleteSnapshot(
             List<String> csvIds,
+            Map<String, List<Integer>> csvFileSnapshot,
             Map<String, List<Integer>> currentCsvInfo,
             Map<String, List<Integer>> existingSnapshot) {
 
@@ -285,13 +288,20 @@ public class EachCsvTransaction {
                 continue;
             }
 
+            String physicalCsvId = this.csvFileNameService.toPhysicalCsvId(csvId);
             List<Integer> seqs = null;
 
-            if (currentCsvInfo != null) {
-                seqs = currentCsvInfo.get(csvId);
+            // 優先1: 削除予定CSV実体から読んだ seq
+            seqs = findSeqListByAnyKey(csvFileSnapshot, csvId, physicalCsvId);
+
+            // 優先2: 現在の csvInfo
+            if (seqs == null || seqs.isEmpty()) {
+                seqs = findSeqListByAnyKey(currentCsvInfo, csvId, physicalCsvId);
             }
-            if ((seqs == null || seqs.isEmpty()) && existingSnapshot != null) {
-                seqs = existingSnapshot.get(csvId);
+
+            // 優先3: 既存 snapshot
+            if (seqs == null || seqs.isEmpty()) {
+                seqs = findSeqListByAnyKey(existingSnapshot, csvId, physicalCsvId);
             }
 
             seqs = normalizeSeqList(seqs);
@@ -301,6 +311,131 @@ public class EachCsvTransaction {
         }
 
         return result;
+    }
+
+    private List<Integer> findSeqListByAnyKey(
+            Map<String, List<Integer>> source,
+            String csvId,
+            String physicalCsvId) {
+
+        if (source == null || source.isEmpty()) {
+            return null;
+        }
+
+        List<Integer> seqs = source.get(csvId);
+        if (seqs != null && !seqs.isEmpty()) {
+            return seqs;
+        }
+
+        seqs = source.get(physicalCsvId);
+        if (seqs != null && !seqs.isEmpty()) {
+            return seqs;
+        }
+
+        return null;
+    }
+
+    /**
+     * 削除対象CSV実体から seq を読むメソッド
+     * @param csvIds
+     * @return
+     */
+    private Map<String, List<Integer>> loadSeqSnapshotFromDeleteTargetCsvFiles(List<String> csvIds) {
+        final String METHOD_NAME = "loadSeqSnapshotFromDeleteTargetCsvFiles";
+
+        Map<String, List<Integer>> result = new LinkedHashMap<>();
+        Path baseDir = Paths.get(config.getCsvFolder()).toAbsolutePath().normalize();
+        String bucket = config.getS3BucketsStats();
+        String prefix = normalizePrefix(finalPrefix);
+
+        for (String csvId : csvIds) {
+            if (csvId == null || csvId.isBlank()) {
+                continue;
+            }
+
+            String physicalCsvId = this.csvFileNameService.toPhysicalCsvId(csvId);
+            ResolvedCsvSource resolved = null;
+
+            try {
+                resolved = resolveCsvSourceForSeqRead(baseDir, bucket, prefix, physicalCsvId);
+
+                if (resolved == null || resolved.path == null || !Files.exists(resolved.path)) {
+                    logWarn(METHOD_NAME, "削除対象CSVが存在しないため seq 読込スキップ csvId="
+                            + csvId + ", physicalCsvId=" + physicalCsvId);
+                    continue;
+                }
+
+                List<Integer> seqs = extractSeqListFromCsv(resolved.path);
+                seqs = normalizeSeqList(seqs);
+
+                if (!seqs.isEmpty()) {
+                    result.put(csvId, seqs);
+                    logInfo(METHOD_NAME, "CSVから seq 読込完了 csvId=" + csvId
+                            + ", physicalCsvId=" + physicalCsvId
+                            + ", source=" + resolved.sourceType
+                            + ", path=" + resolved.path
+                            + ", seqList=" + seqs
+                            + ", groupKey=" + groupKey(seqs));
+                } else {
+                    logWarn(METHOD_NAME, "CSVから seq を取得できませんでした csvId=" + csvId
+                            + ", physicalCsvId=" + physicalCsvId
+                            + ", source=" + resolved.sourceType
+                            + ", path=" + resolved.path);
+                }
+
+            } catch (Exception e) {
+                logWarn(METHOD_NAME, "CSVから seq 読込失敗 csvId=" + csvId
+                        + ", physicalCsvId=" + physicalCsvId
+                        + ", reason=" + e.getMessage());
+            } finally {
+                if (resolved != null && resolved.temporary && resolved.path != null) {
+                    try {
+                        Files.deleteIfExists(resolved.path);
+                    } catch (IOException ignore) {
+                    }
+                }
+            }
+        }
+
+        return result;
+    }
+
+    private ResolvedCsvSource resolveCsvSourceForSeqRead(
+            Path baseDir,
+            String bucket,
+            String prefix,
+            String physicalCsvId) throws IOException {
+
+        final String METHOD_NAME = "resolveCsvSourceForSeqRead";
+
+        Path localPath = baseDir.resolve(physicalCsvId).normalize();
+        if (Files.exists(localPath) && Files.isRegularFile(localPath)) {
+            logInfo(METHOD_NAME, "ローカルCSVを使用 physicalCsvId=" + physicalCsvId
+                    + ", path=" + localPath);
+            return new ResolvedCsvSource(localPath, false, "local");
+        }
+
+        if (localOnly) {
+            logInfo(METHOD_NAME, "localOnly=true のため S3 読込スキップ physicalCsvId=" + physicalCsvId);
+            return null;
+        }
+
+        String s3Key = normalizeS3Key(joinS3Key(prefix, physicalCsvId));
+        Path downloaded = downloadCsvFromS3ToTemp(bucket, s3Key, physicalCsvId);
+
+        if (downloaded != null && Files.exists(downloaded) && Files.isRegularFile(downloaded)) {
+            logInfo(METHOD_NAME, "S3 CSVを一時取得 physicalCsvId=" + physicalCsvId
+                    + ", bucket=" + bucket
+                    + ", key=" + s3Key
+                    + ", tempPath=" + downloaded);
+            return new ResolvedCsvSource(downloaded, true, "s3");
+        }
+
+        logWarn(METHOD_NAME, "ローカル/S3 いずれにもCSVが見つかりません physicalCsvId=" + physicalCsvId
+                + ", bucket=" + bucket
+                + ", key=" + s3Key);
+
+        return null;
     }
 
     /**
@@ -347,6 +482,132 @@ public class EachCsvTransaction {
                     + ", reason=" + e.getMessage());
             return new LinkedHashMap<>();
         }
+    }
+
+    private List<Integer> extractSeqListFromCsv(Path csvPath) throws IOException {
+        List<String> lines = Files.readAllLines(csvPath, StandardCharsets.UTF_8);
+        List<Integer> result = new ArrayList<>();
+
+        if (lines == null || lines.isEmpty()) {
+            return result;
+        }
+
+        int seqColumnIndex = -1;
+        boolean firstDataChecked = false;
+
+        for (String line : lines) {
+            if (line == null || line.isBlank()) {
+                continue;
+            }
+
+            List<String> columns = parseSimpleCsvLine(line);
+            if (columns.isEmpty()) {
+                continue;
+            }
+
+            // 1行目だけ BOM 除去
+            if (!firstDataChecked && !columns.isEmpty()) {
+                columns.set(0, removeBom(columns.get(0)));
+            }
+
+            if (!firstDataChecked) {
+                firstDataChecked = true;
+
+                // ヘッダ行から seq 列を探す
+                seqColumnIndex = findSeqColumnIndex(columns);
+
+                // ヘッダ行だった場合は次の行へ
+                if (seqColumnIndex >= 0) {
+                    continue;
+                }
+
+                // ヘッダでなければ 1列目を seq とみなす
+                seqColumnIndex = 0;
+            }
+
+            if (seqColumnIndex < 0 || seqColumnIndex >= columns.size()) {
+                continue;
+            }
+
+            String raw = stripQuotes(columns.get(seqColumnIndex)).trim();
+            if (raw.isEmpty()) {
+                continue;
+            }
+
+            try {
+                result.add(Integer.valueOf(raw));
+            } catch (NumberFormatException ignore) {
+                // seq列に数値以外が入っている行は無視
+            }
+        }
+
+        return normalizeSeqList(result);
+    }
+
+    private int findSeqColumnIndex(List<String> columns) {
+        for (int i = 0; i < columns.size(); i++) {
+            String name = stripQuotes(safe(columns.get(i))).trim();
+            name = removeBom(name);
+
+            if ("seq".equalsIgnoreCase(name) || "id".equalsIgnoreCase(name)) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private List<String> parseSimpleCsvLine(String line) {
+        List<String> result = new ArrayList<>();
+        if (line == null) {
+            return result;
+        }
+
+        StringBuilder current = new StringBuilder();
+        boolean inQuotes = false;
+
+        for (int i = 0; i < line.length(); i++) {
+            char c = line.charAt(i);
+
+            if (c == '"') {
+                // 連続する "" はエスケープされたダブルクォートとして扱う
+                if (inQuotes && i + 1 < line.length() && line.charAt(i + 1) == '"') {
+                    current.append('"');
+                    i++;
+                    continue;
+                }
+                inQuotes = !inQuotes;
+                continue;
+            }
+
+            if (c == ',' && !inQuotes) {
+                result.add(current.toString());
+                current.setLength(0);
+                continue;
+            }
+
+            current.append(c);
+        }
+
+        result.add(current.toString());
+        return result;
+    }
+
+    private String stripQuotes(String value) {
+        String s = safe(value).trim();
+        if (s.length() >= 2 && s.startsWith("\"") && s.endsWith("\"")) {
+            return s.substring(1, s.length() - 1);
+        }
+        return s;
+    }
+
+    private String removeBom(String value) {
+        if (value == null || value.isEmpty()) {
+            return value;
+        }
+        if (value.charAt(0) == '\uFEFF') {
+            return value.substring(1);
+        }
+        return value;
     }
 
     /**
@@ -408,6 +669,40 @@ public class EachCsvTransaction {
             logWarn(METHOD_NAME, "snapshot残置 csvId=" + e.getKey()
                     + ", seqList=" + e.getValue()
                     + ", groupKey=" + groupKey(e.getValue()));
+        }
+    }
+
+    private Path downloadCsvFromS3ToTemp(String bucket, String s3Key, String physicalCsvId) throws IOException {
+        final String METHOD_NAME = "downloadCsvFromS3ToTemp";
+
+        Path baseDir = Paths.get(config.getCsvFolder()).toAbsolutePath().normalize();
+        Path tempDir = baseDir.resolve(".tmp_delete_seq");
+        Files.createDirectories(tempDir);
+
+        String safeFileName = physicalCsvId
+                .replace("\\", "_")
+                .replace("/", "_")
+                .replace(":", "_");
+
+        Path tempPath = tempDir.resolve(safeFileName);
+
+        try {
+            s3Operator.downloadToFile(bucket, s3Key, tempPath);
+
+            if (Files.exists(tempPath) && Files.isRegularFile(tempPath)) {
+                return tempPath;
+            }
+
+            logWarn(METHOD_NAME, "S3ダウンロード後もファイル未作成 bucket=" + bucket
+                    + ", key=" + s3Key
+                    + ", tempPath=" + tempPath);
+            return null;
+
+        } catch (Exception e) {
+            logWarn(METHOD_NAME, "S3 CSV取得失敗 bucket=" + bucket
+                    + ", key=" + s3Key
+                    + ", reason=" + e.getMessage());
+            return null;
         }
     }
 
@@ -560,7 +855,10 @@ public class EachCsvTransaction {
      * data_team_list.txt から対象 csv_id を削除
      * 削除した行をログ出力する
      */
-    private void updateDataTeamList(Set<String> deleteCsvIds) throws IOException {
+    private void updateDataTeamList(
+            Set<String> deletedCsvIds,
+            Set<String> deletedPhysicalCsvIds) throws IOException {
+
         final String METHOD_NAME = "updateDataTeamList";
 
         Path baseDir = Paths.get(config.getCsvFolder()).toAbsolutePath().normalize();
@@ -578,6 +876,19 @@ public class EachCsvTransaction {
             return;
         }
 
+        Set<String> deleteKeys = new LinkedHashSet<>();
+        if (deletedCsvIds != null) {
+            deleteKeys.addAll(deletedCsvIds);
+            for (String csvId : deletedCsvIds) {
+                if (csvId != null && !csvId.isBlank()) {
+                    deleteKeys.add(this.csvFileNameService.toPhysicalCsvId(csvId));
+                }
+            }
+        }
+        if (deletedPhysicalCsvIds != null) {
+            deleteKeys.addAll(deletedPhysicalCsvIds);
+        }
+
         List<String> lines = Files.readAllLines(localTeamPath, StandardCharsets.UTF_8);
         List<String> newLines = new ArrayList<>();
         List<String> removedLines = new ArrayList<>();
@@ -590,7 +901,7 @@ public class EachCsvTransaction {
             String[] parts = line.split("\t", 2);
             String csvKey = safe(parts[0]).trim();
 
-            if (deleteCsvIds.contains(csvKey)) {
+            if (deleteKeys.contains(csvKey)) {
                 removedLines.add(line);
                 logInfo(METHOD_NAME, "data_team_list 削除 csvId=" + csvKey + ", line=" + line);
                 continue;
@@ -610,10 +921,10 @@ public class EachCsvTransaction {
                 + ", removed=" + removedLines.size()
                 + ", remaining=" + newLines.size());
 
-        for (String csvId : deleteCsvIds) {
-            boolean found = removedLines.stream().anyMatch(line -> line.startsWith(csvId + "\t") || line.equals(csvId));
+        for (String key : deleteKeys) {
+            boolean found = removedLines.stream().anyMatch(line -> line.startsWith(key + "\t") || line.equals(key));
             if (!found) {
-                logWarn(METHOD_NAME, "data_team_list 未検出 csvId=" + csvId);
+                logWarn(METHOD_NAME, "data_team_list 未検出 csvId=" + key);
             }
         }
 
@@ -865,6 +1176,18 @@ public class EachCsvTransaction {
 
     private void endLog(String method) {
         this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, method, "end");
+    }
+
+    private static final class ResolvedCsvSource {
+        private final Path path;
+        private final boolean temporary;
+        private final String sourceType;
+
+        private ResolvedCsvSource(Path path, boolean temporary, String sourceType) {
+            this.path = path;
+            this.temporary = temporary;
+            this.sourceType = sourceType;
+        }
     }
 
     private static final class DeleteResult {
