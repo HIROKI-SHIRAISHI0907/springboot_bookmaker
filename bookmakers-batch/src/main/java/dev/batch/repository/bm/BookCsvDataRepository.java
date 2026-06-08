@@ -273,7 +273,7 @@ public interface BookCsvDataRepository {
                 </otherwise>
               </choose>
             </where>
-            ORDER BY record_time ASC
+            ORDER BY seq ASC, record_time ASC
             </script>
             """)
     List<DataEntity> findByData(@Param("seqList") List<Integer> seqList);
@@ -304,7 +304,7 @@ public interface BookCsvDataRepository {
                 </otherwise>
               </choose>
             </where>
-            ORDER BY record_time ASC
+            ORDER BY seq ASC, record_time ASC
             </script>
             """)
     List<CsvPreviewRow> findPreviewByData(@Param("seqList") List<Integer> seqList);
