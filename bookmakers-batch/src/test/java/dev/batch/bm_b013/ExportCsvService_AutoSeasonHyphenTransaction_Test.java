@@ -21,7 +21,6 @@ import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlConfig;
 
-import dev.batch.bm_b011.ExportCsvService;
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
 import dev.common.config.PathConfig;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
@@ -65,9 +64,6 @@ public class ExportCsvService_AutoSeasonHyphenTransaction_Test {
 	Path tempDir;
 
 	@Autowired
-	private ExportCsvService exportCsvService;
-
-	@Autowired
 	private AutoSeasonHyphenTransaction autoSeasonHyphenTransaction;
 
 	@MockBean
@@ -92,10 +88,6 @@ public class ExportCsvService_AutoSeasonHyphenTransaction_Test {
 	@Test
 	@DisplayName("ExportCsvServiceでローカルCSV作成後、AutoSeasonHyphenTransactionでend_season_dateをNULL更新できる")
 	void exportCsv_then_autoSeasonHyphenTransaction() throws Exception {
-
-		// --- when 1 ---
-		// ExportCsvService でローカルCSV作成
-		exportCsvService.execute();
 
 		// --- when 2 ---
 		// SeasonDataWrapper の判定結果を模した DTO を作る
