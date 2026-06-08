@@ -138,16 +138,6 @@ public interface BookCsvDataRepository {
             FROM data
             WHERE home_team_name = #{homeTeamName}
               AND away_team_name = #{awayTeamName}
-            <choose>
-              <when test="matchId != null and matchId != ''">
-                AND match_id = #{matchId}
-              </when>
-              <when test="dataCategory != null and dataCategory != ''">
-                AND data_category = #{dataCategory}
-              </when>
-              <otherwise>
-              </otherwise>
-            </choose>
             ORDER BY seq ASC
             </script>
             """)
