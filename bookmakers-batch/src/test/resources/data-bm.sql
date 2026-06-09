@@ -151,3 +151,20 @@ INSERT INTO data (
     ('140317', '1', '日本: J2 リーグ - ラウンド 6', '95:13', '2.', '大宮アルディージャ', '2', '14.', '水戸ホーリーホック', '0', NULL, NULL, NULL, NULL, '54%', '46%', '16', '15', '8', '2', '8', '13', NULL, NULL, NULL, NULL, '7', '4', NULL, NULL, NULL, NULL, NULL, NULL, '2', '6', '10', '16', '1', '2', '17', '9', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-03-23 15:57:03+09', NULL, NULL, NULL, 'Kawamata S. (Jpn)', '長澤 徹', '森 直樹', NULL, NULL, 'NACK5 スタジアム大宮 (埼玉)', '15 500', NULL, NULL, NULL, '藤井 一志', '渡邉 新太', '出場中', '出場中', '5', '2', '4', '3', '4', '1', '2', '3', NULL, '未通知', NULL, '67''', '杉本 健勇', 'メール非通知対象', 'カウンター', 'カウンター', 'CCCCCC', NULL, NULL, NULL, '0', 'bm_user', '2026-01-16 13:13:24+09', 'bm_user', '2026-01-16 13:13:24+09'),
     ('140318', '1', '日本: J2 リーグ - ラウンド 6', '終了済', '2.', '大宮アルディージャ', '2', '14.', '水戸ホーリーホック', '0', NULL, NULL, NULL, NULL, '54%', '46%', '17', '15', '9', '2', '8', '13', NULL, NULL, NULL, NULL, '7', '4', NULL, NULL, NULL, NULL, NULL, NULL, '2', '7', '10', '16', '1', '2', '17', '9', NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, '2025-03-23 16:00:05+09', NULL, NULL, NULL, 'Kawamata S. (Jpn)', '長澤 徹', '森 直樹', NULL, NULL, 'NACK5 スタジアム大宮 (埼玉)', '15 500', NULL, NULL, NULL, '藤井 一志', '渡邉 新太', '出場中', '出場中', '7', '2', '4', '3', '4', '1', '2', '5', NULL, '未通知', NULL, '67''', '---', 'メール非通知対象', 'カウンター', 'プレッシング', 'CCCCCC', NULL, NULL, NULL, '0', 'bm_user', '2026-01-16 13:13:24+09', 'bm_user', '2026-01-16 13:13:24+09');
 
+    INSERT INTO csv_detail_manage (
+    id,
+    csv_id,
+    data_category,
+    season,
+    home_team_name,
+    away_team_name,
+    check_fin_flg,
+    register_id,
+    register_time,
+    update_id,
+    update_time
+) VALUES
+	('1', '日本-J2 リーグ - ラウンド 18/1.csv', '日本: J2 リーグ - ラウンド 18', '2026', 'ブラウブリッツ秋田', 'カターレ富山', '0',  NULL, NULL, NULL, NULL),
+	('2', 'ブラジル-セリエ A ベターノ - ラウンド 18/1.csv', 'ブラジル: セリエ A ベターノ - ラウンド 18', '2026', 'レッドブル・ブラガンチーノ', 'バイーア', '0',  NULL, NULL, NULL, NULL),
+	('3', '日本-J2・J3 リーグ - ラウンド 21/1.csv', '日本: J2・J3 リーグ - ラウンド 21', '2026', '北海道ｺﾝｻﾄﾞｰﾚ札幌', 'ロアッソ熊本', '0',  NULL, NULL, NULL, NULL),
+	('4', '日本-J2 リーグ - ラウンド 6/1.csv', '日本: J2 リーグ - ラウンド 6', '2026', '大宮アルディージャ', '水戸ホーリーホック', '0',  NULL, NULL, NULL, NULL);
