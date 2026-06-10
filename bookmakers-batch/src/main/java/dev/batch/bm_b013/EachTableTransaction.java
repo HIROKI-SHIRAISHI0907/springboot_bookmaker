@@ -7,7 +7,6 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.batch.repository.bm.BookDataRepository;
 import dev.batch.repository.master.CountryLeagueMasterBatchRepository;
 import dev.common.constant.MessageCdConst;
-import dev.common.entity.DataEntity;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
@@ -77,14 +76,9 @@ public class EachTableTransaction {
 			String dataCategoryPrefix = country + ": " + league;
 
 			// Dataテーブル該当データ削除
-			DataEntity entity = new DataEntity();
-			entity.setDataCategory(dataCategoryPrefix);
-			entity.setHomeTeamName(METHOD_NAME);
-			entity.setAwayTeamName(METHOD_NAME);
-
 			int delDResultSum = 0;
 			try {
-				int delDResult = bookDataRepository.deleteByDataCategory(entity);
+				int delDResult = bookDataRepository.deleteByDataCategory(dataCategoryPrefix);
 				delDResultSum += delDResult;
 			} catch (Exception e) {
 				this.manageLoggerComponent.debugErrorLog(

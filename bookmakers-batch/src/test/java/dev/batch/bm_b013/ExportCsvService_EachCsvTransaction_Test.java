@@ -15,9 +15,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlConfig;
@@ -66,7 +66,7 @@ public class ExportCsvService_EachCsvTransaction_Test {
 	@Autowired
 	private EachCsvTransaction eachCsvTransaction;
 
-	@MockBean
+	@Mock
 	private PathConfig pathConfig;
 
 	@Autowired
@@ -86,7 +86,7 @@ public class ExportCsvService_EachCsvTransaction_Test {
 	}
 
 	@Test
-	@DisplayName("ExportCsvServiceでローカルCSV作成後、EachCsvTransactionチェック")
+	@DisplayName("ExportCsvServiceでローカルCSV作成後、EachCsvTransactionの処理が通る")
 	void exportCsv_then_eachCsvTransaction() throws Exception {
 
 		// --- when 2 ---

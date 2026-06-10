@@ -44,10 +44,10 @@ public interface CountryLeagueMasterBatchRepository {
 			    	id,
 			        country,
 			        league,
-			        sub_league,
+			        sub_league AS subLeague,
 			        team,
 			        link,
-			        del_flg
+			        del_flg AS delFlg
 			    FROM
 			    	country_league_master
 			    WHERE
@@ -66,10 +66,10 @@ public interface CountryLeagueMasterBatchRepository {
 			    	id,
 			        country,
 			        league,
-			        sub_league,
+			        sub_league AS subLeague,
 			        team,
 			        link,
-			        del_flg
+			        del_flg AS delFlg
 			    FROM
 			    	country_league_master
 			    ORDER BY
@@ -85,10 +85,10 @@ public interface CountryLeagueMasterBatchRepository {
 			    	id,
 			        country,
 			        league,
-			        sub_league,
+			        sub_league AS subLeague,
 			        team,
 			        link,
-			        del_flg
+			        del_flg AS delFlg
 			    FROM
 			    	country_league_master
 			    WHERE
@@ -108,10 +108,10 @@ public interface CountryLeagueMasterBatchRepository {
 			    	id,
 			        country,
 			        league,
-			        sub_league,
+			        sub_league AS subLeague,
 			        team,
 			        link,
-			        del_flg
+			        del_flg AS delFlg
 			    FROM
 			    	country_league_master
 			    WHERE
@@ -130,10 +130,10 @@ public interface CountryLeagueMasterBatchRepository {
 			    	id,
 			        country,
 			        league,
-			        sub_league,
+			        sub_league AS subLeague,
 			        team,
 			        link,
-			        del_flg
+			        del_flg AS delFlg
 			    FROM
 			    	country_league_master
 			    WHERE
@@ -146,6 +146,31 @@ public interface CountryLeagueMasterBatchRepository {
 	CountryLeagueMasterEntity findActiveByTeam(@Param("team") String team);
 
 	/**
+	 * 国リーグから未削除の国・リーグを1件取得
+	 * フォールバック用
+	 */
+	@Select("""
+			    SELECT
+			    	id,
+			        country,
+			        league,
+			        sub_league AS subLeague,
+			        team,
+			        link,
+			        del_flg AS delFlg
+			    FROM
+			    	country_league_master
+			    WHERE
+			    	country = #{country} AND
+			    	league  = #{league} AND
+			    	del_flg = '1'
+			    ORDER BY
+			    	id DESC
+			""")
+	List<CountryLeagueMasterEntity> findDelete(@Param("country") String country,
+			@Param("league") String league);
+
+	/**
 	 * home/away の両チームが所属する共通の国・リーグを1件取得
 	 * 例:
 	 *   home=鹿島アントラーズ, away=浦和レッズ
@@ -156,10 +181,10 @@ public interface CountryLeagueMasterBatchRepository {
 			    	MAX(id) AS id,
 			    	country,
 			    	league,
-			    	MAX(sub_league) AS sub_league,
+			    	MAX(sub_league) AS subLeague,
 			    	NULL AS team,
 			    	MAX(link) AS link,
-			    	'0' AS del_flg
+			    	'0' AS delFlg
 			    FROM
 			    	country_league_master
 			    WHERE

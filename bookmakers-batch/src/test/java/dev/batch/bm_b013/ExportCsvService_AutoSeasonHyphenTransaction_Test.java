@@ -14,9 +14,9 @@ import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.DisplayName;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
+import org.mockito.Mock;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.test.context.ActiveProfiles;
 import org.springframework.test.context.jdbc.Sql;
 import org.springframework.test.context.jdbc.SqlConfig;
@@ -36,28 +36,14 @@ import dev.common.logger.ManageLoggerComponent;
  */
 @SpringBootTest
 @ActiveProfiles("test")
-@Sql(
-    scripts = {
-        "classpath:schema-bm.sql",
-        "classpath:data-bm.sql"
-    },
-    config = @SqlConfig(
-        dataSource = "bmDataSource",
-        transactionManager = "bmTxManager",
-        encoding = "UTF-8"
-    )
-)
-@Sql(
-    scripts = {
-        "classpath:schema-master.sql",
-        "classpath:data-master.sql"
-    },
-    config = @SqlConfig(
-        dataSource = "masterDataSource",
-        transactionManager = "masterTxManager",
-        encoding = "UTF-8"
-    )
-)
+@Sql(scripts = {
+		"classpath:schema-bm.sql",
+		"classpath:data-bm.sql"
+}, config = @SqlConfig(dataSource = "bmDataSource", transactionManager = "bmTxManager", encoding = "UTF-8"))
+@Sql(scripts = {
+		"classpath:schema-master.sql",
+		"classpath:data-master.sql"
+}, config = @SqlConfig(dataSource = "masterDataSource", transactionManager = "masterTxManager", encoding = "UTF-8"))
 public class ExportCsvService_AutoSeasonHyphenTransaction_Test {
 
 	@TempDir
@@ -66,10 +52,10 @@ public class ExportCsvService_AutoSeasonHyphenTransaction_Test {
 	@Autowired
 	private AutoSeasonHyphenTransaction autoSeasonHyphenTransaction;
 
-	@MockBean
+	@Mock
 	private PathConfig pathConfig;
 
-	@MockBean
+	@Mock
 	private ManageLoggerComponent manageLoggerComponent;
 
 	/** シーズンバッチレポジトリ */
@@ -78,11 +64,11 @@ public class ExportCsvService_AutoSeasonHyphenTransaction_Test {
 
 	@BeforeEach
 	void setUp() throws Exception {
-	    Path testOutputDir = Paths.get("src", "test", "java", "dev", "batch", "bm_b013", "data");
-	    Files.createDirectories(testOutputDir);
+		Path testOutputDir = Paths.get("src", "test", "java", "dev", "batch", "bm_b013", "data");
+		Files.createDirectories(testOutputDir);
 
-	    // ExportCsvService の CSV 出力先を固定フォルダへ切り替え
-	    when(pathConfig.getCsvFolder()).thenReturn(testOutputDir.toAbsolutePath().toString());
+		// ExportCsvService の CSV 出力先を固定フォルダへ切り替え
+		when(pathConfig.getCsvFolder()).thenReturn(testOutputDir.toAbsolutePath().toString());
 	}
 
 	@Test
@@ -98,8 +84,8 @@ public class ExportCsvService_AutoSeasonHyphenTransaction_Test {
 
 		autoSeasonHyphenTransaction.execute(dto);
 
-		List<CountryLeagueSeasonMasterEntity> resultCountryLeagueSeasonMasterEntities =
-				this.countryLeagueSeasonMasterBatchRepository.findWhereData("日本", "J2 リーグ");
+		List<CountryLeagueSeasonMasterEntity> resultCountryLeagueSeasonMasterEntities = this.countryLeagueSeasonMasterBatchRepository
+				.findWhereData("日本", "J2 リーグ");
 
 		assertEquals(null, resultCountryLeagueSeasonMasterEntities.get(0).getEndSeasonDate());
 

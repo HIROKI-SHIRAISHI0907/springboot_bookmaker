@@ -4,6 +4,7 @@ import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import dev.common.entity.DataEntity;
@@ -263,16 +264,14 @@ public interface BookDataRepository {
 	@Delete("""
 			DELETE
 			FROM data
-			WHERE (
-			      data_category LIKE CONCAT(#{dataCategory}, '%')
-			  AND home_team_name = #{homeTeamName}
-			  AND away_team_name = #{awayTeamName}
-			)
-			   OR (
-			      home_team_name = #{homeTeamName}
-			  AND away_team_name = #{awayTeamName}
-			)
+			WHERE data_category LIKE CONCAT(#{dataCategoryLike}, '%')
 			""")
-	int deleteByDataCategory(DataEntity entity);
+	int deleteByDataCategory(@Param("dataCategoryLike") String categoryLike);
+
+	@Select("""
+			SELECT COUNT(*)
+			FROM data
+			""")
+	int findChk();
 
 }
