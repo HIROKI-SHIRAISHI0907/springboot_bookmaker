@@ -1426,8 +1426,8 @@ public class ExportCsvService {
 		backfillScores(result);
 		logInfo(METHOD_NAME, "backfillScores() 完了 label=" + label);
 
-		applyCanonicalCategory(result);
-		logInfo(METHOD_NAME, "applyCanonicalCategory() 完了 label=" + label);
+		applyCanonicalMatchKeys(result);
+		logInfo(METHOD_NAME, "applyCanonicalMatchKeys() 完了 label=" + label);
 
 		logInfo(METHOD_NAME, "終了 label=" + label + ", final.size=" + result.size());
 		return result;
@@ -1530,7 +1530,7 @@ public class ExportCsvService {
 
 		result = new ArrayList<>(result);
 		backfillPreviewScores(result);
-		applyCanonicalPreviewCategory(result);
+		applyCanonicalPreviewMatchKeys(result);
 
 		logInfo(METHOD_NAME, "終了 label=" + label + ", final.size=" + result.size());
 		return result;
@@ -1593,28 +1593,57 @@ public class ExportCsvService {
 		}
 	}
 
-	private static void applyCanonicalPreviewCategory(List<CsvPreviewRow> group) {
-		String canonical = "";
-		for (CsvPreviewRow d : group) {
-			String cat = d.getDataCategory();
-			if (cat != null && hasRound(cat)) {
-				canonical = cat.trim();
-				break;
-			}
-		}
-		if (canonical.isBlank() && !group.isEmpty()) {
-			canonical = safe(group.get(0).getDataCategory()).trim();
-		}
-		if (canonical.isBlank()) {
+	private static void applyCanonicalPreviewMatchKeys(List<CsvPreviewRow> group) {
+		if (group == null || group.isEmpty()) {
 			return;
 		}
 
+		String canonicalCategory = firstPreviewValue(group, CsvPreviewRow::getDataCategory, true);
+		String canonicalHome = firstPreviewValue(group, CsvPreviewRow::getHomeTeamName, true);
+		String canonicalAway = firstPreviewValue(group, CsvPreviewRow::getAwayTeamName, true);
+
 		for (CsvPreviewRow d : group) {
-			String cat = d.getDataCategory();
-			if (cat == null || cat.trim().isEmpty() || !hasRound(cat)) {
-				d.setDataCategory(canonical);
+			if ((isBlank(d.getDataCategory()) || !hasRound(d.getDataCategory())) && !canonicalCategory.isBlank()) {
+				d.setDataCategory(canonicalCategory);
+			}
+			if (isBlank(d.getHomeTeamName()) && !canonicalHome.isBlank()) {
+				d.setHomeTeamName(canonicalHome);
+			}
+			if (isBlank(d.getAwayTeamName()) && !canonicalAway.isBlank()) {
+				d.setAwayTeamName(canonicalAway);
 			}
 		}
+	}
+
+	private static String firstPreviewValue(
+			List<CsvPreviewRow> group,
+			java.util.function.Function<CsvPreviewRow, String> getter,
+			boolean preferRoundRow) {
+
+		if (group == null || group.isEmpty()) {
+			return "";
+		}
+
+		if (preferRoundRow) {
+			for (CsvPreviewRow d : group) {
+				if (!hasRound(d.getDataCategory())) {
+					continue;
+				}
+				String value = safe(getter.apply(d)).trim();
+				if (!value.isEmpty()) {
+					return value;
+				}
+			}
+		}
+
+		for (CsvPreviewRow d : group) {
+			String value = safe(getter.apply(d)).trim();
+			if (!value.isEmpty()) {
+				return value;
+			}
+		}
+
+		return "";
 	}
 
 	private static String groupKey(List<Integer> ids) {
@@ -1821,33 +1850,63 @@ public class ExportCsvService {
 		return s != null && ROUND_TOKEN.matcher(s).find();
 	}
 
-	private static String pickCanonicalCategory(List<DataEntity> group) {
+	private static void applyCanonicalMatchKeys(List<DataEntity> group) {
 		if (group == null || group.isEmpty()) {
-			return "";
-		}
-		for (DataEntity d : group) {
-			String cat = d.getDataCategory();
-			if (hasRound(cat)) {
-				return cat.trim();
-			}
-		}
-		String first = group.get(0).getDataCategory();
-		return first == null ? "" : first.trim();
-	}
-
-	private static void applyCanonicalCategory(List<DataEntity> group) {
-		String canonical = pickCanonicalCategory(group);
-		if (canonical.isBlank()) {
 			return;
 		}
 
+		String canonicalCategory = firstDataValue(group, DataEntity::getDataCategory, true);
+		String canonicalHome = firstDataValue(group, DataEntity::getHomeTeamName, true);
+		String canonicalAway = firstDataValue(group, DataEntity::getAwayTeamName, true);
+		String canonicalMatchId = firstDataValue(group, DataEntity::getMatchId, true);
+
 		for (DataEntity d : group) {
-			String cat = d.getDataCategory();
-			if (cat == null || cat.trim().isEmpty() || !hasRound(cat)) {
-				d.setDataCategory(canonical);
+			if ((isBlank(d.getDataCategory()) || !hasRound(d.getDataCategory())) && !canonicalCategory.isBlank()) {
+				d.setDataCategory(canonicalCategory);
+			}
+			if (isBlank(d.getHomeTeamName()) && !canonicalHome.isBlank()) {
+				d.setHomeTeamName(canonicalHome);
+			}
+			if (isBlank(d.getAwayTeamName()) && !canonicalAway.isBlank()) {
+				d.setAwayTeamName(canonicalAway);
+			}
+			if (isBlank(d.getMatchId()) && !canonicalMatchId.isBlank()) {
+				d.setMatchId(canonicalMatchId);
 			}
 		}
 	}
+
+	private static String firstDataValue(
+			List<DataEntity> group,
+			java.util.function.Function<DataEntity, String> getter,
+			boolean preferRoundRow) {
+
+		if (group == null || group.isEmpty()) {
+			return "";
+		}
+
+		if (preferRoundRow) {
+			for (DataEntity d : group) {
+				if (!hasRound(d.getDataCategory())) {
+					continue;
+				}
+				String value = safe(getter.apply(d)).trim();
+				if (!value.isEmpty()) {
+					return value;
+				}
+			}
+		}
+
+		for (DataEntity d : group) {
+			String value = safe(getter.apply(d)).trim();
+			if (!value.isEmpty()) {
+				return value;
+			}
+		}
+
+		return "";
+	}
+
 
 	private static int compareCsvRelativeKey(String a, String b) {
 		String fa = parentPath(a);
