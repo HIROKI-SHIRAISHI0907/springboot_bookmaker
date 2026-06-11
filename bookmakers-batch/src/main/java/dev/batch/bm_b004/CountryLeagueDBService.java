@@ -5,9 +5,13 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.batch.constant.FlgConstant;
 import dev.batch.repository.master.CountryLeagueMasterBatchRepository;
+import dev.batch.repository.master.InitialMasterCsvRepository;
+import dev.common.constant.MasterNameConstant;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.CountryLeagueMasterEntity;
+import dev.common.entity.InitialReadingMasterCsvEntity;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
@@ -28,6 +32,10 @@ public class CountryLeagueDBService {
 
 	/** BM_BATCH_NUMBER */
 	private static final String BM_NUMBER = "BM_B004";
+
+	/** InitialMasterCsvRepository */
+	@Autowired
+	private InitialMasterCsvRepository initialMasterCsvRepository;
 
 	/** CountryLeagueMasterRepositoryレポジトリクラス */
 	@Autowired
@@ -68,6 +76,20 @@ public class CountryLeagueDBService {
 	public int insertInBatch(CountryLeagueMasterEntity insertEntities) {
 		final String METHOD_NAME = "insertInBatch";
 		try {
+			// 初回CSVマスタ登録
+			InitialReadingMasterCsvEntity initialEntity = new InitialReadingMasterCsvEntity();
+			initialEntity.setCountry(insertEntities.getCountry());
+			initialEntity.setLeague(insertEntities.getLeague());
+			initialEntity.setMasterName(MasterNameConstant.COUNTRY_LEAGUE_MASTER);
+			initialEntity.setInitialFlg(FlgConstant.INITIAL_FLG);
+			int result0 = initialMasterCsvRepository.insert(initialEntity);
+			if (result0 != 1) {
+				String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+						null, "initialMasterCsvRepository");
+				return 9;
+			}
 			int result = this.countryLeagueMasterRepository.insert(insertEntities);
 			if (result != 1) {
 				String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;

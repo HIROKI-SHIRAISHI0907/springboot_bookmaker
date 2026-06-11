@@ -7,11 +7,15 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
+import dev.batch.constant.FlgConstant;
 import dev.batch.constant.PointSettingConstant;
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
+import dev.batch.repository.master.InitialMasterCsvRepository;
 import dev.batch.repository.master.PointSettingMasterBatchRepository;
+import dev.common.constant.MasterNameConstant;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
+import dev.common.entity.InitialReadingMasterCsvEntity;
 import dev.common.entity.PointSettingEntity;
 import dev.common.logger.ManageLoggerComponent;
 
@@ -32,6 +36,10 @@ public class CountryLeagueSeasonDBService {
 
 	/** BM_BATCH_NUMBER */
 	private static final String BM_NUMBER = "BM_B003";
+
+	/** InitialMasterCsvRepository */
+	@Autowired
+	private InitialMasterCsvRepository initialMasterCsvRepository;
 
 	/** CountryLeagueSeasonMasterRepositoryレポジトリクラス */
 	@Autowired
@@ -81,6 +89,20 @@ public class CountryLeagueSeasonDBService {
 			String biko = null;
 			for (CountryLeagueSeasonMasterEntity entity : batch) {
 				try {
+					// 初回CSVマスタ登録
+					InitialReadingMasterCsvEntity initialEntity = new InitialReadingMasterCsvEntity();
+					initialEntity.setCountry(entity.getCountry());
+					initialEntity.setLeague(entity.getLeague());
+					initialEntity.setMasterName(MasterNameConstant.COUNTRY_LEAGUE_SEASON_MASTER);
+					initialEntity.setInitialFlg(FlgConstant.INITIAL_FLG);
+					int result0 = initialMasterCsvRepository.insert(initialEntity);
+					if (result0 != 1) {
+						String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
+						this.manageLoggerComponent.debugErrorLog(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+								null, "initialMasterCsvRepository");
+						return 9;
+					}
 					// シーズン年を元にシーズン開始日と終了日を埋める
 					String[] years = SeasonDateBuilder.convertSeasonYear(entity.getSeasonYear());
 					String startDate = SeasonDateBuilder.buildDate(years[0], entity.getStartSeasonDate());
