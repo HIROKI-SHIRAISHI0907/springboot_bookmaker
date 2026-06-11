@@ -19,11 +19,23 @@ public class CountryLeagueSeasonDTO {
 	/** リーグ */
 	private String league;
 
+	/** シーズン開始 */
+	private String startSeasonDate;
+
+	/** シーズン終了 */
+	private String endSeasonDate;
+
 	/** シーズン年 */
 	private String seasonYear;
 
+	/** ラウンド数 */
+	private String round;
+
 	/** パス */
 	private String path;
+
+	/** アイコン */
+	private String icon;
 
 	/** 削除フラグ*/
 	private String delFlg;

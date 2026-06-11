@@ -65,8 +65,7 @@ public class InitialReadingMasterCsvRepository {
 	/**
 	 * 同一 business key の既存データ取得
 	 */
-	public List<InitialReadingMasterCsvEntity> findData(String master_name,
-			String country, String league) {
+	public List<InitialReadingMasterCsvEntity> findData(String master_name) {
 
 		String sql = """
 				SELECT
@@ -77,15 +76,11 @@ public class InitialReadingMasterCsvRepository {
 				  initial_flg
 				FROM initial_reading_csv_master
 				WHERE master_name = :masterName
-				  AND country = :country
-				  AND league = :league
 				  AND initial_flg = '0'
 				""";
 
 		Map<String, Object> params = Map.of(
-				"masterName", master_name,
-				"country", country,
-				"league", league);
+				"masterName", master_name);
 
 		return masterJdbcTemplate.query(
 				sql,
