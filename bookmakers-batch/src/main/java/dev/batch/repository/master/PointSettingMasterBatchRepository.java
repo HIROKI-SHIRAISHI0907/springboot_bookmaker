@@ -2,6 +2,7 @@ package dev.batch.repository.master;
 
 import java.util.List;
 
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -75,5 +76,15 @@ public interface PointSettingMasterBatchRepository {
 			)
 			""")
 	int insert(PointSettingEntity entity);
+
+	@Delete("""
+			    DELETE FROM
+			    	point_setting_master
+			    WHERE
+			        country = #{country} AND
+			        league = #{league};
+			""")
+	int delete(@Param("country") String country,
+			@Param("league") String league);
 
 }

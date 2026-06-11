@@ -10,6 +10,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.batch.repository.bm.BookDataRepository;
 import dev.batch.repository.master.CountryLeagueMasterBatchRepository;
 import dev.batch.repository.master.InitialMasterCsvRepository;
+import dev.batch.repository.master.PointSettingMasterBatchRepository;
 import dev.common.constant.MasterNameConstant;
 import dev.common.constant.MessageCdConst;
 import dev.common.logger.ManageLoggerComponent;
@@ -37,6 +38,10 @@ public class EachTableTransaction {
 	/** CountryLeagueMasterBatchRepository */
 	@Autowired
 	private CountryLeagueMasterBatchRepository countryLeagueMasterBatchRepository;
+
+	/** PointSettingMasterBatchRepository */
+	@Autowired
+	private PointSettingMasterBatchRepository pointSettingMasterBatchRepository;
 
 	/** BookDataRepository */
 	@Autowired
@@ -103,6 +108,29 @@ public class EachTableTransaction {
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 					"country_league_master_delete_sum=" + delCLResultSum);
 		}
+
+		for (String countryLeague : dto.getCountryLeague()) {
+			String[] pair = splitCountryLeague(countryLeague);
+			String country = pair[0];
+			String league = pair[1];
+
+			// point_setting_master
+			int delPTResultSum = 0;
+			try {
+				int delPTResult = pointSettingMasterBatchRepository.delete(country, league);
+				delPTResultSum += delPTResult;
+			} catch (Exception e) {
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e);
+				throw e;
+			}
+
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					"point_setting_master_delete_sum=" + delPTResultSum);
+		}
+
 
 		for (String countryLeague : dto.getCountryLeague()) {
 			String[] pair = splitCountryLeague(countryLeague);
