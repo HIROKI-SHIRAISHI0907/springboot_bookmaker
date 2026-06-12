@@ -5,7 +5,7 @@ package dev.batch.interf;
  * @author shiraishitoshio
  *
  */
-public interface jobExecControlIF {
+public interface JobExecControlIF {
 
 	/**
 	 * ジョブ実行開始

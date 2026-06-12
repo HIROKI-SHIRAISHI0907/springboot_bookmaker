@@ -6,7 +6,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 
 import dev.batch.interf.BatchIF;
-import dev.batch.interf.jobExecControlIF;
+import dev.batch.interf.JobExecControlIF;
 import dev.batch.util.JobIdUtil;
 import dev.common.constant.BatchConstant;
 import dev.common.logger.ManageLoggerComponent;
@@ -29,7 +29,7 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 
     @Autowired
     @Qualifier("batchJobExecControl")
-    protected jobExecControlIF jobExecControl;
+    protected JobExecControlIF jobExecControl;
 
     @Autowired
     protected BatchExecutionHistoryService executionHistoryService;

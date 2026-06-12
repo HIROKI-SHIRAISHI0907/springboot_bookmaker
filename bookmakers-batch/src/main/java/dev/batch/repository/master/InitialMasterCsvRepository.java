@@ -1,9 +1,12 @@
 package dev.batch.repository.master;
 
+import java.util.List;
+
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
 
 import dev.common.entity.InitialReadingMasterCsvEntity;
 
@@ -44,5 +47,18 @@ public interface InitialMasterCsvRepository {
 	int delete(@Param("masterName") String master_name,
 			@Param("country") String country,
 			@Param("league") String league);
+
+	@Select("""
+			    SELECT
+			     	master_name AS masterName,
+				    country,
+				    league,
+				    initial_flg AS initialFlg
+			    FROM
+			     	initial_reading_csv_master
+			    WHERE
+			        master_name = #{masterName}
+			""")
+	List<InitialReadingMasterCsvEntity> select(@Param("masterName") String master_name);
 
 }

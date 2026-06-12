@@ -29,7 +29,7 @@ import dev.batch.bm_b003.CountryLeagueSeasonDBPart;
 import dev.batch.bm_b004.CountryLeagueDBPart;
 import dev.batch.builder.ProcessRunner;
 import dev.batch.constant.PythonConstant;
-import dev.batch.interf.jobExecControlIF;
+import dev.batch.interf.JobExecControlIF;
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
 import dev.common.config.PathConfig;
 import dev.common.constant.BatchConstant;
@@ -131,7 +131,7 @@ public class B001AsyncMasterPythonWorker {
 	/** ジョブ実行管理IF */
 	@Autowired
 	@Qualifier("batchJobExecControl")
-	private jobExecControlIF jobExecControl;
+	private JobExecControlIF jobExecControl;
 
 	/**
 	 * バッチ処理を実行する。

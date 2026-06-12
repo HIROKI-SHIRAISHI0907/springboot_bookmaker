@@ -11,7 +11,7 @@ import org.mockito.Mock;
 import org.mockito.MockedStatic;
 import org.mockito.junit.jupiter.MockitoExtension;
 
-import dev.batch.interf.jobExecControlIF;
+import dev.batch.interf.JobExecControlIF;
 import dev.batch.util.JobIdUtil;
 import dev.common.constant.BatchConstant;
 import dev.common.logger.ManageLoggerComponent;
@@ -23,7 +23,7 @@ class UpdateTimesCountryLeagueMasterBatchUTTest {
     ManageLoggerComponent manageLoggerComponent;
 
     @Mock
-    jobExecControlIF jobExecControl;
+    JobExecControlIF jobExecControl;
 
     @Mock
     B001AsyncMasterPythonWorker asyncWorker;
