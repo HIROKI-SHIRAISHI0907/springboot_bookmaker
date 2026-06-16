@@ -18,4 +18,7 @@ public class InitialReadingMasterCsvResponse {
 	/** countryLeagueMasterEntityList */
 	private List<CountryLeagueMasterEntity> countryLeagueMasterEntityList;
 
+	/** メッセージ */
+	private String message;
+
 }

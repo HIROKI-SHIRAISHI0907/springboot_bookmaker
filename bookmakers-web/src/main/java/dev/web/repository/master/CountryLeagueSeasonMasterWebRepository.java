@@ -27,7 +27,7 @@ public class CountryLeagueSeasonMasterWebRepository {
 
 	// ---- 全件 ----
 	public List<CountryLeagueSeasonDTO> findAll() {
-		String sql = """
+		StringBuilder sql = new StringBuilder("""
 				    SELECT
 				      id,
 				      country,
@@ -36,10 +36,15 @@ public class CountryLeagueSeasonMasterWebRepository {
 				      path,
 				      del_flg
 				    FROM country_league_season_master
+				    WHERE
+				      del_flg = :delFlg
 				    ORDER BY country, league, season_year
-				""";
+				""");
 
-		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {
+		MapSqlParameterSource params = new MapSqlParameterSource();
+		params.addValue("delFlg", "0");
+
+		return masterJdbcTemplate.query(sql.toString(), params, (rs, n) -> {
 			CountryLeagueSeasonDTO dto = new CountryLeagueSeasonDTO();
 			dto.setCountry(rs.getString("country"));
 			dto.setLeague(rs.getString("league"));

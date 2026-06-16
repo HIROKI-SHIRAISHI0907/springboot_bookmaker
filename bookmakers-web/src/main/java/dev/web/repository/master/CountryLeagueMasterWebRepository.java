@@ -29,7 +29,7 @@ public class CountryLeagueMasterWebRepository {
 	// 全件: GET /api/country-league-master
 	// --------------------------------------------------------
 	public List<CountryLeagueDTO> findAll() {
-		String sql = """
+		StringBuilder sql = new StringBuilder("""
 				    SELECT
 				      id,
 				      country,
@@ -38,10 +38,15 @@ public class CountryLeagueMasterWebRepository {
 				      link,
 				      del_flg
 				    FROM country_league_master
+				    WHERE
+				      del_flg = :delFlg
 				    ORDER BY country, league, team
-				""";
+				""");
 
-		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {
+		MapSqlParameterSource params = new MapSqlParameterSource();
+		params.addValue("delFlg", "0");
+
+		return masterJdbcTemplate.query(sql.toString(), params, (rs, n) -> {
 			CountryLeagueDTO dto = new CountryLeagueDTO();
 			dto.setId(rs.getString("id"));
 			dto.setCountry(rs.getString("country"));

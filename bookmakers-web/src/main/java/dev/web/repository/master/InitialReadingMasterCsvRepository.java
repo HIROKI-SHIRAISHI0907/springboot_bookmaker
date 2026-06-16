@@ -10,7 +10,6 @@ import org.springframework.stereotype.Repository;
 
 import dev.common.entity.InitialReadingMasterCsvEntity;
 
-
 /**
  * initial_reading_csv_master 操作用リポジトリ
  *
@@ -47,9 +46,9 @@ public class InitialReadingMasterCsvRepository {
 				  :league,
 				  :initialFlg,
 				  'SYSTEM',
-				  NOW(),
+				  CURRENT_TIMESTAMP,
 				  'SYSTEM',
-				  NOW()
+				  CURRENT_TIMESTAMP
 				)
 				""";
 
@@ -65,7 +64,7 @@ public class InitialReadingMasterCsvRepository {
 	/**
 	 * 同一 business key の既存データ取得
 	 */
-	public List<InitialReadingMasterCsvEntity> findData(String master_name) {
+	public List<InitialReadingMasterCsvEntity> findData(String masterName) {
 
 		String sql = """
 				SELECT
@@ -80,7 +79,7 @@ public class InitialReadingMasterCsvRepository {
 				""";
 
 		Map<String, Object> params = Map.of(
-				"masterName", master_name);
+				"masterName", masterName);
 
 		return masterJdbcTemplate.query(
 				sql,
@@ -97,26 +96,26 @@ public class InitialReadingMasterCsvRepository {
 	}
 
 	/**
-	 * 更新
+	 * initial_flg を 1 に更新
 	 */
-	public int update(InitialReadingMasterCsvEntity entity) {
+	public int updateInitialFlg(String masterName, String country, String league) {
 
 		String sql = """
 				UPDATE initial_reading_csv_master
-				SET initial_flg     = '1',
+				SET initial_flg = '1',
 				    update_id   = 'SYSTEM',
-				    update_time = NOW()
+				    update_time = CURRENT_TIMESTAMP
 				WHERE master_name = :masterName
 				  AND country = :country
 				  AND league = :league
+				  AND initial_flg = '0'
 				""";
 
 		Map<String, Object> params = new HashMap<>();
-		params.put("master_name", entity.getMasterName());
-		params.put("country", entity.getCountry());
-		params.put("league", entity.getLeague());
+		params.put("masterName", masterName);
+		params.put("country", country);
+		params.put("league", league);
 
 		return masterJdbcTemplate.update(sql, params);
 	}
-
 }
