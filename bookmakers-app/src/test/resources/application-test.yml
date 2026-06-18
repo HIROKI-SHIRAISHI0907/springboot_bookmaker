@@ -20,6 +20,7 @@ process:
       future: ${S3_FUTURE:aws-s3-future-csv}
       stats: ${S3_STATS:aws-s3-stat-csv}
       allLeague: ${S3_ALL_LEAGUE:aws-s3-all-league-csv}
+      noEcs: ${S3_NO_ECS:aws-s3-no-ecs-task-time-csv}
 
 spring:
   datasource:
