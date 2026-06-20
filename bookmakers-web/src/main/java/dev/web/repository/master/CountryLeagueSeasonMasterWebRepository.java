@@ -106,6 +106,7 @@ public class CountryLeagueSeasonMasterWebRepository {
 
 		return masterJdbcTemplate.query(sql.toString(), params, (rs, n) -> {
 			CountryLeagueSeasonDTO dto = new CountryLeagueSeasonDTO();
+			dto.setId(rs.getString("id"));
 			dto.setCountry(rs.getString("country"));
 			dto.setLeague(rs.getString("league"));
 			dto.setStartSeasonDate(rs.getString("start_season_date"));
@@ -267,6 +268,18 @@ public class CountryLeagueSeasonMasterWebRepository {
 
 		List<String> list = masterJdbcTemplate.queryForList(sql, params, String.class);
 	    return list.isEmpty() ? null : list.get(0);
+	}
+
+	/** 削除 */
+	public int deleteRow(Integer id) {
+		String sql = """
+				    DELETE FROM country_league_season_master
+				    WHERE id = :id
+				""";
+
+		return masterJdbcTemplate.update(
+				sql,
+				new MapSqlParameterSource().addValue("id", id));
 	}
 
 	private boolean hasText(String s) {

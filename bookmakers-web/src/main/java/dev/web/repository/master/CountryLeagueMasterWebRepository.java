@@ -281,4 +281,22 @@ public class CountryLeagueMasterWebRepository {
 						.addValue("del_flg", del_flg));
 	}
 
+	/** 削除 */
+	public int deleteRow(String country, String league, String team) {
+	    String sql = """
+	        DELETE FROM country_league_master
+	        WHERE
+	          country = :country AND
+	          league = :league AND
+	          team = :team
+	    """;
+
+	    return masterJdbcTemplate.update(sql,
+	        new MapSqlParameterSource()
+	            .addValue("country", country)
+	            .addValue("league", league)
+	            .addValue("team", team)
+	    );
+	}
+
 }

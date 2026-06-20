@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
+import dev.web.api.bm_a021.InitialReadingMasterCsvDeleteTargetRequest;
 import dev.web.api.bm_a021.InitialReadingMasterCsvResponse;
 import dev.web.api.bm_a021.InitialReadingMasterCsvService;
 import dev.web.api.bm_a021.InitialReadingMasterCsvUpdateRequest;
@@ -37,5 +38,14 @@ public class AdminInitialReadingMasterCsvController {
 	public InitialReadingMasterCsvUpdateResponse updateStatus(
 			@RequestBody InitialReadingMasterCsvUpdateRequest request) {
 		return this.initialReadingMasterCsvService.updateStatus(request);
+	}
+
+	/**
+	 * モーダルで確認した対象の initial_flg を一括で 1 に更新
+	 */
+	@PostMapping("/master/initial/csv/update-row")
+	public InitialReadingMasterCsvUpdateResponse updateRow(
+			@RequestBody InitialReadingMasterCsvDeleteTargetRequest request) {
+		return this.initialReadingMasterCsvService.updateRow(request);
 	}
 }

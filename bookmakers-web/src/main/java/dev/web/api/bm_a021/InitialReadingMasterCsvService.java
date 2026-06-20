@@ -42,8 +42,7 @@ public class InitialReadingMasterCsvService {
 	@Transactional(readOnly = true)
 	public InitialReadingMasterCsvResponse getStatus(String masterName) {
 
-		List<InitialReadingMasterCsvEntity> list =
-				this.initialReadingMasterCsvRepository.findData(masterName);
+		List<InitialReadingMasterCsvEntity> list = this.initialReadingMasterCsvRepository.findData(masterName);
 
 		InitialReadingMasterCsvResponse response = new InitialReadingMasterCsvResponse();
 		setViewData(response, masterName, list);
@@ -113,6 +112,77 @@ public class InitialReadingMasterCsvService {
 	}
 
 	/**
+	 * モーダルで確認した対象の レコード を一括更新（不要分を削除）
+	 */
+	@Transactional
+	public InitialReadingMasterCsvUpdateResponse updateRow(
+			InitialReadingMasterCsvDeleteTargetRequest request) {
+
+		InitialReadingMasterCsvUpdateResponse response = new InitialReadingMasterCsvUpdateResponse();
+
+		if (request.getMasterName() == null) {
+			response.setMessage("マスタ名がありません。");
+			response.setUpdateCount(0);
+			return response;
+		}
+
+		if ((request.getMasterEntities() == null || request.getMasterEntities().isEmpty())
+				&& (request.getSeasonMasterEntities() == null || request.getSeasonMasterEntities().isEmpty())) {
+			response.setMessage("更新対象がありません。");
+			response.setUpdateCount(0);
+			return response;
+		}
+
+		int updateCount = 0;
+		if (MasterNameConstant.COUNTRY_LEAGUE_SEASON_MASTER.equals(request.getMasterName())) {
+			for (CountryLeagueSeasonMasterEntity target : request.getSeasonMasterEntities()) {
+				if (target == null) {
+					continue;
+				}
+
+				String country = target.getCountry();
+				String league = target.getLeague();
+
+				if (country == null || country.isBlank() || league == null || league.isBlank()) {
+					continue;
+				}
+
+				int result = this.countryLeagueSeasonMasterWebRepository.deleteRow(
+						Integer.parseInt(target.getId()));
+				updateCount += result;
+			}
+		}
+
+		if (MasterNameConstant.COUNTRY_LEAGUE_MASTER.equals(request.getMasterName())) {
+			for (CountryLeagueMasterEntity target : request.getMasterEntities()) {
+				if (target == null) {
+					continue;
+				}
+
+				String country = target.getCountry();
+				String league = target.getLeague();
+
+				if (country == null || country.isBlank() || league == null || league.isBlank()) {
+					continue;
+				}
+
+				int result = this.countryLeagueMasterWebRepository.deleteRow(
+						target.getCountry(),
+						target.getLeague(),
+						target.getTeam());
+				updateCount += result;
+			}
+		}
+
+		List<InitialReadingMasterCsvUpdateTargetRequest> updatedTargets = new ArrayList<>();
+		response.setUpdateCount(updateCount);
+		response.setUpdatedTargets(updatedTargets);
+		response.setMessage(updateCount == 0 ? "処理失敗しました。" : "処理成功しました。");
+
+		return response;
+	}
+
+	/**
 	 * テーブル名によっての設定
 	 */
 	private void setViewData(
@@ -120,6 +190,8 @@ public class InitialReadingMasterCsvService {
 			String masterName,
 			List<InitialReadingMasterCsvEntity> list) {
 
+		List<CountryLeagueSeasonMasterEntity> seasonLists = new ArrayList<CountryLeagueSeasonMasterEntity>();
+		List<CountryLeagueMasterEntity> masterLists = new ArrayList<CountryLeagueMasterEntity>();
 		for (InitialReadingMasterCsvEntity entity : list) {
 			switch (masterName) {
 			case MasterNameConstant.COUNTRY_LEAGUE_SEASON_MASTER: {
@@ -128,15 +200,12 @@ public class InitialReadingMasterCsvService {
 				searchCondition.setLeague(entity.getLeague());
 				searchCondition.setDelFlg("0");
 
-				List<CountryLeagueSeasonDTO> seasonDTOs =
-						this.countryLeagueSeasonMasterWebRepository.search(searchCondition);
-
-				List<CountryLeagueSeasonMasterEntity> lists =
-						new ArrayList<CountryLeagueSeasonMasterEntity>();
+				List<CountryLeagueSeasonDTO> seasonDTOs = this.countryLeagueSeasonMasterWebRepository
+						.search(searchCondition);
 
 				for (CountryLeagueSeasonDTO dto : seasonDTOs) {
-					CountryLeagueSeasonMasterEntity seasonMasterEntity =
-							new CountryLeagueSeasonMasterEntity();
+					CountryLeagueSeasonMasterEntity seasonMasterEntity = new CountryLeagueSeasonMasterEntity();
+					seasonMasterEntity.setId(dto.getId());
 					seasonMasterEntity.setCountry(dto.getCountry());
 					seasonMasterEntity.setLeague(dto.getLeague());
 					seasonMasterEntity.setStartSeasonDate(dto.getStartSeasonDate());
@@ -145,11 +214,8 @@ public class InitialReadingMasterCsvService {
 					seasonMasterEntity.setRound(dto.getRound());
 					seasonMasterEntity.setIcon(dto.getIcon());
 					seasonMasterEntity.setPath(dto.getPath());
-					lists.add(seasonMasterEntity);
+					seasonLists.add(seasonMasterEntity);
 				}
-
-				response.setCountryLeagueSeasonMasterEntityList(lists);
-				response.setMasterName(MasterNameConstant.COUNTRY_LEAGUE_SEASON_MASTER);
 				break;
 			}
 			case MasterNameConstant.COUNTRY_LEAGUE_MASTER: {
@@ -158,29 +224,25 @@ public class InitialReadingMasterCsvService {
 				searchCondition.setLeague(entity.getLeague());
 				searchCondition.setDelFlg("0");
 
-				List<CountryLeagueDTO> leagueDTOs =
-						this.countryLeagueMasterWebRepository.search(searchCondition);
-
-				List<CountryLeagueMasterEntity> lists =
-						new ArrayList<CountryLeagueMasterEntity>();
+				List<CountryLeagueDTO> leagueDTOs = this.countryLeagueMasterWebRepository.search(searchCondition);
 
 				for (CountryLeagueDTO dto : leagueDTOs) {
-					CountryLeagueMasterEntity masterEntity =
-							new CountryLeagueMasterEntity();
+					CountryLeagueMasterEntity masterEntity = new CountryLeagueMasterEntity();
 					masterEntity.setCountry(dto.getCountry());
 					masterEntity.setLeague(dto.getLeague());
 					masterEntity.setTeam(dto.getTeam());
 					masterEntity.setLink(dto.getLink());
-					lists.add(masterEntity);
+					masterLists.add(masterEntity);
 				}
-
-				response.setCountryLeagueMasterEntityList(lists);
-				response.setMasterName(MasterNameConstant.COUNTRY_LEAGUE_MASTER);
 				break;
 			}
 			default:
 				throw new IllegalArgumentException("Unexpected value: " + masterName);
 			}
 		}
+
+		response.setMasterName(masterName);
+		response.setCountryLeagueSeasonMasterEntityList(seasonLists);
+		response.setCountryLeagueMasterEntityList(masterLists);
 	}
 }
