@@ -32,6 +32,8 @@ public class CountryLeagueSeasonMasterWebRepository {
 				      id,
 				      country,
 				      league,
+				      start_season_date,
+				      end_season_date,
 				      season_year,
 				      path,
 				      del_flg
@@ -48,6 +50,8 @@ public class CountryLeagueSeasonMasterWebRepository {
 			CountryLeagueSeasonDTO dto = new CountryLeagueSeasonDTO();
 			dto.setCountry(rs.getString("country"));
 			dto.setLeague(rs.getString("league"));
+			dto.setStartSeasonDate(rs.getString("start_season_date"));
+			dto.setEndSeasonDate(rs.getString("end_season_date"));
 			dto.setSeasonYear(rs.getString("season_year"));
 			dto.setPath(rs.getString("path"));
 			dto.setDelFlg(rs.getString("del_flg"));
