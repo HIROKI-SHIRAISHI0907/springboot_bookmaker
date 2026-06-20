@@ -1,5 +1,10 @@
 package dev.web.repository.master;
 
+import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
+import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.List;
 import java.util.Map;
 
@@ -292,8 +297,8 @@ public class CountryLeagueSeasonMasterWebRepository {
 						.addValue("country", country)
 						.addValue("league", league)
 						.addValue("seasonYear", seasonYear)
-						.addValue("startSeasonDate", startSeasonDate)
-						.addValue("endSeasonDate", endSeasonDate)
+						.addValue("startSeasonDate", parseOffsetDateTime(startSeasonDate))
+						.addValue("endSeasonDate", parseOffsetDateTime(endSeasonDate))
 						.addValue("round", round));
 	}
 
@@ -307,6 +312,55 @@ public class CountryLeagueSeasonMasterWebRepository {
 		return masterJdbcTemplate.update(
 				sql,
 				new MapSqlParameterSource().addValue("id", id));
+	}
+
+	private OffsetDateTime parseOffsetDateTime(String value) {
+		if (value == null || value.isBlank()) {
+			return null;
+		}
+
+		String v = value.trim();
+
+		// 1. ISO形式: 2026-02-14T00:00:00+09:00
+		try {
+			return OffsetDateTime.parse(v);
+		} catch (DateTimeParseException ignored) {
+		}
+
+		// 2. "2026-02-14 00:00:00+09"
+		try {
+			return OffsetDateTime.parse(
+					v,
+					DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssX"));
+		} catch (DateTimeParseException ignored) {
+		}
+
+		// 3. "2026-02-14 00:00:00+0900"
+		try {
+			return OffsetDateTime.parse(
+					v,
+					DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXX"));
+		} catch (DateTimeParseException ignored) {
+		}
+
+		// 4. "2026-02-14 00:00:00+09:00"
+		try {
+			return OffsetDateTime.parse(
+					v,
+					DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX"));
+		} catch (DateTimeParseException ignored) {
+		}
+
+		// 5. タイムゾーンなし: 2026-02-14 00:00:00 → JST扱い
+		try {
+			LocalDateTime local = LocalDateTime.parse(
+					v,
+					DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+			return local.atOffset(ZoneOffset.ofHours(9));
+		} catch (DateTimeParseException ignored) {
+		}
+
+		throw new IllegalArgumentException("日時形式が不正です: " + value);
 	}
 
 	private boolean hasText(String s) {

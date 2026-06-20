@@ -42,7 +42,7 @@ public class AdminInitialReadingMasterCsvController {
 	}
 
 	/**
-	 * モーダルで確認した対象の initial_flg を一括で 1 に更新
+	 * モーダルで確認した対象の レコード を一括で削除
 	 */
 	@PostMapping("/master/initial/csv/delete-row")
 	public InitialReadingMasterCsvUpdateResponse deleteRow(
@@ -51,7 +51,7 @@ public class AdminInitialReadingMasterCsvController {
 	}
 
 	/**
-	 * モーダルで確認した対象の initial_flg を一括で 1 に更新
+	 * モーダルで確認した対象の レコード を一括で更新
 	 */
 	@PostMapping("/master/initial/csv/update-row")
 	public InitialReadingMasterCsvUpdateResponse updateRow(
