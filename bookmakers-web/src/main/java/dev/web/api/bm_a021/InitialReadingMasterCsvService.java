@@ -72,8 +72,8 @@ public class InitialReadingMasterCsvService {
 		}
 
 		// country + league で重複除去
-		Map<String, InitialReadingMasterCsvUpdateTargetRequest> uniqueTargetMap = new LinkedHashMap<>();
-		for (InitialReadingMasterCsvUpdateTargetRequest target : request.getTargets()) {
+		Map<String, InitialReadingMasterCsvUpdateStatusTargetRequest> uniqueTargetMap = new LinkedHashMap<>();
+		for (InitialReadingMasterCsvUpdateStatusTargetRequest target : request.getTargets()) {
 			if (target == null) {
 				continue;
 			}
@@ -90,9 +90,9 @@ public class InitialReadingMasterCsvService {
 		}
 
 		int updateCount = 0;
-		List<InitialReadingMasterCsvUpdateTargetRequest> updatedTargets = new ArrayList<>();
+		List<InitialReadingMasterCsvUpdateStatusTargetRequest> updatedTargets = new ArrayList<>();
 
-		for (InitialReadingMasterCsvUpdateTargetRequest target : uniqueTargetMap.values()) {
+		for (InitialReadingMasterCsvUpdateStatusTargetRequest target : uniqueTargetMap.values()) {
 			int result = this.initialReadingMasterCsvRepository.updateInitialFlg(
 					request.getMasterName(),
 					target.getCountry(),
@@ -116,6 +116,81 @@ public class InitialReadingMasterCsvService {
 	 */
 	@Transactional
 	public InitialReadingMasterCsvUpdateResponse updateRow(
+			InitialReadingMasterCsvUpdateTargetRequest request) {
+
+		InitialReadingMasterCsvUpdateResponse response = new InitialReadingMasterCsvUpdateResponse();
+
+		if (request.getMasterName() == null) {
+			response.setMessage("マスタ名がありません。");
+			response.setUpdateCount(0);
+			return response;
+		}
+
+		if ((request.getMasterEntities() == null || request.getMasterEntities().isEmpty())
+				&& (request.getSeasonMasterEntities() == null || request.getSeasonMasterEntities().isEmpty())) {
+			response.setMessage("更新対象がありません。");
+			response.setUpdateCount(0);
+			return response;
+		}
+
+		int updateCount = 0;
+		if (MasterNameConstant.COUNTRY_LEAGUE_SEASON_MASTER.equals(request.getMasterName())) {
+			for (CountryLeagueSeasonMasterEntity target : request.getSeasonMasterEntities()) {
+				if (target == null) {
+					continue;
+				}
+
+				String country = target.getCountry();
+				String league = target.getLeague();
+
+				if (country == null || country.isBlank() || league == null || league.isBlank()) {
+					continue;
+				}
+
+				int result = this.countryLeagueSeasonMasterWebRepository.updateRow(
+						Integer.parseInt(target.getId()), target.getCountry(), target.getLeague(),
+						target.getSeasonYear(), target.getStartSeasonDate(), target.getEndSeasonDate(),
+						target.getRound());
+				updateCount += result;
+			}
+		}
+
+		if (MasterNameConstant.COUNTRY_LEAGUE_MASTER.equals(request.getMasterName())) {
+			for (CountryLeagueMasterEntity target : request.getMasterEntities()) {
+				if (target == null) {
+					continue;
+				}
+
+				String country = target.getCountry();
+				String league = target.getLeague();
+
+				if (country == null || country.isBlank() || league == null || league.isBlank()) {
+					continue;
+				}
+
+				int result = this.countryLeagueMasterWebRepository.updateRow(
+						Integer.parseInt(target.getId()),
+						target.getCountry(),
+						target.getLeague(),
+						target.getTeam());
+				updateCount += result;
+			}
+		}
+
+		List<InitialReadingMasterCsvUpdateStatusTargetRequest> updatedTargets = new ArrayList<>();
+		response.setUpdateCount(updateCount);
+		response.setUpdatedTargets(updatedTargets);
+		response.setMessage(updateCount == 0 ? "処理失敗しました。" : "処理成功しました。");
+
+		return response;
+	}
+
+
+	/**
+	 * モーダルで確認した対象の レコード を一括更新（不要分を削除）
+	 */
+	@Transactional
+	public InitialReadingMasterCsvUpdateResponse deleteRow(
 			InitialReadingMasterCsvDeleteTargetRequest request) {
 
 		InitialReadingMasterCsvUpdateResponse response = new InitialReadingMasterCsvUpdateResponse();
@@ -174,7 +249,7 @@ public class InitialReadingMasterCsvService {
 			}
 		}
 
-		List<InitialReadingMasterCsvUpdateTargetRequest> updatedTargets = new ArrayList<>();
+		List<InitialReadingMasterCsvUpdateStatusTargetRequest> updatedTargets = new ArrayList<>();
 		response.setUpdateCount(updateCount);
 		response.setUpdatedTargets(updatedTargets);
 		response.setMessage(updateCount == 0 ? "処理失敗しました。" : "処理成功しました。");

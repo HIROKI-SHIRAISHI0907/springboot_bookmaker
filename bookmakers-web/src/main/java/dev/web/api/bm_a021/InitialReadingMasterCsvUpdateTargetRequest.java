@@ -1,14 +1,21 @@
 package dev.web.api.bm_a021;
 
+import java.util.List;
+
+import dev.common.entity.CountryLeagueMasterEntity;
+import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import lombok.Data;
 
 @Data
 public class InitialReadingMasterCsvUpdateTargetRequest {
 
-	/** 国 */
-	private String country;
+	/** マスタ名 */
+	private String masterName;
 
-	/** リーグ */
-	private String league;
+	/** CountryLeagueSeasonMasterEntity */
+	private List<CountryLeagueSeasonMasterEntity> seasonMasterEntities;
+
+	/** CountryLeagueSeasonMasterEntity */
+	private List<CountryLeagueMasterEntity> masterEntities;
 
 }

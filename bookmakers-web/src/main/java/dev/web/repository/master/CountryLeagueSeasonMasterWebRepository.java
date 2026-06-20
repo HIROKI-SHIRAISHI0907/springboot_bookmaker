@@ -270,6 +270,33 @@ public class CountryLeagueSeasonMasterWebRepository {
 	    return list.isEmpty() ? null : list.get(0);
 	}
 
+	/** 更新 */
+	public int updateRow(Integer id, String country, String league,
+			String seasonYear, String startSeasonDate, String endSeasonDate,
+			String round) {
+		String sql = """
+				    UPDATE country_league_season_master
+				    SET
+				      country = :country,
+				      league = :league,
+				      season_year = :seasonYear,
+				      start_season_date = :startSeasonDate,
+				      end_season_date = :endSeasonDate,
+				      round = :round
+				    WHERE id = :id
+				""";
+
+		return masterJdbcTemplate.update(sql,
+				new MapSqlParameterSource()
+						.addValue("id", id)
+						.addValue("country", country)
+						.addValue("league", league)
+						.addValue("seasonYear", seasonYear)
+						.addValue("startSeasonDate", startSeasonDate)
+						.addValue("endSeasonDate", endSeasonDate)
+						.addValue("round", round));
+	}
+
 	/** 削除 */
 	public int deleteRow(Integer id) {
 		String sql = """

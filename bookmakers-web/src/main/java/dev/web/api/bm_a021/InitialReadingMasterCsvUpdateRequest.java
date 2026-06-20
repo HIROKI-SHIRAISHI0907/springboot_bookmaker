@@ -11,6 +11,6 @@ public class InitialReadingMasterCsvUpdateRequest {
 	private String masterName;
 
 	/** 更新対象一覧 */
-	private List<InitialReadingMasterCsvUpdateTargetRequest> targets;
+	private List<InitialReadingMasterCsvUpdateStatusTargetRequest> targets;
 
 }

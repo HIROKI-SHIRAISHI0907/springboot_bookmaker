@@ -12,6 +12,7 @@ import dev.web.api.bm_a021.InitialReadingMasterCsvResponse;
 import dev.web.api.bm_a021.InitialReadingMasterCsvService;
 import dev.web.api.bm_a021.InitialReadingMasterCsvUpdateRequest;
 import dev.web.api.bm_a021.InitialReadingMasterCsvUpdateResponse;
+import dev.web.api.bm_a021.InitialReadingMasterCsvUpdateTargetRequest;
 
 /**
  * マスタ登録CSV初回読み込み確認API
@@ -43,9 +44,18 @@ public class AdminInitialReadingMasterCsvController {
 	/**
 	 * モーダルで確認した対象の initial_flg を一括で 1 に更新
 	 */
+	@PostMapping("/master/initial/csv/delete-row")
+	public InitialReadingMasterCsvUpdateResponse deleteRow(
+			@RequestBody InitialReadingMasterCsvDeleteTargetRequest request) {
+		return this.initialReadingMasterCsvService.deleteRow(request);
+	}
+
+	/**
+	 * モーダルで確認した対象の initial_flg を一括で 1 に更新
+	 */
 	@PostMapping("/master/initial/csv/update-row")
 	public InitialReadingMasterCsvUpdateResponse updateRow(
-			@RequestBody InitialReadingMasterCsvDeleteTargetRequest request) {
+			@RequestBody InitialReadingMasterCsvUpdateTargetRequest request) {
 		return this.initialReadingMasterCsvService.updateRow(request);
 	}
 }

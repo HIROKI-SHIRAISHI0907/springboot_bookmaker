@@ -14,5 +14,5 @@ public class InitialReadingMasterCsvUpdateResponse {
 	private int updateCount;
 
 	/** 更新対象 */
-	private List<InitialReadingMasterCsvUpdateTargetRequest> updatedTargets;
+	private List<InitialReadingMasterCsvUpdateStatusTargetRequest> updatedTargets;
 }
