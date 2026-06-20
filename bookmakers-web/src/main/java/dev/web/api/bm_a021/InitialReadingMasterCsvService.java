@@ -112,7 +112,7 @@ public class InitialReadingMasterCsvService {
 	}
 
 	/**
-	 * モーダルで確認した対象の レコード を一括更新（不要分を削除）
+	 * モーダルで確認した対象の レコード を一括更新
 	 */
 	@Transactional
 	public InitialReadingMasterCsvUpdateResponse updateRow(
