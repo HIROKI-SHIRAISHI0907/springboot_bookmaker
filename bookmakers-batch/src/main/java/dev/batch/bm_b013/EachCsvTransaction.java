@@ -761,34 +761,46 @@ public class EachCsvTransaction {
                     + ", parent=" + parent
                     + ", parentExists=" + parentExists);
 
+            boolean localDeleteOk = false;
+            boolean s3DeleteOk = false;
+
             try {
+                // 1. ローカル削除は存在すれば削除、無ければ警告だけ
                 boolean deletedLocal = Files.deleteIfExists(localPath);
 
-                if (!deletedLocal) {
+                if (deletedLocal) {
+                    localDeleteOk = true;
+                    logInfo(METHOD_NAME, "ローカルCSV削除 csvId=" + csvId
+                            + ", physicalCsvId=" + physicalCsvId
+                            + ", path=" + localPath
+                            + ", deleted=" + deletedLocal);
+                } else {
                     logWarn(METHOD_NAME, "ローカルCSV未削除(ファイル不存在) csvId=" + csvId
                             + ", physicalCsvId=" + physicalCsvId
                             + ", path=" + localPath);
-                    result.failedCsvIds.add(csvId);
-                    continue;
                 }
 
-                logInfo(METHOD_NAME, "ローカルCSV削除 csvId=" + csvId
-                        + ", physicalCsvId=" + physicalCsvId
-                        + ", path=" + localPath
-                        + ", deleted=" + deletedLocal);
-
+                // 2. S3削除はローカルの成否に関係なく必ず試す
                 if (!localOnly) {
                     String s3Key = normalizeS3Key(joinS3Key(prefix, physicalCsvId));
                     s3Operator.delete(bucket, s3Key);
+                    s3DeleteOk = true;
 
                     logInfo(METHOD_NAME, "S3 CSV削除 csvId=" + csvId
                             + ", physicalCsvId=" + physicalCsvId
                             + ", bucket=" + bucket
                             + ", key=" + s3Key);
+                } else {
+                    s3DeleteOk = true; // localOnly=trueならS3対象外として成功扱い
                 }
 
-                result.deletedCsvIds.add(csvId);
-                result.deletedPhysicalCsvIds.add(physicalCsvId);
+                // 3. S3削除できたら成功扱い
+                if (s3DeleteOk) {
+                    result.deletedCsvIds.add(csvId);
+                    result.deletedPhysicalCsvIds.add(physicalCsvId);
+                } else {
+                    result.failedCsvIds.add(csvId);
+                }
 
             } catch (Exception e) {
                 result.failedCsvIds.add(csvId);
