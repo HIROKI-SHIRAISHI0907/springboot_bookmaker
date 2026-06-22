@@ -114,6 +114,19 @@ public class EachCsvTransaction {
 			return;
 		}
 
+		Set<String> dataCagorySet = new LinkedHashSet<>();
+		for (CsvDetailManageEntity entity : targets) {
+			if (entity == null) {
+				continue;
+			}
+			String dataCategory = safe(entity.getDataCategory()).trim();
+			if (!dataCategory.isEmpty()) {
+				dataCagorySet.add(dataCategory);
+			}
+		}
+
+		List<String> dataCategories = new ArrayList<>(dataCagorySet);
+
 		// 3) csv_id 一覧化
 		Set<String> csvIdSet = new LinkedHashSet<>();
 		for (CsvDetailManageEntity entity : targets) {
@@ -198,11 +211,18 @@ public class EachCsvTransaction {
 			updateSeqList(deleteResult.deletedCsvIds, deleteSnapshot);
 		}
 
+		logInfo(METHOD_NAME, "csv_detail_manage 削除前=" + deleteResult.deletedCsvIds);
+
 		// 5) csv_detail_manage 更新（成功分のみ）
+		int deletedCategory = 0;
 		int deleted = this.csvDetailManageBatchRepository.deleteByCsvIds(
 				new ArrayList<>(deleteResult.deletedCsvIds));
+		if (!dataCategories.isEmpty()) {
+			deletedCategory = this.csvDetailManageBatchRepository.deleteByDataCategories(
+					new ArrayList<>(dataCategories));
+		}
 
-		logInfo(METHOD_NAME, "csv_detail_manage 削除件数=" + deleted);
+		logInfo(METHOD_NAME, "csv_detail_manage 削除件数=" + (deleted + deletedCategory));
 
 		// 6) failed 分だけ snapshot を残す
 		retainSnapshotForFailed(snapshotPath, deleteSnapshot, deleteResult.failedCsvIds);

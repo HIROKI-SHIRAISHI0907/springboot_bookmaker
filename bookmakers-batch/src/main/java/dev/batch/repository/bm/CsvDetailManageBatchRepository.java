@@ -40,7 +40,6 @@ public interface CsvDetailManageBatchRepository {
 
     /**
      * csv_id 指定で削除
-     * season_year が存在するデータのみ削除
      */
 	@Delete({
 	    "<script>",
@@ -52,6 +51,20 @@ public interface CsvDetailManageBatchRepository {
 	    "</script>"
 	})
 	int deleteByCsvIds(@Param("csvIds") List<String> csvIds);
+
+	/**
+     * data_category 指定で削除
+     */
+	@Delete({
+	    "<script>",
+	    "DELETE FROM csv_detail_manage",
+	    "WHERE data_category LIKE",
+	    "  <foreach collection='dataCategories' item='dataCategory' open='(' separator=',' close=')'>",
+	    "    CONCAT(#{dataCategory}, '%')",
+	    "  </foreach>",
+	    "</script>"
+	})
+	int deleteByDataCategories(@Param("dataCategories") List<String> dataCategories);
 
 	@Select({
 	    "<script>",
