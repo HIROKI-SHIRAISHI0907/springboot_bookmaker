@@ -761,15 +761,12 @@ public class EachCsvTransaction {
                     + ", parent=" + parent
                     + ", parentExists=" + parentExists);
 
-            boolean localDeleteOk = false;
             boolean s3DeleteOk = false;
 
             try {
-                // 1. ローカル削除は存在すれば削除、無ければ警告だけ
                 boolean deletedLocal = Files.deleteIfExists(localPath);
 
                 if (deletedLocal) {
-                    localDeleteOk = true;
                     logInfo(METHOD_NAME, "ローカルCSV削除 csvId=" + csvId
                             + ", physicalCsvId=" + physicalCsvId
                             + ", path=" + localPath
@@ -780,21 +777,26 @@ public class EachCsvTransaction {
                             + ", path=" + localPath);
                 }
 
-                // 2. S3削除はローカルの成否に関係なく必ず試す
                 if (!localOnly) {
-                    String s3Key = normalizeS3Key(joinS3Key(prefix, physicalCsvId));
+                    // S3 key は csvId を使う
+                    String s3Key = normalizeS3Key(joinS3Key(prefix, csvId));
+
+                    logInfo(METHOD_NAME, "S3削除実行 csvId=" + csvId
+                            + ", physicalCsvId=" + physicalCsvId
+                            + ", bucket=" + bucket
+                            + ", key=" + s3Key);
+
                     s3Operator.delete(bucket, s3Key);
                     s3DeleteOk = true;
 
-                    logInfo(METHOD_NAME, "S3 CSV削除 csvId=" + csvId
+                    logInfo(METHOD_NAME, "S3 CSV削除完了 csvId=" + csvId
                             + ", physicalCsvId=" + physicalCsvId
                             + ", bucket=" + bucket
                             + ", key=" + s3Key);
                 } else {
-                    s3DeleteOk = true; // localOnly=trueならS3対象外として成功扱い
+                    s3DeleteOk = true;
                 }
 
-                // 3. S3削除できたら成功扱い
                 if (s3DeleteOk) {
                     result.deletedCsvIds.add(csvId);
                     result.deletedPhysicalCsvIds.add(physicalCsvId);
