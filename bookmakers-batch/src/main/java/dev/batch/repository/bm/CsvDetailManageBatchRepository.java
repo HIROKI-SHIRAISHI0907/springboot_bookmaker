@@ -45,9 +45,7 @@ public interface CsvDetailManageBatchRepository {
 	@Delete({
 	    "<script>",
 	    "DELETE FROM csv_detail_manage",
-	    "WHERE season IS NOT NULL",
-	    "  AND TRIM(season) &lt;&gt; ''",
-	    "  AND csv_id IN",
+	    "WHERE csv_id IN",
 	    "  <foreach collection='csvIds' item='csvId' open='(' separator=',' close=')'>",
 	    "    #{csvId}",
 	    "  </foreach>",
