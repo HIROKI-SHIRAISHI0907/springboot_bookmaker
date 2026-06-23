@@ -102,11 +102,18 @@ public class EachCsvTransaction {
 			return;
 		}
 
+		List<String> folderCategories = buildCsvFolderCategories(dto);
+		if (folderCategories.isEmpty()) {
+			logInfo(METHOD_NAME, "削除対象の folderCategories folder prefix が空のため処理終了");
+			endLog(METHOD_NAME);
+			return;
+		}
+
 		logInfo(METHOD_NAME, "削除対象 csv_id prefixes=" + folderPrefixes);
 
 		// 2) csv_id prefix で削除対象 csv_detail_manage を取得
 		List<CsvDetailManageEntity> targets = this.csvDetailManageBatchRepository
-				.findDeleteTargetsByCsvIdPrefixes(folderPrefixes);
+				.findDeleteTargetsByCsvIdAnCategoryPrefixes(folderPrefixes, folderCategories);
 
 		if (targets == null || targets.isEmpty()) {
 			logInfo(METHOD_NAME, "削除対象の csv_detail_manage が存在しません");
@@ -750,6 +757,39 @@ public class EachCsvTransaction {
 		return prefixes.stream()
 				.distinct()
 				.collect(Collectors.toList());
+	}
+
+	/**
+	 * DTO の countryLeague から data_category 用 folder prefix を作成
+	 * 例: 日本-J1リーグ -> 日本: J1リーグ
+	 */
+	private List<String> buildCsvFolderCategories(TransactionDTO dto) {
+	    List<String> prefixes = new ArrayList<>();
+
+	    if (dto == null || dto.getCountryLeague() == null) {
+	        return prefixes;
+	    }
+
+	    for (String value : dto.getCountryLeague()) {
+	        if (value == null || value.isBlank()) {
+	            continue;
+	        }
+
+	        String trimmed = value.trim();
+	        int separatorIndex = trimmed.indexOf('-');
+
+	        if (separatorIndex >= 0) {
+	            String country = trimmed.substring(0, separatorIndex).trim();
+	            String league = trimmed.substring(separatorIndex + 1).trim();
+	            prefixes.add(country + ": " + league);
+	        } else {
+	            prefixes.add(trimmed);
+	        }
+	    }
+
+	    return prefixes.stream()
+	            .distinct()
+	            .collect(Collectors.toList());
 	}
 
 	/**

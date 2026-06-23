@@ -81,9 +81,14 @@ public interface CsvDetailManageBatchRepository {
 	    "    <foreach collection='prefixes' item='prefix' separator=' OR ' open='(' close=')'>",
 	    "        csv_id LIKE CONCAT(#{prefix}, '%')",
 	    "    </foreach>",
+	    " OR ",
+	    "    <foreach collection='categories' item='category' separator=' OR ' open='(' close=')'>",
+	    "        data_category LIKE CONCAT(#{category}, '%')",
+	    "    </foreach>",
 	    "</script>"
 	})
-	List<CsvDetailManageEntity> findDeleteTargetsByCsvIdPrefixes(@Param("prefixes") List<String> prefixes);
+	List<CsvDetailManageEntity> findDeleteTargetsByCsvIdAnCategoryPrefixes(
+			@Param("prefixes") List<String> prefixes, @Param("categories") List<String> categories);
 
 	@Select({
 	    "<script>",
