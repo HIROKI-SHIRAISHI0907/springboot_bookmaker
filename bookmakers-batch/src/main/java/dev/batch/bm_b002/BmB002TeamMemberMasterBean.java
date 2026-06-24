@@ -181,7 +181,6 @@ public class BmB002TeamMemberMasterBean {
     private TeamMemberMasterEntity copyOf(TeamMemberMasterEntity src) {
         TeamMemberMasterEntity e = new TeamMemberMasterEntity();
         e.setId(src.getId());
-        e.setFile(src.getFile());
         e.setCountry(src.getCountry());
         e.setLeague(src.getLeague());
         e.setTeam(src.getTeam());

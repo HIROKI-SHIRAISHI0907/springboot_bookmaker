@@ -16,7 +16,6 @@ public interface TeamMemberMasterBatchRepository {
 	@Select("""
 			SELECT
 			    id,
-			    file,
 			    country,
 			    league,
 			    team,
