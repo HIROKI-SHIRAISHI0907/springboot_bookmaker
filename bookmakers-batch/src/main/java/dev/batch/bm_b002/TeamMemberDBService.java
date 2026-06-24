@@ -185,4 +185,11 @@ public class TeamMemberDBService {
 	private String safe(String value) {
 		return value == null ? "" : value;
 	}
+
+	/**
+	 * null安全化
+	 */
+	private String safe(Integer value) {
+		return value == null ? "0" : String.valueOf(value);
+	}
 }

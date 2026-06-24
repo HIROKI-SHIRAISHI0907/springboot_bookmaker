@@ -13,7 +13,7 @@ import dev.common.entity.TeamMemberMasterEntity;
 public class BmB002TeamMemberMasterBean {
 
     /** id → Entity の作業マップ */
-    private final Map<String, TeamMemberMasterEntity> byId = new LinkedHashMap<>();
+    private final Map<Integer, TeamMemberMasterEntity> byId = new LinkedHashMap<>();
 
     /**
      * 完全一致キー: team + member + facePicPath
@@ -223,5 +223,9 @@ public class BmB002TeamMemberMasterBean {
 
     private static boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
+    }
+
+    private static boolean isBlank(Integer s) {
+        return s == null;
     }
 }

@@ -53,7 +53,7 @@ public class TeamMemberMasterStat {
         BmB002TeamMemberMasterBean bean = new BmB002TeamMemberMasterBean(existingList);
 
         // 今回 seen した既存 id の集合
-        Set<String> seenIds = new HashSet<>();
+        Set<Integer> seenIds = new HashSet<>();
 
         // 新規データの前処理（同一入力内の重複マージ）
         List<TeamMemberMasterEntity> incomingList = dedupIncoming(scrapedRows, runDate);
@@ -399,6 +399,10 @@ public class TeamMemberMasterStat {
 
     private boolean isBlank(String s) {
         return s == null || s.trim().isEmpty();
+    }
+
+    private boolean isBlank(Integer s) {
+        return s == null;
     }
 
     private boolean eq(String a, String b) {
