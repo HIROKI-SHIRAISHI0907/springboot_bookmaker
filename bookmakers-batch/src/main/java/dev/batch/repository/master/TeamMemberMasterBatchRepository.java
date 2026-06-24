@@ -22,11 +22,9 @@ public interface TeamMemberMasterBatchRepository {
 			") VALUES (",
 			"#{country}, #{league}, #{team}, #{score}, #{loanBelong}, #{jersey}, #{member}, #{facePicPath}, #{belongList}, #{height}, #{weight}, #{position}, #{birth}, #{age}, #{marketValue}, #{injury},",
 			"#{versusTeamScoreData}, #{retireFlg}, #{deadline}, #{deadlineContractDate}, #{latestInfoDate}, #{updStamp}, '0', ",
-			"    'SYSTEM', ",
-		    "    CURRENT_TIMESTAMP, ",
-		    "    'SYSTEM', ",
-		    "    CURRENT_TIMESTAMP)",
-			"ON CONFLICT (team, jersey, member, face_pic_path) DO NOTHING;"
+			"'SYSTEM', CURRENT_TIMESTAMP, 'SYSTEM', CURRENT_TIMESTAMP",
+			") ",
+			"ON CONFLICT (member) DO NOTHING"
 	})
 	int insert(TeamMemberMasterEntity entity);
 
@@ -34,7 +32,7 @@ public interface TeamMemberMasterBatchRepository {
 			"SELECT ",
 			"id, country, league, team, score, loan_belong, jersey, member, face_pic_path, belong_list, height, weight, position, birth, age, market_value, injury,",
 			"versus_team_score_data, retire_flg, deadline, deadline_contract_date, latest_info_date, upd_stamp, del_flg ",
-			"FROM team_member_master ORDER BY id;"
+			"FROM team_member_master ORDER BY id"
 	})
 	@Results(id = "TeamMemberMasterMap", value = {
 			@Result(column = "id", property = "id"),
@@ -88,19 +86,20 @@ public interface TeamMemberMasterBatchRepository {
 			"deadline_contract_date = #{deadlineContractDate},",
 			"latest_info_date = #{latestInfoDate},",
 			"upd_stamp = #{updStamp},",
-			"del_flg = '0'",
-			"WHERE id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER);"
+			"del_flg = '0',",
+			"update_id = 'SYSTEM',",
+			"update_time = CURRENT_TIMESTAMP",
+			"WHERE member = #{member}"
 	})
 	int update(TeamMemberMasterEntity entity);
 
 	@Select("""
-			    SELECT
-			        COUNT(*)
-			    FROM
-			        team_member_master
-			    WHERE
-			        member = #{member};
+			SELECT
+			    COUNT(*)
+			FROM
+			    team_member_master
+			WHERE
+			    member = #{member}
 			""")
 	int findDataCount(TeamMemberMasterEntity entity);
-
 }
