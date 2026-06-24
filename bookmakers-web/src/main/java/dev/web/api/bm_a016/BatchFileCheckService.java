@@ -26,12 +26,14 @@ public class BatchFileCheckService {
 	private static final String BUCKET_FUTURE = "aws-s3-future-csv";
 	private static final String BUCKET_STAT = "aws-s3-stat-csv";
 	private static final String BUCKET_OUTPUTS = "aws-s3-outputs-csv";
+	private static final String BUCKET_ALL_LEAGUE = "aws-s3-all-league-csv";
 
 	/** 共通キー */
 	private static final String JSON_B001_COUNTRY_LEAGUE = "json/b001_country_league.json";
 	private static final String FILE_DATA_TEAM_LIST = "data_team_list.txt";
 	private static final String FILE_SEQ_LIST = "seqList.txt";
 	private static final String FILE_SEASON_DATA = "season_data.csv";
+	private static final String FILE_ALL_LEAGUE_DATA = "all_league_master.csv";
 
 	@Autowired
 	private S3FileCountService s3FileCountService;
@@ -50,6 +52,7 @@ public class BatchFileCheckService {
 		tasks.add(buildB004());
 		tasks.add(buildB005());
 		tasks.add(buildB006());
+		tasks.add(buildB007());
 		tasks.add(buildB008());
 		tasks.add(buildB010());
 		tasks.add(buildB011());
@@ -168,6 +171,23 @@ public class BatchFileCheckService {
 		items.add(countItem("直ファイル数（data_team_list.txt / seqList.txt 除外後）", bucket, directFileCount, false, true));
 
 		return task("B006", ready, ready ? "準備OK" : "必須不足", items);
+	}
+
+	/**
+	 * B007
+	 * aws-s3-all-league-csv の all_league_master.csv が存在
+	 */
+	private BatchFileCheckTaskWrapper buildB007() {
+		String bucket = BUCKET_ALL_LEAGUE;
+
+		boolean seasonDataExists = exists(bucket, FILE_ALL_LEAGUE_DATA);
+
+		boolean ready = seasonDataExists;
+
+		List<BatchFileCheckItemWrapper> items = new ArrayList<>();
+		items.add(fileItem("all_league_master.csv", bucket, FILE_ALL_LEAGUE_DATA, seasonDataExists, true, "csv"));
+
+		return task("B007", ready, summary(ready), items);
 	}
 
 	/**
