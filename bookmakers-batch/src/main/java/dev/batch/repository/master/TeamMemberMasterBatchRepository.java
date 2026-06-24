@@ -4,8 +4,7 @@ import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Result;
-import org.apache.ibatis.annotations.Results;
+import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -14,92 +13,129 @@ import dev.common.entity.TeamMemberMasterEntity;
 @Mapper
 public interface TeamMemberMasterBatchRepository {
 
-	@Insert({
-			"INSERT INTO team_member_master (",
-			"country, league, team, score, loan_belong, jersey, member, face_pic_path, belong_list, height, weight, position, birth, age, market_value, injury,",
-			"versus_team_score_data, retire_flg, deadline, deadline_contract_date, latest_info_date, upd_stamp, del_flg, ",
-			"register_id, register_time, update_id, update_time",
-			") VALUES (",
-			"#{country}, #{league}, #{team}, #{score}, #{loanBelong}, #{jersey}, #{member}, #{facePicPath}, #{belongList}, #{height}, #{weight}, #{position}, #{birth}, #{age}, #{marketValue}, #{injury},",
-			"#{versusTeamScoreData}, #{retireFlg}, #{deadline}, #{deadlineContractDate}, #{latestInfoDate}, #{updStamp}, '0', ",
-			"'SYSTEM', CURRENT_TIMESTAMP, 'SYSTEM', CURRENT_TIMESTAMP",
-			") ",
-			"ON CONFLICT (member) DO NOTHING"
-	})
-	int insert(TeamMemberMasterEntity entity);
-
-	@Select({
-			"SELECT ",
-			"id, country, league, team, score, loan_belong, jersey, member, face_pic_path, belong_list, height, weight, position, birth, age, market_value, injury,",
-			"versus_team_score_data, retire_flg, deadline, deadline_contract_date, latest_info_date, upd_stamp, del_flg ",
-			"FROM team_member_master ORDER BY id"
-	})
-	@Results(id = "TeamMemberMasterMap", value = {
-			@Result(column = "id", property = "id"),
-			@Result(column = "country", property = "country"),
-			@Result(column = "league", property = "league"),
-			@Result(column = "team", property = "team"),
-			@Result(column = "score", property = "score"),
-			@Result(column = "loan_belong", property = "loanBelong"),
-			@Result(column = "jersey", property = "jersey"),
-			@Result(column = "member", property = "member"),
-			@Result(column = "face_pic_path", property = "facePicPath"),
-			@Result(column = "belong_list", property = "belongList"),
-			@Result(column = "height", property = "height"),
-			@Result(column = "weight", property = "weight"),
-			@Result(column = "position", property = "position"),
-			@Result(column = "birth", property = "birth"),
-			@Result(column = "age", property = "age"),
-			@Result(column = "market_value", property = "marketValue"),
-			@Result(column = "injury", property = "injury"),
-			@Result(column = "versus_team_score_data", property = "versusTeamScoreData"),
-			@Result(column = "retire_flg", property = "retireFlg"),
-			@Result(column = "deadline", property = "deadline"),
-			@Result(column = "deadline_contract_date", property = "deadlineContractDate"),
-			@Result(column = "latest_info_date", property = "latestInfoDate"),
-			@Result(column = "upd_stamp", property = "updStamp"),
-			@Result(column = "del_flg", property = "delFlg"),
-	})
-	List<TeamMemberMasterEntity> findData();
-
-	@Update({
-			"UPDATE team_member_master SET",
-			"country = #{country},",
-			"league = #{league},",
-			"team = #{team},",
-			"score = #{score},",
-			"loan_belong = #{loanBelong},",
-			"jersey = #{jersey},",
-			"member = #{member},",
-			"face_pic_path = #{facePicPath},",
-			"belong_list = #{belongList},",
-			"height = #{height},",
-			"weight = #{weight},",
-			"position = #{position},",
-			"birth = #{birth},",
-			"age = #{age},",
-			"market_value = #{marketValue},",
-			"injury = #{injury},",
-			"versus_team_score_data = #{versusTeamScoreData},",
-			"retire_flg = #{retireFlg},",
-			"deadline = #{deadline},",
-			"deadline_contract_date = #{deadlineContractDate},",
-			"latest_info_date = #{latestInfoDate},",
-			"upd_stamp = #{updStamp},",
-			"del_flg = '0',",
-			"update_id = 'SYSTEM',",
-			"update_time = CURRENT_TIMESTAMP",
-			"WHERE member = #{member}"
-	})
-	int update(TeamMemberMasterEntity entity);
-
 	@Select("""
 			SELECT
-			    COUNT(*)
-			FROM
-			    team_member_master
-			WHERE
-			    member = #{member}
+			    id,
+			    file,
+			    country,
+			    league,
+			    team,
+			    score,
+			    loan_belong         AS loanBelong,
+			    jersey,
+			    member,
+			    face_pic_path       AS facePicPath,
+			    belong_list         AS belongList,
+			    height,
+			    weight,
+			    position,
+			    birth,
+			    age,
+			    market_value        AS marketValue,
+			    injury,
+			    versus_team_score_data AS versusTeamScoreData,
+			    retire_flg          AS retireFlg,
+			    deadline,
+			    deadline_contract_date AS deadlineContractDate,
+			    latest_info_date    AS latestInfoDate,
+			    upd_stamp           AS updStamp,
+			    del_flg             AS delFlg,
+			    missing_count       AS missingCount
+			FROM team_member_master
+			WHERE del_flg = '0' OR del_flg IS NULL
 			""")
-	int findDataCount(TeamMemberMasterEntity entity);
+	List<TeamMemberMasterEntity> selectAll();
+
+	@Insert("""
+			INSERT INTO team_member_master (
+			         country,
+			         league,
+			         team,
+			         score,
+			         loan_belong,
+			         jersey,
+			         member,
+			         face_pic_path,
+			         belong_list,
+			         height,
+			         weight,
+			         position,
+			         birth,
+			         age,
+			         market_value,
+			         injury,
+			         versus_team_score_data,
+			         retire_flg,
+			         deadline,
+			         deadline_contract_date,
+			         latest_info_date,
+			         del_flg,
+			         missing_count,
+			    register_id,
+			    register_time,
+			    update_id,
+			    update_time
+			) VALUES (
+			         #{country},
+			         #{league},
+			         #{team},
+			         #{score},
+			         #{loanBelong},
+			         #{jersey},
+			         #{member},
+			         #{facePicPath},
+			         #{belongList},
+			         #{height},
+			         #{weight},
+			         #{position},
+			         #{birth},
+			         #{age},
+			         #{marketValue},
+			         #{injury},
+			         #{versusTeamScoreData},
+			         #{retireFlg},
+			         #{deadline},
+			         #{deadlineContractDate},
+			         #{latestInfoDate},
+			         #{delFlg},
+			         #{missingCount},
+			    'SYSTEM',
+			    CURRENT_TIMESTAMP,
+			    'SYSTEM',
+			    CURRENT_TIMESTAMP
+			)
+			""")
+	@Options(useGeneratedKeys = true, keyProperty = "id")
+	int insert(TeamMemberMasterEntity entity);
+
+	@Update("""
+			UPDATE team_member_master
+			   SET
+			       country                = #{country},
+			       league                 = #{league},
+			       team                   = #{team},
+			       score                  = #{score},
+			       loan_belong            = #{loanBelong},
+			       jersey                 = #{jersey},
+			       member                 = #{member},
+			       face_pic_path          = #{facePicPath},
+			       belong_list            = #{belongList},
+			       height                 = #{height},
+			       weight                 = #{weight},
+			       position               = #{position},
+			       birth                  = #{birth},
+			       age                    = #{age},
+			       market_value           = #{marketValue},
+			       injury                 = #{injury},
+			       versus_team_score_data = #{versusTeamScoreData},
+			       retire_flg             = #{retireFlg},
+			       deadline               = #{deadline},
+			       deadline_contract_date = #{deadlineContractDate},
+			       latest_info_date       = #{latestInfoDate},
+			       upd_stamp              = #{updStamp},
+			       del_flg                = #{delFlg},
+			       missing_count          = #{missingCount}
+			 WHERE id = #{id}
+			""")
+	int updateById(TeamMemberMasterEntity entity);
 }
