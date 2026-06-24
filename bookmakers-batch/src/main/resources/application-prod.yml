@@ -165,6 +165,11 @@ ecs:
       taskDefinition: ${ECS_B006_TASK_DEF:bookmakers-app}
       container: ${ECS_B006_CONTAINER:bookmakers-app}
       logGroup: ${ECS_B006_LOG_GROUP:/ecs/bookmakers-app}
+    B007: 
+      cluster: ${ECS_BATCH_CLUSTER:batch-backend}
+      taskDefinition: ${ECS_BATCH_TASK_DEF:bookmakers-batch}
+      container: ${ECS_BATCH_CONTAINER:bookmakers-batch}
+      logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
     B008:
       cluster: ${ECS_B008_CLUSTER:stats-backend}
       taskDefinition: ${ECS_B008_TASK_DEF:bookmakers-app}
