@@ -230,7 +230,7 @@ public class CountryLeagueDBService {
 						+ entity.getTeam() + ","
 						+ entity.getLink();
 
-				int result = this.countryLeagueMasterRepository.updateById(entity);
+				int result = this.countryLeagueMasterRepository.updateAllId(entity);
 				if (result > 0) {
 					updated += result;
 

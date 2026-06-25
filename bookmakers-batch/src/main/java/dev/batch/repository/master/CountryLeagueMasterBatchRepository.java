@@ -264,6 +264,6 @@ public interface CountryLeagueMasterBatchRepository {
 			update_time = CURRENT_TIMESTAMP
 		WHERE id = #{id}
 	""")
-	int updateById(CountryLeagueMasterEntity entity);
+	int updateAllId(CountryLeagueMasterEntity entity);
 
 }
