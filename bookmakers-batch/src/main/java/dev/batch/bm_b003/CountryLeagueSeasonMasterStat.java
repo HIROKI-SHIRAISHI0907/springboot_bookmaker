@@ -79,7 +79,7 @@ public class CountryLeagueSeasonMasterStat implements SeasonEntityIF {
 				throw new Exception(messageCd);
 			}
 
-			insertPath.add(config.getS3BucketsTeamSeasonDateData() + "/season_data.csv");
+			insertPath.add("season_data.csv");
 
 		} catch (Exception e) {
 			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
