@@ -11,7 +11,10 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.PlatformTransactionManager;
+import org.springframework.transaction.TransactionDefinition;
 import org.springframework.transaction.annotation.Transactional;
+import org.springframework.transaction.support.TransactionTemplate;
 
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
 import dev.batch.repository.master.InitialMasterCsvRepository;
@@ -39,6 +42,9 @@ public class CountryLeagueSeasonDBService {
 	@Autowired
 	private InitialMasterCsvRepository initialMasterCsvRepository;
 
+	@Autowired
+	private PlatformTransactionManager transactionManager;
+
 	/**
 	 * insert対象 / update対象を振り分ける
 	 */
@@ -60,6 +66,11 @@ public class CountryLeagueSeasonDBService {
 				normalizeEntity(entity);
 
 				if (!hasMeaningfulValue(entity.getCountry()) || !hasMeaningfulValue(entity.getLeague())) {
+					log.warn("[{}][CountryLeagueSeasonDBService#selectInBatch] skip invalid input. country={}, league={}, seasonYear={}",
+							BM_NUMBER,
+							safe(entity.getCountry()),
+							safe(entity.getLeague()),
+							safe(entity.getSeasonYear()));
 					continue;
 				}
 
@@ -93,12 +104,12 @@ public class CountryLeagueSeasonDBService {
 				}
 
 			} catch (Exception e) {
-				log.error("[{}][CountryLeagueSeasonDBService#selectInBatch] entity analyze error. country={}, league={}, seasonYear={}",
+				log.warn("[{}][CountryLeagueSeasonDBService#selectInBatch] skip analyze error. country={}, league={}, seasonYear={}, reason={}",
 						BM_NUMBER,
 						safe(entity.getCountry()),
 						safe(entity.getLeague()),
 						safe(entity.getSeasonYear()),
-						e);
+						rootCauseMessage(e));
 			}
 		}
 
@@ -112,13 +123,16 @@ public class CountryLeagueSeasonDBService {
 
 	/**
 	 * INSERT
+	 * 1件ずつ独立トランザクションで保存し、失敗行はスキップする
 	 */
-	@Transactional
 	public int insertInBatch(List<CountryLeagueSeasonMasterEntity> entities) {
 		if (entities == null || entities.isEmpty()) {
 			log.info("[{}][CountryLeagueSeasonDBService#insertInBatch] target is empty.", BM_NUMBER);
 			return 0;
 		}
+
+		int successCount = 0;
+		int skipCount = 0;
 
 		try {
 			for (int i = 0; i < entities.size(); i += BATCH_SIZE) {
@@ -126,40 +140,58 @@ public class CountryLeagueSeasonDBService {
 				List<CountryLeagueSeasonMasterEntity> batch = entities.subList(i, end);
 
 				for (CountryLeagueSeasonMasterEntity entity : batch) {
+					if (entity == null) {
+						skipCount++;
+						continue;
+					}
+
 					try {
-						// ここでは再度 buildSeasonDates() しない
 						normalizeEntity(entity);
 
-						int result = countryLeagueSeasonMasterRepository.insert(entity);
-
-						if (result > 0) {
-							upsertInitialReadingTarget(entity);
-							log.info("[{}][CountryLeagueSeasonDBService#insertInBatch] insert success. country={}, league={}, seasonYear={}, start={}, end={}",
-									BM_NUMBER,
-									safe(entity.getCountry()),
-									safe(entity.getLeague()),
-									safe(entity.getSeasonYear()),
-									safe(entity.getStartSeasonDate()),
-									safe(entity.getEndSeasonDate()));
-						} else {
-							log.warn("[{}][CountryLeagueSeasonDBService#insertInBatch] insert skipped. country={}, league={}, seasonYear={}",
+						if (!hasMeaningfulValue(entity.getCountry()) || !hasMeaningfulValue(entity.getLeague())) {
+							skipCount++;
+							log.warn("[{}][CountryLeagueSeasonDBService#insertInBatch] skip invalid entity. country={}, league={}, seasonYear={}",
 									BM_NUMBER,
 									safe(entity.getCountry()),
 									safe(entity.getLeague()),
 									safe(entity.getSeasonYear()));
+							continue;
 						}
 
-					} catch (Exception e) {
-						log.error("[{}][CountryLeagueSeasonDBService#insertInBatch] insert error. country={}, league={}, seasonYear={}",
+						executeInNewTransaction(() -> {
+							int result = countryLeagueSeasonMasterRepository.insert(entity);
+							if (result > 0) {
+								upsertInitialReadingTarget(entity);
+							} else {
+								throw new IllegalStateException("insert result = 0");
+							}
+						});
+
+						successCount++;
+						log.info("[{}][CountryLeagueSeasonDBService#insertInBatch] insert success. country={}, league={}, seasonYear={}, start={}, end={}",
 								BM_NUMBER,
 								safe(entity.getCountry()),
 								safe(entity.getLeague()),
 								safe(entity.getSeasonYear()),
-								e);
-						return 9;
+								safe(entity.getStartSeasonDate()),
+								safe(entity.getEndSeasonDate()));
+
+					} catch (Exception e) {
+						skipCount++;
+						log.warn("[{}][CountryLeagueSeasonDBService#insertInBatch] skip insert error. country={}, league={}, seasonYear={}, reason={}",
+								BM_NUMBER,
+								safe(entity.getCountry()),
+								safe(entity.getLeague()),
+								safe(entity.getSeasonYear()),
+								rootCauseMessage(e));
 					}
 				}
 			}
+
+			log.info("[{}][CountryLeagueSeasonDBService#insertInBatch] finished. successCount={}, skipCount={}",
+					BM_NUMBER,
+					successCount,
+					skipCount);
 
 			return 0;
 
@@ -171,13 +203,16 @@ public class CountryLeagueSeasonDBService {
 
 	/**
 	 * UPDATE
+	 * 1件ずつ独立トランザクションで保存し、失敗行はスキップする
 	 */
-	@Transactional
 	public int updateInBatch(List<CountryLeagueSeasonMasterEntity> entities) {
 		if (entities == null || entities.isEmpty()) {
 			log.info("[{}][CountryLeagueSeasonDBService#updateInBatch] target is empty.", BM_NUMBER);
 			return 0;
 		}
+
+		int successCount = 0;
+		int skipCount = 0;
 
 		try {
 			for (int i = 0; i < entities.size(); i += BATCH_SIZE) {
@@ -185,42 +220,60 @@ public class CountryLeagueSeasonDBService {
 				List<CountryLeagueSeasonMasterEntity> batch = entities.subList(i, end);
 
 				for (CountryLeagueSeasonMasterEntity entity : batch) {
+					if (entity == null) {
+						skipCount++;
+						continue;
+					}
+
 					try {
-						// ここでは再度 buildSeasonDates() しない
 						normalizeEntity(entity);
 
-						int result = countryLeagueSeasonMasterRepository.updateById(entity);
-
-						if (result > 0) {
-							upsertInitialReadingTarget(entity);
-							log.info("[{}][CountryLeagueSeasonDBService#updateInBatch] update success. id={}, country={}, league={}, seasonYear={}, start={}, end={}",
+						if (entity.getId() == null) {
+							skipCount++;
+							log.warn("[{}][CountryLeagueSeasonDBService#updateInBatch] skip no id. country={}, league={}, seasonYear={}",
 									BM_NUMBER,
-									entity.getId(),
 									safe(entity.getCountry()),
 									safe(entity.getLeague()),
-									safe(entity.getSeasonYear()),
-									safe(entity.getStartSeasonDate()),
-									safe(entity.getEndSeasonDate()));
-						} else {
-							log.warn("[{}][CountryLeagueSeasonDBService#updateInBatch] update target not found. id={}, country={}, league={}",
-									BM_NUMBER,
-									entity.getId(),
-									safe(entity.getCountry()),
-									safe(entity.getLeague()));
+									safe(entity.getSeasonYear()));
+							continue;
 						}
 
-					} catch (Exception e) {
-						log.error("[{}][CountryLeagueSeasonDBService#updateInBatch] update error. id={}, country={}, league={}, seasonYear={}",
+						executeInNewTransaction(() -> {
+							int result = countryLeagueSeasonMasterRepository.updateById(entity);
+							if (result > 0) {
+								upsertInitialReadingTarget(entity);
+							} else {
+								throw new IllegalStateException("update result = 0");
+							}
+						});
+
+						successCount++;
+						log.info("[{}][CountryLeagueSeasonDBService#updateInBatch] update success. id={}, country={}, league={}, seasonYear={}, start={}, end={}",
 								BM_NUMBER,
 								entity.getId(),
 								safe(entity.getCountry()),
 								safe(entity.getLeague()),
 								safe(entity.getSeasonYear()),
-								e);
-						return 9;
+								safe(entity.getStartSeasonDate()),
+								safe(entity.getEndSeasonDate()));
+
+					} catch (Exception e) {
+						skipCount++;
+						log.warn("[{}][CountryLeagueSeasonDBService#updateInBatch] skip update error. id={}, country={}, league={}, seasonYear={}, reason={}",
+								BM_NUMBER,
+								entity.getId(),
+								safe(entity.getCountry()),
+								safe(entity.getLeague()),
+								safe(entity.getSeasonYear()),
+								rootCauseMessage(e));
 					}
 				}
 			}
+
+			log.info("[{}][CountryLeagueSeasonDBService#updateInBatch] finished. successCount={}, skipCount={}",
+					BM_NUMBER,
+					successCount,
+					skipCount);
 
 			return 0;
 
@@ -228,6 +281,31 @@ public class CountryLeagueSeasonDBService {
 			log.error("[{}][CountryLeagueSeasonDBService#updateInBatch] unexpected error.", BM_NUMBER, e);
 			return 9;
 		}
+	}
+
+	/**
+	 * 1件単位の独立トランザクション実行
+	 */
+	private void executeInNewTransaction(ThrowingRunnable action) {
+		TransactionTemplate tx = new TransactionTemplate(transactionManager);
+		tx.setPropagationBehavior(TransactionDefinition.PROPAGATION_REQUIRES_NEW);
+
+		tx.executeWithoutResult(status -> {
+			try {
+				action.run();
+			} catch (RuntimeException e) {
+				status.setRollbackOnly();
+				throw e;
+			} catch (Exception e) {
+				status.setRollbackOnly();
+				throw new RuntimeException(e);
+			}
+		});
+	}
+
+	@FunctionalInterface
+	private interface ThrowingRunnable {
+		void run() throws Exception;
 	}
 
 	/**
@@ -265,11 +343,6 @@ public class CountryLeagueSeasonDBService {
 
 	/**
 	 * 更新要否判定
-	 * - endSeasonDate が既存で空、incomingで埋まる
-	 * - 既存 seasonYear が現年を含まない
-	 * - incoming seasonYear が existing より新しい
-	 * - 同 seasonYear でも空項目が埋まる
-	 * - 削除状態から復帰
 	 */
 	private boolean shouldUpdate(CountryLeagueSeasonMasterEntity existing, CountryLeagueSeasonMasterEntity incoming) {
 		if (existing == null || incoming == null) {
@@ -517,6 +590,16 @@ public class CountryLeagueSeasonDBService {
 
 	private String safe(String value) {
 		return value == null ? "" : value;
+	}
+
+	private String rootCauseMessage(Throwable e) {
+		Throwable current = e;
+		Throwable last = e;
+		while (current != null) {
+			last = current;
+			current = current.getCause();
+		}
+		return last == null ? "" : safe(last.getMessage());
 	}
 
 	public static class SeasonUpsertPlan {
