@@ -276,21 +276,66 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 	 * - 空/null/N/A で既存値を壊さないロジックは Service 側で実施
 	 */
 	@Update("""
-				UPDATE country_league_season_master
-				SET
-					country = #{country},
-					league = #{league},
-					season_year = #{seasonYear},
-					start_season_date = #{startSeasonDate},
-					end_season_date = #{endSeasonDate},
-					round = #{round},
-					path = #{path},
-					icon = #{icon},
-					valid_flg = COALESCE(NULLIF(#{validFlg}, ''), valid_flg),
-					del_flg = COALESCE(NULLIF(#{delFlg}, ''), del_flg),
-					update_id = 'SYSTEM',
-					update_time = CURRENT_TIMESTAMP
-				WHERE id = #{id}
+			UPDATE country_league_season_master
+			   SET country = #{country},
+			       league = #{league},
+			       season_year = #{seasonYear},
+
+			       start_season_date = CASE
+			           WHEN #{startSeasonDate} IS NULL THEN start_season_date
+			           WHEN BTRIM(#{startSeasonDate}) = '' THEN start_season_date
+			           WHEN LOWER(BTRIM(#{startSeasonDate})) = 'n/a' THEN start_season_date
+			           WHEN LOWER(BTRIM(#{startSeasonDate})) = 'null' THEN start_season_date
+			           WHEN BTRIM(#{startSeasonDate}) = '-' THEN start_season_date
+			           WHEN BTRIM(#{startSeasonDate}) = '未定' THEN start_season_date
+			           ELSE CAST(#{startSeasonDate} AS timestamptz)
+			       END,
+
+			       end_season_date = CASE
+			           WHEN #{endSeasonDate} IS NULL THEN end_season_date
+			           WHEN BTRIM(#{endSeasonDate}) = '' THEN end_season_date
+			           WHEN LOWER(BTRIM(#{endSeasonDate})) = 'n/a' THEN end_season_date
+			           WHEN LOWER(BTRIM(#{endSeasonDate})) = 'null' THEN end_season_date
+			           WHEN BTRIM(#{endSeasonDate}) = '-' THEN end_season_date
+			           WHEN BTRIM(#{endSeasonDate}) = '未定' THEN end_season_date
+			           ELSE CAST(#{endSeasonDate} AS timestamptz)
+			       END,
+
+			       round = CASE
+			           WHEN #{round} IS NULL THEN round
+			           WHEN BTRIM(#{round}) = '' THEN round
+			           WHEN LOWER(BTRIM(#{round})) = 'n/a' THEN round
+			           WHEN LOWER(BTRIM(#{round})) = 'null' THEN round
+			           WHEN BTRIM(#{round}) = '-' THEN round
+			           WHEN BTRIM(#{round}) = '未定' THEN round
+			           ELSE #{round}
+			       END,
+
+			       path = CASE
+			           WHEN #{path} IS NULL THEN path
+			           WHEN BTRIM(#{path}) = '' THEN path
+			           WHEN LOWER(BTRIM(#{path})) = 'n/a' THEN path
+			           WHEN LOWER(BTRIM(#{path})) = 'null' THEN path
+			           WHEN BTRIM(#{path}) = '-' THEN path
+			           WHEN BTRIM(#{path}) = '未定' THEN path
+			           ELSE #{path}
+			       END,
+
+			       icon = CASE
+			           WHEN #{icon} IS NULL THEN icon
+			           WHEN BTRIM(#{icon}) = '' THEN icon
+			           WHEN LOWER(BTRIM(#{icon})) = 'n/a' THEN icon
+			           WHEN LOWER(BTRIM(#{icon})) = 'null' THEN icon
+			           WHEN BTRIM(#{icon}) = '-' THEN icon
+			           WHEN BTRIM(#{icon}) = '未定' THEN icon
+			           ELSE #{icon}
+			       END,
+
+			       valid_flg = COALESCE(NULLIF(#{validFlg}, ''), valid_flg),
+			       del_flg = COALESCE(NULLIF(#{delFlg}, ''), del_flg),
+			       update_id = 'SYSTEM',
+			       update_time = CURRENT_TIMESTAMP
+			 WHERE id = CAST(#{id} AS BIGINT)
 			""")
 	int updateById(CountryLeagueSeasonMasterEntity entity);
 
