@@ -67,7 +67,7 @@ public interface InitialMasterCsvRepository {
 	 */
 	@Select("""
 				SELECT COUNT(*)
-				FROM initial_reading_master_csv
+				FROM initial_reading_csv_master
 				WHERE master_name = #{masterName}
 				  AND country = #{country}
 				  AND league = #{league}
@@ -84,7 +84,7 @@ public interface InitialMasterCsvRepository {
 	 * - 既存データが更新された時に initial_flg を 0 に戻す
 	 */
 	@Update("""
-		UPDATE initial_reading_master_csv
+		UPDATE initial_reading_csv_master
 		SET
 			initial_flg = #{initialFlg},
 			update_id = 'SYSTEM',
