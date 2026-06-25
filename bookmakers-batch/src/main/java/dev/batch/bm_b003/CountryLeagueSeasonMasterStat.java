@@ -56,29 +56,38 @@ public class CountryLeagueSeasonMasterStat implements SeasonEntityIF {
 	@Override
 	public void seasonStat(List<CountryLeagueSeasonMasterEntity> entities) throws Exception {
 		final String METHOD_NAME = "calcStat";
-		// ログ出力
+
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		List<String> insertPath = new ArrayList<String>();
-		// 今後のチーム情報を登録する
+		List<String> insertPath = new ArrayList<>();
+
 		try {
-			List<CountryLeagueSeasonMasterEntity> insertEntities = this.countryLeagueSeasonDBService
-					.selectInBatch(entities);
-			int result = this.countryLeagueSeasonDBService.insertInBatch(insertEntities);
-			if (result == 9) {
+			CountryLeagueSeasonDBService.SeasonUpsertPlan plan =
+					this.countryLeagueSeasonDBService.selectInBatch(entities);
+
+			int insertResult = this.countryLeagueSeasonDBService.insertInBatch(plan.getInsertEntities());
+			if (insertResult == 9) {
 				String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
 				throw new Exception(messageCd);
 			}
+
+			int updateResult = this.countryLeagueSeasonDBService.updateInBatch(plan.getUpdateEntities());
+			if (updateResult == 9) {
+				String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
+				throw new Exception(messageCd);
+			}
+
 			insertPath.add(config.getS3BucketsTeamSeasonDateData() + "/season_data.csv");
+
 		} catch (Exception e) {
 			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			throw new Exception(messageCd, e);
 		}
 
-		// 途中で例外が起きなければ全てのファイルを削除する
-		String bucket = config.getS3BucketsTeamSeasonDateData(); // バケット名取得
+		String bucket = config.getS3BucketsTeamSeasonDateData();
+
 		FileDeleteUtil.deleteS3Files(
 				insertPath,
 				bucket,
@@ -89,7 +98,6 @@ public class CountryLeagueSeasonMasterStat implements SeasonEntityIF {
 				METHOD_NAME,
 				"SEASON_MASTER");
 
-		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		this.manageLoggerComponent.clear();

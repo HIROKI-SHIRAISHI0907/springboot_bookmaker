@@ -164,7 +164,7 @@ public class CountryLeagueDBPart {
 					if (needUpdate) {
 						int upd = countryLeagueMasterRepository.updateById(
 								hit.getLeague(), csv.getTeam(),
-								csv.getLink(), Integer.parseInt(hit.getId()));
+								csv.getLink(), hit.getId());
 						if (upd != 1) {
 							manageLoggerComponent.debugErrorLog(
 									PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, null,
@@ -199,7 +199,7 @@ public class CountryLeagueDBPart {
 				}
 				if (!presentTeamKeys.contains(tk)) {
 					int del = countryLeagueMasterRepository.logicalDeleteById(
-							Integer.parseInt(db.getId()));
+							db.getId());
 					if (del != 1) {
 						manageLoggerComponent.debugWarnLog(
 								PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE,

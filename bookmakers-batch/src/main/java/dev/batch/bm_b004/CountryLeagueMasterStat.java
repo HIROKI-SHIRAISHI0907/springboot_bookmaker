@@ -16,8 +16,13 @@ import dev.common.util.FileDeleteUtil;
 
 /**
  * country_league_masterロジック
- * @author shiraishitoshio
  *
+ * 仕様:
+ * - 新規データは insert
+ * - 既存データは必要時 update
+ * - 新規/更新どちらも initial_reading_master_csv に反映
+ *
+ * @author shiraishitoshio
  */
 @Component
 public class CountryLeagueMasterStat implements MasterEntityIF {
@@ -52,36 +57,38 @@ public class CountryLeagueMasterStat implements MasterEntityIF {
 	 * {@inheritDoc}
 	 */
 	@Override
-	public void masterStat(String file,
-			List<CountryLeagueMasterEntity> entities) throws Exception {
+	public void masterStat(String file, List<CountryLeagueMasterEntity> entities) throws Exception {
 		final String METHOD_NAME = "masterStat";
-		// ログ出力
+
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		List<String> insertPath = new ArrayList<String>();
-		// 今後のチーム情報を登録する
-		for (CountryLeagueMasterEntity entity : entities) {
-			try {
-				CountryLeagueMasterEntity insertEntities = this.countryLeagueDBService
-						.selectInBatch(entity);
-				if (insertEntities == null) continue;
-				int result = this.countryLeagueDBService.insertInBatch(insertEntities);
-				if (result == 9) {
-					String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-					throw new Exception(messageCd);
-				}
-			} catch (Exception e) {
-				String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
-				throw new Exception(messageCd, e);
+		List<String> insertPath = new ArrayList<>();
+
+		try {
+			CountryLeagueDBService.MasterUpsertPlan plan = this.countryLeagueDBService.selectInBatch(entities);
+
+			int insertResult = this.countryLeagueDBService.insertInBatch(plan.getInsertEntities());
+			if (insertResult == 9) {
+				String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
+				throw new Exception(messageCd);
 			}
+
+			int updateResult = this.countryLeagueDBService.updateInBatch(plan.getUpdateEntities());
+			if (updateResult == 9) {
+				String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
+				throw new Exception(messageCd);
+			}
+
+		} catch (Exception e) {
+			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+			throw new Exception(messageCd, e);
 		}
-		// ファイル追加
+
 		insertPath.add(file);
 
-		// 途中で例外が起きなければ全てのファイルを削除する
-		String bucket = config.getS3BucketsTeamData(); // バケット名取得
+		String bucket = config.getS3BucketsTeamData();
 		FileDeleteUtil.deleteS3Files(
 				insertPath,
 				bucket,
@@ -92,7 +99,6 @@ public class CountryLeagueMasterStat implements MasterEntityIF {
 				METHOD_NAME,
 				"TEAM_MASTER");
 
-		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		this.manageLoggerComponent.clear();

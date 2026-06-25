@@ -244,4 +244,54 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			""")
 	List<CountryLeagueSeasonMasterEntity> findData();
 
+	@Select("""
+			    SELECT
+			        id,
+			        country,
+			        league,
+			        season_year AS seasonYear,
+			        start_season_date AS startSeasonDate,
+			        end_season_date AS endSeasonDate,
+			        round,
+			        path,
+			        icon,
+			        valid_flg AS validFlg,
+			        del_flg AS delFlg
+			    FROM country_league_season_master
+			    WHERE country = #{country}
+			      AND league = #{league}
+			      AND del_flg = '0'
+			    ORDER BY id DESC
+			    LIMIT 1
+			""")
+	CountryLeagueSeasonMasterEntity findLatestByCountryLeague(
+			@Param("country") String country,
+			@Param("league") String league);
+
+	/**
+	 * ID指定更新
+	 *
+	 * 仕様:
+	 * - Service 側で merge 済みデータが渡される前提
+	 * - 空/null/N/A で既存値を壊さないロジックは Service 側で実施
+	 */
+	@Update("""
+				UPDATE country_league_season_master
+				SET
+					country = #{country},
+					league = #{league},
+					season_year = #{seasonYear},
+					start_season_date = #{startSeasonDate},
+					end_season_date = #{endSeasonDate},
+					round = #{round},
+					path = #{path},
+					icon = #{icon},
+					valid_flg = COALESCE(NULLIF(#{validFlg}, ''), valid_flg),
+					del_flg = COALESCE(NULLIF(#{delFlg}, ''), del_flg),
+					update_id = 'SYSTEM',
+					update_time = CURRENT_TIMESTAMP
+				WHERE id = #{id}
+			""")
+	int updateById(CountryLeagueSeasonMasterEntity entity);
+
 }

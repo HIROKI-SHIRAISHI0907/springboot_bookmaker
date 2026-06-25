@@ -245,4 +245,25 @@ public interface CountryLeagueMasterBatchRepository {
 	int logicalDeleteByCountryLeague(@Param("country") String country,
 			@Param("league") String league);
 
+	/**
+	 * ID指定更新
+	 *
+	 * 仕様:
+	 * - Service 側で merge 済みデータが渡される前提
+	 * - 空/null/N/A で既存値を壊さないロジックは Service 側で実施
+	 */
+	@Update("""
+		UPDATE country_league_master
+		SET
+			country = #{country},
+			league = #{league},
+			team = #{team},
+			link = #{link},
+			del_flg = COALESCE(NULLIF(#{delFlg}, ''), '0'),
+			update_id = 'SYSTEM',
+			update_time = CURRENT_TIMESTAMP
+		WHERE id = #{id}
+	""")
+	int updateById(CountryLeagueMasterEntity entity);
+
 }
