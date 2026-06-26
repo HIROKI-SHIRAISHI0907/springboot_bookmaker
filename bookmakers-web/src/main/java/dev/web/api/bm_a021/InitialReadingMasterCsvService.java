@@ -153,7 +153,7 @@ public class InitialReadingMasterCsvService {
 					continue;
 				}
 
-				Integer id = parseIntegerOrNull(target.getId());
+				Integer id = target.getId();
 				String country = target.getCountry();
 				String league = target.getLeague();
 
@@ -252,7 +252,7 @@ public class InitialReadingMasterCsvService {
 					continue;
 				}
 
-				Integer id = parseIntegerOrNull(target.getId());
+				Integer id = target.getId();
 				String country = target.getCountry();
 				String league = target.getLeague();
 
@@ -341,7 +341,7 @@ public class InitialReadingMasterCsvService {
 
 				for (CountryLeagueSeasonDTO dto : seasonDTOs) {
 					CountryLeagueSeasonMasterEntity seasonMasterEntity = new CountryLeagueSeasonMasterEntity();
-					seasonMasterEntity.setId(dto.getId());
+					seasonMasterEntity.setId(Integer.parseInt(dto.getId()));
 					seasonMasterEntity.setCountry(dto.getCountry());
 					seasonMasterEntity.setLeague(dto.getLeague());
 					seasonMasterEntity.setStartSeasonDate(dto.getStartSeasonDate());
