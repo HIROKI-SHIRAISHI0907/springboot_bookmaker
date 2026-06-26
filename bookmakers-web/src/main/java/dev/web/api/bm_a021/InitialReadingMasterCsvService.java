@@ -391,17 +391,4 @@ public class InitialReadingMasterCsvService {
 		return value != null && !value.isBlank();
 	}
 
-	/**
-	 * Integer 変換。null / 空文字 / 数値変換失敗時は null
-	 */
-	private Integer parseIntegerOrNull(String value) {
-		if (!hasText(value)) {
-			return null;
-		}
-		try {
-			return Integer.valueOf(value);
-		} catch (NumberFormatException e) {
-			return null;
-		}
-	}
 }
