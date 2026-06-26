@@ -187,7 +187,7 @@ public class InitialReadingMasterCsvService {
 					continue;
 				}
 
-				Integer id = parseIntegerOrNull(target.getId());
+				Integer id = target.getId();
 				String country = target.getCountry();
 				String league = target.getLeague();
 
@@ -365,7 +365,7 @@ public class InitialReadingMasterCsvService {
 
 				for (CountryLeagueDTO dto : leagueDTOs) {
 					CountryLeagueMasterEntity masterEntity = new CountryLeagueMasterEntity();
-					masterEntity.setId(dto.getId()); // ← これが重要
+					masterEntity.setId(Integer.parseInt(dto.getId())); // ← これが重要
 					masterEntity.setCountry(dto.getCountry());
 					masterEntity.setLeague(dto.getLeague());
 					masterEntity.setTeam(dto.getTeam());
