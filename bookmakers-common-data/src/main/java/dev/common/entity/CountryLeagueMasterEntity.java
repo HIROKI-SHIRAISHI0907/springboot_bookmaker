@@ -13,7 +13,7 @@ import lombok.EqualsAndHashCode;
 public class CountryLeagueMasterEntity extends MetaEntity {
 
 	/** ID */
-	private String id;
+	private Integer id;
 
 	/** 国 */
 	private String country;

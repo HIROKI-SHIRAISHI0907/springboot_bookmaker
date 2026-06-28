@@ -13,7 +13,7 @@ import lombok.EqualsAndHashCode;
 public class TeamMemberMasterEntity extends MetaEntity {
 
 	/** ID */
-	private String id;
+	private Integer id;
 
 	/** file */ //設定あり
 	private String file;
@@ -86,5 +86,8 @@ public class TeamMemberMasterEntity extends MetaEntity {
 
 	/** 削除フラグ */
 	private String delFlg;
+
+	/** ミス件数 */
+	private String missingCount;
 
 }
