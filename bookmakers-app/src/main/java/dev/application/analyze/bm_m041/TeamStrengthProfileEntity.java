@@ -4,7 +4,7 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
-import dev.application.analyze.common.entity.StatMetaEntity;
+import dev.application.analyze.common.entity.AbstractMatchTeamContextEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -15,7 +15,7 @@ import lombok.EqualsAndHashCode;
  */
 @Data
 @EqualsAndHashCode(callSuper = false)
-public class TeamStrengthProfileEntity extends StatMetaEntity {
+public class TeamStrengthProfileEntity extends AbstractMatchTeamContextEntity {
 
     /**
      * 主キーです。

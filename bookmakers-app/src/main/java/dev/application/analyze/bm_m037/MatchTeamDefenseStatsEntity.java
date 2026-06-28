@@ -3,7 +3,7 @@ package dev.application.analyze.bm_m037;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
-import dev.application.analyze.common.entity.StatMetaEntity;
+import dev.application.analyze.common.entity.AbstractMatchTeamContextEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
@@ -14,7 +14,7 @@ import lombok.EqualsAndHashCode;
  */
 @Data
 @EqualsAndHashCode(callSuper = false)
-public class MatchTeamDefenseStatsEntity extends StatMetaEntity {
+public class MatchTeamDefenseStatsEntity extends AbstractMatchTeamContextEntity {
 
     /**
      * 主キーです。

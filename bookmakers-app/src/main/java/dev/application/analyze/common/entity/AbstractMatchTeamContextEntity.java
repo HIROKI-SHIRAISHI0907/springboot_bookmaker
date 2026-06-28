@@ -1,9 +1,19 @@
 package dev.application.analyze.common.entity;
 
+import java.io.Serializable;
+
 import lombok.Data;
 
+/**
+ * 共通メタデータ
+ * @author shiraishitoshio
+ *
+ */
 @Data
-public class StatMetaEntity {
+public class AbstractMatchTeamContextEntity implements Serializable {
+
+	/** シリアライズID */
+    private static final long serialVersionUID = 1L;
 
 	/**
 	 * 試合IDです
