@@ -11,6 +11,7 @@ import java.util.Map;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
@@ -479,10 +480,10 @@ public class MatchTeamSnapshotFactStat implements AnalyzeEntityIF {
             return 0;
         }
 
-        if ("ハーフタイム".equals(normalized)) {
+        if (BookMakersCommonConst.HALF_TIME.equals(normalized)) {
             return 45 * 60;
         }
-        if ("終了済".equals(normalized)) {
+        if (BookMakersCommonConst.FIN.equals(normalized)) {
             return 90 * 60;
         }
 
