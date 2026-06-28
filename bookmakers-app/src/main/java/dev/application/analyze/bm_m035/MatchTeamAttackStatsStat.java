@@ -512,10 +512,10 @@ public class MatchTeamAttackStatsStat implements AnalyzeEntityIF {
 			return 0;
 		}
 
-		if ("ハーフタイム".equals(normalized)) {
+		if (BookMakersCommonConst.HALF_TIME.equals(normalized)) {
 			return 45 * 60;
 		}
-		if ("終了済".equals(normalized)) {
+		if (BookMakersCommonConst.FIN.equals(normalized)) {
 			return 90 * 60;
 		}
 

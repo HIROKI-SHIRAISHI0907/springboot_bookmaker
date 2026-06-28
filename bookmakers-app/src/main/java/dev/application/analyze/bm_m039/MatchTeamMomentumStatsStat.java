@@ -149,8 +149,8 @@ public class MatchTeamMomentumStatsStat implements AnalyzeEntityIF {
 					MatchTeamMomentumStatsEntity awayEntity =
 							createMomentumEntity(sortedEntities, index, country, league, windowMinutes, false);
 
-					matchTeamMomentumStatsWriter.write(homeEntity);
-					matchTeamMomentumStatsWriter.write(awayEntity);
+					matchTeamMomentumStatsWriter.insert(homeEntity);
+					matchTeamMomentumStatsWriter.insert(awayEntity);
 				}
 			}
 

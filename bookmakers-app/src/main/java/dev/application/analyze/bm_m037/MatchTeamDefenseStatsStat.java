@@ -159,7 +159,7 @@ public class MatchTeamDefenseStatsStat implements AnalyzeEntityIF {
 	private BookDataEntity resolveFinalEntity(List<BookDataEntity> entities) {
 		BookDataEntity ended = null;
 		for (BookDataEntity entity : entities) {
-			if ("終了済".equals(trimToNull(entity.getTime()))) {
+			if (BookMakersCommonConst.FIN.equals(trimToNull(entity.getTime()))) {
 				ended = entity;
 			}
 		}

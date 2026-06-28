@@ -36,7 +36,7 @@ public class MatchTeamEfficiencyStatsWriter {
 
 	@Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
 	public void insert(MatchTeamEfficiencyStatsEntity entity) {
-		final String METHOD_NAME = "write";
+		final String METHOD_NAME = "insert";
 
 		String fillChar = setLoggerFillChar(
 				entity.getMatchId(),

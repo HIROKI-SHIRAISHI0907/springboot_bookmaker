@@ -1,38 +1,39 @@
-package dev.application.analyze.bm_m039;
+package dev.application.analyze.bm_m041;
 
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.application.domain.repository.bm.MatchTeamMomentumStatsRepository;
+import dev.application.domain.repository.bm.TeamStrengthProfileRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import lombok.RequiredArgsConstructor;
 
 /**
- * MatchTeamMomentumStatsEntity を永続化する Writer です。
+ * TeamStrengthProfileEntity を永続化する Writer です。
  *
- * <p>1件単位でモメンタム統計を登録します。</p>
+ * <p>チーム単位の強度・安定性評価プロファイルを1件登録します。</p>
  */
 @Component
 @RequiredArgsConstructor
-public class MatchTeamMomentumStatsWriter {
+public class TeamStrengthProfileWriter {
 
-    /** プロジェクト名です。 */
-    private static final String PROJECT_NAME = "bookmaker";
+	/** プロジェクト名 */
+	private static final String PROJECT_NAME = TeamStrengthProfileWriter.class.getProtectionDomain()
+			.getCodeSource().getLocation().getPath();
 
-    /** クラス名です。 */
-    private static final String CLASS_NAME = "MatchTeamMomentumStatsWriter";
+	/** クラス名 */
+	private static final String CLASS_NAME = TeamStrengthProfileWriter.class.getName();
 
     /** BM番号です。 */
-    private static final String BM_NUMBER = "BM_M039";
+    private static final String BM_NUMBER = "BM_M041";
 
     /** 処理名称です。 */
-    private static final String MATCH_TEAM_MOMENTUM_STATS = "matchTeamMomentumStats";
+    private static final String TEAM_STRENGTH_PROFILE = "teamStrengthProfile";
 
     /** Repository です。 */
-    private final MatchTeamMomentumStatsRepository matchTeamMomentumStatsRepository;
+    private final TeamStrengthProfileRepository teamStrengthProfileRepository;
 
     /** 例外ラッパーです。 */
     private final RootCauseWrapper rootCauseWrapper;
@@ -41,16 +42,16 @@ public class MatchTeamMomentumStatsWriter {
     private final ManageLoggerComponent manageLoggerComponent;
 
     /**
-     * モメンタム統計を1件登録します。
+     * チーム強度プロファイルを1件登録します。
      *
      * @param entity 登録対象Entity
      */
     @Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-    public void insert(MatchTeamMomentumStatsEntity entity) {
+    public void insert(TeamStrengthProfileEntity entity) {
     	final String METHOD_NAME = "insert";
         String fillChar = setLoggerFillChar(entity);
 
-        int result = matchTeamMomentumStatsRepository.insert(entity);
+        int result = teamStrengthProfileRepository.insert(entity);
 
         if (result != 1) {
         	this.rootCauseWrapper.throwUnexpectedRowCount(
@@ -67,7 +68,7 @@ public class MatchTeamMomentumStatsWriter {
                 MessageCdConst.MCD00005I_INSERT_SUCCESS,
                 new String[] {
                         BM_NUMBER,
-                        MATCH_TEAM_MOMENTUM_STATS,
+                        TEAM_STRENGTH_PROFILE,
                         String.valueOf(result),
                         fillChar
                 });
@@ -79,18 +80,22 @@ public class MatchTeamMomentumStatsWriter {
      * @param entity 対象Entity
      * @return ログ補足文字列
      */
-    private String setLoggerFillChar(MatchTeamMomentumStatsEntity entity) {
+    private String setLoggerFillChar(TeamStrengthProfileEntity entity) {
 
         StringBuilder sb = new StringBuilder();
 
-        sb.append("[matchId=").append(entity.getMatchId()).append("]");
         sb.append("[country=").append(entity.getCountry()).append("]");
         sb.append("[league=").append(entity.getLeagueName()).append("]");
-        sb.append("[team=").append(entity.getTeamName()).append("]");
-        sb.append("[opponent=").append(entity.getOpponentTeamName()).append("]");
-        sb.append("[asOfSeconds=").append(entity.getAsOfSeconds()).append("]");
-        sb.append("[windowMinutes=").append(entity.getWindowMinutes()).append("]");
-        sb.append("[momentumTrend=").append(entity.getMomentumTrend()).append("]");
+        sb.append("[teamId=").append(entity.getTeamId()).append("]");
+        sb.append("[teamName=").append(entity.getTeamName()).append("]");
+        sb.append("[snapshotDate=").append(entity.getSnapshotDate()).append("]");
+        sb.append("[last5Points=").append(entity.getLast5Points()).append("]");
+        sb.append("[last5GoalDiff=").append(entity.getLast5GoalDiff()).append("]");
+        sb.append("[homeStrengthIndex=").append(entity.getHomeStrengthIndex()).append("]");
+        sb.append("[awayStrengthIndex=").append(entity.getAwayStrengthIndex()).append("]");
+        sb.append("[eloLikeRating=").append(entity.getEloLikeRating()).append("]");
+        sb.append("[formIndex=").append(entity.getFormIndex()).append("]");
+        sb.append("[note=").append(entity.getNote()).append("]");
 
         return sb.toString();
     }

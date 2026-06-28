@@ -45,7 +45,7 @@ public class MatchTeamTimebandStatsWriter {
 	 */
 	@Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
 	public void insert(MatchTeamTimebandStatsEntity entity) {
-		final String METHOD_NAME = "write";
+		final String METHOD_NAME = "insert";
 
 		String fillChar = setLoggerFillChar(
 				entity.getMatchId(),
