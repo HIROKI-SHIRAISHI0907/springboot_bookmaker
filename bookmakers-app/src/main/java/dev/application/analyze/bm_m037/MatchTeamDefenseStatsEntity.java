@@ -22,11 +22,6 @@ public class MatchTeamDefenseStatsEntity extends StatMetaEntity {
     private Integer id;
 
     /**
-     * シーズンです。
-     */
-    private String season;
-
-    /**
      * 被シュート数です。
      */
     private Integer shotsConcededCount;

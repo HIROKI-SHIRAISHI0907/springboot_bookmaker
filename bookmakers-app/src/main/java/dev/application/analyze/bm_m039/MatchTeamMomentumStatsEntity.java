@@ -22,11 +22,6 @@ public class MatchTeamMomentumStatsEntity extends StatMetaEntity {
     private Integer id;
 
     /**
-     * シーズンです。
-     */
-    private String season;
-
-    /**
      * 集計時点の経過秒です。
      */
     private Integer asOfSeconds;

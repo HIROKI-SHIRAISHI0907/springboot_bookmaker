@@ -24,11 +24,6 @@ public class TeamStyleProfileEntity extends StatMetaEntity {
     private Integer id;
 
     /**
-     * シーズンです。
-     */
-    private String season;
-
-    /**
      * 集計対象期間開始日です。
      */
     private LocalDate fromDate;

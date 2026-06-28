@@ -23,11 +23,6 @@ public class PreMatchSummaryProfileEntity extends StatMetaEntity {
     private Integer id;
 
     /**
-     * シーズンです。
-     */
-    private String season;
-
-    /**
      * 集計基準日です。
      */
     private LocalDate snapshotDate;

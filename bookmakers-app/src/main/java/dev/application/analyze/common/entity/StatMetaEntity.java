@@ -11,6 +11,11 @@ public class StatMetaEntity {
 	private String matchId;
 
 	/**
+	 * シーズンです
+	 */
+	private String season;
+
+	/**
 	 * 国です
 	 */
 	private String country;

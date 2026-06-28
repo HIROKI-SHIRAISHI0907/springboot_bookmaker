@@ -23,11 +23,6 @@ public class MatchTeamSnapshotFactEntity extends StatMetaEntity {
     private Integer id;
 
     /**
-     * シーズンです。
-     */
-    private String season;
-
-    /**
      * ホームチームかどうかです。
      */
     private Boolean homeFlg;

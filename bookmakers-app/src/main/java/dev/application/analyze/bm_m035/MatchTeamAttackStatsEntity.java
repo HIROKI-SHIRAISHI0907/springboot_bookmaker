@@ -23,11 +23,6 @@ public class MatchTeamAttackStatsEntity extends StatMetaEntity {
     private Integer id;
 
     /**
-     * シーズンです。
-     */
-    private String season;
-
-    /**
      * 実プレー換算分数です。
      */
     private Integer actualMinutes;

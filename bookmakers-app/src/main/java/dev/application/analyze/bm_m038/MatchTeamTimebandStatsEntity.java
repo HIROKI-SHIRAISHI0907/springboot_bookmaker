@@ -24,11 +24,6 @@ public class MatchTeamTimebandStatsEntity extends StatMetaEntity {
     private Integer id;
 
     /**
-     * シーズンです。
-     */
-    private String season;
-
-    /**
      * 時間帯区分です。
      */
     private MatchTimeBandType timeBand;
