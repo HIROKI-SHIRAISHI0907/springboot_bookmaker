@@ -3,7 +3,9 @@ package dev.application.analyze.bm_m034;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import dev.application.analyze.common.entity.StatMetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 試合中のチーム時点スナップショットFactを表すEntityです。
@@ -12,7 +14,8 @@ import lombok.Data;
  * リアルタイム予測、モメンタム分析、得点確率分析の元データになります。</p>
  */
 @Data
-public class MatchTeamSnapshotFactEntity {
+@EqualsAndHashCode(callSuper = false)
+public class MatchTeamSnapshotFactEntity extends StatMetaEntity {
 
     /**
      * 主キーです。
@@ -20,49 +23,9 @@ public class MatchTeamSnapshotFactEntity {
     private Integer id;
 
     /**
-     * 試合IDです。
-     */
-    private String matchId;
-
-    /**
      * シーズンです。
      */
     private String season;
-
-    /**
-     * 国です。
-     */
-    private String country;
-
-    /**
-     * リーグIDです。
-     */
-    private String leagueId;
-
-    /**
-     * リーグ名です。
-     */
-    private String leagueName;
-
-    /**
-     * 対象チームIDです。
-     */
-    private String teamId;
-
-    /**
-     * 対象チーム名です。
-     */
-    private String teamName;
-
-    /**
-     * 対戦相手チームIDです。
-     */
-    private Long opponentTeamId;
-
-    /**
-     * 対戦相手チーム名です。
-     */
-    private String opponentTeamName;
 
     /**
      * ホームチームかどうかです。

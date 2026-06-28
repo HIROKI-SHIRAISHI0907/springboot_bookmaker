@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import dev.application.analyze.common.entity.StatMetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 試合前レポート用の要約統計プロファイルを表すEntityです。
@@ -12,7 +14,8 @@ import lombok.Data;
  * <p>試合前総評生成に必要な直近成績や先制率などの要約指標を保持します。</p>
  */
 @Data
-public class PreMatchSummaryProfileEntity {
+@EqualsAndHashCode(callSuper = false)
+public class PreMatchSummaryProfileEntity extends StatMetaEntity {
 
     /**
      * 主キーです。
@@ -23,31 +26,6 @@ public class PreMatchSummaryProfileEntity {
      * シーズンです。
      */
     private String season;
-
-    /**
-     * 国です。
-     */
-    private String country;
-
-    /**
-     * リーグIDです。
-     */
-    private String leagueId;
-
-    /**
-     * リーグ名です。
-     */
-    private String leagueName;
-
-    /**
-     * チームIDです。
-     */
-    private String teamId;
-
-    /**
-     * チーム名です。
-     */
-    private String teamName;
 
     /**
      * 集計基準日です。

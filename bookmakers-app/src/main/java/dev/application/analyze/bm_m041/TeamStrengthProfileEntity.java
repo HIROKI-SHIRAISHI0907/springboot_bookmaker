@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import dev.application.analyze.common.entity.StatMetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * チームの強度・安定性評価プロファイルを表すEntityです。
@@ -12,7 +14,8 @@ import lombok.Data;
  * <p>直近成績、ホーム/アウェー強度、上位相手成績などを管理します。</p>
  */
 @Data
-public class TeamStrengthProfileEntity {
+@EqualsAndHashCode(callSuper = false)
+public class TeamStrengthProfileEntity extends StatMetaEntity {
 
     /**
      * 主キーです。
@@ -23,31 +26,6 @@ public class TeamStrengthProfileEntity {
      * シーズンです。
      */
     private String season;
-
-    /**
-     * 国です。
-     */
-    private String country;
-
-    /**
-     * リーグIDです。
-     */
-    private String leagueId;
-
-    /**
-     * リーグ名です。
-     */
-    private String leagueName;
-
-    /**
-     * チームIDです。
-     */
-    private String teamId;
-
-    /**
-     * チーム名です。
-     */
-    private String teamName;
 
     /**
      * 集計基準日です。

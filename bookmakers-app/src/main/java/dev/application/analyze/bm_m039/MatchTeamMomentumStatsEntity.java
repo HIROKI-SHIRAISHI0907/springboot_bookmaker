@@ -3,7 +3,9 @@ package dev.application.analyze.bm_m039;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import dev.application.analyze.common.entity.StatMetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 試合中の勢い・モメンタム統計を表すEntityです。
@@ -11,7 +13,8 @@ import lombok.Data;
  * <p>1行が「1試合・1チーム・1時点・1窓幅」を表します。</p>
  */
 @Data
-public class MatchTeamMomentumStatsEntity {
+@EqualsAndHashCode(callSuper = false)
+public class MatchTeamMomentumStatsEntity extends StatMetaEntity {
 
     /**
      * 主キーです。
@@ -19,49 +22,9 @@ public class MatchTeamMomentumStatsEntity {
     private Integer id;
 
     /**
-     * 試合IDです。
-     */
-    private String matchId;
-
-    /**
      * シーズンです。
      */
     private String season;
-
-    /**
-     * 国です。
-     */
-    private String country;
-
-    /**
-     * リーグIDです。
-     */
-    private String leagueId;
-
-    /**
-     * リーグ名です。
-     */
-    private String leagueName;
-
-    /**
-     * チームIDです。
-     */
-    private String teamId;
-
-    /**
-     * チーム名です。
-     */
-    private String teamName;
-
-    /**
-     * 対戦相手チームIDです。
-     */
-    private Long opponentTeamId;
-
-    /**
-     * 対戦相手チーム名です。
-     */
-    private String opponentTeamName;
 
     /**
      * 集計時点の経過秒です。

@@ -3,8 +3,10 @@ package dev.application.analyze.bm_m043;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import dev.application.analyze.common.entity.StatMetaEntity;
 import dev.application.analyze.common.util.ModelTaskType;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 予測モデル評価サマリを表すEntityです。
@@ -12,7 +14,8 @@ import lombok.Data;
  * <p>分類モデル・回帰モデルの評価指標をモデル単位で保持します。</p>
  */
 @Data
-public class ModelEvaluationSummaryEntity {
+@EqualsAndHashCode(callSuper = false)
+public class ModelEvaluationSummaryEntity extends StatMetaEntity {
 
     /**
      * 主キーです。
@@ -38,21 +41,6 @@ public class ModelEvaluationSummaryEntity {
      * 目的変数名です。
      */
     private String targetName;
-
-    /**
-     * 国です。
-     */
-    private String country;
-
-    /**
-     * リーグIDです。
-     */
-    private String leagueId;
-
-    /**
-     * リーグ名です。
-     */
-    private String leagueName;
 
     /**
      * 対象シーズン範囲です。

@@ -3,8 +3,10 @@ package dev.application.analyze.bm_m038;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import dev.application.analyze.common.entity.StatMetaEntity;
 import dev.application.analyze.common.util.MatchTimeBandType;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 試合時間帯別のチーム統計を表すEntityです。
@@ -13,7 +15,8 @@ import lombok.Data;
  * 時間帯ごとの強さ・弱さ分析に利用します。</p>
  */
 @Data
-public class MatchTeamTimebandStatsEntity {
+@EqualsAndHashCode(callSuper = false)
+public class MatchTeamTimebandStatsEntity extends StatMetaEntity {
 
     /**
      * 主キーです。
@@ -21,49 +24,9 @@ public class MatchTeamTimebandStatsEntity {
     private Integer id;
 
     /**
-     * 試合IDです。
-     */
-    private String matchId;
-
-    /**
      * シーズンです。
      */
     private String season;
-
-    /**
-     * 国です。
-     */
-    private String country;
-
-    /**
-     * リーグIDです。
-     */
-    private String leagueId;
-
-    /**
-     * リーグ名です。
-     */
-    private String leagueName;
-
-    /**
-     * チームIDです。
-     */
-    private String teamId;
-
-    /**
-     * チーム名です。
-     */
-    private String teamName;
-
-    /**
-     * 対戦相手チームIDです。
-     */
-    private Long opponentTeamId;
-
-    /**
-     * 対戦相手チーム名です。
-     */
-    private String opponentTeamName;
 
     /**
      * 時間帯区分です。

@@ -4,7 +4,9 @@ import java.math.BigDecimal;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 
+import dev.application.analyze.common.entity.StatMetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * チームのプレースタイルプロファイルを表すEntityです。
@@ -13,7 +15,8 @@ import lombok.Data;
  * クラスタリング結果のラベルを保持します。</p>
  */
 @Data
-public class TeamStyleProfileEntity {
+@EqualsAndHashCode(callSuper = false)
+public class TeamStyleProfileEntity extends StatMetaEntity {
 
     /**
      * 主キーです。
@@ -24,31 +27,6 @@ public class TeamStyleProfileEntity {
      * シーズンです。
      */
     private String season;
-
-    /**
-     * 国です。
-     */
-    private String country;
-
-    /**
-     * リーグIDです。
-     */
-    private String leagueId;
-
-    /**
-     * リーグ名です。
-     */
-    private String leagueName;
-
-    /**
-     * チームIDです。
-     */
-    private String teamId;
-
-    /**
-     * チーム名です。
-     */
-    private String teamName;
 
     /**
      * 集計対象期間開始日です。

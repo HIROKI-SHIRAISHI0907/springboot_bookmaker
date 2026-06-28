@@ -3,7 +3,9 @@ package dev.application.analyze.bm_m036;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import dev.application.analyze.common.entity.StatMetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 試合単位の攻撃効率統計を表すEntityです。
@@ -11,7 +13,8 @@ import lombok.Data;
  * <p>少ない攻撃でどれだけ質の高い機会を作れているかを定量化します。</p>
  */
 @Data
-public class MatchTeamEfficiencyStatsEntity {
+@EqualsAndHashCode(callSuper = false)
+public class MatchTeamEfficiencyStatsEntity extends StatMetaEntity {
 
     /**
      * 主キーです。
@@ -19,49 +22,9 @@ public class MatchTeamEfficiencyStatsEntity {
     private Integer id;
 
     /**
-     * 試合IDです。
-     */
-    private String matchId;
-
-    /**
      * シーズンです。
      */
     private String season;
-
-    /**
-     * 国です。
-     */
-    private String country;
-
-    /**
-     * リーグIDです。
-     */
-    private String leagueId;
-
-    /**
-     * リーグ名です。
-     */
-    private String leagueName;
-
-    /**
-     * チームIDです。
-     */
-    private String teamId;
-
-    /**
-     * チーム名です。
-     */
-    private String teamName;
-
-    /**
-     * 対戦相手チームIDです。
-     */
-    private Long opponentTeamId;
-
-    /**
-     * 対戦相手チーム名です。
-     */
-    private String opponentTeamName;
 
     /**
      * 得点数です。

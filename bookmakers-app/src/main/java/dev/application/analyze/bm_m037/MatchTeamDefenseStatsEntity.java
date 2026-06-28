@@ -3,7 +3,9 @@ package dev.application.analyze.bm_m037;
 import java.math.BigDecimal;
 import java.time.LocalDateTime;
 
+import dev.application.analyze.common.entity.StatMetaEntity;
 import lombok.Data;
+import lombok.EqualsAndHashCode;
 
 /**
  * 試合単位の守備力・被圧力統計を表すEntityです。
@@ -11,7 +13,8 @@ import lombok.Data;
  * <p>被シュート、セーブ率、ブロック率、イベント後の被圧上昇などを管理します。</p>
  */
 @Data
-public class MatchTeamDefenseStatsEntity {
+@EqualsAndHashCode(callSuper = false)
+public class MatchTeamDefenseStatsEntity extends StatMetaEntity {
 
     /**
      * 主キーです。
@@ -19,49 +22,9 @@ public class MatchTeamDefenseStatsEntity {
     private Integer id;
 
     /**
-     * 試合IDです。
-     */
-    private String matchId;
-
-    /**
      * シーズンです。
      */
     private String season;
-
-    /**
-     * 国です。
-     */
-    private String country;
-
-    /**
-     * リーグIDです。
-     */
-    private String leagueId;
-
-    /**
-     * リーグ名です。
-     */
-    private String leagueName;
-
-    /**
-     * チームIDです。
-     */
-    private String teamId;
-
-    /**
-     * チーム名です。
-     */
-    private String teamName;
-
-    /**
-     * 対戦相手チームIDです。
-     */
-    private Long opponentTeamId;
-
-    /**
-     * 対戦相手チーム名です。
-     */
-    private String opponentTeamName;
 
     /**
      * 被シュート数です。
