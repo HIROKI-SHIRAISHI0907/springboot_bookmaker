@@ -79,6 +79,13 @@ public class CountryLeagueSeasonMasterStat implements SeasonEntityIF {
 				throw new Exception(messageCd);
 			}
 
+			// CSVに存在した country + league は、差分有無に関係なくモーダル表示対象へ戻す
+			int initialFlgResetResult = this.countryLeagueSeasonDBService.resetInitialFlgByIncomingTargets(entities);
+			if (initialFlgResetResult == 9) {
+				String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
+				throw new Exception(messageCd);
+			}
+
 			insertPath.add("season_data.csv");
 
 		} catch (Exception e) {

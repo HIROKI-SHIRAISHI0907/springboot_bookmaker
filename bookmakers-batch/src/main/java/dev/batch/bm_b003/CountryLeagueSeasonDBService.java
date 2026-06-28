@@ -3,7 +3,9 @@ package dev.batch.bm_b003;
 import java.time.Year;
 import java.time.ZoneId;
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -306,6 +308,72 @@ public class CountryLeagueSeasonDBService {
 	@FunctionalInterface
 	private interface ThrowingRunnable {
 		void run() throws Exception;
+	}
+
+	/**
+	 * CSVに存在した country + league をモーダル表示対象に戻す
+	 *
+	 * 仕様:
+	 * - country + league 単位で重複排除
+	 * - 既存なし: insert
+	 * - 既存あり: initial_flg を 0 に戻す
+	 */
+	public int resetInitialFlgByIncomingTargets(List<CountryLeagueSeasonMasterEntity> entities) {
+		if (entities == null || entities.isEmpty()) {
+			return 0;
+		}
+
+		Set<String> processedKeys = new HashSet<>();
+
+		try {
+			for (CountryLeagueSeasonMasterEntity entity : entities) {
+				if (entity == null) {
+					continue;
+				}
+
+				String country = trim(entity.getCountry());
+				String league = trim(entity.getLeague());
+
+				if (!hasMeaningfulValue(country) || !hasMeaningfulValue(league)) {
+					continue;
+				}
+
+				String key = country + "___" + league;
+				if (!processedKeys.add(key)) {
+					continue;
+				}
+
+				int count = initialMasterCsvRepository.findCount(
+						MasterNameConstant.COUNTRY_LEAGUE_SEASON_MASTER,
+						country,
+						league);
+
+				if (count <= 0) {
+					InitialReadingMasterCsvEntity initialEntity = new InitialReadingMasterCsvEntity();
+					initialEntity.setMasterName(MasterNameConstant.COUNTRY_LEAGUE_SEASON_MASTER);
+					initialEntity.setCountry(country);
+					initialEntity.setLeague(league);
+					initialEntity.setInitialFlg("0");
+
+					int result = initialMasterCsvRepository.insert(initialEntity);
+					if (result != 1) {
+						return 9;
+					}
+				} else {
+					initialMasterCsvRepository.updateInitialFlg(
+							MasterNameConstant.COUNTRY_LEAGUE_SEASON_MASTER,
+							country,
+							league,
+							"0");
+				}
+			}
+
+			return 0;
+
+		} catch (Exception e) {
+			log.error("[{}][CountryLeagueSeasonDBService#resetInitialFlgByIncomingTargets] unexpected error.", BM_NUMBER, e);
+			return 9;
+		}
 	}
 
 	/**

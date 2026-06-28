@@ -1,8 +1,10 @@
 package dev.batch.bm_b004;
 
 import java.util.ArrayList;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Objects;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.dao.DuplicateKeyException;
@@ -286,6 +288,93 @@ public class CountryLeagueDBService {
 				initialEntity.getCountry(),
 				initialEntity.getLeague(),
 				FlgConstant.INITIAL_FLG);
+	}
+
+	/**
+	 * CSVに存在した country + league をモーダル表示対象に戻す
+	 *
+	 * 仕様:
+	 * - country + league 単位で重複排除
+	 * - 既存なし: insert
+	 * - 既存あり: initial_flg を 0 に戻す
+	 */
+	public int resetInitialFlgByIncomingTargets(List<CountryLeagueMasterEntity> entities) {
+		final String METHOD_NAME = "resetInitialFlgByIncomingTargets";
+
+		if (entities == null || entities.isEmpty()) {
+			return 0;
+		}
+
+		Set<String> processedKeys = new HashSet<>();
+
+		for (CountryLeagueMasterEntity entity : entities) {
+			try {
+				if (entity == null) {
+					continue;
+				}
+
+				String country = trim(entity.getCountry());
+				String league = trim(entity.getLeague());
+
+				if (!hasMeaningfulValue(country) || !hasMeaningfulValue(league)) {
+					continue;
+				}
+
+				String key = country + "___" + league;
+				if (!processedKeys.add(key)) {
+					continue;
+				}
+
+				InitialReadingMasterCsvEntity initialEntity = new InitialReadingMasterCsvEntity();
+				initialEntity.setMasterName(MasterNameConstant.COUNTRY_LEAGUE_MASTER);
+				initialEntity.setCountry(country);
+				initialEntity.setLeague(league);
+
+				// モーダル表示対象に戻す: 0
+				initialEntity.setInitialFlg("0");
+
+				int count = this.initialMasterCsvRepository.findCount(
+						initialEntity.getMasterName(),
+						initialEntity.getCountry(),
+						initialEntity.getLeague());
+
+				int result;
+				if (count == 0) {
+					result = this.initialMasterCsvRepository.insert(initialEntity);
+					if (result != 1) {
+						String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
+						this.manageLoggerComponent.debugErrorLog(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+								null, "initialMasterCsvRepository insert failed");
+						return 9;
+					}
+				} else {
+					result = this.initialMasterCsvRepository.updateInitialFlg(
+							initialEntity.getMasterName(),
+							initialEntity.getCountry(),
+							initialEntity.getLeague(),
+							initialEntity.getInitialFlg());
+
+					// update は DB によって 0 件扱いになる場合もあるので、
+					// ここでは例外扱いしない設計でもよい
+					if (result < 0) {
+						String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
+						this.manageLoggerComponent.debugErrorLog(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+								null, "initialMasterCsvRepository update failed");
+						return 9;
+					}
+				}
+
+			} catch (Exception e) {
+				String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e);
+				return 9;
+			}
+		}
+
+		return 0;
 	}
 
 	/**

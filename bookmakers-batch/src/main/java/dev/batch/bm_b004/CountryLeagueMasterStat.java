@@ -81,6 +81,13 @@ public class CountryLeagueMasterStat implements MasterEntityIF {
 				throw new Exception(messageCd);
 			}
 
+			// CSVに存在した country + league は、差分有無に関係なくモーダル表示対象へ戻す
+			int initialFlgResetResult = this.countryLeagueDBService.resetInitialFlgByIncomingTargets(entities);
+			if (initialFlgResetResult == 9) {
+				String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
+				throw new Exception(messageCd);
+			}
+
 		} catch (Exception e) {
 			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			throw new Exception(messageCd, e);
