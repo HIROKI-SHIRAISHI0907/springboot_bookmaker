@@ -224,6 +224,11 @@ s3-job:
       prefix: null
       recursive: true
       
+    B010:
+      bucket: aws-s3-geografic-csv
+      prefix: output/
+      recursive: true
+      
 logging:
   level:
     root: INFO
