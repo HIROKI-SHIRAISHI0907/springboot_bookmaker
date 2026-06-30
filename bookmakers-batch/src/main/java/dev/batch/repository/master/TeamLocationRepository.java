@@ -19,9 +19,8 @@ public interface TeamLocationRepository {
 	 */
 	@Insert("""
 			INSERT INTO team_location_master (
-			    team_id,
-			    team_name,
 			    country,
+			    team_name,
 			    home_city,
 			    stadium_name,
 			    address,
@@ -35,9 +34,8 @@ public interface TeamLocationRepository {
 			    update_id,
 			    update_time
 			) VALUES (
-			    #{teamId},
-			    #{teamName},
 			    #{country},
+			    #{teamName},
 			    #{homeCity},
 			    #{stadiumName},
 			    #{address},
