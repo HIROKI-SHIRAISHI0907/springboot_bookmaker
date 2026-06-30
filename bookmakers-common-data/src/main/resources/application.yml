@@ -20,6 +20,8 @@ process:
       future: aws-s3-future-csv
       stats: aws-s3-stat-csv
       allLeague: aws-s3-all-league-csv
+      noEcs: aws-s3-no-ecs-task-time-csv
+      geografic: aws-s3-geografic-csv
   
 spring:
   application:
