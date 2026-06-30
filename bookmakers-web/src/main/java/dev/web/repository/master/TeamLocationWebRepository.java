@@ -36,8 +36,8 @@ public class TeamLocationWebRepository {
 				SELECT
 				  id,
 				  country,
-				  teamName,
-				  homeCity
+				  team_name,
+				  home_city
 				FROM team_location_master
 				ORDER BY country, teamName
 				""";
@@ -46,8 +46,8 @@ public class TeamLocationWebRepository {
 			GeograficDTO dto = new GeograficDTO();
 			dto.setId(rs.getInt("id"));
 			dto.setCountry(rs.getString("country"));
-			dto.setTeamName(rs.getString("teamName"));
-			dto.setHomeCity(rs.getString("homeCity"));
+			dto.setTeamName(rs.getString("team_name"));
+			dto.setHomeCity(rs.getString("home_city"));
 			return dto;
 		});
 	}
@@ -61,8 +61,8 @@ public class TeamLocationWebRepository {
 				SELECT
 				  id,
 				  country,
-				  teamName,
-				  homeCity
+				  team_name,
+				  home_city
 				FROM team_location_master
 				WHERE 1 = 1
 				""");
@@ -74,7 +74,7 @@ public class TeamLocationWebRepository {
 			params.addValue("country", cond.getCountry());
 		}
 		if (hasText(cond.getTeamName())) {
-			sql.append(" AND teamName = :teamName ");
+			sql.append(" AND team_name = :teamName ");
 			params.addValue("teamName", cond.getTeamName());
 		}
 
@@ -84,8 +84,8 @@ public class TeamLocationWebRepository {
 			GeograficDTO dto = new GeograficDTO();
 			dto.setId(rs.getInt("id"));
 			dto.setCountry(rs.getString("country"));
-			dto.setTeamName(rs.getString("teamName"));
-			dto.setHomeCity(rs.getString("homeCity"));
+			dto.setTeamName(rs.getString("team_name"));
+			dto.setHomeCity(rs.getString("home_city"));
 			return dto;
 		});
 	}
@@ -99,10 +99,10 @@ public class TeamLocationWebRepository {
 				SELECT id
 				FROM team_location_master
 				WHERE country = :country
-				  AND stadiumName = :stadiumName
+				  AND stadium_name = :stadiumName
 				  AND (
-				        (:homeCity IS NULL AND homeCity IS NULL)
-				        OR homeCity = :homeCity
+				        (:homeCity IS NULL AND home_city IS NULL)
+				        OR home_city = :homeCity
 				      )
 				""";
 
@@ -133,9 +133,9 @@ public class TeamLocationWebRepository {
 				UPDATE team_location_master
 				SET
 				  country = :country,
-				  homeCity = :homeCity,
-				  stadiumName = :stadiumName,
-				  geocodeSource = :geocodeSource
+				  home_city = :homeCity,
+				  stadium_name = :stadiumName,
+				  geocode_source = :geocodeSource
 				WHERE id = :id
 				""";
 
@@ -157,15 +157,15 @@ public class TeamLocationWebRepository {
 		String sql = """
 				INSERT INTO team_location_master (
 				  country,
-				  teamName,
-				  homeCity,
-				  stadiumName,
+				  team_name,
+				  home_city,
+				  stadium_name,
 				  address,
 				  latitude,
 				  longitude,
-				  geocodeSource,
-				  validFrom,
-				  validTo,
+				  geocode_source,
+				  valid_from,
+				  valid_to,
 				  register_id,
 			      register_time,
 			      update_id,

@@ -17,7 +17,6 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.common.config.PathConfig;
-import dev.common.entity.TeamLocationEntity;
 import dev.common.s3.S3Operator;
 import dev.web.repository.master.TeamLocationWebRepository;
 import lombok.RequiredArgsConstructor;
@@ -55,10 +54,7 @@ public class GeograficService {
 			return null;
 		}
 
-		// 3) DB upsert（実質は新規insert寄りだが競合対策でupsert維持）
-		upsert(out);
-
-		// 4) JSON名設定
+		// 3) JSON名設定
 		final String outputBucket = pathConfig.getS3Geografic();
 		final String fileName = FILE_PREFIX + ".json";
 
@@ -136,55 +132,6 @@ public class GeograficService {
 		return out;
 	}
 
-	private void upsert(List<Map<String, Object>> rows) {
-
-		for (Map<String, Object> row : rows) {
-
-			String country = getRequiredString(row, "country");
-			String homeCity = getOptionalString(row, "homeCity");
-			String stadium = getRequiredString(row, "stadium");
-
-			Optional<Integer> idOpt = teamLocationWebRepository.findIdByNaturalKey(
-					country,
-					homeCity,
-					stadium);
-
-			if (idOpt.isPresent()) {
-				int updated = teamLocationWebRepository.updateById(
-						idOpt.get(),
-						country,
-						homeCity,
-						stadium,
-						"input_json");
-
-				if (updated != 1) {
-					throw new RuntimeException(
-							"team_location_master update affected rows=" + updated
-									+ ", id=" + idOpt.get()
-									+ ", country=" + country
-									+ ", homeCity=" + homeCity
-									+ ", stadium=" + stadium);
-				}
-				continue;
-			}
-
-			TeamLocationEntity entity = new TeamLocationEntity();
-			entity.setCountry(country);
-			entity.setHomeCity(homeCity);
-			entity.setStadiumName(stadium);
-			entity.setGeocodeSource("input_json");
-
-			int inserted = teamLocationWebRepository.insert(entity);
-			if (inserted != 1) {
-				throw new RuntimeException(
-						"team_location_master insert affected rows=" + inserted
-								+ ", country=" + country
-								+ ", homeCity=" + homeCity
-								+ ", stadium=" + stadium);
-			}
-		}
-	}
-
 	private String normalizeRequired(String value, String fieldName, int index) {
 
 		if (value == null || value.isBlank()) {
@@ -205,29 +152,4 @@ public class GeograficService {
 		return country + "||" + (homeCity == null ? "" : homeCity) + "||" + stadium;
 	}
 
-	private String getRequiredString(Map<String, Object> row, String key) {
-
-		Object value = row.get(key);
-		if (value == null) {
-			throw new IllegalArgumentException(key + " がありません");
-		}
-
-		String str = value.toString().trim();
-		if (str.isEmpty()) {
-			throw new IllegalArgumentException(key + " が空です");
-		}
-
-		return str;
-	}
-
-	private String getOptionalString(Map<String, Object> row, String key) {
-
-		Object value = row.get(key);
-		if (value == null) {
-			return null;
-		}
-
-		String str = value.toString().trim();
-		return str.isEmpty() ? null : str;
-	}
 }
