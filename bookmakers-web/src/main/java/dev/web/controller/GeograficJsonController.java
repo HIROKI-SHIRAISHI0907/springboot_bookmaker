@@ -12,22 +12,22 @@ import dev.web.api.bm_w013.StatResponseResource;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Json作成タスク実行用（終了済データ不足用）
+ * Json作成タスク実行用（地理API）
  * @author shiraishitoshio
  *
  */
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
-public class FinGettingExecTaskJsonController {
+public class GeograficJsonController {
 
 	private final FinGettingService finGettingService;
 
 	/**
-	 * /fin-getting-json を叩いたら B010 のFargateタスクを起動する
+	 * /geografic-json を叩いたら B010 のFargateタスクを起動する
 	 * @throws Exception
 	 */
-	@PostMapping("/fin-getting-json")
+	@PostMapping("/geografic-json")
 	public ResponseEntity<StatResponseResource> execute(
 			@RequestBody FinGettingRequest req) throws Exception {
 
