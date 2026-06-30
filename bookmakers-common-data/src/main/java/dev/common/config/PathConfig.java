@@ -108,10 +108,16 @@ public class PathConfig {
 	private String s3BucketsAllLeagueData;
 
 	/**
-	 * S3バケット（allLeague）
+	 * S3バケット（noEcs）
 	 */
 	@Value("${process.s3.buckets.noEcs}")
 	private String s3BucketsNoEcs;
+
+	/**
+	 * S3バケット（geografic）
+	 */
+	@Value("${process.s3.buckets.geografic}")
+	private String s3BucketsGeografic;
 
 	/**
 	 * JSONフォルダ作成パスを返す
@@ -261,6 +267,15 @@ public class PathConfig {
 	 */
 	public String getS3NoEcs() {
 	    return s3BucketsNoEcs;
+	}
+
+	/**
+	 * Geografic用のS3バケット名を取得する。
+	 *
+	 * @return Geografic用S3バケット名
+	 */
+	public String getS3Geografic() {
+	    return s3BucketsGeografic;
 	}
 
 }

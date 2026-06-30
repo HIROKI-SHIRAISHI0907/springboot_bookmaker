@@ -20,19 +20,14 @@ public class TeamLocationEntity {
     private Integer id;
 
     /**
-     * チームIDです。
+     * 国コードまたは国名です。
      */
-    private String teamId;
+    private String country;
 
     /**
      * チーム名です。
      */
     private String teamName;
-
-    /**
-     * 国コードまたは国名です。
-     */
-    private String country;
 
     /**
      * 本拠地都市名です。
