@@ -6,8 +6,8 @@ import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.web.api.bm_a012.FinGettingRequest;
-import dev.web.api.bm_a012.FinGettingService;
+import dev.web.api.bm_a022.GeograficRequest;
+import dev.web.api.bm_a022.GeograficService;
 import dev.web.api.bm_w013.StatResponseResource;
 import lombok.RequiredArgsConstructor;
 
@@ -21,7 +21,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class GeograficJsonController {
 
-	private final FinGettingService finGettingService;
+	private final GeograficService geograficService;
 
 	/**
 	 * /geografic-json を叩いたら B010 のFargateタスクを起動する
@@ -29,10 +29,10 @@ public class GeograficJsonController {
 	 */
 	@PostMapping("/geografic-json")
 	public ResponseEntity<StatResponseResource> execute(
-			@RequestBody FinGettingRequest req) throws Exception {
+			@RequestBody GeograficRequest req) throws Exception {
 
 		// JSONをupload
-		finGettingService.convertAndUpload(req);
+		geograficService.convertAndUpload(req);
 
 		StatResponseResource res = new StatResponseResource();
 		// あなたのDTO設計に合わせて詰めてOK
