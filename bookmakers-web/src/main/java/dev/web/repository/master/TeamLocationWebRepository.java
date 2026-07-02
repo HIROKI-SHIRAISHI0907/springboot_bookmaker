@@ -2,7 +2,6 @@ package dev.web.repository.master;
 
 import java.sql.Types;
 import java.util.List;
-import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -93,32 +92,27 @@ public class TeamLocationWebRepository {
 	// --------------------------------------------------------
 	// upsert用: 自然キーでID検索
 	// --------------------------------------------------------
-	public Optional<Integer> findIdByNaturalKey(String country, String team, String homeCity, String stadiumName) {
+	public List<TeamLocationEntity> findByNaturalKey() {
 
 		String sql = """
-				SELECT id
+				SELECT
+					country,
+					team_name,
+					stadium_name,
+					home_city AS homeCity
 				FROM team_location_master
-				WHERE country = :country
-				  AND team_name = :team
-				  AND stadium_name = :stadiumName
-				  AND (
-				        (:homeCity IS NULL AND home_city IS NULL)
-				        OR home_city = :homeCity
-				      )
+				WHERE
+				  address IS NULL
 				""";
 
-		MapSqlParameterSource params = new MapSqlParameterSource()
-				.addValue("country", country)
-				.addValue("team", team)
-				.addValue("stadiumName", stadiumName)
-				.addValue("homeCity", homeCity, Types.VARCHAR);
-
-		List<Integer> list = masterJdbcTemplate.query(
-				sql,
-				params,
-				(rs, n) -> rs.getInt("id"));
-
-		return list.stream().findFirst();
+		return masterJdbcTemplate.query(sql, (rs, n) -> {
+			TeamLocationEntity dto = new TeamLocationEntity();
+			dto.setId(rs.getInt("id"));
+			dto.setCountry(rs.getString("country"));
+			dto.setTeamName(rs.getString("team_name"));
+			dto.setHomeCity(rs.getString("home_city"));
+			return dto;
+		});
 	}
 
 	// --------------------------------------------------------

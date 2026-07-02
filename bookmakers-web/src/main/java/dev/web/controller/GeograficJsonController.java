@@ -2,11 +2,9 @@ package dev.web.controller;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
-import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.web.api.bm_a022.GeograficRequest;
 import dev.web.api.bm_a022.GeograficService;
 import dev.web.api.bm_w013.StatResponseResource;
 import lombok.RequiredArgsConstructor;
@@ -28,15 +26,14 @@ public class GeograficJsonController {
 	 * @throws Exception
 	 */
 	@PostMapping("/geografic-json")
-	public ResponseEntity<StatResponseResource> execute(
-			@RequestBody GeograficRequest req) throws Exception {
+	public ResponseEntity<StatResponseResource> execute() throws Exception {
 
 		// JSONをupload
-		geograficService.convertAndUpload(req);
+		String s3KeyString = geograficService.convertAndUpload();
 
 		StatResponseResource res = new StatResponseResource();
 		// あなたのDTO設計に合わせて詰めてOK
-		res.setReturnCd("ACCEPTED");
+		res.setReturnCd((s3KeyString == null) ? "WARN: 対象のJSON出力対象データがありません。" : "ACCEPTED");
 
 		return ResponseEntity.ok(res);
 

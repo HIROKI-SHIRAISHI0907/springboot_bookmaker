@@ -5,11 +5,8 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
-import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
-import java.util.Set;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -17,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.common.config.PathConfig;
+import dev.common.entity.TeamLocationEntity;
 import dev.common.s3.S3Operator;
 import dev.web.repository.master.TeamLocationWebRepository;
 import lombok.RequiredArgsConstructor;
@@ -35,19 +33,14 @@ public class GeograficService {
 	private final TeamLocationWebRepository teamLocationWebRepository;
 
 	/**
-	 * GeograficRequest(matches) を
-	 * [{ country, league, homeCity, stadium }, ...] に変換し、
-	 * 未登録データのみ team_location_master を upsert し、
-	 * 未登録データのみJSONファイルをローカル出力 → S3へアップロードする。
+	 * マスタデータに登録かつ住所が未登録のみJSONファイルをローカル出力 → S3へアップロードする。
 	 *
 	 * @return アップロードしたS3 key
 	 */
-	public String convertAndUpload(GeograficRequest req) throws Exception {
-
-		validateRequest(req);
+	public String convertAndUpload() throws Exception {
 
 		// 1) JSON出力対象データ生成（DB登録済みは除外）
-		List<Map<String, Object>> out = toOutputMap(req.getMatches());
+		List<Map<String, Object>> out = toOutputMap();
 
 		// 2) 全件既存なら何もしない
 		if (out.isEmpty()) {
@@ -72,13 +65,6 @@ public class GeograficService {
 		return s3Key;
 	}
 
-	private void validateRequest(GeograficRequest req) {
-
-		if (req == null || req.getMatches() == null || req.getMatches().isEmpty()) {
-			throw new IllegalArgumentException("matches がありません（または空です）");
-		}
-	}
-
 	/**
 	 * JSON出力用データ作成
 	 *
@@ -91,68 +77,26 @@ public class GeograficService {
 	 *   <li>すでにDB登録済みのデータ</li>
 	 * </ul>
 	 */
-	private List<Map<String, Object>> toOutputMap(List<GeograficRequest.Item> items) {
+	private List<Map<String, Object>> toOutputMap() {
 
 		List<Map<String, Object>> out = new ArrayList<>();
-		Set<String> requestDuplicateGuard = new HashSet<>();
+		// API叩かれていないレコード対象にしてJSON出力する
+		List<TeamLocationEntity> idOpt = teamLocationWebRepository.findByNaturalKey();
+		if (idOpt.isEmpty()) {
+			return new ArrayList<Map<String,Object>>();
+		}
 
-		for (int i = 0; i < items.size(); i++) {
-			GeograficRequest.Item it = items.get(i);
-
-			String country = normalizeRequired(it.getCountry(), "country", i);
-			String league = normalizeRequired(it.getLeague(), "league", i);
-			String team = normalizeRequired(it.getTeam(), "team", i);
-			String stadium = normalizeRequired(it.getStadium(), "stadium", i);
-			String homeCity = normalizeOptional(it.getHomeCity());
-
-			// 同一リクエスト内の重複除外
-			String naturalKey = buildNaturalKey(country, team, homeCity, stadium);
-			if (!requestDuplicateGuard.add(naturalKey)) {
-				continue;
-			}
-
-			// すでにDB登録済みならJSON出力対象にしない
-			Optional<Integer> idOpt = teamLocationWebRepository.findIdByNaturalKey(
-					country,
-					team,
-					homeCity,
-					stadium);
-
-			if (idOpt.isPresent()) {
-				continue;
-			}
-
+		for (TeamLocationEntity entity : idOpt) {
 			Map<String, Object> row = new HashMap<>();
-			row.put("country", country);
-			row.put("league", league);
-			row.put("teamName", team);
-			row.put("homeCity", homeCity);
-			row.put("stadium", stadium);
+			row.put("country", entity.getCountry());
+			row.put("teamName", entity.getTeamName());
+			row.put("homeCity", entity.getHomeCity());
+			row.put("stadium", entity.getStadiumName());
 
 			out.add(row);
 		}
 
 		return out;
-	}
-
-	private String normalizeRequired(String value, String fieldName, int index) {
-
-		if (value == null || value.isBlank()) {
-			throw new IllegalArgumentException(fieldName + " がありません: index=" + index);
-		}
-		return value.trim();
-	}
-
-	private String normalizeOptional(String value) {
-
-		if (value == null || value.isBlank()) {
-			return null;
-		}
-		return value.trim();
-	}
-
-	private String buildNaturalKey(String country, String team, String homeCity, String stadium) {
-		return country + "||" + team + "||" + (homeCity == null ? "" : homeCity) + "||" + stadium;
 	}
 
 }
