@@ -55,21 +55,28 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 		for (int offset = 0; offset < total; offset += LIMIT) {
 			List<DataEntity> list = bookDataRepository.findStadium(LIMIT, offset);
 
-			manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00099I_LOG, "範囲" + offset + "~" + (offset + LIMIT) + ", "
-							+ "データテーブル取得サイズ: " + list.size());
-
 			if (list == null || list.isEmpty()) {
 				break;
 			}
+
+			manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG, "範囲" + offset + "~" + (offset + LIMIT) + ", "
+							+ "データテーブル取得サイズ: " + list.size());
 
 			int countAll = 0;
 			for (DataEntity entity : list) {
 				String dataCategory = entity.getDataCategory();
 				String homeTeamName = entity.getHomeTeamName();
 				List<String> countryLeague = ExecuteMainUtil.getCountryLeagueByRegex(dataCategory);
-				if (countryLeague.size() == 1)
+				if (countryLeague == null || countryLeague.size() < 2) {
+					manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME,
+							CLASS_NAME,
+							METHOD_NAME,
+							MessageCdConst.MCD00099I_LOG,
+							"dataCategory解析スキップ: dataCategory=" + dataCategory + ", team=" + homeTeamName);
 					continue;
+				}
 
 				String location = ExecuteMainUtil.normalizeText(entity.getLocation());
 
