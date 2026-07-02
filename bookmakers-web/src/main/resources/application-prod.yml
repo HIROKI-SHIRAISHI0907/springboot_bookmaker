@@ -139,6 +139,12 @@ ecs:
       taskDefinition: ${ECS_B014_TASK_DEF:bookmakers-app}
       container: ${ECS_B014_CONTAINER:bookmakers-app}
       logGroup: ${ECS_B014_LOG_GROUP:/ecs/bookmakers-app}
+      
+    B015:
+      cluster: ${ECS_B015_CLUSTER:geografic-cluster}
+      taskDefinition: ${ECS_B015_TASK_DEF:geografic-batch}
+      container: ${ECS_B015_CONTAINER:geografic-scraper}
+      logGroup: ${ECS_B015_LOG_GROUP:/ecs/geografic-batch}
     
   defaults:
     region: ${AWS_REGION:ap-northeast-1}
@@ -157,6 +163,7 @@ ecs:
     B009: {}
     B010: {}
     B011: {}
+    B013: {}
 
     # B006,B008,B012 は bookmakers-appを起動
     B006:

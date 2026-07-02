@@ -27,6 +27,7 @@ public class BatchFileCheckService {
 	private static final String BUCKET_STAT = "aws-s3-stat-csv";
 	private static final String BUCKET_OUTPUTS = "aws-s3-outputs-csv";
 	private static final String BUCKET_ALL_LEAGUE = "aws-s3-all-league-csv";
+	private static final String BUCKET_GEOGRAFIC = "aws-s3-geografic-csv";
 
 	/** 共通キー */
 	private static final String JSON_B001_COUNTRY_LEAGUE = "json/b001_country_league.json";
@@ -34,6 +35,7 @@ public class BatchFileCheckService {
 	private static final String FILE_SEQ_LIST = "seqList.txt";
 	private static final String FILE_SEASON_DATA = "season_data.csv";
 	private static final String FILE_ALL_LEAGUE_DATA = "all_league_master.csv";
+	private static final String FILE_GEOGRAFIC_INPUT_DATA = "output/b015_team_location.csv";
 
 	@Autowired
 	private S3FileCountService s3FileCountService;
@@ -56,6 +58,7 @@ public class BatchFileCheckService {
 		tasks.add(buildB008());
 		tasks.add(buildB010());
 		tasks.add(buildB011());
+		tasks.add(buildB012());
 
 		return BatchFileCheckResponseWrapper.builder()
 				.tasks(tasks)
@@ -241,6 +244,23 @@ public class BatchFileCheckService {
 	 */
 	private BatchFileCheckTaskWrapper buildB011() {
 	    return task("B011", true, "準備OK", new ArrayList<>());
+	}
+
+	/**
+	 * B012
+	 * aws-s3-geografic-csv の outputs/b015_geografic_input.json が存在
+	 */
+	private BatchFileCheckTaskWrapper buildB012() {
+		String bucket = BUCKET_GEOGRAFIC;
+
+		boolean geograficDataExists = exists(bucket, FILE_GEOGRAFIC_INPUT_DATA);
+
+		boolean ready = geograficDataExists;
+
+		List<BatchFileCheckItemWrapper> items = new ArrayList<>();
+		items.add(fileItem("b015_team_location.csv", bucket, FILE_GEOGRAFIC_INPUT_DATA, geograficDataExists, true, "csv"));
+
+		return task("B012", ready, summary(ready), items);
 	}
 
 	// =========================================================

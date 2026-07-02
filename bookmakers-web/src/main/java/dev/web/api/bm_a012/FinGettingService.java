@@ -118,6 +118,10 @@ public class FinGettingService {
 		return out;
 	}
 
+	/**
+	 * DB登録
+	 * @param map
+	 */
 	private void upsert(Map<String, List<Map<String, Object>>> map) {
 
 		for (Map.Entry<String, List<Map<String, Object>>> entry : map.entrySet()) {

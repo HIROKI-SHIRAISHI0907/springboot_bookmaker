@@ -17,6 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.common.config.PathConfig;
+import dev.common.entity.TeamLocationEntity;
 import dev.common.s3.S3Operator;
 import dev.web.repository.master.TeamLocationWebRepository;
 import lombok.RequiredArgsConstructor;
@@ -54,7 +55,10 @@ public class GeograficService {
 			return null;
 		}
 
-		// 3) JSON名設定
+		// 3) DB登録
+		upsert(out);
+
+		// 4) JSON名設定
 		final String outputBucket = pathConfig.getS3Geografic();
 		final String fileName = FILE_PREFIX + ".json";
 
@@ -130,6 +134,58 @@ public class GeograficService {
 		}
 
 		return out;
+	}
+
+	/**
+	 * DB登録
+	 * @param map JSON出力対象データ
+	 */
+	private void upsert(List<Map<String, Object>> map) {
+
+		for (Map<String, Object> entry : map) {
+
+			String country = toNullableString(entry.get("country"));
+			String homeCity = toNullableString(entry.get("homeCity"));
+			String stadium = toNullableString(entry.get("stadium"));
+
+			if (country == null || country.isBlank() || stadium == null || stadium.isBlank()) {
+				continue;
+			}
+
+			try {
+
+				TeamLocationEntity entity = new TeamLocationEntity();
+				entity.setCountry(country);
+				entity.setHomeCity(homeCity);
+				entity.setStadiumName(stadium);
+				entity.setGeocodeSource("input_json");
+
+				int rows = teamLocationWebRepository.insert(entity);
+				if (rows != 1) {
+					throw new RuntimeException(
+							"team_location_master insert affected rows=" + rows
+									+ " country=" + country
+									+ " homeCity=" + homeCity
+									+ " stadium=" + stadium);
+				}
+
+			} catch (Exception e) {
+				throw new RuntimeException(
+						"team_location_master upsert failed. "
+								+ "country=" + country
+								+ ", homeCity=" + homeCity
+								+ ", stadium=" + stadium,
+						e);
+			}
+		}
+	}
+
+	private String toNullableString(Object value) {
+		if (value == null) {
+			return null;
+		}
+		String s = String.valueOf(value).trim();
+		return s.isEmpty() ? null : s;
 	}
 
 	private String normalizeRequired(String value, String fieldName, int index) {
