@@ -14,6 +14,7 @@ import dev.common.entity.DataEntity;
 import dev.common.entity.TeamLocationEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.ExecuteMainUtil;
+import dev.common.util.ExecuteMainUtil.StadiumSplitResult;
 
 /**
  * TeamLocationStat登録ロジック
@@ -72,11 +73,13 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 				if (countryLeague.size() == 1)
 					continue;
 
+				StadiumSplitResult splitStadium = ExecuteMainUtil.splitStadiumAndCity(studium);
+
 				TeamLocationEntity insertEntity = new TeamLocationEntity();
 				insertEntity.setCountry(countryLeague.get(0));
 				insertEntity.setTeamName(homeTeamName);
-				insertEntity.setHomeCity(location);
-				insertEntity.setStadiumName(studium);
+				insertEntity.setHomeCity(splitStadium.getCityName());
+				insertEntity.setStadiumName(splitStadium.getStadiumName());
 				int counts = teamLocationRepository.count(insertEntity);
 				if (counts > 0) continue;
 
@@ -93,7 +96,8 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 
 				String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "登録件数: " + rows + "件");
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "登録件数: " + rows + "件, (国: " +
+								countryLeague.get(0) + ", チーム: " + homeTeamName + ", 都市: " + location + ", スタジアム: " + studium);
 				countAll += rows;
 			}
 

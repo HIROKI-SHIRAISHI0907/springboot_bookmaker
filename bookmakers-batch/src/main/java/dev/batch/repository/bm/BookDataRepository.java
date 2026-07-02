@@ -279,10 +279,10 @@ public interface BookDataRepository {
 	@Select("""
 			SELECT COUNT(*)
 			FROM (
-			    SELECT DISTINCT dataCategory, home_team_name, location, studium
+			    SELECT DISTINCT data_category, home_team_name, location, studium
 			    FROM data
-			    WHERE dataCategory IS NOT NULL
-			  		AND dataCategory <> ''
+			    WHERE data_category IS NOT NULL
+			  		AND data_category <> ''
 			  		AND home_team_name IS NOT NULL
 			  		AND home_team_name <> ''
 			  		AND studium IS NOT NULL
@@ -293,13 +293,13 @@ public interface BookDataRepository {
 
 	@Select("""
 			SELECT DISTINCT
-				   dataCategory,
+				   data_category AS dataCategory,
 			       home_team_name AS homeTeamName,
 			       location,
 			       studium
 			FROM data
-			WHERE dataCategory IS NOT NULL
-			  AND dataCategory <> ''
+			WHERE data_category IS NOT NULL
+			  AND data_category <> ''
 			  AND home_team_name IS NOT NULL
 			  AND home_team_name <> ''
 			  AND studium IS NOT NULL

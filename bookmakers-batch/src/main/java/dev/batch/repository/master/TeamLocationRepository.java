@@ -59,7 +59,7 @@ public interface TeamLocationRepository {
 			WHERE
 				country = #{country} AND
 			  	team_name = #{teamName} AND
-			  	home_city = #{homeCity} AND
+			  	(home_city = #{homeCity} OR home_city IS NULL) AND
 			  	stadium_name = #{stadiumName}
 			""")
 	int count(TeamLocationEntity entity);

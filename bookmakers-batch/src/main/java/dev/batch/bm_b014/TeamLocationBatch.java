@@ -3,7 +3,6 @@ package dev.batch.bm_b014;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import dev.batch.bm_b013.SeasonDataWrapper;
 import dev.batch.common.AbstractJobBatchTemplate;
 
 /**
@@ -61,14 +60,14 @@ public class TeamLocationBatch extends AbstractJobBatchTemplate {
 
 	/** AutoSeasonHyphenStatクラス */
 	@Autowired
-	private SeasonDataWrapper seasonDataWrapper;
+	private TeamLocationStat teamLocationStat;
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	protected void doExecute(JobContext ctx) throws Exception {
-		this.seasonDataWrapper.execute();
+		this.teamLocationStat.teamLocationStat();
 	}
 
 }
