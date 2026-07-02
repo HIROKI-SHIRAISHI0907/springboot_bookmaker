@@ -99,7 +99,7 @@ public class TeamLocationWebRepository {
 					country,
 					team_name,
 					stadium_name,
-					home_city AS homeCity
+					home_city
 				FROM team_location_master
 				WHERE
 				  address IS NULL
