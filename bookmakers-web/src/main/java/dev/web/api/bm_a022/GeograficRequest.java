@@ -24,6 +24,9 @@ public class GeograficRequest {
 		/** リーグ */
 		private String league;
 
+		/** チーム */
+		private String team;
+
 		/** ホーム都市 */
 		private String homeCity;
 

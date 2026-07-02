@@ -93,12 +93,13 @@ public class TeamLocationWebRepository {
 	// --------------------------------------------------------
 	// upsert用: 自然キーでID検索
 	// --------------------------------------------------------
-	public Optional<Integer> findIdByNaturalKey(String country, String homeCity, String stadiumName) {
+	public Optional<Integer> findIdByNaturalKey(String country, String team, String homeCity, String stadiumName) {
 
 		String sql = """
 				SELECT id
 				FROM team_location_master
 				WHERE country = :country
+				  AND team_name = :team
 				  AND stadium_name = :stadiumName
 				  AND (
 				        (:homeCity IS NULL AND home_city IS NULL)
@@ -108,6 +109,7 @@ public class TeamLocationWebRepository {
 
 		MapSqlParameterSource params = new MapSqlParameterSource()
 				.addValue("country", country)
+				.addValue("team", team)
 				.addValue("stadiumName", stadiumName)
 				.addValue("homeCity", homeCity, Types.VARCHAR);
 
