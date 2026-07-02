@@ -67,19 +67,25 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 			for (DataEntity entity : list) {
 				String dataCategory = entity.getDataCategory();
 				String homeTeamName = entity.getHomeTeamName();
-				String location = entity.getLocation();
-				String studium = entity.getStudium();
 				List<String> countryLeague = ExecuteMainUtil.getCountryLeagueByRegex(dataCategory);
 				if (countryLeague.size() == 1)
 					continue;
 
-				StadiumSplitResult splitStadium = ExecuteMainUtil.splitStadiumAndCity(studium);
+				String location = ExecuteMainUtil.normalizeText(entity.getLocation());
+
+				StadiumSplitResult splitResult = ExecuteMainUtil.splitStadiumAndCity(entity.getStudium());
+				String studium = splitResult.getStadiumName();
+
+				// location が空なら、studium末尾の都市名を採用
+				if (location == null || location.isBlank()) {
+					location = splitResult.getCityName();
+				}
 
 				TeamLocationEntity insertEntity = new TeamLocationEntity();
 				insertEntity.setCountry(countryLeague.get(0));
 				insertEntity.setTeamName(homeTeamName);
-				insertEntity.setHomeCity(splitStadium.getCityName());
-				insertEntity.setStadiumName(splitStadium.getStadiumName());
+				insertEntity.setHomeCity(location);
+				insertEntity.setStadiumName(studium);
 				int counts = teamLocationRepository.count(insertEntity);
 				if (counts > 0) continue;
 
