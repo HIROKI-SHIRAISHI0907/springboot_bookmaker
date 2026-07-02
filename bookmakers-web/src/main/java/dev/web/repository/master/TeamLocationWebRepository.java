@@ -107,9 +107,9 @@ public class TeamLocationWebRepository {
 
 		return masterJdbcTemplate.query(sql, (rs, n) -> {
 			TeamLocationEntity dto = new TeamLocationEntity();
-			dto.setId(rs.getInt("id"));
 			dto.setCountry(rs.getString("country"));
 			dto.setTeamName(rs.getString("team_name"));
+			dto.setStadiumName(rs.getString("stadium_name"));
 			dto.setHomeCity(rs.getString("home_city"));
 			return dto;
 		});
