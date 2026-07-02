@@ -1,5 +1,7 @@
 package dev.batch.repository.bm;
 
+import java.util.List;
+
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
@@ -273,5 +275,38 @@ public interface BookDataRepository {
 			FROM data
 			""")
 	int findChk();
+
+	@Select("""
+			SELECT COUNT(*)
+			FROM (
+			    SELECT DISTINCT dataCategory, home_team_name, location, studium
+			    FROM data
+			    WHERE dataCategory IS NOT NULL
+			  		AND dataCategory <> ''
+			  		AND home_team_name IS NOT NULL
+			  		AND home_team_name <> ''
+			  		AND studium IS NOT NULL
+			  		AND studium <> ''
+			) t
+			""")
+	int countStadium();
+
+	@Select("""
+			SELECT DISTINCT
+				   dataCategory,
+			       home_team_name AS homeTeamName,
+			       location,
+			       studium
+			FROM data
+			WHERE dataCategory IS NOT NULL
+			  AND dataCategory <> ''
+			  AND home_team_name IS NOT NULL
+			  AND home_team_name <> ''
+			  AND studium IS NOT NULL
+			  AND studium <> ''
+			ORDER BY home_team_name, studium
+			LIMIT #{limit} OFFSET #{offset}
+			""")
+	List<DataEntity> findStadium(@Param("limit") int limit, @Param("offset") int offset);
 
 }

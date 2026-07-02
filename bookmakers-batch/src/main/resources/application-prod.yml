@@ -132,6 +132,18 @@ ecs:
       taskDefinition: ${ECS_B010_TASK_DEF:bm-fin-batch}
       container: ${ECS_B010_CONTAINER:timely-data-fin-outputs-scraper}
       logGroup: ${ECS_B010_LOG_GROUP:/ecs/bm-fin-batch}
+      
+    B014:
+      cluster: ${ECS_B014_CLUSTER:stats-backend}
+      taskDefinition: ${ECS_B014_TASK_DEF:bookmakers-app}
+      container: ${ECS_B014_CONTAINER:bookmakers-app}
+      logGroup: ${ECS_B014_LOG_GROUP:/ecs/bookmakers-app}
+      
+    B015:
+      cluster: ${ECS_B015_CLUSTER:geografic-cluster}
+      taskDefinition: ${ECS_B015_TASK_DEF:geografic-batch}
+      container: ${ECS_B015_CONTAINER:geografic-scraper}
+      logGroup: ${ECS_B015_LOG_GROUP:/ecs/geografic-batch}
     
   defaults:
     region: ${AWS_REGION:ap-northeast-1}

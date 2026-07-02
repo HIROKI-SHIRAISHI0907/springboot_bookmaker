@@ -2,6 +2,7 @@ package dev.batch.repository.master;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Select;
 
 import dev.common.entity.TeamLocationEntity;
 
@@ -51,4 +52,15 @@ public interface TeamLocationRepository {
 			)
 			""")
 	int insert(TeamLocationEntity entity);
+
+	@Select("""
+			SELECT COUNT(*)
+			FROM team_location_master
+			WHERE
+				country = #{country} AND
+			  	team_name = #{teamName} AND
+			  	home_city = #{homeCity} AND
+			  	stadium_name = #{stadiumName}
+			""")
+	int count(TeamLocationEntity entity);
 }
