@@ -3,12 +3,12 @@ package dev.web.api.bm_a022;
 import lombok.Data;
 
 /**
- * GeograficSearchCondition
+ * LanguageEntity
  * @author shiraishitoshio
  *
  */
 @Data
-public class GeograficSearchCondition {
+public class LanguageEntity {
 
 	/** ID */
 	private Integer id;
@@ -16,10 +16,10 @@ public class GeograficSearchCondition {
 	/** 国 */
 	private String country;
 
-	/** チーム */
-	private String teamName;
+	/** 言語（日本語） */
+	private String lang;
 
-	/** ホーム都市 */
-	private String homeCity;
+	/** 言語コード */
+	private String langCd;
 
 }

@@ -1,5 +1,6 @@
 package dev.web.api.bm_a022;
 
+import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -26,11 +27,13 @@ public class GeograficService {
 
 	private static final String S3_PREFIX = "output/";
 	private static final String FILE_PREFIX = "b015_geografic_input";
-
+	private static final String JAPAN = "日本";
 	private final ObjectMapper objectMapper;
 	private final PathConfig pathConfig;
 	private final S3Operator s3Operator;
 	private final TeamLocationWebRepository teamLocationWebRepository;
+
+	private final TeamTranslationService teamTranslationService;
 
 	/**
 	 * マスタデータに登録かつ住所が未登録のみJSONファイルをローカル出力 → S3へアップロードする。
@@ -88,10 +91,34 @@ public class GeograficService {
 
 		for (TeamLocationEntity entity : idOpt) {
 			Map<String, Object> row = new HashMap<>();
-			row.put("country", entity.getCountry());
-			row.put("teamName", entity.getTeamName());
-			row.put("homeCity", entity.getHomeCity());
-			row.put("stadium", entity.getStadiumName());
+
+			String country = entity.getCountry();
+			String teamName = entity.getTeamName();
+			String homeCity = entity.getHomeCity();
+			String stadium = entity.getStadiumName();
+			// 日本以外は言語変換を行う。
+			if (!JAPAN.equals(country)) {
+				TeamTranslationRequest request = new TeamTranslationRequest();
+				request.setCountry(country);
+				request.setTeamName(teamName);
+				request.setHomeCity(homeCity);
+				request.setStadium(stadium);
+				TeamTranslationResult result = null;
+				try {
+					result = teamTranslationService.translateToLocalLanguage(request);
+				} catch (IOException e) {
+					throw new RuntimeException(e.getMessage());
+				}
+				country = result.getCountry();
+				teamName = result.getTeamName();
+				homeCity = result.getHomeCity();
+				stadium = result.getStadium();
+			}
+
+			row.put("country", country);
+			row.put("teamName", teamName);
+			row.put("homeCity", homeCity);
+			row.put("stadium", stadium);
 
 			out.add(row);
 		}
