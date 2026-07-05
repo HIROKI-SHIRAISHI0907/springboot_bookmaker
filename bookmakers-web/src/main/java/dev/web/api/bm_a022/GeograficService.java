@@ -97,7 +97,9 @@ public class GeograficService {
 			String teamName = entity.getTeamName();
 			String teamNameTranslate = null;
 			String homeCity = entity.getHomeCity();
+			String homeCityTranslate = null;
 			String stadium = entity.getStadiumName();
+			String stadiumTranslate = null;
 			// 日本以外は言語変換を行う。
 			if (!JAPAN.equals(country)) {
 				TeamTranslationRequest request = new TeamTranslationRequest();
@@ -113,8 +115,8 @@ public class GeograficService {
 				}
 				countryTranslate = result.getCountry();
 				teamNameTranslate = result.getTeamName();
-				homeCity = result.getHomeCity();
-				stadium = result.getStadium();
+				homeCityTranslate = result.getHomeCity();
+				stadiumTranslate = result.getStadium();
 			}
 
 			row.put("country", country);
@@ -126,8 +128,13 @@ public class GeograficService {
 				row.put("teamNameTranslate", teamNameTranslate);
 			}
 			row.put("homeCity", homeCity);
+			if (homeCityTranslate != null) {
+				row.put("homeCityTranslate", homeCityTranslate);
+			}
 			row.put("stadium", stadium);
-
+			if (stadiumTranslate != null) {
+				row.put("stadiumTranslate", stadiumTranslate);
+			}
 			out.add(row);
 		}
 
