@@ -121,38 +121,28 @@ public class ReadFuture implements ReadFileBodyIF {
 
 	        FutureEntity mappingDto = new FutureEntity();
 	        mappingDto.setFile(fileIdForLog);
-	        mappingDto.setGameTeamCategory(parts[0]);
+	        mappingDto.setGameTeamCategory(parts[2]);
 
 	        // futureTime
 	        try {
-	            mappingDto.setFutureTime(DateUtil.normalizeToJapaneseFormat(parts[1]));
+	            mappingDto.setFutureTime(DateUtil.normalizeToJapaneseFormat(parts[3]));
 	        } catch (Exception e) {
 	        	String messageCd = MessageCdConst.MCD00020E_DATE_ERROR;
 	            String msg = "futureTime parse error"
 	                    + " file=" + fileIdForLog
 	                    + " row=" + row
-	                    + " raw=[" + parts[1] + "]";
+	                    + " raw=[" + parts + "]";
 	            this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME,
 	            		METHOD_NAME, messageCd, e, msg);
 	            mappingDto.setFutureTime("");
 	        }
 
-	        mappingDto.setHomeRank(parts[2].replace(".0", ""));
-	        mappingDto.setAwayRank(parts[3].replace(".0", ""));
-	        mappingDto.setHomeTeamName(parts[4]);
-	        mappingDto.setAwayTeamName(parts[5]);
-	        mappingDto.setHomeMaxGettingScorer(parts[6]);
-	        mappingDto.setAwayMaxGettingScorer(parts[7]);
-	        mappingDto.setHomeTeamHomeScore(parts[8]);
-	        mappingDto.setHomeTeamHomeLost(parts[9]);
-	        mappingDto.setAwayTeamHomeScore(parts[10]);
-	        mappingDto.setAwayTeamHomeLost(parts[11]);
-	        mappingDto.setHomeTeamAwayScore(parts[12]);
-	        mappingDto.setHomeTeamAwayLost(parts[13]);
-	        mappingDto.setAwayTeamAwayScore(parts[14]);
-	        mappingDto.setAwayTeamAwayLost(parts[15]);
-	        mappingDto.setGameLink(parts[16]);
-	        mappingDto.setDataTime(parts[17]);
+	        mappingDto.setHomeRank(parts[4].replace(".0", ""));
+	        mappingDto.setAwayRank(parts[5].replace(".0", ""));
+	        mappingDto.setHomeTeamName(parts[6]);
+	        mappingDto.setAwayTeamName(parts[7]);
+	        mappingDto.setGameLink(parts[8]);
+	        mappingDto.setDataTime(parts[10]);
 	        entiryList.add(mappingDto);
 	    }
 	    return entiryList;
