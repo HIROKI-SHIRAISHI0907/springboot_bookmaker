@@ -27,7 +27,7 @@ public class GeograficExecTaskController {
     private final EcsBatchTaskRunner runner;
 
     /**
-     * /geografic を叩いたら B013 のFargateタスクを起動する
+     * /geografic を叩いたら B014 のFargateタスクを起動する
      */
     @PostMapping("/geografic")
     public ResponseEntity<StatResponseResource> execute(@RequestBody StatRequestResource req) {
@@ -37,7 +37,7 @@ public class GeograficExecTaskController {
         // 例: env.put("COUNTRY", req.getCountry());
         // 例: env.put("LEAGUE", req.getLeague());
 
-        String taskArn = runner.runBatch("B013", env);
+        String taskArn = runner.runBatch("B014", env);
 
         StatResponseResource res = new StatResponseResource();
         // あなたのDTO設計に合わせて詰めてOK

@@ -22,6 +22,7 @@ process:
       allLeague: ${S3_ALL_LEAGUE:aws-s3-all-league-csv}
       noEcs: ${S3_NO_ECS:aws-s3-no-ecs-task-time-csv}
       geografic: ${S3_GEOGRAFIC:aws-s3-geografic-csv}
+      record: ${S3_RECORD:aws-s3-record-csv}
 
 server:
   port: 8080
@@ -237,6 +238,11 @@ s3-job:
     B010:
       bucket: aws-s3-geografic-csv
       prefix: output/
+      recursive: true
+      
+    B011:
+      bucket: aws-s3-record-csv
+      prefix: null
       recursive: true
       
 logging:
