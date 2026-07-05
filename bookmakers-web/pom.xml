@@ -22,6 +22,11 @@
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
+			<artifactId>spring-boot-starter-webflux</artifactId>
+		</dependency>
+
+		<dependency>
+			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-jdbc</artifactId>
 		</dependency>
 
@@ -82,35 +87,26 @@
 		</dependency>
 
 		<dependency>
-			<groupId>org.postgresql</groupId>
-			<artifactId>postgresql</artifactId>
-		</dependency>
-
-
-		<!-- AWS SDK v2 : ECS -->
-		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>ecs</artifactId>
 		</dependency>
 
-		<!-- AWS SDK v2 : CloudWatch Logs -->
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
 			<artifactId>cloudwatchlogs</artifactId>
 		</dependency>
 
-		<!-- 自作モジュール：まずはversionを明示して確実に通す -->
 		<dependency>
 			<groupId>dev.parent</groupId>
 			<artifactId>bookmakers-common-data</artifactId>
 			<version>0.0.1-SNAPSHOT</version>
 		</dependency>
 
-		<!-- test -->
+		<!-- Google 認証用 -->
 		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-test</artifactId>
-			<scope>test</scope>
+			<groupId>com.google.auth</groupId>
+			<artifactId>google-auth-library-oauth2-http</artifactId>
+			<version>1.30.1</version>
 		</dependency>
 
 		<dependency>
@@ -119,17 +115,10 @@
 			<optional>true</optional>
 		</dependency>
 
-		<!-- Spring WebFlux (WebClient 用) -->
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-webflux</artifactId>
-		</dependency>
-
-		<!-- Google Auth Library -->
-		<dependency>
-			<groupId>com.google.auth</groupId>
-			<artifactId>google-auth-library-oauth2-http</artifactId>
-			<version>1.30.1</version>
+			<artifactId>spring-boot-starter-test</artifactId>
+			<scope>test</scope>
 		</dependency>
 	</dependencies>
 
@@ -146,6 +135,7 @@
 					</execution>
 				</executions>
 			</plugin>
+
 			<plugin>
 				<groupId>org.apache.maven.plugins</groupId>
 				<artifactId>maven-compiler-plugin</artifactId>
@@ -157,5 +147,4 @@
 			</plugin>
 		</plugins>
 	</build>
-
 </project>

@@ -68,6 +68,14 @@ security:
     issuer: bookmakers-web
     secret: ${JWT_SECRET:test}
     expires-in: 3600
+
+google:
+  cloud:
+    project-id: ${GCP_PROJECT_ID:project-3135a1b3-4e03-44a7-bdf}
+    translation:
+      endpoint: ${GCP_TRANSLATION_ENDPOINT:https://translate.googleapis.com}
+      location: ${GCP_TRANSLATION_LOCATION:global}
+      source-language: ${GCP_TRANSLATION_SOURCE_LANGUAGE:ja}
     
 management:
   endpoints:

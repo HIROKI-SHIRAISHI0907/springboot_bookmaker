@@ -2,6 +2,7 @@ package dev.web.api.bm_a022;
 
 import java.io.IOException;
 import java.util.ArrayList;
+import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -10,16 +11,18 @@ import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
+import com.google.auth.oauth2.AccessToken;
 import com.google.auth.oauth2.GoogleCredentials;
 
-import dev.web.config.GoogleAuthConfig;
 import reactor.core.publisher.Mono;
 
 @Service
 public class TeamTranslationService {
 
+    private static final String CLOUD_PLATFORM_SCOPE =
+            "https://www.googleapis.com/auth/cloud-platform";
+
     private final WebClient webClient;
-    private final GoogleCredentials googleCredentials;
     private final CountryLanguageResolver countryLanguageResolver;
 
     @Value("${google.cloud.project-id}")
@@ -36,10 +39,8 @@ public class TeamTranslationService {
 
     public TeamTranslationService(
             WebClient webClient,
-            GoogleCredentials googleCredentials,
             CountryLanguageResolver countryLanguageResolver) {
         this.webClient = webClient;
-        this.googleCredentials = googleCredentials;
         this.countryLanguageResolver = countryLanguageResolver;
     }
 
@@ -66,7 +67,7 @@ public class TeamTranslationService {
                 + "/locations/" + location
                 + ":translateText";
 
-        String accessToken = GoogleAuthConfig.getAccessToken(googleCredentials);
+        String accessToken = getAccessToken();
 
         TranslateTextResponse response = webClient.post()
                 .uri(url)
@@ -90,6 +91,25 @@ public class TeamTranslationService {
         result.setTargetLanguageCode(targetLanguageCode);
 
         return result;
+    }
+
+    private String getAccessToken() throws IOException {
+        GoogleCredentials credentials = GoogleCredentials.getApplicationDefault()
+                .createScoped(Collections.singletonList(CLOUD_PLATFORM_SCOPE));
+
+        credentials.refreshIfExpired();
+        AccessToken accessToken = credentials.getAccessToken();
+
+        if (accessToken == null) {
+            credentials.refresh();
+            accessToken = credentials.getAccessToken();
+        }
+
+        if (accessToken == null) {
+            throw new IOException("Failed to obtain Google access token.");
+        }
+
+        return accessToken.getTokenValue();
     }
 
     private String getTranslatedText(TranslateTextResponse response, int index, String fallback) {
