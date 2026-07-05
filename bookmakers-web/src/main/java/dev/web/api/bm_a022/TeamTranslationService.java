@@ -8,6 +8,7 @@ import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.http.HttpStatusCode;
 import org.springframework.stereotype.Service;
 import org.springframework.web.reactive.function.client.WebClient;
 
@@ -16,6 +17,11 @@ import com.google.auth.oauth2.GoogleCredentials;
 
 import reactor.core.publisher.Mono;
 
+/**
+ * チーム情報現地言語翻訳クラス
+ * @author shiraishitoshio
+ *
+ */
 @Service
 public class TeamTranslationService {
 
@@ -25,10 +31,10 @@ public class TeamTranslationService {
     private final WebClient webClient;
     private final CountryLanguageResolver countryLanguageResolver;
 
-    @Value("${google.cloud.project-id}")
+    @Value("${google.cloud.project-id:}")
     private String projectId;
 
-    @Value("${google.cloud.translation.endpoint}")
+    @Value("${google.cloud.translation.endpoint:https://translate.googleapis.com}")
     private String endpoint;
 
     @Value("${google.cloud.translation.location:global}")
@@ -50,6 +56,8 @@ public class TeamTranslationService {
     }
 
     public TeamTranslationResult translate(TeamTranslationRequest request, String targetLanguageCode) throws IOException {
+        validateConfig();
+
         List<String> contents = new ArrayList<>();
         contents.add(nvl(request.getTeamName()));
         contents.add(nvl(request.getCountry()));
@@ -73,10 +81,18 @@ public class TeamTranslationService {
                 .uri(url)
                 .header("Authorization", "Bearer " + accessToken)
                 .header("Content-Type", "application/json; charset=utf-8")
+                .header("x-goog-user-project", projectId)
                 .bodyValue(body)
                 .retrieve()
+                .onStatus(HttpStatusCode::isError, clientResponse ->
+                        clientResponse.bodyToMono(String.class)
+                                .defaultIfEmpty("")
+                                .flatMap(errorBody -> Mono.error(
+                                        new RuntimeException("Translation API call failed. status="
+                                                + clientResponse.statusCode()
+                                                + ", url=" + url
+                                                + ", body=" + errorBody))))
                 .bodyToMono(TranslateTextResponse.class)
-                .onErrorResume(e -> Mono.error(new RuntimeException("Translation API call failed.", e)))
                 .block();
 
         if (response == null || response.getTranslations() == null || response.getTranslations().size() < 4) {
@@ -91,6 +107,21 @@ public class TeamTranslationService {
         result.setTargetLanguageCode(targetLanguageCode);
 
         return result;
+    }
+
+    private void validateConfig() {
+        if (projectId == null || projectId.isBlank()) {
+            throw new IllegalStateException("google.cloud.project-id が未設定です。");
+        }
+        if ("your-gcp-project-id".equals(projectId)) {
+            throw new IllegalStateException("google.cloud.project-id がダミー値のままです。");
+        }
+        if (endpoint == null || endpoint.isBlank()) {
+            throw new IllegalStateException("google.cloud.translation.endpoint が未設定です。");
+        }
+        if (location == null || location.isBlank()) {
+            throw new IllegalStateException("google.cloud.translation.location が未設定です。");
+        }
     }
 
     private String getAccessToken() throws IOException {

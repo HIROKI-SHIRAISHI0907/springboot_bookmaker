@@ -86,14 +86,16 @@ public class GeograficService {
 		// API叩かれていないレコード対象にしてJSON出力する
 		List<TeamLocationEntity> idOpt = teamLocationWebRepository.findByNaturalKey();
 		if (idOpt.isEmpty()) {
-			return new ArrayList<Map<String,Object>>();
+			return new ArrayList<Map<String, Object>>();
 		}
 
 		for (TeamLocationEntity entity : idOpt) {
 			Map<String, Object> row = new HashMap<>();
 
 			String country = entity.getCountry();
+			String countryTranslate = null;
 			String teamName = entity.getTeamName();
+			String teamNameTranslate = null;
 			String homeCity = entity.getHomeCity();
 			String stadium = entity.getStadiumName();
 			// 日本以外は言語変換を行う。
@@ -109,14 +111,20 @@ public class GeograficService {
 				} catch (IOException e) {
 					throw new RuntimeException(e.getMessage());
 				}
-				country = result.getCountry();
-				teamName = result.getTeamName();
+				countryTranslate = result.getCountry();
+				teamNameTranslate = result.getTeamName();
 				homeCity = result.getHomeCity();
 				stadium = result.getStadium();
 			}
 
 			row.put("country", country);
+			if (countryTranslate != null) {
+				row.put("countryTranslate", countryTranslate);
+			}
 			row.put("teamName", teamName);
+			if (teamNameTranslate != null) {
+				row.put("teamNameTranslate", teamNameTranslate);
+			}
 			row.put("homeCity", homeCity);
 			row.put("stadium", stadium);
 
