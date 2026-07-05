@@ -56,11 +56,6 @@ public class TeamMemberDBService {
 			}
 			entities.add(entityList);
 
-			String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-					BM_NUMBER + " 取得件数: " + entityList.size() + "件");
-
 		} catch (Exception e) {
 			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			this.manageLoggerComponent.debugErrorLog(

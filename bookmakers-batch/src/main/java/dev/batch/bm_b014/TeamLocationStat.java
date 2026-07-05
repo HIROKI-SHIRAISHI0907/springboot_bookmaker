@@ -1,6 +1,8 @@
 package dev.batch.bm_b014;
 
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -38,6 +40,11 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 	private BookDataRepository bookDataRepository; // bm
 	@Autowired
 	private TeamLocationRepository teamLocationRepository;
+
+	/** TeamLocationDBService部品 */
+	@Autowired
+	private TeamLocationDBService teamLocationDBService;
+
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
 
@@ -46,10 +53,25 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 	 */
 	@Override
 	@Transactional(rollbackFor = Exception.class)
-	public void teamLocationStat() throws Exception {
+	public void teamLocationStat(List<TeamLocationEntity> map, boolean readyFlg) throws Exception {
 		final String METHOD_NAME = "teamLocationStat";
 		manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		// 位置情報が分かるデータを事前にマスタに登録しておく
+		if (readyFlg)
+			readyFlgTrue();
 
+		// 取得できた情報に更新
+		if (!readyFlg)
+			readyFlgFalse(map);
+
+		manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	}
+
+	/**
+	 * 事前準備フラグがtrue: dataテーブルからスタジアム情報がわかるデータを取得
+	 */
+	private void readyFlgTrue() {
+		final String METHOD_NAME = "readyFlgTrue";
 		// dataテーブルの全件数を取得
 		int total = bookDataRepository.countStadium();
 		for (int offset = 0; offset < total; offset += LIMIT) {
@@ -94,7 +116,8 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 				insertEntity.setHomeCity(location);
 				insertEntity.setStadiumName(studium);
 				int counts = teamLocationRepository.count(insertEntity);
-				if (counts > 0) continue;
+				if (counts > 0)
+					continue;
 
 				insertEntity.setGeocodeSource("B014_batch");
 
@@ -110,7 +133,8 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 				String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 				this.manageLoggerComponent.debugInfoLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "登録件数: " + rows + "件, (国: " +
-								countryLeague.get(0) + ", チーム: " + homeTeamName + ", 都市: " + location + ", スタジアム: " + studium);
+								countryLeague.get(0) + ", チーム: " + homeTeamName + ", 都市: " + location + ", スタジアム: "
+								+ studium);
 				countAll += rows;
 			}
 
@@ -118,8 +142,144 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "全体登録件数: " + countAll + "件");
 
-			manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		}
+	}
+
+	/**
+	 * 事前準備フラグがfalse:
+	 * Google geografic APIから取得した位置情報を保存しているCSVを用いて情報更新する
+	 */
+	private void readyFlgFalse(List<TeamLocationEntity> list) {
+		Map<String, TeamLocationEntity> afterMap = new HashMap<>();
+		for (TeamLocationEntity aft : list) {
+			afterMap.put(buildNaturalKey(aft), aft);
+		}
+
+		// 既存DBデータ取得
+		List<TeamLocationEntity> updateBef = teamLocationDBService.selectInBatch();
+
+		// 1. 既存データは update
+		for (TeamLocationEntity bef : updateBef) {
+			String key = buildNaturalKey(bef);
+			TeamLocationEntity aft = afterMap.remove(key); // removeしておくと残りがinsert対象になる
+			if (aft == null) {
+				continue;
+			}
+
+			String fillChar = "id: " + bef.getId()
+					+ ", 国: " + bef.getCountry()
+					+ ", チーム: " + bef.getTeamName()
+					+ ", 都市名: " + bef.getHomeCity()
+					+ ", スタジアム: " + bef.getStadiumName();
+
+			TeamLocationEntity updateEntity = buildUpdateEntity(bef.getId(), aft);
+			teamLocationDBService.updateInBatch(updateEntity, fillChar);
+		}
+
+		// 2. 残ったデータは新規 insert
+		for (TeamLocationEntity aft : afterMap.values()) {
+			String fillChar = "新規登録"
+					+ ", 国: " + aft.getCountry()
+					+ ", チーム: " + aft.getTeamName()
+					+ ", 都市名: " + aft.getHomeCity()
+					+ ", スタジアム: " + aft.getStadiumName();
+
+			TeamLocationEntity insertEntity = buildInsertEntity(aft);
+			teamLocationDBService.insertInBatch(insertEntity, fillChar);
+		}
+	}
+
+	private TeamLocationEntity buildUpdateEntity(Integer id, TeamLocationEntity src) {
+		TeamLocationEntity entity = new TeamLocationEntity();
+
+		entity.setId(id);
+
+		entity.setCountry(src.getCountry());
+		entity.setCountryTranslate(src.getCountryTranslate());
+
+		entity.setTeamName(src.getTeamName());
+		entity.setTeamNameTranslate(src.getTeamNameTranslate());
+
+		entity.setHomeCity(src.getHomeCity());
+		entity.setHomeCityTranslate(src.getHomeCityTranslate());
+
+		entity.setStadiumName(src.getStadiumName());
+		entity.setStadiumNameTranslate(src.getStadiumNameTranslate());
+
+		entity.setAddress(src.getAddress());
+		entity.setLatitude(src.getLatitude());
+		entity.setLongitude(src.getLongitude());
+
+		entity.setPlaceId(src.getPlaceId());
+
+		entity.setDisplayNameEn(src.getDisplayNameEn());
+		entity.setAddressEn(src.getAddressEn());
+		entity.setLatitudeEn(src.getLatitudeEn());
+		entity.setLongitudeEn(src.getLongitudeEn());
+
+		entity.setDisplayNameLocal(src.getDisplayNameLocal());
+		entity.setAddressLocal(src.getAddressLocal());
+		entity.setLatitudeLocal(src.getLatitudeLocal());
+		entity.setLongitudeLocal(src.getLongitudeLocal());
+
+		entity.setLocalLanguageCode(src.getLocalLanguageCode());
+		entity.setGeocodeSource(src.getGeocodeSource());
+
+		entity.setValidFrom(src.getValidFrom());
+		entity.setValidTo(src.getValidTo());
+
+		return entity;
+	}
+
+	private TeamLocationEntity buildInsertEntity(TeamLocationEntity src) {
+		TeamLocationEntity entity = new TeamLocationEntity();
+
+		entity.setCountry(src.getCountry());
+		entity.setCountryTranslate(src.getCountryTranslate());
+
+		entity.setTeamName(src.getTeamName());
+		entity.setTeamNameTranslate(src.getTeamNameTranslate());
+
+		entity.setHomeCity(src.getHomeCity());
+		entity.setHomeCityTranslate(src.getHomeCityTranslate());
+
+		entity.setStadiumName(src.getStadiumName());
+		entity.setStadiumNameTranslate(src.getStadiumNameTranslate());
+
+		entity.setAddress(src.getAddress());
+		entity.setLatitude(src.getLatitude());
+		entity.setLongitude(src.getLongitude());
+
+		entity.setPlaceId(src.getPlaceId());
+
+		entity.setDisplayNameEn(src.getDisplayNameEn());
+		entity.setAddressEn(src.getAddressEn());
+		entity.setLatitudeEn(src.getLatitudeEn());
+		entity.setLongitudeEn(src.getLongitudeEn());
+
+		entity.setDisplayNameLocal(src.getDisplayNameLocal());
+		entity.setAddressLocal(src.getAddressLocal());
+		entity.setLatitudeLocal(src.getLatitudeLocal());
+		entity.setLongitudeLocal(src.getLongitudeLocal());
+
+		entity.setLocalLanguageCode(src.getLocalLanguageCode());
+		entity.setGeocodeSource(src.getGeocodeSource());
+
+		entity.setValidFrom(src.getValidFrom());
+		entity.setValidTo(src.getValidTo());
+
+		return entity;
+	}
+
+	private String buildNaturalKey(TeamLocationEntity e) {
+		return nvl(e.getCountry()) + "|"
+				+ nvl(e.getTeamName()) + "|"
+				+ nvl(e.getHomeCity()) + "|"
+				+ nvl(e.getStadiumName());
+	}
+
+	private String nvl(String s) {
+		return s == null ? "" : s;
 	}
 
 }

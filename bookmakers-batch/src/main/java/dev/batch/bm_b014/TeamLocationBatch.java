@@ -1,9 +1,13 @@
 package dev.batch.bm_b014;
 
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import dev.batch.common.AbstractJobBatchTemplate;
+import dev.common.entity.TeamLocationEntity;
+import dev.common.getinfo.GetGeograficInfo;
 
 /**
  * スタジアムマスタ設定処理実行クラス。
@@ -58,6 +62,10 @@ public class TeamLocationBatch extends AbstractJobBatchTemplate {
 		return CLASS_NAME;
 	}
 
+	/** 地理情報取得管理クラス */
+	@Autowired
+	private GetGeograficInfo geograficInfo;
+
 	/** AutoSeasonHyphenStatクラス */
 	@Autowired
 	private TeamLocationStat teamLocationStat;
@@ -67,7 +75,9 @@ public class TeamLocationBatch extends AbstractJobBatchTemplate {
 	 */
 	@Override
 	protected void doExecute(JobContext ctx) throws Exception {
-		this.teamLocationStat.teamLocationStat();
+		// 地理データ情報を取得
+		List<TeamLocationEntity> listMap = this.geograficInfo.getData();
+		this.teamLocationStat.teamLocationStat(listMap, false);
 	}
 
 }
