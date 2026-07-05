@@ -9,6 +9,7 @@ import java.util.regex.Pattern;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.exception.BusinessException;
+import lombok.Data;
 
 /**
  * データ整理共通クラス
@@ -271,6 +272,82 @@ public class ExecuteMainUtil {
 			return new ArrayList<>();
 		}
 	}
+
+	/**
+	 * 末尾の "(都市名)" または "（都市名）" を分離する
+	 *
+	 * 例:
+	 * ジュゼッペ・メアッツァ（サン・シ―ロ） (ミラノ)
+	 *   -> stadiumName = ジュゼッペ・メアッツァ（サン・シ―ロ）
+	 *   -> cityName    = ミラノ
+	 */
+	public static StadiumSplitResult splitStadiumAndCity(String rawStudium) {
+		if (rawStudium == null || rawStudium.isBlank()) {
+			return new StadiumSplitResult(null, null);
+		}
+
+		String value = normalizeText(rawStudium);
+
+		// 最後の閉じカッコが末尾にある場合だけ分離対象
+		int closeIdx = Math.max(value.lastIndexOf(')'), value.lastIndexOf('）'));
+		if (closeIdx != value.length() - 1) {
+			return new StadiumSplitResult(value, null);
+		}
+
+		// 最後の開きカッコを探す
+		int openIdxHalf = value.lastIndexOf('(', closeIdx);
+		int openIdxFull = value.lastIndexOf('（', closeIdx);
+		int openIdx = Math.max(openIdxHalf, openIdxFull);
+
+		if (openIdx < 0 || openIdx >= closeIdx) {
+			return new StadiumSplitResult(value, null);
+		}
+
+		String stadiumName = normalizeText(value.substring(0, openIdx));
+		String cityName = normalizeText(value.substring(openIdx + 1, closeIdx));
+
+		if (cityName == null || cityName.isBlank()) {
+			return new StadiumSplitResult(value, null);
+		}
+
+		return new StadiumSplitResult(stadiumName, cityName);
+	}
+
+	/**
+	 * 空白・不可視空白を整形
+	 */
+	public static String normalizeText(String value) {
+		if (value == null) {
+			return null;
+		}
+
+		String normalized = value
+				.replace('\u00A0', ' ')   // NBSP
+				.replace('\u3000', ' ')   // 全角スペース
+				.replace('\u2007', ' ')
+				.replace('\u202F', ' ')
+				.trim();
+
+		return normalized.isEmpty() ? null : normalized;
+	}
+
+
+	/**
+	 * スタジアムと都市名を分離する
+	 * @author shiraishitoshio
+	 *
+	 */
+	@Data
+	public static class StadiumSplitResult {
+		private final String stadiumName;
+		private final String cityName;
+
+		private StadiumSplitResult(String stadiumName, String cityName) {
+			this.stadiumName = stadiumName;
+			this.cityName = cityName;
+		}
+	}
+
 
 	/**
 	 * フォルダ名から国とリーグを取得する
