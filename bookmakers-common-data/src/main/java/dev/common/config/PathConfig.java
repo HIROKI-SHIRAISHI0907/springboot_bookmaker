@@ -120,6 +120,12 @@ public class PathConfig {
 	private String s3BucketsGeografic;
 
 	/**
+	 * S3バケット（record）
+	 */
+	@Value("${process.s3.buckets.record}")
+	private String s3BucketsRecord;
+
+	/**
 	 * JSONフォルダ作成パスを返す
 	 * @return
 	 */
@@ -276,6 +282,15 @@ public class PathConfig {
 	 */
 	public String getS3Geografic() {
 	    return s3BucketsGeografic;
+	}
+
+	/**
+	 * Record用のS3バケット名を取得する。
+	 *
+	 * @return Record用S3バケット名
+	 */
+	public String getS3Record() {
+	    return s3BucketsRecord;
 	}
 
 }

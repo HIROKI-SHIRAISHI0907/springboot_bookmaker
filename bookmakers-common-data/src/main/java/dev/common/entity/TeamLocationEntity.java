@@ -1,7 +1,7 @@
 package dev.common.entity;
 
 import java.math.BigDecimal;
-import java.time.LocalDate;
+import java.time.LocalDateTime;
 
 import lombok.Data;
 
@@ -137,11 +137,11 @@ public class TeamLocationEntity {
     /**
      * この所在地情報の有効開始日です。
      */
-    private LocalDate validFrom;
+    private LocalDateTime validFrom;
 
     /**
      * この所在地情報の有効終了日です。
      */
-    private LocalDate validTo;
+    private LocalDateTime validTo;
 
 }

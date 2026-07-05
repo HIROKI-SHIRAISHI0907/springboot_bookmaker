@@ -5,7 +5,6 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.math.BigDecimal;
 import java.nio.charset.StandardCharsets;
-import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 
@@ -130,9 +129,6 @@ public class ReadGeografic implements ReadFileBodyIF {
 				e.setLocalLanguageCode(safeGet(cols, 22));
 				e.setGeocodeSource(safeGet(cols, 23));
 
-				e.setValidFrom(parseLocalDate(safeGet(cols, 24)));
-				e.setValidTo(parseLocalDate(safeGet(cols, 25)));
-
 				entityList.add(e);
 			}
 
@@ -225,12 +221,5 @@ public class ReadGeografic implements ReadFileBodyIF {
 			return null;
 		}
 		return new BigDecimal(value);
-	}
-
-	private LocalDate parseLocalDate(String value) {
-		if (value == null || value.isEmpty()) {
-			return null;
-		}
-		return LocalDate.parse(value);
 	}
 }

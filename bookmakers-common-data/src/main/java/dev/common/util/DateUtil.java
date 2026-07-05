@@ -81,6 +81,42 @@ public class DateUtil {
 	        = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
 
 	/**
+	 * yyyy-MM-dd
+	 */
+	private static final DateTimeFormatter JAPANESE_DATE_ONLY
+	        = DateTimeFormatter.ofPattern("yyyy-MM-dd");
+
+	/**
+	 * yyyy/MM/dd
+	 */
+	private static final DateTimeFormatter JAPANESE_SLASH_DATE_ONLY
+	        = DateTimeFormatter.ofPattern("yyyy/MM/dd");
+
+	/**
+	 * yyyyMMdd
+	 */
+	private static final DateTimeFormatter BASIC_DATE_ONLY
+	        = DateTimeFormatter.ofPattern("yyyyMMdd");
+
+	/**
+	 * yyyyMMddHHmm
+	 */
+	private static final DateTimeFormatter BASIC_YMDHM
+	        = DateTimeFormatter.ofPattern("yyyyMMddHHmm");
+
+	/**
+	 * yyyyMMddHHmmss
+	 */
+	private static final DateTimeFormatter BASIC_YMDHMS
+	        = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+
+	/**
+	 * dd.MM.yyyy HH:mm:ss
+	 */
+	private static final DateTimeFormatter GERMAN_FORMAT_SEC
+	        = DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm:ss");
+
+	/**
 	 * 通常フォーマット
 	 */
 	private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
@@ -438,6 +474,104 @@ public class DateUtil {
         LocalDateTime dtMinus = dt.minusMinutes(90);
         return dtMinus.format(FMT);
     }
+
+    /**
+     * 各種日時文字列を LocalDateTime に変換する。
+     *
+     * <p>対応形式:</p>
+     * <ul>
+     *   <li>yyyy-MM-dd HH:mm:ss</li>
+     *   <li>yyyy-MM-dd HH:mm</li>
+     *   <li>yyyy/MM/dd HH:mm:ss</li>
+     *   <li>yyyy/MM/dd HH:mm</li>
+     *   <li>yyyyMMddHHmmss</li>
+     *   <li>yyyyMMddHHmm</li>
+     *   <li>yyyy-MM-dd</li>
+     *   <li>yyyy/MM/dd</li>
+     *   <li>yyyyMMdd</li>
+     *   <li>dd.MM.yyyy HH:mm:ss</li>
+     *   <li>dd.MM.yyyy HH:mm</li>
+     *   <li>dd.MM.yyyy</li>
+     * </ul>
+     *
+     * <p>日付のみの場合は 00:00:00 を補完する。</p>
+     *
+     * @param input 日時文字列
+     * @return LocalDateTime
+     */
+    public static LocalDateTime convertLocalDateTime(String input) {
+        if (input == null || input.isBlank()) {
+            throw new IllegalArgumentException("入力値がnullまたは空です。");
+        }
+
+        String s = input
+                .replace('\u00A0', ' ')
+                .replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", "")
+                .trim();
+
+        // 1) yyyy-MM-dd HH:mm:ss
+        try {
+            return LocalDateTime.parse(s, JAPANESE_FORMAT);
+        } catch (DateTimeParseException ignore) {}
+
+        // 2) yyyy-MM-dd HH:mm
+        try {
+            return LocalDateTime.parse(s, JAPANESE_FORMAT_NO_SEC);
+        } catch (DateTimeParseException ignore) {}
+
+        // 3) yyyy/MM/dd HH:mm:ss
+        try {
+            return LocalDateTime.parse(s, JAPANESE_SLASH_SEC);
+        } catch (DateTimeParseException ignore) {}
+
+        // 4) yyyy/MM/dd HH:mm
+        try {
+            return LocalDateTime.parse(s, JAPANESE_SLASH_NO_SEC);
+        } catch (DateTimeParseException ignore) {}
+
+        // 5) yyyyMMddHHmmss
+        try {
+            return LocalDateTime.parse(s, BASIC_YMDHMS);
+        } catch (DateTimeParseException ignore) {}
+
+        // 6) yyyyMMddHHmm
+        try {
+            return LocalDateTime.parse(s, BASIC_YMDHM);
+        } catch (DateTimeParseException ignore) {}
+
+        // 7) dd.MM.yyyy HH:mm:ss
+        try {
+            return LocalDateTime.parse(s, GERMAN_FORMAT_SEC);
+        } catch (DateTimeParseException ignore) {}
+
+        // 8) dd.MM.yyyy HH:mm
+        try {
+            return LocalDateTime.parse(s, GERMAN_FORMAT);
+        } catch (DateTimeParseException ignore) {}
+
+        // 9) yyyy-MM-dd
+        try {
+            return LocalDate.parse(s, JAPANESE_DATE_ONLY).atStartOfDay();
+        } catch (DateTimeParseException ignore) {}
+
+        // 10) yyyy/MM/dd
+        try {
+            return LocalDate.parse(s, JAPANESE_SLASH_DATE_ONLY).atStartOfDay();
+        } catch (DateTimeParseException ignore) {}
+
+        // 11) yyyyMMdd
+        try {
+            return LocalDate.parse(s, BASIC_DATE_ONLY).atStartOfDay();
+        } catch (DateTimeParseException ignore) {}
+
+        // 12) dd.MM.yyyy
+        try {
+            return LocalDate.parse(s, PATTERN_DD_MM_YYYY).atStartOfDay();
+        } catch (DateTimeParseException ignore) {}
+
+        throw new IllegalArgumentException("不正な日時フォーマットです: " + input);
+    }
+
 
 	/** 目に見えない文字を可視化する */
 	private static String visualize(String str) {
