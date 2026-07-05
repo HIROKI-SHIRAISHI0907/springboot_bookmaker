@@ -9,6 +9,7 @@ import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.entity.DataEntity;
 import dev.common.entity.FutureEntity;
+import dev.common.entity.TeamLocationEntity;
 import dev.common.entity.TeamMemberMasterEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
@@ -66,5 +67,11 @@ public class ReadFileOutputDTO extends AbstractResultErrDetailOutputDTO {
 	 * 全容マスタデータ結果リスト
 	 */
 	private List<AllLeagueMasterEntity> allLeagueMasterList;
+
+	/**
+	 * 地理データ結果リスト
+	 */
+	private List<TeamLocationEntity> teamLocationList;
+
 
 }
