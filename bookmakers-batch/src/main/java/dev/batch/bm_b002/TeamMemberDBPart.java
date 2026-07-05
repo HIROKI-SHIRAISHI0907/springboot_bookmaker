@@ -51,7 +51,7 @@ public class TeamMemberDBPart {
 	public boolean dbOperation() {
 		final String METHOD_NAME = "dbOperation";
 		try {
-			int result = this.teamMemberMasterBatch.execute();
+			int result = this.teamMemberMasterBatch.execute(false);
 			if (result == BatchConstant.BATCH_ERROR) {
 				manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, null,

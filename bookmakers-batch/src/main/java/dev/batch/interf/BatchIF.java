@@ -11,6 +11,6 @@ public interface BatchIF {
 	 * バッチ実行
 	 * @return
 	 */
-	public int execute() throws Exception;
+	public int execute(boolean readyFlg) throws Exception;
 
 }

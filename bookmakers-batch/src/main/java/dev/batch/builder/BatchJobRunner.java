@@ -40,6 +40,15 @@ public class BatchJobRunner implements CommandLineRunner {
 	@Value("${bm.job:${BM_JOB:}}")
     private String jobCode;
 
+	/**
+	 * 事前準備フラグ
+	 * 例:
+	 * --bm.readyFlg=true
+	 * or BM_READY_FLG=true
+	 */
+	@Value("${bm.readyFlg:${BM_READY_FLG:false}}")
+	private boolean readyFlg;
+
     // SpringBoot の通常起動（web/server用途）と区別したいなら profile でもOK
     public BatchJobRunner(ApplicationContext ctx) {
         this.ctx = ctx;
@@ -61,10 +70,11 @@ public class BatchJobRunner implements CommandLineRunner {
         BatchIF batch = (BatchIF) ctx.getBean(jobCode);
 
         System.out.println("jobCode=" + jobCode);
+        System.out.println("readyFlg=" + readyFlg);
         System.out.println("batch bean class=" + batch.getClass().getName());
         System.out.println("batch bean toString=" + batch);
 
-        int result = batch.execute();
+        int result = batch.execute(readyFlg);
 
         int exit = (result == BatchConstant.BATCH_SUCCESS) ? 0 : 1;
         SpringApplication.exit(ctx, () -> exit);

@@ -66,7 +66,7 @@ public class TeamLocationBatch extends AbstractJobBatchTemplate {
 	@Autowired
 	private GetGeograficInfo geograficInfo;
 
-	/** AutoSeasonHyphenStatクラス */
+	/** TeamLocationStatクラス */
 	@Autowired
 	private TeamLocationStat teamLocationStat;
 
@@ -77,7 +77,7 @@ public class TeamLocationBatch extends AbstractJobBatchTemplate {
 	protected void doExecute(JobContext ctx) throws Exception {
 		// 地理データ情報を取得
 		List<TeamLocationEntity> listMap = this.geograficInfo.getData();
-		this.teamLocationStat.teamLocationStat(listMap, false);
+		this.teamLocationStat.teamLocationStat(listMap, ctx.readyFlg());
 	}
 
 }

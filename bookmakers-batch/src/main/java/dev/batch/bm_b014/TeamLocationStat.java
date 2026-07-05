@@ -1,5 +1,6 @@
 package dev.batch.bm_b014;
 
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -11,12 +12,16 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.batch.interf.TeamLocationEntityIF;
 import dev.batch.repository.bm.BookDataRepository;
 import dev.batch.repository.master.TeamLocationRepository;
+import dev.common.config.PathConfig;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
 import dev.common.entity.TeamLocationEntity;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.s3.S3Operator;
+import dev.common.util.DateUtil;
 import dev.common.util.ExecuteMainUtil;
 import dev.common.util.ExecuteMainUtil.StadiumSplitResult;
+import dev.common.util.FileDeleteUtil;
 
 /**
  * TeamLocationStat登録ロジック
@@ -41,6 +46,14 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 	@Autowired
 	private TeamLocationRepository teamLocationRepository;
 
+	/** Config */
+	@Autowired
+	private PathConfig config;
+
+	/** S3Operator */
+	@Autowired
+	private S3Operator s3Operator;
+
 	/** TeamLocationDBService部品 */
 	@Autowired
 	private TeamLocationDBService teamLocationDBService;
@@ -56,13 +69,33 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 	public void teamLocationStat(List<TeamLocationEntity> map, boolean readyFlg) throws Exception {
 		final String METHOD_NAME = "teamLocationStat";
 		manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		// 位置情報が分かるデータを事前にマスタに登録しておく
-		if (readyFlg)
-			readyFlgTrue();
 
-		// 取得できた情報に更新
-		if (!readyFlg)
-			readyFlgFalse(map);
+		List<String> insertPath = new ArrayList<>();
+		try {
+			// 位置情報が分かるデータを事前にマスタに登録しておく
+			if (readyFlg)
+				readyFlgTrue();
+
+			// 取得できた情報に更新
+			if (!readyFlg)
+				readyFlgFalse(map);
+		} catch (Exception e) {
+			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+			throw new Exception(messageCd, e);
+		}
+
+		insertPath.add("output/b015_team_location.csv");
+
+		String bucket = config.getS3Geografic();
+		FileDeleteUtil.deleteS3Files(
+				insertPath,
+				bucket,
+				s3Operator,
+				manageLoggerComponent,
+				PROJECT_NAME,
+				CLASS_NAME,
+				METHOD_NAME,
+				"GEOGRAFIC_MASTER");
 
 		manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 	}
@@ -265,8 +298,10 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 		entity.setLocalLanguageCode(src.getLocalLanguageCode());
 		entity.setGeocodeSource(src.getGeocodeSource());
 
-		entity.setValidFrom(src.getValidFrom());
-		entity.setValidTo(src.getValidTo());
+		entity.setValidFrom(
+				src.getValidFrom() == null ? DateUtil.convertLocalDateTime(DateUtil.getSysDate()) : src.getValidFrom());
+		entity.setValidTo(
+				src.getValidTo() == null ? DateUtil.convertLocalDateTime("9999-12-31 23:59:59.999") : src.getValidTo());
 
 		return entity;
 	}

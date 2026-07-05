@@ -109,8 +109,17 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
         return "実行条件によりスキップしました。";
     }
 
+    /**
+     * 事前準備フラグを返す。（地理マスタバッチのみ）
+     *
+     * @return true or false
+     */
+    protected boolean chkReadyFlg() {
+        return false;
+    }
+
     @Override
-    public final int execute() {
+    public final int execute(boolean readyFlg) {
         final String METHOD_NAME = "execute";
 
         if (manageLoggerComponent == null) {
@@ -166,7 +175,7 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
             jobExecControl.jobRunning(jobId);
             executionHistoryService.markBatchRunning(jobId);
 
-            JobContext ctx = new JobContext(jobId, code);
+            JobContext ctx = new JobContext(jobId, code, readyFlg);
 
             // 実処理
             doExecute(ctx);
@@ -243,10 +252,12 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
     public final class JobContext {
         private final String jobId;
         private final String batchCode;
+        private final boolean readyFlg;
 
-        private JobContext(String jobId, String batchCode) {
+        private JobContext(String jobId, String batchCode, boolean readyFlg) {
             this.jobId = jobId;
             this.batchCode = batchCode;
+            this.readyFlg = readyFlg;
         }
 
         public String jobId() {
@@ -255,6 +266,10 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 
         public String batchCode() {
             return batchCode;
+        }
+
+        public boolean readyFlg() {
+            return readyFlg;
         }
 
         /** 生存通知（長時間処理の途中で適宜呼ぶ） */
