@@ -66,6 +66,12 @@ public class S3Operator {
 				.build();
 	}
 
+	/**
+	 * ファイルオブジェクトアップロード
+	 * @param bucket
+	 * @param key
+	 * @param file
+	 */
 	public void uploadFile(String bucket, String key, Path file) {
 		PutObjectRequest req = PutObjectRequest.builder()
 				.bucket(bucket)
