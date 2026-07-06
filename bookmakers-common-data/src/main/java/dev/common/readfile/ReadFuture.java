@@ -111,7 +111,7 @@ public class ReadFuture implements ReadFileBodyIF {
 	        String[] parts = text.split(",", -1);
 
 	        // CSV列数が足りないと ArrayIndexOutOfBounds になるので最低限ガード
-	        if (parts.length < 18) {
+	        if (parts.length < 11) {
 	        	String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 	            String msg = "CSV column error: file=" + fileIdForLog + " row=" + row + " cols=" + parts.length;
 	            this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME,
