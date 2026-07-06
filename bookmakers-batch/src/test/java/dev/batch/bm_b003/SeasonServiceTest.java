@@ -94,7 +94,7 @@ public class SeasonServiceTest {
     	when(jobExecControlIF.jobStart(anyString(), anyString())).thenReturn(true);
 
         // Act
-        int result = seasonMasterBatch.execute();
+        int result = seasonMasterBatch.execute(false);
 
         List<InitialReadingMasterCsvEntity> results =
         this.initialMasterCsvRepository.select(MasterNameConstant.COUNTRY_LEAGUE_SEASON_MASTER);

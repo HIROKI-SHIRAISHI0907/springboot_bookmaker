@@ -18,7 +18,7 @@ class TeamMemberServiceTest {
     @Test
     void execute_shouldReturnZero_whenExecutionSuccessful() throws Exception {
         // Act
-    	teamMasterBatch.execute();
+    	teamMasterBatch.execute(false);
 
         // Assert
         assertTrue(true); // 戻り値が0であること

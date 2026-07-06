@@ -76,7 +76,7 @@ public class MasterServiceTest {
 		when(getTeamMasterInfo.getData()).thenReturn(map);
 		when(jobExecControlIF.jobStart(anyString(), anyString())).thenReturn(true);
 		// Act
-		int result = masterMasterBatch.execute();
+		int result = masterMasterBatch.execute(false);
 
 		List<InitialReadingMasterCsvEntity> results = this.initialMasterCsvRepository
 				.select(MasterNameConstant.COUNTRY_LEAGUE_MASTER);

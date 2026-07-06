@@ -25,7 +25,7 @@ public class FinGettingBatchTest {
     @Test
     void execute_shouldReturnZero_whenExecutionSuccessful() throws Exception {
         // Act
-    	int result = batch.execute();
+    	int result = batch.execute(false);
 
         // Assert
         assertEquals(0, result); // 戻り値が0であること
