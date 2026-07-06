@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.text.Normalizer;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
@@ -219,6 +220,7 @@ public class EachCsvTransaction {
 			logWarn(METHOD_NAME, "CSV削除成功件数=0 です");
 			retainSnapshotForFailed(snapshotPath, deleteSnapshot, deleteResult.failedCsvIds);
 			endLog(METHOD_NAME);
+			return;
 		}
 
 		// 2.5) 空親フォルダ削除（ローカルファイルシステム上）
@@ -407,7 +409,7 @@ public class EachCsvTransaction {
 			ResolvedCsvSource resolved = null;
 
 			try {
-				resolved = resolveCsvSourceForSeqRead(baseDir, bucket, prefix, physicalCsvId);
+				resolved = resolveCsvSourceForSeqRead(baseDir, bucket, prefix, csvId, physicalCsvId);
 
 				if (resolved == null || resolved.path == null || !Files.exists(resolved.path)) {
 					logWarn(METHOD_NAME, "削除対象CSVが存在しないため seq 読込スキップ csvId="
@@ -454,36 +456,58 @@ public class EachCsvTransaction {
 			Path baseDir,
 			String bucket,
 			String prefix,
+			String csvId,
 			String physicalCsvId) throws IOException {
 
 		final String METHOD_NAME = "resolveCsvSourceForSeqRead";
 
-		Path localPath = baseDir.resolve(physicalCsvId).normalize();
-		if (Files.exists(localPath) && Files.isRegularFile(localPath)) {
-			logInfo(METHOD_NAME, "ローカルCSVを使用 physicalCsvId=" + physicalCsvId
-					+ ", path=" + localPath);
-			return new ResolvedCsvSource(localPath, false, "local");
+		// 1. ローカル(physicalCsvId)
+		Path localPhysicalPath = baseDir.resolve(physicalCsvId).normalize();
+		if (Files.exists(localPhysicalPath) && Files.isRegularFile(localPhysicalPath)) {
+			logInfo(METHOD_NAME, "ローカルCSVを使用(physicalCsvId) csvId=" + csvId
+					+ ", physicalCsvId=" + physicalCsvId
+					+ ", path=" + localPhysicalPath);
+			return new ResolvedCsvSource(localPhysicalPath, false, "local-physical");
+		}
+
+		// 2. ローカル(csvId)
+		Path localCsvIdPath = baseDir.resolve(csvId).normalize();
+		if (Files.exists(localCsvIdPath) && Files.isRegularFile(localCsvIdPath)) {
+			logInfo(METHOD_NAME, "ローカルCSVを使用(csvId) csvId=" + csvId
+					+ ", physicalCsvId=" + physicalCsvId
+					+ ", path=" + localCsvIdPath);
+			return new ResolvedCsvSource(localCsvIdPath, false, "local-csvId");
 		}
 
 		if (localOnly) {
-			logInfo(METHOD_NAME, "localOnly=true のため S3 読込スキップ physicalCsvId=" + physicalCsvId);
+			logInfo(METHOD_NAME, "localOnly=true のため S3 読込スキップ csvId=" + csvId
+					+ ", physicalCsvId=" + physicalCsvId);
 			return null;
 		}
 
-		String s3Key = normalizeS3Key(joinS3Key(prefix, physicalCsvId));
-		Path downloaded = downloadCsvFromS3ToTemp(bucket, s3Key, physicalCsvId);
+		// 3. S3 実在キー解決
+		String resolvedS3Key = findExistingS3CsvKey(bucket, prefix, csvId, physicalCsvId);
+		if (resolvedS3Key == null || resolvedS3Key.isBlank()) {
+			logWarn(METHOD_NAME, "ローカル/S3 いずれにもCSVが見つかりません csvId=" + csvId
+					+ ", physicalCsvId=" + physicalCsvId
+					+ ", bucket=" + bucket);
+			return null;
+		}
 
+		Path downloaded = downloadCsvFromS3ToTemp(bucket, resolvedS3Key, physicalCsvId);
 		if (downloaded != null && Files.exists(downloaded) && Files.isRegularFile(downloaded)) {
-			logInfo(METHOD_NAME, "S3 CSVを一時取得 physicalCsvId=" + physicalCsvId
+			logInfo(METHOD_NAME, "S3 CSVを一時取得 csvId=" + csvId
+					+ ", physicalCsvId=" + physicalCsvId
 					+ ", bucket=" + bucket
-					+ ", key=" + s3Key
+					+ ", key=" + resolvedS3Key
 					+ ", tempPath=" + downloaded);
 			return new ResolvedCsvSource(downloaded, true, "s3");
 		}
 
-		logWarn(METHOD_NAME, "ローカル/S3 いずれにもCSVが見つかりません physicalCsvId=" + physicalCsvId
+		logWarn(METHOD_NAME, "S3実在キー解決後もCSV取得失敗 csvId=" + csvId
+				+ ", physicalCsvId=" + physicalCsvId
 				+ ", bucket=" + bucket
-				+ ", key=" + s3Key);
+				+ ", key=" + resolvedS3Key);
 
 		return null;
 	}
@@ -535,6 +559,118 @@ public class EachCsvTransaction {
 		}
 	}
 
+	private String findExistingS3CsvKey(
+			String bucket,
+			String prefix,
+			String csvId,
+			String physicalCsvId) {
+
+		final String METHOD_NAME = "findExistingS3CsvKey";
+
+		try {
+			String keyByCsvId = normalizeS3Key(joinS3Key(prefix, safe(csvId).trim()));
+			String keyByPhysicalCsvId = normalizeS3Key(joinS3Key(prefix, safe(physicalCsvId).trim()));
+
+			String parentPrefix = extractParentPrefix(!keyByCsvId.isBlank() ? keyByCsvId : keyByPhysicalCsvId);
+			if (parentPrefix.isBlank()) {
+				logWarn(METHOD_NAME, "親prefixを解決できません csvId=" + csvId
+						+ ", physicalCsvId=" + physicalCsvId);
+				return null;
+			}
+
+			List<String> keys = s3Operator.listKeys(bucket, parentPrefix);
+			if (keys == null || keys.isEmpty()) {
+				logWarn(METHOD_NAME, "prefix配下にオブジェクトが存在しません bucket=" + bucket
+						+ ", parentPrefix=" + parentPrefix
+						+ ", csvId=" + csvId
+						+ ", physicalCsvId=" + physicalCsvId);
+				return null;
+			}
+
+			// 1) 完全一致優先
+			for (String key : keys) {
+				if (safe(key).equals(keyByCsvId) || safe(key).equals(keyByPhysicalCsvId)) {
+					logInfo(METHOD_NAME, "S3キー完全一致で解決 bucket=" + bucket + ", key=" + key);
+					return key;
+				}
+			}
+
+			// 2) 正規化一致
+			String normalizedCsvId = normalizeKeyForCompare(keyByCsvId);
+			String normalizedPhysical = normalizeKeyForCompare(keyByPhysicalCsvId);
+
+			for (String key : keys) {
+				String normalizedKey = normalizeKeyForCompare(key);
+				if (normalizedKey.equals(normalizedCsvId) || normalizedKey.equals(normalizedPhysical)) {
+					logInfo(METHOD_NAME, "S3キー正規化一致で解決 bucket=" + bucket + ", key=" + key);
+					return key;
+				}
+			}
+
+			// 3) ファイル名一致 (例: 1.csv)
+			String targetFileName = extractFileName(physicalCsvId);
+			List<String> matchedByFileName = keys.stream()
+					.filter(k -> extractFileName(k).equals(targetFileName))
+					.collect(Collectors.toList());
+
+			if (matchedByFileName.size() == 1) {
+				logInfo(METHOD_NAME, "S3キーをファイル名一致で解決 bucket=" + bucket
+						+ ", key=" + matchedByFileName.get(0));
+				return matchedByFileName.get(0);
+			}
+
+			// 4) CSV が1件だけならそれを採用
+			List<String> csvKeys = keys.stream()
+					.filter(k -> safe(k).toLowerCase().endsWith(".csv"))
+					.collect(Collectors.toList());
+
+			if (csvKeys.size() == 1) {
+				logInfo(METHOD_NAME, "prefix配下CSV単一件で解決 bucket=" + bucket
+						+ ", key=" + csvKeys.get(0));
+				return csvKeys.get(0);
+			}
+
+			logWarn(METHOD_NAME, "S3キーを解決できません bucket=" + bucket
+					+ ", parentPrefix=" + parentPrefix
+					+ ", csvId=" + csvId
+					+ ", physicalCsvId=" + physicalCsvId
+					+ ", keys=" + keys);
+
+			return null;
+
+		} catch (Exception e) {
+			logWarn(METHOD_NAME, "S3キー解決失敗 csvId=" + csvId
+					+ ", physicalCsvId=" + physicalCsvId
+					+ ", reason=" + e.getMessage());
+			return null;
+		}
+	}
+
+	private String extractParentPrefix(String key) {
+		String k = safe(key).trim().replace("\\", "/");
+		int idx = k.lastIndexOf('/');
+		if (idx < 0) {
+			return "";
+		}
+		return k.substring(0, idx + 1);
+	}
+
+	private String extractFileName(String key) {
+		String k = safe(key).trim().replace("\\", "/");
+		int idx = k.lastIndexOf('/');
+		if (idx < 0) {
+			return k;
+		}
+		return k.substring(idx + 1);
+	}
+
+	private String normalizeKeyForCompare(String value) {
+		String s = safe(value).trim().replace("\\", "/");
+		s = Normalizer.normalize(s, Normalizer.Form.NFKC);
+		s = s.replaceAll("\\s+", " ");
+		return s;
+	}
+
 	/**
 	 * 削除対象CSVをZIP化して record バケットへバックアップする
 	 * - RecordFileOperationService#uploadCsvFilesAsZip を使用
@@ -577,7 +713,7 @@ public class EachCsvTransaction {
 			ResolvedCsvSource resolved = null;
 
 			try {
-				resolved = resolveCsvSourceForSeqRead(baseDir, bucket, prefix, physicalCsvId);
+				resolved = resolveCsvSourceForSeqRead(baseDir, bucket, prefix, csvId, physicalCsvId);
 
 				if (resolved == null || resolved.path == null || !Files.exists(resolved.path)
 						|| !Files.isRegularFile(resolved.path)) {
