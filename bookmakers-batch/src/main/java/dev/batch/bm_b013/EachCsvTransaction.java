@@ -6,6 +6,8 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -32,6 +34,8 @@ import dev.common.constant.MessageCdConst;
 import dev.common.entity.CsvDetailManageEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
+import dev.common.upload.RecordFileOperationOutputDTO;
+import dev.common.upload.RecordFileOperationService;
 
 /**
  * CSV関係の削除および txt ファイル更新
@@ -51,6 +55,10 @@ public class EachCsvTransaction {
 			.getCodeSource().getLocation().getPath();
 
 	private static final String CLASS_NAME = EachCsvTransaction.class.getName();
+
+	private static final String SEASON_FIN_CSV_ZIP_FOLDER = "EachCsvTransaction";
+
+	private static final DateTimeFormatter DELETE_BACKUP_TS_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
 	private static final ObjectMapper JSON = new ObjectMapper();
 
@@ -76,6 +84,9 @@ public class EachCsvTransaction {
 
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
+
+	@Autowired
+	private RecordFileOperationService recordFileOperationService;
 
 	@Autowired
 	private CsvFileNameService csvFileNameService;
@@ -190,6 +201,13 @@ public class EachCsvTransaction {
 				logWarn(METHOD_NAME, "snapshot未取得 csvId=" + csvId);
 			}
 		}
+
+		// 1.5) 削除対象CSVをZIP化して record バケットへバックアップ
+		String backupZipKey = archiveDeleteTargetCsvFilesToRecordBucket(csvIds);
+
+		logInfo(METHOD_NAME,
+				"削除前CSVバックアップ完了 recordBucket=" + config.getS3Record()
+						+ ", key=" + backupZipKey);
 
 		// 2) 実CSV削除
 		DeleteResult deleteResult = deletePhysicalCsvFiles(csvIds);
@@ -517,6 +535,110 @@ public class EachCsvTransaction {
 		}
 	}
 
+	/**
+	 * 削除対象CSVをZIP化して record バケットへバックアップする
+	 * - RecordFileOperationService#uploadCsvFilesAsZip を使用
+	 * - ローカルCSVを優先し、無ければ S3 から一時取得
+	 * @param csvIds 削除対象 csvId 一覧
+	 * @return S3キー
+	 * @throws Exception
+	 */
+	private String archiveDeleteTargetCsvFilesToRecordBucket(List<String> csvIds) throws Exception {
+		final String METHOD_NAME = "archiveDeleteTargetCsvFilesToRecordBucket";
+
+		if (csvIds == null || csvIds.isEmpty()) {
+			throw new IllegalArgumentException("バックアップ対象の csvIds が空です。");
+		}
+
+		Path baseDir = Paths.get(config.getCsvFolder()).toAbsolutePath().normalize();
+		Files.createDirectories(baseDir);
+
+		String bucket = config.getS3BucketsStats();
+		String prefix = normalizePrefix(finalPrefix);
+
+		Path workDir = baseDir.resolve(".tmp_delete_backup_zip");
+		Files.createDirectories(workDir);
+
+		String zipFileName = "season_delete_backup_"
+				+ LocalDateTime.now().format(DELETE_BACKUP_TS_FORMAT)
+				+ ".zip";
+
+		String recordKey = joinS3Key(SEASON_FIN_CSV_ZIP_FOLDER, zipFileName);
+
+		List<Path> backupTargetCsvFiles = new ArrayList<>();
+		List<Path> tempDownloadedFiles = new ArrayList<>();
+
+		for (String csvId : csvIds) {
+			if (csvId == null || csvId.isBlank()) {
+				continue;
+			}
+
+			String physicalCsvId = this.csvFileNameService.toPhysicalCsvId(csvId);
+			ResolvedCsvSource resolved = null;
+
+			try {
+				resolved = resolveCsvSourceForSeqRead(baseDir, bucket, prefix, physicalCsvId);
+
+				if (resolved == null || resolved.path == null || !Files.exists(resolved.path)
+						|| !Files.isRegularFile(resolved.path)) {
+					logWarn(METHOD_NAME,
+							"バックアップ対象CSVを取得できないためスキップ csvId=" + csvId
+							+ ", physicalCsvId=" + physicalCsvId);
+					continue;
+				}
+
+				backupTargetCsvFiles.add(resolved.path);
+
+				logInfo(METHOD_NAME,
+						"バックアップ対象追加 csvId=" + csvId
+						+ ", physicalCsvId=" + physicalCsvId
+						+ ", source=" + resolved.sourceType
+						+ ", path=" + resolved.path);
+
+			} catch (Exception e) {
+				logWarn(METHOD_NAME,
+						"バックアップ対象追加失敗 csvId=" + csvId
+						+ ", physicalCsvId=" + physicalCsvId
+						+ ", reason=" + e.getMessage());
+			} finally {
+				if (resolved != null && resolved.temporary && resolved.path != null) {
+					tempDownloadedFiles.add(resolved.path);
+				}
+			}
+		}
+
+		if (backupTargetCsvFiles.isEmpty()) {
+			throw new IOException("削除前バックアップ対象CSVを1件も取得できませんでした。");
+		}
+
+		RecordFileOperationOutputDTO uploadResult =
+				recordFileOperationService.uploadCsvFilesAsZip(
+						SEASON_FIN_CSV_ZIP_FOLDER,
+						zipFileName,
+						backupTargetCsvFiles,
+						workDir);
+
+		if (uploadResult == null || uploadResult.getInfoCd() != 0) {
+			throw new IOException("削除前CSVバックアップZIPアップロードに失敗しました。");
+		}
+
+		logInfo(METHOD_NAME,
+				"削除前CSVバックアップZIPアップロード成功 recordBucket=" + config.getS3Record()
+				+ ", key=" + recordKey
+				+ ", zippedCount=" + backupTargetCsvFiles.size());
+
+		for (Path tempFile : tempDownloadedFiles) {
+			try {
+				Files.deleteIfExists(tempFile);
+			} catch (IOException e) {
+				logWarn(METHOD_NAME,
+						"一時CSV削除失敗 path=" + tempFile + ", reason=" + e.getMessage());
+			}
+		}
+
+		return recordKey;
+	}
+
 	private List<Integer> extractSeqListFromCsv(Path csvPath) throws IOException {
 		List<String> lines = Files.readAllLines(csvPath, StandardCharsets.UTF_8);
 		List<Integer> result = new ArrayList<>();
@@ -764,32 +886,32 @@ public class EachCsvTransaction {
 	 * 例: 日本-J1リーグ -> 日本: J1リーグ
 	 */
 	private List<String> buildCsvFolderCategories(TransactionDTO dto) {
-	    List<String> prefixes = new ArrayList<>();
+		List<String> prefixes = new ArrayList<>();
 
-	    if (dto == null || dto.getCountryLeague() == null) {
-	        return prefixes;
-	    }
+		if (dto == null || dto.getCountryLeague() == null) {
+			return prefixes;
+		}
 
-	    for (String value : dto.getCountryLeague()) {
-	        if (value == null || value.isBlank()) {
-	            continue;
-	        }
+		for (String value : dto.getCountryLeague()) {
+			if (value == null || value.isBlank()) {
+				continue;
+			}
 
-	        String trimmed = value.trim();
-	        int separatorIndex = trimmed.indexOf('-');
+			String trimmed = value.trim();
+			int separatorIndex = trimmed.indexOf('-');
 
-	        if (separatorIndex >= 0) {
-	            String country = trimmed.substring(0, separatorIndex).trim();
-	            String league = trimmed.substring(separatorIndex + 1).trim();
-	            prefixes.add(country + ": " + league);
-	        } else {
-	            prefixes.add(trimmed);
-	        }
-	    }
+			if (separatorIndex >= 0) {
+				String country = trimmed.substring(0, separatorIndex).trim();
+				String league = trimmed.substring(separatorIndex + 1).trim();
+				prefixes.add(country + ": " + league);
+			} else {
+				prefixes.add(trimmed);
+			}
+		}
 
-	    return prefixes.stream()
-	            .distinct()
-	            .collect(Collectors.toList());
+		return prefixes.stream()
+				.distinct()
+				.collect(Collectors.toList());
 	}
 
 	/**
