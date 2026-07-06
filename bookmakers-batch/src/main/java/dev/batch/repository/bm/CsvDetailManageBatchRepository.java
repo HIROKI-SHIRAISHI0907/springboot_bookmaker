@@ -58,9 +58,9 @@ public interface CsvDetailManageBatchRepository {
 	@Delete({
 	    "<script>",
 	    "DELETE FROM csv_detail_manage",
-	    "WHERE data_category LIKE",
-	    "  <foreach collection='dataCategories' item='dataCategory' open='(' separator=',' close=')'>",
-	    "    CONCAT(#{dataCategory}, '%')",
+	    "WHERE",
+	    "  <foreach collection='dataCategories' item='dataCategory' separator=' OR ' open='(' close=')'>",
+	    "    data_category LIKE CONCAT(#{dataCategory}, '%')",
 	    "  </foreach>",
 	    "</script>"
 	})
