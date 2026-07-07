@@ -93,7 +93,7 @@ public class SampleFutureCsvGeneratorTest {
 			row.seq = String.valueOf(seq);
 
 			// サンプル本番形式に寄せて country は含めず league のみ
-			row.gameTeamCategory = "サンプルリーグ - ラウンド " + roundNo;
+			row.gameTeamCategory = "サンプル国: サンプルリーグ - ラウンド " + roundNo;
 
 			row.futureTime = DATE_TIME_FORMAT.format(futureTime);
 			row.homeRank = String.valueOf(randInt(random, 1, 12));

@@ -2,6 +2,7 @@ package dev.batch.repository.master;
 
 import java.util.List;
 
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -113,5 +114,12 @@ public interface FutureMasterRepository {
 		    	future_master;
 		""")
 	int findAll();
+
+	@Delete("""
+			DELETE
+			FROM future_master
+			WHERE game_team_category LIKE CONCAT(#{gameTeamCategoryLike}, '%')
+			""")
+	int deleteByDataCategory(@Param("gameTeamCategoryLike") String gameTeamCategoryLike);
 
 }
