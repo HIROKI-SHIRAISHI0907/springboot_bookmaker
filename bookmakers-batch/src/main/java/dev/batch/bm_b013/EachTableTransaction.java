@@ -145,10 +145,10 @@ public class EachTableTransaction {
 			String dataCategoryPrefix = country + ": " + league;
 
 			// Futureテーブル該当データ削除
-			int delDResultSum = 0;
+			int delFResultSum = 0;
 			try {
-				int delDResult = futureMasterRepository.deleteByDataCategory(dataCategoryPrefix);
-				delDResultSum += delDResult;
+				int delFResult = futureMasterRepository.deleteByDataCategory(dataCategoryPrefix);
+				delFResultSum += delFResult;
 			} catch (Exception e) {
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
@@ -158,7 +158,7 @@ public class EachTableTransaction {
 
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-					"future_master_delete_sum=" + delDResultSum);
+					"future_master_delete_sum=" + delFResultSum);
 		}
 
 		for (String countryLeague : dto.getCountryLeague()) {
