@@ -58,7 +58,8 @@ public class BatchFileCheckService {
 		tasks.add(buildB008());
 		tasks.add(buildB010());
 		tasks.add(buildB011());
-		tasks.add(buildB012());
+		tasks.add(buildB014ReadyFlgTrue());
+		tasks.add(buildB014ReadyFlgFalse());
 
 		return BatchFileCheckResponseWrapper.builder()
 				.tasks(tasks)
@@ -247,10 +248,18 @@ public class BatchFileCheckService {
 	}
 
 	/**
-	 * B012
-	 * aws-s3-geografic-csv の outputs/b015_geografic_input.json が存在
+	 * B014True
+	 * aws-s3-geografic-csv の b015_team_location.csv が存在
 	 */
-	private BatchFileCheckTaskWrapper buildB012() {
+	private BatchFileCheckTaskWrapper buildB014ReadyFlgTrue() {
+		return task("B014T", true, "準備OK", new ArrayList<>());
+	}
+
+	/**
+	 * B014False
+	 * aws-s3-geografic-csv の b015_team_location.csv が存在
+	 */
+	private BatchFileCheckTaskWrapper buildB014ReadyFlgFalse() {
 		String bucket = BUCKET_GEOGRAFIC;
 
 		boolean geograficDataExists = exists(bucket, FILE_GEOGRAFIC_INPUT_DATA);
@@ -260,7 +269,7 @@ public class BatchFileCheckService {
 		List<BatchFileCheckItemWrapper> items = new ArrayList<>();
 		items.add(fileItem("b015_team_location.csv", bucket, FILE_GEOGRAFIC_INPUT_DATA, geograficDataExists, true, "csv"));
 
-		return task("B012", ready, summary(ready), items);
+		return task("B014F", ready, summary(ready), items);
 	}
 
 	// =========================================================
