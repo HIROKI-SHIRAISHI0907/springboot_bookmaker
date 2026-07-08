@@ -12,11 +12,13 @@ import dev.web.repository.bm.MatchKeyRepository;
 import dev.web.wrapper.BatchFileCheckItemWrapper;
 import dev.web.wrapper.BatchFileCheckResponseWrapper;
 import dev.web.wrapper.BatchFileCheckTaskWrapper;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * バッチ実行前のS3ファイル状態判定サービス
  */
 @Service
+@Slf4j
 public class BatchFileCheckService {
 
 	/** バケット定義 */
@@ -35,7 +37,18 @@ public class BatchFileCheckService {
 	private static final String FILE_SEQ_LIST = "seqList.txt";
 	private static final String FILE_SEASON_DATA = "season_data.csv";
 	private static final String FILE_ALL_LEAGUE_DATA = "all_league_master.csv";
-	private static final String FILE_GEOGRAFIC_INPUT_DATA = "output/b015_team_location.csv";
+
+	/**
+	 * B014 readyFlg=false で必要なCSV
+	 * 基本は output/b015_team_location.csv を正とする
+	 */
+	private static final String FILE_GEOGRAFIC_OUTPUT_DATA = "output/b015_team_location.csv";
+
+	/**
+	 * 念のための代替候補
+	 * 実装差異や将来の配置揺れ対策
+	 */
+	private static final String FILE_GEOGRAFIC_OUTPUT_DATA_ALT = "b015_team_location.csv";
 
 	@Autowired
 	private S3FileCountService s3FileCountService;
@@ -228,6 +241,7 @@ public class BatchFileCheckService {
 			success = count >= 0;
 		} catch (Exception e) {
 			success = false;
+			log.warn("B010 precheck failed: countAll()", e);
 		}
 
 		boolean ready = success;
@@ -259,17 +273,34 @@ public class BatchFileCheckService {
 	/**
 	 * B014 readyFlg=false
 	 * aws-s3-geografic-csv の output/b015_team_location.csv が存在
+	 *
+	 * ※ 実環境差異に備えて b015_team_location.csv も代替候補として確認
 	 */
 	private BatchFileCheckTaskWrapper buildB014ReadyFlgFalse() {
 		String bucket = BUCKET_GEOGRAFIC;
 
-		boolean geograficDataExists = exists(bucket, FILE_GEOGRAFIC_INPUT_DATA);
+		String resolvedKey = firstExistingKey(
+				bucket,
+				FILE_GEOGRAFIC_OUTPUT_DATA,
+				FILE_GEOGRAFIC_OUTPUT_DATA_ALT);
+
+		boolean geograficDataExists = resolvedKey != null;
 		boolean ready = geograficDataExists;
 
 		List<BatchFileCheckItemWrapper> items = new ArrayList<>();
-		items.add(fileItem("b015_team_location.csv", bucket, FILE_GEOGRAFIC_INPUT_DATA, geograficDataExists, true, "csv"));
+		items.add(fileItem(
+				"b015_team_location.csv",
+				bucket,
+				resolvedKey != null ? resolvedKey : FILE_GEOGRAFIC_OUTPUT_DATA,
+				geograficDataExists,
+				true,
+				"csv"));
 
-		return task("B014F", ready, summary(ready), items);
+		String summary = geograficDataExists
+				? "準備OK"
+				: "必須不足（output/b015_team_location.csv が見つかりません）";
+
+		return task("B014F", ready, summary, items);
 	}
 
 	// =========================================================
@@ -278,10 +309,29 @@ public class BatchFileCheckService {
 
 	private boolean exists(String bucket, String key) {
 		try {
-			return this.s3FileCountService.existsObject(bucket, key);
+			boolean result = this.s3FileCountService.existsObject(bucket, key);
+			log.info("S3 exists check bucket={} key={} result={}", bucket, key, result);
+			return result;
 		} catch (Exception e) {
+			log.warn("S3 exists check failed bucket={} key={}", bucket, key, e);
 			return false;
 		}
+	}
+
+	private String firstExistingKey(String bucket, String... keys) {
+		if (keys == null || keys.length == 0) {
+			return null;
+		}
+
+		for (String key : keys) {
+			if (key == null || key.isBlank()) {
+				continue;
+			}
+			if (exists(bucket, key)) {
+				return key;
+			}
+		}
+		return null;
 	}
 
 	private long countDirectFilesExcluding(String bucket, Set<String> excludeFileNames) {
