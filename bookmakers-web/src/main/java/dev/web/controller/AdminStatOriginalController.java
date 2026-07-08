@@ -13,11 +13,11 @@ import dev.web.api.bm_u001.StatSizeFinalizeResponse;
 
 @RestController
 @RequestMapping("/api/admin")
-public class StatOriginalController {
+public class AdminStatOriginalController {
 
 	private final AdminStatOrigin adminStatOrigin;
 
-	public StatOriginalController(
+	public AdminStatOriginalController(
 			@Qualifier("adminStatOriginUseCaseImpl") AdminStatOrigin adminStatOrigin) {
 		this.adminStatOrigin = adminStatOrigin;
 	}
