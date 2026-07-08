@@ -34,7 +34,9 @@ public class GeograficExecTaskController {
 
         // 必要ならリクエスト内容を env で渡す（nullは入れない）
         Map<String, String> env = new HashMap<>();
-        // 例: env.put("COUNTRY", req.getCountry());
+        if (req.getReadyFlg() != null) {
+            env.put("BM_READY_FLG", String.valueOf(req.getReadyFlg()));
+        }
         // 例: env.put("LEAGUE", req.getLeague());
 
         String taskArn = runner.runBatch("B014", env);

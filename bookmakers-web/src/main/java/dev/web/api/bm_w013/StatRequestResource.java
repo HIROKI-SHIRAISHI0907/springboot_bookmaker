@@ -15,4 +15,6 @@ public class StatRequestResource {
 	private String league;
 	/** シーズン */
 	private String season;
+	/** B014用 readyFlg */
+    private Boolean readyFlg;
 }
