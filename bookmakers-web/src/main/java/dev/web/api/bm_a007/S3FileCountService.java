@@ -16,6 +16,7 @@ import org.springframework.stereotype.Service;
 import dev.common.constant.MessageCdConst;
 import dev.common.logger.ManageLoggerComponent;
 import dev.web.config.S3JobPropertiesConfig;
+import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CommonPrefix;
 import software.amazon.awssdk.services.s3.model.HeadObjectRequest;
@@ -55,6 +56,7 @@ import software.amazon.awssdk.services.s3.model.S3Object;
  * @author shiraishitoshio
  */
 @Service
+@Slf4j
 public class S3FileCountService {
 
 	/** プロジェクト名 */
@@ -316,24 +318,70 @@ public class S3FileCountService {
 
 	/**
 	 * オブジェクト存在確認
+	 * - まず headObject
+	 * - 失敗時は prefix list でフォールバック確認
 	 */
 	public boolean existsObject(String bucket, String key) {
-		if (bucket == null || bucket.isBlank() || key == null || key.isBlank()) {
-			return false;
-		}
+		String normalizedKey = normalizeKey(key);
 
 		try {
 			s3.headObject(HeadObjectRequest.builder()
 					.bucket(bucket)
-					.key(key)
+					.key(normalizedKey)
 					.build());
+
+			log.info("S3 headObject exists bucket={} key={}", bucket, normalizedKey);
 			return true;
+
 		} catch (S3Exception e) {
+			// 404 は not found
 			if (e.statusCode() == 404) {
-				return false;
+				log.info("S3 headObject not found bucket={} key={}", bucket, normalizedKey);
+			} else {
+				log.warn("S3 headObject failed bucket={} key={} status={} message={}",
+						bucket, normalizedKey, e.statusCode(), e.awsErrorDetails() != null ? e.awsErrorDetails().errorMessage() : e.getMessage());
 			}
-			throw e;
+		} catch (Exception e) {
+			log.warn("S3 headObject unexpected error bucket={} key={}", bucket, normalizedKey, e);
 		}
+
+		// fallback: 親prefix配下を列挙して完全一致確認
+		try {
+			String prefix = parentPrefix(normalizedKey);
+			String target = normalizedKey;
+
+			ListObjectsV2Request req = ListObjectsV2Request.builder()
+					.bucket(bucket)
+					.prefix(prefix)
+					.build();
+
+			ListObjectsV2Response resp = s3.listObjectsV2(req);
+
+			for (S3Object obj : resp.contents()) {
+				if (target.equals(obj.key())) {
+					log.info("S3 listObjects fallback exists bucket={} key={}", bucket, normalizedKey);
+					return true;
+				}
+			}
+
+			log.info("S3 listObjects fallback not found bucket={} key={}", bucket, normalizedKey);
+			return false;
+
+		} catch (Exception e) {
+			log.warn("S3 listObjects fallback failed bucket={} key={}", bucket, normalizedKey, e);
+			return false;
+		}
+	}
+
+	private String normalizeKey(String key) {
+		if (key == null) {
+			return "";
+		}
+		String v = key.trim();
+		while (v.startsWith("/")) {
+			v = v.substring(1);
+		}
+		return v;
 	}
 
 	/**
