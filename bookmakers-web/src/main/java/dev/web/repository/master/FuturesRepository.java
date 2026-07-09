@@ -2,6 +2,8 @@ package dev.web.repository.master;
 
 import java.sql.ResultSet;
 import java.sql.Timestamp;
+import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.ZoneOffset;
@@ -278,6 +280,59 @@ public class FuturesRepository {
 		});
 	}
 
+	// ========= future_master =========
+	public List<FuturesResponseDTO> findFutureMasterByDate(String date, int offset) {
+		String sql = """
+					SELECT
+						seq,
+						game_team_category,
+						future_time,
+						home_team_name,
+						away_team_name,
+						game_link,
+						start_flg
+					FROM future_master
+					WHERE future_time >= :dateStart
+					  AND future_time < :dateEnd
+					ORDER BY future_time ASC, seq ASC
+					OFFSET :offset
+					LIMIT 10
+				""";
+
+		if (date == null || date.isBlank()) {
+			throw new IllegalArgumentException("date must not be blank");
+		}
+		if (offset < 0) {
+			throw new IllegalArgumentException("offset must be greater than or equal to 0");
+		}
+
+		LocalDate targetDate = LocalDate.parse(date.trim());
+		LocalDateTime dateStart = targetDate.atStartOfDay();
+		LocalDateTime dateEnd = targetDate.plusDays(1).atStartOfDay();
+
+		MapSqlParameterSource params = new MapSqlParameterSource()
+				.addValue("dateStart", Timestamp.valueOf(dateStart))
+				.addValue("dateEnd", Timestamp.valueOf(dateEnd))
+				.addValue("offset", offset);
+
+		return masterJdbcTemplate.query(sql, params, (rs, rowNum) -> {
+			FuturesResponseDTO m = new FuturesResponseDTO();
+
+			// ★管理画面で必要：future_master.id を DTO に入れる
+			m.setSeq(Long.parseLong(rs.getString("seq")));
+			m.setGameTeamCategory(rs.getString("game_team_category"));
+
+			Timestamp ts = rs.getTimestamp("future_time");
+			OffsetDateTime odt = ts.toInstant().atOffset(ZoneOffset.UTC);
+			m.setFutureTime(odt.toString());
+
+			m.setHomeTeam(rs.getString("home_team_name"));
+			m.setAwayTeam(rs.getString("away_team_name"));
+			m.setLink(rs.getString("link"));
+			return m;
+		});
+	}
+
 	// row classes
 	public static class FutureMasterIngestRow {
 		public Long seq;
@@ -311,39 +366,39 @@ public class FuturesRepository {
 		String likeCond = country + ": " + league + "%";
 
 		String sql = """
-			WITH base AS (
-				  SELECT
-				    f.seq,
-				    f.game_team_category AS data_category,
-				    f.future_time        AS record_time,
-				    f.home_team_name     AS home_team_name,
-				    f.away_team_name     AS away_team_name,
-				    NULLIF(BTRIM(f.game_link), '') AS link,
-				    (regexp_match(f.game_link, 'mid=([A-Za-z0-9]+)'))[1] AS mid,
-				    CASE
-				      WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\s*([0-9]+)') IS NULL THEN NULL
-				      ELSE CAST((regexp_match(f.game_team_category, '(ラウンド|Round)\s*([0-9]+)'))[2] AS INT)
-				    END AS round_no,
-				    COALESCE(f.update_time, f.register_time, f.data_time, f.future_time) AS ut
-				  FROM future_master f
-				  WHERE f.start_flg = '1'
-				    AND f.future_time IS NOT NULL
-				    AND (f.home_team_name = :teamJa OR f.away_team_name = :teamJa)
-				    AND f.game_team_category LIKE :likeCond
-				    AND f.game_link IS NOT NULL
-				    AND f.game_link ~ 'mid='
-				),
-				picked AS (
-				  SELECT DISTINCT ON (mid)
-				    seq, data_category, record_time, home_team_name, away_team_name, link, mid, round_no
-				  FROM base
-				  WHERE mid IS NOT NULL AND mid <> ''
-				  ORDER BY mid, ut DESC, seq DESC
-				)
-				SELECT *
-				FROM picked
-				ORDER BY round_no DESC;
-			""";
+				WITH base AS (
+					  SELECT
+					    f.seq,
+					    f.game_team_category AS data_category,
+					    f.future_time        AS record_time,
+					    f.home_team_name     AS home_team_name,
+					    f.away_team_name     AS away_team_name,
+					    NULLIF(BTRIM(f.game_link), '') AS link,
+					    (regexp_match(f.game_link, 'mid=([A-Za-z0-9]+)'))[1] AS mid,
+					    CASE
+					      WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\s*([0-9]+)') IS NULL THEN NULL
+					      ELSE CAST((regexp_match(f.game_team_category, '(ラウンド|Round)\s*([0-9]+)'))[2] AS INT)
+					    END AS round_no,
+					    COALESCE(f.update_time, f.register_time, f.data_time, f.future_time) AS ut
+					  FROM future_master f
+					  WHERE f.start_flg = '1'
+					    AND f.future_time IS NOT NULL
+					    AND (f.home_team_name = :teamJa OR f.away_team_name = :teamJa)
+					    AND f.game_team_category LIKE :likeCond
+					    AND f.game_link IS NOT NULL
+					    AND f.game_link ~ 'mid='
+					),
+					picked AS (
+					  SELECT DISTINCT ON (mid)
+					    seq, data_category, record_time, home_team_name, away_team_name, link, mid, round_no
+					  FROM base
+					  WHERE mid IS NOT NULL AND mid <> ''
+					  ORDER BY mid, ut DESC, seq DESC
+					)
+					SELECT *
+					FROM picked
+					ORDER BY round_no DESC;
+				""";
 
 		var params = new MapSqlParameterSource()
 				.addValue("teamJa", teamJa)

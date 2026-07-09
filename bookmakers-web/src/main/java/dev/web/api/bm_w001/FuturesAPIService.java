@@ -46,4 +46,15 @@ public class FuturesAPIService {
         return futuresRepository.findFutureMatchesFromNextDay(country, league, limit);
     }
 
+    /**
+     * 管理画面用
+     * @param date
+     * @param limit
+     * @return
+     */
+    @Transactional(readOnly = true)
+    public List<FuturesResponseDTO> getFutureMatchesForDate(String date, int offset) {
+        return futuresRepository.findFutureMasterByDate(date, offset);
+    }
+
 }

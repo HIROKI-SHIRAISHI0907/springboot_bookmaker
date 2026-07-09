@@ -60,4 +60,28 @@ public class FuturesController {
         return Map.of("matches", matches);
     }
 
+    /**
+     * 管理画面用（指定日の試合一覧）
+     * - 指定日の試合予定を 10件ずつ OFFSET で返す
+     *
+     * 例：
+     * GET /api/future/admin/matches/date?date=2026-07-09&offset=0
+     * GET /api/future/admin/matches/date?date=2026-07-09&offset=10
+     * GET /api/future/admin/matches/date?date=2026-07-09&offset=20
+     */
+    @GetMapping("/admin/matches/date")
+    public Map<String, Object> getFutureForDate(
+            @RequestParam(required = true) String date,
+            @RequestParam(defaultValue = "0") int offset
+    ) {
+        List<FuturesResponseDTO> matches = futuresAPIService.getFutureMatchesForDate(date, offset);
+        return Map.of(
+                "date", date,
+                "offset", offset,
+                "limit", 10,
+                "matches", matches
+        );
+    }
+
+
 }
