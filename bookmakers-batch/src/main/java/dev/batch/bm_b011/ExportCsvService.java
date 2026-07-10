@@ -33,6 +33,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.batch.repository.bm.BookCsvDataRepository;
 import dev.batch.repository.bm.BookCsvDetailManageRepository;
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
+import dev.batch.repository.master.FutureMasterRepository;
 import dev.batch.service.CsvFileNameService;
 import dev.batch.service.FileExistsService;
 import dev.common.config.PathConfig;
@@ -106,6 +107,9 @@ public class ExportCsvService {
 
 	@Autowired
 	private BookCsvDataRepository bookCsvDataRepository;
+
+	@Autowired
+	private FutureMasterRepository futureMasterRepository;
 
 	@Autowired
 	private BookCsvDetailManageRepository csvDetailManageRepository;
@@ -846,11 +850,20 @@ public class ExportCsvService {
 
 	        step = "findRowWithTeams";
 	        DataEntity row = findRowWithTeams(result);
+
+	        String homeTeamName = safe(row.getHomeTeamName()).trim();
+	        String awayTeamName = safe(row.getAwayTeamName()).trim();
+	        String resolvedCategory = resolveCategoryWithFutureFallback(
+	                safe(row.getDataCategory()).trim(),
+	                homeTeamName,
+	                awayTeamName,
+	                METHOD_NAME);
+
 	        CsvOutputMeta meta = new CsvOutputMeta(
 	                item.getRelativeKey(),
-	                safe(row.getDataCategory()).trim(),
-	                safe(row.getHomeTeamName()).trim(),
-	                safe(row.getAwayTeamName()).trim());
+	                resolvedCategory,
+	                homeTeamName,
+	                awayTeamName);
 
 	        step = "writeLocalCsv";
 	        logInfo(METHOD_NAME, "writeLocalCsv() 開始 filePath=" + art.getFilePath());
@@ -1542,16 +1555,115 @@ public class ExportCsvService {
 	 * @return
 	 */
 	private String resolveRoundFolderNamePreview(List<CsvPreviewRow> group) {
+		final String METHOD_NAME = "resolveRoundFolderNamePreview";
+
 		CsvPreviewRow row = findPreviewRowWithTeams(group);
 
-		String folderBase = csvFileNameService.makeFolderNameFromTeams(
-				safe(row.getHomeTeamName()).trim(),
-				safe(row.getAwayTeamName()).trim());
+		String homeTeamName = safe(row.getHomeTeamName()).trim();
+		String awayTeamName = safe(row.getAwayTeamName()).trim();
 
-		String roundName = csvFileNameService.extractRoundName(
-				safe(row.getDataCategory()).trim());
+		String resolvedCategory = resolveCategoryWithFutureFallback(
+				safe(row.getDataCategory()).trim(),
+				homeTeamName,
+				awayTeamName,
+				METHOD_NAME);
+
+		String folderBase = csvFileNameService.makeFolderNameFromTeams(
+				homeTeamName,
+				awayTeamName);
+
+		String roundName = safe(csvFileNameService.extractRoundName(resolvedCategory)).trim();
+		if (roundName.isEmpty()) {
+			roundName = "unknown";
+		}
 
 		return folderBase + "-" + roundName;
+	}
+
+	private String resolveCategoryWithFutureFallback(
+			String currentCategory,
+			String homeTeamName,
+			String awayTeamName,
+			String parentMethod) {
+
+		final String METHOD_NAME = "resolveCategoryWithFutureFallback";
+
+		String normalizedCategory = safe(currentCategory).trim();
+		if (isUsableCategory(normalizedCategory)) {
+			return normalizedCategory;
+		}
+
+		if (isBlank(homeTeamName) || isBlank(awayTeamName)) {
+			logWarn(METHOD_NAME,
+					"future_master fallback skip: team name empty"
+					+ ", homeTeamName=" + homeTeamName
+					+ ", awayTeamName=" + awayTeamName
+					+ ", currentCategory=" + normalizedCategory);
+			return normalizedCategory;
+		}
+
+		try {
+			String futureCategory = safe(
+					this.futureMasterRepository.findLatestGameTeamCategoryByTeams(
+							homeTeamName,
+							awayTeamName))
+					.trim();
+
+			if (!isUsableCategory(futureCategory)) {
+				// 念のためホーム/アウェイ逆順でも探す
+				futureCategory = safe(
+						this.futureMasterRepository.findLatestGameTeamCategoryByTeams(
+								awayTeamName,
+								homeTeamName))
+						.trim();
+			}
+
+			if (isUsableCategory(futureCategory)) {
+				logInfo(METHOD_NAME,
+						"future_master fallback success"
+						+ ", homeTeamName=" + homeTeamName
+						+ ", awayTeamName=" + awayTeamName
+						+ ", category=" + futureCategory);
+				return futureCategory;
+			}
+
+			logWarn(METHOD_NAME,
+					"future_master fallback not found"
+					+ ", homeTeamName=" + homeTeamName
+					+ ", awayTeamName=" + awayTeamName
+					+ ", currentCategory=" + normalizedCategory);
+
+			return normalizedCategory;
+
+		} catch (Exception e) {
+			logError(METHOD_NAME,
+					"future_master fallback failed"
+					+ ", homeTeamName=" + homeTeamName
+					+ ", awayTeamName=" + awayTeamName
+					+ ", currentCategory=" + normalizedCategory,
+					e);
+			return normalizedCategory;
+		}
+	}
+
+	private boolean isUsableCategory(String category) {
+		String normalized = safe(category).trim();
+		if (normalized.isEmpty()) {
+			return false;
+		}
+		if ("unknown".equalsIgnoreCase(normalized)) {
+			return false;
+		}
+
+		String roundName = safe(this.csvFileNameService.extractRoundName(normalized)).trim();
+		if (roundName.isEmpty()) {
+			return false;
+		}
+		if ("unknown".equalsIgnoreCase(roundName)) {
+			return false;
+		}
+
+		return true;
 	}
 
 	private static CsvPreviewRow findPreviewRowWithTeams(List<CsvPreviewRow> list) {

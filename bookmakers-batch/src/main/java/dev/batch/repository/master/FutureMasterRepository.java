@@ -122,4 +122,24 @@ public interface FutureMasterRepository {
 			""")
 	int deleteByDataCategory(@Param("gameTeamCategoryLike") String gameTeamCategoryLike);
 
+	@Select("""
+			SELECT
+				game_team_category
+			FROM
+				future_master
+			WHERE
+				home_team_name = #{homeTeamName}
+				AND away_team_name = #{awayTeamName}
+				AND game_team_category IS NOT NULL
+				AND BTRIM(game_team_category) <> ''
+			ORDER BY
+				future_time DESC NULLS LAST,
+				seq DESC
+			LIMIT 1
+		""")
+	String findLatestGameTeamCategoryByTeams(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
+
+
 }
