@@ -834,6 +834,23 @@ public class ExportCsvService {
 	            return CsvTaskResult.skipped(item.getRelativeKey());
 	        }
 
+	        step = "applyFutureFallbackToCsvRows";
+	        String resolvedCategory = applyFutureFallbackToCsvRows(result, METHOD_NAME);
+
+	        DataEntity row = findRowWithTeams(result);
+	        String homeTeamName = safe(row.getHomeTeamName()).trim();
+	        String awayTeamName = safe(row.getAwayTeamName()).trim();
+
+	        if (homeTeamName.isEmpty()) {
+	            homeTeamName = safe(firstDataValue(result, DataEntity::getHomeTeamName, false)).trim();
+	        }
+	        if (awayTeamName.isEmpty()) {
+	            awayTeamName = safe(firstDataValue(result, DataEntity::getAwayTeamName, false)).trim();
+	        }
+	        if (resolvedCategory.isEmpty()) {
+	            resolvedCategory = safe(firstDataValue(result, DataEntity::getDataCategory, true)).trim();
+	        }
+
 	        step = "buildCsvArtifact";
 	        String filePath = baseDir.resolve(item.getRelativeKey()).toString();
 	        logInfo(METHOD_NAME, "buildCsvArtifact() 開始 filePath=" + filePath);
@@ -847,17 +864,6 @@ public class ExportCsvService {
 	            logInfo(METHOD_NAME, "skip artifact empty relativeKey=" + shortKey(item.getRelativeKey()));
 	            return CsvTaskResult.skipped(item.getRelativeKey());
 	        }
-
-	        step = "findRowWithTeams";
-	        DataEntity row = findRowWithTeams(result);
-
-	        String homeTeamName = safe(row.getHomeTeamName()).trim();
-	        String awayTeamName = safe(row.getAwayTeamName()).trim();
-	        String resolvedCategory = resolveCategoryWithFutureFallback(
-	                safe(row.getDataCategory()).trim(),
-	                homeTeamName,
-	                awayTeamName,
-	                METHOD_NAME);
 
 	        CsvOutputMeta meta = new CsvOutputMeta(
 	                item.getRelativeKey(),
@@ -899,6 +905,61 @@ public class ExportCsvService {
 	        ex.printStackTrace();
 	        return CsvTaskResult.failed(item.getRelativeKey());
 	    }
+	}
+
+	private String applyFutureFallbackToCsvRows(List<DataEntity> result, String parentMethod) {
+	    final String METHOD_NAME = "applyFutureFallbackToCsvRows";
+
+	    if (result == null || result.isEmpty()) {
+	        logInfo(METHOD_NAME, "result empty");
+	        return "";
+	    }
+
+	    String currentCategory = safe(firstDataValue(result, DataEntity::getDataCategory, true)).trim();
+	    String canonicalHome = safe(firstDataValue(result, DataEntity::getHomeTeamName, false)).trim();
+	    String canonicalAway = safe(firstDataValue(result, DataEntity::getAwayTeamName, false)).trim();
+
+	    String resolvedCategory = resolveCategoryWithFutureFallback(
+	            currentCategory,
+	            canonicalHome,
+	            canonicalAway,
+	            parentMethod);
+
+	    int categoryFilled = 0;
+	    int homeFilled = 0;
+	    int awayFilled = 0;
+
+	    for (DataEntity d : result) {
+	        if (d == null) {
+	            continue;
+	        }
+
+	        String beforeCategory = safe(d.getDataCategory()).trim();
+	        if (!resolvedCategory.isEmpty() && needsCategoryBackfill(beforeCategory)) {
+	            d.setDataCategory(resolvedCategory);
+	            categoryFilled++;
+	        }
+
+	        if (isBlank(d.getHomeTeamName()) && !canonicalHome.isEmpty()) {
+	            d.setHomeTeamName(canonicalHome);
+	            homeFilled++;
+	        }
+
+	        if (isBlank(d.getAwayTeamName()) && !canonicalAway.isEmpty()) {
+	            d.setAwayTeamName(canonicalAway);
+	            awayFilled++;
+	        }
+	    }
+
+	    logInfo(METHOD_NAME,
+	            "補完完了 categoryFilled=" + categoryFilled
+	            + ", homeFilled=" + homeFilled
+	            + ", awayFilled=" + awayFilled
+	            + ", resolvedCategory=" + resolvedCategory
+	            + ", homeTeamName=" + canonicalHome
+	            + ", awayTeamName=" + canonicalAway);
+
+	    return resolvedCategory;
 	}
 
 	private void registerCsvDetailManage(
@@ -2019,6 +2080,9 @@ public class ExportCsvService {
 		return "";
 	}
 
+	private boolean needsCategoryBackfill(String category) {
+	    return !isUsableCategory(category);
+	}
 
 	private static int compareCsvRelativeKey(String a, String b) {
 		String fa = parentPath(a);
