@@ -25,7 +25,6 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class GeograficService {
 
-	private static final String S3_PREFIX = "output/";
 	private static final String FILE_PREFIX = "b015_geografic_input";
 	private static final String JAPAN = "日本";
 	private final ObjectMapper objectMapper;
@@ -62,7 +61,7 @@ public class GeograficService {
 		objectMapper.writerWithDefaultPrettyPrinter().writeValue(jsonFilePath.toFile(), out);
 
 		// 4) S3へアップロード
-		final String s3Key = S3_PREFIX + fileName;
+		final String s3Key = fileName;
 		s3Operator.uploadFile(outputBucket, s3Key, jsonFilePath);
 
 		return s3Key;

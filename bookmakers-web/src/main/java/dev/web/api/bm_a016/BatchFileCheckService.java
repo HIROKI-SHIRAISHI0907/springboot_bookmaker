@@ -40,15 +40,15 @@ public class BatchFileCheckService {
 
 	/**
 	 * B014 readyFlg=false で必要なCSV
-	 * 基本は output/b015_team_location.csv を正とする
+	 * 基本は b015_team_location.csv を正とする
 	 */
-	private static final String FILE_GEOGRAFIC_OUTPUT_DATA = "output/b015_team_location.csv";
+	private static final String FILE_GEOGRAFIC_OUTPUT_DATA = "b015_team_location.csv";
 
 	/**
 	 * 念のための代替候補
 	 * 実装差異や将来の配置揺れ対策
 	 */
-	private static final String FILE_GEOGRAFIC_OUTPUT_DATA_ALT = "b015_team_location.csv";
+	private static final String FILE_GEOGRAFIC_OUTPUT_DATA_ALT = "temp/b015_team_location.csv";
 
 	@Autowired
 	private S3FileCountService s3FileCountService;
@@ -272,7 +272,7 @@ public class BatchFileCheckService {
 
 	/**
 	 * B014 readyFlg=false
-	 * aws-s3-geografic-csv の output/b015_team_location.csv が存在
+	 * aws-s3-geografic-csv の b015_team_location.csv が存在
 	 *
 	 * ※ 実環境差異に備えて b015_team_location.csv も代替候補として確認
 	 */

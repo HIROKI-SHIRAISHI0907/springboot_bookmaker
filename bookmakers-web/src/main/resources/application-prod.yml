@@ -237,7 +237,7 @@ s3-job:
       
     B010:
       bucket: aws-s3-geografic-csv
-      prefix: output/
+      prefix: null
       recursive: true
       
     B011:
