@@ -84,8 +84,8 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 			throw new Exception(messageCd, e);
 		}
 
-		insertPath.add("output/b015_team_location.csv");
-		insertPath.add("output/b015_geografic_input.json");
+		insertPath.add("b015_team_location.csv");
+		insertPath.add("b015_geografic_input.json");
 
 		String bucket = config.getS3Geografic();
 		FileDeleteUtil.deleteS3Files(
