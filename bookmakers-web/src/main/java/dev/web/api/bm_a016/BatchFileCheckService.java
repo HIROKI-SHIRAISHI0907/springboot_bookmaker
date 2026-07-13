@@ -298,7 +298,7 @@ public class BatchFileCheckService {
 
 		String summary = geograficDataExists
 				? "準備OK"
-				: "必須不足（output/b015_team_location.csv が見つかりません）";
+				: "必須不足（b015_team_location.csv が見つかりません）";
 
 		return task("B014F", ready, summary, items);
 	}
