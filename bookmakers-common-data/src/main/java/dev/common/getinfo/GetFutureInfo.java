@@ -148,13 +148,13 @@ public class GetFutureInfo {
 	    	Thread.currentThread().interrupt();
 	        String msgCd = MessageCdConst.MCD00004E_THREAD_INTERRUPTION;
 	        this.manageLoggerComponent.createBusinessException(
-	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, ie);
+	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, ie.getCause(), ie);
 
 	    } catch (Exception e) {
 	    	String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
 	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e, "S3 Future読み込みエラー");
 	        this.manageLoggerComponent.createBusinessException(
-	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, e);
+	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e.getCause(), e);
 
 	    } finally {
 	        executor.shutdown();

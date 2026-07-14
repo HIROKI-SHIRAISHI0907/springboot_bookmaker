@@ -126,7 +126,7 @@ public class GetTeamMemberInfo {
         	String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
 	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e, "S3 teamMemberData");
 	        this.manageLoggerComponent.createBusinessException(
-	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, e);
+	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e.getCause(), e);
 
         } finally {
             executor.shutdown();

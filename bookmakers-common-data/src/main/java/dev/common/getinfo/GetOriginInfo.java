@@ -144,7 +144,7 @@ public class GetOriginInfo {
 			Thread.currentThread().interrupt();
 			manageLoggerComponent.createBusinessException(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00004E_THREAD_INTERRUPTION, null, ie);
+					MessageCdConst.MCD00004E_THREAD_INTERRUPTION, ie.getCause(), ie);
 
 		} catch (Exception e) {
 			manageLoggerComponent.debugErrorLog(
@@ -153,7 +153,7 @@ public class GetOriginInfo {
 					e, "S3 Origin読み込みエラー");
 			manageLoggerComponent.createBusinessException(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN, null, e);
+					MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN, e.getCause(), e);
 
 		} finally {
 			executor.shutdownNow();

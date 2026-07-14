@@ -108,7 +108,7 @@ public class GetAllLeagueInfo {
                         PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e,
                         "S3 all_league_master.csv ダウンロード/読込失敗 key=" + key);
                 this.manageLoggerComponent.createBusinessException(
-                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, e);
+                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e.getCause(), e);
                 return null; // createBusinessExceptionがthrowしない設計の保険
             }
         }

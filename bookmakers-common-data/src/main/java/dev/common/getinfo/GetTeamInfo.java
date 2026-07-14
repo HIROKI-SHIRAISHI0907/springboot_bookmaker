@@ -103,7 +103,7 @@ public class GetTeamInfo {
 	        	String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
 		        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e, "S3 teamData 読み込み失敗 key=" + key);
 		        this.manageLoggerComponent.createBusinessException(
-		            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, e);
+		            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e.getCause(), e);
 	        }
 	    }
 	    return entityMap;

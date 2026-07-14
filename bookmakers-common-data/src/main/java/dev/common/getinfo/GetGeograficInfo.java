@@ -60,7 +60,7 @@ public class GetGeograficInfo {
 		final String METHOD_NAME = "getData";
 
         String bucket = config.getS3Geografic();
-        String key = "outputs/b015_team_location.csv";    // outputsフォルダ
+        String key = "b015_team_location.csv";    // outputsフォルダ
         log.info("[B015] S3 bucket={} prefix={} ",
 	    		  bucket, key
 	    		);
@@ -88,7 +88,7 @@ public class GetGeograficInfo {
         	String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
 	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e, "S3 b015_team_location.csv ダウンロードエラー");
 	        this.manageLoggerComponent.createBusinessException(
-		            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, e);
+		            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e.getCause(), e);
             return null;
 
         }
