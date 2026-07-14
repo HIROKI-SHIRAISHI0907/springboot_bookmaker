@@ -16,6 +16,7 @@ import dev.common.entity.DataEntity;
 import dev.common.entity.FutureEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
+import dev.common.util.DateStatHelper;
 import dev.common.util.DateUtil;
 import dev.common.util.FileDeleteUtil;
 
@@ -114,7 +115,7 @@ public class FinGettingStat implements FinGettingEntityIF {
 	private FutureEntity buildFutureEntity(DataEntity ent) {
 		FutureEntity entity = new FutureEntity();
 		entity.setGameTeamCategory(ent.getDataCategory());
-		entity.setFutureTime(DateUtil.minus90Minutes(ent.getRecordTime())); // 90分前の日付
+		entity.setFutureTime(resolveFutureTime(ent));
 		entity.setHomeRank(ent.getHomeRank());
 		entity.setAwayRank(ent.getAwayRank());
 		entity.setHomeTeamName(ent.getHomeTeamName());
@@ -133,6 +134,28 @@ public class FinGettingStat implements FinGettingEntityIF {
 		entity.setDataTime(DateUtil.getSysDate()); // 登録日付
 		entity.setStartFlg("1"); // 開始済
 		return entity;
+	}
+
+	/**
+	 * futureTime の決定
+	 *
+	 * 優先順位:
+	 * 1. 当時の試合時間があればその値を使用
+	 *    - 例: "14.07.2026 07:00"
+	 *    - DB投入用に "yyyy-MM-dd HH:mm:ss" 形式へ正規化
+	 * 2. 無ければ従来どおり recordTime の90分前を使用
+	 */
+	private String resolveFutureTime(DataEntity ent) {
+		String originalMatchTime = ent.getAtThatTimes();
+
+		if (originalMatchTime != null && !originalMatchTime.isBlank()) {
+			String normalized = DateStatHelper.toDateTimeText(originalMatchTime);
+			if (normalized != null && !normalized.isBlank()) {
+				return normalized;
+			}
+		}
+
+		return DateUtil.minus90Minutes(ent.getRecordTime());
 	}
 
 }
