@@ -279,13 +279,19 @@ public class BatchFileCheckService {
 	private BatchFileCheckTaskWrapper buildB014ReadyFlgFalse() {
 		String bucket = BUCKET_GEOGRAFIC;
 
-		String resolvedKey = firstExistingKey(
-				bucket,
-				FILE_GEOGRAFIC_OUTPUT_DATA,
-				FILE_GEOGRAFIC_OUTPUT_DATA_ALT);
+		boolean existsPrimary = exists(bucket, FILE_GEOGRAFIC_OUTPUT_DATA);
+		boolean existsAlt = exists(bucket, FILE_GEOGRAFIC_OUTPUT_DATA_ALT);
+
+		log.info("B014F primary key={} exists={}", FILE_GEOGRAFIC_OUTPUT_DATA, existsPrimary);
+		log.info("B014F alt key={} exists={}", FILE_GEOGRAFIC_OUTPUT_DATA_ALT, existsAlt);
+
+		String resolvedKey = existsPrimary
+				? FILE_GEOGRAFIC_OUTPUT_DATA
+				: (existsAlt ? FILE_GEOGRAFIC_OUTPUT_DATA_ALT : null);
 
 		boolean geograficDataExists = resolvedKey != null;
-		boolean ready = geograficDataExists;
+
+		log.info("B014F resolvedKey={} ready={}", resolvedKey, geograficDataExists);
 
 		List<BatchFileCheckItemWrapper> items = new ArrayList<>();
 		items.add(fileItem(
@@ -300,7 +306,7 @@ public class BatchFileCheckService {
 				? "準備OK"
 				: "必須不足（b015_team_location.csv が見つかりません）";
 
-		return task("B014F", ready, summary, items);
+		return task("B014F", geograficDataExists, summary, items);
 	}
 
 	// =========================================================
@@ -316,22 +322,6 @@ public class BatchFileCheckService {
 			log.warn("S3 exists check failed bucket={} key={}", bucket, key, e);
 			return false;
 		}
-	}
-
-	private String firstExistingKey(String bucket, String... keys) {
-		if (keys == null || keys.length == 0) {
-			return null;
-		}
-
-		for (String key : keys) {
-			if (key == null || key.isBlank()) {
-				continue;
-			}
-			if (exists(bucket, key)) {
-				return key;
-			}
-		}
-		return null;
 	}
 
 	private long countDirectFilesExcluding(String bucket, Set<String> excludeFileNames) {

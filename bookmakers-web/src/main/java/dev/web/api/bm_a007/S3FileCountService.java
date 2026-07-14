@@ -324,6 +324,17 @@ public class S3FileCountService {
 	public boolean existsObject(String bucket, String key) {
 		String normalizedKey = normalizeKey(key);
 
+		if (bucket == null || bucket.isBlank()) {
+			log.warn("S3 existsObject bucket is blank key={}", normalizedKey);
+			return false;
+		}
+
+		if (normalizedKey.isBlank()) {
+			log.warn("S3 existsObject key is blank bucket={}", bucket);
+			return false;
+		}
+
+		// 1. headObject で厳密確認
 		try {
 			s3.headObject(HeadObjectRequest.builder()
 					.bucket(bucket)
@@ -334,37 +345,51 @@ public class S3FileCountService {
 			return true;
 
 		} catch (S3Exception e) {
-			// 404 は not found
 			if (e.statusCode() == 404) {
 				log.info("S3 headObject not found bucket={} key={}", bucket, normalizedKey);
 			} else {
 				log.warn("S3 headObject failed bucket={} key={} status={} message={}",
-						bucket, normalizedKey, e.statusCode(), e.awsErrorDetails() != null ? e.awsErrorDetails().errorMessage() : e.getMessage());
+						bucket,
+						normalizedKey,
+						e.statusCode(),
+						e.awsErrorDetails() != null ? e.awsErrorDetails().errorMessage() : e.getMessage(),
+						e);
 			}
 		} catch (Exception e) {
 			log.warn("S3 headObject unexpected error bucket={} key={}", bucket, normalizedKey, e);
 		}
 
-		// fallback: 親prefix配下を列挙して完全一致確認
+		// 2. fallback: 親prefix配下をページングしながら完全一致確認
 		try {
-			String prefix = parentPrefix(normalizedKey);
-			String target = normalizedKey;
+			String searchPrefix = buildSearchPrefix(normalizedKey);
+			String token = null;
 
-			ListObjectsV2Request req = ListObjectsV2Request.builder()
-					.bucket(bucket)
-					.prefix(prefix)
-					.build();
+			do {
+				ListObjectsV2Request.Builder builder = ListObjectsV2Request.builder()
+						.bucket(bucket)
+						.maxKeys(1000)
+						.continuationToken(token);
 
-			ListObjectsV2Response resp = s3.listObjectsV2(req);
-
-			for (S3Object obj : resp.contents()) {
-				if (target.equals(obj.key())) {
-					log.info("S3 listObjects fallback exists bucket={} key={}", bucket, normalizedKey);
-					return true;
+				if (searchPrefix != null && !searchPrefix.isBlank()) {
+					builder.prefix(searchPrefix);
 				}
-			}
 
-			log.info("S3 listObjects fallback not found bucket={} key={}", bucket, normalizedKey);
+				ListObjectsV2Response resp = s3.listObjectsV2(builder.build());
+
+				if (resp.contents() != null) {
+					for (S3Object obj : resp.contents()) {
+						if (obj != null && normalizedKey.equals(obj.key())) {
+							log.info("S3 listObjects fallback exists bucket={} key={}", bucket, normalizedKey);
+							return true;
+						}
+					}
+				}
+
+				token = resp.isTruncated() ? resp.nextContinuationToken() : null;
+			} while (token != null);
+
+			log.info("S3 listObjects fallback not found bucket={} key={} searchPrefix={}",
+					bucket, normalizedKey, searchPrefix);
 			return false;
 
 		} catch (Exception e) {
@@ -372,6 +397,21 @@ public class S3FileCountService {
 			return false;
 		}
 	}
+
+	private String buildSearchPrefix(String normalizedKey) {
+		if (normalizedKey == null || normalizedKey.isBlank()) {
+			return null;
+		}
+
+		int idx = normalizedKey.lastIndexOf('/');
+		if (idx < 0) {
+			// root 直下ファイルは key そのものを prefix にして絞り込む
+			return normalizedKey;
+		}
+
+		return normalizedKey.substring(0, idx + 1);
+	}
+
 
 	private String normalizeKey(String key) {
 		if (key == null) {
