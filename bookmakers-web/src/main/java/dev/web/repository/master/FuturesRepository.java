@@ -263,16 +263,16 @@ public class FuturesRepository {
 				WHERE (:countryLike IS NULL OR game_team_category LIKE :countryLike)
 				  AND (
 					:kw IS NULL
-					OR home_team_name     ILIKE :kwLike
-					OR away_team_name     ILIKE :kwLike
-					OR game_team_category ILIKE :kwLike
-					OR game_link          ILIKE :kwLike
+					OR LOWER(home_team_name)     LIKE :kwLike
+					OR LOWER(away_team_name)     LIKE :kwLike
+					OR LOWER(game_team_category) LIKE :kwLike
+					OR LOWER(game_link)          LIKE :kwLike
 				  )
 				ORDER BY future_time ASC, seq ASC
 				""";
 
 		String countryLike = (country == null || country.isBlank()) ? null : (country.trim() + ":%");
-		String kw = (keyword == null || keyword.isBlank()) ? null : keyword.trim();
+		String kw = (keyword == null || keyword.isBlank()) ? null : keyword.trim().toLowerCase();
 		String kwLike = (kw == null) ? null : ("%" + kw + "%");
 
 		MapSqlParameterSource params = new MapSqlParameterSource()
