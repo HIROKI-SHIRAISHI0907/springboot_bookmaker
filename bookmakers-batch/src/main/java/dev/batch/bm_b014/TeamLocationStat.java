@@ -302,7 +302,9 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 		entity.setValidFrom(
 				src.getValidFrom() == null ? DateUtil.convertLocalDateTime(DateUtil.getSysDate()) : src.getValidFrom());
 		entity.setValidTo(
-				src.getValidTo() == null ? DateUtil.convertLocalDateTime("9999-12-31 23:59:59.999") : src.getValidTo());
+				src.getValidTo() == null
+						? java.time.LocalDateTime.of(9999, 12, 31, 23, 59, 59, 999_000_000)
+						: src.getValidTo());
 
 		return entity;
 	}
