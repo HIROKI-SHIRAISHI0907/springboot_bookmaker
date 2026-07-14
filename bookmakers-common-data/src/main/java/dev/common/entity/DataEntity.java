@@ -338,6 +338,9 @@ public class DataEntity extends MetaEntity implements Serializable {
 	/** 手動フラグ */
 	private String addManualFlg;
 
+	/** 当時の試合時間 */
+	private String atThatTimes;
+
 	/** ファイル件数 */
 	private int fileCount;
 

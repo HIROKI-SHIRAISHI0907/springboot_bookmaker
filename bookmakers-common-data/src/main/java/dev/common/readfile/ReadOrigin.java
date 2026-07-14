@@ -179,6 +179,7 @@ public class ReadOrigin implements ReadFileBodyIF {
 					this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, e);
 					mappingDto.setTimeSortSeconds(1);
 				}
+				mappingDto.setAtThatTimes(parts[103]);
 				entiryList.add(mappingDto);
 			}
 
