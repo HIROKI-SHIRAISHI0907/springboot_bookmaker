@@ -126,6 +126,12 @@ public class PathConfig {
 	private String s3BucketsRecord;
 
 	/**
+	 * S3バケット（outputs-fin）
+	 */
+	@Value("${process.s3.buckets.outputsFin}")
+	private String s3BucketsOutputsFin;
+
+	/**
 	 * JSONフォルダ作成パスを返す
 	 * @return
 	 */
@@ -291,6 +297,15 @@ public class PathConfig {
 	 */
 	public String getS3Record() {
 	    return s3BucketsRecord;
+	}
+
+	/**
+	 * OutputsFin（汎用出力）用のS3バケット名を取得する。
+	 *
+	 * @return OutputsFin用S3バケット名
+	 */
+	public String getS3BucketsOutputsFin() {
+	    return s3BucketsOutputsFin;
 	}
 
 }
