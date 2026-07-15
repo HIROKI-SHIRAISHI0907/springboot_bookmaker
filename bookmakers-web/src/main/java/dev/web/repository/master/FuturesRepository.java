@@ -351,7 +351,7 @@ public class FuturesRepository {
 			m.setHomeTeam(rs.getString("home_team"));
 			m.setAwayTeam(rs.getString("away_team"));
 			m.setLink(rs.getString("link"));
-			m.setStatus("SCHEDULED");
+			m.setStatus("0".equals(rs.getString("start_flg")) ? "SCHEDULED" : "FINISHED");
 
 			return m;
 		});
