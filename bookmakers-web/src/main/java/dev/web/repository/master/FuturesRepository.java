@@ -1,11 +1,12 @@
 package dev.web.repository.master;
 
 import java.sql.ResultSet;
+import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
-import java.time.ZonedDateTime;
 import java.util.List;
 import java.util.Map;
 
@@ -20,6 +21,7 @@ import lombok.Data;
 
 /**
  * FuturesRepositoryクラス
+ * ※ future_time を timestamp without time zone（JST壁時計）として扱う前提
  * @author shiraishitoshio
  *
  */
@@ -40,28 +42,31 @@ public class FuturesRepository {
 	// ========================================================
 	private Timestamp toStartOfDayJstTimestamp(String date) {
 		LocalDate targetDate = LocalDate.parse(date.trim());
-		ZonedDateTime zdt = targetDate.atStartOfDay(JST);
-		return Timestamp.from(zdt.toInstant());
+		return Timestamp.valueOf(targetDate.atStartOfDay());
 	}
 
 	private Timestamp toNextStartOfDayJstTimestamp(String date) {
 		LocalDate targetDate = LocalDate.parse(date.trim()).plusDays(1);
-		ZonedDateTime zdt = targetDate.atStartOfDay(JST);
-		return Timestamp.from(zdt.toInstant());
+		return Timestamp.valueOf(targetDate.atStartOfDay());
 	}
 
-	private String toIsoJstString(Timestamp ts) {
-		if (ts == null) {
-			return null;
-		}
-		return ts.toInstant().atZone(JST).toOffsetDateTime().toString();
+	private LocalDateTime getLocalDateTime(ResultSet rs, String columnLabel) throws SQLException {
+		Timestamp ts = rs.getTimestamp(columnLabel);
+		return ts == null ? null : ts.toLocalDateTime();
 	}
 
-	private OffsetDateTime toOffsetDateTimeJst(Timestamp ts) {
-		if (ts == null) {
+	private String toIsoJstString(LocalDateTime ldt) {
+		if (ldt == null) {
 			return null;
 		}
-		return ts.toInstant().atZone(JST).toOffsetDateTime();
+		return ldt.atZone(JST).toOffsetDateTime().toString();
+	}
+
+	private OffsetDateTime toOffsetDateTimeJst(LocalDateTime ldt) {
+		if (ldt == null) {
+			return null;
+		}
+		return ldt.atZone(JST).toOffsetDateTime();
 	}
 
 	// --------------------------------------------------------
@@ -111,7 +116,7 @@ public class FuturesRepository {
 				FROM future_master f
 				WHERE f.start_flg = '1'
 				  AND f.future_time IS NOT NULL
-				  AND f.future_time > CURRENT_TIMESTAMP
+				  AND f.future_time > (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Tokyo')
 				  AND (f.home_team_name = :teamJa OR f.away_team_name = :teamJa)
 				  AND f.game_team_category LIKE :likeCond
 				ORDER BY
@@ -134,8 +139,8 @@ public class FuturesRepository {
 			m.setSeq(rs.getLong("seq"));
 			m.setGameTeamCategory(rs.getString("game_team_category"));
 
-			Timestamp ts = rs.getTimestamp("future_time");
-			m.setFutureTime(toIsoJstString(ts));
+			LocalDateTime ft = getLocalDateTime(rs, "future_time");
+			m.setFutureTime(toIsoJstString(ft));
 
 			m.setHomeTeam(rs.getString("home_team"));
 			m.setAwayTeam(rs.getString("away_team"));
@@ -172,8 +177,8 @@ public class FuturesRepository {
 			r.homeTeamName = rs.getString("home_team_name");
 			r.awayTeamName = rs.getString("away_team_name");
 
-			Timestamp ts = rs.getTimestamp("future_time");
-			r.matchStartTime = toOffsetDateTimeJst(ts);
+			LocalDateTime ft = getLocalDateTime(rs, "future_time");
+			r.matchStartTime = toOffsetDateTimeJst(ft);
 
 			return r;
 		});
@@ -185,13 +190,11 @@ public class FuturesRepository {
 	 * - limit 件だけ返す
 	 */
 	public List<FuturesResponseDTO> findFutureMatchesFromNextDay(String country, String league, int limit) {
-		// JSTで「明日の00:00」
-		ZonedDateTime tomorrowStartJst = ZonedDateTime.now(JST)
+		LocalDateTime tomorrowStartJst = LocalDate.now(JST)
 				.plusDays(1)
-				.toLocalDate()
-				.atStartOfDay(JST);
+				.atStartOfDay();
 
-		Timestamp from = Timestamp.from(tomorrowStartJst.toInstant());
+		Timestamp from = Timestamp.valueOf(tomorrowStartJst);
 
 		String likeCond = null;
 		if (country != null && !country.isBlank() && league != null && !league.isBlank()) {
@@ -231,8 +234,8 @@ public class FuturesRepository {
 			m.setSeq(rs.getLong("seq"));
 			m.setGameTeamCategory(rs.getString("game_team_category"));
 
-			Timestamp ts = rs.getTimestamp("future_time");
-			m.setFutureTime(toIsoJstString(ts));
+			LocalDateTime ft = getLocalDateTime(rs, "future_time");
+			m.setFutureTime(toIsoJstString(ft));
 
 			m.setHomeTeam(rs.getString("home_team"));
 			m.setAwayTeam(rs.getString("away_team"));
@@ -250,47 +253,54 @@ public class FuturesRepository {
 
 	// ========= future_master =========
 	public List<FutureMasterIngestRow> findFutureMasterByRegisterTime(String country) {
-	    StringBuilder sql = new StringBuilder("""
-	            SELECT
-	                seq,
-	                game_team_category,
-	                future_time,
-	                home_team_name,
-	                away_team_name,
-	                game_link,
-	                start_flg
-	            FROM future_master
-	            WHERE 1 = 1
-	            """);
+		StringBuilder sql = new StringBuilder("""
+				SELECT
+					seq,
+					game_team_category,
+					future_time,
+					home_team_name,
+					away_team_name,
+					game_link,
+					start_flg
+				FROM future_master
+				WHERE 1 = 1
+				""");
 
-	    MapSqlParameterSource params = new MapSqlParameterSource();
+		MapSqlParameterSource params = new MapSqlParameterSource();
 
-	    if (country != null && !country.isBlank()) {
-	        sql.append("""
-	                AND game_team_category LIKE :countryLike
-	                """);
-	        params.addValue("countryLike", country.trim() + ":%");
-	    }
+		if (country != null && !country.isBlank()) {
+			sql.append("""
+					AND game_team_category LIKE :countryLike
+					""");
+			params.addValue("countryLike", country.trim() + ":%");
+		}
 
-	    sql.append("""
-	            ORDER BY future_time ASC, seq ASC
-	            """);
+		sql.append("""
+				ORDER BY future_time ASC, seq ASC
+				""");
 
-	    return masterJdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> {
-	        FutureMasterIngestRow r = new FutureMasterIngestRow();
-	        r.seq = rs.getLong("seq");
-	        r.gameTeamCategory = rs.getString("game_team_category");
+		return masterJdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> {
+			FutureMasterIngestRow r = new FutureMasterIngestRow();
+			r.seq = rs.getLong("seq");
+			r.gameTeamCategory = rs.getString("game_team_category");
 
-	        Timestamp ft = rs.getTimestamp("future_time");
-	        r.futureTime = toIsoJstString(ft);
+			LocalDateTime ft = getLocalDateTime(rs, "future_time");
+			r.futureTime = toIsoJstString(ft);
 
-	        r.homeTeamName = rs.getString("home_team_name");
-	        r.awayTeamName = rs.getString("away_team_name");
-	        r.gameLink = rs.getString("game_link");
-	        r.startFlg = rs.getString("start_flg");
+			r.homeTeamName = rs.getString("home_team_name");
+			r.awayTeamName = rs.getString("away_team_name");
+			r.gameLink = rs.getString("game_link");
+			r.startFlg = rs.getString("start_flg");
 
-	        return r;
-	    });
+			return r;
+		});
+	}
+
+	/**
+	 * 互換用オーバーロード
+	 */
+	public List<FutureMasterIngestRow> findFutureMasterByRegisterTime(String country, String keyword) {
+		return findFutureMasterByRegisterTime(country);
 	}
 
 	/**
@@ -335,8 +345,8 @@ public class FuturesRepository {
 			m.setSeq(rs.getLong("seq"));
 			m.setGameTeamCategory(rs.getString("game_team_category"));
 
-			Timestamp ts = rs.getTimestamp("future_time");
-			m.setFutureTime(toIsoJstString(ts));
+			LocalDateTime ft = getLocalDateTime(rs, "future_time");
+			m.setFutureTime(toIsoJstString(ft));
 
 			m.setHomeTeam(rs.getString("home_team"));
 			m.setAwayTeam(rs.getString("away_team"));
@@ -424,7 +434,7 @@ public class FuturesRepository {
 			int roundNo = rs.getInt("round_no");
 			dto.setRoundNo(rs.wasNull() ? null : String.valueOf(roundNo));
 
-			Timestamp rt = rs.getTimestamp("record_time");
+			LocalDateTime rt = getLocalDateTime(rs, "record_time");
 			dto.setRecordTime(toIsoJstString(rt));
 
 			dto.setHomeTeamName(rs.getString("home_team_name"));
@@ -476,7 +486,7 @@ public class FuturesRepository {
 			java.util.Map<String, String> out = new java.util.HashMap<>();
 			while (rs.next()) {
 				String link = rs.getString("game_link");
-				Timestamp ft = rs.getTimestamp("future_time");
+				LocalDateTime ft = getLocalDateTime(rs, "future_time");
 				if (link == null || link.isBlank() || ft == null) {
 					continue;
 				}
