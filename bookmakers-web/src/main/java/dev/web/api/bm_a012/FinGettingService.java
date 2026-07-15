@@ -62,7 +62,7 @@ public class FinGettingService {
 		upsert(out);
 
 		// 4) 次の連番をS3から決定
-		final String outputBucket = pathConfig.getS3BucketsOutputs();
+		final String outputBucket = pathConfig.getS3BucketsOutputsFin();
 		final int nextSeq = s3Operator.findNextSequenceNumber(
 				outputBucket,
 				S3_PREFIX + FILE_PREFIX,
