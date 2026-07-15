@@ -795,59 +795,51 @@ public class BookDataRepository {
 	}
 
 	// ========= data =========
-	public List<DataIngestRow> findDataByRegisterTime(String country, String keyword) {
+	public List<DataIngestRow> findDataByRegisterTime(String country) {
 
-		String sql = """
-				SELECT
-				    seq,
-				    data_category,
-				    times,
-				    record_time,
-				    match_id,
-				    game_id,
-				    game_link,
-				    home_team_name,
-				    away_team_name
-				FROM data
-				WHERE (:countryLike = '' OR data_category LIKE :countryLike)
-				  AND (
-				        :kw = ''
-				     OR home_team_name ILIKE :kwLike
-				     OR away_team_name ILIKE :kwLike
-				     OR data_category   ILIKE :kwLike
-				     OR game_link       ILIKE :kwLike
-				     OR match_id        = :kwExact
-				     OR game_id         = :kwExact
-				  )
-				ORDER BY COALESCE(update_time, register_time, record_time) DESC, seq DESC
-				""";
+	    StringBuilder sql = new StringBuilder("""
+	            SELECT
+	                seq,
+	                data_category,
+	                times,
+	                record_time,
+	                match_id,
+	                game_id,
+	                game_link,
+	                home_team_name,
+	                away_team_name
+	            FROM data
+	            WHERE 1 = 1
+	            """);
 
-		// ★ここが重要：null禁止。必ず空文字を渡す
-		String countryLike = (country == null || country.isBlank()) ? "" : (country.trim() + ":%");
-		String kw = (keyword == null || keyword.isBlank()) ? "" : keyword.trim();
-		String kwLike = "%" + kw + "%"; // kw="" なら "%%" になり、ILIKEの型問題も回避できる
-		String kwExact = kw; // kw="" なら一致しないのでOK
+	    MapSqlParameterSource params = new MapSqlParameterSource();
 
-		MapSqlParameterSource params = new MapSqlParameterSource()
-				.addValue("countryLike", countryLike)
-				.addValue("kw", kw)
-				.addValue("kwLike", kwLike)
-				.addValue("kwExact", kwExact);
+	    if (country != null && !country.isBlank()) {
+	        sql.append("""
+	                AND data_category LIKE :countryLike
+	                """);
+	        params.addValue("countryLike", country.trim() + ":%");
+	    }
 
-		return bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
-			DataIngestRow r = new DataIngestRow();
-			r.seq = rs.getString("seq");
-			r.dataCategory = rs.getString("data_category");
-			r.times = rs.getString("times");
-			var rt = rs.getTimestamp("record_time");
-			r.recordTime = (rt == null) ? null : rt.toInstant().atOffset(java.time.ZoneOffset.UTC).toString();
-			r.matchId = rs.getString("match_id");
-			r.gameId = rs.getString("game_id");
-			r.gameLink = rs.getString("game_link");
-			r.homeTeamName = rs.getString("home_team_name");
-			r.awayTeamName = rs.getString("away_team_name");
-			return r;
-		});
+	    sql.append("""
+	            ORDER BY COALESCE(record_time) DESC, seq DESC
+	            """);
+
+	    return bmJdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> {
+	        DataIngestRow r = new DataIngestRow();
+	        r.seq = rs.getString("seq");
+	        r.dataCategory = rs.getString("data_category");
+	        r.times = rs.getString("times");
+
+	        r.recordTime = rs.getTimestamp("record_time");
+
+	        r.matchId = rs.getString("match_id");
+	        r.gameId = rs.getString("game_id");
+	        r.gameLink = rs.getString("game_link");
+	        r.homeTeamName = rs.getString("home_team_name");
+	        r.awayTeamName = rs.getString("away_team_name");
+	        return r;
+	    });
 	}
 
 	public static class DataIngestRow {
@@ -856,12 +848,10 @@ public class BookDataRepository {
 		public String times;
 		public String homeTeamName;
 		public String awayTeamName;
-		public String recordTime;
+		public Timestamp recordTime;
 		public String gameId;
 		public String gameLink;
 		public String matchId;
-		public String registerTime;
-		public String updateTime;
 	}
 
 	public Optional<EachScoreLostDataResponseDTO> findEachScoreLoseMatchFinishedByRoundAndTeams(

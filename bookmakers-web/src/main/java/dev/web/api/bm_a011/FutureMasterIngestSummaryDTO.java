@@ -5,9 +5,6 @@ import lombok.Data;
 @Data
 public class FutureMasterIngestSummaryDTO {
 
-	/** 連番 */
-    private Long seq;
-
     /** カテゴリ */
     private String gameTeamCategory;
 
@@ -22,8 +19,5 @@ public class FutureMasterIngestSummaryDTO {
 
     /** ゲームリンク */
     private String gameLink;
-
-    /** スタートフラグ */
-    private String startFlg;
 
 }

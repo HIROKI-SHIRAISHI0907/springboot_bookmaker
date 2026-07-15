@@ -249,60 +249,48 @@ public class FuturesRepository {
 	}
 
 	// ========= future_master =========
-	public List<FutureMasterIngestRow> findFutureMasterByRegisterTime(String country, String keyword) {
-		StringBuilder sql = new StringBuilder("""
-				SELECT
-					seq,
-					game_team_category,
-					future_time,
-					home_team_name,
-					away_team_name,
-					game_link,
-					start_flg
-				FROM future_master
-				WHERE 1 = 1
-				""");
+	public List<FutureMasterIngestRow> findFutureMasterByRegisterTime(String country) {
+	    StringBuilder sql = new StringBuilder("""
+	            SELECT
+	                seq,
+	                game_team_category,
+	                future_time,
+	                home_team_name,
+	                away_team_name,
+	                game_link,
+	                start_flg
+	            FROM future_master
+	            WHERE 1 = 1
+	            """);
 
-		MapSqlParameterSource params = new MapSqlParameterSource();
+	    MapSqlParameterSource params = new MapSqlParameterSource();
 
-		if (country != null && !country.isBlank()) {
-			sql.append("""
-					AND game_team_category LIKE :countryLike
-					""");
-			params.addValue("countryLike", country.trim() + ":%");
-		}
+	    if (country != null && !country.isBlank()) {
+	        sql.append("""
+	                AND game_team_category LIKE :countryLike
+	                """);
+	        params.addValue("countryLike", country.trim() + ":%");
+	    }
 
-		if (keyword != null && !keyword.isBlank()) {
-			sql.append("""
-					AND (
-						home_team_name     ILIKE :kwLike
-						OR away_team_name     ILIKE :kwLike
-						OR game_team_category ILIKE :kwLike
-						OR game_link          ILIKE :kwLike
-					)
-					""");
-			params.addValue("kwLike", "%" + keyword.trim() + "%");
-		}
+	    sql.append("""
+	            ORDER BY future_time ASC, seq ASC
+	            """);
 
-		sql.append("""
-				ORDER BY future_time ASC, seq ASC
-				""");
+	    return masterJdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> {
+	        FutureMasterIngestRow r = new FutureMasterIngestRow();
+	        r.seq = rs.getLong("seq");
+	        r.gameTeamCategory = rs.getString("game_team_category");
 
-		return masterJdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> {
-			FutureMasterIngestRow r = new FutureMasterIngestRow();
-			r.seq = rs.getLong("seq");
-			r.gameTeamCategory = rs.getString("game_team_category");
+	        Timestamp ft = rs.getTimestamp("future_time");
+	        r.futureTime = toIsoJstString(ft);
 
-			Timestamp ft = rs.getTimestamp("future_time");
-			r.futureTime = toIsoJstString(ft);
+	        r.homeTeamName = rs.getString("home_team_name");
+	        r.awayTeamName = rs.getString("away_team_name");
+	        r.gameLink = rs.getString("game_link");
+	        r.startFlg = rs.getString("start_flg");
 
-			r.homeTeamName = rs.getString("home_team_name");
-			r.awayTeamName = rs.getString("away_team_name");
-			r.gameLink = rs.getString("game_link");
-			r.startFlg = rs.getString("start_flg");
-
-			return r;
-		});
+	        return r;
+	    });
 	}
 
 	/**

@@ -5,23 +5,20 @@ import lombok.Data;
 @Data
 public class DataIngestSummaryDTO {
 
-	/** 連番 */
-    private String seq;
-
     /** カテゴリ */
     private String dataCategory;
 
-    /** リアルタイム時間 */
-    private String times;
+    /**
+     * 同じ試合データ件数
+     * （times が違っても同じ対戦データとして数える）
+     */
+    private Integer sameMatchDataCount;
 
     /** ホーム */
     private String homeTeamName;
 
     /** アウェー */
     private String awayTeamName;
-
-    /** 記録時間 */
-    private String recordTime;
 
     /** ゲームID */
     private String gameId;

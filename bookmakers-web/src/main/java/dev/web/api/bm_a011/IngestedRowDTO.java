@@ -1,7 +1,5 @@
 package dev.web.api.bm_a011;
 
-import java.util.List;
-
 import lombok.Data;
 
 @Data
@@ -17,27 +15,19 @@ public class IngestedRowDTO {
     /** 主キー（future_master.seq / data.seq） */
     private String seq;
 
-    /** 一覧用サマリ */
+    /** future_master 側サマリ */
     private FutureMasterIngestSummaryDTO future;
 
-    private DataIngestSummaryDTO data;// IngestedRowDTO に追加
+    /** data 側サマリ */
+    private DataIngestSummaryDTO data;
 
     /** matchKey */
     private String matchKey;
 
-    /** // future_masterに存在するか（game_link基準）*/
+    /** 同一試合群に future_master が存在するか */
     private Boolean futureExists;
 
-    /** // data側に存在するtimesのdistinct一覧 */
-    private List<String> timesList;
-
-    /** // timesListに「終了済」が含まれるか */
-    private Boolean hasFinishedTimes;
-
-    /** registerTime */
-    private String registerTime;
-
-    /** updateTime */
-    private String updateTime;
+    /** 同一試合群に「終了済」data が存在するか */
+    private Boolean hasFinishedData;
 
 }

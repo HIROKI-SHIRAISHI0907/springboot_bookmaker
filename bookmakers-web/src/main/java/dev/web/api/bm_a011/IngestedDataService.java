@@ -1,5 +1,6 @@
 package dev.web.api.bm_a011;
 
+import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -8,8 +9,6 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
-// ※TxManagerが複数で NoUniqueBeanDefinitionException を踏みやすいので、ここでは外すのを推奨。
-// 必要なら @Transactional(transactionManager="bmTxManager", readOnly=true) のように明示してください。
 import dev.common.constant.BookMakersCommonConst;
 import dev.web.repository.bm.BookDataRepository;
 import dev.web.repository.master.FuturesRepository;
@@ -25,175 +24,168 @@ public class IngestedDataService {
     public IngestedDataReferenceResponse search(IngestedDataReferenceRequest req) {
 
         List<IngestedRowDTO> merged = new ArrayList<>();
-        long total = 0;
 
-        // rowId -> groupKey（同一データ群キー）
+        // rowId -> groupKey
         Map<String, String> groupKeyByRowId = new HashMap<>();
+
+        // rowId -> この data 行自身が終了済か
+        Map<String, Boolean> finishedByRowId = new HashMap<>();
+
+        // groupKey -> future_master が存在するか
+        Map<String, Boolean> futureExistsByGroupKey = new HashMap<>();
+
+        // groupKey -> 同一試合群に終了済 data があるか
+        Map<String, Boolean> hasFinishedDataByGroupKey = new HashMap<>();
+
+        // groupKey -> 同一試合群の data 件数
+        Map<String, Integer> sameMatchDataCountByGroupKey = new HashMap<>();
 
         // groupKey -> 同一データ群の代表 gameLink（data側に1つでもあれば採用、終了済優先）
         Map<String, LinkPick> bestGameLinkByGroupKey = new HashMap<>();
 
-        // groupKey -> 同一データ群の代表 dataCategory（ラウンド付き優先、無ければラウンド無し）
+        // groupKey -> 同一データ群の代表 dataCategory（ラウンド付き優先）
         Map<String, CategoryPick> bestCategoryByGroupKey = new HashMap<>();
 
         // ===== future_master =====
-        if (req.isIncludeFutureMaster()) {
-            var futures = futuresRepository.findFutureMasterByRegisterTime(req.getCountry(), req.getKeyword());
-            total += futures.size();
+        var futures = futuresRepository.findFutureMasterByRegisterTime(req.getCountry());
 
-            for (var r : futures) {
-                IngestedRowDTO row = new IngestedRowDTO();
-                row.setTable(IngestedRowDTO.TableName.FUTURE_MASTER);
-                row.setSeq(String.valueOf(r.seq));
+        for (var r : futures) {
+            IngestedRowDTO row = new IngestedRowDTO();
+            row.setTable(IngestedRowDTO.TableName.FUTURE_MASTER);
+            row.setSeq(String.valueOf(r.seq));
 
-                FutureMasterIngestSummaryDTO s = new FutureMasterIngestSummaryDTO();
-                s.setSeq(r.seq);
-                s.setGameTeamCategory(r.gameTeamCategory);
-                s.setFutureTime(r.futureTime);
-                s.setHomeTeamName(r.homeTeamName);
-                s.setAwayTeamName(r.awayTeamName);
-                s.setGameLink(r.gameLink);
-                s.setStartFlg(r.startFlg);
-                row.setFuture(s);
+            FutureMasterIngestSummaryDTO s = new FutureMasterIngestSummaryDTO();
+            s.setGameTeamCategory(r.gameTeamCategory);
+            s.setFutureTime(r.futureTime);
+            s.setHomeTeamName(r.homeTeamName);
+            s.setAwayTeamName(r.awayTeamName);
+            s.setGameLink(r.gameLink);
+            row.setFuture(s);
 
-                // future_master は game_link から mid を抜く
-                String mk = extractMidOrNull(r.gameLink);
-                row.setMatchKey(mk);
+            String mk = extractMidOrNull(r.gameLink);
+            row.setMatchKey(mk);
 
-                merged.add(row);
+            String gk = buildGroupKeyForFuture(r);
+            if (gk != null) {
+                groupKeyByRowId.put(rowId(row), gk);
+                futureExistsByGroupKey.put(gk, true);
             }
+
+            merged.add(row);
         }
 
         // ===== data =====
-        if (req.isIncludeData()) {
-            var dataRows = bookDataRepository.findDataByRegisterTime(req.getCountry(), req.getKeyword());
-            total += dataRows.size();
+        var dataRows = bookDataRepository.findDataByRegisterTime(req.getCountry());
 
-            for (var r : dataRows) {
+        for (var r : dataRows) {
+            IngestedRowDTO row = new IngestedRowDTO();
+            row.setTable(IngestedRowDTO.TableName.DATA);
+            row.setSeq(r.seq);
 
-                IngestedRowDTO row = new IngestedRowDTO();
-                row.setTable(IngestedRowDTO.TableName.DATA);
-                row.setSeq(r.seq);
+            DataIngestSummaryDTO s = new DataIngestSummaryDTO();
+            s.setDataCategory(r.dataCategory);
+            s.setHomeTeamName(r.homeTeamName);
+            s.setAwayTeamName(r.awayTeamName);
+            s.setGameId(r.gameId);
+            s.setGameLink(r.gameLink);
+            row.setData(s);
 
-                DataIngestSummaryDTO s = new DataIngestSummaryDTO();
-                s.setSeq(r.seq);
-                s.setDataCategory(r.dataCategory);
-                s.setTimes(r.times);
-                s.setHomeTeamName(r.homeTeamName);
-                s.setAwayTeamName(r.awayTeamName);
-                s.setRecordTime(r.recordTime);
-                s.setGameId(r.gameId);
-                s.setGameLink(r.gameLink);
-                row.setData(s);
+            String mk = pickDataMatchKey(r.matchId, r.gameId, r.gameLink);
+            row.setMatchKey(mk);
 
-                // matchKey（基本は match_id。無い場合だけURL/IDから救済）
-                String mk = pickDataMatchKey(r.matchId, r.gameId, r.gameLink);
-                row.setMatchKey(mk);
+            String gk = buildGroupKeyForData(r);
+            boolean finished = isFinishedLikeTimes(r.times);
 
-                // ★同一データ群キー：match_id があればそれ、無ければ(リーグ正規化 + home + away)
-                String gk = buildGroupKeyForData(r);
-                if (gk != null) {
-                    groupKeyByRowId.put(rowId(row), gk);
+            if (gk != null) {
+                groupKeyByRowId.put(rowId(row), gk);
+                finishedByRowId.put(rowId(row), finished);
 
-                    // 代表カテゴリ（ラウンド付き優先）
-                    String rawCategory = trimToNull(r.dataCategory);
-                    if (rawCategory != null) {
-                        int cprio = categoryPriority(rawCategory); // ラウンド付きが高い
-                        CategoryPick cur = bestCategoryByGroupKey.get(gk);
-                        if (cur == null || cprio > cur.priority) {
-                            bestCategoryByGroupKey.put(gk, new CategoryPick(rawCategory, cprio));
-                        }
-                    }
+                sameMatchDataCountByGroupKey.merge(gk, 1, Integer::sum);
 
-                    // 代表リンク（終了済優先）
-                    String glNorm = normalizeLink(r.gameLink);
-                    if (glNorm != null) {
-                        int lprio = priorityForTimes(r.times);
-                        LinkPick cur = bestGameLinkByGroupKey.get(gk);
-                        if (cur == null || lprio > cur.priority) {
-                            bestGameLinkByGroupKey.put(gk, new LinkPick(glNorm, lprio));
-                        }
+                if (finished) {
+                    hasFinishedDataByGroupKey.put(gk, true);
+                }
+
+                String rawCategory = trimToNull(r.dataCategory);
+                if (rawCategory != null) {
+                    int cprio = categoryPriority(rawCategory);
+                    CategoryPick cur = bestCategoryByGroupKey.get(gk);
+                    if (cur == null || cprio > cur.priority) {
+                        bestCategoryByGroupKey.put(gk, new CategoryPick(rawCategory, cprio));
                     }
                 }
 
-                merged.add(row);
+                String glNorm = normalizeLink(r.gameLink);
+                if (glNorm != null) {
+                    int lprio = priorityForTimes(r.times);
+                    LinkPick cur = bestGameLinkByGroupKey.get(gk);
+                    if (cur == null || lprio > cur.priority) {
+                        bestGameLinkByGroupKey.put(gk, new LinkPick(glNorm, lprio));
+                    }
+                }
+            } else {
+                finishedByRowId.put(rowId(row), finished);
             }
+
+            merged.add(row);
         }
 
-        merged.sort((a, b) -> {
-            String at = (a.getUpdateTime() != null && !a.getUpdateTime().isBlank()) ? a.getUpdateTime() : a.getRegisterTime();
-            String bt = (b.getUpdateTime() != null && !b.getUpdateTime().isBlank()) ? b.getUpdateTime() : b.getRegisterTime();
-            long am = (at == null) ? 0L : java.time.OffsetDateTime.parse(at).toInstant().toEpochMilli();
-            long bm = (bt == null) ? 0L : java.time.OffsetDateTime.parse(bt).toInstant().toEpochMilli();
-            return Long.compare(bm, am); // desc
-        });
-
-        // ===== enrich（merged作り終わった後、sort/paging前）=====
+        // master 側の game_link 補完用
         List<String> keys = merged.stream()
                 .map(IngestedRowDTO::getMatchKey)
                 .filter(k -> k != null && !k.isBlank())
                 .distinct()
                 .collect(Collectors.toList());
 
-        // ★追加：要対応のみ（futureなし OR 終了済/ペナルティなし）
-        if (Boolean.TRUE.equals(req.getOnlyNeedsAttention())) {
-            merged = merged.stream()
-                .filter(r -> Boolean.FALSE.equals(r.getFutureExists()) || Boolean.FALSE.equals(r.getHasFinishedTimes()))
-                .collect(Collectors.toList());
-        }
-
-        Map<String, List<String>> timesByKey = keys.isEmpty()
-                ? Map.of()
-                : bookDataRepository.findDistinctTimesByMatchKeys(keys);
-
         Map<String, String> linkByKey = keys.isEmpty()
                 ? Map.of()
                 : futuresRepository.findGameLinksByMatchKeys(keys);
 
+        // ===== enrich =====
         for (var r : merged) {
+            String rid = rowId(r);
+            String gk = groupKeyByRowId.get(rid);
 
-            // ---------- times/futureExists ----------
-            String k = r.getMatchKey();
-            if (k == null || k.isBlank()) {
-                r.setFutureExists(false);
-                r.setTimesList(List.of());
-                r.setHasFinishedTimes(false);
+            boolean futureExists;
+            boolean hasFinishedData;
+
+            if (gk != null) {
+                futureExists = futureExistsByGroupKey.getOrDefault(gk, false);
+                hasFinishedData = hasFinishedDataByGroupKey.getOrDefault(gk, false);
             } else {
-                List<String> times = timesByKey.getOrDefault(k, List.of());
-                boolean hasFinished = times.stream().anyMatch(IngestedDataService::isFinishedLikeTimes);
-                r.setTimesList(times);
-                r.setHasFinishedTimes(hasFinished);
-                r.setFutureExists(linkByKey.containsKey(k));
+                futureExists = (r.getFuture() != null);
+                hasFinishedData = finishedByRowId.getOrDefault(rid, false);
             }
 
-            // ---------- ★data_category の代表値を群で揃える（ラウンド有優先） ----------
+            r.setFutureExists(futureExists);
+            r.setHasFinishedData(hasFinishedData);
+
             if (r.getData() != null) {
-                String gk = groupKeyByRowId.get(rowId(r));
+                int sameMatchCount = (gk != null)
+                        ? sameMatchDataCountByGroupKey.getOrDefault(gk, 1)
+                        : 1;
+                r.getData().setSameMatchDataCount(sameMatchCount);
+
+                // data_category は群で代表値に寄せる
                 if (gk != null) {
                     CategoryPick cp = bestCategoryByGroupKey.get(gk);
                     if (cp != null && cp.category != null) {
-                        // ラウンド無し行でも、群にラウンド付きがあるならラウンド付きに寄せる
                         r.getData().setDataCategory(cp.category);
                     }
                 }
-            }
 
-            // ---------- ★gameLink 補完（群内優先 → master(mid)） ----------
-            if (r.getData() != null) {
+                // data.gameLink 補完
                 String current = normalizeLink(r.getData().getGameLink());
                 if (current == null) {
                     String filled = null;
 
-                    // 1) 同一データ群に1つでもあるgame_linkを採用（要件）
-                    String gk = groupKeyByRowId.get(rowId(r));
                     if (gk != null) {
                         LinkPick lp = bestGameLinkByGroupKey.get(gk);
                         filled = (lp == null) ? null : lp.link;
                     }
 
-                    // 2) それでも無ければ master (mid→game_link)
-                    if (filled == null && k != null) {
-                        filled = normalizeLink(linkByKey.get(k));
+                    if (filled == null && r.getMatchKey() != null) {
+                        filled = normalizeLink(linkByKey.get(r.getMatchKey()));
                     }
 
                     if (filled != null) {
@@ -202,11 +194,11 @@ public class IngestedDataService {
                 }
             }
 
-            // future側も必要なら補完（任意）
+            // future 側の gameLink 補完（必要時のみ）
             if (r.getFuture() != null) {
-                String cur = normalizeLink(r.getFuture().getGameLink());
-                if (cur == null && k != null) {
-                    String filled = normalizeLink(linkByKey.get(k));
+                String current = normalizeLink(r.getFuture().getGameLink());
+                if (current == null && r.getMatchKey() != null) {
+                    String filled = normalizeLink(linkByKey.get(r.getMatchKey()));
                     if (filled != null) {
                         r.getFuture().setGameLink(filled);
                     }
@@ -214,7 +206,16 @@ public class IngestedDataService {
             }
         }
 
-        // paging（既存どおり）
+        // ===== チェックボックス条件 =====
+        if (req.isOnlyMissingFinishedOrFuture()) {
+            merged = merged.stream()
+                    .filter(r ->
+                            Boolean.FALSE.equals(r.getHasFinishedData())
+                         || Boolean.FALSE.equals(r.getFutureExists()))
+                    .collect(Collectors.toList());
+        }
+
+        // ===== paging =====
         int fromIdx = Math.min(req.getOffset(), merged.size());
         int toIdx = Math.min(fromIdx + req.getLimit(), merged.size());
         List<IngestedRowDTO> paged = merged.subList(fromIdx, toIdx);
@@ -226,41 +227,52 @@ public class IngestedDataService {
     }
 
     // =========================================================
-    // 同一データ群キー
+    // groupKey
     // =========================================================
 
-    /**
-     * 同一データ群キー（順序あり）
-     * - match_id(mid) があればそれを最優先（最も正確）
-     * - 無い場合のみ「リーグ正規化(ラウンド除去) + home + away」で束ねる
-     *
-     * ※ これにより「ラウンド有/無の data_category が混在しても同一群」になる
-     */
     private static String buildGroupKeyForData(BookDataRepository.DataIngestRow r) {
         String mid = trimToNull(r.matchId);
         if (mid != null) {
             return "MID:" + mid;
         }
+
+        String extractedMid = extractMidOrNull(r.gameLink);
+        if (extractedMid != null) {
+            return "MID:" + extractedMid;
+        }
+
         String league = normalizeLeagueIgnoringRound(r.dataCategory);
         String home = trimToNull(r.homeTeamName);
         String away = trimToNull(r.awayTeamName);
+
         if (league == null || home == null || away == null) {
             return null;
         }
-        return "PAIR:" + league + "|" + home + "|" + away; // 順序あり
+
+        return "PAIR:" + league + "|" + home + "|" + away;
     }
 
-    /**
-     * 「日本: J1 リーグ - ラウンド 3」→「日本: J1 リーグ」
-     * 「日本: J1 リーグ」→そのまま
-     *
-     * ＝ラウンド有無があっても同一リーグ扱いにするための正規化。
-     */
-    private static String normalizeLeagueIgnoringRound(String dataCategory) {
-        String dc = trimToNull(dataCategory);
+    private static String buildGroupKeyForFuture(FuturesRepository.FutureMasterIngestRow r) {
+        String mid = extractMidOrNull(r.gameLink);
+        if (mid != null) {
+            return "MID:" + mid;
+        }
+
+        String league = normalizeLeagueIgnoringRound(r.gameTeamCategory);
+        String home = trimToNull(r.homeTeamName);
+        String away = trimToNull(r.awayTeamName);
+
+        if (league == null || home == null || away == null) {
+            return null;
+        }
+
+        return "PAIR:" + league + "|" + home + "|" + away;
+    }
+
+    private static String normalizeLeagueIgnoringRound(String category) {
+        String dc = trimToNull(category);
         if (dc == null) return null;
 
-        // " - " 以降を切り捨て（あなたのデータ形に一致）
         int idx = dc.indexOf(" - ");
         if (idx < 0) return dc.trim();
         return dc.substring(0, idx).trim();
@@ -299,8 +311,16 @@ public class IngestedDataService {
     }
 
     // =========================================================
-    // small utils
+    // time / utils
     // =========================================================
+
+    private static long toEpochMilli(String iso) {
+        try {
+            return iso == null ? 0L : OffsetDateTime.parse(iso).toInstant().toEpochMilli();
+        } catch (Exception e) {
+            return 0L;
+        }
+    }
 
     private static String trimToNull(String s) {
         if (s == null) return null;
@@ -312,7 +332,6 @@ public class IngestedDataService {
         return trimToNull(link);
     }
 
-    /** 終了済のgame_linkがあれば、それを代表にしたい */
     private static int priorityForTimes(String times) {
         return isFinishedLikeTimes(times) ? 2 : 1;
     }
@@ -321,18 +340,15 @@ public class IngestedDataService {
         String t = trimToNull(times);
         if (t == null) return false;
 
-        // 余計な空白を吸収（例: "ペナルティ 勝ち" のような表記揺れ対策）
         String norm = t.replaceAll("\\s+", "");
 
         return BookMakersCommonConst.FIN.equals(t)
             || norm.contains("ペナルティ");
     }
 
-    /** data_category はラウンド付きがあればそれを代表にする */
     private static int categoryPriority(String dataCategory) {
         String dc = trimToNull(dataCategory);
         if (dc == null) return 0;
-        // "ラウンド" か "Round" を含む方を優先
         boolean hasRound = dc.contains("ラウンド") || dc.contains("Round");
         return hasRound ? 2 : 1;
     }
@@ -340,6 +356,7 @@ public class IngestedDataService {
     private static class LinkPick {
         final String link;
         final int priority;
+
         LinkPick(String link, int priority) {
             this.link = link;
             this.priority = priority;
@@ -349,6 +366,7 @@ public class IngestedDataService {
     private static class CategoryPick {
         final String category;
         final int priority;
+
         CategoryPick(String category, int priority) {
             this.category = category;
             this.priority = priority;
