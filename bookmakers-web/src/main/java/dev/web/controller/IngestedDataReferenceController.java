@@ -36,14 +36,6 @@ public class IngestedDataReferenceController {
     public IngestedDataReferenceResponse getIngestedData(
     		@RequestParam(required = false) String country,
 
-            @RequestParam(defaultValue = "true")
-            boolean includeFutureMaster,
-
-            @RequestParam(defaultValue = "true")
-            boolean includeData,
-
-            @RequestParam(required = false) String keyword,
-
             @RequestParam(required = false) Boolean onlyNeedsAttention,
 
             @RequestParam(defaultValue = "100")
@@ -54,10 +46,7 @@ public class IngestedDataReferenceController {
 
     	IngestedDataReferenceRequest req = new IngestedDataReferenceRequest();
     	req.setCountry(country);
-    	req.setKeyword(keyword);
-    	req.setOnlyNeedsAttention(onlyNeedsAttention);
-        req.setIncludeFutureMaster(includeFutureMaster);
-        req.setIncludeData(includeData);
+    	req.setOnlyMissingFinishedOrFuture(onlyNeedsAttention);
         req.setLimit(limit);
         req.setOffset(offset);
 

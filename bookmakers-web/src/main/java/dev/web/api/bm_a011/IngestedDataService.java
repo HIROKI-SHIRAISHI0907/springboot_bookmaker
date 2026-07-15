@@ -1,6 +1,5 @@
 package dev.web.api.bm_a011;
 
-import java.time.OffsetDateTime;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
@@ -313,15 +312,6 @@ public class IngestedDataService {
     // =========================================================
     // time / utils
     // =========================================================
-
-    private static long toEpochMilli(String iso) {
-        try {
-            return iso == null ? 0L : OffsetDateTime.parse(iso).toInstant().toEpochMilli();
-        } catch (Exception e) {
-            return 0L;
-        }
-    }
-
     private static String trimToNull(String s) {
         if (s == null) return null;
         String t = s.trim();
