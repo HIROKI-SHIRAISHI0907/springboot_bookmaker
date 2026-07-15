@@ -1,14 +1,13 @@
 package dev.common.util;
 
 import java.sql.Timestamp;
-import java.text.ParseException;
-import java.text.SimpleDateFormat;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
-import java.util.Calendar;
 import java.util.regex.Pattern;
 
 /**
@@ -51,7 +50,13 @@ public class DateUtil {
 	 * 年月日時分秒ミリ秒(yyyy/MM/dd HH:mm:ss.SSS)のデリミタ入力チェック文字列
 	 */
 	private static final Pattern YMDHMSS_DELIMITER_PATTERN = Pattern
-			.compile("^\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}.\\d{3}$");
+			.compile("^\\d{4}/\\d{2}/\\d{2} \\d{2}:\\d{2}:\\d{2}\\.\\d{3}$");
+
+	/**
+	 * JST固定
+	 */
+	private static final ZoneId JST = ZoneId.of("Asia/Tokyo");
+
 	/**
 	 * ドイツ形式 → 例: "22.07.2025 19:30"
 	 */
@@ -67,18 +72,20 @@ public class DateUtil {
 	private static final DateTimeFormatter PATTERN_DD_MM_YYYY = DateTimeFormatter.ofPattern("dd.MM.yyyy");
 
 	/**
-	 * 追加：日本形式（秒なし）
+	 * 日本形式（秒なし）
 	 */
 	private static final DateTimeFormatter JAPANESE_FORMAT_NO_SEC
 	        = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm");
 
 	/**
-	 * 追加：スラッシュ区切りも来るなら（必要なら）
+	 * スラッシュ区切り
 	 */
 	private static final DateTimeFormatter JAPANESE_SLASH_NO_SEC
 	        = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm");
 	private static final DateTimeFormatter JAPANESE_SLASH_SEC
 	        = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss");
+	private static final DateTimeFormatter JAPANESE_SLASH_MILLIS
+	        = DateTimeFormatter.ofPattern("yyyy/MM/dd HH:mm:ss.SSS");
 
 	/**
 	 * yyyy-MM-dd
@@ -111,6 +118,12 @@ public class DateUtil {
 	        = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
 
 	/**
+	 * yyyyMMddHHmmssSSS
+	 */
+	private static final DateTimeFormatter BASIC_YMDHMSS
+	        = DateTimeFormatter.ofPattern("yyyyMMddHHmmssSSS");
+
+	/**
 	 * dd.MM.yyyy HH:mm:ss
 	 */
 	private static final DateTimeFormatter GERMAN_FORMAT_SEC
@@ -131,17 +144,7 @@ public class DateUtil {
 	 * 日付管理機能
 	 */
 	public static String getSysDate() {
-		Calendar calendar = Calendar.getInstance();
-		calendar.get(Calendar.YEAR);
-		calendar.get(Calendar.MONTH);
-		calendar.get(Calendar.DATE);
-		calendar.get(Calendar.HOUR);
-		calendar.get(Calendar.MINUTE);
-		calendar.get(Calendar.SECOND);
-		Timestamp time = new Timestamp(calendar.getTimeInMillis());
-		SimpleDateFormat str = new SimpleDateFormat("yyyy-MM-dd HH:mm:ss");
-		String date = str.format(time);
-		return date;
+		return ZonedDateTime.now(JST).format(FMT);
 	}
 
 	/**
@@ -151,31 +154,23 @@ public class DateUtil {
 	 * @throws Exception 例外
 	 */
 	public static Timestamp convertTimestamp(String time) throws Exception {
-		// 文字列判定
 		ArrayList<String> resultList = chkDate(time);
-		// 日にち
 		time = resultList.get(0);
 		time = convertFormatHyphen(time);
-		// 文字判定
 		String result = resultList.get(1);
-		Timestamp timestamp = null;
+
 		switch (result) {
 		case "yMd":
-			timestamp = convDateYmd(time);
-			break;
+			return convDateYmd(time);
 		case "m":
-			timestamp = convDateYmdhm(time);
-			break;
+			return convDateYmdhm(time);
 		case "s":
-			timestamp = convDateYmdhms(time);
-			break;
+			return convDateYmdhms(time);
 		case "S":
-			timestamp = convDateYmdhmsS(time);
-			break;
+			return convDateYmdhmsS(time);
 		default:
 			throw new Exception("time値について該当するメソッドに振り分けできない。(入力値:" + time + ")");
 		}
-		return timestamp;
 	}
 
 	/**
@@ -188,27 +183,30 @@ public class DateUtil {
 	 * @throws Exception
 	 */
 	private static ArrayList<String> chkDate(String date) throws Exception {
+		if (date == null) {
+			throw new Exception("dateがnullです。");
+		}
 		String chkFormat = null;
 		String[] split = null;
 		StringBuilder sb = new StringBuilder(date);
-		ArrayList<String> resultList = new ArrayList<String>();
-		// SSSがある
+		ArrayList<String> resultList = new ArrayList<>();
+
 		if (date.contains(".")) {
 			chkFormat = "S";
-			// SSSの形式がない場合SSSに強制変換
 			split = date.split("\\.");
-			if (split[1].length() == 2) {
-				sb.append("0");
-			} else if (split[1].length() == 1) {
-				sb.append("00");
+			if (split.length >= 2) {
+				if (split[1].length() == 2) {
+					sb.append("0");
+				} else if (split[1].length() == 1) {
+					sb.append("00");
+				}
 			}
 			resultList.add(sb.toString());
-			// SSSがない
 		} else {
 			split = date.split("\\:");
 			switch (split.length) {
 			case 1:
-				chkFormat = "H";
+				chkFormat = "yMd";
 				break;
 			case 2:
 				chkFormat = "m";
@@ -232,6 +230,9 @@ public class DateUtil {
 	 * @return
 	 */
 	private static String convertFormatHyphen(String date) {
+		if (date == null) {
+			return null;
+		}
 		if (date.contains("-")) {
 			date = date.replace("-", "/");
 		}
@@ -239,131 +240,111 @@ public class DateUtil {
 	}
 
 	/**
-	 * 日付フォーマット変換(Timestamp)(yyyyMMdd)
+	 * 日付フォーマット変換(Timestamp)(yyyyMMdd / yyyy/MM/dd)
+	 * JST の壁時計時刻として扱う
 	 * @param date 日時
 	 * @return タイムスタンプ
 	 * @throws Exception
 	 */
 	private static Timestamp convDateYmd(String date) throws Exception {
 		final String METHOD_NAME = "convDateYmd";
-		Timestamp resDate = null;
 		if (date == null) {
 			throw new Exception("nullエラー(メソッド名:" + METHOD_NAME + ")");
 		}
 		try {
+			LocalDate ld;
 			if (YMD_PATTERN.matcher(date).find()) {
-				SimpleDateFormat format = new SimpleDateFormat("yyyyMMdd");
-				// 日付解析を厳密にする
-				format.setLenient(false);
-				resDate = new Timestamp(format.parse(date).getTime());
+				ld = LocalDate.parse(date, BASIC_DATE_ONLY);
 			} else if (YMD_DELIMITER_PATTERN.matcher(date).find()) {
-				SimpleDateFormat format = new SimpleDateFormat("yyyy/MM/dd");
-				// 日付解析を厳密にする
-				format.setLenient(false);
-				resDate = new Timestamp(format.parse(date).getTime());
+				ld = LocalDate.parse(date, JAPANESE_SLASH_DATE_ONLY);
 			} else {
 				throw new Exception("Formatterエラー(メソッド名:" + METHOD_NAME + ", 日付:" + date + ")");
 			}
-		} catch (ParseException e) {
-			throw new Exception("ParseExceptionエラー(メソッド名:" + METHOD_NAME + ", 日付:" + date + ")");
+			return Timestamp.valueOf(ld.atStartOfDay());
+		} catch (DateTimeParseException e) {
+			throw new Exception("ParseExceptionエラー(メソッド名:" + METHOD_NAME + ", 日付:" + date + ")", e);
 		}
-		return resDate;
 	}
 
 	/**
-	 * 日付フォーマット変換(Timestamp)(yyyyMMddHHmm)
+	 * 日付フォーマット変換(Timestamp)(yyyyMMddHHmm / yyyy/MM/dd HH:mm)
+	 * JST の壁時計時刻として扱う
 	 * @param date 日時
 	 * @return タイムスタンプ
 	 * @throws Exception
 	 */
 	private static Timestamp convDateYmdhm(String date) throws Exception {
 		final String METHOD_NAME = "convDateYmdhm";
-		Timestamp resDate = null;
 		if (date == null) {
 			throw new Exception("nullエラー(メソッド名:" + METHOD_NAME + ")");
 		}
 		try {
+			LocalDateTime ldt;
 			if (YMDHM_PATTERN.matcher(date).find()) {
-				SimpleDateFormat format = new SimpleDateFormat("yyyyMMddHHmm");
-				// 日付解析を厳密にする
-				format.setLenient(false);
-				resDate = new Timestamp(format.parse(date).getTime());
+				ldt = LocalDateTime.parse(date, BASIC_YMDHM);
 			} else if (YMDHM_DELIMITER_PATTERN.matcher(date).find()) {
-				SimpleDateFormat format = new SimpleDateFormat("yyyy/MM/dd HH:mm");
-				// 日付解析を厳密にする
-				format.setLenient(false);
-				resDate = new Timestamp(format.parse(date).getTime());
+				ldt = LocalDateTime.parse(date, JAPANESE_SLASH_NO_SEC);
 			} else {
 				throw new Exception("Formatterエラー(メソッド名:" + METHOD_NAME + ", 日付:" + date + ")");
 			}
-		} catch (ParseException e) {
-			throw new Exception("ParseExceptionエラー(メソッド名:" + METHOD_NAME + ", 日付:" + date + ")");
+			return Timestamp.valueOf(ldt);
+		} catch (DateTimeParseException e) {
+			throw new Exception("ParseExceptionエラー(メソッド名:" + METHOD_NAME + ", 日付:" + date + ")", e);
 		}
-		return resDate;
 	}
 
 	/**
-	 * 日付フォーマット変換(Timestamp)(yyyyMMddHHmmss)
+	 * 日付フォーマット変換(Timestamp)(yyyyMMddHHmmss / yyyy/MM/dd HH:mm:ss)
+	 * JST の壁時計時刻として扱う
 	 * @param date 日時
 	 * @return タイムスタンプ
 	 * @throws Exception
 	 */
 	private static Timestamp convDateYmdhms(String date) throws Exception {
 		final String METHOD_NAME = "convDateYmdhms";
-		Timestamp resDate = null;
 		if (date == null) {
 			throw new Exception("nullエラー(メソッド名:" + METHOD_NAME + ")");
 		}
 		try {
+			LocalDateTime ldt;
 			if (YMDHMS_PATTERN.matcher(date).find()) {
-				SimpleDateFormat format = new SimpleDateFormat("yyyyMMddHHmmss");
-				// 日付解析を厳密にする
-				format.setLenient(false);
-				resDate = new Timestamp(format.parse(date).getTime());
+				ldt = LocalDateTime.parse(date, BASIC_YMDHMS);
 			} else if (YMDHMS_DELIMITER_PATTERN.matcher(date).find()) {
-				SimpleDateFormat format = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss");
-				// 日付解析を厳密にする
-				format.setLenient(false);
-				resDate = new Timestamp(format.parse(date).getTime());
+				ldt = LocalDateTime.parse(date, JAPANESE_SLASH_SEC);
 			} else {
 				throw new Exception("Formatterエラー(メソッド名:" + METHOD_NAME + ", 日付:" + date + ")");
 			}
-		} catch (ParseException e) {
-			throw new Exception("ParseExceptionエラー(メソッド名:" + METHOD_NAME + ", 日付:" + date + ")");
+			return Timestamp.valueOf(ldt);
+		} catch (DateTimeParseException e) {
+			throw new Exception("ParseExceptionエラー(メソッド名:" + METHOD_NAME + ", 日付:" + date + ")", e);
 		}
-		return resDate;
 	}
 
 	/**
-	 * 日付フォーマット変換(Timestamp)(yyyyMMddHHmmssSSS)
+	 * 日付フォーマット変換(Timestamp)(yyyyMMddHHmmssSSS / yyyy/MM/dd HH:mm:ss.SSS)
+	 * JST の壁時計時刻として扱う
 	 * @param date 日時
 	 * @return タイムスタンプ
 	 * @throws Exception
 	 */
 	private static Timestamp convDateYmdhmsS(String date) throws Exception {
 		final String METHOD_NAME = "convDateYmdhmsS";
-		Timestamp resDate = null;
 		if (date == null) {
 			throw new Exception("nullエラー(メソッド名:" + METHOD_NAME + ")");
 		}
 		try {
+			LocalDateTime ldt;
 			if (YMDHMSS_PATTERN.matcher(date).find()) {
-				SimpleDateFormat format = new SimpleDateFormat("yyyyMMddHHmmssSSS");
-				// 日付解析を厳密にする
-				format.setLenient(false);
-				resDate = new Timestamp(format.parse(date).getTime());
+				ldt = LocalDateTime.parse(date, BASIC_YMDHMSS);
 			} else if (YMDHMSS_DELIMITER_PATTERN.matcher(date).find()) {
-				SimpleDateFormat format = new SimpleDateFormat("yyyy/MM/dd HH:mm:ss.SSS");
-				// 日付解析を厳密にする
-				format.setLenient(false);
-				resDate = new Timestamp(format.parse(date).getTime());
+				ldt = LocalDateTime.parse(date, JAPANESE_SLASH_MILLIS);
 			} else {
 				throw new Exception("Formatterエラー(メソッド名:" + METHOD_NAME + ", 日付:" + date + ")");
 			}
-		} catch (ParseException e) {
-			throw new Exception("ParseExceptionエラー(メソッド名:" + METHOD_NAME + ", 日付:" + date + ")");
+			return Timestamp.valueOf(ldt);
+		} catch (DateTimeParseException e) {
+			throw new Exception("ParseExceptionエラー(メソッド名:" + METHOD_NAME + ", 日付:" + date + ")", e);
 		}
-		return resDate;
 	}
 
 	/**
@@ -389,22 +370,19 @@ public class DateUtil {
 	public static String convertOnlyDD_MM_YYYY(String input) {
 	    if (input == null) return "";
 
-	    // 1) 正規化（前後空白、NBSP、制御文字を除去）
 	    String raw = input;
 	    String s = input
-	            .replace('\u00A0', ' ')     // NBSP → space
-	            .replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", "") // 制御文字除去（改行などは除外）
+	            .replace('\u00A0', ' ')
+	            .replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", "")
 	            .trim();
 
 	    if (s.isEmpty() || "N/A".equalsIgnoreCase(s)) return "";
 
-	    // 2) dd.MM.yyyy
 	    try {
 	        LocalDate date = LocalDate.parse(s, PATTERN_DD_MM_YYYY);
 	        return date.atStartOfDay().format(JAPANESE_FORMAT);
 	    } catch (DateTimeParseException ignore) {}
 
-	    // 3) もし dd.MM.yyyy HH:mm / HH:mm:ss が来ても拾う（保険）
 	    try {
 	        LocalDateTime dt = LocalDateTime.parse(s, DateTimeFormatter.ofPattern("dd.MM.yyyy HH:mm"));
 	        return dt.format(JAPANESE_FORMAT);
@@ -415,7 +393,6 @@ public class DateUtil {
 	        return dt.format(JAPANESE_FORMAT);
 	    } catch (DateTimeParseException ignore) {}
 
-	    // 4) 例外時に「見えない文字」を特定できるように情報を出す
 	    throw new IllegalArgumentException(
 	        "不正な日時フォーマットです: [" + visualize(raw) + "] -> normalized:[" + visualize(s) + "]"
 	    );
@@ -429,33 +406,33 @@ public class DateUtil {
 	        return "";
 	    }
 
-	    // 1) German: "dd.MM.yyyy HH:mm"
+	    String s = input
+	            .replace('\u00A0', ' ')
+	            .replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", "")
+	            .trim();
+
 	    try {
-	        LocalDateTime dt = LocalDateTime.parse(input, GERMAN_FORMAT);
+	        LocalDateTime dt = LocalDateTime.parse(s, GERMAN_FORMAT);
 	        return dt.format(JAPANESE_FORMAT);
 	    } catch (DateTimeParseException ignore) {}
 
-	    // 2) Japanese: "yyyy-MM-dd HH:mm:ss"
 	    try {
-	        LocalDateTime dt = LocalDateTime.parse(input, JAPANESE_FORMAT);
+	        LocalDateTime dt = LocalDateTime.parse(s, JAPANESE_FORMAT);
 	        return dt.format(JAPANESE_FORMAT);
 	    } catch (DateTimeParseException ignore) {}
 
-	    // 3) Japanese: "yyyy-MM-dd HH:mm"
 	    try {
-	        LocalDateTime dt = LocalDateTime.parse(input, JAPANESE_FORMAT_NO_SEC);
+	        LocalDateTime dt = LocalDateTime.parse(s, JAPANESE_FORMAT_NO_SEC);
 	        return dt.format(JAPANESE_FORMAT);
 	    } catch (DateTimeParseException ignore) {}
 
-	    // 4) Optional: "yyyy/MM/dd HH:mm:ss"
 	    try {
-	        LocalDateTime dt = LocalDateTime.parse(input, JAPANESE_SLASH_SEC);
+	        LocalDateTime dt = LocalDateTime.parse(s, JAPANESE_SLASH_SEC);
 	        return dt.format(JAPANESE_FORMAT);
 	    } catch (DateTimeParseException ignore) {}
 
-	    // 5) Optional: "yyyy/MM/dd HH:mm"
 	    try {
-	        LocalDateTime dt = LocalDateTime.parse(input, JAPANESE_SLASH_NO_SEC);
+	        LocalDateTime dt = LocalDateTime.parse(s, JAPANESE_SLASH_NO_SEC);
 	        return dt.format(JAPANESE_FORMAT);
 	    } catch (DateTimeParseException ignore) {}
 
@@ -478,24 +455,6 @@ public class DateUtil {
     /**
      * 各種日時文字列を LocalDateTime に変換する。
      *
-     * <p>対応形式:</p>
-     * <ul>
-     *   <li>yyyy-MM-dd HH:mm:ss</li>
-     *   <li>yyyy-MM-dd HH:mm</li>
-     *   <li>yyyy/MM/dd HH:mm:ss</li>
-     *   <li>yyyy/MM/dd HH:mm</li>
-     *   <li>yyyyMMddHHmmss</li>
-     *   <li>yyyyMMddHHmm</li>
-     *   <li>yyyy-MM-dd</li>
-     *   <li>yyyy/MM/dd</li>
-     *   <li>yyyyMMdd</li>
-     *   <li>dd.MM.yyyy HH:mm:ss</li>
-     *   <li>dd.MM.yyyy HH:mm</li>
-     *   <li>dd.MM.yyyy</li>
-     * </ul>
-     *
-     * <p>日付のみの場合は 00:00:00 を補完する。</p>
-     *
      * @param input 日時文字列
      * @return LocalDateTime
      */
@@ -509,69 +468,56 @@ public class DateUtil {
                 .replaceAll("[\\p{Cntrl}&&[^\r\n\t]]", "")
                 .trim();
 
-        // 1) yyyy-MM-dd HH:mm:ss
         try {
             return LocalDateTime.parse(s, JAPANESE_FORMAT);
         } catch (DateTimeParseException ignore) {}
 
-        // 2) yyyy-MM-dd HH:mm
         try {
             return LocalDateTime.parse(s, JAPANESE_FORMAT_NO_SEC);
         } catch (DateTimeParseException ignore) {}
 
-        // 3) yyyy/MM/dd HH:mm:ss
         try {
             return LocalDateTime.parse(s, JAPANESE_SLASH_SEC);
         } catch (DateTimeParseException ignore) {}
 
-        // 4) yyyy/MM/dd HH:mm
         try {
             return LocalDateTime.parse(s, JAPANESE_SLASH_NO_SEC);
         } catch (DateTimeParseException ignore) {}
 
-        // 5) yyyyMMddHHmmss
         try {
             return LocalDateTime.parse(s, BASIC_YMDHMS);
         } catch (DateTimeParseException ignore) {}
 
-        // 6) yyyyMMddHHmm
         try {
             return LocalDateTime.parse(s, BASIC_YMDHM);
         } catch (DateTimeParseException ignore) {}
 
-        // 7) dd.MM.yyyy HH:mm:ss
         try {
             return LocalDateTime.parse(s, GERMAN_FORMAT_SEC);
         } catch (DateTimeParseException ignore) {}
 
-        // 8) dd.MM.yyyy HH:mm
         try {
             return LocalDateTime.parse(s, GERMAN_FORMAT);
         } catch (DateTimeParseException ignore) {}
 
-        // 9) yyyy-MM-dd
         try {
             return LocalDate.parse(s, JAPANESE_DATE_ONLY).atStartOfDay();
         } catch (DateTimeParseException ignore) {}
 
-        // 10) yyyy/MM/dd
         try {
             return LocalDate.parse(s, JAPANESE_SLASH_DATE_ONLY).atStartOfDay();
         } catch (DateTimeParseException ignore) {}
 
-        // 11) yyyyMMdd
         try {
             return LocalDate.parse(s, BASIC_DATE_ONLY).atStartOfDay();
         } catch (DateTimeParseException ignore) {}
 
-        // 12) dd.MM.yyyy
         try {
             return LocalDate.parse(s, PATTERN_DD_MM_YYYY).atStartOfDay();
         } catch (DateTimeParseException ignore) {}
 
         throw new IllegalArgumentException("不正な日時フォーマットです: " + input);
     }
-
 
 	/** 目に見えない文字を可視化する */
 	private static String visualize(String str) {
@@ -589,5 +535,4 @@ public class DateUtil {
 	    }
 	    return sb.toString();
 	}
-
 }
