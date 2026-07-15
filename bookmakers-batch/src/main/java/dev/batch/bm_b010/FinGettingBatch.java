@@ -5,7 +5,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -14,12 +13,10 @@ import org.springframework.stereotype.Service;
 
 import dev.batch.common.AbstractJobBatchTemplate;
 import dev.batch.repository.bm.EcsScrapeTaskProgressBatchRepository;
-import dev.batch.repository.bm.MatchKeySaveRepository;
 import dev.common.config.PathConfig;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
-import dev.common.getinfo.GetOriginInfo;
-import dev.common.readfile.dto.MatchKeyItem;
+import dev.common.getinfo.GetOriginFinInfo;
 import dev.common.s3.S3Operator;
 import dev.common.util.FileDeleteUtil;
 
@@ -115,16 +112,10 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
     }
 
     @Autowired
-    private MatchKeySaveRepository matchKeySaveRepository;
-
-    @Autowired
-    private GetOriginInfo getOriginInfo;
+    private GetOriginFinInfo getOriginFinInfo;
 
     @Autowired
     private FinGettingStat finGettingStat;
-
-    @Autowired
-    private FinGettingTruncate finGettingTruncate;
 
     @Autowired
     private FutureStartFlgService futureStartFlgService;
@@ -150,33 +141,14 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
         final String jsonFolder = pathConfig.getB008JsonFolder();
         final String jsonPath = jsonFolder + "b008_fin_getting_data.json";
         final Path jsonFilePath = Paths.get(jsonPath);
-        final String s3Key = "fin/" + jsonFilePath.getFileName().toString();
+        final String s3Key = jsonFilePath.getFileName().toString();
         insertPath.add(s3Key);
 
         try {
-            List<MatchKeyItem> items = matchKeySaveRepository.findMatchKeys().stream()
-                    .map(k -> {
-                        MatchKeyItem e = new MatchKeyItem();
-                        e.setMatchKey(k);
-                        return e;
-                    })
-                    .collect(Collectors.toList());
-
-            if (items.isEmpty()) {
-                String ERROR_CODE = MessageCdConst.MCD00003E_EXECUTION_SKIP;
-                this.manageLoggerComponent.debugInfoLog(
-                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE,
-                        "items.isEmpty() マッチキーが取得できなかったため処理を終了します。");
-                updateFlg(null);
-                return;
-            }
-
-            Map<String, List<DataEntity>> map = getOriginInfo.getData(items);
+            Map<String, List<DataEntity>> map = getOriginFinInfo.getData();
             this.finGettingStat.finGettingStat(map);
 
-            finGettingTruncate.truncate();
-
-            String bucket = pathConfig.getS3BucketsOutputs();
+            String bucket = pathConfig.getS3BucketsOutputsFin();
             FileDeleteUtil.deleteS3Files(
                     insertPath,
                     bucket,

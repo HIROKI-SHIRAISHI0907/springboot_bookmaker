@@ -22,6 +22,7 @@ process:
       allLeague: ${S3_ALL_LEAGUE:aws-s3-all-league-csv}
       noEcs: ${S3_NO_ECS:aws-s3-no-ecs-task-time-csv}
       record: ${S3_RECORD:aws-s3-record-csv}
+      outputsFin: ${S3_OUTPUTS_FIN:aws-s3-outputs-fin-csv}
 
 spring:
   datasource:

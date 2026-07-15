@@ -23,6 +23,7 @@ process:
       noEcs: ${S3_NO_ECS:aws-s3-no-ecs-task-time-csv}
       geografic: ${S3_GEOGRAFIC:aws-s3-geografic-csv}
       record: ${S3_RECORD:aws-s3-record-csv}
+      outputsFin: ${S3_OUTPUTS_FIN:aws-s3-outputs-fin-csv}
       
 cleanup:
   enabled: true
