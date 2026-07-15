@@ -263,10 +263,10 @@ public class FuturesRepository {
 				WHERE (:countryLike IS NULL OR game_team_category LIKE :countryLike)
 				  AND (
 					:kw IS NULL
-					OR LOWER(home_team_name)     LIKE :kwLike
-					OR LOWER(away_team_name)     LIKE :kwLike
-					OR LOWER(game_team_category) LIKE :kwLike
-					OR LOWER(game_link)          LIKE :kwLike
+					OR home_team_name     LIKE :kwLike
+					OR away_team_name     LIKE :kwLike
+					OR game_team_category LIKE :kwLike
+					OR game_link          LIKE :kwLike
 				  )
 				ORDER BY future_time ASC, seq ASC
 				""";
