@@ -9,7 +9,6 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Optional;
 import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
@@ -18,9 +17,7 @@ import org.springframework.transaction.annotation.Transactional;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.common.config.PathConfig;
-import dev.common.entity.MatchKeySaveEntity;
 import dev.common.s3.S3Operator;
-import dev.web.repository.bm.MatchKeyRepository;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -39,8 +36,6 @@ public class FinGettingService {
 	private final PathConfig pathConfig;
 	private final S3Operator s3Operator;
 
-	private final MatchKeyRepository matchKeyRepository;
-
 	/**
 	 * FinGettingRequest(matches) を
 	 * { "yyyy-MM-dd": [ {matchKey, matchUrl?}, ... ] } に変換し、
@@ -58,10 +53,7 @@ public class FinGettingService {
 		// 2) Map化
 		Map<String, List<Map<String, Object>>> out = toOutputMap(req.getMatches());
 
-		// 3) DB登録
-		upsert(out);
-
-		// 4) 次の連番をS3から決定
+		// 3) 次の連番をS3から決定
 		final String outputBucket = pathConfig.getS3BucketsOutputsFin();
 		final int nextSeq = s3Operator.findNextSequenceNumber(
 				outputBucket,
@@ -71,14 +63,14 @@ public class FinGettingService {
 
 		final String fileName = FILE_PREFIX + nextSeq + ".json";
 
-		// 5) ローカルへJSON出力
+		// 4) ローカルへJSON出力
 		final String jsonFolder = pathConfig.getB008JsonFolder(); // 例: /tmp/json/
 		final Path jsonFilePath = Paths.get(jsonFolder, fileName);
 
 		Files.createDirectories(jsonFilePath.getParent());
 		objectMapper.writerWithDefaultPrettyPrinter().writeValue(jsonFilePath.toFile(), out);
 
-		// 6) S3へアップロード
+		// 5) S3へアップロード
 		final String s3Key = S3_PREFIX + fileName;
 		s3Operator.uploadFile(outputBucket, s3Key, jsonFilePath);
 
@@ -118,37 +110,4 @@ public class FinGettingService {
 		return out;
 	}
 
-	/**
-	 * DB登録
-	 * @param map
-	 */
-	private void upsert(Map<String, List<Map<String, Object>>> map) {
-
-		for (Map.Entry<String, List<Map<String, Object>>> entry : map.entrySet()) {
-			for (Map<String, Object> obj : entry.getValue()) {
-
-				String mk = (String) obj.get("matchKey");
-				if (mk == null || mk.isBlank()) {
-					continue;
-				}
-
-				Optional<String> idOpt = matchKeyRepository.findMatchKeyId(mk);
-				if (idOpt.isPresent()) {
-					continue;
-				}
-
-				MatchKeySaveEntity entity = new MatchKeySaveEntity();
-				entity.setMatchKey(mk);
-
-				try {
-					int rows = matchKeyRepository.insert(entity);
-					if (rows != 1) {
-						throw new RuntimeException("match_key_save insert affected rows=" + rows + " matchKey=" + mk);
-					}
-				} catch (Exception e) {
-					throw new RuntimeException("match_key_save insert failed. matchKey=" + mk, e);
-				}
-			}
-		}
-	}
 }
