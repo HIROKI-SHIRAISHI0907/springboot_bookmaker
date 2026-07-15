@@ -2,9 +2,9 @@ package dev.web.api.bm_a011;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
@@ -22,188 +22,112 @@ public class IngestedDataService {
 
     public IngestedDataReferenceResponse search(IngestedDataReferenceRequest req) {
 
-        List<IngestedRowDTO> merged = new ArrayList<>();
-
-        // rowId -> groupKey
-        Map<String, String> groupKeyByRowId = new HashMap<>();
-
-        // rowId -> この data 行自身が終了済か
-        Map<String, Boolean> finishedByRowId = new HashMap<>();
-
-        // groupKey -> future_master が存在するか
-        Map<String, Boolean> futureExistsByGroupKey = new HashMap<>();
-
-        // groupKey -> 同一試合群に終了済 data があるか
-        Map<String, Boolean> hasFinishedDataByGroupKey = new HashMap<>();
+        // groupKey -> 集約結果
+        Map<String, IngestedRowDTO> grouped = new LinkedHashMap<>();
 
         // groupKey -> 同一試合群の data 件数
         Map<String, Integer> sameMatchDataCountByGroupKey = new HashMap<>();
-
-        // groupKey -> 同一データ群の代表 gameLink（data側に1つでもあれば採用、終了済優先）
-        Map<String, LinkPick> bestGameLinkByGroupKey = new HashMap<>();
-
-        // groupKey -> 同一データ群の代表 dataCategory（ラウンド付き優先）
-        Map<String, CategoryPick> bestCategoryByGroupKey = new HashMap<>();
 
         // ===== future_master =====
         var futures = futuresRepository.findFutureMasterByRegisterTime(req.getCountry());
 
         for (var r : futures) {
-            IngestedRowDTO row = new IngestedRowDTO();
-            row.setTable(IngestedRowDTO.TableName.FUTURE_MASTER);
-            row.setSeq(String.valueOf(r.seq));
-
-            FutureMasterIngestSummaryDTO s = new FutureMasterIngestSummaryDTO();
-            s.setGameTeamCategory(r.gameTeamCategory);
-            s.setFutureTime(r.futureTime);
-            s.setHomeTeamName(r.homeTeamName);
-            s.setAwayTeamName(r.awayTeamName);
-            s.setGameLink(r.gameLink);
-            row.setFuture(s);
-
-            String mk = extractMidOrNull(r.gameLink);
-            row.setMatchKey(mk);
-
             String gk = buildGroupKeyForFuture(r);
-            if (gk != null) {
-                groupKeyByRowId.put(rowId(row), gk);
-                futureExistsByGroupKey.put(gk, true);
+            if (gk == null) {
+                // group化できないものは seq ベースで逃がす
+                gk = "FUTURE:" + r.seq;
             }
 
-            merged.add(row);
+            IngestedRowDTO row = grouped.get(gk);
+            if (row == null) {
+                row = new IngestedRowDTO();
+                row.setSeq(String.valueOf(r.seq));
+                row.setTable(IngestedRowDTO.TableName.FUTURE_MASTER);
+                row.setMatchKey(extractMidOrNull(r.gameLink));
+                row.setFutureExists(true);
+                row.setHasFinishedData(false);
+                grouped.put(gk, row);
+            } else {
+                row.setFutureExists(true);
+                if ((row.getMatchKey() == null || row.getMatchKey().isBlank()) && extractMidOrNull(r.gameLink) != null) {
+                    row.setMatchKey(extractMidOrNull(r.gameLink));
+                }
+            }
+
+            FutureMasterIngestSummaryDTO current = row.getFuture();
+            if (shouldReplaceFuture(current, r)) {
+                FutureMasterIngestSummaryDTO s = new FutureMasterIngestSummaryDTO();
+                s.setGameTeamCategory(r.gameTeamCategory);
+                s.setFutureTime(r.futureTime);
+                s.setHomeTeamName(r.homeTeamName);
+                s.setAwayTeamName(r.awayTeamName);
+                s.setGameLink(r.gameLink);
+                row.setFuture(s);
+            }
         }
 
         // ===== data =====
         var dataRows = bookDataRepository.findDataByRegisterTime(req.getCountry());
 
         for (var r : dataRows) {
-            IngestedRowDTO row = new IngestedRowDTO();
-            row.setTable(IngestedRowDTO.TableName.DATA);
-            row.setSeq(r.seq);
-
-            DataIngestSummaryDTO s = new DataIngestSummaryDTO();
-            s.setDataCategory(r.dataCategory);
-            s.setHomeTeamName(r.homeTeamName);
-            s.setAwayTeamName(r.awayTeamName);
-            s.setGameId(r.gameId);
-            s.setGameLink(r.gameLink);
-            row.setData(s);
-
-            String mk = pickDataMatchKey(r.matchId, r.gameId, r.gameLink);
-            row.setMatchKey(mk);
-
             String gk = buildGroupKeyForData(r);
-            boolean finished = isFinishedLikeTimes(r.times);
-
-            if (gk != null) {
-                groupKeyByRowId.put(rowId(row), gk);
-                finishedByRowId.put(rowId(row), finished);
-
-                sameMatchDataCountByGroupKey.merge(gk, 1, Integer::sum);
-
-                if (finished) {
-                    hasFinishedDataByGroupKey.put(gk, true);
-                }
-
-                String rawCategory = trimToNull(r.dataCategory);
-                if (rawCategory != null) {
-                    int cprio = categoryPriority(rawCategory);
-                    CategoryPick cur = bestCategoryByGroupKey.get(gk);
-                    if (cur == null || cprio > cur.priority) {
-                        bestCategoryByGroupKey.put(gk, new CategoryPick(rawCategory, cprio));
-                    }
-                }
-
-                String glNorm = normalizeLink(r.gameLink);
-                if (glNorm != null) {
-                    int lprio = priorityForTimes(r.times);
-                    LinkPick cur = bestGameLinkByGroupKey.get(gk);
-                    if (cur == null || lprio > cur.priority) {
-                        bestGameLinkByGroupKey.put(gk, new LinkPick(glNorm, lprio));
-                    }
-                }
-            } else {
-                finishedByRowId.put(rowId(row), finished);
+            if (gk == null) {
+                gk = "DATA:" + r.seq;
             }
 
-            merged.add(row);
+            sameMatchDataCountByGroupKey.merge(gk, 1, Integer::sum);
+
+            IngestedRowDTO row = grouped.get(gk);
+            if (row == null) {
+                row = new IngestedRowDTO();
+                row.setSeq(r.seq);
+                row.setTable(IngestedRowDTO.TableName.DATA);
+                row.setMatchKey(pickDataMatchKey(r.matchId, r.gameId, r.gameLink));
+                row.setFutureExists(false);
+                row.setHasFinishedData(false);
+                grouped.put(gk, row);
+            } else {
+                // dataがあるなら代表行は DATA 扱いに寄せる
+                row.setTable(IngestedRowDTO.TableName.DATA);
+
+                if (row.getSeq() == null || row.getSeq().isBlank()) {
+                    row.setSeq(r.seq);
+                }
+
+                if ((row.getMatchKey() == null || row.getMatchKey().isBlank())) {
+                    row.setMatchKey(pickDataMatchKey(r.matchId, r.gameId, r.gameLink));
+                }
+            }
+
+            if (isFinishedLikeTimes(r.times)) {
+                row.setHasFinishedData(true);
+            }
+
+            DataIngestSummaryDTO current = row.getData();
+            if (shouldReplaceData(current, r)) {
+                DataIngestSummaryDTO s = new DataIngestSummaryDTO();
+                s.setDataCategory(r.dataCategory);
+                s.setHomeTeamName(r.homeTeamName);
+                s.setAwayTeamName(r.awayTeamName);
+                s.setGameId(r.gameId);
+                s.setGameLink(r.gameLink);
+                row.setData(s);
+            }
         }
-
-        // master 側の game_link 補完用
-        List<String> keys = merged.stream()
-                .map(IngestedRowDTO::getMatchKey)
-                .filter(k -> k != null && !k.isBlank())
-                .distinct()
-                .collect(Collectors.toList());
-
-        Map<String, String> linkByKey = keys.isEmpty()
-                ? Map.of()
-                : futuresRepository.findGameLinksByMatchKeys(keys);
 
         // ===== enrich =====
-        for (var r : merged) {
-            String rid = rowId(r);
-            String gk = groupKeyByRowId.get(rid);
+        for (Map.Entry<String, IngestedRowDTO> e : grouped.entrySet()) {
+            String gk = e.getKey();
+            IngestedRowDTO row = e.getValue();
 
-            boolean futureExists;
-            boolean hasFinishedData;
-
-            if (gk != null) {
-                futureExists = futureExistsByGroupKey.getOrDefault(gk, false);
-                hasFinishedData = hasFinishedDataByGroupKey.getOrDefault(gk, false);
-            } else {
-                futureExists = (r.getFuture() != null);
-                hasFinishedData = finishedByRowId.getOrDefault(rid, false);
-            }
-
-            r.setFutureExists(futureExists);
-            r.setHasFinishedData(hasFinishedData);
-
-            if (r.getData() != null) {
-                int sameMatchCount = (gk != null)
-                        ? sameMatchDataCountByGroupKey.getOrDefault(gk, 1)
-                        : 1;
-                r.getData().setSameMatchDataCount(sameMatchCount);
-
-                // data_category は群で代表値に寄せる
-                if (gk != null) {
-                    CategoryPick cp = bestCategoryByGroupKey.get(gk);
-                    if (cp != null && cp.category != null) {
-                        r.getData().setDataCategory(cp.category);
-                    }
-                }
-
-                // data.gameLink 補完
-                String current = normalizeLink(r.getData().getGameLink());
-                if (current == null) {
-                    String filled = null;
-
-                    if (gk != null) {
-                        LinkPick lp = bestGameLinkByGroupKey.get(gk);
-                        filled = (lp == null) ? null : lp.link;
-                    }
-
-                    if (filled == null && r.getMatchKey() != null) {
-                        filled = normalizeLink(linkByKey.get(r.getMatchKey()));
-                    }
-
-                    if (filled != null) {
-                        r.getData().setGameLink(filled);
-                    }
-                }
-            }
-
-            // future 側の gameLink 補完（必要時のみ）
-            if (r.getFuture() != null) {
-                String current = normalizeLink(r.getFuture().getGameLink());
-                if (current == null && r.getMatchKey() != null) {
-                    String filled = normalizeLink(linkByKey.get(r.getMatchKey()));
-                    if (filled != null) {
-                        r.getFuture().setGameLink(filled);
-                    }
-                }
+            if (row.getData() != null) {
+                row.getData().setSameMatchDataCount(
+                        sameMatchDataCountByGroupKey.getOrDefault(gk, 1)
+                );
             }
         }
+
+        List<IngestedRowDTO> merged = new ArrayList<>(grouped.values());
 
         // ===== チェックボックス条件 =====
         if (req.isOnlyMissingFinishedOrFuture()) {
@@ -211,7 +135,7 @@ public class IngestedDataService {
                     .filter(r ->
                             Boolean.FALSE.equals(r.getHasFinishedData())
                          || Boolean.FALSE.equals(r.getFutureExists()))
-                    .collect(Collectors.toList());
+                    .toList();
         }
 
         // ===== paging =====
@@ -223,6 +147,56 @@ public class IngestedDataService {
         res.setRows(paged);
         res.setTotal(merged.size());
         return res;
+    }
+
+    // =========================================================
+    // representative selection
+    // =========================================================
+
+    private static boolean shouldReplaceFuture(FutureMasterIngestSummaryDTO current,
+                                               FuturesRepository.FutureMasterIngestRow candidate) {
+        if (current == null) {
+            return true;
+        }
+
+        // gameLink があるものを優先
+        String curLink = trimToNull(current.getGameLink());
+        String newLink = trimToNull(candidate.gameLink);
+        if (curLink == null && newLink != null) {
+            return true;
+        }
+
+        // ラウンド付きカテゴリを優先
+        int curPriority = categoryPriority(current.getGameTeamCategory());
+        int newPriority = categoryPriority(candidate.gameTeamCategory);
+        if (newPriority > curPriority) {
+            return true;
+        }
+
+        return false;
+    }
+
+    private static boolean shouldReplaceData(DataIngestSummaryDTO current,
+                                             BookDataRepository.DataIngestRow candidate) {
+        if (current == null) {
+            return true;
+        }
+
+        // gameLink があるものを優先
+        String curLink = trimToNull(current.getGameLink());
+        String newLink = trimToNull(candidate.gameLink);
+        if (curLink == null && newLink != null) {
+            return true;
+        }
+
+        // ラウンド付きカテゴリを優先
+        int curPriority = categoryPriority(current.getDataCategory());
+        int newPriority = categoryPriority(candidate.dataCategory);
+        if (newPriority > curPriority) {
+            return true;
+        }
+
+        return false;
     }
 
     // =========================================================
@@ -277,10 +251,6 @@ public class IngestedDataService {
         return dc.substring(0, idx).trim();
     }
 
-    private static String rowId(IngestedRowDTO row) {
-        return row.getTable() + ":" + row.getSeq();
-    }
-
     // =========================================================
     // matchKey helpers
     // =========================================================
@@ -310,20 +280,13 @@ public class IngestedDataService {
     }
 
     // =========================================================
-    // time / utils
+    // utils
     // =========================================================
+
     private static String trimToNull(String s) {
         if (s == null) return null;
         String t = s.trim();
         return t.isBlank() ? null : t;
-    }
-
-    private static String normalizeLink(String link) {
-        return trimToNull(link);
-    }
-
-    private static int priorityForTimes(String times) {
-        return isFinishedLikeTimes(times) ? 2 : 1;
     }
 
     private static boolean isFinishedLikeTimes(String times) {
@@ -336,30 +299,10 @@ public class IngestedDataService {
             || norm.contains("ペナルティ");
     }
 
-    private static int categoryPriority(String dataCategory) {
-        String dc = trimToNull(dataCategory);
+    private static int categoryPriority(String category) {
+        String dc = trimToNull(category);
         if (dc == null) return 0;
         boolean hasRound = dc.contains("ラウンド") || dc.contains("Round");
         return hasRound ? 2 : 1;
-    }
-
-    private static class LinkPick {
-        final String link;
-        final int priority;
-
-        LinkPick(String link, int priority) {
-            this.link = link;
-            this.priority = priority;
-        }
-    }
-
-    private static class CategoryPick {
-        final String category;
-        final int priority;
-
-        CategoryPick(String category, int priority) {
-            this.category = category;
-            this.priority = priority;
-        }
     }
 }

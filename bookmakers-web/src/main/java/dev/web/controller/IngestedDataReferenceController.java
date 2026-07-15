@@ -46,7 +46,7 @@ public class IngestedDataReferenceController {
 
     	IngestedDataReferenceRequest req = new IngestedDataReferenceRequest();
     	req.setCountry(country);
-    	req.setOnlyMissingFinishedOrFuture(onlyNeedsAttention);
+    	req.setOnlyMissingFinishedOrFuture(Boolean.TRUE.equals(onlyNeedsAttention));
         req.setLimit(limit);
         req.setOffset(offset);
 
