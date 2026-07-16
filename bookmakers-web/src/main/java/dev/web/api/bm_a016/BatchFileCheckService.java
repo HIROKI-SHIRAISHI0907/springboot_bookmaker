@@ -8,7 +8,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import dev.web.api.bm_a007.S3FileCountService;
-import dev.web.repository.bm.MatchKeyRepository;
 import dev.web.wrapper.BatchFileCheckItemWrapper;
 import dev.web.wrapper.BatchFileCheckResponseWrapper;
 import dev.web.wrapper.BatchFileCheckTaskWrapper;
@@ -30,6 +29,7 @@ public class BatchFileCheckService {
 	private static final String BUCKET_OUTPUTS = "aws-s3-outputs-csv";
 	private static final String BUCKET_ALL_LEAGUE = "aws-s3-all-league-csv";
 	private static final String BUCKET_GEOGRAFIC = "aws-s3-geografic-csv";
+	private static final String BUCKET_OUTPUTS_FIN = "aws-s3-outputs-fin-csv";
 
 	/** 共通キー */
 	private static final String JSON_B001_COUNTRY_LEAGUE = "json/b001_country_league.json";
@@ -52,9 +52,6 @@ public class BatchFileCheckService {
 
 	@Autowired
 	private S3FileCountService s3FileCountService;
-
-	@Autowired
-	private MatchKeyRepository matchKeyRepository;
 
 	/**
 	 * 全タスク分の状態を返す
@@ -229,25 +226,17 @@ public class BatchFileCheckService {
 
 	/**
 	 * B010
-	 * match_key_service テーブル件数が 0以上なら実行可
-	 * = 件数取得に成功すれば ready
+	 * json, fin 以外の直フォルダが1以上
 	 */
 	private BatchFileCheckTaskWrapper buildB010() {
-		long count = -1L;
-		boolean success = false;
+		String bucket = BUCKET_OUTPUTS_FIN;
 
-		try {
-			count = this.matchKeyRepository.countAll();
-			success = count >= 0;
-		} catch (Exception e) {
-			success = false;
-			log.warn("B010 precheck failed: countAll()", e);
-		}
+		long directFolderCount = countDirectFoldersExcluding(bucket, Set.of("json", "fin"));
 
-		boolean ready = success;
+		boolean ready = directFolderCount >= 1;
 
 		List<BatchFileCheckItemWrapper> items = new ArrayList<>();
-		items.add(countItem("match_key_service 件数", "DB", success ? count : null, false, success));
+		items.add(countItem("対象直フォルダ数（json / fin 除外後）", bucket, directFolderCount, true, directFolderCount >= 1));
 
 		return task("B010", ready, ready ? "準備OK" : "件数取得失敗", items);
 	}
