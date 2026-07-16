@@ -87,7 +87,7 @@ public class FinGettingStat implements FinGettingEntityIF {
 		}
 
 		// 2) afterCommitでS3削除（＝DBコミット成功後だけ消す）
-		String bucket = config.getS3BucketsOutputs();
+		String bucket = config.getS3BucketsOutputsFin();
 		org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
 				new org.springframework.transaction.support.TransactionSynchronization() {
 					@Override
@@ -100,7 +100,7 @@ public class FinGettingStat implements FinGettingEntityIF {
 								PROJECT_NAME,
 								CLASS_NAME,
 								METHOD_NAME,
-								"OUTPUTS_STATS");
+								"OUTPUTS_FIN_STATS");
 					}
 				});
 
