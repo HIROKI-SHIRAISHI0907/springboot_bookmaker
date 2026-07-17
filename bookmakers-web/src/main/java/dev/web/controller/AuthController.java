@@ -22,81 +22,86 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "${app.cors.allowed-origins:*}")
+@CrossOrigin(origins = "${app.cors.allowed-origins}", allowedHeaders = { "Authorization", "Content-Type",
+		"Accept" }, methods = {
+				org.springframework.web.bind.annotation.RequestMethod.GET,
+				org.springframework.web.bind.annotation.RequestMethod.POST,
+				org.springframework.web.bind.annotation.RequestMethod.OPTIONS
+		}, allowCredentials = "true", maxAge = 3600)
 public class AuthController {
 
-    private final JwtService jwtService;
-    private final AuthService authService;
+	private final JwtService jwtService;
+	private final AuthService authService;
 
-    @PostMapping("/signup")
-    public ResponseEntity<AuthResponse> signUp(@RequestBody SignUpRequest req) {
-        AuthResponse res = authService.signUp(req);
-        return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
-    }
+	@PostMapping("/signup")
+	public ResponseEntity<AuthResponse> signUp(@RequestBody SignUpRequest req) {
+		AuthResponse res = authService.signUp(req);
+		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
+	}
 
-    @PostMapping("/login")
-    public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest req) {
-        AuthResponse res = authService.login(req);
-        int status = parseStatus(res.getResponseCode());
+	@PostMapping("/login")
+	public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest req) {
+		AuthResponse res = authService.login(req);
+		int status = parseStatus(res.getResponseCode());
 
-        if (status != 200) {
-            return ResponseEntity.status(status).body(res);
-        }
+		if (status != 200) {
+			return ResponseEntity.status(status).body(res);
+		}
 
-        int authFlg = res.getAuthFlg() == null ? 2 : res.getAuthFlg();
+		int authFlg = res.getAuthFlg() == null ? 2 : res.getAuthFlg();
 
-        List<String> roles;
-        switch (authFlg) {
-            case 1:
-                roles = List.of("ROLE_ADMIN", "ROLE_USER");
-                break;
-            case 2:
-            default:
-                roles = List.of("ROLE_USER");
-                break;
-        }
+		List<String> roles;
+		switch (authFlg) {
+		case 1:
+			roles = List.of("ROLE_ADMIN", "ROLE_USER");
+			break;
+		case 2:
+		default:
+			roles = List.of("ROLE_USER");
+			break;
+		}
 
-        String subject = normalizeEmail(req.getEmail());
-        if (subject.isEmpty()) {
-            res.setResponseCode("400");
-            res.setMessage("メールアドレスが不正です。");
-            return ResponseEntity.badRequest().body(res);
-        }
+		String subject = normalizeEmail(req.getEmail());
+		if (subject.isEmpty()) {
+			res.setResponseCode("400");
+			res.setMessage("メールアドレスが不正です。");
+			return ResponseEntity.badRequest().body(res);
+		}
 
-        String token = jwtService.generateToken(subject, roles);
+		String token = jwtService.generateToken(subject, roles);
 
-        DecodedJWT decoded = jwtService.verifyToken(token);
-        long iat = decoded.getIssuedAt().toInstant().getEpochSecond();
-        long exp = decoded.getExpiresAt().toInstant().getEpochSecond();
+		DecodedJWT decoded = jwtService.verifyToken(token);
+		long iat = decoded.getIssuedAt().toInstant().getEpochSecond();
+		long exp = decoded.getExpiresAt().toInstant().getEpochSecond();
 
-        res.setAccessToken(token);
-        res.setTokenType("Bearer");
-        res.setIssuedAtEpochSecond(iat);
-        res.setExpiresAtEpochSecond(exp);
-        res.setRoles(roles);
+		res.setAccessToken(token);
+		res.setTokenType("Bearer");
+		res.setIssuedAtEpochSecond(iat);
+		res.setExpiresAtEpochSecond(exp);
+		res.setRoles(roles);
 
-        return ResponseEntity.ok(res);
-    }
+		return ResponseEntity.ok(res);
+	}
 
-    @PostMapping("/forgot-password")
-    public ResponseEntity<AuthResponse> forgotPassword(@RequestBody ForgotPasswordRequest req) {
-        AuthResponse res = authService.forgotPassword(req);
-        return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
-    }
+	@PostMapping("/forgot-password")
+	public ResponseEntity<AuthResponse> forgotPassword(@RequestBody ForgotPasswordRequest req) {
+		AuthResponse res = authService.forgotPassword(req);
+		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
+	}
 
-    private static int parseStatus(String code) {
-        try {
-            int status = Integer.parseInt(code);
-            return (status >= 100 && status <= 599) ? status : 500;
-        } catch (Exception e) {
-            return 500;
-        }
-    }
+	private static int parseStatus(String code) {
+		try {
+			int status = Integer.parseInt(code);
+			return (status >= 100 && status <= 599) ? status : 500;
+		} catch (Exception e) {
+			return 500;
+		}
+	}
 
-    private static String normalizeEmail(String email) {
-        if (email == null) {
-            return "";
-        }
-        return email.trim().toLowerCase();
-    }
+	private static String normalizeEmail(String email) {
+		if (email == null) {
+			return "";
+		}
+		return email.trim().toLowerCase();
+	}
 }
