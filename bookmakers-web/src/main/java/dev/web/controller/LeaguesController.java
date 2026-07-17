@@ -3,6 +3,7 @@ package dev.web.controller;
 import java.util.List;
 
 import org.springframework.http.HttpStatus;
+import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -21,6 +22,16 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
+@CrossOrigin(
+    origins = "${app.cors.allowed-origins}",
+    allowedHeaders = {"Authorization", "Content-Type", "Accept"},
+    methods = {
+        org.springframework.web.bind.annotation.RequestMethod.GET,
+        org.springframework.web.bind.annotation.RequestMethod.POST,
+        org.springframework.web.bind.annotation.RequestMethod.OPTIONS
+    },
+    maxAge = 3600
+)
 public class LeaguesController {
 
     private final LeaguesAPIService service;
