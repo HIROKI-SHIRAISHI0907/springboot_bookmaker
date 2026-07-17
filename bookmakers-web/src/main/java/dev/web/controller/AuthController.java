@@ -3,7 +3,6 @@ package dev.web.controller;
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
-import org.springframework.web.bind.annotation.CrossOrigin;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -22,12 +21,6 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/auth")
-@CrossOrigin(origins = "${app.cors.allowed-origins}", allowedHeaders = { "Authorization", "Content-Type",
-		"Accept" }, methods = {
-				org.springframework.web.bind.annotation.RequestMethod.GET,
-				org.springframework.web.bind.annotation.RequestMethod.POST,
-				org.springframework.web.bind.annotation.RequestMethod.OPTIONS
-		}, allowCredentials = "true", maxAge = 3600)
 public class AuthController {
 
 	private final JwtService jwtService;
