@@ -6,8 +6,6 @@ import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Objects;
-import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -18,7 +16,6 @@ import org.springframework.transaction.annotation.Transactional;
 import org.springframework.transaction.support.TransactionTemplate;
 
 import dev.application.analyze.interf.OriginEntityIF;
-import dev.application.domain.repository.bm.MatchKeySaveRepository;
 import dev.common.config.PathConfig;
 import dev.common.entity.DataEntity;
 import dev.common.logger.ManageLoggerComponent;
@@ -43,10 +40,6 @@ public class OriginStat implements OriginEntityIF {
 	/** DBサービス */
 	@Autowired
 	private OriginDBService originDBService;
-
-	/** マッチキー */
-	@Autowired
-	private MatchKeySaveRepository matchKeySaveRepository;
 
 	@Autowired
 	private S3Operator s3Operator;
@@ -104,39 +97,6 @@ public class OriginStat implements OriginEntityIF {
 				manageLoggerComponent.debugInfoLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 						String.format("timesが空のためDB登録スキップ（削除対象）: %s", filePath));
-				continue;
-			}
-
-			// マッチキーをDBから取得し、既存ならスキップ（削除対象にしない）
-			List<String> matchIdList = dataList.stream()
-					.filter(Objects::nonNull)
-					.map(DataEntity::getMatchId)
-					.filter(Objects::nonNull)
-					.collect(Collectors.toList());
-
-			boolean existsMatchKey = false;
-			String existsMatchId = null;
-
-			for (String matchId : matchIdList) {
-				if (matchKeySaveRepository.findMatchKeys(matchId) > 0) {
-					manageLoggerComponent.debugInfoLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							String.format("match_keyが存在するため別データです。（%s: skip, 削除対象外, file=%s）",
-									matchId, filePath));
-					existsMatchKey = true;
-					existsMatchId = matchId;
-					break;
-				}
-			}
-
-			if (existsMatchKey) {
-				skipped++;
-				skippedPaths.add(filePath);
-
-				manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						String.format("match_key重複スキップ確定（削除対象外）: matchId=%s, file=%s",
-								existsMatchId, filePath));
 				continue;
 			}
 
