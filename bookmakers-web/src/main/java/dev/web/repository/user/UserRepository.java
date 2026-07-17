@@ -85,9 +85,9 @@ public class UserRepository {
                 :name,
                 :authFlg,
                 :op,
-                now(),
+                CURRENT_TIMESTAMP,
                 :op,
-                now()
+                CURRENT_TIMESTAMP
             )
             RETURNING user_id
         """;
@@ -147,7 +147,7 @@ public class UserRepository {
             SET
                 "authFlg" = :authFlg,
                 update_id = :op,
-                update_time = now()
+                update_time = CURRENT_TIMESTAMP
             WHERE user_id = :userId
         """;
 

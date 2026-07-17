@@ -46,7 +46,7 @@ public class FavoriteRepository {
             )
             VALUES (
               :userId, :level, :country, :league, :team,
-              :operatorId, now(), :operatorId, now()
+              :operatorId, CURRENT_TIMESTAMP, :operatorId, CURRENT_TIMESTAMP
             )
             ON CONFLICT (user_id, level, country, league, team) DO NOTHING
             """;

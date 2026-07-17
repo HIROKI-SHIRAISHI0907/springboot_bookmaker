@@ -180,9 +180,9 @@ public class NoticeRepository {
               'DRAFT',
               NULL,
               :op,
-              now(),
+              CURRENT_TIMESTAMP,
               :op,
-              now()
+              CURRENT_TIMESTAMP
             )
             RETURNING id
         """;
@@ -214,7 +214,7 @@ public class NoticeRepository {
               display_from = COALESCE(:displayFrom, display_from),
               display_to   = COALESCE(:displayTo, display_to),
               update_id    = :op,
-              update_time  = now()
+              update_time  = CURRENT_TIMESTAMP
             WHERE id = :id
         """;
 
@@ -238,7 +238,7 @@ public class NoticeRepository {
 				      status       = 'PUBLISHED',
 				      published_at = COALESCE(published_at, now()),
 				      update_id    = :op,
-				      update_time  = now()
+				      update_time  = CURRENT_TIMESTAMP
 				    WHERE id = :id
 				""";
 
@@ -251,7 +251,7 @@ public class NoticeRepository {
 				    SET
 				      status      = 'ARCHIVED',
 				      update_id   = :op,
-				      update_time = now()
+				      update_time = CURRENT_TIMESTAMP
 				    WHERE id = :id
 				""";
 

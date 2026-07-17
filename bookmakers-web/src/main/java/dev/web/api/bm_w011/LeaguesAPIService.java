@@ -11,10 +11,12 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import org.springframework.web.server.ResponseStatusException;
 
+import dev.web.api.bm_u003.FavoriteScope;
 import dev.web.repository.bm.LeaguesRepository;
 import dev.web.repository.bm.LeaguesRepository.LeagueCountRow;
 import dev.web.repository.bm.LeaguesRepository.LeagueSeasonRow;
 import dev.web.repository.bm.LeaguesRepository.TeamRow;
+import dev.web.repository.user.FavoriteRepository;
 import lombok.RequiredArgsConstructor;
 
 @Service
@@ -26,6 +28,7 @@ public class LeaguesAPIService {
             "シーズンが終了しています。来シーズンまでお待ちください。";
 
     private final LeaguesRepository repo;
+    private final FavoriteRepository favoriteRepository;
 
     /** GET /api/leagues (フラット一覧) */
     public List<LeagueFlatItemResponse> getLeaguesFlat() {
@@ -45,8 +48,9 @@ public class LeaguesAPIService {
     }
 
     /** GET /api/leagues/grouped */
-    public List<LeagueGroupedResponse> getLeaguesGrouped() {
+    public List<LeagueGroupedResponse> getLeaguesGrouped(Long userId) {
         List<LeagueCountRow> rows = repo.findLeagueCounts();
+        rows = applyFavoriteFilter(rows, userId);
 
         Map<String, LeagueGroupedResponse> countryMap = new LinkedHashMap<>();
         Map<String, Map<String, LeagueInfoDTO>> leagueMapByCountry = new LinkedHashMap<>();
@@ -118,6 +122,53 @@ public class LeaguesAPIService {
         }
 
         return new ArrayList<>(countryMap.values());
+    }
+
+    private List<LeagueCountRow> applyFavoriteFilter(List<LeagueCountRow> rows, Long userId) {
+        if (userId == null) {
+            return rows; // 未ログインは全表示
+        }
+
+        FavoriteScope scope = favoriteRepository.findFavoriteScope(userId);
+        if (scope == null || scope.isAllowAll()) {
+            return rows; // favorites 未設定なら全表示
+        }
+
+        List<LeagueCountRow> filtered = new ArrayList<>();
+        for (LeagueCountRow row : rows) {
+            String country = safeTrim(row.getCountry());
+            String leagueGroup = safeTrim(row.getLeagueGroup());
+
+            if (isAllowed(scope, country, leagueGroup)) {
+                filtered.add(row);
+            }
+        }
+        return filtered;
+    }
+
+    private boolean isAllowed(FavoriteScope scope, String country, String leagueGroup) {
+        // level=1 国お気に入り
+        if (scope.getAllowedCountries() != null && scope.getAllowedCountries().contains(country)) {
+            return true;
+        }
+
+        // level=2 国リーグお気に入り
+        if (scope.getAllowedLeaguesByCountry() != null) {
+            List<String> leagues = scope.getAllowedLeaguesByCountry().get(country);
+            if (leagues != null && leagues.contains(leagueGroup)) {
+                return true;
+            }
+        }
+
+        // level=3 チームお気に入りがあるリーグも表示
+        if (scope.getAllowedTeamsByCountryLeague() != null) {
+            String key = country + "|" + leagueGroup;
+            if (scope.getAllowedTeamsByCountryLeague().containsKey(key)) {
+                return true;
+            }
+        }
+
+        return false;
     }
 
     private String normalizeSubLeague(String value) {
