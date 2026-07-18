@@ -30,8 +30,10 @@ public class LeaguesController {
     @GetMapping("/leagues/grouped")
     public List<LeagueGroupedResponse> getLeaguesGrouped(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
-
-        Long userId = jwtCurrentUserService.resolve(authorizationHeader).getUserId();
+        Long userId = null;
+        if (authorizationHeader != null && !authorizationHeader.isBlank()) {
+            userId = jwtCurrentUserService.resolve(authorizationHeader).getUserId();
+        }
         return service.getLeaguesGrouped(userId);
     }
 
@@ -43,7 +45,6 @@ public class LeaguesController {
             @PathVariable String country,
             @PathVariable String league,
             @RequestParam(required = false) String subLeague) {
-
         return service.getTeamsInLeague(country, league, subLeague);
     }
 
@@ -52,7 +53,6 @@ public class LeaguesController {
     public TeamDetailResponse getTeamDetail(
             @PathVariable String teamEnglish,
             @PathVariable String teamHash) {
-
         TeamDetailResponse res = service.getTeamDetail(teamEnglish, teamHash);
         if (res == null) {
             throw new ResponseStatusException(HttpStatus.NOT_FOUND, "team not found");

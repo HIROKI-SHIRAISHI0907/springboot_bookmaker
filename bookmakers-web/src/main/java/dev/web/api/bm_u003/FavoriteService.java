@@ -2,6 +2,8 @@ package dev.web.api.bm_u003;
 
 import java.util.List;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
@@ -15,6 +17,8 @@ import lombok.RequiredArgsConstructor;
 @Service
 @RequiredArgsConstructor
 public class FavoriteService {
+
+    private static final Logger log = LoggerFactory.getLogger(FavoriteService.class);
 
     private final FavoriteRepository favoriteRepository;
     private final CountryLeagueMasterWebRepository countryLeagueMasterWebRepository;
@@ -92,8 +96,12 @@ public class FavoriteService {
                     normalizedOperatorId
                 );
             } catch (Exception e) {
-                res.setResponseCode("404");
-                res.setMessage("登録処理が失敗しました。");
+                log.error(
+                    "favorite insert failed. userId={}, operatorId={}, level={}, country={}, league={}, team={}",
+                    userId, normalizedOperatorId, k.level, k.country, k.league, k.team, e
+                );
+                res.setResponseCode("500");
+                res.setMessage("登録処理が失敗しました。[" + e.getClass().getSimpleName() + "] " + e.getMessage());
                 return res;
             }
         }
@@ -116,8 +124,9 @@ public class FavoriteService {
         try {
             favoriteRepository.deleteById(userId, id);
         } catch (Exception e) {
-            res.setResponseCode("404");
-            res.setMessage("削除処理が失敗しました。");
+            log.error("favorite delete failed. userId={}, id={}", userId, id, e);
+            res.setResponseCode("500");
+            res.setMessage("削除処理が失敗しました。[" + e.getClass().getSimpleName() + "] " + e.getMessage());
             return res;
         }
 
@@ -139,9 +148,6 @@ public class FavoriteService {
             return res;
         }
 
-        // -----------------------------
-        // 1. シーズン対象の country + league を収集
-        // -----------------------------
         List<CountryLeagueSeasonDTO> seasonDtos = countryLeagueSeasonMasterWebRepository.findAll();
 
         java.util.Set<String> seasonCountryLeague = new java.util.HashSet<>();
@@ -158,10 +164,6 @@ public class FavoriteService {
             }
         }
 
-        // -----------------------------
-        // 2. 画面表示用マスタを収集
-        //    （シーズン対象の country+league のみ採用）
-        // -----------------------------
         List<CountryLeagueDTO> masterDtos = countryLeagueMasterWebRepository.findAllActive();
 
         java.util.LinkedHashSet<String> countries = new java.util.LinkedHashSet<>();
@@ -180,7 +182,6 @@ public class FavoriteService {
 
                 String clKey = country + "\u0001" + league;
 
-                // season master に存在する国・リーグのみ対象
                 if (!seasonCountryLeague.contains(clKey)) {
                     continue;
                 }
@@ -196,10 +197,6 @@ public class FavoriteService {
             }
         }
 
-        // -----------------------------
-        // 3. userId に紐づくお気に入り取得
-        //    ただし current master と整合するものだけ selectedItems に採用
-        // -----------------------------
         List<FavoriteItem> rawSelected = favoriteRepository.findSelectedItems(userId);
         java.util.List<FavoriteItem> selected = new java.util.ArrayList<>();
 
@@ -213,7 +210,6 @@ public class FavoriteService {
                     continue;
                 }
 
-                // level1: country のみ
                 if (league.isEmpty() && team.isEmpty()) {
                     if (countries.contains(country)) {
                         FavoriteItem fi = new FavoriteItem();
@@ -225,7 +221,6 @@ public class FavoriteService {
                     continue;
                 }
 
-                // level2: country + league
                 if (!league.isEmpty() && team.isEmpty()) {
                     java.util.Set<String> leagues = leaguesByCountry.get(country);
                     if (leagues != null && leagues.contains(league)) {
@@ -238,7 +233,6 @@ public class FavoriteService {
                     continue;
                 }
 
-                // level3: country + league + team
                 if (!league.isEmpty() && !team.isEmpty()) {
                     String clKey = country + "\u0001" + league;
                     java.util.Set<String> teams = teamsByCountryLeague.get(clKey);
@@ -253,13 +247,9 @@ public class FavoriteService {
             }
         }
 
-        // お気に入り未登録なら全件許可扱い
         boolean noFavorite = selected.isEmpty();
         res.setAllowAll(noFavorite);
 
-        // -----------------------------
-        // 4. Response 用 CountryScope
-        // -----------------------------
         java.util.List<CountryScope> countryScopes = new java.util.ArrayList<>();
         for (String c : countries) {
             CountryScope cs = new CountryScope();
@@ -267,9 +257,6 @@ public class FavoriteService {
             countryScopes.add(cs);
         }
 
-        // -----------------------------
-        // 5. Response 用 LeagueScope
-        // -----------------------------
         java.util.List<LeagueScope> leagueScopes = new java.util.ArrayList<>();
         for (java.util.Map.Entry<String, java.util.LinkedHashSet<String>> e : leaguesByCountry.entrySet()) {
             LeagueScope ls = new LeagueScope();
@@ -278,9 +265,6 @@ public class FavoriteService {
             leagueScopes.add(ls);
         }
 
-        // -----------------------------
-        // 6. Response 用 TeamScope
-        // -----------------------------
         java.util.List<TeamScope> teamScopes = new java.util.ArrayList<>();
         for (java.util.Map.Entry<String, java.util.LinkedHashSet<String>> e : teamsByCountryLeague.entrySet()) {
             String[] parts = e.getKey().split("\u0001", 2);
@@ -295,9 +279,6 @@ public class FavoriteService {
             teamScopes.add(ts);
         }
 
-        // -----------------------------
-        // 7. Response へ設定
-        // -----------------------------
         res.setAllowedCountries(countryScopes);
         res.setAllowedLeaguesByCountry(leagueScopes);
         res.setAllowedTeamsByCountryLeague(teamScopes);

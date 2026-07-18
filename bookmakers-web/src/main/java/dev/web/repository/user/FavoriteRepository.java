@@ -23,8 +23,7 @@ import dev.web.api.bm_u003.FavoriteScope;
 @Repository
 public class FavoriteRepository {
 
-    private final @Qualifier("userJdbcTemplate")
-    	NamedParameterJdbcTemplate userJdbcTemplate;
+    private final NamedParameterJdbcTemplate userJdbcTemplate;
 
     public FavoriteRepository(
             @Qualifier("webUserJdbcTemplate") NamedParameterJdbcTemplate userJdbcTemplate
@@ -41,19 +40,19 @@ public class FavoriteRepository {
 
         String sql = """
             INSERT INTO favorites(
-              user_id, level, country, league, team,
+              user_id, "level", country, league, team,
               register_id, register_time, update_id, update_time
             )
             VALUES (
               :userId, :level, :country, :league, :team,
               :operatorId, CURRENT_TIMESTAMP, :operatorId, CURRENT_TIMESTAMP
             )
-            ON CONFLICT (user_id, level, country, league, team) DO NOTHING
+            ON CONFLICT (user_id, "level", country, league, team) DO NOTHING
             """;
 
         Map<String, Object> params = Map.of(
                 "userId", userId,
-                "level", level,
+                "level", String.valueOf(level),
                 "country", country,
                 "league", league,
                 "team", team,
@@ -95,12 +94,13 @@ public class FavoriteRepository {
             SELECT DISTINCT f.country
             FROM favorites f
             WHERE f.user_id = :userId
-              AND f.level = 1
+              AND f."level" = '1'
               AND NOT EXISTS (
-                SELECT 1 FROM favorites x
+                SELECT 1
+                FROM favorites x
                 WHERE x.user_id = f.user_id
                   AND x.country = f.country
-                  AND x.level IN (2, 3)
+                  AND x."level" IN ('2', '3')
               )
             ORDER BY f.country
             """;
@@ -116,13 +116,14 @@ public class FavoriteRepository {
             SELECT DISTINCT f.country, f.league
             FROM favorites f
             WHERE f.user_id = :userId
-              AND f.level = 2
+              AND f."level" = '2'
               AND NOT EXISTS (
-                SELECT 1 FROM favorites x
+                SELECT 1
+                FROM favorites x
                 WHERE x.user_id = f.user_id
                   AND x.country = f.country
                   AND x.league  = f.league
-                  AND x.level = 3
+                  AND x."level" = '3'
               )
             ORDER BY f.country, f.league
             """;
@@ -141,7 +142,7 @@ public class FavoriteRepository {
             SELECT DISTINCT f.country, f.league, f.team
             FROM favorites f
             WHERE f.user_id = :userId
-              AND f.level = 3
+              AND f."level" = '3'
             ORDER BY f.country, f.league, f.team
             """;
 
@@ -190,5 +191,4 @@ public class FavoriteRepository {
             }
         );
     }
-
 }
