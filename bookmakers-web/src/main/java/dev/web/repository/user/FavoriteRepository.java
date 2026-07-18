@@ -191,4 +191,18 @@ public class FavoriteRepository {
             }
         );
     }
+
+    public int deleteAllByUserId(Long userId) {
+        String sql = """
+            DELETE FROM favorites
+            WHERE user_id = :userId
+            """;
+
+        return userJdbcTemplate.update(
+            sql,
+            new org.springframework.jdbc.core.namedparam.MapSqlParameterSource()
+                .addValue("userId", userId)
+        );
+    }
+
 }

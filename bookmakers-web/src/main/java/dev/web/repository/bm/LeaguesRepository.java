@@ -142,7 +142,8 @@ public class LeaguesRepository {
                       ON c.country = a.country
                      AND c.league  = a.league
                      AND c.del_flg = '0'
-                    WHERE COALESCE(a.del_flg, '0') = '0'
+                    WHERE NULLIF(TRIM(a.country), '') IS NOT NULL
+                      AND NULLIF(TRIM(a.league), '') IS NOT NULL
                 ),
                 sub_league_agg AS (
                     SELECT

@@ -29,8 +29,10 @@ public class FavoriteService {
     }
 
     /**
-     * お気に入りをまとめて登録（country / league / team を item の内容で判定）
-     * userId / operatorId は JWT から解決した値を controller から渡す
+     * お気に入りを現在の画面選択状態で全置換する。
+     * - まず userId の既存 favorites を全削除
+     * - 次に req.items から親(level1/2)を自動補完して再登録
+     * - 空配列は「全解除」として正常扱い
      */
     @Transactional
     public FavoriteResponse upsert(Long userId, String operatorId, FavoriteInsertRequest req) {
@@ -42,20 +44,22 @@ public class FavoriteService {
             return res;
         }
 
-        if (req == null || req.getItems() == null || req.getItems().isEmpty()) {
-            res.setResponseCode("400");
-            res.setMessage("必須項目が未入力です。");
-            return res;
-        }
-
         String normalizedOperatorId = normalize(operatorId);
         if (normalizedOperatorId.isEmpty()) {
             normalizedOperatorId = "system";
         }
 
+        List<FavoriteItem> items = (req == null || req.getItems() == null)
+                ? java.util.Collections.emptyList()
+                : req.getItems();
+
         java.util.LinkedHashSet<FavKey> keys = new java.util.LinkedHashSet<>();
 
-        for (FavoriteItem item : req.getItems()) {
+        for (FavoriteItem item : items) {
+            if (item == null) {
+                continue;
+            }
+
             String country = normalize(item.getCountry());
             String league = normalize(item.getLeague());
             String team = normalize(item.getTeam());
@@ -85,8 +89,19 @@ public class FavoriteService {
         java.util.ArrayList<FavKey> ordered = new java.util.ArrayList<>(keys);
         ordered.sort(java.util.Comparator.comparingInt(k -> k.level)); // 1→2→3
 
-        for (FavKey k : ordered) {
-            try {
+        try {
+            // いったん全削除
+            favoriteRepository.deleteAllByUserId(userId);
+
+            // 空配列なら「全解除」完了で終了
+            if (ordered.isEmpty()) {
+                res.setResponseCode("200");
+                res.setMessage("お気に入りを解除しました。");
+                return res;
+            }
+
+            // 現在の選択状態を再登録
+            for (FavKey k : ordered) {
                 favoriteRepository.insert(
                     userId,
                     k.level,
@@ -95,15 +110,16 @@ public class FavoriteService {
                     k.team,
                     normalizedOperatorId
                 );
-            } catch (Exception e) {
-                log.error(
-                    "favorite insert failed. userId={}, operatorId={}, level={}, country={}, league={}, team={}",
-                    userId, normalizedOperatorId, k.level, k.country, k.league, k.team, e
-                );
-                res.setResponseCode("500");
-                res.setMessage("登録処理が失敗しました。[" + e.getClass().getSimpleName() + "] " + e.getMessage());
-                return res;
             }
+
+        } catch (Exception e) {
+            log.error(
+                "favorite replace failed. userId={}, operatorId={}",
+                userId, normalizedOperatorId, e
+            );
+            res.setResponseCode("500");
+            res.setMessage("登録処理が失敗しました。[" + e.getClass().getSimpleName() + "] " + e.getMessage());
+            return res;
         }
 
         res.setResponseCode("200");
