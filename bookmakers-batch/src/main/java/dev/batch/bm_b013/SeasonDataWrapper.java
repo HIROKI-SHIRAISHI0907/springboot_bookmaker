@@ -145,7 +145,7 @@ public class SeasonDataWrapper {
 	}
 
 	/**
-	 * 特定の日時をすぎているか
+	 * endSeasonDate を過ぎてから3日経過しているか
 	 * @param endSeasonDate
 	 * @param formatter
 	 * @param now
@@ -157,8 +157,12 @@ public class SeasonDataWrapper {
 		}
 		String normalizedEndSeasonDate = endSeasonDate.substring(0, 19);
 		LocalDateTime endDateTime = LocalDateTime.parse(normalizedEndSeasonDate, formatter);
-		return endDateTime.isBefore(now);
-	}
 
+		// endSeasonDate から3日後
+		LocalDateTime threeDaysAfterEnd = endDateTime.plusDays(3);
+
+		// 「3日経過しているものだけ」を取りたいので、now がその3日後を超えているかで判定
+		return !now.isBefore(threeDaysAfterEnd);
+	}
 
 }
