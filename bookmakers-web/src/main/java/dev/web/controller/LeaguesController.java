@@ -44,8 +44,15 @@ public class LeaguesController {
     public TeamsInLeagueResponse getTeamsInLeague(
             @PathVariable String country,
             @PathVariable String league,
-            @RequestParam(required = false) String subLeague) {
-        return service.getTeamsInLeague(country, league, subLeague);
+            @RequestParam(required = false) String subLeague,
+            @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+
+        Long userId = null;
+        if (authorizationHeader != null && !authorizationHeader.isBlank()) {
+            userId = jwtCurrentUserService.resolve(authorizationHeader).getUserId();
+        }
+
+        return service.getTeamsInLeague(userId, country, league, subLeague);
     }
 
     /** GET /api/leagues/{teamEnglish}/{teamHash}/teamDetail */

@@ -27,9 +27,11 @@ import dev.web.repository.bm.LeaguesRepository.TeamRow;
 import dev.web.repository.master.AllLeagueMasterWebRepository;
 import dev.web.repository.user.FavoriteRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @Service
 @RequiredArgsConstructor
+@Slf4j
 public class LeaguesAPIService {
 
     private static final String SEASON_ENDED_LABEL = "シーズン終了";
@@ -431,11 +433,18 @@ public class LeaguesAPIService {
     }
 
     /** GET /api/leagues/{country}/{league} */
-    public TeamsInLeagueResponse getTeamsInLeague(String country, String league, String subLeague) {
+    public TeamsInLeagueResponse getTeamsInLeague(Long userId, String country, String league, String subLeague) {
         validateSeasonOpen(country, league);
 
         String normalizedSubLeague = normalizeSubLeague(subLeague);
         List<TeamRow> rows = repo.findTeamsInLeagueOnSlug(country, league, normalizedSubLeague);
+
+        log.info("info: {}" + rows);
+
+        // favorites に応じてチーム表示を絞る
+        rows = applyTeamVisibilityFilter(rows, userId, country, league);
+
+        log.info("afterinfo: {}" + rows);
 
         TeamsInLeagueResponse res = new TeamsInLeagueResponse();
         res.setCountry(country);
@@ -491,6 +500,113 @@ public class LeaguesAPIService {
 
         res.setPaths(paths);
         return res;
+    }
+
+    /**
+     * /api/leagues/{country}/{league} のチーム一覧を favorites に応じて絞る
+     *
+     * ルール:
+     * - 未ログイン → 全件表示
+     * - favorites なし(allowAll=true) → 全件表示
+     * - country(level1) 許可 → 全件表示
+     * - country+league(level2) 許可 → 全件表示
+     * - team(level3) 指定がそのリーグにある → その team のみ表示
+     * - favorites はあるが当該リーグが許可対象外 → 0件
+     */
+    private List<TeamRow> applyTeamVisibilityFilter(List<TeamRow> rows, Long userId, String country, String league) {
+        if (rows == null || rows.isEmpty()) {
+            return List.of();
+        }
+
+        log.info("afternull: {}" + rows);
+
+        // 未ログインは制限しない
+        if (userId == null) {
+            return rows;
+        }
+
+        log.info("afteruserid: {}" + rows);
+
+        FavoriteScope scope = favoriteRepository.findFavoriteScope(userId);
+
+        log.info("afterscope: {}" + scope);
+
+        // favorites 未設定は全件表示
+        if (scope == null || scope.isAllowAll()) {
+            return rows;
+        }
+
+        log.info("afterscope2: {}" + scope);
+
+        // usa,mlsをアメリカ,MLS等に変更
+        LeagueConvert convert = repo.convertTeamEng(country, league);
+
+        String normalizedCountry = safeTrim(convert.getCountry());
+        String normalizedLeague = safeTrim(convert.getLeague());
+
+        // level=1: country 許可ならこのリーグの全チーム表示
+        if (scope.getAllowedCountries() != null
+                && scope.getAllowedCountries().contains(normalizedCountry)) {
+            return rows;
+        }
+
+        log.info("afterlevel1: {}" + scope);
+
+        // level=2: country + league 許可ならこのリーグの全チーム表示
+        if (scope.getAllowedLeaguesByCountry() != null) {
+            List<String> leagues = scope.getAllowedLeaguesByCountry().get(normalizedCountry);
+            if (leagues != null && leagues.contains(normalizedLeague)) {
+                return rows;
+            }
+        }
+
+        log.info("afterlevel2: {}" + scope);
+
+        // level=3: team 指定がある場合は、その team だけ表示
+        if (scope.getAllowedTeamsByCountryLeague() != null) {
+        	log.info("afterlevel2: {},{}" , normalizedCountry, normalizedLeague);
+            String key = buildCountryLeagueKey(normalizedCountry, normalizedLeague);
+            List<String> allowedTeams = scope.getAllowedTeamsByCountryLeague().get(key);
+
+            log.info("afterallowedTeams1: {}" + allowedTeams);
+
+            if (allowedTeams == null || allowedTeams.isEmpty()) {
+                return List.of();
+            }
+
+            log.info("afterallowedTeams2: {}" + allowedTeams);
+
+            Set<String> allowedTeamSet = new LinkedHashSet<>();
+            for (String t : allowedTeams) {
+                String normalizedTeam = safeTrim(t);
+                if (hasText(normalizedTeam)) {
+                    allowedTeamSet.add(normalizedTeam);
+                }
+            }
+
+            log.info("allowedTeamSet: {}" + allowedTeamSet);
+
+            if (allowedTeamSet.isEmpty()) {
+                return List.of();
+            }
+
+            log.info("allowedTeamSetEmpty: {}" + allowedTeamSet);
+
+            List<TeamRow> filtered = new ArrayList<>();
+            for (TeamRow row : rows) {
+                String teamName = safeTrim(row.getTeam());
+                if (allowedTeamSet.contains(teamName)) {
+                    filtered.add(row);
+                }
+            }
+            log.info("allowedfiltered: {}" + filtered);
+
+            return filtered;
+        }
+
+        log.info("afterlevel3: {}" + scope);
+
+        return List.of();
     }
 
     private void validateSeasonOpen(String country, String league) {

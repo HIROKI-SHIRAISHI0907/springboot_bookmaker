@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import dev.web.api.bm_w011.LeagueConvert;
 import lombok.Data;
 import lombok.extern.slf4j.Slf4j;
 
@@ -290,6 +291,29 @@ public class LeaguesRepository {
                 sql,
                 params,
                 new BeanPropertyRowMapper<>(LeagueSeasonRow.class));
+
+        return list.isEmpty() ? null : list.get(0);
+    }
+
+    /** 英語から日本語の国リーグ名に変換する */
+    public LeagueConvert convertTeamEng(String countryEng, String leagueEng) {
+        String sql = """
+                SELECT
+                    country,
+                    league,
+                    path
+                FROM country_league_season_master
+                WHERE path = :path
+                LIMIT 1
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource()
+                .addValue("path", "/soccer/" + countryEng + "/" + leagueEng + "/");
+
+        List<LeagueConvert> list = masterJdbcTemplate.query(
+                sql,
+                params,
+                new BeanPropertyRowMapper<>(LeagueConvert.class));
 
         return list.isEmpty() ? null : list.get(0);
     }
