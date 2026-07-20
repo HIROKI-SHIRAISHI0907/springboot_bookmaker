@@ -515,27 +515,19 @@ public class EachCsvTransaction {
 				continue;
 			}
 
+			// 最後の要素はファイル名なのでそのまま
 			if (i < parts.length - 1) {
-				part = part.replaceAll("\\s*:\\s*", "-");
-				part = part.replaceAll("\\s*-\\s*", "-");
-				part = part.replaceAll("-{2,}", "-");
+				normalizedParts.add(canonicalizeFolderSegment(part));
+			} else {
+				normalizedParts.add(part);
 			}
-
-			normalizedParts.add(part);
 		}
 
 		return String.join("/", normalizedParts);
 	}
 
 	private String canonicalizeFolderPrefix(String value) {
-		String s = Normalizer.normalize(safe(value), Normalizer.Form.NFKC).trim();
-		if (s.isEmpty()) {
-			return "";
-		}
-		s = s.replaceAll("\\s*:\\s*", "-");
-		s = s.replaceAll("\\s*-\\s*", "-");
-		s = s.replaceAll("-{2,}", "-");
-		return s;
+		return canonicalizeFolderSegment(value);
 	}
 
 	private String toLegacyFolderPrefix(String canonical) {
@@ -619,73 +611,110 @@ public class EachCsvTransaction {
 		final String METHOD_NAME = "findExistingS3CsvKey";
 
 		try {
-			String keyByCsvId = normalizeS3Key(joinS3Key(prefix, safe(csvId).trim()));
-			String keyByPhysicalCsvId = normalizeS3Key(joinS3Key(prefix, safe(physicalCsvId).trim()));
+			Set<String> candidateKeys = new LinkedHashSet<>();
 
-			String parentPrefix = extractParentPrefix(!keyByCsvId.isBlank() ? keyByCsvId : keyByPhysicalCsvId);
-			if (parentPrefix.isBlank()) {
+			String originalCsvId = safe(csvId).trim();
+			String canonicalCsvId = canonicalizeCsvId(originalCsvId);
+			String originalPhysicalCsvId = safe(physicalCsvId).trim();
+			String canonicalPhysicalCsvId = canonicalizeCsvId(originalPhysicalCsvId);
+
+			if (!originalCsvId.isBlank()) {
+				candidateKeys.add(normalizeS3Key(joinS3Key(prefix, originalCsvId)));
+			}
+			if (!canonicalCsvId.isBlank()) {
+				candidateKeys.add(normalizeS3Key(joinS3Key(prefix, canonicalCsvId)));
+			}
+			if (!originalPhysicalCsvId.isBlank()) {
+				candidateKeys.add(normalizeS3Key(joinS3Key(prefix, originalPhysicalCsvId)));
+			}
+			if (!canonicalPhysicalCsvId.isBlank()) {
+				candidateKeys.add(normalizeS3Key(joinS3Key(prefix, canonicalPhysicalCsvId)));
+			}
+
+			if (candidateKeys.isEmpty()) {
+				logWarn(METHOD_NAME, "S3キー候補が空です csvId=" + csvId + ", physicalCsvId=" + physicalCsvId);
+				return null;
+			}
+
+			Set<String> parentPrefixes = candidateKeys.stream()
+					.map(this::extractParentPrefix)
+					.filter(s -> s != null && !s.isBlank())
+					.collect(Collectors.toCollection(LinkedHashSet::new));
+
+			if (parentPrefixes.isEmpty()) {
 				logWarn(METHOD_NAME, "親prefixを解決できません csvId=" + csvId
-						+ ", physicalCsvId=" + physicalCsvId);
+						+ ", physicalCsvId=" + physicalCsvId
+						+ ", candidateKeys=" + candidateKeys);
 				return null;
 			}
 
-			List<String> keys = s3Operator.listKeys(bucket, parentPrefix);
-			if (keys == null || keys.isEmpty()) {
-				logWarn(METHOD_NAME, "prefix配下にオブジェクトが存在しません bucket=" + bucket
-						+ ", parentPrefix=" + parentPrefix
-						+ ", csvId=" + csvId
-						+ ", physicalCsvId=" + physicalCsvId);
-				return null;
-			}
-
-			// 1) 完全一致優先
-			for (String key : keys) {
-				if (safe(key).equals(keyByCsvId) || safe(key).equals(keyByPhysicalCsvId)) {
-					logInfo(METHOD_NAME, "S3キー完全一致で解決 bucket=" + bucket + ", key=" + key);
-					return key;
+			for (String parentPrefix : parentPrefixes) {
+				List<String> keys = s3Operator.listKeys(bucket, parentPrefix);
+				if (keys == null || keys.isEmpty()) {
+					logInfo(METHOD_NAME, "prefix配下にオブジェクトなし bucket=" + bucket
+							+ ", parentPrefix=" + parentPrefix);
+					continue;
 				}
-			}
 
-			// 2) 正規化一致
-			String normalizedCsvId = normalizeKeyForCompare(keyByCsvId);
-			String normalizedPhysical = normalizeKeyForCompare(keyByPhysicalCsvId);
-
-			for (String key : keys) {
-				String normalizedKey = normalizeKeyForCompare(key);
-				if (normalizedKey.equals(normalizedCsvId) || normalizedKey.equals(normalizedPhysical)) {
-					logInfo(METHOD_NAME, "S3キー正規化一致で解決 bucket=" + bucket + ", key=" + key);
-					return key;
+				// 1) 完全一致優先
+				for (String key : keys) {
+					for (String candidate : candidateKeys) {
+						if (safe(key).equals(candidate)) {
+							logInfo(METHOD_NAME, "S3キー完全一致で解決 bucket=" + bucket + ", key=" + key);
+							return key;
+						}
+					}
 				}
-			}
 
-			// 3) ファイル名一致 (例: 1.csv)
-			String targetFileName = extractFileName(physicalCsvId);
-			List<String> matchedByFileName = keys.stream()
-					.filter(k -> extractFileName(k).equals(targetFileName))
-					.collect(Collectors.toList());
+				// 2) 正規化一致
+				Set<String> normalizedCandidates = candidateKeys.stream()
+						.map(this::normalizeKeyForCompare)
+						.collect(Collectors.toCollection(LinkedHashSet::new));
 
-			if (matchedByFileName.size() == 1) {
-				logInfo(METHOD_NAME, "S3キーをファイル名一致で解決 bucket=" + bucket
-						+ ", key=" + matchedByFileName.get(0));
-				return matchedByFileName.get(0);
-			}
+				for (String key : keys) {
+					String normalizedKey = normalizeKeyForCompare(key);
+					if (normalizedCandidates.contains(normalizedKey)) {
+						logInfo(METHOD_NAME, "S3キー正規化一致で解決 bucket=" + bucket + ", key=" + key);
+						return key;
+					}
+				}
 
-			// 4) CSV が1件だけならそれを採用
-			List<String> csvKeys = keys.stream()
-					.filter(k -> safe(k).toLowerCase().endsWith(".csv"))
-					.collect(Collectors.toList());
+				// 3) ファイル名一致
+				Set<String> candidateFileNames = new LinkedHashSet<>();
+				for (String candidate : candidateKeys) {
+					String fileName = extractFileName(candidate);
+					if (!fileName.isBlank()) {
+						candidateFileNames.add(fileName);
+					}
+				}
 
-			if (csvKeys.size() == 1) {
-				logInfo(METHOD_NAME, "prefix配下CSV単一件で解決 bucket=" + bucket
-						+ ", key=" + csvKeys.get(0));
-				return csvKeys.get(0);
+				List<String> matchedByFileName = keys.stream()
+						.filter(k -> candidateFileNames.contains(extractFileName(k)))
+						.collect(Collectors.toList());
+
+				if (matchedByFileName.size() == 1) {
+					logInfo(METHOD_NAME, "S3キーをファイル名一致で解決 bucket=" + bucket
+							+ ", key=" + matchedByFileName.get(0));
+					return matchedByFileName.get(0);
+				}
+
+				// 4) CSV が1件だけなら採用
+				List<String> csvKeys = keys.stream()
+						.filter(k -> safe(k).toLowerCase().endsWith(".csv"))
+						.collect(Collectors.toList());
+
+				if (csvKeys.size() == 1) {
+					logInfo(METHOD_NAME, "prefix配下CSV単一件で解決 bucket=" + bucket
+							+ ", key=" + csvKeys.get(0));
+					return csvKeys.get(0);
+				}
 			}
 
 			logWarn(METHOD_NAME, "S3キーを解決できません bucket=" + bucket
-					+ ", parentPrefix=" + parentPrefix
 					+ ", csvId=" + csvId
 					+ ", physicalCsvId=" + physicalCsvId
-					+ ", keys=" + keys);
+					+ ", candidateKeys=" + candidateKeys
+					+ ", parentPrefixes=" + parentPrefixes);
 
 			return null;
 
@@ -718,7 +747,25 @@ public class EachCsvTransaction {
 	private String normalizeKeyForCompare(String value) {
 		String s = safe(value).trim().replace("\\", "/");
 		s = Normalizer.normalize(s, Normalizer.Form.NFKC);
-		s = s.replaceAll("\\s+", " ");
+
+		// 区切り揺れ吸収
+		s = s.replaceAll("\\s*:\\s*", "-");
+
+		// ラウンド表記揺れ吸収
+		s = s.replaceAll("[ 　]*-[ 　]*ラウンド[ 　]*([0-9０-９]+)", "-ラウンド$1");
+
+		// 全角数字を半角化
+		s = toHalfWidthDigits(s);
+
+		// ハイフン前後空白除去
+		s = s.replaceAll("\\s*-\\s*", "-");
+
+		// スラッシュ圧縮
+		s = s.replaceAll("/+", "/");
+
+		// 連続空白圧縮
+		s = s.replaceAll("\\s+", " ").trim();
+
 		return s;
 	}
 
@@ -1503,6 +1550,33 @@ public class EachCsvTransaction {
 		return ids;
 	}
 
+	private String canonicalizeFolderSegment(String segment) {
+		String s = Normalizer.normalize(safe(segment), Normalizer.Form.NFKC).trim();
+		if (s.isEmpty()) {
+			return "";
+		}
+
+		// 国: リーグ を 国-リーグ に統一
+		s = s.replaceAll("\\s*:\\s*", "-");
+
+		// ラウンド表記を統一
+		s = s.replaceAll("[ 　]*-[ 　]*ラウンド[ 　]*([0-9０-９]+)", "-ラウンド$1");
+
+		// 全角数字を半角化
+		s = toHalfWidthDigits(s);
+
+		// ハイフン前後空白を除去
+		s = s.replaceAll("\\s*-\\s*", "-");
+
+		// 連続ハイフンを圧縮
+		s = s.replaceAll("-{2,}", "-");
+
+		// 連続半角空白を圧縮
+		s = s.replaceAll(" {2,}", " ").trim();
+
+		return s;
+	}
+
 	private String findMatchedCsvId(Map<String, List<Integer>> deleteGroupMap, List<Integer> normalizedGroup) {
 		String currentGroupKey = groupKey(normalizedGroup);
 
@@ -1559,6 +1633,18 @@ public class EachCsvTransaction {
 			return f;
 		}
 		return p + "/" + f;
+	}
+
+	private static String toHalfWidthDigits(String in) {
+		StringBuilder sb = new StringBuilder(in.length());
+		for (char ch : in.toCharArray()) {
+			if (ch >= '０' && ch <= '９') {
+				sb.append((char) ('0' + (ch - '０')));
+			} else {
+				sb.append(ch);
+			}
+		}
+		return sb.toString();
 	}
 
 	private void logInfo(String method, String message) {

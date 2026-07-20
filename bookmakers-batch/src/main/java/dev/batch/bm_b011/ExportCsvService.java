@@ -2015,9 +2015,28 @@ public class ExportCsvService {
 			return "";
 		}
 
+		// 国: リーグ を 国-リーグ に統一
 		s = s.replaceAll("\\s*:\\s*", "-");
+
+		// ラウンド表記を統一
+		// 例:
+		//   日本-J2リーグ - ラウンド 18
+		//   日本-J2リーグ- ラウンド18
+		//   日本-J2リーグ -ラウンド１８
+		// -> 日本-J2リーグ-ラウンド18
+		s = s.replaceAll("[ 　]*-[ 　]*ラウンド[ 　]*([0-9０-９]+)", "-ラウンド$1");
+
+		// 全角数字を半角化
+		s = toHalfWidthDigits(s);
+
+		// ハイフン前後空白を除去
 		s = s.replaceAll("\\s*-\\s*", "-");
+
+		// 連続ハイフンを圧縮
 		s = s.replaceAll("-{2,}", "-");
+
+		// 連続半角空白を圧縮
+		s = s.replaceAll(" {2,}", " ").trim();
 
 		return s;
 	}
@@ -2406,6 +2425,18 @@ public class ExportCsvService {
 			return key;
 		}
 		return key.substring(0, 120) + "...";
+	}
+
+	private static String toHalfWidthDigits(String in) {
+		StringBuilder sb = new StringBuilder(in.length());
+		for (char ch : in.toCharArray()) {
+			if (ch >= '０' && ch <= '９') {
+				sb.append((char) ('0' + (ch - '０')));
+			} else {
+				sb.append(ch);
+			}
+		}
+		return sb.toString();
 	}
 
 }
