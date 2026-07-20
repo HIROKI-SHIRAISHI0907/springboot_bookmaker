@@ -81,6 +81,7 @@ public class RealDataConvertJsonStat {
 		String teamMemberBucket = pathConfig.getS3BucketsTeamMemberData();
 		String futureBucket = pathConfig.getS3BucketsFuture();
 		String noEcsBucket = pathConfig.getS3NoEcs();
+		String delayPostponeBucket = pathConfig.getS3BucketsOutputsDelayPostpone();
 
 		final String jsonFolder = pathConfig.getB001JsonFolder(); // /tmp/json/
 		final String jsonPath = jsonFolder + "b001_country_league.json";
@@ -105,6 +106,7 @@ public class RealDataConvertJsonStat {
 		upload(teamMemberBucket, s3Key, jsonFilePath);
 		upload(futureBucket, s3Key, jsonFilePath);
 		upload(noEcsBucket, s3Key, jsonFilePath);
+		upload(delayPostponeBucket, s3Key, jsonFilePath);
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
