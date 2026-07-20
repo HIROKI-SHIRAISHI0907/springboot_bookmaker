@@ -518,25 +518,17 @@ public class LeaguesAPIService {
             return List.of();
         }
 
-        log.info("afternull: {}" + rows);
-
         // 未ログインは制限しない
         if (userId == null) {
             return rows;
         }
 
-        log.info("afteruserid: {}" + rows);
-
         FavoriteScope scope = favoriteRepository.findFavoriteScope(userId);
-
-        log.info("afterscope: {}" + scope);
 
         // favorites 未設定は全件表示
         if (scope == null || scope.isAllowAll()) {
             return rows;
         }
-
-        log.info("afterscope2: {}" + scope);
 
         // usa,mlsをアメリカ,MLS等に変更
         LeagueConvert convert = repo.convertTeamEng(country, league);
@@ -550,8 +542,6 @@ public class LeaguesAPIService {
             return rows;
         }
 
-        log.info("afterlevel1: {}" + scope);
-
         // level=2: country + league 許可ならこのリーグの全チーム表示
         if (scope.getAllowedLeaguesByCountry() != null) {
             List<String> leagues = scope.getAllowedLeaguesByCountry().get(normalizedCountry);
@@ -560,21 +550,14 @@ public class LeaguesAPIService {
             }
         }
 
-        log.info("afterlevel2: {}" + scope);
-
         // level=3: team 指定がある場合は、その team だけ表示
         if (scope.getAllowedTeamsByCountryLeague() != null) {
-        	log.info("afterlevel2: {},{}" , normalizedCountry, normalizedLeague);
             String key = buildCountryLeagueKey(normalizedCountry, normalizedLeague);
             List<String> allowedTeams = scope.getAllowedTeamsByCountryLeague().get(key);
-
-            log.info("afterallowedTeams1: {}" + allowedTeams);
 
             if (allowedTeams == null || allowedTeams.isEmpty()) {
                 return List.of();
             }
-
-            log.info("afterallowedTeams2: {}" + allowedTeams);
 
             Set<String> allowedTeamSet = new LinkedHashSet<>();
             for (String t : allowedTeams) {
@@ -584,13 +567,9 @@ public class LeaguesAPIService {
                 }
             }
 
-            log.info("allowedTeamSet: {}" + allowedTeamSet);
-
             if (allowedTeamSet.isEmpty()) {
                 return List.of();
             }
-
-            log.info("allowedTeamSetEmpty: {}" + allowedTeamSet);
 
             List<TeamRow> filtered = new ArrayList<>();
             for (TeamRow row : rows) {
@@ -599,12 +578,9 @@ public class LeaguesAPIService {
                     filtered.add(row);
                 }
             }
-            log.info("allowedfiltered: {}" + filtered);
 
             return filtered;
         }
-
-        log.info("afterlevel3: {}" + scope);
 
         return List.of();
     }
