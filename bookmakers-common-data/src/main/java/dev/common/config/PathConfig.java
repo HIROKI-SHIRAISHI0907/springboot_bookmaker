@@ -132,6 +132,12 @@ public class PathConfig {
 	private String s3BucketsOutputsFin;
 
 	/**
+	 * S3バケット（delay-postpone）
+	 */
+	@Value("${process.s3.buckets.delayPostpone}")
+	private String s3BucketsOutputsDelayPostpone;
+
+	/**
 	 * JSONフォルダ作成パスを返す
 	 * @return
 	 */
@@ -306,6 +312,15 @@ public class PathConfig {
 	 */
 	public String getS3BucketsOutputsFin() {
 	    return s3BucketsOutputsFin;
+	}
+
+	/**
+	 * DelayPostpone（汎用出力）用のS3バケット名を取得する。
+	 *
+	 * @return DelayPostpone用S3バケット名
+	 */
+	public String getS3BucketsOutputsDelayPostpone() {
+	    return s3BucketsOutputsDelayPostpone;
 	}
 
 }
