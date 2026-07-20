@@ -1,5 +1,8 @@
 package dev.batch.service;
 
+import java.text.Normalizer;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -27,17 +30,19 @@ public class CsvFileNameService {
 		String safeLeague = sanitizePathToken(defaultIfBlank(league, "unknown"));
 		String safeRound = sanitizePathToken(normalizeRoundName(round));
 
-		return safeCountry + "-" + safeLeague + "-" + safeRound;
+		return canonicalizeFolderSegment(safeCountry + "-" + safeLeague + "-" + safeRound);
 	}
 
 	/**
 	 * B013用: 国・リーグの削除対象プレフィックスを生成
 	 * 例: 日本-J1
+	 *
+	 * 方針: csv_id はハイフンで統一する
 	 */
 	public String makeFolderPrefix(String country, String league) {
 		String safeCountry = sanitizePathToken(defaultIfBlank(country, "unknown"));
 		String safeLeague = sanitizePathToken(defaultIfBlank(league, "unknown"));
-		return safeCountry + ": " + safeLeague;
+		return canonicalizeFolderSegment(safeCountry + "-" + safeLeague);
 	}
 
 	/**
@@ -67,38 +72,56 @@ public class CsvFileNameService {
 	}
 
 	/**
-	 * CSVIDからファイル名に変換
+	 * csv_id / 物理ファイル相対パスをハイフン形式へ統一する。
+	 *
+	 * 例:
+	 * - 日本: J2リーグ-ラウンド18/1.csv -> 日本-J2リーグ-ラウンド18/1.csv
+	 * - 日本-J2リーグ - ラウンド 18/1.csv -> 日本-J2リーグ-ラウンド18/1.csv
 	 */
 	public String toPhysicalCsvId(String csvId) {
-	    if (csvId == null || csvId.isBlank()) {
-	        return csvId;
-	    }
+		return canonicalizeCsvId(csvId);
+	}
 
-	    String normalized = csvId.trim().replace('\\', '/');
+	/**
+	 * 外部からも使える csv_id 正規化メソッド
+	 * 方針: フォルダ部分はハイフン、区切りは /、ファイル名はそのまま
+	 */
+	public String canonicalizeCsvId(String csvId) {
+		if (csvId == null || csvId.isBlank()) {
+			return csvId;
+		}
 
-	    int slashIndex = normalized.lastIndexOf('/');
-	    String folderPart = (slashIndex >= 0) ? normalized.substring(0, slashIndex) : normalized;
-	    String filePart = (slashIndex >= 0) ? normalized.substring(slashIndex) : "";
+		String normalized = Normalizer.normalize(csvId, Normalizer.Form.NFKC)
+				.trim()
+				.replace('\\', '/');
 
-	    // 1) 国名とリーグ名の区切りを、先頭の "-" だけ ":" に変換
-	    //    例: 日本-J2 リーグ - ラウンド 18 -> 日本: J2 リーグ - ラウンド 18
-	    if (!folderPart.contains(":")) {
-	        int firstHyphen = folderPart.indexOf('-');
-	        if (firstHyphen >= 0) {
-	            String country = folderPart.substring(0, firstHyphen).trim();
-	            String rest = folderPart.substring(firstHyphen + 1).trim();
-	            folderPart = country + ": " + rest;
-	        }
-	    }
+		while (normalized.startsWith("/")) {
+			normalized = normalized.substring(1);
+		}
+		normalized = normalized.replaceAll("/+", "/");
 
-	    // 2) ラウンド表記を物理ファイル側ルールに寄せる
-	    //    " - ラウンド 18" / "- ラウンド 18" / " -ラウンド18" などを "-ラウンド18" に統一
-	    folderPart = folderPart.replaceAll("[ 　]*-[ 　]*ラウンド[ 　]*(\\d+)", "-ラウンド$1");
+		if (normalized.isEmpty()) {
+			return normalized;
+		}
 
-	    // 3) 余分な連続空白を整形（全角スペースは保持しつつ半角空白を圧縮）
-	    folderPart = folderPart.replaceAll(" {2,}", " ").trim();
+		String[] parts = normalized.split("/");
+		List<String> normalizedParts = new ArrayList<>();
 
-	    return folderPart + filePart;
+		for (int i = 0; i < parts.length; i++) {
+			String part = safe(parts[i]).trim();
+			if (part.isEmpty()) {
+				continue;
+			}
+
+			// 最後のパートはファイル名なのでそのまま
+			if (i == parts.length - 1) {
+				normalizedParts.add(part);
+			} else {
+				normalizedParts.add(canonicalizeFolderSegment(part));
+			}
+		}
+
+		return String.join("/", normalizedParts);
 	}
 
 	private CountryLeagueName resolveCountryLeagueByTeams(String homeTeamName, String awayTeamName) {
@@ -152,6 +175,35 @@ public class CsvFileNameService {
 		}
 
 		return value;
+	}
+
+	/**
+	 * フォルダセグメントをハイフン形式へ統一
+	 * 例:
+	 * - 日本: J1リーグ - ラウンド 12 -> 日本-J1リーグ-ラウンド12
+	 */
+	private String canonicalizeFolderSegment(String segment) {
+		String s = Normalizer.normalize(safe(segment), Normalizer.Form.NFKC).trim();
+		if (s.isEmpty()) {
+			return "";
+		}
+
+		// 国: リーグ を 国-リーグ に統一
+		s = s.replaceAll("\\s*:\\s*", "-");
+
+		// ラウンド表記を統一
+		s = s.replaceAll("[ 　]*-[ 　]*ラウンド[ 　]*([0-9]+)", "-ラウンド$1");
+
+		// ハイフン前後空白を除去
+		s = s.replaceAll("\\s*-\\s*", "-");
+
+		// 連続ハイフンを圧縮
+		s = s.replaceAll("-{2,}", "-");
+
+		// 連続半角空白を圧縮
+		s = s.replaceAll(" {2,}", " ").trim();
+
+		return s;
 	}
 
 	private static String sanitizePathToken(String value) {

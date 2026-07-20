@@ -6,6 +6,7 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -230,7 +231,8 @@ public class ExportCsvService {
 			logError(METHOD_NAME, "ReaderCurrentCsvInfoBean.init() 失敗", e);
 			throw e;
 		}
-		csvInfoRow = (csvInfoRow != null) ? csvInfoRow : Collections.emptyMap();
+		csvInfoRow = canonicalizeCsvInfoMap(
+				(csvInfoRow != null) ? csvInfoRow : Collections.emptyMap());
 
 		CsvBuildPlan plan;
 		if (firstRun) {
@@ -408,7 +410,8 @@ public class ExportCsvService {
 				csvInfoRow = Collections.emptyMap();
 				logWarn(METHOD_NAME, "ReaderCurrentCsvInfoBean.init() スキップ扱い");
 			}
-			csvInfoRow = (csvInfoRow != null) ? csvInfoRow : Collections.emptyMap();
+			csvInfoRow = canonicalizeCsvInfoMap(
+					(csvInfoRow != null) ? csvInfoRow : Collections.emptyMap());
 
 			logInfo(METHOD_NAME, "sortSeqs() 開始");
 			List<List<Integer>> currentGroups = normalizeGroups(sortSeqs());
@@ -564,10 +567,10 @@ public class ExportCsvService {
 		List<CsvWorkItem> workItems = new ArrayList<>();
 
 		for (Map.Entry<String, List<Integer>> entry : plan.recreateByCsvKey.entrySet()) {
-			String relativeKey = entry.getKey();
+			String relativeKey = canonicalizeCsvId(entry.getKey());
 			List<Integer> ids = normalizeSeqList(entry.getValue());
 
-			if (relativeKey == null || relativeKey.isBlank() || ids.isEmpty()) {
+			if (relativeKey.isBlank() || ids.isEmpty()) {
 				logWarn(METHOD_NAME, "recreate skip relativeKey=" + shortKey(relativeKey)
 						+ ", ids=" + summarizeIds(ids));
 				continue;
@@ -592,7 +595,7 @@ public class ExportCsvService {
 				logInfo(METHOD_NAME, "S3採番用 maxCsvNo 取得終了 result.size=" + s3MaxByFolder.size());
 
 				for (Map.Entry<String, List<List<Integer>>> e : newTargetsByFolder.entrySet()) {
-					String folderName = e.getKey();
+					String folderName = canonicalizeFolderSegment(e.getKey());
 					List<List<Integer>> groups = e.getValue();
 
 					groups.sort(Comparator.comparingInt(ExportCsvService::minSeqOfIds));
@@ -600,14 +603,10 @@ public class ExportCsvService {
 					int maxOnS3 = s3MaxByFolder.getOrDefault(folderName, 0);
 					int nextNo = maxOnS3 + 1;
 
-					logInfo(METHOD_NAME, "採番(S3) folder=" + folderName
-							+ ", maxOnS3=" + maxOnS3
-							+ ", nextNo=" + nextNo
-							+ ", groupCount=" + groups.size());
-
 					for (int i = 0; i < groups.size(); i++) {
 						int csvNo = nextNo + i;
-						String relativeKey = joinS3Key(folderName, csvNo + BookMakersCommonConst.CSV);
+						String relativeKey = canonicalizeCsvId(
+								joinS3Key(folderName, csvNo + BookMakersCommonConst.CSV));
 						workItems.add(new CsvWorkItem(relativeKey, groups.get(i)));
 
 						logInfo(METHOD_NAME, "new add(S3) relativeKey=" + shortKey(relativeKey)
@@ -616,7 +615,7 @@ public class ExportCsvService {
 				}
 			} else {
 				for (Map.Entry<String, List<List<Integer>>> e : newTargetsByFolder.entrySet()) {
-					String folderName = e.getKey();
+					String folderName = canonicalizeFolderSegment(e.getKey());
 					List<List<Integer>> groups = e.getValue();
 
 					groups.sort(Comparator.comparingInt(ExportCsvService::minSeqOfIds));
@@ -624,14 +623,10 @@ public class ExportCsvService {
 					int maxLocal = getMaxCsvNoFromLocal(localDir.resolve(folderName));
 					int nextNo = maxLocal + 1;
 
-					logInfo(METHOD_NAME, "採番(Local) folder=" + folderName
-							+ ", maxLocal=" + maxLocal
-							+ ", nextNo=" + nextNo
-							+ ", groupCount=" + groups.size());
-
 					for (int i = 0; i < groups.size(); i++) {
 						int csvNo = nextNo + i;
-						String relativeKey = joinS3Key(folderName, csvNo + BookMakersCommonConst.CSV);
+						String relativeKey = canonicalizeCsvId(
+								joinS3Key(folderName, csvNo + BookMakersCommonConst.CSV));
 						workItems.add(new CsvWorkItem(relativeKey, groups.get(i)));
 
 						logInfo(METHOD_NAME, "new add(Local) relativeKey=" + shortKey(relativeKey)
@@ -686,7 +681,7 @@ public class ExportCsvService {
 				continue;
 			}
 
-			String folderName = resolveRoundFolderNamePreview(preview);
+			String folderName = canonicalizeFolderSegment(resolveRoundFolderNamePreview(preview));
 			logInfo(METHOD_NAME, "folder resolve tempKey=" + tempKey + ", folderName=" + folderName);
 
 			newTargetsByFolder.computeIfAbsent(folderName, k -> new ArrayList<>()).add(ids);
@@ -983,28 +978,20 @@ public class ExportCsvService {
 				continue;
 			}
 
-			String csvId = meta.getRelativeCsvKey();
+			String csvId = canonicalizeCsvId(meta.getRelativeCsvKey());
 			String dataCategory = safe(meta.getDataCategory()).trim();
 			String home = safe(meta.getHomeTeamName()).trim();
 			String away = safe(meta.getAwayTeamName()).trim();
 
-			if (csvId == null || csvId.isBlank()) {
+			if (csvId.isBlank()) {
 				logWarn(METHOD_NAME, "csvId blank をスキップ index=" + index);
 				continue;
 			}
 
-			logInfo(METHOD_NAME, "season resolve 開始 index=" + index + ", csvId=" + shortKey(csvId));
 			String season = resolveSeasonSafely(csvId, dataCategory);
-			logInfo(METHOD_NAME, "season resolve 終了 index=" + index + ", season=" + season);
 
 			try {
-				logInfo(METHOD_NAME, "upsertCsvDetailManage() 開始 index=" + index
-						+ ", csvId=" + shortKey(csvId)
-						+ ", home=" + home
-						+ ", away=" + away);
 				upsertCsvDetailManage(csvId, dataCategory, season, home, away, parentMethod);
-				logInfo(METHOD_NAME, "upsertCsvDetailManage() 終了 index=" + index
-						+ ", csvId=" + shortKey(csvId));
 			} catch (Exception ex) {
 				logError(METHOD_NAME, "csv_detail_manage 更新失敗 index=" + index
 						+ ", csvId=" + shortKey(csvId), ex);
@@ -1014,7 +1001,6 @@ public class ExportCsvService {
 
 		logInfo(METHOD_NAME, "終了");
 	}
-
 
 	private String resolveSeasonSafely(String csvId, String dataCategory) {
 		final String METHOD_NAME = "resolveSeasonSafely";
@@ -1135,17 +1121,25 @@ public class ExportCsvService {
 	}
 
 	private String[] extractCountryLeagueFromCsvId(String csvId) {
-		if (csvId == null || csvId.isBlank()) {
+		String normalizedCsvId = canonicalizeCsvId(csvId);
+		if (normalizedCsvId.isBlank()) {
 			return new String[] { "", "" };
 		}
 
-		String folder = parentPath(csvId);
+		String folder = parentPath(normalizedCsvId);
 		if (folder.isBlank()) {
 			return new String[] { "", "" };
 		}
 
-		int roundIdx = folder.lastIndexOf("-ラウンド");
-		String base = (roundIdx >= 0) ? folder.substring(0, roundIdx) : folder;
+		String lastFolder = folder;
+		int slash = lastFolder.lastIndexOf('/');
+		if (slash >= 0) {
+			lastFolder = lastFolder.substring(slash + 1);
+		}
+
+		lastFolder = lastFolder.trim();
+		int roundIdx = lastFolder.lastIndexOf("-ラウンド");
+		String base = (roundIdx >= 0) ? lastFolder.substring(0, roundIdx) : lastFolder;
 
 		int firstHyphen = base.indexOf('-');
 		if (firstHyphen < 0) {
@@ -1545,8 +1539,10 @@ public class ExportCsvService {
 		Map<Integer, String> minSeqToCsvKey = new LinkedHashMap<>();
 		Map<String, String> groupKeyToCsvKey = new LinkedHashMap<>();
 
-		for (Map.Entry<String, List<Integer>> e : csvInfoRow.entrySet()) {
-			String csvKey = e.getKey();
+		Map<String, List<Integer>> normalizedCsvInfo = canonicalizeCsvInfoMap(csvInfoRow);
+
+		for (Map.Entry<String, List<Integer>> e : normalizedCsvInfo.entrySet()) {
+			String csvKey = canonicalizeCsvId(e.getKey());
 			List<Integer> ids = normalizeSeqListStatic(e.getValue());
 			if (ids.isEmpty()) {
 				continue;
@@ -1571,7 +1567,7 @@ public class ExportCsvService {
 			int min = dbGroup.get(0);
 			String csvKey = minSeqToCsvKey.get(min);
 			if (csvKey != null) {
-				plan.recreateByCsvKey.put(csvKey, dbGroup);
+				plan.recreateByCsvKey.put(canonicalizeCsvId(csvKey), dbGroup);
 			} else {
 				plan.newTargets.put(CSV_NEW_PREFIX + "-" + min, dbGroup);
 			}
@@ -1869,7 +1865,6 @@ public class ExportCsvService {
 
 		if (Files.exists(out)) {
 			List<String> lines = Files.readAllLines(out, StandardCharsets.UTF_8);
-			logInfo(METHOD_NAME, "既存ファイル読込 lines.size=" + lines.size());
 
 			for (String line : lines) {
 				if (line == null) {
@@ -1881,7 +1876,7 @@ public class ExportCsvService {
 				}
 
 				String[] parts = t.split("\t", 2);
-				String csvKey = parts[0].trim();
+				String csvKey = canonicalizeCsvId(parts[0].trim());
 				if (csvKey.isEmpty()) {
 					continue;
 				}
@@ -1890,7 +1885,6 @@ public class ExportCsvService {
 				csvKeyToLine.put(csvKey, csvKey + "\t" + desc);
 			}
 		} else {
-			logInfo(METHOD_NAME, "出力先ファイルが無いため新規作成 path=" + out);
 			if (out.getParent() != null) {
 				Files.createDirectories(out.getParent());
 			}
@@ -1898,28 +1892,23 @@ public class ExportCsvService {
 					StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 		}
 
-		int removedCount = 0;
 		if (failedRelativeKeys != null) {
 			for (String csvKey : failedRelativeKeys) {
-				if (csvKey == null || csvKey.isBlank()) {
-					continue;
-				}
-				if (csvKeyToLine.remove(csvKey) != null) {
-					removedCount++;
+				String normalizedKey = canonicalizeCsvId(csvKey);
+				if (!normalizedKey.isBlank()) {
+					csvKeyToLine.remove(normalizedKey);
 				}
 			}
 		}
-		logInfo(METHOD_NAME, "failedRelativeKeys remove 完了 removedCount=" + removedCount);
 
-		int upsertCount = 0;
 		if (succeeded != null) {
 			for (CsvOutputMeta meta : succeeded) {
 				if (meta == null) {
 					continue;
 				}
 
-				String csvKey = meta.getRelativeCsvKey();
-				if (csvKey == null || csvKey.isBlank()) {
+				String csvKey = canonicalizeCsvId(meta.getRelativeCsvKey());
+				if (csvKey.isBlank()) {
 					continue;
 				}
 
@@ -1938,20 +1927,10 @@ public class ExportCsvService {
 					vsPart = "(team name empty)";
 				}
 
-				String desc;
-				if (!dataCategory.isEmpty() && !vsPart.isEmpty()) {
-					desc = dataCategory + " - " + vsPart;
-				} else if (!dataCategory.isEmpty()) {
-					desc = dataCategory;
-				} else {
-					desc = vsPart;
-				}
-
+				String desc = !dataCategory.isEmpty() ? dataCategory + " - " + vsPart : vsPart;
 				csvKeyToLine.put(csvKey, csvKey + "\t" + desc);
-				upsertCount++;
 			}
 		}
-		logInfo(METHOD_NAME, "succeeded upsert 完了 upsertCount=" + upsertCount);
 
 		List<Map.Entry<String, String>> entries = new ArrayList<>(csvKeyToLine.entrySet());
 		entries.sort((a, b) -> compareCsvRelativeKey(a.getKey(), b.getKey()));
@@ -1965,6 +1944,82 @@ public class ExportCsvService {
 				StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 
 		logInfo(METHOD_NAME, "終了 path=" + out + ", outLines.size=" + outLines.size());
+	}
+
+	private Map<String, List<Integer>> canonicalizeCsvInfoMap(Map<String, List<Integer>> src) {
+		Map<String, List<Integer>> result = new LinkedHashMap<>();
+		if (src == null || src.isEmpty()) {
+			return result;
+		}
+
+		for (Map.Entry<String, List<Integer>> e : src.entrySet()) {
+			String normalizedKey = canonicalizeCsvId(e.getKey());
+			List<Integer> normalizedSeqs = normalizeSeqListStatic(e.getValue());
+
+			if (normalizedKey.isBlank() || normalizedSeqs.isEmpty()) {
+				continue;
+			}
+
+			List<Integer> merged = new ArrayList<>();
+			if (result.containsKey(normalizedKey)) {
+				merged.addAll(result.get(normalizedKey));
+			}
+			merged.addAll(normalizedSeqs);
+
+			result.put(normalizedKey, normalizeSeqListStatic(merged));
+		}
+
+		return result;
+	}
+
+	private String canonicalizeCsvId(String rawCsvId) {
+		if (rawCsvId == null) {
+			return "";
+		}
+
+		String value = Normalizer.normalize(rawCsvId, Normalizer.Form.NFKC)
+				.trim()
+				.replace('\\', '/');
+
+		while (value.startsWith("/")) {
+			value = value.substring(1);
+		}
+		value = value.replaceAll("/+", "/");
+
+		if (value.isEmpty()) {
+			return "";
+		}
+
+		String[] parts = value.split("/");
+		List<String> normalizedParts = new ArrayList<>();
+
+		for (int i = 0; i < parts.length; i++) {
+			String part = safe(parts[i]).trim();
+			if (part.isEmpty()) {
+				continue;
+			}
+
+			if (i < parts.length - 1) {
+				normalizedParts.add(canonicalizeFolderSegment(part));
+			} else {
+				normalizedParts.add(part);
+			}
+		}
+
+		return String.join("/", normalizedParts);
+	}
+
+	private String canonicalizeFolderSegment(String segment) {
+		String s = Normalizer.normalize(safe(segment), Normalizer.Form.NFKC).trim();
+		if (s.isEmpty()) {
+			return "";
+		}
+
+		s = s.replaceAll("\\s*:\\s*", "-");
+		s = s.replaceAll("\\s*-\\s*", "-");
+		s = s.replaceAll("-{2,}", "-");
+
+		return s;
 	}
 
 	private static DataEntity findRowWithTeams(List<DataEntity> list) {

@@ -106,7 +106,6 @@ public class EachCsvTransaction {
 
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "start");
 
-		// 1) season終了対象の country-league から csv_id folder prefix を作成
 		List<String> folderPrefixes = buildCsvFolderPrefixes(dto);
 		if (folderPrefixes.isEmpty()) {
 			logInfo(METHOD_NAME, "削除対象の csv folder prefix が空のため処理終了");
@@ -116,14 +115,11 @@ public class EachCsvTransaction {
 
 		List<String> folderCategories = buildCsvFolderCategories(dto);
 		if (folderCategories.isEmpty()) {
-			logInfo(METHOD_NAME, "削除対象の folderCategories folder prefix が空のため処理終了");
+			logInfo(METHOD_NAME, "削除対象の folderCategories が空のため処理終了");
 			endLog(METHOD_NAME);
 			return;
 		}
 
-		logInfo(METHOD_NAME, "削除対象 csv_id prefixes=" + folderPrefixes);
-
-		// 2) csv_id prefix で削除対象 csv_detail_manage を取得
 		List<CsvDetailManageEntity> targets = this.csvDetailManageBatchRepository
 				.findDeleteTargetsByCsvIdAnCategoryPrefixes(folderPrefixes, folderCategories);
 
@@ -133,42 +129,24 @@ public class EachCsvTransaction {
 			return;
 		}
 
-		Set<String> dataCagorySet = new LinkedHashSet<>();
-		for (CsvDetailManageEntity entity : targets) {
-			if (entity == null) {
-				continue;
-			}
-			String dataCategory = safe(entity.getDataCategory()).trim();
-			if (!dataCategory.isEmpty()) {
-				dataCagorySet.add(dataCategory);
-			}
-		}
-
-		List<String> dataCategories = new ArrayList<>(dataCagorySet);
-
-		// 3) csv_id 一覧化
-		Set<String> csvIdSet = new LinkedHashSet<>();
+		Set<String> originalCsvIdSet = new LinkedHashSet<>();
 		for (CsvDetailManageEntity entity : targets) {
 			if (entity == null) {
 				continue;
 			}
 			String csvId = safe(entity.getCsvId()).trim();
 			if (!csvId.isEmpty()) {
-				csvIdSet.add(csvId);
+				originalCsvIdSet.add(csvId);
 			}
 		}
 
-		if (csvIdSet.isEmpty()) {
+		if (originalCsvIdSet.isEmpty()) {
 			logInfo(METHOD_NAME, "削除対象 csv_id が存在しません");
 			endLog(METHOD_NAME);
 			return;
 		}
 
-		List<String> csvIds = new ArrayList<>(csvIdSet);
-		logInfo(METHOD_NAME, "削除対象 csv_id 件数=" + csvIds.size());
-		for (String csvId : csvIds) {
-			logInfo(METHOD_NAME, "削除対象 csvId=" + csvId);
-		}
+		List<String> originalCsvIds = new ArrayList<>(originalCsvIdSet);
 
 		Path baseDir = Paths.get(config.getCsvFolder()).toAbsolutePath().normalize();
 		Files.createDirectories(baseDir);
@@ -177,88 +155,46 @@ public class EachCsvTransaction {
 		String prefix = normalizePrefix(finalPrefix);
 		Path snapshotPath = baseDir.resolve(SNAPSHOT_FILE_NAME);
 
-		// 0) 管理ファイルをローカル同期
 		prepareManageFilesLocalCache(bucket, prefix, METHOD_NAME);
 
-		// 1) csvId -> seqList snapshot 構築
 		Map<String, List<Integer>> existingSnapshot = readSnapshot(snapshotPath);
 		Map<String, List<Integer>> currentCsvInfo = loadCsvInfoSnapshot();
-		Map<String, List<Integer>> csvFileSnapshot = loadSeqSnapshotFromDeleteTargetCsvFiles(csvIds);
-		Map<String, List<Integer>> deleteSnapshot = buildDeleteSnapshot(csvIds, csvFileSnapshot, currentCsvInfo,
-				existingSnapshot);
+		Map<String, List<Integer>> csvFileSnapshot = loadSeqSnapshotFromDeleteTargetCsvFiles(originalCsvIds);
+		Map<String, List<Integer>> deleteSnapshot = buildDeleteSnapshot(
+				originalCsvIds, csvFileSnapshot, currentCsvInfo, existingSnapshot);
 
 		writeSnapshot(snapshotPath, deleteSnapshot);
-		logInfo(METHOD_NAME, "削除snapshot保存完了 path=" + snapshotPath
-				+ ", snapshot.size=" + deleteSnapshot.size());
 
-		for (Map.Entry<String, List<Integer>> e : deleteSnapshot.entrySet()) {
-			logInfo(METHOD_NAME, "snapshot csvId=" + e.getKey()
-					+ ", seqList=" + e.getValue()
-					+ ", groupKey=" + groupKey(e.getValue()));
-		}
+		String backupZipKey = archiveDeleteTargetCsvFilesToRecordBucket(originalCsvIds);
+		logInfo(METHOD_NAME, "削除前CSVバックアップ完了 key=" + backupZipKey);
 
-		for (String csvId : csvIds) {
-			if (!deleteSnapshot.containsKey(csvId)) {
-				logWarn(METHOD_NAME, "snapshot未取得 csvId=" + csvId);
-			}
-		}
+		DeleteResult deleteResult = deletePhysicalCsvFiles(originalCsvIds);
 
-		// 1.5) 削除対象CSVをZIP化して record バケットへバックアップ
-		String backupZipKey = archiveDeleteTargetCsvFilesToRecordBucket(csvIds);
-
-		logInfo(METHOD_NAME,
-				"削除前CSVバックアップ完了 recordBucket=" + config.getS3Record()
-						+ ", key=" + backupZipKey);
-
-		// 2) 実CSV削除
-		DeleteResult deleteResult = deletePhysicalCsvFiles(csvIds);
-
-		logInfo(METHOD_NAME, "CSV削除結果 success=" + deleteResult.deletedCsvIds.size()
-				+ ", failed=" + deleteResult.failedCsvIds.size());
-
-		if (deleteResult.deletedCsvIds.isEmpty()) {
+		if (deleteResult.deletedOriginalCsvIds.isEmpty()) {
 			logWarn(METHOD_NAME, "CSV削除成功件数=0 です");
-			retainSnapshotForFailed(snapshotPath, deleteSnapshot, deleteResult.failedCsvIds);
+			retainSnapshotForFailed(snapshotPath, deleteSnapshot, deleteResult.failedOriginalCsvIds);
 			endLog(METHOD_NAME);
 			return;
 		}
 
-		// 2.5) 空親フォルダ削除（ローカルファイルシステム上）
-		if (!deleteResult.deletedPhysicalCsvIds.isEmpty()) {
-			cleanupEmptyParentFolders(deleteResult.deletedPhysicalCsvIds);
+		if (!deleteResult.deletedLocalRelativePaths.isEmpty()) {
+			cleanupEmptyParentFolders(deleteResult.deletedLocalRelativePaths);
 		}
 
-		// 3) data_team_list.txt 更新
-		if (!deleteResult.deletedCsvIds.isEmpty() || !deleteResult.deletedPhysicalCsvIds.isEmpty()) {
-			updateDataTeamList(deleteResult.deletedCsvIds, deleteResult.deletedPhysicalCsvIds);
-		}
+		updateDataTeamList(
+				deleteResult.deletedOriginalCsvIds,
+				deleteResult.deletedCanonicalCsvIds,
+				deleteResult.deletedLocalRelativePaths);
 
-		// 4) seqList.txt 更新
-		if (!deleteResult.deletedCsvIds.isEmpty()) {
-			updateSeqList(deleteResult.deletedCsvIds, deleteSnapshot);
-		}
+		updateSeqList(deleteResult.deletedOriginalCsvIds, deleteSnapshot);
 
-		logInfo(METHOD_NAME, "csv_detail_manage 削除前=" + deleteResult.deletedCsvIds);
-
-		// 5) csv_detail_manage 更新（成功分のみ）
-		int deletedCategory = 0;
+		// 物理削除成功分だけ DB 削除
 		int deleted = this.csvDetailManageBatchRepository.deleteByCsvIds(
-				new ArrayList<>(deleteResult.deletedCsvIds));
-		if (!dataCategories.isEmpty()) {
-			deletedCategory = this.csvDetailManageBatchRepository.deleteByDataCategories(
-					new ArrayList<>(dataCategories));
-		}
+				new ArrayList<>(deleteResult.deletedOriginalCsvIds));
 
-		logInfo(METHOD_NAME, "csv_detail_manage 削除件数=" + (deleted + deletedCategory));
+		logInfo(METHOD_NAME, "csv_detail_manage 削除件数=" + deleted);
 
-		// 6) failed 分だけ snapshot を残す
-		retainSnapshotForFailed(snapshotPath, deleteSnapshot, deleteResult.failedCsvIds);
-
-		if (!deleteResult.failedCsvIds.isEmpty()) {
-			for (String failedCsvId : deleteResult.failedCsvIds) {
-				logWarn(METHOD_NAME, "CSV削除失敗 csvId=" + failedCsvId);
-			}
-		}
+		retainSnapshotForFailed(snapshotPath, deleteSnapshot, deleteResult.failedOriginalCsvIds);
 
 		endLog(METHOD_NAME);
 	}
@@ -296,19 +232,23 @@ public class EachCsvTransaction {
 			bean.init();
 			Map<String, List<Integer>> csvInfo = bean.getCsvInfo();
 			if (csvInfo == null) {
-				logWarn(METHOD_NAME, "bean.getCsvInfo() が null");
 				return new LinkedHashMap<>();
 			}
 
 			Map<String, List<Integer>> result = new LinkedHashMap<>();
 			for (Map.Entry<String, List<Integer>> e : csvInfo.entrySet()) {
-				String csvId = safe(e.getKey()).trim();
-				if (csvId.isEmpty()) {
+				String originalKey = safe(e.getKey()).trim();
+				String canonicalKey = canonicalizeCsvId(originalKey);
+				List<Integer> seqs = normalizeSeqList(e.getValue());
+
+				if (seqs.isEmpty()) {
 					continue;
 				}
-				List<Integer> seqs = normalizeSeqList(e.getValue());
-				if (!seqs.isEmpty()) {
-					result.put(csvId, seqs);
+				if (!originalKey.isEmpty()) {
+					result.put(originalKey, seqs);
+				}
+				if (!canonicalKey.isEmpty()) {
+					result.put(canonicalKey, seqs);
 				}
 			}
 
@@ -340,20 +280,14 @@ public class EachCsvTransaction {
 				continue;
 			}
 
-			String physicalCsvId = this.csvFileNameService.toPhysicalCsvId(csvId);
-			List<Integer> seqs = null;
+			Set<String> lookupKeys = buildCsvIdLookupKeys(csvId);
 
-			// 優先1: 削除予定CSV実体から読んだ seq
-			seqs = findSeqListByAnyKey(csvFileSnapshot, csvId, physicalCsvId);
-
-			// 優先2: 現在の csvInfo
+			List<Integer> seqs = findSeqListByAnyKey(csvFileSnapshot, lookupKeys);
 			if (seqs == null || seqs.isEmpty()) {
-				seqs = findSeqListByAnyKey(currentCsvInfo, csvId, physicalCsvId);
+				seqs = findSeqListByAnyKey(currentCsvInfo, lookupKeys);
 			}
-
-			// 優先3: 既存 snapshot
 			if (seqs == null || seqs.isEmpty()) {
-				seqs = findSeqListByAnyKey(existingSnapshot, csvId, physicalCsvId);
+				seqs = findSeqListByAnyKey(existingSnapshot, lookupKeys);
 			}
 
 			seqs = normalizeSeqList(seqs);
@@ -367,23 +301,18 @@ public class EachCsvTransaction {
 
 	private List<Integer> findSeqListByAnyKey(
 			Map<String, List<Integer>> source,
-			String csvId,
-			String physicalCsvId) {
+			Set<String> keys) {
 
-		if (source == null || source.isEmpty()) {
+		if (source == null || source.isEmpty() || keys == null || keys.isEmpty()) {
 			return null;
 		}
 
-		List<Integer> seqs = source.get(csvId);
-		if (seqs != null && !seqs.isEmpty()) {
-			return seqs;
+		for (String key : keys) {
+			List<Integer> seqs = source.get(key);
+			if (seqs != null && !seqs.isEmpty()) {
+				return seqs;
+			}
 		}
-
-		seqs = source.get(physicalCsvId);
-		if (seqs != null && !seqs.isEmpty()) {
-			return seqs;
-		}
-
 		return null;
 	}
 
@@ -520,13 +449,11 @@ public class EachCsvTransaction {
 
 		try {
 			if (snapshotPath == null || !Files.exists(snapshotPath)) {
-				logInfo(METHOD_NAME, "snapshot 不存在 path=" + snapshotPath);
 				return new LinkedHashMap<>();
 			}
 
 			String json = Files.readString(snapshotPath, StandardCharsets.UTF_8).trim();
 			if (json.isEmpty()) {
-				logInfo(METHOD_NAME, "snapshot 空 path=" + snapshotPath);
 				return new LinkedHashMap<>();
 			}
 
@@ -537,18 +464,20 @@ public class EachCsvTransaction {
 
 			Map<String, List<Integer>> normalized = new LinkedHashMap<>();
 			for (Map.Entry<String, List<Integer>> e : map.entrySet()) {
-				String csvId = safe(e.getKey()).trim();
-				if (csvId.isEmpty()) {
+				String originalKey = safe(e.getKey()).trim();
+				String canonicalKey = canonicalizeCsvId(originalKey);
+				List<Integer> seqs = normalizeSeqList(e.getValue());
+
+				if (seqs.isEmpty()) {
 					continue;
 				}
-				List<Integer> seqs = normalizeSeqList(e.getValue());
-				if (!seqs.isEmpty()) {
-					normalized.put(csvId, seqs);
+				if (!originalKey.isEmpty()) {
+					normalized.put(originalKey, seqs);
+				}
+				if (!canonicalKey.isEmpty()) {
+					normalized.put(canonicalKey, seqs);
 				}
 			}
-
-			logInfo(METHOD_NAME, "既存snapshot読込完了 path=" + snapshotPath
-					+ ", size=" + normalized.size());
 
 			return normalized;
 
@@ -557,6 +486,128 @@ public class EachCsvTransaction {
 					+ ", reason=" + e.getMessage());
 			return new LinkedHashMap<>();
 		}
+	}
+
+	private String canonicalizeCsvId(String rawCsvId) {
+		if (rawCsvId == null) {
+			return "";
+		}
+
+		String value = Normalizer.normalize(rawCsvId, Normalizer.Form.NFKC)
+				.trim()
+				.replace('\\', '/');
+
+		while (value.startsWith("/")) {
+			value = value.substring(1);
+		}
+		value = value.replaceAll("/+", "/");
+
+		if (value.isEmpty()) {
+			return "";
+		}
+
+		String[] parts = value.split("/");
+		List<String> normalizedParts = new ArrayList<>();
+
+		for (int i = 0; i < parts.length; i++) {
+			String part = safe(parts[i]).trim();
+			if (part.isEmpty()) {
+				continue;
+			}
+
+			if (i < parts.length - 1) {
+				part = part.replaceAll("\\s*:\\s*", "-");
+				part = part.replaceAll("\\s*-\\s*", "-");
+				part = part.replaceAll("-{2,}", "-");
+			}
+
+			normalizedParts.add(part);
+		}
+
+		return String.join("/", normalizedParts);
+	}
+
+	private String canonicalizeFolderPrefix(String value) {
+		String s = Normalizer.normalize(safe(value), Normalizer.Form.NFKC).trim();
+		if (s.isEmpty()) {
+			return "";
+		}
+		s = s.replaceAll("\\s*:\\s*", "-");
+		s = s.replaceAll("\\s*-\\s*", "-");
+		s = s.replaceAll("-{2,}", "-");
+		return s;
+	}
+
+	private String toLegacyFolderPrefix(String canonical) {
+		if (canonical == null || canonical.isBlank()) {
+			return "";
+		}
+		int idx = canonical.indexOf('-');
+		if (idx < 0) {
+			return canonical;
+		}
+		String country = canonical.substring(0, idx).trim();
+		String league = canonical.substring(idx + 1).trim();
+		if (country.isEmpty() || league.isEmpty()) {
+			return canonical;
+		}
+		return country + ": " + league;
+	}
+
+	private Set<String> buildCsvIdLookupKeys(String originalCsvId) {
+		Set<String> keys = new LinkedHashSet<>();
+
+		String original = safe(originalCsvId).trim();
+		String canonical = canonicalizeCsvId(original);
+
+		if (!original.isEmpty()) {
+			keys.add(original);
+		}
+		if (!canonical.isEmpty()) {
+			keys.add(canonical);
+		}
+
+		String physicalFromOriginal = this.csvFileNameService.toPhysicalCsvId(original);
+		String physicalFromCanonical = this.csvFileNameService.toPhysicalCsvId(canonical);
+
+		if (physicalFromOriginal != null && !physicalFromOriginal.isBlank()) {
+			keys.add(physicalFromOriginal.trim());
+			keys.add(canonicalizeCsvId(physicalFromOriginal.trim()));
+		}
+		if (physicalFromCanonical != null && !physicalFromCanonical.isBlank()) {
+			keys.add(physicalFromCanonical.trim());
+			keys.add(canonicalizeCsvId(physicalFromCanonical.trim()));
+		}
+
+		return keys;
+	}
+
+	private Set<String> buildPhysicalCsvIdCandidates(String originalCsvId) {
+		Set<String> keys = new LinkedHashSet<>();
+
+		String original = safe(originalCsvId).trim();
+		String canonical = canonicalizeCsvId(original);
+
+		String p1 = this.csvFileNameService.toPhysicalCsvId(original);
+		String p2 = this.csvFileNameService.toPhysicalCsvId(canonical);
+
+		if (p1 != null && !p1.isBlank()) {
+			keys.add(p1.trim());
+			keys.add(canonicalizeCsvId(p1.trim()));
+		}
+		if (p2 != null && !p2.isBlank()) {
+			keys.add(p2.trim());
+			keys.add(canonicalizeCsvId(p2.trim()));
+		}
+
+		if (!canonical.isBlank()) {
+			keys.add(canonical);
+		}
+		if (!original.isBlank()) {
+			keys.add(original);
+		}
+
+		return keys;
 	}
 
 	private String findExistingS3CsvKey(
@@ -1002,19 +1053,26 @@ public class EachCsvTransaction {
 	 * 例: 日本-J1リーグ -> 日本-J1リーグ
 	 */
 	private List<String> buildCsvFolderPrefixes(TransactionDTO dto) {
-		List<String> prefixes = new ArrayList<>();
+		Set<String> prefixes = new LinkedHashSet<>();
 
 		if (dto == null || dto.getCountryLeague() == null) {
-			return prefixes;
+			return new ArrayList<>();
 		}
 
 		for (String value : dto.getCountryLeague()) {
-			prefixes.add(value);
+			String canonical = canonicalizeFolderPrefix(value);
+			if (!canonical.isBlank()) {
+				prefixes.add(canonical);
+
+				// 旧コロン形式も後方互換で削除対象に含める
+				String legacy = toLegacyFolderPrefix(canonical);
+				if (!legacy.isBlank()) {
+					prefixes.add(legacy);
+				}
+			}
 		}
 
-		return prefixes.stream()
-				.distinct()
-				.collect(Collectors.toList());
+		return new ArrayList<>(prefixes);
 	}
 
 	/**
@@ -1022,32 +1080,29 @@ public class EachCsvTransaction {
 	 * 例: 日本-J1リーグ -> 日本: J1リーグ
 	 */
 	private List<String> buildCsvFolderCategories(TransactionDTO dto) {
-		List<String> prefixes = new ArrayList<>();
+		Set<String> prefixes = new LinkedHashSet<>();
 
 		if (dto == null || dto.getCountryLeague() == null) {
-			return prefixes;
+			return new ArrayList<>();
 		}
 
 		for (String value : dto.getCountryLeague()) {
-			if (value == null || value.isBlank()) {
+			String canonical = canonicalizeFolderPrefix(value);
+			if (canonical.isBlank()) {
 				continue;
 			}
 
-			String trimmed = value.trim();
-			int separatorIndex = trimmed.indexOf('-');
-
+			int separatorIndex = canonical.indexOf('-');
 			if (separatorIndex >= 0) {
-				String country = trimmed.substring(0, separatorIndex).trim();
-				String league = trimmed.substring(separatorIndex + 1).trim();
-				prefixes.add(country + ": " + league);
-			} else {
-				prefixes.add(trimmed);
+				String country = canonical.substring(0, separatorIndex).trim();
+				String league = canonical.substring(separatorIndex + 1).trim();
+				if (!country.isEmpty() && !league.isEmpty()) {
+					prefixes.add(country + ": " + league);
+				}
 			}
 		}
 
-		return prefixes.stream()
-				.distinct()
-				.collect(Collectors.toList());
+		return new ArrayList<>(prefixes);
 	}
 
 	/**
@@ -1067,76 +1122,53 @@ public class EachCsvTransaction {
 
 		DeleteResult result = new DeleteResult();
 
-		for (String csvId : csvIds) {
-			if (csvId == null || csvId.isBlank()) {
+		for (String originalCsvId : csvIds) {
+			if (originalCsvId == null || originalCsvId.isBlank()) {
 				continue;
 			}
 
-			String physicalCsvId = this.csvFileNameService.toPhysicalCsvId(csvId);
-			Path localPath = baseDir.resolve(physicalCsvId).normalize();
-			Path parent = localPath.getParent();
-			boolean parentExists = parent != null && Files.exists(parent);
-
-			logInfo(METHOD_NAME, "削除前確認 csvId=" + csvId
-					+ ", physicalCsvId=" + physicalCsvId
-					+ ", localPath=" + localPath
-					+ ", exists=" + Files.exists(localPath)
-					+ ", isRegularFile=" + Files.isRegularFile(localPath)
-					+ ", parent=" + parent
-					+ ", parentExists=" + parentExists);
-
+			String canonicalCsvId = canonicalizeCsvId(originalCsvId);
 			boolean s3DeleteOk = false;
-
 			try {
-				boolean deletedLocal = Files.deleteIfExists(localPath);
+				Set<String> localCandidates = buildPhysicalCsvIdCandidates(originalCsvId);
 
-				if (deletedLocal) {
-					logInfo(METHOD_NAME, "ローカルCSV削除 csvId=" + csvId
-							+ ", physicalCsvId=" + physicalCsvId
-							+ ", path=" + localPath
-							+ ", deleted=" + deletedLocal);
-				} else {
-					logWarn(METHOD_NAME, "ローカルCSV未削除(ファイル不存在) csvId=" + csvId
-							+ ", physicalCsvId=" + physicalCsvId
-							+ ", path=" + localPath);
+				for (String relative : localCandidates) {
+					Path localPath = baseDir.resolve(relative).normalize();
+					boolean deletedLocal = Files.deleteIfExists(localPath);
+					if (deletedLocal) {
+						result.deletedLocalRelativePaths.add(relative);
+						logInfo(METHOD_NAME, "ローカルCSV削除 relative=" + relative + ", path=" + localPath);
+					}
 				}
 
 				if (!localOnly) {
-					// S3 key は csvId を使う
-					String s3Key = normalizeS3Key(joinS3Key(prefix, csvId));
-
-					logInfo(METHOD_NAME, "S3削除実行 csvId=" + csvId
-							+ ", physicalCsvId=" + physicalCsvId
-							+ ", bucket=" + bucket
-							+ ", key=" + s3Key);
-
-					s3Operator.delete(bucket, s3Key);
-					s3DeleteOk = true;
-
-					logInfo(METHOD_NAME, "S3 CSV削除完了 csvId=" + csvId
-							+ ", physicalCsvId=" + physicalCsvId
-							+ ", bucket=" + bucket
-							+ ", key=" + s3Key);
+					String resolvedS3Key = findExistingS3CsvKey(bucket, prefix, originalCsvId, canonicalCsvId);
+					if (resolvedS3Key != null && !resolvedS3Key.isBlank()) {
+						s3Operator.delete(bucket, resolvedS3Key);
+						s3DeleteOk = true;
+						logInfo(METHOD_NAME, "S3 CSV削除完了 key=" + resolvedS3Key);
+					} else {
+						logWarn(METHOD_NAME, "S3キー未解決のため削除不可 csvId=" + originalCsvId);
+					}
 				} else {
 					s3DeleteOk = true;
 				}
 
 				if (s3DeleteOk) {
-					result.deletedCsvIds.add(csvId);
-					result.deletedPhysicalCsvIds.add(physicalCsvId);
+					result.deletedOriginalCsvIds.add(originalCsvId);
+					result.deletedCanonicalCsvIds.add(canonicalCsvId);
 				} else {
-					result.failedCsvIds.add(csvId);
+					result.failedOriginalCsvIds.add(originalCsvId);
 				}
 
 			} catch (Exception e) {
-				result.failedCsvIds.add(csvId);
+				result.failedOriginalCsvIds.add(originalCsvId);
 
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 						MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
-						"CSV削除失敗 csvId=" + csvId
-								+ ", physicalCsvId=" + physicalCsvId
-								+ ", path=" + localPath);
+						"CSV削除失敗 csvId=" + originalCsvId
+								+ ", canonicalCsvId=" + canonicalCsvId);
 			}
 		}
 
@@ -1194,8 +1226,9 @@ public class EachCsvTransaction {
 	 * 削除した行をログ出力する
 	 */
 	private void updateDataTeamList(
-			Set<String> deletedCsvIds,
-			Set<String> deletedPhysicalCsvIds) throws IOException {
+			Set<String> deletedOriginalCsvIds,
+			Set<String> deletedCanonicalCsvIds,
+			Set<String> deletedLocalRelativePaths) throws IOException {
 
 		final String METHOD_NAME = "updateDataTeamList";
 
@@ -1215,21 +1248,22 @@ public class EachCsvTransaction {
 		}
 
 		Set<String> deleteKeys = new LinkedHashSet<>();
-		if (deletedCsvIds != null) {
-			deleteKeys.addAll(deletedCsvIds);
-			for (String csvId : deletedCsvIds) {
-				if (csvId != null && !csvId.isBlank()) {
-					deleteKeys.add(this.csvFileNameService.toPhysicalCsvId(csvId));
-				}
-			}
+		if (deletedOriginalCsvIds != null) {
+			deleteKeys.addAll(deletedOriginalCsvIds);
 		}
-		if (deletedPhysicalCsvIds != null) {
-			deleteKeys.addAll(deletedPhysicalCsvIds);
+		if (deletedCanonicalCsvIds != null) {
+			deleteKeys.addAll(deletedCanonicalCsvIds);
 		}
+		if (deletedLocalRelativePaths != null) {
+			deleteKeys.addAll(deletedLocalRelativePaths);
+		}
+
+		Set<String> normalizedDeleteKeys = deleteKeys.stream()
+				.map(this::canonicalizeCsvId)
+				.collect(Collectors.toCollection(LinkedHashSet::new));
 
 		List<String> lines = Files.readAllLines(localTeamPath, StandardCharsets.UTF_8);
 		List<String> newLines = new ArrayList<>();
-		List<String> removedLines = new ArrayList<>();
 
 		for (String line : lines) {
 			if (line == null || line.isBlank()) {
@@ -1238,9 +1272,9 @@ public class EachCsvTransaction {
 
 			String[] parts = line.split("\t", 2);
 			String csvKey = safe(parts[0]).trim();
+			String normalizedCsvKey = canonicalizeCsvId(csvKey);
 
-			if (deleteKeys.contains(csvKey)) {
-				removedLines.add(line);
+			if (normalizedDeleteKeys.contains(normalizedCsvKey)) {
 				logInfo(METHOD_NAME, "data_team_list 削除 csvId=" + csvKey + ", line=" + line);
 				continue;
 			}
@@ -1248,20 +1282,14 @@ public class EachCsvTransaction {
 			newLines.add(line);
 		}
 
-		// 更新後に1行も残らない場合はファイル自体を削除
 		if (newLines.isEmpty()) {
 			boolean deletedLocal = Files.deleteIfExists(localTeamPath);
-			logInfo(METHOD_NAME, "data_team_list.txt 削除完了. path=" + localTeamPath
-					+ ", deleted=" + deletedLocal
-					+ ", removed=" + removedLines.size()
-					+ ", remaining=0");
+			logInfo(METHOD_NAME, "data_team_list.txt 削除完了. deleted=" + deletedLocal);
 
 			if (!localOnly) {
 				String s3Key = normalizeS3Key(joinS3Key(prefix, FileExistsService.TEAM_FILE_NAME));
 				s3Operator.delete(bucket, s3Key);
-				logInfo(METHOD_NAME, "data_team_list.txt S3削除完了 bucket=" + bucket + ", key=" + s3Key);
 			}
-
 			return;
 		}
 
@@ -1272,20 +1300,8 @@ public class EachCsvTransaction {
 				StandardOpenOption.CREATE,
 				StandardOpenOption.TRUNCATE_EXISTING);
 
-		logInfo(METHOD_NAME, "data_team_list.txt 更新完了. path=" + localTeamPath
-				+ ", removed=" + removedLines.size()
-				+ ", remaining=" + newLines.size());
-
-		for (String key : deleteKeys) {
-			boolean found = removedLines.stream().anyMatch(line -> line.startsWith(key + "\t") || line.equals(key));
-			if (!found) {
-				logWarn(METHOD_NAME, "data_team_list 未検出 csvId=" + key);
-			}
-		}
-
 		if (!localOnly) {
-			boolean uploaded = fileExistsService.uploadDataTeamListIfExists(bucket, prefix);
-			logInfo(METHOD_NAME, "data_team_list.txt S3反映 result=" + uploaded);
+			fileExistsService.uploadDataTeamListIfExists(bucket, prefix);
 		}
 	}
 
@@ -1574,8 +1590,10 @@ public class EachCsvTransaction {
 	}
 
 	private static final class DeleteResult {
-		private final Set<String> deletedCsvIds = new LinkedHashSet<>();
-		private final Set<String> failedCsvIds = new LinkedHashSet<>();
-		private final Set<String> deletedPhysicalCsvIds = new LinkedHashSet<>();
+		private final Set<String> deletedOriginalCsvIds = new LinkedHashSet<>();
+		private final Set<String> deletedCanonicalCsvIds = new LinkedHashSet<>();
+		private final Set<String> failedOriginalCsvIds = new LinkedHashSet<>();
+		private final Set<String> deletedLocalRelativePaths = new LinkedHashSet<>();
 	}
+
 }
