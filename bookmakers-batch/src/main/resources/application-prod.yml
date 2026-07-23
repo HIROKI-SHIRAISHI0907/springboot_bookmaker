@@ -25,6 +25,7 @@ process:
       record: ${S3_RECORD:aws-s3-record-csv}
       outputsFin: ${S3_OUTPUTS_FIN:aws-s3-outputs-fin-csv}
       delayPostpone: ${S3_DELAYPOSTPONE:aws-s3-delay-postpone-csv}
+      nextSeason: ${S3_NEXT_SEASON:aws-s3-next-season-info-csv}
       
 cleanup:
   enabled: true

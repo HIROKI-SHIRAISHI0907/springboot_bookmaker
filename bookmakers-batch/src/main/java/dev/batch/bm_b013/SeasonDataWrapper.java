@@ -1,5 +1,8 @@
 package dev.batch.bm_b013;
 
+import java.nio.file.Files;
+import java.nio.file.Path;
+import java.nio.file.Paths;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.LinkedHashMap;
@@ -11,10 +14,14 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
+import dev.common.config.PathConfig;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.s3.S3Operator;
 import dev.common.util.DateUtil;
 
 /**
@@ -31,6 +38,8 @@ public class SeasonDataWrapper {
 	/** クラス名 */
 	private static final String CLASS_NAME = AutoSeasonHyphenTransaction.class.getName();
 
+	private static final String FILE_PREFIX = "b025_fin_season_data_";
+
 	/** シーズンバッチレポジトリ */
 	@Autowired
 	private CountryLeagueSeasonMasterBatchRepository countryLeagueSeasonMasterBatchRepository;
@@ -46,6 +55,16 @@ public class SeasonDataWrapper {
 	/** CSV関係の更新 */
 	@Autowired
 	private EachCsvTransaction eachCsvTransaction;
+
+	/** バケット管理 */
+	@Autowired
+	private PathConfig config;
+
+	@Autowired
+	private ObjectMapper objectMapper;
+
+	@Autowired
+	private S3Operator s3Operator;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -96,6 +115,20 @@ public class SeasonDataWrapper {
 		}
 
 		dto.setCountryLeagueMap(countryLeagueMap);
+
+		// シーズン終了データをまとめたJSONデータをupload
+		String seasonFinBucket = config.getS3BucketsOutputsNextSeason();
+		// 4) ローカルへJSON出力
+		final String fileName = FILE_PREFIX + ".json";
+		final String jsonFolder = config.getB008JsonFolder(); // 例: /tmp/json/
+		final Path jsonFilePath = Paths.get(jsonFolder, fileName);
+
+		Files.createDirectories(jsonFilePath.getParent());
+		objectMapper.writerWithDefaultPrettyPrinter().writeValue(jsonFilePath.toFile(), countryLeagueMap);
+
+		// 5) S3へアップロード
+		final String s3Key = fileName;
+		s3Operator.uploadFile(seasonFinBucket, s3Key, jsonFilePath);
 
 		// country-league の一覧を DTO に保持
 		List<String> countryLeagueList = list.stream()
