@@ -138,6 +138,12 @@ public class PathConfig {
 	private String s3BucketsOutputsDelayPostpone;
 
 	/**
+	 * S3バケット（next-season）
+	 */
+	@Value("${process.s3.buckets.nextSeason}")
+	private String s3BucketsOutputsNextSeason;
+
+	/**
 	 * JSONフォルダ作成パスを返す
 	 * @return
 	 */
@@ -321,6 +327,15 @@ public class PathConfig {
 	 */
 	public String getS3BucketsOutputsDelayPostpone() {
 	    return s3BucketsOutputsDelayPostpone;
+	}
+
+	/**
+	 * NextSeason（汎用出力）用のS3バケット名を取得する。
+	 *
+	 * @return NextSeason用S3バケット名
+	 */
+	public String getS3BucketsOutputsNextSeason() {
+	    return s3BucketsOutputsNextSeason;
 	}
 
 }
