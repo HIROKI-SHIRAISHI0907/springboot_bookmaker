@@ -38,7 +38,7 @@ public class SeasonDataWrapper {
 	/** クラス名 */
 	private static final String CLASS_NAME = AutoSeasonHyphenTransaction.class.getName();
 
-	private static final String FILE_PREFIX = "b025_fin_season_data_";
+	private static final String FILE_PREFIX = "b025_fin_season_data";
 
 	/** シーズンバッチレポジトリ */
 	@Autowired
