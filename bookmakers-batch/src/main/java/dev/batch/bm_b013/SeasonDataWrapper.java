@@ -3,8 +3,11 @@ package dev.batch.bm_b013;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.time.Instant;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.format.DateTimeFormatter;
+import java.time.format.DateTimeParseException;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
@@ -39,6 +42,8 @@ public class SeasonDataWrapper {
 	private static final String CLASS_NAME = AutoSeasonHyphenTransaction.class.getName();
 
 	private static final String FILE_PREFIX = "b025_fin_season_data";
+	private static final String SEASON_READFIN_MARKER = "(season=READFIN)";
+	private static final String TEAM_READFIN_MARKER = "(team=READFIN)";
 
 	/** シーズンバッチレポジトリ */
 	@Autowired
@@ -161,9 +166,11 @@ public class SeasonDataWrapper {
 		    mergedMap.clear();
 		}
 
-		// 2) 新規 countryLeagueMap をマージ（READFIN マーカー保持）
+		// 2) 新規 countryLeagueMap をマージ
 		int addedCount = 0;
 		int preservedCount = 0;
+		int updatedCount = 0;
+
 		for (Map.Entry<String, String> entry : countryLeagueMap.entrySet()) {
 		    String key = entry.getKey();
 		    String newValue = entry.getValue();
@@ -171,24 +178,65 @@ public class SeasonDataWrapper {
 		    if (mergedMap.containsKey(key)) {
 		        String existingValue = mergedMap.get(key);
 
-		        // 既存値がある場合は既存を尊重
-		        //   - READFIN マーカー付き: 絶対上書き禁止
-		        //   - マーカー無し: 初回記録日時尊重で上書きしない
-		        if (existingValue != null && !existingValue.isBlank()) {
+		        // 既存値が null/空 → 新値で置換
+		        if (existingValue == null || existingValue.isBlank()) {
+		            mergedMap.put(key, newValue);
+		            addedCount++;
+		            continue;
+		        }
+
+		        // 既存値に READFIN マーカーが付いている → 絶対に上書きしない
+		        if (existingValue.contains(SEASON_READFIN_MARKER)
+		                || existingValue.contains(TEAM_READFIN_MARKER)) {
 		            preservedCount++;
 		            continue;
 		        }
-		        // 万一 null/空 の場合のみ新値で上書き
-		        mergedMap.put(key, newValue);
-		        addedCount++;
+
+		        // マーカー無しの場合、日付部分を比較
+		        String existingDatePart = extractDatePart(existingValue);
+		        String newDatePart = extractDatePart(newValue);
+
+		        // 日付をパースして新旧比較
+		        Instant existingInstant = parseFinSeasonDate(existingDatePart);
+		        Instant newInstant = parseFinSeasonDate(newDatePart);
+
+		        if (newInstant != null && existingInstant != null
+		                && newInstant.isAfter(existingInstant)) {
+		            // 新しい日付 → 上書き（来シーズン終了日で更新）
+		            mergedMap.put(key, newValue);
+		            updatedCount++;
+		            this.manageLoggerComponent.debugInfoLog(
+		                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+		                    MessageCdConst.MCD00001I_BATCH_EXECUTION_GREEN_FIN,
+		                    "日付更新(新シーズン): " + key
+		                            + " [" + existingDatePart + " -> " + newDatePart + "]");
+		        } else if (newInstant == null || existingInstant == null) {
+		            // どちらかがパース失敗
+		            //  - 既存値がパース不能で新値が有効 → 上書き（復旧）
+		            //  - 新値がパース不能 → 保持
+		            if (existingInstant == null && newInstant != null) {
+		                mergedMap.put(key, newValue);
+		                updatedCount++;
+		                this.manageLoggerComponent.debugInfoLog(
+		                        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+		                        MessageCdConst.MCD00001I_BATCH_EXECUTION_GREEN_FIN,
+		                        "日付更新(既存パース不能): " + key
+		                                + " [" + existingDatePart + " -> " + newDatePart + "]");
+		            } else {
+		                preservedCount++;
+		            }
+		        } else {
+		            // 新しい日付 <= 既存日付 → 保持（初回記録日時尊重）
+		            preservedCount++;
+		        }
 		    } else {
-		        // 新規キーは追加
+		        // 新規キー追加
 		        mergedMap.put(key, newValue);
 		        addedCount++;
 		    }
 		}
 
-		// 3) マージ結果をローカルに書き出し
+		// 3) マージ結果をローカルへ出力
 		objectMapper.writerWithDefaultPrettyPrinter().writeValue(jsonFilePath.toFile(), mergedMap);
 
 		// 4) S3へアップロード
@@ -198,7 +246,8 @@ public class SeasonDataWrapper {
 		        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 		        MessageCdConst.MCD00001I_BATCH_EXECUTION_GREEN_FIN,
 		        "b025_fin_season_data.json アップロード完了: 合計 " + mergedMap.size()
-		                + " 件 (新規追加: " + addedCount + " 件 / 保持: " + preservedCount + " 件)");
+		                + " 件 (新規: " + addedCount + " / 更新: " + updatedCount
+		                + " / 保持: " + preservedCount + ")");
 
 		// country-league の一覧を DTO に保持
 		List<String> countryLeagueList = list.stream()
@@ -266,6 +315,82 @@ public class SeasonDataWrapper {
 
 		// 「3日経過しているものだけ」を取りたいので、now がその3日後を超えているかで判定
 		return !now.isBefore(threeDaysAfterEnd);
+	}
+
+	/**
+	 * b025値から日付部分だけを抽出する
+	 * 例:
+	 *   "2026-07-21 12:00:00+00" -> "2026-07-21 12:00:00+00"
+	 *   "2026-07-21 12:00:00+00 (season=READFIN)" -> "2026-07-21 12:00:00+00"
+	 *   "2026-07-21 12:00:00+00 (season=READFIN) (team=READFIN)" -> "2026-07-21 12:00:00+00"
+	 *
+	 * @param value b025 JSONの値
+	 * @return 日付部分（マーカー除去後、トリム済み）
+	 */
+	private String extractDatePart(String value) {
+	    if (value == null || value.isBlank()) {
+	        return null;
+	    }
+	    return value
+	            .replace(SEASON_READFIN_MARKER, "")
+	            .replace(TEAM_READFIN_MARKER, "")
+	            .trim();
+	}
+
+	/**
+	 * b025値の日付部分をInstantにパースする
+	 * 対応フォーマット例:
+	 *   "2026-07-21 12:00:00+00"
+	 *   "2026-07-21 12:00:00+0000"
+	 *   "2026-07-21 12:00:00+00:00"
+	 *
+	 * @param dateStr 日付文字列(マーカー除去済み推奨)
+	 * @return パース成功: Instant / 失敗: null
+	 */
+	private Instant parseFinSeasonDate(String dateStr) {
+		final String METHOD_NAME = "parseFinSeasonDate";
+	    if (dateStr == null || dateStr.isBlank()) {
+	        return null;
+	    }
+	    String s = dateStr.trim();
+
+	    // マーカーが残っていても除去
+	    s = s.replace(SEASON_READFIN_MARKER, "")
+	         .replace(TEAM_READFIN_MARKER, "")
+	         .trim();
+
+	    // "+00" -> "+00:00" に正規化（ISO_OFFSET_DATE_TIMEはコロン必須）
+	    // "yyyy-MM-dd HH:mm:ss+00" のような表記に対応
+	    // まずスペースをTに置換
+	    String normalized = s.replaceFirst(" ", "T");
+
+	    // オフセット末尾が "+00" や "+0900" の場合に "+00:00" 形式へ
+	    normalized = normalized.replaceAll("([+-]\\d{2})$", "$1:00");
+	    normalized = normalized.replaceAll("([+-]\\d{2})(\\d{2})$", "$1:$2");
+
+	    try {
+	        return OffsetDateTime.parse(normalized).toInstant();
+	    } catch (DateTimeParseException e1) {
+	        // フォールバック: よくあるパターンを個別に試す
+	        List<DateTimeFormatter> formatters = List.of(
+	                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssXXX"),
+	                DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssX"),
+	                DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssXXX"),
+	                DateTimeFormatter.ofPattern("yyyy-MM-dd'T'HH:mm:ssX")
+	        );
+	        for (DateTimeFormatter f : formatters) {
+	            try {
+	                return OffsetDateTime.parse(s, f).toInstant();
+	            } catch (DateTimeParseException ignore) {
+	                // continue
+	            }
+	        }
+	        this.manageLoggerComponent.debugInfoLog(
+	                PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+	                MessageCdConst.MCD00001I_BATCH_EXECUTION_GREEN_FIN,
+	                "日付パース失敗: " + dateStr);
+	        return null;
+	    }
 	}
 
 }
