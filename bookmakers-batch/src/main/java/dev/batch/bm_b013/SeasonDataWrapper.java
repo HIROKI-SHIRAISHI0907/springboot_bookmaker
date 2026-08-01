@@ -118,17 +118,87 @@ public class SeasonDataWrapper {
 
 		// シーズン終了データをまとめたJSONデータをupload
 		String seasonFinBucket = config.getS3BucketsOutputsNextSeason();
-		// 4) ローカルへJSON出力
-		final String fileName = FILE_PREFIX + ".json";
-		final String jsonFolder = config.getB008JsonFolder(); // 例: /tmp/json/
+		final String fileName = FILE_PREFIX + ".json"; // b025_fin_season_data.json
+		final String jsonFolder = config.getB008JsonFolder(); // /tmp/json/
 		final Path jsonFilePath = Paths.get(jsonFolder, fileName);
+		final String s3Key = fileName;
 
 		Files.createDirectories(jsonFilePath.getParent());
-		objectMapper.writerWithDefaultPrettyPrinter().writeValue(jsonFilePath.toFile(), countryLeagueMap);
 
-		// 5) S3へアップロード
-		final String s3Key = fileName;
+		// 1) 既存S3上の b025_fin_season_data.json を取得
+		Map<String, String> mergedMap = new LinkedHashMap<>();
+		try {
+		    List<String> existingKeys = s3Operator.listKeys(seasonFinBucket, s3Key);
+		    boolean exists = existingKeys.stream().anyMatch(k -> k.equals(s3Key));
+
+		    if (exists) {
+		        String existingJson = s3Operator.downloadTextUtf8(seasonFinBucket, s3Key);
+
+		        if (existingJson != null && !existingJson.isBlank()) {
+		            @SuppressWarnings("unchecked")
+		            Map<String, String> existingMap = objectMapper.readValue(
+		                    existingJson, LinkedHashMap.class);
+
+		            if (existingMap != null && !existingMap.isEmpty()) {
+		                mergedMap.putAll(existingMap);
+		                this.manageLoggerComponent.debugInfoLog(
+		                        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+		                        MessageCdConst.MCD00001I_BATCH_EXECUTION_GREEN_FIN,
+		                        "既存 b025_fin_season_data.json を取得: " + existingMap.size() + "件");
+		            }
+		        }
+		    } else {
+		        this.manageLoggerComponent.debugInfoLog(
+		                PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+		                MessageCdConst.MCD00001I_BATCH_EXECUTION_GREEN_FIN,
+		                "既存 b025_fin_season_data.json は S3 に存在しません。新規作成。");
+		    }
+		} catch (Exception e) {
+		    this.manageLoggerComponent.debugErrorLog(
+		            PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+		            MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+		            "既存 b025_fin_season_data.json の取得に失敗。マージをスキップ。");
+		    mergedMap.clear();
+		}
+
+		// 2) 新規 countryLeagueMap をマージ（READFIN マーカー保持）
+		int addedCount = 0;
+		int preservedCount = 0;
+		for (Map.Entry<String, String> entry : countryLeagueMap.entrySet()) {
+		    String key = entry.getKey();
+		    String newValue = entry.getValue();
+
+		    if (mergedMap.containsKey(key)) {
+		        String existingValue = mergedMap.get(key);
+
+		        // 既存値がある場合は既存を尊重
+		        //   - READFIN マーカー付き: 絶対上書き禁止
+		        //   - マーカー無し: 初回記録日時尊重で上書きしない
+		        if (existingValue != null && !existingValue.isBlank()) {
+		            preservedCount++;
+		            continue;
+		        }
+		        // 万一 null/空 の場合のみ新値で上書き
+		        mergedMap.put(key, newValue);
+		        addedCount++;
+		    } else {
+		        // 新規キーは追加
+		        mergedMap.put(key, newValue);
+		        addedCount++;
+		    }
+		}
+
+		// 3) マージ結果をローカルに書き出し
+		objectMapper.writerWithDefaultPrettyPrinter().writeValue(jsonFilePath.toFile(), mergedMap);
+
+		// 4) S3へアップロード
 		s3Operator.uploadFile(seasonFinBucket, s3Key, jsonFilePath);
+
+		this.manageLoggerComponent.debugInfoLog(
+		        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+		        MessageCdConst.MCD00001I_BATCH_EXECUTION_GREEN_FIN,
+		        "b025_fin_season_data.json アップロード完了: 合計 " + mergedMap.size()
+		                + " 件 (新規追加: " + addedCount + " 件 / 保持: " + preservedCount + " 件)");
 
 		// country-league の一覧を DTO に保持
 		List<String> countryLeagueList = list.stream()
