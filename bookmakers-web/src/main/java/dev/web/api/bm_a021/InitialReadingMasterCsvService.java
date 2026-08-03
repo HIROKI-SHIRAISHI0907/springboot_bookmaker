@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.common.constant.MasterNameConstant;
+import dev.common.entity.AllLeagueMasterEntity;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.entity.InitialReadingMasterCsvEntity;
@@ -17,6 +18,7 @@ import dev.web.api.bm_a002.CountryLeagueSeasonDTO;
 import dev.web.api.bm_a002.CountryLeagueSeasonSearchCondition;
 import dev.web.api.bm_a003.CountryLeagueDTO;
 import dev.web.api.bm_a003.CountryLeagueSearchCondition;
+import dev.web.repository.master.AllLeagueMasterWebRepository;
 import dev.web.repository.master.CountryLeagueMasterWebRepository;
 import dev.web.repository.master.CountryLeagueSeasonMasterWebRepository;
 import dev.web.repository.master.InitialReadingMasterCsvRepository;
@@ -35,6 +37,9 @@ public class InitialReadingMasterCsvService {
 
 	@Autowired
 	private CountryLeagueMasterWebRepository countryLeagueMasterWebRepository;
+
+	@Autowired
+	private AllLeagueMasterWebRepository allLeagueMasterWebRepository;
 
 	/**
 	 * 指定マスタの初回読み込み状態を返却
@@ -200,6 +205,36 @@ public class InitialReadingMasterCsvService {
 						target.getCountry(),
 						target.getLeague(),
 						target.getTeam());
+
+				updateCount += result;
+
+				if (result > 0) {
+					InitialReadingMasterCsvUpdateStatusTargetRequest updated = new InitialReadingMasterCsvUpdateStatusTargetRequest();
+					updated.setCountry(target.getCountry());
+					updated.setLeague(target.getLeague());
+					updatedTargets.add(updated);
+				}
+			}
+		}
+
+		if (MasterNameConstant.ALL_LEAGUE_SCRAPE_MASTER.equals(request.getMasterName())) {
+			for (AllLeagueMasterEntity target : request.getAllLeagueMasterEntities()) {
+				if (target == null) {
+					continue;
+				}
+
+				Integer id = target.getId();
+				String country = target.getCountry();
+				String league = target.getLeague();
+
+				if (id == null || !hasText(country) || !hasText(league)) {
+					continue;
+				}
+
+				int result = this.allLeagueMasterWebRepository.updateRow(
+						id,
+						target.getCountry(),
+						target.getLeague());
 
 				updateCount += result;
 

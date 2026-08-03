@@ -76,4 +76,23 @@ public class AllLeagueMasterWebRepository {
 						.addValue("disp_flg", disp_flg));
 	}
 
+	/** 更新 */
+	public int updateRow(Integer id, String country, String league) {
+		String sql = """
+				    UPDATE all_league_scrape_master
+				    SET
+				      country = :country,
+				      league = :league
+				    WHERE
+				      id = :id
+				""";
+
+		return masterJdbcTemplate.update(
+				sql,
+				new MapSqlParameterSource()
+						.addValue("id", id)
+						.addValue("country", country)
+						.addValue("league", league));
+	}
+
 }

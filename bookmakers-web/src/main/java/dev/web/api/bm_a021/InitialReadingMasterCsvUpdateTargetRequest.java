@@ -2,6 +2,7 @@ package dev.web.api.bm_a021;
 
 import java.util.List;
 
+import dev.common.entity.AllLeagueMasterEntity;
 import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import lombok.Data;
@@ -17,5 +18,8 @@ public class InitialReadingMasterCsvUpdateTargetRequest {
 
 	/** CountryLeagueSeasonMasterEntity */
 	private List<CountryLeagueMasterEntity> masterEntities;
+
+	/** AllLeagueMasterEntity */
+	private List<AllLeagueMasterEntity> allLeagueMasterEntities;
 
 }
