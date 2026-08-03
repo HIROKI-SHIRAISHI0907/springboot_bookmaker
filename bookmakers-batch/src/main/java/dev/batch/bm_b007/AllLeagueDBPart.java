@@ -89,7 +89,7 @@ public class AllLeagueDBPart {
 
 			    if (existsLeague != null) {
 			        int update = allLeagueMasterBatchRepository
-			                .reviveById(Integer.parseInt(existsLeague.getId()));
+			                .reviveById(existsLeague.getId());
 			        if (update == 0) {
 			            manageLoggerComponent.debugErrorLog(
 			                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, null,
@@ -125,7 +125,7 @@ public class AllLeagueDBPart {
 			        AllLeagueMasterEntity oldLeague =
 			                allLeagueMasterBatchRepository.findByCountryLeague(countries, lg);
 
-			        if (oldLeague == null || isBlank(oldLeague.getId())) {
+			        if (oldLeague == null) {
 			            manageLoggerComponent.debugErrorLog(
 			                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, null,
 			                    "old league not found for logical delete: (country: " + countries + ", league: " + lg + ")");
@@ -133,7 +133,7 @@ public class AllLeagueDBPart {
 			        }
 
 			        int update = allLeagueMasterBatchRepository
-			                .logicalDeleteById(Integer.parseInt(oldLeague.getId()));
+			                .logicalDeleteById(oldLeague.getId());
 
 			        if (update == 0) {
 			            manageLoggerComponent.debugErrorLog(

@@ -5,8 +5,8 @@ import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Transactional;
 
-import dev.batch.interf.AllMasterEntityIF;
 import dev.common.config.PathConfig;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.AllLeagueMasterEntity;
@@ -20,7 +20,8 @@ import dev.common.util.FileDeleteUtil;
  *
  */
 @Component
-public class AllLeagueMasterStat implements AllMasterEntityIF {
+@Transactional
+public class AllLeagueMasterStat {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = AllLeagueMasterStat.class.getProtectionDomain()
@@ -30,7 +31,11 @@ public class AllLeagueMasterStat implements AllMasterEntityIF {
 	private static final String CLASS_NAME = AllLeagueMasterStat.class.getName();
 
 	/** 実行モード */
-	private static final String EXEC_MODE = "ALL_LEAGUE_MASTER";
+	private static final String EXEC_MODE = "ALL_LEAGUE";
+
+	/** AllLeagueDBService部品 */
+	@Autowired
+	private AllLeagueDBService allLeagueDBService;
 
 	/** Config */
 	@Autowired
@@ -40,67 +45,75 @@ public class AllLeagueMasterStat implements AllMasterEntityIF {
 	@Autowired
 	private S3Operator s3Operator;
 
-	/** CountryLeagueDBService部品 */
-	@Autowired
-	private AllLeagueDBService allLeagueDBService;
-
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
 
 	/**
-	 * {@inheritDoc}
+	 * 実行
+	 * @param fileName 取得元ファイル名（削除対象）
+	 * @param entities 登録対象
+	 * @throws Exception 例外
 	 */
-	@Override
-	public void masterStat(String file,
-			List<AllLeagueMasterEntity> entities) throws Exception {
-		final String METHOD_NAME = "masterStat";
-		// ログ出力
+	public void allLeagueStat(String fileName, List<AllLeagueMasterEntity> entities) throws Exception {
+		final String METHOD_NAME = "calcStat";
+
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		List<String> insertPath = new ArrayList<String>();
-		// 今後の全容マスタ情報を登録する
-		int skipped = 0;
-		int inserted = 0;
-		for (AllLeagueMasterEntity entity : entities) {
+		List<String> insertPath = new ArrayList<>();
+
+		try {
+			List<AllLeagueMasterEntity> insertTargets =
+					this.allLeagueDBService.selectInBatch(entities);
+
+			int insertResult = this.allLeagueDBService.insertInBatch(insertTargets);
+			if (insertResult == 9) {
+				String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
+				throw new Exception(messageCd);
+			}
+
+			// CSVに存在した country + league は、差分有無に関係なくモーダル表示対象へ戻す
+			int initialFlgResetResult =
+					this.allLeagueDBService.resetInitialFlgByIncomingTargets(entities);
+			if (initialFlgResetResult == 9) {
+				String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
+				throw new Exception(messageCd);
+			}
+
+			if (hasMeaningfulValue(fileName)) {
+				insertPath.add(fileName);
+			}
+
+		} catch (Exception e) {
+			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+			throw new Exception(messageCd, e);
+		} finally {
 			try {
-				AllLeagueMasterEntity insertEntities = this.allLeagueDBService
-						.selectInBatch(entity);
-				if (insertEntities == null) { skipped++; continue; }
-				int result = this.allLeagueDBService.insertInBatch(insertEntities);
-				if (result == 9) {
-					String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-					throw new Exception(messageCd);
-				}
-				inserted++;
-			} catch (Exception e) {
-				String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
-				throw new Exception(messageCd, e);
+				String bucket = config.getS3BucketsTeamSeasonDateData();
+
+				FileDeleteUtil.deleteS3Files(
+						insertPath,
+						bucket,
+						s3Operator,
+						manageLoggerComponent,
+						PROJECT_NAME,
+						CLASS_NAME,
+						METHOD_NAME,
+						"ALL_LEAGUE_MASTER");
+			} finally {
+				this.manageLoggerComponent.debugEndInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+				this.manageLoggerComponent.clear();
 			}
 		}
-		manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
-			    "B007 summary: total=" + entities.size() + " skipped(existing)=" + skipped + " inserted=" + inserted);
+	}
 
-		// ファイル追加
-		insertPath.add(file);
-
-		// 途中で例外が起きなければ全てのファイルを削除する
-		String bucket = config.getS3BucketsAllLeagueData(); // バケット名取得
-		FileDeleteUtil.deleteS3Files(
-				insertPath,
-				bucket,
-				s3Operator,
-				manageLoggerComponent,
-				PROJECT_NAME,
-				CLASS_NAME,
-				METHOD_NAME,
-				"ALL_LEAGUE_MASTER");
-
-		// endLog
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		this.manageLoggerComponent.clear();
+	private boolean hasMeaningfulValue(String value) {
+		if (value == null) {
+			return false;
+		}
+		return !value.trim().isEmpty();
 	}
 }
