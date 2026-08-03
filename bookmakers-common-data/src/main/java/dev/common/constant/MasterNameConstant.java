@@ -19,4 +19,8 @@ public class MasterNameConstant {
 	/** TEAM_COLOR_MASTER */
 	public static final String TEAM_COLOR_MASTER = "team_color_master";
 
+	/** ALL_LEAGUE_SCRAPE_MASTER */
+	public static final String ALL_LEAGUE_SCRAPE_MASTER = "all_league_scrape_master";
+
+
 }

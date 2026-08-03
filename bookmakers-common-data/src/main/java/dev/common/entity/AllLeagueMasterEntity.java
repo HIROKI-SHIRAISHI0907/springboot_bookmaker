@@ -15,7 +15,7 @@ import lombok.EqualsAndHashCode;
 public class AllLeagueMasterEntity extends MetaEntity implements Serializable {
 
 	/** ID */
-	private String id;
+	private Integer id;
 
 	/** スクレイピング国 */
 	private String country;
