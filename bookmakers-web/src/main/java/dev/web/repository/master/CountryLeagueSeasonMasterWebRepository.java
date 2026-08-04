@@ -40,6 +40,7 @@ public class CountryLeagueSeasonMasterWebRepository {
 				      start_season_date,
 				      end_season_date,
 				      season_year,
+				      round,
 				      path,
 				      del_flg
 				    FROM country_league_season_master
@@ -53,11 +54,13 @@ public class CountryLeagueSeasonMasterWebRepository {
 
 		return masterJdbcTemplate.query(sql.toString(), params, (rs, n) -> {
 			CountryLeagueSeasonDTO dto = new CountryLeagueSeasonDTO();
+			dto.setId(rs.getString("id"));
 			dto.setCountry(rs.getString("country"));
 			dto.setLeague(rs.getString("league"));
 			dto.setStartSeasonDate(rs.getString("start_season_date"));
 			dto.setEndSeasonDate(rs.getString("end_season_date"));
 			dto.setSeasonYear(rs.getString("season_year"));
+			dto.setRound(rs.getString("round"));
 			dto.setPath(rs.getString("path"));
 			dto.setDelFlg(rs.getString("del_flg"));
 			return dto;
