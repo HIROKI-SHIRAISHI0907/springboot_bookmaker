@@ -72,8 +72,7 @@ public class TeamMemberMasterStat {
 	public void execute(List<TeamMemberMasterEntity> scrapedRows, boolean fullSnapshot) {
 		final String METHOD_NAME = "execute";
 
-		List<String> insertPath = new ArrayList<String>();
-
+		List<String> insertPath = new ArrayList<>();
 		String runDate = LocalDate.now(JST).format(DATE_FMT);
 
 		// 既存データ全件取得
@@ -87,36 +86,56 @@ public class TeamMemberMasterStat {
 		List<TeamMemberMasterEntity> incomingList = dedupIncoming(scrapedRows, runDate);
 
 		for (TeamMemberMasterEntity incoming : incomingList) {
-			// 削除対象ファイル設定
 			insertPath.add(incoming.getFile());
-
 			normalizeEntity(incoming, runDate);
 
-			// ─── Step1: 同一チーム・同一人物の完全一致 ───────────────────
+			// ─── Step1: 同一国・同一チーム・同一人物の完全一致 ───────────────
 			TeamMemberMasterEntity exact = bean.findExactCurrent(incoming);
 			if (exact != null) {
 				TeamMemberMasterEntity updated = mergeSameTeam(copyOf(exact), incoming, runDate);
 				repository.updateById(updated);
 				bean.putWorking(updated);
 				seenIds.add(updated.getId());
+
+				log.info("[同一所属更新] country={} / league={} / team={} / member={}",
+						nvl(updated.getCountry()),
+						nvl(updated.getLeague()),
+						nvl(updated.getTeam()),
+						nvl(updated.getMember()));
 				continue;
 			}
 
-			// ─── Step2: 同一人物候補（team を無視して人物を特定） ─────────
+			// ─── Step2: 同一国の中で同一人物候補（team を無視して人物特定） ───
 			TeamMemberMasterEntity samePerson = bean.resolveSamePerson(incoming);
+
+			// 念のため防御的に country 差異は排除
+			if (samePerson != null && !eq(samePerson.getCountry(), incoming.getCountry())) {
+				samePerson = null;
+			}
+
 			if (samePerson != null) {
 				TeamMemberMasterEntity updated;
+
 				if (!eq(samePerson.getTeam(), incoming.getTeam())) {
-					// 移籍
+					// 移籍（country は同一、team が差異）
 					updated = applyTransfer(copyOf(samePerson), incoming, runDate);
-					log.info("[移籍] member={} / {} → {}",
+					log.info("[移籍] country={} / member={} / {} → {}",
+							nvl(incoming.getCountry()),
 							nvl(incoming.getMember()),
 							nvl(samePerson.getTeam()),
 							nvl(incoming.getTeam()));
 				} else {
-					// 同一人物・同一チームだが exact key に乗らなかった（jersey変更など）
+					// 同一人物・同一チーム
+					// → league 差異だけのケース（昇格/降格・リーグ改称）を含め更新
 					updated = mergeSameTeam(copyOf(samePerson), incoming, runDate);
+					log.info("[リーグ更新/同一チーム更新] country={} / team={} / member={} / {} → {}",
+							nvl(incoming.getCountry()),
+							nvl(incoming.getTeam()),
+							nvl(incoming.getMember()),
+							nvl(samePerson.getLeague()),
+							nvl(incoming.getLeague()));
 				}
+
 				repository.updateById(updated);
 				bean.putWorking(updated);
 				seenIds.add(updated.getId());
@@ -124,13 +143,20 @@ public class TeamMemberMasterStat {
 			}
 
 			// ─── Step3: 新規登録 ─────────────────────────────────────────
+			// country が異なる場合は、league/team/member が同じでも別レコード扱い
 			TeamMemberMasterEntity newEntity = buildNewEntity(incoming, runDate);
 			repository.insert(newEntity);
 			bean.putWorking(newEntity);
+
 			if (!isBlank(newEntity.getId())) {
 				seenIds.add(newEntity.getId());
 			}
-			log.info("[新規] member={} / team={}", nvl(newEntity.getMember()), nvl(newEntity.getTeam()));
+
+			log.info("[新規] country={} / league={} / team={} / member={}",
+					nvl(newEntity.getCountry()),
+					nvl(newEntity.getLeague()),
+					nvl(newEntity.getTeam()),
+					nvl(newEntity.getMember()));
 		}
 
 		// ─── Step4: 引退 / missing 判定 ──────────────────────────────────
@@ -142,19 +168,22 @@ public class TeamMemberMasterStat {
 				if (seenIds.contains(existing.getId())) {
 					continue;
 				}
+
 				TeamMemberMasterEntity missingUpdated = markMissingOrRetired(copyOf(existing));
 				repository.updateById(missingUpdated);
 				bean.putWorking(missingUpdated);
 
 				if ("1".equals(missingUpdated.getRetireFlg())) {
-					log.info("[引退確定] member={} / team={} / missingCount={}",
-							nvl(missingUpdated.getMember()),
+					log.info("[引退確定] country={} / team={} / member={} / missingCount={}",
+							nvl(missingUpdated.getCountry()),
 							nvl(missingUpdated.getTeam()),
+							nvl(missingUpdated.getMember()),
 							nvl(missingUpdated.getMissingCount()));
 				} else {
-					log.info("[未検出] member={} / team={} / missingCount={}",
-							nvl(missingUpdated.getMember()),
+					log.info("[未検出] country={} / team={} / member={} / missingCount={}",
+							nvl(missingUpdated.getCountry()),
 							nvl(missingUpdated.getTeam()),
+							nvl(missingUpdated.getMember()),
 							nvl(missingUpdated.getMissingCount()));
 				}
 			}
@@ -163,7 +192,7 @@ public class TeamMemberMasterStat {
 		}
 
 		// 途中で例外が起きなければ全てのファイルを削除する
-		String bucket = config.getS3BucketsTeamMemberData(); // バケット名取得
+		String bucket = config.getS3BucketsTeamMemberData();
 		FileDeleteUtil.deleteS3Files(
 				insertPath,
 				bucket,
@@ -180,16 +209,21 @@ public class TeamMemberMasterStat {
 	// =========================================================================
 
 	/**
-	 * 新規入力の中で currentKey が重複する行を1件にまとめる
+	 * 新規入力の中で同一国・同一チーム・同一人物(currentKey)が重複する行を1件にまとめる
+	 *
+	 * ※ league は currentKey に含めない
+	 *    -> 同一国・同一チーム・同一人物で league だけ違うデータは同一選手としてマージ
 	 */
-	private List<TeamMemberMasterEntity> dedupIncoming(List<TeamMemberMasterEntity> scrapedRows,
-			String runDate) {
+	private List<TeamMemberMasterEntity> dedupIncoming(List<TeamMemberMasterEntity> scrapedRows, String runDate) {
 		if (scrapedRows == null || scrapedRows.isEmpty()) {
 			return new ArrayList<>();
 		}
+
 		Map<String, TeamMemberMasterEntity> map = new LinkedHashMap<>();
+
 		for (TeamMemberMasterEntity row : scrapedRows) {
 			normalizeEntity(row, runDate);
+
 			String key = BmB002TeamMemberMasterBean.currentKey(row);
 			if (!map.containsKey(key)) {
 				map.put(key, row);
@@ -197,6 +231,7 @@ public class TeamMemberMasterStat {
 				map.put(key, mergeIncomingDuplicate(map.get(key), row, runDate));
 			}
 		}
+
 		return new ArrayList<>(map.values());
 	}
 
@@ -206,6 +241,7 @@ public class TeamMemberMasterStat {
 	private TeamMemberMasterEntity mergeIncomingDuplicate(TeamMemberMasterEntity a,
 			TeamMemberMasterEntity b,
 			String runDate) {
+
 		TeamMemberMasterEntity out = copyOf(a);
 
 		out.setCountry(firstNonBlank(b.getCountry(), a.getCountry()));
@@ -248,9 +284,16 @@ public class TeamMemberMasterStat {
 		return e;
 	}
 
+	/**
+	 * 同一国・同一チーム・同一人物の更新
+	 *
+	 * ※ league は incoming 優先で更新
+	 *    -> 昇格/降格、リーグ改称に追従
+	 */
 	private TeamMemberMasterEntity mergeSameTeam(TeamMemberMasterEntity existing,
 			TeamMemberMasterEntity incoming,
 			String runDate) {
+
 		existing.setCountry(firstNonBlank(incoming.getCountry(), existing.getCountry()));
 		existing.setLeague(firstNonBlank(incoming.getLeague(), existing.getLeague()));
 		existing.setTeam(firstNonBlank(incoming.getTeam(), existing.getTeam()));
@@ -275,13 +318,19 @@ public class TeamMemberMasterStat {
 		existing.setRetireFlg("0");
 		existing.setLatestInfoDate(runDate);
 		existing.setMissingCount("0");
+
 		return existing;
 	}
 
+	/**
+	 * 同一国・同一人物だが team が変わった場合の移籍更新
+	 *
+	 * ※ country が異なるケースはここに来ない想定
+	 */
 	private TeamMemberMasterEntity applyTransfer(TeamMemberMasterEntity existing,
 			TeamMemberMasterEntity incoming,
 			String runDate) {
-		// 旧チームを belong_list に追加してから新チームへ更新
+
 		existing.setBelongList(
 				mergeBelongList(existing.getBelongList(), existing.getTeam(), incoming.getTeam()));
 
@@ -308,6 +357,7 @@ public class TeamMemberMasterStat {
 		existing.setRetireFlg("0");
 		existing.setLatestInfoDate(runDate);
 		existing.setMissingCount("0");
+
 		return existing;
 	}
 
@@ -344,13 +394,15 @@ public class TeamMemberMasterStat {
 	}
 
 	private String mergeScore(String oldScore, String newScore) {
-		if (isBlank(oldScore))
+		if (isBlank(oldScore)) {
 			return clean(newScore);
-		if (isBlank(newScore))
+		}
+		if (isBlank(newScore)) {
 			return clean(oldScore);
-		if (eq(oldScore, newScore))
+		}
+		if (eq(oldScore, newScore)) {
 			return clean(oldScore);
-		// 独自マージが必要な場合はここを差し替えてください
+		}
 		return clean(newScore);
 	}
 
@@ -359,7 +411,6 @@ public class TeamMemberMasterStat {
 	}
 
 	private String mergeInjury(String oldVal, String newVal) {
-		// 新データが空・N/A 相当のときは既存を保持
 		if (isBlank(newVal) || "N/A".equalsIgnoreCase(newVal.trim())) {
 			return clean(oldVal);
 		}
@@ -406,8 +457,10 @@ public class TeamMemberMasterStat {
 	// =========================================================================
 
 	private void normalizeEntity(TeamMemberMasterEntity e, String runDate) {
-		if (e == null)
+		if (e == null) {
 			return;
+		}
+
 		e.setCountry(clean(e.getCountry()));
 		e.setLeague(clean(e.getLeague()));
 		e.setTeam(clean(e.getTeam()));
@@ -427,25 +480,32 @@ public class TeamMemberMasterStat {
 		e.setVersusTeamScoreData(clean(e.getVersusTeamScoreData()));
 		e.setDeadline(clean(e.getDeadline()));
 		e.setDeadlineContractDate(clean(e.getDeadlineContractDate()));
-		if (isBlank(e.getRetireFlg()))
+
+		if (isBlank(e.getRetireFlg())) {
 			e.setRetireFlg("0");
-		if (isBlank(e.getMissingCount()))
+		}
+		if (isBlank(e.getMissingCount())) {
 			e.setMissingCount("0");
-		if (isBlank(e.getLatestInfoDate()))
+		}
+		if (isBlank(e.getLatestInfoDate())) {
 			e.setLatestInfoDate(runDate);
-		if (isBlank(e.getDelFlg()))
+		}
+		if (isBlank(e.getDelFlg())) {
 			e.setDelFlg("0");
+		}
 	}
 
 	private String clean(String s) {
-		if (s == null)
+		if (s == null) {
 			return null;
+		}
 		return s.replace('\u3000', ' ').trim().replaceAll("\\s+", " ");
 	}
 
 	private String cleanCsv(String s) {
-		if (isBlank(s))
+		if (isBlank(s)) {
 			return null;
+		}
 		return Arrays.stream(s.split(","))
 				.map(this::clean)
 				.filter(x -> !isBlank(x))
@@ -467,8 +527,9 @@ public class TeamMemberMasterStat {
 
 	private String firstNonBlank(String... values) {
 		for (String v : values) {
-			if (!isBlank(v))
+			if (!isBlank(v)) {
 				return clean(v);
+			}
 		}
 		return null;
 	}
@@ -478,8 +539,9 @@ public class TeamMemberMasterStat {
 	}
 
 	private int parseIntSafe(String s) {
-		if (isBlank(s))
+		if (isBlank(s)) {
 			return 0;
+		}
 		try {
 			return Integer.parseInt(s.trim());
 		} catch (NumberFormatException e) {
