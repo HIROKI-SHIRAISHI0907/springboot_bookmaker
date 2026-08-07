@@ -1,25 +1,30 @@
 package dev.common.getinfo;
 
 import java.io.InputStream;
+import java.lang.reflect.Method;
+import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.util.ArrayList;
+import java.util.Collection;
 import java.util.Collections;
 import java.util.Comparator;
-import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Locale;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
 import java.util.concurrent.TimeUnit;
+import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -29,56 +34,54 @@ import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.ReadOrigin;
-import dev.common.readfile.dto.MatchKeyItem;
 import dev.common.readfile.dto.ReadFileOutputDTO;
 import dev.common.s3.S3Operator;
-import software.amazon.awssdk.services.s3.model.S3Object;
+import lombok.extern.slf4j.Slf4j;
 
-/**
- * 起源データ取得管理クラス
- *
- * 要件:
- * 1) yyyy-MM-dd/ で昇順
- * 2) 同一日付内の mid=... は「S3で見えた順」（＝出現順）を維持
- * 3) 同一 mid 内の seq=...csv は文字列順
- *
- * 返すMap:
- * - Key: ローカルファイルパス（OriginStat が Files.deleteIfExists できるように）
- * - Value: DataEntity一覧（DataEntity.file には S3 key をセット）
- */
+@Slf4j
 @Component
 public class GetOriginInfo {
 
-	private static final String PROJECT_NAME = GetOriginInfo.class.getProtectionDomain()
-			.getCodeSource().getLocation().getPath();
+	private static final String PROJECT_NAME = "BM_B001";
+	private static final String CLASS_NAME = "GetOriginInfo";
 
-	private static final String CLASS_NAME = GetOriginInfo.class.getName();
+	/** 必要に応じて既存値へ合わせてください */
+	private static final String OUTPUTS_CSV_KEY = "";
 
-	/** LoggerFactory */
-	private static final Logger log = LoggerFactory.getLogger(GetOriginInfo.class);
+	/** 必要に応じて既存値へ合わせてください */
+	private static final int THREAD_COUNT = 8;
+	private static final long INVOKE_ALL_TIMEOUT_MINUTES = 10L;
 
-	// 例: 2026-02-05/mid=d2thPpKD/seq=000035_20260205T000138Z.csv
-	private static final Pattern OUTPUTS_CSV_KEY = Pattern.compile("^\\d{4}-\\d{2}-\\d{2}/mid=[^/]+/seq=.*\\.csv$");
-
-	@Autowired
-	private S3Operator s3Operator;
+	/**
+	 * 想定キー:
+	 * yyyy-MM-dd/mid=XXXX/seq=000001_yyyyMMddTHHmmss+0900.csv
+	 */
+	private static final Pattern KEY_PATTERN =
+			Pattern.compile("^(\\d{4}-\\d{2}-\\d{2})/mid=([^/]+)/seq=([^_/]+)_(.+)\\.csv$");
 
 	@Autowired
 	private PathConfig config;
 
 	@Autowired
-	private ReadOrigin readOrigin;
-
-	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
 
-	public Map<String, List<DataEntity>> getData(List<MatchKeyItem> items) {
+	@Autowired
+	private S3Operator s3Operator;
+
+	@Autowired
+	private ReadOrigin readOrigin;
+
+	/**
+	 * S3上の対象CSVを読み込み、S3 key -> DataEntity一覧 で返す。
+	 */
+	public LinkedHashMap<String, List<DataEntity>> getData(List<?> items) {
+
 		final String METHOD_NAME = "getData";
 
 		String bucket = config.getS3BucketsOutputs();
 		String outputFolder = safeOutputFolder();
 
-		// 1) 全走査して matcher に合うkeyだけ抽出（S3OperatorにlistAllKeysが無いのでここでやる）
+		// 1) 全走査して matcher に合うkeyだけ抽出
 		List<String> matchedKeys = listAllMatchedKeys(bucket, OUTPUTS_CSV_KEY, items);
 
 		log.info("[B001] S3 bucket={} prefix={} keys.size={} keys(sample)={}",
@@ -96,234 +99,452 @@ public class GetOriginInfo {
 		// 2) 要件どおりに並べ替え
 		List<String> orderedKeys = orderKeysByDateThenMidEncounterThenSeqString(matchedKeys);
 
-		// 3) orderedKeys の順を崩さずに読み込む（invokeAllはtasks順を保持）
-		Map<String, List<DataEntity>> resultMap = new LinkedHashMap<>();
+		try {
+			Files.createDirectories(Paths.get(outputFolder));
+		} catch (Exception e) {
+			manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00003E_EXECUTION_SKIP,
+					e, "outputFolder create failed: " + outputFolder);
+			return new LinkedHashMap<>();
+		}
 
-		int poolSize = Math.min(8, orderedKeys.size());
-		ExecutorService executor = Executors.newFixedThreadPool(poolSize);
+		LinkedHashMap<String, List<DataEntity>> result = new LinkedHashMap<>();
+		ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
 
 		try {
-			List<Callable<ReadOneResult>> tasks = orderedKeys.stream()
-					.map(k -> (Callable<ReadOneResult>) () -> readOne(bucket, k, outputFolder))
-					.collect(Collectors.toList());
+			List<Callable<ReadOneResult>> tasks = new ArrayList<>();
+			for (String s3Key : orderedKeys) {
+				tasks.add(() -> readOne(bucket, s3Key, outputFolder));
+			}
 
-			List<Future<ReadOneResult>> futures = executor.invokeAll(tasks, 10, TimeUnit.MINUTES);
+			List<Future<ReadOneResult>> futures =
+					executor.invokeAll(tasks, INVOKE_ALL_TIMEOUT_MINUTES, TimeUnit.MINUTES);
 
-			for (Future<ReadOneResult> f : futures) {
+			for (int i = 0; i < futures.size(); i++) {
+				Future<ReadOneResult> f = futures.get(i);
+				String targetKey = orderedKeys.get(i);
+
 				if (f.isCancelled()) {
 					manageLoggerComponent.debugErrorLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 							MessageCdConst.MCD00003E_EXECUTION_SKIP,
-							null, "ReadOriginS3 timeout/cancel");
+							null,
+							"ReadOriginS3 timeout/cancel: s3Key=" + targetKey);
 					continue;
 				}
 
-				ReadOneResult r = f.get();
+				try {
+					ReadOneResult r = f.get();
 
-				if (!r.ok) {
+					if (r == null) {
+						manageLoggerComponent.debugErrorLog(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+								MessageCdConst.MCD00003E_EXECUTION_SKIP,
+								null,
+								"ReadOriginS3 returned null: s3Key=" + targetKey);
+						continue;
+					}
+
+					if (!r.ok) {
+						log.error("[THROWABLE ERROR] ReadOriginS3 detail error: {}", r.thrown);
+						manageLoggerComponent.debugErrorLog(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+								MessageCdConst.MCD00003E_EXECUTION_SKIP,
+								null,
+								"ReadOriginS3 failed: phase=" + nvl(r.phase)
+										+ ", resultCd=" + nvl(r.resultCd)
+										+ ", s3Key=" + nvl(r.s3Key)
+										+ ", localPath=" + nvl(r.localPath));
+						continue;
+					}
+
+					result.put(r.s3Key, r.entities == null ? Collections.emptyList() : r.entities);
+
+				} catch (Exception e) {
 					manageLoggerComponent.debugErrorLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 							MessageCdConst.MCD00003E_EXECUTION_SKIP,
-							null, "ReadOriginS3 failed: " + r.s3Key);
-					continue;
+							e,
+							"ReadOriginS3 future.get failed: s3Key=" + targetKey);
 				}
-
-				if (r.entities == null || r.entities.isEmpty()) {
-					manageLoggerComponent.debugInfoLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP,
-							"dataList is empty: " + r.s3Key);
-					continue;
-				}
-
-				// ★Mapキーはローカルパス（OriginStatが削除できる）
-				resultMap.put(r.localPath, r.entities);
 			}
 
-		} catch (InterruptedException ie) {
+		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
-			manageLoggerComponent.createBusinessException(
+			manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00004E_THREAD_INTERRUPTION, ie.getCause(), ie);
+					MessageCdConst.MCD00003E_EXECUTION_SKIP,
+					e,
+					"ReadOriginS3 interrupted");
+			return result;
 
 		} catch (Exception e) {
 			manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN,
-					e, "S3 Origin読み込みエラー");
-			manageLoggerComponent.createBusinessException(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN, e.getCause(), e);
+					MessageCdConst.MCD00003E_EXECUTION_SKIP,
+					e,
+					"ReadOriginS3 unexpected error");
+			return result;
 
 		} finally {
-			executor.shutdownNow();
+			shutdownExecutor(executor);
 		}
 
-		return resultMap;
+		return result;
 	}
 
-	// =========================================================
-	// S3全走査して matcher に合う key を集める
-	// さらに items が指定されている場合は、items内キーを含むものだけに絞る
-	// =========================================================
-	private List<String> listAllMatchedKeys(String bucket, Pattern matcher, List<MatchKeyItem> items) {
+	/**
+	 * S3の1CSVをローカル保存し、readOriginで解析する。
+	 */
+	private ReadOneResult readOne(String bucket, String s3Key, String outputFolder) {
 
-		List<String> keys = new ArrayList<>();
+		final String METHOD_NAME = "readOne";
 
-		// matcher に合うものだけは S3Operator 側で拾ってもらう
-		List<S3Object> objs = s3Operator.listAllDateCsvObjectsSortedByLastModifiedAsc(bucket, matcher);
+		Path local = buildSafeLocalPath(outputFolder, s3Key);
 
-		// items が null or 空なら「全取得対象」
-		if (items == null || items.isEmpty()) {
-			for (S3Object o : objs) {
-				keys.add(o.key());
+		try {
+			Files.createDirectories(local.getParent());
+		} catch (Exception e) {
+			return ReadOneResult.fail(
+					s3Key,
+					local.toString(),
+					e,
+					ReadPhase.PREPARE_LOCAL_DIR.name(),
+					null);
+		}
+
+		try {
+			s3Operator.downloadToFile(bucket, s3Key, local);
+		} catch (Exception e) {
+			return ReadOneResult.fail(
+					s3Key,
+					local.toString(),
+					e,
+					ReadPhase.DOWNLOAD.name(),
+					null);
+		}
+
+		try (InputStream is = Files.newInputStream(local)) {
+
+			ReadFileOutputDTO dto = readOrigin.getFileBodyFromStream(is, s3Key);
+
+			if (dto == null) {
+				return ReadOneResult.fail(
+						s3Key,
+						local.toString(),
+						null,
+						ReadPhase.PARSE.name(),
+						"DTO_NULL");
 			}
-			return keys;
-		}
 
-		// items 内の「含まれているキー」を抽出（※ここは MatchKeyItem の実装に合わせて getter を調整）
-		List<String> includes = new ArrayList<>();
-		for (MatchKeyItem it : items) {
-			if (it == null)
-				continue;
-
-			// 例：MatchKeyItem に getMatchKey() がある想定
-			String k = it.getMatchKey();
-
-			if (k == null)
-				continue;
-			k = k.trim();
-			if (k.isEmpty())
-				continue;
-
-			includes.add(k);
-		}
-
-		// 抽出結果が空なら全件扱いにする（必要に応じて「0件返す」に変えてもOK）
-		if (includes.isEmpty()) {
-			for (S3Object o : objs) {
-				keys.add(o.key());
+			if (!BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
+				return ReadOneResult.fail(
+						s3Key,
+						local.toString(),
+						dto.getThrowAble(),
+						ReadPhase.PARSE.name(),
+						dto.getResultCd());
 			}
-			return keys;
-		}
 
-		// items のどれかのキーが S3キー文字列に含まれていれば採用
-		for (S3Object o : objs) {
-			String s3Key = o.key();
-			if (s3Key == null || s3Key.isBlank())
-				continue;
+			List<DataEntity> list = dto.getDataList();
+			if (list == null) {
+				list = Collections.emptyList();
+			}
 
-			boolean hit = false;
-			for (String inc : includes) {
-				if (s3Key.contains(inc)) {
-					hit = true;
-					break;
+			for (DataEntity entity : list) {
+				if (entity == null) {
+					continue;
+				}
+				try {
+					entity.setFile(s3Key);
+				} catch (Exception ignore) {
+					log.debug("[B001] setFile failed. s3Key={}", s3Key, ignore);
 				}
 			}
 
-			if (hit) {
-				keys.add(s3Key);
-			}
-		}
+			return ReadOneResult.ok(s3Key, local.toString(), list);
 
-		return keys;
+		} catch (Exception e) {
+			manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00003E_EXECUTION_SKIP,
+					e,
+					"ReadOrigin local read/parse failed: s3Key=" + s3Key + ", localPath=" + local);
+
+			return ReadOneResult.fail(
+					s3Key,
+					local.toString(),
+					e,
+					ReadPhase.OPEN_STREAM_OR_PARSE.name(),
+					null);
+		}
 	}
 
-	// =========================================================
-	// 並び順: date昇順 -> midは出現順維持 -> seqは文字列順
-	// =========================================================
-	private List<String> orderKeysByDateThenMidEncounterThenSeqString(List<String> keys) {
+	/**
+	 * prefix配下を全件見て、対象CSVかつ items に一致するものを抽出。
+	 * 今の S3Operator の listKeys(bucket, prefix) を使う版。
+	 */
+	private List<String> listAllMatchedKeys(String bucket, String prefix, List<?> items) {
 
-		// date -> (mid -> list(keys))  ※midはLinkedHashMapで出現順維持
-		Map<String, LinkedHashMap<String, List<String>>> grouped = new HashMap<>();
+		final String METHOD_NAME = "listAllMatchedKeys";
 
-		for (String key : keys) {
-			// yyyy-MM-dd/mid=xxx/seq=...
-			String[] parts = key.split("/", 3);
-			if (parts.length < 3)
-				continue;
-
-			String date = parts[0];
-			String mid = parts[1];
-
-			grouped.computeIfAbsent(date, d -> new LinkedHashMap<>())
-					.computeIfAbsent(mid, m -> new ArrayList<>())
-					.add(key);
-		}
-
-		// date を昇順
-		List<String> dates = new ArrayList<>(grouped.keySet());
-		Collections.sort(dates);
-
-		List<String> ordered = new ArrayList<>();
-
-		for (String date : dates) {
-			LinkedHashMap<String, List<String>> midMap = grouped.get(date);
-			if (midMap == null)
-				continue;
-
-			// midは「出現順」を維持するため、midMap.entrySet()の順のまま
-			for (Map.Entry<String, List<String>> midEntry : midMap.entrySet()) {
-				List<String> seqKeys = midEntry.getValue();
-				if (seqKeys == null)
-					continue;
-
-				// seq=... を文字列順（key全体で自然順でOK。少なくとも seq 部分はこの順で揃う）
-				seqKeys.sort(Comparator.naturalOrder());
-
-				ordered.addAll(seqKeys);
+		try {
+			List<String> allKeys = s3Operator.listKeys(bucket, prefix == null ? "" : prefix);
+			if (allKeys == null || allKeys.isEmpty()) {
+				return Collections.emptyList();
 			}
+
+			List<String> matched = new ArrayList<>();
+			for (String key : allKeys) {
+				if (!isTargetCsvKey(key)) {
+					continue;
+				}
+				if (!matchesAnyItem(key, items)) {
+					continue;
+				}
+				matched.add(key);
+			}
+			return matched;
+
+		} catch (Exception e) {
+			manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00003E_EXECUTION_SKIP,
+					e,
+					"S3 list failed: bucket=" + bucket + ", prefix=" + prefix);
+			return Collections.emptyList();
 		}
+	}
+
+	/**
+	 * 並び順:
+	 * 1. date 昇順
+	 * 2. 同一 date 内は mid 初登場順
+	 * 3. 同一 mid 内は seq 文字列順
+	 */
+	private List<String> orderKeysByDateThenMidEncounterThenSeqString(List<String> matchedKeys) {
+
+		if (matchedKeys == null || matchedKeys.isEmpty()) {
+			return Collections.emptyList();
+		}
+
+		Map<String, Map<String, Integer>> dateMidEncounterOrder = new LinkedHashMap<>();
+
+		for (String key : matchedKeys) {
+			KeyParts p = parseKeyParts(key);
+			String date = p.date;
+			String mid = p.mid;
+
+			dateMidEncounterOrder
+					.computeIfAbsent(date, d -> new LinkedHashMap<>())
+					.computeIfAbsent(mid, m -> dateMidEncounterOrder.get(date).size());
+		}
+
+		List<String> ordered = new ArrayList<>(matchedKeys);
+		ordered.sort(
+				Comparator.comparing((String key) -> parseKeyParts(key).date, Comparator.nullsLast(String::compareTo))
+						.thenComparingInt(key -> {
+							KeyParts p = parseKeyParts(key);
+							return dateMidEncounterOrder
+									.getOrDefault(p.date, Collections.emptyMap())
+									.getOrDefault(p.mid, Integer.MAX_VALUE);
+						})
+						.thenComparing(key -> parseKeyParts(key).seq, Comparator.nullsLast(String::compareTo))
+						.thenComparing(String::compareTo)
+		);
 
 		return ordered;
 	}
 
-	// =========================================================
-	// 1ファイル処理: ローカルへ保存 -> readOriginでパース -> DataEntity.file に S3 key
-	// =========================================================
-	private ReadOneResult readOne(String bucket, String s3Key, String outputFolder) {
-		try {
-			String fileName = Paths.get(s3Key).getFileName().toString();
-			Path local = Paths.get(outputFolder, fileName);
+	private boolean isTargetCsvKey(String key) {
+		if (key == null || key.isEmpty()) {
+			return false;
+		}
+		String lower = key.toLowerCase(Locale.ROOT);
+		return lower.endsWith(".csv") && KEY_PATTERN.matcher(key).matches();
+	}
 
-			// S3Operatorに既にある
-			s3Operator.downloadToFile(bucket, s3Key, local);
+	/**
+	 * items の実型が不明なので、文字列化＋代表getter群で雑に吸う。
+	 */
+	private boolean matchesAnyItem(String s3Key, List<?> items) {
 
-			try (InputStream is = java.nio.file.Files.newInputStream(local)) {
-				ReadFileOutputDTO dto = readOrigin.getFileBodyFromStream(is, s3Key);
+		if (items == null || items.isEmpty()) {
+			return true;
+		}
 
-				if (!BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
-					return ReadOneResult.fail(s3Key, local.toString(), dto.getThrowAble());
+		Set<String> candidates = new LinkedHashSet<>();
+		candidates.add(s3Key);
+
+		KeyParts p = parseKeyParts(s3Key);
+		if (p.mid != null && !p.mid.isEmpty()) {
+			candidates.add(p.mid);
+		}
+		if (p.date != null && !p.date.isEmpty()) {
+			candidates.add(p.date);
+		}
+		if (p.seq != null && !p.seq.isEmpty()) {
+			candidates.add(p.seq);
+		}
+
+		for (Object item : items) {
+			for (String token : extractMatchTokens(item)) {
+				if (token == null || token.trim().isEmpty()) {
+					continue;
 				}
+				String normalized = token.trim();
 
-				List<DataEntity> list = dto.getDataList();
-
-				// 追跡用にS3 keyを入れる
-				if (list != null) {
-					for (DataEntity e : list) {
-						try {
-							e.setFile(s3Key);
-						} catch (Exception ignore) {
-						}
+				for (String c : candidates) {
+					if (normalized.equals(c)) {
+						return true;
 					}
 				}
 
-				return ReadOneResult.ok(s3Key, local.toString(), list);
+				if (s3Key.contains(normalized)) {
+					return true;
+				}
 			}
-
-		} catch (Exception e) {
-			return ReadOneResult.fail(s3Key, null, e);
 		}
+
+		return false;
+	}
+
+	private List<String> extractMatchTokens(Object item) {
+
+		if (item == null) {
+			return Collections.emptyList();
+		}
+
+		Set<String> tokens = new LinkedHashSet<>();
+
+		if (item instanceof CharSequence) {
+			tokens.add(item.toString());
+			return new ArrayList<>(tokens);
+		}
+
+		tokens.add(Objects.toString(item, ""));
+
+		addTokenByMethod(item, "getMatchKey", tokens);
+		addTokenByMethod(item, "getMid", tokens);
+		addTokenByMethod(item, "getS3Key", tokens);
+		addTokenByMethod(item, "getKey", tokens);
+		addTokenByMethod(item, "getId", tokens);
+
+		return new ArrayList<>(tokens);
+	}
+
+	private void addTokenByMethod(Object item, String methodName, Set<String> tokens) {
+		try {
+			Method m = item.getClass().getMethod(methodName);
+			Object v = m.invoke(item);
+
+			if (v == null) {
+				return;
+			}
+			if (v instanceof Collection<?>) {
+				for (Object x : (Collection<?>) v) {
+					if (x != null) {
+						tokens.add(Objects.toString(x, ""));
+					}
+				}
+			} else {
+				tokens.add(Objects.toString(v, ""));
+			}
+		} catch (Exception ignore) {
+			// 対象getterが無いのは正常
+		}
+	}
+
+	private Path buildSafeLocalPath(String outputFolder, String s3Key) {
+		String normalized = trimLeadingSlash(s3Key);
+		return Paths.get(outputFolder, normalized);
+	}
+
+	private String trimLeadingSlash(String s) {
+		if (s == null || s.isEmpty()) {
+			return "";
+		}
+		int i = 0;
+		while (i < s.length() && s.charAt(i) == '/') {
+			i++;
+		}
+		return s.substring(i);
 	}
 
 	private String safeOutputFolder() {
 		try {
-			String p = config.getOutputCsvFolder();
-			if (p == null || p.isBlank())
-				return "/tmp/outputs/";
-			return p;
-		} catch (Exception ignore) {
-			return "/tmp/outputs/";
+			String tmp = System.getProperty("java.io.tmpdir");
+			if (tmp == null || tmp.trim().isEmpty()) {
+				return "/tmp/get-origin-info";
+			}
+			return Paths.get(tmp, "get-origin-info").toString();
+		} catch (Exception e) {
+			return "/tmp/get-origin-info";
+		}
+	}
+
+	private void shutdownExecutor(ExecutorService executor) {
+		if (executor == null) {
+			return;
+		}
+
+		executor.shutdown();
+		try {
+			if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
+				executor.shutdownNow();
+				if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
+					log.warn("[B001] executor shutdown not completed");
+				}
+			}
+		} catch (InterruptedException e) {
+			executor.shutdownNow();
+			Thread.currentThread().interrupt();
+			log.warn("[B001] executor shutdown interrupted", e);
+		}
+	}
+
+	private KeyParts parseKeyParts(String key) {
+		if (key == null) {
+			return KeyParts.EMPTY;
+		}
+
+		Matcher m = KEY_PATTERN.matcher(key);
+		if (!m.matches()) {
+			return new KeyParts("", "", "", "");
+		}
+
+		return new KeyParts(
+				nvl(m.group(1)),
+				nvl(m.group(2)),
+				nvl(m.group(3)),
+				nvl(m.group(4)));
+	}
+
+	private String nvl(String s) {
+		return s == null ? "" : s;
+	}
+
+	private enum ReadPhase {
+		PREPARE_LOCAL_DIR,
+		DOWNLOAD,
+		PARSE,
+		OPEN_STREAM_OR_PARSE
+	}
+
+	private static class KeyParts {
+		static final KeyParts EMPTY = new KeyParts("", "", "", "");
+
+		final String date;
+		final String mid;
+		final String seq;
+		final String timestamp;
+
+		KeyParts(String date, String mid, String seq, String timestamp) {
+			this.date = date;
+			this.mid = mid;
+			this.seq = seq;
+			this.timestamp = timestamp;
 		}
 	}
 
@@ -332,20 +553,52 @@ public class GetOriginInfo {
 		final String s3Key;
 		final String localPath;
 		final List<DataEntity> entities;
+		final Throwable thrown;
+		final String phase;
+		final String resultCd;
 
-		private ReadOneResult(boolean ok, String s3Key, String localPath, List<DataEntity> entities, Throwable thrown) {
+		private ReadOneResult(
+				boolean ok,
+				String s3Key,
+				String localPath,
+				List<DataEntity> entities,
+				Throwable thrown,
+				String phase,
+				String resultCd) {
 			this.ok = ok;
 			this.s3Key = s3Key;
 			this.localPath = localPath;
 			this.entities = entities;
+			this.thrown = thrown;
+			this.phase = phase;
+			this.resultCd = resultCd;
 		}
 
 		static ReadOneResult ok(String s3Key, String localPath, List<DataEntity> entities) {
-			return new ReadOneResult(true, s3Key, localPath, entities, null);
+			return new ReadOneResult(
+					true,
+					s3Key,
+					localPath,
+					entities,
+					null,
+					null,
+					BookMakersCommonConst.NORMAL_CD);
 		}
 
-		static ReadOneResult fail(String s3Key, String localPath, Throwable e) {
-			return new ReadOneResult(false, s3Key, localPath, null, e);
+		static ReadOneResult fail(
+				String s3Key,
+				String localPath,
+				Throwable e,
+				String phase,
+				String resultCd) {
+			return new ReadOneResult(
+					false,
+					s3Key,
+					localPath,
+					null,
+					e,
+					phase,
+					resultCd);
 		}
 	}
 }
