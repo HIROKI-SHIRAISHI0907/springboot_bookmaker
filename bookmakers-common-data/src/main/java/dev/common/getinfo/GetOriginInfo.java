@@ -538,13 +538,11 @@ public class GetOriginInfo {
 		final String date;
 		final String mid;
 		final String seq;
-		final String timestamp;
 
 		KeyParts(String date, String mid, String seq, String timestamp) {
 			this.date = date;
 			this.mid = mid;
 			this.seq = seq;
-			this.timestamp = timestamp;
 		}
 	}
 
