@@ -7,6 +7,9 @@ import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
 
+import org.apache.commons.csv.CSVFormat;
+import org.apache.commons.csv.CSVParser;
+import org.apache.commons.csv.CSVRecord;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -30,6 +33,9 @@ public class ReadOrigin implements ReadFileBodyIF {
 	/** クラス名 */
 	private static final String CLASS_NAME = ReadOrigin.class.getName();
 
+	/** 必須列数（0～103 を使うため 104 列必要） */
+	private static final int REQUIRED_COLUMN_COUNT = 104;
+
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
@@ -45,146 +51,179 @@ public class ReadOrigin implements ReadFileBodyIF {
 		final String METHOD_NAME = "getFileBodyFromStream";
 
 		ReadFileOutputDTO dto = new ReadFileOutputDTO();
-		List<DataEntity> entiryList = new ArrayList<>();
+		List<DataEntity> entityList = new ArrayList<>();
 
-		try (BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8))) {
-			String text;
+		try (
+				BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+				CSVParser parser = CSVFormat.DEFAULT.builder()
+						.setDelimiter(',')
+						.setQuote('"')
+						.setIgnoreSurroundingSpaces(false)
+						.build()
+						.parse(br)
+		) {
 			int row = 0;
 
-			while ((text = br.readLine()) != null) {
-				if (text.trim().isEmpty())
-					continue;
-
+			for (CSVRecord record : parser) {
 				row++;
-				if (row == 1)
-					continue; // ヘッダスキップ
 
-				String[] parts = text.split(",", -1);
+				// ヘッダスキップ
+				if (row == 1) {
+					continue;
+				}
 
-				// ★ ここ注意：あなたのコードは 102 まで参照してるので 103 必要
-				if (parts.length < 103) {
+				// 空行スキップ
+				if (record == null || record.size() == 0 || isRecordEffectivelyEmpty(record)) {
+					continue;
+				}
+
+				// 必須列数チェック
+				if (record.size() < REQUIRED_COLUMN_COUNT) {
+					String msg = "CSV column shortage"
+							+ " key=" + key
+							+ " row=" + row
+							+ " columnSize=" + record.size()
+							+ " required=" + REQUIRED_COLUMN_COUNT;
+					this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, null);
 					continue;
 				}
 
 				DataEntity mappingDto = new DataEntity();
-				mappingDto.setFile(key); // ★ S3 key を保存
-				mappingDto.setHomeRank(parts[0]);
-				mappingDto.setDataCategory(parts[1]);
-				mappingDto.setTimes(parts[2]);
-				mappingDto.setHomeTeamName(parts[3]);
-				mappingDto.setHomeScore(parts[4]);
-				mappingDto.setAwayRank(parts[5]);
-				mappingDto.setAwayTeamName(parts[6]);
-				mappingDto.setAwayScore(parts[7]);
-				mappingDto.setHomeExp(parts[8]);
-				mappingDto.setAwayExp(parts[9]);
-				mappingDto.setHomeInGoalExp(parts[10]);
-				mappingDto.setAwayInGoalExp(parts[11]);
-				mappingDto.setHomeDonation(parts[12]);
-				mappingDto.setAwayDonation(parts[13]);
-				mappingDto.setHomeShootAll(parts[14].replace(".0", ""));
-				mappingDto.setAwayShootAll(parts[15].replace(".0", ""));
-				mappingDto.setHomeShootIn(parts[16].replace(".0", ""));
-				mappingDto.setAwayShootIn(parts[17].replace(".0", ""));
-				mappingDto.setHomeShootOut(parts[18].replace(".0", ""));
-				mappingDto.setAwayShootOut(parts[19].replace(".0", ""));
-				mappingDto.setHomeBlockShoot(parts[20].replace(".0", ""));
-				mappingDto.setAwayBlockShoot(parts[21].replace(".0", ""));
-				mappingDto.setHomeBigChance(parts[22].replace(".0", ""));
-				mappingDto.setAwayBigChance(parts[23].replace(".0", ""));
-				mappingDto.setHomeCorner(parts[24].replace(".0", ""));
-				mappingDto.setAwayCorner(parts[25].replace(".0", ""));
-				mappingDto.setHomeBoxShootIn(parts[26].replace(".0", ""));
-				mappingDto.setAwayBoxShootIn(parts[27].replace(".0", ""));
-				mappingDto.setHomeBoxShootOut(parts[28].replace(".0", ""));
-				mappingDto.setAwayBoxShootOut(parts[29].replace(".0", ""));
-				mappingDto.setHomeGoalPost(parts[30].replace(".0", ""));
-				mappingDto.setAwayGoalPost(parts[31].replace(".0", ""));
-				mappingDto.setHomeGoalHead(parts[32].replace(".0", ""));
-				mappingDto.setAwayGoalHead(parts[33].replace(".0", ""));
-				mappingDto.setHomeKeeperSave(parts[34].replace(".0", ""));
-				mappingDto.setAwayKeeperSave(parts[35].replace(".0", ""));
-				mappingDto.setHomeFreeKick(parts[36].replace(".0", ""));
-				mappingDto.setAwayFreeKick(parts[37].replace(".0", ""));
-				mappingDto.setHomeOffside(parts[38].replace(".0", ""));
-				mappingDto.setAwayOffside(parts[39].replace(".0", ""));
-				mappingDto.setHomeFoul(parts[40].replace(".0", ""));
-				mappingDto.setAwayFoul(parts[41].replace(".0", ""));
-				mappingDto.setHomeYellowCard(parts[42].replace(".0", ""));
-				mappingDto.setAwayYellowCard(parts[43].replace(".0", ""));
-				mappingDto.setHomeRedCard(parts[44].replace(".0", ""));
-				mappingDto.setAwayRedCard(parts[45].replace(".0", ""));
-				mappingDto.setHomeSlowIn(parts[46].replace(".0", ""));
-				mappingDto.setAwaySlowIn(parts[47].replace(".0", ""));
-				mappingDto.setHomeBoxTouch(parts[48].replace(".0", ""));
-				mappingDto.setAwayBoxTouch(parts[49].replace(".0", ""));
-				mappingDto.setHomePassCount(parts[50]);
-				mappingDto.setAwayPassCount(parts[51]);
-				mappingDto.setHomeLongPassCount(parts[52]);
-				mappingDto.setAwayLongPassCount(parts[53]);
-				mappingDto.setHomeFinalThirdPassCount(parts[54]);
-				mappingDto.setAwayFinalThirdPassCount(parts[55]);
-				mappingDto.setHomeCrossCount(parts[56]);
-				mappingDto.setAwayCrossCount(parts[57]);
-				mappingDto.setHomeTackleCount(parts[58]);
-				mappingDto.setAwayTackleCount(parts[59]);
-				mappingDto.setHomeClearCount(parts[60].replace(".0", ""));
-				mappingDto.setAwayClearCount(parts[61].replace(".0", ""));
-				mappingDto.setHomeDuelCount(parts[62].replace(".0", ""));
-				mappingDto.setAwayDuelCount(parts[63].replace(".0", ""));
-				mappingDto.setHomeInterceptCount(parts[64].replace(".0", ""));
-				mappingDto.setAwayInterceptCount(parts[65].replace(".0", ""));
-				mappingDto.setRecordTime(parts[66]);
-				mappingDto.setWeather(parts[67]);
-				mappingDto.setTemparature(parts[68]);
-				mappingDto.setHumid(parts[69]);
-				mappingDto.setJudgeMember(parts[70]);
-				mappingDto.setHomeManager(parts[71]);
-				mappingDto.setAwayManager(parts[72]);
-				mappingDto.setHomeFormation(parts[73]);
-				mappingDto.setAwayFormation(parts[74]);
-				mappingDto.setStudium(parts[75]);
-				mappingDto.setCapacity(parts[76]);
-				mappingDto.setAudience(parts[77]);
-				mappingDto.setLocation(parts[78]);
-				mappingDto.setHomeMaxGettingScorer(parts[79]);
-				mappingDto.setAwayMaxGettingScorer(parts[80]);
-				mappingDto.setHomeMaxGettingScorerGameSituation(parts[81]);
-				mappingDto.setAwayMaxGettingScorerGameSituation(parts[82]);
-				mappingDto.setHomeTeamHomeScore(parts[83]);
-				mappingDto.setHomeTeamHomeLost(parts[84]);
-				mappingDto.setAwayTeamHomeScore(parts[85]);
-				mappingDto.setAwayTeamHomeLost(parts[86]);
-				mappingDto.setHomeTeamAwayScore(parts[87]);
-				mappingDto.setHomeTeamAwayLost(parts[88]);
-				mappingDto.setAwayTeamAwayScore(parts[89]);
-				mappingDto.setAwayTeamAwayLost(parts[90]);
-				mappingDto.setNoticeFlg(parts[91]);
-				mappingDto.setGameLink(parts[92]);
-				mappingDto.setGoalTime(parts[93]);
-				mappingDto.setGoalTeamMember(parts[94]);
-				mappingDto.setJudge(parts[95]);
-				mappingDto.setHomeTeamStyle(parts[96]);
-				mappingDto.setAwayTeamStyle(parts[97]);
-				mappingDto.setProbablity(parts[98]);
-				mappingDto.setPredictionScoreTime(parts[99]);
-				// ★末尾3列： 試合ID,通番,ソート用秒
-				mappingDto.setMatchId(normalizeMatchId(parts[100].trim())); // 試合ID → matchId
-				mappingDto.setSeq(Long.parseLong(parts[101].trim()));                       // 通番 → seq
+				mappingDto.setFile(key); // S3 key を保存
+
+				mappingDto.setHomeRank(get(record, 0));
+				mappingDto.setDataCategory(get(record, 1));
+				mappingDto.setTimes(get(record, 2));
+				mappingDto.setHomeTeamName(get(record, 3));
+				mappingDto.setHomeScore(get(record, 4));
+				mappingDto.setAwayRank(get(record, 5));
+				mappingDto.setAwayTeamName(get(record, 6));
+				mappingDto.setAwayScore(get(record, 7));
+				mappingDto.setHomeExp(get(record, 8));
+				mappingDto.setAwayExp(get(record, 9));
+				mappingDto.setHomeInGoalExp(get(record, 10));
+				mappingDto.setAwayInGoalExp(get(record, 11));
+				mappingDto.setHomeDonation(get(record, 12));
+				mappingDto.setAwayDonation(get(record, 13));
+				mappingDto.setHomeShootAll(stripDotZero(get(record, 14)));
+				mappingDto.setAwayShootAll(stripDotZero(get(record, 15)));
+				mappingDto.setHomeShootIn(stripDotZero(get(record, 16)));
+				mappingDto.setAwayShootIn(stripDotZero(get(record, 17)));
+				mappingDto.setHomeShootOut(stripDotZero(get(record, 18)));
+				mappingDto.setAwayShootOut(stripDotZero(get(record, 19)));
+				mappingDto.setHomeBlockShoot(stripDotZero(get(record, 20)));
+				mappingDto.setAwayBlockShoot(stripDotZero(get(record, 21)));
+				mappingDto.setHomeBigChance(stripDotZero(get(record, 22)));
+				mappingDto.setAwayBigChance(stripDotZero(get(record, 23)));
+				mappingDto.setHomeCorner(stripDotZero(get(record, 24)));
+				mappingDto.setAwayCorner(stripDotZero(get(record, 25)));
+				mappingDto.setHomeBoxShootIn(stripDotZero(get(record, 26)));
+				mappingDto.setAwayBoxShootIn(stripDotZero(get(record, 27)));
+				mappingDto.setHomeBoxShootOut(stripDotZero(get(record, 28)));
+				mappingDto.setAwayBoxShootOut(stripDotZero(get(record, 29)));
+				mappingDto.setHomeGoalPost(stripDotZero(get(record, 30)));
+				mappingDto.setAwayGoalPost(stripDotZero(get(record, 31)));
+				mappingDto.setHomeGoalHead(stripDotZero(get(record, 32)));
+				mappingDto.setAwayGoalHead(stripDotZero(get(record, 33)));
+				mappingDto.setHomeKeeperSave(stripDotZero(get(record, 34)));
+				mappingDto.setAwayKeeperSave(stripDotZero(get(record, 35)));
+				mappingDto.setHomeFreeKick(stripDotZero(get(record, 36)));
+				mappingDto.setAwayFreeKick(stripDotZero(get(record, 37)));
+				mappingDto.setHomeOffside(stripDotZero(get(record, 38)));
+				mappingDto.setAwayOffside(stripDotZero(get(record, 39)));
+				mappingDto.setHomeFoul(stripDotZero(get(record, 40)));
+				mappingDto.setAwayFoul(stripDotZero(get(record, 41)));
+				mappingDto.setHomeYellowCard(stripDotZero(get(record, 42)));
+				mappingDto.setAwayYellowCard(stripDotZero(get(record, 43)));
+				mappingDto.setHomeRedCard(stripDotZero(get(record, 44)));
+				mappingDto.setAwayRedCard(stripDotZero(get(record, 45)));
+				mappingDto.setHomeSlowIn(stripDotZero(get(record, 46)));
+				mappingDto.setAwaySlowIn(stripDotZero(get(record, 47)));
+				mappingDto.setHomeBoxTouch(stripDotZero(get(record, 48)));
+				mappingDto.setAwayBoxTouch(stripDotZero(get(record, 49)));
+				mappingDto.setHomePassCount(get(record, 50));
+				mappingDto.setAwayPassCount(get(record, 51));
+				mappingDto.setHomeLongPassCount(get(record, 52));
+				mappingDto.setAwayLongPassCount(get(record, 53));
+				mappingDto.setHomeFinalThirdPassCount(get(record, 54));
+				mappingDto.setAwayFinalThirdPassCount(get(record, 55));
+				mappingDto.setHomeCrossCount(get(record, 56));
+				mappingDto.setAwayCrossCount(get(record, 57));
+				mappingDto.setHomeTackleCount(get(record, 58));
+				mappingDto.setAwayTackleCount(get(record, 59));
+				mappingDto.setHomeClearCount(stripDotZero(get(record, 60)));
+				mappingDto.setAwayClearCount(stripDotZero(get(record, 61)));
+				mappingDto.setHomeDuelCount(stripDotZero(get(record, 62)));
+				mappingDto.setAwayDuelCount(stripDotZero(get(record, 63)));
+				mappingDto.setHomeInterceptCount(stripDotZero(get(record, 64)));
+				mappingDto.setAwayInterceptCount(stripDotZero(get(record, 65)));
+				mappingDto.setRecordTime(get(record, 66));
+				mappingDto.setWeather(get(record, 67));
+				mappingDto.setTemparature(get(record, 68));
+				mappingDto.setHumid(get(record, 69));
+				mappingDto.setJudgeMember(get(record, 70));
+				mappingDto.setHomeManager(get(record, 71));
+				mappingDto.setAwayManager(get(record, 72));
+				mappingDto.setHomeFormation(get(record, 73));
+				mappingDto.setAwayFormation(get(record, 74));
+				mappingDto.setStudium(get(record, 75));
+				mappingDto.setCapacity(get(record, 76));
+				mappingDto.setAudience(get(record, 77));
+				mappingDto.setLocation(get(record, 78));
+				mappingDto.setHomeMaxGettingScorer(get(record, 79));
+				mappingDto.setAwayMaxGettingScorer(get(record, 80));
+				mappingDto.setHomeMaxGettingScorerGameSituation(get(record, 81));
+				mappingDto.setAwayMaxGettingScorerGameSituation(get(record, 82));
+				mappingDto.setHomeTeamHomeScore(get(record, 83));
+				mappingDto.setHomeTeamHomeLost(get(record, 84));
+				mappingDto.setAwayTeamHomeScore(get(record, 85));
+				mappingDto.setAwayTeamHomeLost(get(record, 86));
+				mappingDto.setHomeTeamAwayScore(get(record, 87));
+				mappingDto.setHomeTeamAwayLost(get(record, 88));
+				mappingDto.setAwayTeamAwayScore(get(record, 89));
+				mappingDto.setAwayTeamAwayLost(get(record, 90));
+				mappingDto.setNoticeFlg(get(record, 91));
+				mappingDto.setGameLink(get(record, 92));
+				mappingDto.setGoalTime(get(record, 93));
+				mappingDto.setGoalTeamMember(get(record, 94));
+				mappingDto.setJudge(get(record, 95));
+				mappingDto.setHomeTeamStyle(get(record, 96));
+				mappingDto.setAwayTeamStyle(get(record, 97));
+				mappingDto.setProbablity(get(record, 98));
+				mappingDto.setPredictionScoreTime(get(record, 99));
+				mappingDto.setMatchId(normalizeMatchId(get(record, 100).trim()));
+
+				String seqRaw = get(record, 101).trim();
 				try {
-				    mappingDto.setTimeSortSeconds(Integer.parseInt(parts[102].trim()));
+					mappingDto.setSeq(Long.parseLong(seqRaw));
+				} catch (Exception e) {
+					String msg = "seq parse error"
+							+ " key=" + key
+							+ " row=" + row
+							+ " data=" + seqRaw
+							+ " matchIdRaw=" + get(record, 100);
+					this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, e);
+					throw e;
+				}
+
+				String timeSortSecondsRaw = get(record, 102).trim();
+				try {
+					mappingDto.setTimeSortSeconds(Integer.parseInt(timeSortSecondsRaw));
 				} catch (Exception e) {
 					String msg = "timeSortSeconds parse error"
-							+ " data=" + parts[102].trim();
+							+ " key=" + key
+							+ " row=" + row
+							+ " data=" + timeSortSecondsRaw;
 					this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, e);
 					mappingDto.setTimeSortSeconds(1);
 				}
-				mappingDto.setAtThatTimes(parts[103]);
-				entiryList.add(mappingDto);
+
+				mappingDto.setAtThatTimes(get(record, 103));
+				entityList.add(mappingDto);
 			}
 
 			dto.setResultCd(BookMakersCommonConst.NORMAL_CD);
-			dto.setDataList(entiryList);
+			dto.setDataList(entityList);
 			return dto;
 
 		} catch (Exception e) {
@@ -199,23 +238,72 @@ public class ReadOrigin implements ReadFileBodyIF {
 	}
 
 	/**
+	 * CSVRecord から安全に値を取得
+	 * @param record CSVレコード
+	 * @param index 列番号
+	 * @return 値
+	 */
+	private static String get(CSVRecord record, int index) {
+		if (record == null) {
+			return "";
+		}
+		if (index < 0 || index >= record.size()) {
+			return "";
+		}
+		String value = record.get(index);
+		return value == null ? "" : value;
+	}
+
+	/**
+	 * 実質空行判定
+	 * @param record CSVレコード
+	 * @return true: 空行
+	 */
+	private static boolean isRecordEffectivelyEmpty(CSVRecord record) {
+		for (int i = 0; i < record.size(); i++) {
+			String v = record.get(i);
+			if (v != null && !v.trim().isEmpty()) {
+				return false;
+			}
+		}
+		return true;
+	}
+
+	/**
+	 * ".0" を除去
+	 * @param value 元値
+	 * @return 加工後
+	 */
+	private static String stripDotZero(String value) {
+		if (value == null) {
+			return "";
+		}
+		return value.replace(".0", "");
+	}
+
+	/**
 	 * matchidの正規化
-	 * @param raw
-	 * @return
+	 * @param raw raw
+	 * @return matchId
 	 */
 	private static String normalizeMatchId(String raw) {
-		if (raw == null)
+		if (raw == null) {
 			return null;
+		}
+
 		// ?mid=XXXX を最優先で拾う
 		var m1 = java.util.regex.Pattern.compile("[?&#]mid=([A-Za-z0-9]+)").matcher(raw);
-		if (m1.find())
+		if (m1.find()) {
 			return m1.group(1);
+		}
+
 		// /match/{mid}/ …形式
 		var m2 = java.util.regex.Pattern.compile("/match/([A-Za-z0-9]{6,20})(?:/|$)").matcher(raw);
-		if (m2.find())
+		if (m2.find()) {
 			return m2.group(1);
+		}
+
 		// それ以外はそのまま
 		return raw.trim();
 	}
-
 }
