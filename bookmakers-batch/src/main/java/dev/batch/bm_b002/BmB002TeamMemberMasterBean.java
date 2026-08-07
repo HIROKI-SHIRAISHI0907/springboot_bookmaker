@@ -17,25 +17,36 @@ public class BmB002TeamMemberMasterBean {
 
 	/**
 	 * 完全一致キー
-	 * country + team + member + facePicPath
 	 *
-	 * ※ league は含めない
-	 *    -> 同一国・同一チーム・同一人物で league だけ変わる
-	 *       （昇格/降格・リーグ改称）ケースを更新扱いにするため
+	 * 基本方針:
+	 * - 同一所属(同一team)の同一人物を探す
+	 * - league 差異は無視したい（昇格/降格・リーグ名変更対策）
+	 * - country 差異があっても、顔写真 / 生年月日などが強く一致すれば更新候補にしたい
+	 *
+	 * 実装:
+	 * - facePicPath がある場合: team + member + facePicPath
+	 * - facePicPath が無く birth がある場合: team + member + birth
+	 * - face/birth がどちらも弱い場合のみ: country + team + member
 	 */
 	private final Map<String, TeamMemberMasterEntity> currentKeyMap = new HashMap<>();
 
 	/**
-	 * 同一人物候補
-	 * country + member + birth
+	 * 同一人物候補（最強）
+	 * member + birth + facePicPath
 	 */
-	private final Map<String, List<TeamMemberMasterEntity>> memberBirthMap = new HashMap<>();
+	private final Map<String, List<TeamMemberMasterEntity>> memberBirthFaceMap = new HashMap<>();
 
 	/**
 	 * 同一人物候補
-	 * country + member + facePicPath
+	 * member + facePicPath
 	 */
 	private final Map<String, List<TeamMemberMasterEntity>> memberFaceMap = new HashMap<>();
+
+	/**
+	 * 同一人物候補
+	 * member + birth
+	 */
+	private final Map<String, List<TeamMemberMasterEntity>> memberBirthMap = new HashMap<>();
 
 	public BmB002TeamMemberMasterBean(List<TeamMemberMasterEntity> existingList) {
 		if (existingList != null) {
@@ -56,7 +67,7 @@ public class BmB002TeamMemberMasterBean {
 
 	/**
 	 * Step1:
-	 * 同一国・同一チーム・同一人物の完全一致で既存を検索
+	 * 同一所属(team)の同一人物を完全一致で検索
 	 */
 	public TeamMemberMasterEntity findExactCurrent(TeamMemberMasterEntity incoming) {
 		return currentKeyMap.get(currentKey(incoming));
@@ -64,27 +75,37 @@ public class BmB002TeamMemberMasterBean {
 
 	/**
 	 * Step2:
-	 * 同一国の中で team を無視して同一人物候補を解決
+	 * team を無視して同一人物候補を解決
 	 *
 	 * 優先順位:
-	 * 1. country + member + birth
-	 * 2. country + member + facePicPath
+	 * 1. member + birth + facePicPath
+	 * 2. member + facePicPath
+	 * 3. member + birth
+	 *
+	 * ※ country は条件に含めない
+	 *    -> country が変わっても same person なら更新扱いにしたいため
 	 */
 	public TeamMemberMasterEntity resolveSamePerson(TeamMemberMasterEntity incoming) {
 
-		// 1. country + member + birth
-		String bKey = memberBirthKey(incoming);
-		if (!isBlank(bKey)) {
-			TeamMemberMasterEntity found = pickSingle(memberBirthMap.get(bKey));
+		String strongKey = memberBirthFaceKey(incoming);
+		if (!isBlank(strongKey)) {
+			TeamMemberMasterEntity found = pickSingle(memberBirthFaceMap.get(strongKey));
 			if (found != null) {
 				return found;
 			}
 		}
 
-		// 2. country + member + facePicPath
-		String fKey = memberFaceKey(incoming);
-		if (!isBlank(fKey)) {
-			TeamMemberMasterEntity found = pickSingle(memberFaceMap.get(fKey));
+		String faceKey = memberFaceKey(incoming);
+		if (!isBlank(faceKey)) {
+			TeamMemberMasterEntity found = pickSingle(memberFaceMap.get(faceKey));
+			if (found != null) {
+				return found;
+			}
+		}
+
+		String birthKey = memberBirthKey(incoming);
+		if (!isBlank(birthKey)) {
+			TeamMemberMasterEntity found = pickSingle(memberBirthMap.get(birthKey));
 			if (found != null) {
 				return found;
 			}
@@ -108,13 +129,15 @@ public class BmB002TeamMemberMasterBean {
 
 	private void rebuildIndexes() {
 		currentKeyMap.clear();
-		memberBirthMap.clear();
+		memberBirthFaceMap.clear();
 		memberFaceMap.clear();
+		memberBirthMap.clear();
 
 		for (TeamMemberMasterEntity e : byId.values()) {
 			currentKeyMap.put(currentKey(e), copyOf(e));
-			addMulti(memberBirthMap, memberBirthKey(e), e);
+			addMulti(memberBirthFaceMap, memberBirthFaceKey(e), e);
 			addMulti(memberFaceMap, memberFaceKey(e), e);
+			addMulti(memberBirthMap, memberBirthKey(e), e);
 		}
 	}
 
@@ -165,46 +188,69 @@ public class BmB002TeamMemberMasterBean {
 
 	/**
 	 * 完全一致キー
-	 * country + team + member + facePicPath
 	 *
-	 * ※ league は含めない
+	 * 優先:
+	 * 1. team + member + face
+	 * 2. team + member + birth
+	 * 3. country + team + member（弱一致 fallback）
 	 */
 	public static String currentKey(TeamMemberMasterEntity e) {
-		return join(
-				clean(e.getCountry()),
-				clean(e.getTeam()),
-				clean(e.getMember()),
-				clean(e.getFacePicPath()));
+		String country = clean(e.getCountry());
+		String team = clean(e.getTeam());
+		String member = clean(e.getMember());
+		String face = clean(e.getFacePicPath());
+		String birth = clean(e.getBirth());
+
+		if (!isBlank(team) && !isBlank(member) && !isBlank(face)) {
+			return join(team, member, face);
+		}
+		if (!isBlank(team) && !isBlank(member) && !isBlank(birth)) {
+			return join(team, member, birth);
+		}
+		return join(country, team, member);
+	}
+
+	/**
+	 * 同一人物候補キー（最強）
+	 * member + birth + facePicPath
+	 */
+	public static String memberBirthFaceKey(TeamMemberMasterEntity e) {
+		String member = clean(e.getMember());
+		String birth = clean(e.getBirth());
+		String face = clean(e.getFacePicPath());
+
+		if (isBlank(member) || isBlank(birth) || isBlank(face)) {
+			return null;
+		}
+		return join(member, birth, face);
 	}
 
 	/**
 	 * 同一人物候補キー
-	 * country + member + birth
+	 * member + birth
 	 */
 	public static String memberBirthKey(TeamMemberMasterEntity e) {
-		String country = clean(e.getCountry());
 		String member = clean(e.getMember());
 		String birth = clean(e.getBirth());
 
-		if (isBlank(country) || isBlank(member) || isBlank(birth)) {
+		if (isBlank(member) || isBlank(birth)) {
 			return null;
 		}
-		return join(country, member, birth);
+		return join(member, birth);
 	}
 
 	/**
 	 * 同一人物候補キー
-	 * country + member + facePicPath
+	 * member + facePicPath
 	 */
 	public static String memberFaceKey(TeamMemberMasterEntity e) {
-		String country = clean(e.getCountry());
 		String member = clean(e.getMember());
 		String face = clean(e.getFacePicPath());
 
-		if (isBlank(country) || isBlank(member) || isBlank(face)) {
+		if (isBlank(member) || isBlank(face)) {
 			return null;
 		}
-		return join(country, member, face);
+		return join(member, face);
 	}
 
 	// ─── Entity コピー ────────────────────────────────────────────────────────

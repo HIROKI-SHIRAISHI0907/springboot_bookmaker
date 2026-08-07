@@ -89,7 +89,7 @@ public class TeamMemberMasterStat {
 			insertPath.add(incoming.getFile());
 			normalizeEntity(incoming, runDate);
 
-			// ─── Step1: 同一国・同一チーム・同一人物の完全一致 ───────────────
+			// ─── Step1: 同一チーム・同一人物の完全一致 ──────────────────────
 			TeamMemberMasterEntity exact = bean.findExactCurrent(incoming);
 			if (exact != null) {
 				TeamMemberMasterEntity updated = mergeSameTeam(copyOf(exact), incoming, runDate);
@@ -105,35 +105,32 @@ public class TeamMemberMasterStat {
 				continue;
 			}
 
-			// ─── Step2: 同一国の中で同一人物候補（team を無視して人物特定） ───
+			// ─── Step2: team を無視して同一人物候補を特定 ─────────────────
+			// ※ country 差異があっても same person と判断できるなら更新扱い
 			TeamMemberMasterEntity samePerson = bean.resolveSamePerson(incoming);
-
-			// 念のため防御的に country 差異は排除
-			if (samePerson != null && !eq(samePerson.getCountry(), incoming.getCountry())) {
-				samePerson = null;
-			}
 
 			if (samePerson != null) {
 				TeamMemberMasterEntity updated;
 
 				if (!eq(samePerson.getTeam(), incoming.getTeam())) {
-					// 移籍（country は同一、team が差異）
+					// team 差異あり -> 移籍更新
 					updated = applyTransfer(copyOf(samePerson), incoming, runDate);
-					log.info("[移籍] country={} / member={} / {} → {}",
-							nvl(incoming.getCountry()),
+					log.info("[移籍更新] member={} / country={}→{} / team={}→{}",
 							nvl(incoming.getMember()),
+							nvl(samePerson.getCountry()),
+							nvl(incoming.getCountry()),
 							nvl(samePerson.getTeam()),
 							nvl(incoming.getTeam()));
 				} else {
-					// 同一人物・同一チーム
-					// → league 差異だけのケース（昇格/降格・リーグ改称）を含め更新
+					// team 同一 -> league差異 / country差異 / 表記ゆれなどを更新
 					updated = mergeSameTeam(copyOf(samePerson), incoming, runDate);
-					log.info("[リーグ更新/同一チーム更新] country={} / team={} / member={} / {} → {}",
-							nvl(incoming.getCountry()),
-							nvl(incoming.getTeam()),
+					log.info("[同一人物更新] member={} / country={}→{} / league={}→{} / team={}",
 							nvl(incoming.getMember()),
+							nvl(samePerson.getCountry()),
+							nvl(incoming.getCountry()),
 							nvl(samePerson.getLeague()),
-							nvl(incoming.getLeague()));
+							nvl(incoming.getLeague()),
+							nvl(incoming.getTeam()));
 				}
 
 				repository.updateById(updated);
@@ -143,7 +140,7 @@ public class TeamMemberMasterStat {
 			}
 
 			// ─── Step3: 新規登録 ─────────────────────────────────────────
-			// country が異なる場合は、league/team/member が同じでも別レコード扱い
+			// same person と判断できる材料が不足している場合のみ新規
 			TeamMemberMasterEntity newEntity = buildNewEntity(incoming, runDate);
 			repository.insert(newEntity);
 			bean.putWorking(newEntity);
@@ -209,10 +206,10 @@ public class TeamMemberMasterStat {
 	// =========================================================================
 
 	/**
-	 * 新規入力の中で同一国・同一チーム・同一人物(currentKey)が重複する行を1件にまとめる
+	 * 新規入力の中で同一チーム・同一人物(currentKey)が重複する行を1件にまとめる
 	 *
-	 * ※ league は currentKey に含めない
-	 *    -> 同一国・同一チーム・同一人物で league だけ違うデータは同一選手としてマージ
+	 * ※ league 差異は同一人物の更新候補としてマージ
+	 * ※ face/birth 等の強い識別子が無い場合のみ country を fallback に使う
 	 */
 	private List<TeamMemberMasterEntity> dedupIncoming(List<TeamMemberMasterEntity> scrapedRows, String runDate) {
 		if (scrapedRows == null || scrapedRows.isEmpty()) {
@@ -285,10 +282,10 @@ public class TeamMemberMasterStat {
 	}
 
 	/**
-	 * 同一国・同一チーム・同一人物の更新
+	 * 同一人物・同一チームの更新
 	 *
-	 * ※ league は incoming 優先で更新
-	 *    -> 昇格/降格、リーグ改称に追従
+	 * ※ country / league は incoming 優先
+	 *    -> 国情報補正、昇格/降格、リーグ改称に追従
 	 */
 	private TeamMemberMasterEntity mergeSameTeam(TeamMemberMasterEntity existing,
 			TeamMemberMasterEntity incoming,
@@ -323,9 +320,9 @@ public class TeamMemberMasterStat {
 	}
 
 	/**
-	 * 同一国・同一人物だが team が変わった場合の移籍更新
+	 * 同一人物だが team が変わった場合の移籍更新
 	 *
-	 * ※ country が異なるケースはここに来ない想定
+	 * ※ country が変わっていても same person なら更新扱い
 	 */
 	private TeamMemberMasterEntity applyTransfer(TeamMemberMasterEntity existing,
 			TeamMemberMasterEntity incoming,
