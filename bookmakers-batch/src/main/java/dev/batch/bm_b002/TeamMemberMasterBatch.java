@@ -81,10 +81,16 @@ public class TeamMemberMasterBatch extends AbstractJobBatchTemplate {
 	protected void doExecute(JobContext ctx) throws Exception {
 
 		Map<String, List<TeamMemberMasterEntity>> getMemberMap = this.getMemberInfo.getData();
+		if (getMemberMap.isEmpty()) {
+			endLog();
+			return;
+		}
 
 		List<TeamMemberMasterEntity> allMembers = flattenMemberMap(getMemberMap);
 
 		this.teamMemberMasterStat.execute(allMembers, FULL_SNAPSHOT);
+
+		endLog();
 	}
 
 	/**
@@ -110,5 +116,14 @@ public class TeamMemberMasterBatch extends AbstractJobBatchTemplate {
 		}
 
 		return result;
+	}
+
+	/**
+	 * 終了ログ
+	 */
+	private void endLog() {
+		final String METHOD_NAME = "endLog";
+		this.manageLoggerComponent.debugEndInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 	}
 }

@@ -77,7 +77,20 @@ public class FutureBatch extends AbstractJobBatchTemplate {
 	protected void doExecute(JobContext ctx) throws Exception {
 		// 未来CSVデータ情報を取得
 		Map<String, List<FutureEntity>> getFutureMap = this.getFutureInfo.getData();
+		if (getFutureMap.isEmpty()) {
+			endLog();
+			return;
+		}
 		// BM_M022登録(Transactional)
 		this.futureStat.futureStat(getFutureMap);
+	}
+
+	/**
+	 * 終了ログ
+	 */
+	private void endLog() {
+		final String METHOD_NAME = "endLog";
+		this.manageLoggerComponent.debugEndInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 	}
 }

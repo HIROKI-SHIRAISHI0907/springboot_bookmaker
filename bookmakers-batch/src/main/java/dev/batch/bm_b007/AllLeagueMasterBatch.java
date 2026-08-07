@@ -70,6 +70,10 @@ public class AllLeagueMasterBatch extends AbstractJobBatchTemplate {
 
 		// 全容マスタデータ情報を取得
 		Map<String, List<AllLeagueMasterEntity>> listMap = this.getAllLeagueInfo.getData();
+		if (listMap.isEmpty()) {
+			endLog();
+			return;
+		}
 
 		// 登録
 		for (Map.Entry<String, List<AllLeagueMasterEntity>> entry : listMap.entrySet()) {
@@ -81,5 +85,16 @@ public class AllLeagueMasterBatch extends AbstractJobBatchTemplate {
 				continue;
 			}
 		}
+
+		endLog();
+	}
+
+	/**
+	 * 終了ログ
+	 */
+	private void endLog() {
+		final String METHOD_NAME = "endLog";
+		this.manageLoggerComponent.debugEndInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 	}
 }

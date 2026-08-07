@@ -76,7 +76,17 @@ public class CountryLeagueSeasonMasterBatch extends AbstractJobBatchTemplate {
 	protected void doExecute(JobContext ctx) throws Exception {
 		// チームデータ情報を取得
 		List<CountryLeagueSeasonMasterEntity> list = this.getSeasonInfo.getData();
+		endLog();
 		// BM_M029登録(Transactional)
 		this.countryLeagueSeasonMasterStat.seasonStat(list);
+	}
+
+	/**
+	 * 終了ログ
+	 */
+	private void endLog() {
+		final String METHOD_NAME = "endLog";
+		this.manageLoggerComponent.debugEndInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 	}
 }

@@ -82,6 +82,10 @@ public class CountryLeagueMasterBatch extends AbstractJobBatchTemplate {
 		final String METHOD_NAME = "doExecute";
 		// マスタデータ情報を取得
 		Map<String, List<CountryLeagueMasterEntity>> listMap = this.getTeamMasterInfo.getData();
+		if (listMap.isEmpty()) {
+			endLog();
+			return;
+		}
 
 		// 登録(Transactional)
 		for (Map.Entry<String, List<CountryLeagueMasterEntity>> entry : listMap.entrySet()) {
@@ -94,5 +98,16 @@ public class CountryLeagueMasterBatch extends AbstractJobBatchTemplate {
 				continue;
 			}
 		}
+
+		endLog();
+	}
+
+	/**
+	 * 終了ログ
+	 */
+	private void endLog() {
+		final String METHOD_NAME = "endLog";
+		this.manageLoggerComponent.debugEndInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 	}
 }

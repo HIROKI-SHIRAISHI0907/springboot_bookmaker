@@ -146,18 +146,20 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 
         try {
             Map<String, List<DataEntity>> map = getOriginFinInfo.getData();
-            this.finGettingStat.finGettingStat(map);
+            if (!map.isEmpty()) {
+            	this.finGettingStat.finGettingStat(map);
 
-            String bucket = pathConfig.getS3BucketsOutputsFin();
-            FileDeleteUtil.deleteS3Files(
-                    insertPath,
-                    bucket,
-                    s3Operator,
-                    manageLoggerComponent,
-                    PROJECT_NAME,
-                    CLASS_NAME,
-                    METHOD_NAME,
-                    "b008_fin_getting_data.json");
+                String bucket = pathConfig.getS3BucketsOutputsFin();
+                FileDeleteUtil.deleteS3Files(
+                        insertPath,
+                        bucket,
+                        s3Operator,
+                        manageLoggerComponent,
+                        PROJECT_NAME,
+                        CLASS_NAME,
+                        METHOD_NAME,
+                        "b008_fin_getting_data.json");
+    		}
 
             updateFlg(map);
 
@@ -173,6 +175,8 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
                     e);
             throw e;
         }
+
+        endLog();
     }
 
     private void updateFlg(Map<String, List<DataEntity>> map) {
@@ -191,4 +195,13 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
                     e);
         }
     }
+
+    /**
+	 * 終了ログ
+	 */
+	private void endLog() {
+		final String METHOD_NAME = "endLog";
+		this.manageLoggerComponent.debugEndInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	}
 }
