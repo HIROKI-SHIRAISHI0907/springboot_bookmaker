@@ -34,7 +34,7 @@ public class FuturesResponseDTO {
     /** ラウンドNo. */
     private Integer roundNo;
 
-    /** 試合ステータス（予定orライブ）*/
+    /** 試合ステータス（予定orライブor遅延）*/
     private String status;       // "SCHEDULED" / "LIVE"
 
 }
