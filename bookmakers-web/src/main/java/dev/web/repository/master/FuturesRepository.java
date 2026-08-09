@@ -320,6 +320,7 @@ public class FuturesRepository {
 				FROM future_master
 				WHERE future_time >= :dateStart
 				  AND future_time < :dateEnd
+				  AND start_flg = '1'
 				ORDER BY future_time ASC, seq ASC
 				OFFSET :offset
 				LIMIT 10
