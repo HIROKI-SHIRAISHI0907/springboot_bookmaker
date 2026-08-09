@@ -1233,6 +1233,46 @@ public class BookDataRepository {
 	    return count != null ? count : 0;
 	}
 
+	/**
+	 * 終了済みデータ存在チェック
+	 * @author shiraishitoshio
+	 */
+	public int countByFinData(String dataCategory, String homeTeamName, String awayTeamName) {
+
+	    StringBuilder sql = new StringBuilder("""
+	            SELECT COUNT(*) AS cnt
+	            FROM data
+	            WHERE home_team_name = :homeTeamName
+	              AND away_team_name = :awayTeamName
+	              AND times IS NOT NULL
+	              AND TRIM(times) <> ''
+	              AND REPLACE(TRIM(times), ' ', '') = '終了済'
+	              AND REPLACE(TRIM(times), ' ', '') NOT LIKE '%ペナルティ%'
+	            """);
+
+	    MapSqlParameterSource params = new MapSqlParameterSource();
+	    params.addValue("homeTeamName", homeTeamName);
+	    params.addValue("awayTeamName", awayTeamName);
+
+	    if (dataCategory != null && !dataCategory.isBlank()) {
+	        sql.append("""
+	                AND (
+	                      data_category = :dataCategory
+	                   OR data_category LIKE :dataCategoryPrefix
+	                )
+	                """);
+	        params.addValue("dataCategory", dataCategory.trim());
+	        params.addValue("dataCategoryPrefix", dataCategory.trim() + ":%");
+	    }
+
+	    Integer count = bmJdbcTemplate.queryForObject(
+	            sql.toString(),
+	            params,
+	            Integer.class
+	    );
+
+	    return count != null ? count : 0;
+	}
 
 	@EqualsAndHashCode
 	public static class BusinessGroupCountRow {
