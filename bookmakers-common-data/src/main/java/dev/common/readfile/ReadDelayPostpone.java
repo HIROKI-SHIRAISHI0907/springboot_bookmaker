@@ -62,6 +62,8 @@ public class ReadDelayPostpone {
     /**
      * 指定日の delay_postpone json を base / _2 / _3 ... 含めて全件読み込む
      *
+     * ファイルが存在しない場合は空リスト返却
+     *
      * @param targetDate yyyy-MM-dd
      * @return 延期・遅延試合一覧
      */
@@ -76,7 +78,7 @@ public class ReadDelayPostpone {
         Map<String, DelayPostponeMatchDto> dedupMap = new LinkedHashMap<String, DelayPostponeMatchDto>();
 
         for (String key : targetKeys) {
-            List<DelayPostponeMatchDto> fileItems = readSingleFile(key);
+            List<DelayPostponeMatchDto> fileItems = readSingleFileOrEmpty(key);
 
             for (DelayPostponeMatchDto dto : fileItems) {
                 String dedupKey = buildDedupKey(dto);
@@ -94,6 +96,8 @@ public class ReadDelayPostpone {
      * 1件目: delay_postpone_YYYY-MM-DD.json
      * 2件目: delay_postpone_YYYY-MM-DD_2.json
      * ...
+     *
+     * 存在しない場合はその時点で打ち切る
      */
     private List<String> buildExistingTargetKeys(String targetDate) {
         List<String> results = new ArrayList<String>();
@@ -134,7 +138,14 @@ public class ReadDelayPostpone {
 
     /**
      * ListBucket を使わずに存在確認
-     * getObject を試し、NoSuchKey なら false
+     *
+     * ファイル無し相当は false を返す
+     * - NoSuchKey
+     * - 404
+     * - 403 AccessDenied
+     *
+     * ※ 403 も false 扱いにしているため、
+     *   権限不足時も「その日の delay_postpone ファイルなし」として継続する。
      */
     private boolean existsObjectByGetObject(String key) {
         GetObjectRequest request = GetObjectRequest.builder()
@@ -149,13 +160,19 @@ public class ReadDelayPostpone {
         } catch (NoSuchKeyException e) {
             return false;
         } catch (S3Exception e) {
+            int statusCode = e.statusCode();
             String errorCode = e.awsErrorDetails() == null ? null : e.awsErrorDetails().errorCode();
-            if (e.statusCode() == 404 || "NoSuchKey".equals(errorCode)) {
+
+            if (statusCode == 404
+                    || statusCode == 403
+                    || "NoSuchKey".equals(errorCode)
+                    || "AccessDenied".equals(errorCode)) {
                 return false;
             }
-            throw new RuntimeException("delay_postpone json existence check failed: s3://" + OUTPUT_BUCKET + "/" + key, e);
+
+            return false;
         } catch (Exception e) {
-            throw new RuntimeException("delay_postpone json existence check failed: s3://" + OUTPUT_BUCKET + "/" + key, e);
+            return false;
         } finally {
             if (inputStream != null) {
                 try {
@@ -169,8 +186,10 @@ public class ReadDelayPostpone {
 
     /**
      * 単一 json ファイルを読み込み
+     *
+     * 読めない/存在しない場合は空リスト返却
      */
-    private List<DelayPostponeMatchDto> readSingleFile(String key) {
+    private List<DelayPostponeMatchDto> readSingleFileOrEmpty(String key) {
         GetObjectRequest request = GetObjectRequest.builder()
                 .bucket(OUTPUT_BUCKET)
                 .key(key)
@@ -178,8 +197,22 @@ public class ReadDelayPostpone {
 
         try (ResponseInputStream<GetObjectResponse> inputStream = s3Client.getObject(request)) {
             return extractMatches(inputStream, key);
+        } catch (NoSuchKeyException e) {
+            return Collections.emptyList();
+        } catch (S3Exception e) {
+            int statusCode = e.statusCode();
+            String errorCode = e.awsErrorDetails() == null ? null : e.awsErrorDetails().errorCode();
+
+            if (statusCode == 404
+                    || statusCode == 403
+                    || "NoSuchKey".equals(errorCode)
+                    || "AccessDenied".equals(errorCode)) {
+                return Collections.emptyList();
+            }
+
+            return Collections.emptyList();
         } catch (Exception e) {
-            throw new RuntimeException("delay_postpone json 読み込み失敗: s3://" + OUTPUT_BUCKET + "/" + key, e);
+            return Collections.emptyList();
         }
     }
 
@@ -202,7 +235,7 @@ public class ReadDelayPostpone {
             return results;
 
         } catch (Exception e) {
-            throw new RuntimeException("delay_postpone json 解析失敗: " + sourceKey, e);
+            return Collections.emptyList();
         }
     }
 
