@@ -3,12 +3,9 @@ package dev.common.readfile;
 import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.Collections;
-import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.regex.Matcher;
-import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Component;
 
@@ -22,17 +19,19 @@ import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.GetObjectRequest;
 import software.amazon.awssdk.services.s3.model.GetObjectResponse;
-import software.amazon.awssdk.services.s3.model.ListObjectsV2Request;
-import software.amazon.awssdk.services.s3.model.ListObjectsV2Response;
+import software.amazon.awssdk.services.s3.model.NoSuchKeyException;
+import software.amazon.awssdk.services.s3.model.S3Exception;
 
 /**
  * delay_postpone json 読み込みサービス
  *
- * 対象ファイル:
+ * 対象:
  * - delay_postpone_YYYY-MM-DD.json
  * - delay_postpone_YYYY-MM-DD_2.json
  * - delay_postpone_YYYY-MM-DD_3.json
  * ...
+ *
+ * ListBucket は使わず、規則的な key を順番に読む
  *
  * @author shiraishitoshio
  */
@@ -52,14 +51,10 @@ public class ReadDelayPostpone {
     private static final String OUTPUT_PREFIX = "";
 
     /**
-     * 対象ファイルパターン
-     * 例:
-     * delay_postpone_2026-08-08.json
-     * delay_postpone_2026-08-08_2.json
-     * delay_postpone_2026-08-08_3.json
+     * 念のための上限
+     * 1日4回起動なら 10 でも十分
      */
-    private static final Pattern DELAY_FILE_PATTERN =
-            Pattern.compile("^(.*/)?delay_postpone_(\\d{4}-\\d{2}-\\d{2})(?:_(\\d+))?\\.json$");
+    private static final int MAX_DAILY_FILES = 20;
 
     private final S3Client s3Client;
     private final ObjectMapper objectMapper;
@@ -71,17 +66,17 @@ public class ReadDelayPostpone {
      * @return 延期・遅延試合一覧
      */
     public List<DelayPostponeMatchDto> readAllDelayPostponeMatches(String targetDate) {
-        List<S3DelayFile> targetFiles = listTargetFiles(targetDate);
+        List<String> targetKeys = buildExistingTargetKeys(targetDate);
 
-        if (targetFiles.isEmpty()) {
+        if (targetKeys.isEmpty()) {
             return Collections.emptyList();
         }
 
         // 重複除去: status + category + home + away
         Map<String, DelayPostponeMatchDto> dedupMap = new LinkedHashMap<String, DelayPostponeMatchDto>();
 
-        for (S3DelayFile file : targetFiles) {
-            List<DelayPostponeMatchDto> fileItems = readSingleFile(file.getKey());
+        for (String key : targetKeys) {
+            List<DelayPostponeMatchDto> fileItems = readSingleFile(key);
 
             for (DelayPostponeMatchDto dto : fileItems) {
                 String dedupKey = buildDedupKey(dto);
@@ -95,59 +90,85 @@ public class ReadDelayPostpone {
     }
 
     /**
-     * 指定日の対象ファイルを S3 から列挙
-     * 読み込み順は base -> _2 -> _3 ...
-     *
-     * @param targetDate yyyy-MM-dd
-     * @return 対象ファイル一覧
+     * 存在するキーを順番に構築
+     * 1件目: delay_postpone_YYYY-MM-DD.json
+     * 2件目: delay_postpone_YYYY-MM-DD_2.json
+     * ...
      */
-    private List<S3DelayFile> listTargetFiles(String targetDate) {
-        String prefix = normalizePrefix(OUTPUT_PREFIX) + "delay_postpone_" + targetDate;
+    private List<String> buildExistingTargetKeys(String targetDate) {
+        List<String> results = new ArrayList<String>();
 
-        List<S3DelayFile> results = new ArrayList<S3DelayFile>();
-        String continuationToken = null;
+        for (int seq = 1; seq <= MAX_DAILY_FILES; seq++) {
+            String key = buildOutputKey(targetDate, seq);
 
-        do {
-            ListObjectsV2Request.Builder builder = ListObjectsV2Request.builder()
-                    .bucket(OUTPUT_BUCKET)
-                    .prefix(prefix);
-
-            if (hasText(continuationToken)) {
-                builder.continuationToken(continuationToken);
+            if (existsObjectByGetObject(key)) {
+                results.add(key);
+                continue;
             }
 
-            ListObjectsV2Response response = s3Client.listObjectsV2(builder.build());
-
-            if (response.contents() != null) {
-                for (int i = 0; i < response.contents().size(); i++) {
-                    String key = response.contents().get(i).key();
-
-                    S3DelayFile parsed = parseDelayFile(key);
-                    if (parsed == null) {
-                        continue;
-                    }
-
-                    if (!targetDate.equals(parsed.getTargetDate())) {
-                        continue;
-                    }
-
-                    results.add(parsed);
-                }
+            // 無印がなければ対象なし
+            if (seq == 1) {
+                break;
             }
 
-            continuationToken = response.nextContinuationToken();
+            // _2 以降は最初に無い番号で打ち切り
+            break;
+        }
 
-        } while (hasText(continuationToken));
-
-        Collections.sort(results, Comparator.comparingInt(S3DelayFile::getSequenceNo));
         return results;
     }
 
     /**
+     * seq=1 -> delay_postpone_YYYY-MM-DD.json
+     * seq=2 -> delay_postpone_YYYY-MM-DD_2.json
+     */
+    private String buildOutputKey(String targetDate, int seq) {
+        String prefix = normalizePrefix(OUTPUT_PREFIX);
+
+        if (seq <= 1) {
+            return prefix + "delay_postpone_" + targetDate + ".json";
+        }
+
+        return prefix + "delay_postpone_" + targetDate + "_" + seq + ".json";
+    }
+
+    /**
+     * ListBucket を使わずに存在確認
+     * getObject を試し、NoSuchKey なら false
+     */
+    private boolean existsObjectByGetObject(String key) {
+        GetObjectRequest request = GetObjectRequest.builder()
+                .bucket(OUTPUT_BUCKET)
+                .key(key)
+                .build();
+
+        ResponseInputStream<GetObjectResponse> inputStream = null;
+        try {
+            inputStream = s3Client.getObject(request);
+            return true;
+        } catch (NoSuchKeyException e) {
+            return false;
+        } catch (S3Exception e) {
+            String errorCode = e.awsErrorDetails() == null ? null : e.awsErrorDetails().errorCode();
+            if (e.statusCode() == 404 || "NoSuchKey".equals(errorCode)) {
+                return false;
+            }
+            throw new RuntimeException("delay_postpone json existence check failed: s3://" + OUTPUT_BUCKET + "/" + key, e);
+        } catch (Exception e) {
+            throw new RuntimeException("delay_postpone json existence check failed: s3://" + OUTPUT_BUCKET + "/" + key, e);
+        } finally {
+            if (inputStream != null) {
+                try {
+                    inputStream.close();
+                } catch (Exception e) {
+                    // noop
+                }
+            }
+        }
+    }
+
+    /**
      * 単一 json ファイルを読み込み
-     *
-     * @param key S3 key
-     * @return 抽出結果
      */
     private List<DelayPostponeMatchDto> readSingleFile(String key) {
         GetObjectRequest request = GetObjectRequest.builder()
@@ -168,10 +189,6 @@ public class ReadDelayPostpone {
      * 読み込み対象:
      * - matched_delay_postpone_games
      * - carry_over_postponed_games
-     *
-     * @param inputStream 入力ストリーム
-     * @param sourceKey 読み込み元 key
-     * @return 抽出結果
      */
     private List<DelayPostponeMatchDto> extractMatches(InputStream inputStream, String sourceKey) {
         try {
@@ -191,10 +208,6 @@ public class ReadDelayPostpone {
 
     /**
      * 指定セクションから延期・遅延試合を抽出
-     *
-     * @param out 出力先
-     * @param sectionNode JSON 配列ノード
-     * @param sourceKey 読み込み元 key
      */
     private void appendSection(List<DelayPostponeMatchDto> out, JsonNode sectionNode, String sourceKey) {
         if (sectionNode == null || !sectionNode.isArray()) {
@@ -229,10 +242,7 @@ public class ReadDelayPostpone {
     }
 
     /**
-     * 日本語ステータスを enum に変換
-     *
-     * @param statusTypeJa 延期 / 遅延
-     * @return FutureScheduleConstant
+     * 日本語ステータスをコード文字列に変換
      */
     private String toFutureSchedule(String statusTypeJa) {
         if (FutureScheduleConstant.POSTPONED.getJapaneseMeaning().equals(statusTypeJa)) {
@@ -245,39 +255,7 @@ public class ReadDelayPostpone {
     }
 
     /**
-     * S3 key を解析
-     *
-     * 無印:
-     * delay_postpone_2026-08-08.json -> sequenceNo = 1
-     *
-     * 連番:
-     * delay_postpone_2026-08-08_2.json -> sequenceNo = 2
-     *
-     * @param key S3 key
-     * @return 解析結果
-     */
-    private S3DelayFile parseDelayFile(String key) {
-        Matcher matcher = DELAY_FILE_PATTERN.matcher(key);
-        if (!matcher.matches()) {
-            return null;
-        }
-
-        String date = matcher.group(2);
-        String seqStr = matcher.group(3);
-
-        int sequenceNo = 1;
-        if (hasText(seqStr)) {
-            sequenceNo = Integer.parseInt(seqStr);
-        }
-
-        return new S3DelayFile(key, date, sequenceNo);
-    }
-
-    /**
      * 重複判定キー生成
-     *
-     * @param dto DTO
-     * @return dedup key
      */
     private String buildDedupKey(DelayPostponeMatchDto dto) {
         String statusCode = "";
@@ -311,38 +289,5 @@ public class ReadDelayPostpone {
 
     private String safe(String value) {
         return value == null ? "" : value.trim();
-    }
-
-    /**
-     * S3 key 情報
-     */
-    private static class S3DelayFile {
-
-        /** S3 key */
-        private final String key;
-
-        /** 対象日 yyyy-MM-dd */
-        private final String targetDate;
-
-        /** 無印=1, _2=2, _3=3 ... */
-        private final int sequenceNo;
-
-        public S3DelayFile(String key, String targetDate, int sequenceNo) {
-            this.key = key;
-            this.targetDate = targetDate;
-            this.sequenceNo = sequenceNo;
-        }
-
-        public String getKey() {
-            return key;
-        }
-
-        public String getTargetDate() {
-            return targetDate;
-        }
-
-        public int getSequenceNo() {
-            return sequenceNo;
-        }
     }
 }
