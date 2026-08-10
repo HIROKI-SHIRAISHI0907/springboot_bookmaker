@@ -1,11 +1,11 @@
 package dev.web.api.bm_w001;
 
 import java.text.Normalizer;
+import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.util.HashMap;
+import java.time.ZoneId;
 import java.util.List;
-import java.util.Map;
 
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
@@ -28,31 +28,28 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class FuturesAPIService {
 
-	private final LeaguesRepository leagueRepo;
-
-	private final FuturesRepository futuresRepository;
-
-	private final BookDataRepository bookDataRepository;
-
-	private final ReadDelayPostpone readDelayPostpone;
+    private final LeaguesRepository leagueRepo;
+    private final FuturesRepository futuresRepository;
+    private final BookDataRepository bookDataRepository;
+    private final ReadDelayPostpone readDelayPostpone;
 
     /**
      * 国・リーグ・チーム(slug)から、予定試合（SCHEDULED）一覧を返す
      */
     @Transactional(readOnly = true)
     public List<FuturesResponseDTO> getFutureMatches(String teamEnglish, String teamHash) {
-    	TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
-    	if (teamInfo == null) return null;
-        return futuresRepository.findFutureMatches(teamInfo.getCountry(), teamInfo.getLeague(),
-        		teamInfo.getTeam());
+        TeamRow teamInfo = leagueRepo.findTeamDetailByTeamAndHash(teamEnglish, teamHash);
+        if (teamInfo == null) {
+            return null;
+        }
+        return futuresRepository.findFutureMatches(
+                teamInfo.getCountry(),
+                teamInfo.getLeague(),
+                teamInfo.getTeam());
     }
 
     /**
      * 管理画面用
-     * @param country
-     * @param league
-     * @param limit
-     * @return
      */
     @Transactional(readOnly = true)
     public List<FuturesResponseDTO> getFutureMatchesForAdmin(String country, String league, int limit) {
@@ -61,47 +58,49 @@ public class FuturesAPIService {
 
     /**
      * 管理画面用（試合予定データ取得画面）
-     * @param date
-     * @param limit
-     * @return
      */
     @Transactional(readOnly = true)
     public List<FuturesResponseDTO> getFutureMatchesForDate(String date, int offset) {
 
         List<FuturesResponseDTO> responseDTO = futuresRepository.findFutureMasterByDate(date, offset);
 
-        // JSONファイル読み込み
+        // JSONファイル読み込み（無ければ空）
         List<DelayPostponeMatchDto> delayPostponeJsonData =
                 readDelayPostpone.readAllDelayPostponeMatches(date);
 
-        // JSON検索しやすいように Map 化
-        Map<String, String> delayPostponeMap =
-                buildDelayPostponeStatusMap(delayPostponeJsonData);
-
         LocalDateTime now = LocalDateTime.now();
+        boolean targetDateIsToday = LocalDate.now(ZoneId.of("Asia/Tokyo")).toString().equals(date);
 
         for (FuturesResponseDTO dto : responseDTO) {
 
             String currentStatus = trim(dto.getStatus());
 
-            // 明示的に固定したいステータスがあれば最初に維持
-            // POSTPONED をDB優先で固定したい場合はここに追加
+            // 明示的に確定済みは維持
             if (FutureScheduleConstant.FINISHED.is(currentStatus)
-                    || FutureScheduleConstant.INTERRUPTED.is(currentStatus)) {
+                    || FutureScheduleConstant.INTERRUPTED.is(currentStatus)
+                    || FutureScheduleConstant.POSTPONED.is(currentStatus)) {
                 continue;
             }
 
             // =========================
             // 延期 / 遅延 JSON チェック
             // =========================
-            String delayPostponeKey = buildDelayPostponeKey(
+            String delayPostponeStatus = findDelayPostponeStatus(dto, delayPostponeJsonData);
+            if (delayPostponeStatus != null) {
+                dto.setStatus(delayPostponeStatus);
+                continue;
+            }
+
+            // =========================
+            // 終了済みデータがあれば FINISHED 優先
+            // =========================
+            int dataFinCnt = bookDataRepository.countByFinData(
                     dto.getGameTeamCategory(),
                     dto.getHomeTeam(),
                     dto.getAwayTeam());
 
-            String delayPostponeStatus = delayPostponeMap.get(delayPostponeKey);
-            if (delayPostponeStatus != null) {
-                dto.setStatus(delayPostponeStatus);
+            if (dataFinCnt > 0) {
+                dto.setStatus(FutureScheduleConstant.FINISHED.getCode());
                 continue;
             }
 
@@ -121,32 +120,68 @@ public class FuturesAPIService {
                     dto.getHomeTeam(),
                     dto.getAwayTeam());
 
-            int dataFinCnt = bookDataRepository.countByFinData(
-                    dto.getGameTeamCategory(),
-                    dto.getHomeTeam(),
-                    dto.getAwayTeam());
-
-            // 終了済みデータがあれば FINISHED を優先
-            if (dataFinCnt > 0) {
-                dto.setStatus(FutureScheduleConstant.FINISHED.getCode());
-                continue;
-            }
-
             // リアルタイムデータがあれば LIVE
             if (dataRealCnt > 0) {
                 dto.setStatus(FutureScheduleConstant.LIVE.getCode());
                 continue;
             }
 
-            // 予定時刻は過ぎたがデータが無い -> DELAYED
-            dto.setStatus(FutureScheduleConstant.DELAYED.getCode());
+            // DELAYED は「今日の試合」にだけ付ける
+            if (targetDateIsToday) {
+                dto.setStatus(FutureScheduleConstant.DELAYED.getCode());
+            } else {
+                // 今日以外は安易に DELAYED にしない
+                if (hasText(currentStatus)) {
+                    dto.setStatus(currentStatus);
+                } else {
+                    dto.setStatus(FutureScheduleConstant.SCHEDULED.getCode());
+                }
+            }
         }
 
         return responseDTO;
     }
 
+    /**
+     * JSON の延期/遅延情報を、チーム名一致 + カテゴリゆるめ一致で探す
+     */
+    private String findDelayPostponeStatus(
+            FuturesResponseDTO future,
+            List<DelayPostponeMatchDto> delayPostponeJsonData) {
+
+        if (delayPostponeJsonData == null || delayPostponeJsonData.isEmpty()) {
+            return null;
+        }
+
+        String futureCategory = future.getGameTeamCategory();
+        String futureHome = future.getHomeTeam();
+        String futureAway = future.getAwayTeam();
+
+        for (DelayPostponeMatchDto dto : delayPostponeJsonData) {
+            if (dto == null || !hasText(dto.getStatusType())) {
+                continue;
+            }
+
+            if (!isSameTeamName(futureHome, dto.getHome())) {
+                continue;
+            }
+
+            if (!isSameTeamName(futureAway, dto.getAway())) {
+                continue;
+            }
+
+            if (!isEquivalentCategory(futureCategory, dto.getCategory())) {
+                continue;
+            }
+
+            return dto.getStatusType();
+        }
+
+        return null;
+    }
+
     private boolean isBeforeScheduledTime(String futureTime, LocalDateTime now) {
-        if (futureTime == null || futureTime.trim().isEmpty()) {
+        if (!hasText(futureTime)) {
             return false;
         }
 
@@ -157,39 +192,36 @@ public class FuturesAPIService {
         }
     }
 
-    private Map<String, String> buildDelayPostponeStatusMap(
-            List<DelayPostponeMatchDto> delayPostponeJsonData) {
-
-        Map<String, String> result = new HashMap<String, String>();
-
-        if (delayPostponeJsonData == null || delayPostponeJsonData.isEmpty()) {
-            return result;
-        }
-
-        for (DelayPostponeMatchDto dto : delayPostponeJsonData) {
-            if (dto == null || dto.getStatusType() == null) {
-                continue;
-            }
-
-            String key = buildDelayPostponeKey(
-                    dto.getCategory(),
-                    dto.getHome(),
-                    dto.getAway());
-
-            // 後勝ちにしたい場合は put のままでOK
-            // 先勝ちにしたい場合は containsKey チェックを入れる
-            result.put(key, dto.getStatusType());
-        }
-
-        return result;
+    private boolean isSameTeamName(String a, String b) {
+        return normalizeMatchKeyPart(a).equals(normalizeMatchKeyPart(b));
     }
 
-    private String buildDelayPostponeKey(String category, String home, String away) {
-        return normalizeMatchKeyPart(category)
-                + "|"
-                + normalizeMatchKeyPart(home)
-                + "|"
-                + normalizeMatchKeyPart(away);
+    /**
+     * category のゆるめ一致
+     * 例:
+     * - ウクライナ: プレミアリーグ
+     * - ウクライナ: プレミアリーグ Round 1
+     * - ウクライナ: プレミアリーグ ラウンド1
+     */
+    private boolean isEquivalentCategory(String a, String b) {
+        String na = normalizeCategory(a);
+        String nb = normalizeCategory(b);
+
+        if (!hasText(na) || !hasText(nb)) {
+            return false;
+        }
+
+        return na.equals(nb) || na.contains(nb) || nb.contains(na);
+    }
+
+    private String normalizeCategory(String value) {
+        String normalized = normalizeMatchKeyPart(value);
+
+        // Round / ラウンド以降を落とす
+        normalized = normalized.replaceAll("(?i)round\\d+.*$", "");
+        normalized = normalized.replaceAll("ラウンド\\d+.*$", "");
+
+        return normalized.trim();
     }
 
     private String normalizeMatchKeyPart(String value) {
@@ -203,8 +235,11 @@ public class FuturesAPIService {
         return normalized.trim();
     }
 
+    private boolean hasText(String value) {
+        return value != null && !value.trim().isEmpty();
+    }
+
     private String trim(String value) {
         return value == null ? null : value.trim();
     }
-
 }
