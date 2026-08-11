@@ -1,6 +1,5 @@
 package dev.web.api.bm_w001;
 
-import java.text.Normalizer;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
@@ -18,6 +17,7 @@ import dev.web.repository.bm.LeaguesRepository;
 import dev.web.repository.bm.LeaguesRepository.TeamRow;
 import dev.web.repository.master.FuturesRepository;
 import lombok.AllArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * FuturesAPI用サービス
@@ -26,6 +26,7 @@ import lombok.AllArgsConstructor;
  */
 @Service
 @AllArgsConstructor
+@Slf4j
 public class FuturesAPIService {
 
     private final LeaguesRepository leagueRepo;
@@ -68,32 +69,22 @@ public class FuturesAPIService {
         List<DelayPostponeMatchDto> delayPostponeJsonData =
                 readDelayPostpone.readAllDelayPostponeMatches(date);
 
-        LocalDateTime now = LocalDateTime.now();
-        boolean targetDateIsToday = LocalDate.now(ZoneId.of("Asia/Tokyo")).toString().equals(date);
+        // delayPostponeJsonData check: [DelayPostponeMatchDto(statusType=POSTPONED,
+        // category=ウクライナ: プレミアリーグ, home=ﾁｮﾙﾉﾓﾚﾂ･ｵﾃﾞｯｻ, away=ｺﾛｽ･ｺｳﾞｧﾘﾌｶ,
+        // sourceKey=delay_postpone_2026-08-08.json)]
+        log.info("delayPostponeJsonData check: {}", delayPostponeJsonData);
+
+        LocalDateTime now = LocalDateTime.now(); // ← システムのデフォルトタイムゾーン
+        boolean targetDateIsToday = LocalDate.now(ZoneId.of("Asia/Tokyo")).toString().equals(date); // ← 明示的にJST
 
         for (FuturesResponseDTO dto : responseDTO) {
 
-            String currentStatus = trim(dto.getStatus());
-
-            // 明示的に確定済みは維持
-            if (FutureScheduleConstant.FINISHED.is(currentStatus)
-                    || FutureScheduleConstant.INTERRUPTED.is(currentStatus)
-                    || FutureScheduleConstant.POSTPONED.is(currentStatus)) {
-                continue;
-            }
-
+        	// =========================
+            // 実データ（終了済み/ライブ）を優先して判定する
+            //   JSONの延期/遅延情報は「実データがまだ無い試合」に対してのみ適用する
             // =========================
-            // 延期 / 遅延 JSON チェック
-            // =========================
-            String delayPostponeStatus = findDelayPostponeStatus(dto, delayPostponeJsonData);
-            if (delayPostponeStatus != null) {
-                dto.setStatus(delayPostponeStatus);
-                continue;
-            }
 
-            // =========================
             // 終了済みデータがあれば FINISHED 優先
-            // =========================
             int dataFinCnt = bookDataRepository.countByFinData(
                     dto.getGameTeamCategory(),
                     dto.getHomeTeam(),
@@ -101,6 +92,26 @@ public class FuturesAPIService {
 
             if (dataFinCnt > 0) {
                 dto.setStatus(FutureScheduleConstant.FINISHED.getCode());
+                continue;
+            }
+
+            // リアルタイムデータがあれば LIVE
+            int dataRealCnt = bookDataRepository.countByLiveData(
+                    dto.getGameTeamCategory(),
+                    dto.getHomeTeam(),
+                    dto.getAwayTeam());
+
+            if (dataRealCnt > 0) {
+                dto.setStatus(FutureScheduleConstant.LIVE.getCode());
+                continue;
+            }
+
+            // =========================
+            // 実データが無い場合のみ、延期/遅延 JSON をチェック
+            // =========================
+            String delayPostponeData = findDelayPostponeStatus(dto, delayPostponeJsonData);
+            if (delayPostponeData != null) {
+                dto.setStatus(delayPostponeData);
                 continue;
             }
 
@@ -113,29 +124,12 @@ public class FuturesAPIService {
             }
 
             // =========================
-            // ここから先は「開始予定時刻を過ぎた」前提
+            // ここから先は「開始予定時刻を過ぎたが実データも延期情報も無い」
             // =========================
-            int dataRealCnt = bookDataRepository.countByLiveData(
-                    dto.getGameTeamCategory(),
-                    dto.getHomeTeam(),
-                    dto.getAwayTeam());
-
-            // リアルタイムデータがあれば LIVE
-            if (dataRealCnt > 0) {
-                dto.setStatus(FutureScheduleConstant.LIVE.getCode());
-                continue;
-            }
 
             // DELAYED は「今日の試合」にだけ付ける
             if (targetDateIsToday) {
                 dto.setStatus(FutureScheduleConstant.DELAYED.getCode());
-            } else {
-                // 今日以外は安易に DELAYED にしない
-                if (hasText(currentStatus)) {
-                    dto.setStatus(currentStatus);
-                } else {
-                    dto.setStatus(FutureScheduleConstant.SCHEDULED.getCode());
-                }
             }
         }
 
@@ -153,28 +147,18 @@ public class FuturesAPIService {
             return null;
         }
 
-        String futureCategory = future.getGameTeamCategory();
-        String futureHome = future.getHomeTeam();
-        String futureAway = future.getAwayTeam();
+        String home = future.getHomeTeam();
+        String away = future.getAwayTeam();
 
         for (DelayPostponeMatchDto dto : delayPostponeJsonData) {
             if (dto == null || !hasText(dto.getStatusType())) {
                 continue;
             }
 
-            if (!isSameTeamName(futureHome, dto.getHome())) {
-                continue;
+            // ホームチームとアウェーチームが同一キーとしてあるならそのステータスを取得
+            if (home.equals(dto.getHome()) && away.equals(dto.getAway())) {
+            	return dto.getStatusType();
             }
-
-            if (!isSameTeamName(futureAway, dto.getAway())) {
-                continue;
-            }
-
-            if (!isEquivalentCategory(futureCategory, dto.getCategory())) {
-                continue;
-            }
-
-            return dto.getStatusType();
         }
 
         return null;
@@ -192,54 +176,8 @@ public class FuturesAPIService {
         }
     }
 
-    private boolean isSameTeamName(String a, String b) {
-        return normalizeMatchKeyPart(a).equals(normalizeMatchKeyPart(b));
-    }
-
-    /**
-     * category のゆるめ一致
-     * 例:
-     * - ウクライナ: プレミアリーグ
-     * - ウクライナ: プレミアリーグ Round 1
-     * - ウクライナ: プレミアリーグ ラウンド1
-     */
-    private boolean isEquivalentCategory(String a, String b) {
-        String na = normalizeCategory(a);
-        String nb = normalizeCategory(b);
-
-        if (!hasText(na) || !hasText(nb)) {
-            return false;
-        }
-
-        return na.equals(nb) || na.contains(nb) || nb.contains(na);
-    }
-
-    private String normalizeCategory(String value) {
-        String normalized = normalizeMatchKeyPart(value);
-
-        // Round / ラウンド以降を落とす
-        normalized = normalized.replaceAll("(?i)round\\d+.*$", "");
-        normalized = normalized.replaceAll("ラウンド\\d+.*$", "");
-
-        return normalized.trim();
-    }
-
-    private String normalizeMatchKeyPart(String value) {
-        if (value == null) {
-            return "";
-        }
-
-        String normalized = Normalizer.normalize(value, Normalizer.Form.NFKC);
-        normalized = normalized.replace('\u3000', ' ');
-        normalized = normalized.replaceAll("\\s+", "");
-        return normalized.trim();
-    }
-
     private boolean hasText(String value) {
         return value != null && !value.trim().isEmpty();
     }
 
-    private String trim(String value) {
-        return value == null ? null : value.trim();
-    }
 }
