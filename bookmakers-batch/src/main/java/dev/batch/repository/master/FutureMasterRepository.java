@@ -42,10 +42,10 @@ public interface FutureMasterRepository {
 			    ) VALUES (
 			        #{gameTeamCategory},
 			        COALESCE(
-						CAST(NULLIF(BTRIM(CAST(#{futureTime} AS text)), '') AS timestamptz),
-						CAST(NULLIF(BTRIM(CAST(#{dataTime}   AS text)), '') AS timestamptz),
-						CURRENT_TIMESTAMP
-					),
+                		(CAST(NULLIF(BTRIM(CAST(#{futureTime} AS text)), '') AS timestamp) AT TIME ZONE 'Asia/Tokyo'),
+                		(CAST(NULLIF(BTRIM(CAST(#{dataTime}   AS text)), '') AS timestamp) AT TIME ZONE 'Asia/Tokyo'),
+                		CURRENT_TIMESTAMP
+            		),
 			        #{homeRank},
 			        #{awayRank},
 			        #{homeTeamName},
