@@ -196,7 +196,7 @@ public interface BookDataRepository {
 			    #{awayDuelCount},
 			    #{homeInterceptCount},
 			    #{awayInterceptCount},
-			    CAST(NULLIF(#{recordTime}, '') AS timestamptz),
+			    CAST(NULLIF(#{recordTime}, '') AS timestamp),
 			    #{weather},
 			    #{temparature},
 			    #{humid},
