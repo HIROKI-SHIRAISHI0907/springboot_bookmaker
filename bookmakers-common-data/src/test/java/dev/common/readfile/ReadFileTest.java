@@ -36,7 +36,7 @@ class ReadFileTest {
       assertEquals("https://www.flashscore.co.jp/match/soccer/orense-4MwdGZV3/tecnico-u-Em6vQ0O5/?mid=40MTYan1", e.getGameLink());
       // ★末尾：試合ID=matchId, 通番=seq, ソート用秒=timeSortSeconds の前提
       assertEquals("40MTYan1", e.getMatchId());
-      assertEquals("1", e.getSeq());
+      assertEquals("1", e.getSeqKey());
       assertEquals(0, e.getTimeSortSeconds());
     }
   }

@@ -127,7 +127,7 @@ public class GetStatInfo {
 	 *
 	 * @return key: S3相対キー（例: Japan-J1-ラウンド5/9.csv）, value: seq(昇順・重複なし)
 	 */
-	public Map<String, List<Integer>> getCsvInfo(String csvNumber, String csvBackNumber) {
+	public Map<String, List<String>> getCsvInfo(String csvNumber, String csvBackNumber) {
 
 		String bucket = config.getS3BucketsStats();
 
@@ -392,7 +392,7 @@ public class GetStatInfo {
 	 * @param targetFolders 対象フォルダ一覧
 	 * @return key: S3相対キー, value: seq一覧
 	 */
-	public Map<String, List<Integer>> getCsvInfoByFolders(Set<String> targetFolders) {
+	public Map<String, List<String>> getCsvInfoByFolders(Set<String> targetFolders) {
 
 		String bucket = config.getS3BucketsStats();
 		List<String> keys = listSeqCsvKeysInFolders(bucket, targetFolders);

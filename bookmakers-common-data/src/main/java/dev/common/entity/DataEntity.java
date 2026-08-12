@@ -21,7 +21,7 @@ public class DataEntity extends MetaEntity implements Serializable {
 	private String file;
 
 	/** 通番 */
-	private Long seq;
+	private String seqKey;
 
 	/** 条件分岐結果通番ID */
 	private String conditionResultDataSeqId;

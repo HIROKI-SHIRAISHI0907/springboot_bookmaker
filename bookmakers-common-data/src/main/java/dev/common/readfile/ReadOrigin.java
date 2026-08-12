@@ -193,20 +193,7 @@ public class ReadOrigin implements ReadFileBodyIF {
 				mappingDto.setPredictionScoreTime(get(record, 99));
 				mappingDto.setMatchId(normalizeMatchId(get(record, 100).trim()));
 
-				String seqRaw = get(record, 101).trim();
-				try {
-					mappingDto.setSeq(Long.parseLong(seqRaw));
-				} catch (Exception e) {
-					String msg = "seq parse error"
-							+ " key=" + key
-							+ " row=" + row
-							+ " data=" + seqRaw
-							+ " matchIdRaw=" + get(record, 100);
-					this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, e);
-					throw e;
-				}
-
-				String timeSortSecondsRaw = get(record, 102).trim();
+				String timeSortSecondsRaw = get(record, 101).trim();
 				try {
 					mappingDto.setTimeSortSeconds(Integer.parseInt(timeSortSecondsRaw));
 				} catch (Exception e) {
@@ -218,7 +205,7 @@ public class ReadOrigin implements ReadFileBodyIF {
 					mappingDto.setTimeSortSeconds(1);
 				}
 
-				mappingDto.setAtThatTimes(get(record, 103));
+				mappingDto.setAtThatTimes(get(record, 102));
 				entityList.add(mappingDto);
 			}
 
