@@ -202,11 +202,11 @@ public class ExportCsvService {
 		logInfo(METHOD_NAME, "管理ファイル取得結果 seqExists=" + seqExists + ", teamExists=" + teamExists);
 
 		logInfo(METHOD_NAME, "sortSeqs() 開始");
-		List<List<Integer>> currentGroups = normalizeGroups(sortSeqs());
+		List<List<String>> currentGroups = normalizeGroups(sortSeqs());
 		logInfo(METHOD_NAME, "sortSeqs() 終了 currentGroups.size=" + currentGroups.size());
 
 		boolean firstRun = !seqExists || !Files.exists(localSeqPath);
-		List<List<Integer>> textGroups;
+		List<List<String>> textGroups;
 
 		logInfo(METHOD_NAME, "firstRun判定 result=" + firstRun + ", localSeqPathExists=" + Files.exists(localSeqPath));
 
@@ -220,7 +220,7 @@ public class ExportCsvService {
 			logInfo(METHOD_NAME, "既存 seqListJson 読み込み終了 textGroups.size=" + textGroups.size());
 		}
 
-		Map<String, List<Integer>> csvInfoRow;
+		Map<String, List<String>> csvInfoRow;
 		try {
 			logInfo(METHOD_NAME, "ReaderCurrentCsvInfoBean.init() 開始");
 			bean.init();
@@ -239,7 +239,7 @@ public class ExportCsvService {
 			logInfo(METHOD_NAME, "初回実行向け CsvBuildPlan 構築開始");
 			CsvBuildPlan plans = new CsvBuildPlan();
 			int i = 0;
-			for (List<Integer> curr : currentGroups) {
+			for (List<String> curr : currentGroups) {
 				plans.newTargets.put(CSV_NEW_PREFIX + "-" + (i++), curr);
 			}
 			plan = plans;
@@ -399,7 +399,7 @@ public class ExportCsvService {
 				logWarn(METHOD_NAME, "countGroupTargets() 失敗。処理継続");
 			}
 
-			Map<String, List<Integer>> csvInfoRow;
+			Map<String, List<String>> csvInfoRow;
 			try {
 				logInfo(METHOD_NAME, "ReaderCurrentCsvInfoBean.init() 開始");
 				bean.init();
@@ -414,11 +414,11 @@ public class ExportCsvService {
 					(csvInfoRow != null) ? csvInfoRow : Collections.emptyMap());
 
 			logInfo(METHOD_NAME, "sortSeqs() 開始");
-			List<List<Integer>> currentGroups = normalizeGroups(sortSeqs());
+			List<List<String>> currentGroups = normalizeGroups(sortSeqs());
 			logInfo(METHOD_NAME, "sortSeqs() 終了 currentGroups.size=" + currentGroups.size());
 
 			boolean firstRun = !Files.exists(localSeqPath);
-			List<List<Integer>> textGroups;
+			List<List<String>> textGroups;
 
 			logInfo(METHOD_NAME, "firstRun=" + firstRun + ", localSeqPathExists=" + Files.exists(localSeqPath));
 
@@ -437,7 +437,7 @@ public class ExportCsvService {
 				logInfo(METHOD_NAME, "初回実行向け plan 構築開始");
 				CsvBuildPlan plans = new CsvBuildPlan();
 				int i = 0;
-				for (List<Integer> curr : currentGroups) {
+				for (List<String> curr : currentGroups) {
 					plans.newTargets.put(CSV_NEW_PREFIX + "-" + (i++), curr);
 				}
 				plan = plans;
@@ -566,23 +566,23 @@ public class ExportCsvService {
 
 		List<CsvWorkItem> workItems = new ArrayList<>();
 
-		for (Map.Entry<String, List<Integer>> entry : plan.recreateByCsvKey.entrySet()) {
+		for (Map.Entry<String, List<String>> entry : plan.recreateByCsvKey.entrySet()) {
 			String relativeKey = canonicalizeCsvId(entry.getKey());
-			List<Integer> ids = normalizeSeqList(entry.getValue());
+			List<String> ids = normalizeSeqList(entry.getValue());
 
 			if (relativeKey.isBlank() || ids.isEmpty()) {
 				logWarn(METHOD_NAME, "recreate skip relativeKey=" + shortKey(relativeKey)
-						+ ", ids=" + summarizeIds(ids));
+						+ ", ids=" + ids);
 				continue;
 			}
 
 			workItems.add(new CsvWorkItem(relativeKey, ids));
 			logInfo(METHOD_NAME, "recreate add relativeKey=" + shortKey(relativeKey)
-					+ ", ids=" + summarizeIds(ids));
+					+ ", ids=" + ids);
 		}
 
 		logInfo(METHOD_NAME, "resolveNewTargetsByFolder() 開始");
-		Map<String, List<List<Integer>>> newTargetsByFolder = resolveNewTargetsByFolder(
+		Map<String, List<List<String>>> newTargetsByFolder = resolveNewTargetsByFolder(
 				plan.newTargets,
 				csvArtifactResource,
 				parentMethod);
@@ -594,9 +594,9 @@ public class ExportCsvService {
 				Map<String, Integer> s3MaxByFolder = getStatInfo.getMaxCsvNoByFolders(newTargetsByFolder.keySet());
 				logInfo(METHOD_NAME, "S3採番用 maxCsvNo 取得終了 result.size=" + s3MaxByFolder.size());
 
-				for (Map.Entry<String, List<List<Integer>>> e : newTargetsByFolder.entrySet()) {
+				for (Map.Entry<String, List<List<String>>> e : newTargetsByFolder.entrySet()) {
 					String folderName = canonicalizeFolderSegment(e.getKey());
-					List<List<Integer>> groups = e.getValue();
+					List<List<String>> groups = e.getValue();
 
 					groups.sort(Comparator.comparingInt(ExportCsvService::minSeqOfIds));
 
@@ -610,13 +610,13 @@ public class ExportCsvService {
 						workItems.add(new CsvWorkItem(relativeKey, groups.get(i)));
 
 						logInfo(METHOD_NAME, "new add(S3) relativeKey=" + shortKey(relativeKey)
-								+ ", ids=" + summarizeIds(groups.get(i)));
+								+ ", ids=" + groups.get(i));
 					}
 				}
 			} else {
-				for (Map.Entry<String, List<List<Integer>>> e : newTargetsByFolder.entrySet()) {
+				for (Map.Entry<String, List<List<String>>> e : newTargetsByFolder.entrySet()) {
 					String folderName = canonicalizeFolderSegment(e.getKey());
-					List<List<Integer>> groups = e.getValue();
+					List<List<String>> groups = e.getValue();
 
 					groups.sort(Comparator.comparingInt(ExportCsvService::minSeqOfIds));
 
@@ -630,7 +630,7 @@ public class ExportCsvService {
 						workItems.add(new CsvWorkItem(relativeKey, groups.get(i)));
 
 						logInfo(METHOD_NAME, "new add(Local) relativeKey=" + shortKey(relativeKey)
-								+ ", ids=" + summarizeIds(groups.get(i)));
+								+ ", ids=" + groups.get(i));
 					}
 				}
 			}
@@ -648,30 +648,30 @@ public class ExportCsvService {
 	 * @param parentMethod
 	 * @return
 	 */
-	private Map<String, List<List<Integer>>> resolveNewTargetsByFolder(
-			Map<String, List<Integer>> newTargets,
+	private Map<String, List<List<String>>> resolveNewTargetsByFolder(
+			Map<String, List<String>> newTargets,
 			CsvArtifactResource csvArtifactResource,
 			String parentMethod) {
 
 		final String METHOD_NAME = "resolveNewTargetsByFolder";
 		logInfo(METHOD_NAME, "開始 newTargets.size=" + (newTargets == null ? 0 : newTargets.size()));
 
-		Map<String, List<List<Integer>>> newTargetsByFolder = new LinkedHashMap<>();
+		Map<String, List<List<String>>> newTargetsByFolder = new LinkedHashMap<>();
 		if (newTargets == null || newTargets.isEmpty()) {
 			logInfo(METHOD_NAME, "newTargets 空のため終了");
 			return newTargetsByFolder;
 		}
 
-		for (Map.Entry<String, List<Integer>> entry : newTargets.entrySet()) {
+		for (Map.Entry<String, List<String>> entry : newTargets.entrySet()) {
 			String tempKey = entry.getKey();
-			List<Integer> ids = normalizeSeqList(entry.getValue());
+			List<String> ids = normalizeSeqList(entry.getValue());
 
 			if (ids.isEmpty()) {
 				logWarn(METHOD_NAME, "skip ids empty tempKey=" + tempKey);
 				continue;
 			}
 
-			logInfo(METHOD_NAME, "preview fetch 開始 tempKey=" + tempKey + ", ids=" + summarizeIds(ids));
+			logInfo(METHOD_NAME, "preview fetch 開始 tempKey=" + tempKey + ", ids=" + ids);
 			List<CsvPreviewRow> preview = fetchPreview(ids, "resolveNewTargetsByFolder");
 			logInfo(METHOD_NAME, "preview fetch 終了 tempKey=" + tempKey
 					+ ", preview.size=" + (preview == null ? 0 : preview.size()));
@@ -726,7 +726,7 @@ public class ExportCsvService {
 
 			for (CsvWorkItem item : chunk) {
 				logInfo(METHOD_NAME, "future submit relativeKey=" + shortKey(item.getRelativeKey())
-						+ ", ids=" + summarizeIds(item.getSeqIds()));
+						+ ", ids=" + item.getSeqIds());
 
 				futures.add(CompletableFuture.supplyAsync(
 						() -> processSingleWorkItem(
@@ -810,7 +810,7 @@ public class ExportCsvService {
 	    String step = "start";
 
 	    logInfo(METHOD_NAME, "開始 relativeKey=" + shortKey(item.getRelativeKey())
-	            + ", ids=" + summarizeIds(item.getSeqIds())
+	            + ", ids=" + item.getSeqIds()
 	            + ", localMode=" + localMode);
 
 	    try {
@@ -1158,7 +1158,7 @@ public class ExportCsvService {
 	 * @param groups
 	 * @throws IOException
 	 */
-	private void writeSeqListJson(Path out, List<List<Integer>> groups) throws IOException {
+	private void writeSeqListJson(Path out, List<List<String>> groups) throws IOException {
 		final String METHOD_NAME = "writeSeqListJson";
 		logInfo(METHOD_NAME, "開始 path=" + out + ", groups.size=" + (groups == null ? 0 : groups.size()));
 
@@ -1174,7 +1174,7 @@ public class ExportCsvService {
 	 * @param path
 	 * @return
 	 */
-	private List<List<Integer>> readSeqListJson(Path path) {
+	private List<List<String>> readSeqListJson(Path path) {
 		final String METHOD_NAME = "readSeqListJson";
 		logInfo(METHOD_NAME, "開始 path=" + path);
 
@@ -1192,25 +1192,25 @@ public class ExportCsvService {
 			}
 
 			if (json.startsWith("[")) {
-				List<List<Integer>> result = SEQ_JSON.readValue(json,
-						new com.fasterxml.jackson.core.type.TypeReference<List<List<Integer>>>() {
+				List<List<String>> result = SEQ_JSON.readValue(json,
+						new com.fasterxml.jackson.core.type.TypeReference<List<List<String>>>() {
 						});
 				logInfo(METHOD_NAME, "JSON形式読込完了 groups.size=" + result.size());
 				return result;
 			}
 
-			List<List<Integer>> result = new ArrayList<>();
+			List<List<String>> result = new ArrayList<>();
 			for (String line : json.split("\n")) {
 				line = line.trim();
 				if (line.isEmpty()) {
 					continue;
 				}
-				List<Integer> group = new ArrayList<>();
+				List<String> group = new ArrayList<>();
 				for (String s : line.split(",")) {
 					s = s.trim();
 					if (!s.isEmpty()) {
 						try {
-							group.add(Integer.valueOf(s));
+							group.add(s);
 						} catch (NumberFormatException ignore) {
 						}
 					}
@@ -1309,17 +1309,17 @@ public class ExportCsvService {
 	 * - findGroupTargetsPage() は home/away 単位
 	 * - 同一グループに対する findSeqListByGroup() の重複実行を防止
 	 */
-	private List<List<Integer>> sortSeqs() {
+	private List<List<String>> sortSeqs() {
 		final String METHOD_NAME = "sortSeqs";
 		logInfo(METHOD_NAME, "開始 GROUP_PAGE_SIZE=" + GROUP_PAGE_SIZE);
 
-		List<List<Integer>> result = new ArrayList<>();
+		List<List<String>> result = new ArrayList<>();
 
 		int offset = 0;
 		int pageNo = 1;
 
 		// 同一グループの重複SQL実行防止
-		Map<String, List<Integer>> seqCache = new LinkedHashMap<>();
+		Map<String, List<String>> seqCache = new LinkedHashMap<>();
 		Set<String> processedGroupKeys = new LinkedHashSet<>();
 
 		while (true) {
@@ -1364,7 +1364,7 @@ public class ExportCsvService {
 					continue;
 				}
 
-				List<Integer> seqs = seqCache.get(groupKey);
+				List<String> seqs = seqCache.get(groupKey);
 				if (seqs == null) {
 					logInfo(METHOD_NAME, "findSeqListByGroup() 開始 home=" + home
 							+ ", away=" + away
@@ -1381,7 +1381,7 @@ public class ExportCsvService {
 					logInfo(METHOD_NAME, "findSeqListByGroup() 終了 home=" + home
 							+ ", away=" + away
 							+ ", matchId=" + matchId
-							+ ", " + summarizeIds(seqs));
+							+ ", " + seqs);
 
 					seqCache.put(groupKey, seqs);
 				}
@@ -1410,13 +1410,13 @@ public class ExportCsvService {
 		return result;
 	}
 
-	private static List<List<Integer>> normalizeGroups(List<List<Integer>> groups) {
+	private static List<List<String>> normalizeGroups(List<List<String>> groups) {
 		if (groups == null) {
 			return Collections.emptyList();
 		}
-		List<List<Integer>> out = new ArrayList<>();
-		for (List<Integer> g : groups) {
-			List<Integer> ng = normalizeSeqListStatic(g);
+		List<List<String>> out = new ArrayList<>();
+		for (List<String> g : groups) {
+			List<String> ng = normalizeSeqListStatic(g);
 			if (!ng.isEmpty()) {
 				out.add(ng);
 			}
@@ -1424,16 +1424,16 @@ public class ExportCsvService {
 		return out;
 	}
 
-	private List<Integer> normalizeSeqList(List<Integer> src) {
+	private List<String> normalizeSeqList(List<String> src) {
 		return normalizeSeqListStatic(src);
 	}
 
-	private static List<Integer> normalizeSeqListStatic(List<Integer> src) {
+	private static List<String> normalizeSeqListStatic(List<String> src) {
 		if (src == null || src.isEmpty()) {
 			return Collections.emptyList();
 		}
-		List<Integer> ids = new ArrayList<>(src.size());
-		for (Integer n : new TreeSet<>(src)) {
+		List<String> ids = new ArrayList<>(src.size());
+		for (String n : new TreeSet<>(src)) {
 			if (n != null) {
 				ids.add(n);
 			}
@@ -1442,13 +1442,13 @@ public class ExportCsvService {
 	}
 
 	private List<DataEntity> fetchAndFilter(
-			List<Integer> ids,
+			List<String> ids,
 			CsvArtifactResource csvArtifactResource,
 			String parentMethod,
 			String label) {
 
 		final String METHOD_NAME = "fetchAndFilter";
-		logInfo(METHOD_NAME, "開始 label=" + label + ", ids=" + summarizeIds(ids));
+		logInfo(METHOD_NAME, "開始 label=" + label + ", ids=" + ids);
 
 		if (ids == null || ids.isEmpty()) {
 			logInfo(METHOD_NAME, "ids empty のため null返却 label=" + label);
@@ -1457,12 +1457,12 @@ public class ExportCsvService {
 
 		List<DataEntity> result;
 		try {
-			logInfo(METHOD_NAME, "findByData() 開始 label=" + label + ", ids=" + summarizeIds(ids));
+			logInfo(METHOD_NAME, "findByData() 開始 label=" + label + ", ids=" + ids);
 			result = this.bookCsvDataRepository.findByData(ids);
 			logInfo(METHOD_NAME, "findByData() 終了 label=" + label
 					+ ", result.size=" + (result == null ? 0 : result.size()));
 		} catch (Exception e) {
-			logError(METHOD_NAME, "findByData() 失敗 label=" + label + ", ids=" + summarizeIds(ids), e);
+			logError(METHOD_NAME, "findByData() 失敗 label=" + label + ", ids=" + ids, e);
 			throw e;
 		}
 
@@ -1530,30 +1530,30 @@ public class ExportCsvService {
 	}
 
 	private CsvBuildPlan matchSeqCombPlan(
-			List<List<Integer>> textSeqs,
-			List<List<Integer>> dbSeqs,
-			Map<String, List<Integer>> csvInfoRow) {
+			List<List<String>> textSeqs,
+			List<List<String>> dbSeqs,
+			Map<String, List<String>> csvInfoRow) {
 
 		CsvBuildPlan plan = new CsvBuildPlan();
 
-		Map<Integer, String> minSeqToCsvKey = new LinkedHashMap<>();
+		Map<String, String> minSeqToCsvKey = new LinkedHashMap<>();
 		Map<String, String> groupKeyToCsvKey = new LinkedHashMap<>();
 
-		Map<String, List<Integer>> normalizedCsvInfo = canonicalizeCsvInfoMap(csvInfoRow);
+		Map<String, List<String>> normalizedCsvInfo = canonicalizeCsvInfoMap(csvInfoRow);
 
-		for (Map.Entry<String, List<Integer>> e : normalizedCsvInfo.entrySet()) {
+		for (Map.Entry<String, List<String>> e : normalizedCsvInfo.entrySet()) {
 			String csvKey = canonicalizeCsvId(e.getKey());
-			List<Integer> ids = normalizeSeqListStatic(e.getValue());
+			List<String> ids = normalizeSeqListStatic(e.getValue());
 			if (ids.isEmpty()) {
 				continue;
 			}
 
-			int min = ids.get(0);
+			String min = ids.get(0);
 			minSeqToCsvKey.put(min, csvKey);
 			groupKeyToCsvKey.put(groupKey(ids), csvKey);
 		}
 
-		for (List<Integer> dbGroup : dbSeqs) {
+		for (List<String> dbGroup : dbSeqs) {
 			if (dbGroup == null || dbGroup.isEmpty()) {
 				continue;
 			}
@@ -1564,7 +1564,7 @@ public class ExportCsvService {
 				continue;
 			}
 
-			int min = dbGroup.get(0);
+			String min = dbGroup.get(0);
 			String csvKey = minSeqToCsvKey.get(min);
 			if (csvKey != null) {
 				plan.recreateByCsvKey.put(canonicalizeCsvId(csvKey), dbGroup);
@@ -1582,9 +1582,9 @@ public class ExportCsvService {
 	 * @param label
 	 * @return
 	 */
-	private List<CsvPreviewRow> fetchPreview(List<Integer> ids, String label) {
+	private List<CsvPreviewRow> fetchPreview(List<String> ids, String label) {
 		final String METHOD_NAME = "fetchPreview";
-		logInfo(METHOD_NAME, "開始 label=" + label + ", ids=" + summarizeIds(ids));
+		logInfo(METHOD_NAME, "開始 label=" + label + ", ids=" + ids);
 
 		if (ids == null || ids.isEmpty()) {
 			return Collections.emptyList();
@@ -1815,9 +1815,9 @@ public class ExportCsvService {
 		return "";
 	}
 
-	private static String groupKey(List<Integer> ids) {
+	private static String groupKey(List<String> ids) {
 		StringBuilder sb = new StringBuilder();
-		for (Integer n : ids) {
+		for (String n : ids) {
 			if (n == null) {
 				continue;
 			}
@@ -1946,21 +1946,21 @@ public class ExportCsvService {
 		logInfo(METHOD_NAME, "終了 path=" + out + ", outLines.size=" + outLines.size());
 	}
 
-	private Map<String, List<Integer>> canonicalizeCsvInfoMap(Map<String, List<Integer>> src) {
-		Map<String, List<Integer>> result = new LinkedHashMap<>();
+	private Map<String, List<String>> canonicalizeCsvInfoMap(Map<String, List<String>> src) {
+		Map<String, List<String>> result = new LinkedHashMap<>();
 		if (src == null || src.isEmpty()) {
 			return result;
 		}
 
-		for (Map.Entry<String, List<Integer>> e : src.entrySet()) {
+		for (Map.Entry<String, List<String>> e : src.entrySet()) {
 			String normalizedKey = canonicalizeCsvId(e.getKey());
-			List<Integer> normalizedSeqs = normalizeSeqListStatic(e.getValue());
+			List<String> normalizedSeqs = normalizeSeqListStatic(e.getValue());
 
 			if (normalizedKey.isBlank() || normalizedSeqs.isEmpty()) {
 				continue;
 			}
 
-			List<Integer> merged = new ArrayList<>();
+			List<String> merged = new ArrayList<>();
 			if (result.containsKey(normalizedKey)) {
 				merged.addAll(result.get(normalizedKey));
 			}
@@ -2062,17 +2062,20 @@ public class ExportCsvService {
 		}
 
 		list.sort(Comparator
-				.comparing((DataEntity d) -> {
-					String rt = d.getRecordTime();
-					return (rt == null) ? "" : rt;
-				})
-				.thenComparingInt(d -> {
-					try {
-						return Integer.parseInt(Objects.toString(d.getSeq(), "0"));
-					} catch (NumberFormatException e) {
-						return Integer.MAX_VALUE;
-					}
-				}));
+		        .comparing((DataEntity d) -> {
+		            String rt = d.getRecordTime();
+		            return (rt == null) ? "" : rt;
+		        })
+		        .thenComparingInt(d -> {
+		            try {
+		                String seqKey = Objects.toString(d.getSeqKey(), "0");
+		                int idx = seqKey.lastIndexOf('-');
+		                String numPart = (idx >= 0) ? seqKey.substring(idx + 1) : seqKey;
+		                return Integer.parseInt(numPart);
+		            } catch (NumberFormatException e) {
+		                return Integer.MAX_VALUE;
+		            }
+		        }));
 
 		String lastHome = null;
 		String lastAway = null;
@@ -2229,20 +2232,25 @@ public class ExportCsvService {
 		return p + "/" + f;
 	}
 
-	private static int minSeqOfIds(List<Integer> ids) {
-		if (ids == null || ids.isEmpty()) {
-			return Integer.MAX_VALUE;
-		}
-		int min = Integer.MAX_VALUE;
-		for (Integer id : ids) {
-			if (id == null) {
-				continue;
-			}
-			if (id < min) {
-				min = id;
-			}
-		}
-		return min;
+	private static int minSeqOfIds(List<String> ids) {
+	    if (ids == null || ids.isEmpty()) {
+	        return Integer.MAX_VALUE;
+	    }
+	    int min = Integer.MAX_VALUE;
+	    for (String id : ids) {
+	        if (id == null) {
+	            continue;
+	        }
+	        try {
+	            int n = Integer.parseInt(id);
+	            if (n < min) {
+	                min = n;
+	            }
+	        } catch (NumberFormatException ignore) {
+	            // 数値化できないIDは無視
+	        }
+	    }
+	    return min;
 	}
 
 	/**
@@ -2261,7 +2269,7 @@ public class ExportCsvService {
 			Path baseDir,
 			Path localSeqPath,
 			Path localTeamPath,
-			List<List<Integer>> currentGroups) throws IOException {
+			List<List<String>> currentGroups) throws IOException {
 
 		final String METHOD_NAME = "putManageFilesEvenIfNoCsv";
 		logInfo(METHOD_NAME, "開始 statsBucket=" + statsBucket
@@ -2290,9 +2298,9 @@ public class ExportCsvService {
 
 	private static final class CsvWorkItem {
 		private final String relativeKey;
-		private final List<Integer> seqIds;
+		private final List<String> seqIds;
 
-		private CsvWorkItem(String relativeKey, List<Integer> seqIds) {
+		private CsvWorkItem(String relativeKey, List<String> seqIds) {
 			this.relativeKey = relativeKey;
 			this.seqIds = seqIds;
 		}
@@ -2301,7 +2309,7 @@ public class ExportCsvService {
 			return relativeKey;
 		}
 
-		public List<Integer> getSeqIds() {
+		public List<String> getSeqIds() {
 			return seqIds;
 		}
 	}
@@ -2406,15 +2414,6 @@ public class ExportCsvService {
 		this.manageLoggerComponent.debugErrorLog(
 				PROJECT_NAME, CLASS_NAME, method,
 				MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e, message);
-	}
-
-	private static String summarizeIds(List<Integer> ids) {
-		if (ids == null || ids.isEmpty()) {
-			return "size=0";
-		}
-		Integer first = ids.get(0);
-		Integer last = ids.get(ids.size() - 1);
-		return "size=" + ids.size() + ", first=" + first + ", last=" + last;
 	}
 
 	private static String shortKey(String key) {

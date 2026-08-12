@@ -34,18 +34,18 @@ public interface BookCsvDataRepository {
               SELECT
                 d.home_team_name,
                 d.away_team_name
-              FROM data d
+              FROM static_data d
               WHERE
                 EXISTS (
                   SELECT 1
-                  FROM data x
+                  FROM static_data x
                   WHERE x.home_team_name = d.home_team_name
                     AND x.away_team_name = d.away_team_name
                     AND x.times IN ('ハーフタイム', '第一ハーフ')
                 )
                 AND EXISTS (
                   SELECT 1
-                  FROM data y
+                  FROM static_data y
                   WHERE y.home_team_name = d.home_team_name
                     AND y.away_team_name = d.away_team_name
                     AND (
@@ -75,7 +75,7 @@ public interface BookCsvDataRepository {
               t.homeTeamName,
               t.awayTeamName,
               t.matchId,
-              t.seq
+              t.seqKey
             FROM (
               SELECT
                 d.home_team_name AS homeTeamName,
@@ -98,20 +98,20 @@ public interface BookCsvDataRepository {
 
                 COALESCE(
                   MIN(CASE WHEN d.data_category LIKE '%ラウンド%' THEN d.seq END),
-                  MIN(d.seq)
-                ) AS seq
-              FROM data d
+                  MIN(d.seqKey)
+                ) AS seqKey
+              FROM static_data d
               WHERE
                 EXISTS (
                   SELECT 1
-                  FROM data x
+                  FROM static_data x
                   WHERE x.home_team_name = d.home_team_name
                     AND x.away_team_name = d.away_team_name
                     AND x.times IN ('ハーフタイム', '第一ハーフ')
                 )
                 AND EXISTS (
                   SELECT 1
-                  FROM data y
+                  FROM static_data y
                   WHERE y.home_team_name = d.home_team_name
                     AND y.away_team_name = d.away_team_name
                     AND (
@@ -121,7 +121,7 @@ public interface BookCsvDataRepository {
                 )
               GROUP BY d.home_team_name, d.away_team_name
             ) t
-            ORDER BY t.homeTeamName, t.awayTeamName, t.seq
+            ORDER BY t.homeTeamName, t.awayTeamName, t.seqKey
             LIMIT #{limit} OFFSET #{offset}
             """)
     List<SeqWithKey> findGroupTargetsPage(@Param("limit") int limit,
@@ -134,14 +134,14 @@ public interface BookCsvDataRepository {
     @Select("""
             <script>
             SELECT DISTINCT
-              seq
-            FROM data
+              seq_key
+            FROM static_data
             WHERE home_team_name = #{homeTeamName}
               AND away_team_name = #{awayTeamName}
-            ORDER BY seq ASC
+            ORDER BY seq_key ASC
             </script>
             """)
-    List<Integer> findSeqListByGroup(@Param("homeTeamName") String homeTeamName,
+    List<String> findSeqListByGroup(@Param("homeTeamName") String homeTeamName,
                                      @Param("awayTeamName") String awayTeamName,
                                      @Param("matchId") String matchId,
                                      @Param("dataCategory") String dataCategory);
@@ -153,7 +153,7 @@ public interface BookCsvDataRepository {
     @Select("""
             <script>
             SELECT
-              seq                               AS seq,
+              seq_key                           AS seqKey,
               condition_result_data_seq_id      AS conditionResultDataSeqId,
               data_category                     AS dataCategory,
               times                             AS times,
@@ -259,7 +259,7 @@ public interface BookCsvDataRepository {
               match_id                          AS matchId,
               time_sort_seconds                 AS timeSortSeconds,
               add_manual_flg                    AS addManualFlg
-            FROM data
+            FROM static_data
             <where>
               <choose>
                 <when test="seqList != null and seqList.size() > 0">
@@ -276,13 +276,13 @@ public interface BookCsvDataRepository {
             ORDER BY seq ASC, record_time ASC
             </script>
             """)
-    List<DataEntity> findByData(@Param("seqList") List<Integer> seqList);
+    List<DataEntity> findByData(@Param("seqList") List<String> seqList);
 
     @Options(useCache = false, flushCache = Options.FlushCachePolicy.TRUE)
     @Select("""
             <script>
             SELECT
-              seq            AS seq,
+              seq_key        AS seqKey,
               data_category  AS dataCategory,
               home_team_name AS homeTeamName,
               away_team_name AS awayTeamName,
@@ -290,7 +290,7 @@ public interface BookCsvDataRepository {
               home_score     AS homeScore,
               away_score     AS awayScore,
               match_id       AS matchId
-            FROM data
+            FROM static_data
             <where>
               <choose>
                 <when test="seqList != null and seqList.size() > 0">
@@ -304,9 +304,9 @@ public interface BookCsvDataRepository {
                 </otherwise>
               </choose>
             </where>
-            ORDER BY seq ASC, record_time ASC
+            ORDER BY seq_key ASC, record_time ASC
             </script>
             """)
-    List<CsvPreviewRow> findPreviewByData(@Param("seqList") List<Integer> seqList);
+    List<CsvPreviewRow> findPreviewByData(@Param("seqList") List<String> seqList);
 
 }

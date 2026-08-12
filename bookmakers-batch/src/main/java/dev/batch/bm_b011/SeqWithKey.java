@@ -9,7 +9,7 @@ import lombok.Data;
 public class SeqWithKey {
 
     /** 代表seq */
-    private Integer seq;
+    private String seqKey;
 
     /** データカテゴリ */
     private String dataCategory;

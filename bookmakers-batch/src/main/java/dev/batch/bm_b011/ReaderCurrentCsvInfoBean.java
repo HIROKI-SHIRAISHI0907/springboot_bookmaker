@@ -16,7 +16,7 @@ public class ReaderCurrentCsvInfoBean {
 	@Autowired
 	private GetStatInfo getStatInfo;
 
-	private Map<String, List<Integer>> csvInfo = Collections.emptyMap();
+	private Map<String, List<String>> csvInfo = Collections.emptyMap();
 
 	public void init() {
 		this.csvInfo = getStatInfo.getCsvInfo("0", null);
@@ -37,7 +37,7 @@ public class ReaderCurrentCsvInfoBean {
 		}
 	}
 
-	public Map<String, List<Integer>> getCsvInfo() {
+	public Map<String, List<String>> getCsvInfo() {
 		return csvInfo;
 	}
 }

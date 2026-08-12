@@ -157,10 +157,10 @@ public class EachCsvTransaction {
 
 		prepareManageFilesLocalCache(bucket, prefix, METHOD_NAME);
 
-		Map<String, List<Integer>> existingSnapshot = readSnapshot(snapshotPath);
-		Map<String, List<Integer>> currentCsvInfo = loadCsvInfoSnapshot();
-		Map<String, List<Integer>> csvFileSnapshot = loadSeqSnapshotFromDeleteTargetCsvFiles(originalCsvIds);
-		Map<String, List<Integer>> deleteSnapshot = buildDeleteSnapshot(
+		Map<String, List<String>> existingSnapshot = readSnapshot(snapshotPath);
+		Map<String, List<String>> currentCsvInfo = loadCsvInfoSnapshot();
+		Map<String, List<String>> csvFileSnapshot = loadSeqSnapshotFromDeleteTargetCsvFiles(originalCsvIds);
+		Map<String, List<String>> deleteSnapshot = buildDeleteSnapshot(
 				originalCsvIds, csvFileSnapshot, currentCsvInfo, existingSnapshot);
 
 		writeSnapshot(snapshotPath, deleteSnapshot);
@@ -220,7 +220,7 @@ public class EachCsvTransaction {
 	/**
 	 * ReaderCurrentCsvInfoBean から csvId -> seqList を取得
 	 */
-	private Map<String, List<Integer>> loadCsvInfoSnapshot() {
+	private Map<String, List<String>> loadCsvInfoSnapshot() {
 		final String METHOD_NAME = "loadCsvInfoSnapshot";
 
 		if (localOnly) {
@@ -230,16 +230,16 @@ public class EachCsvTransaction {
 
 		try {
 			bean.init();
-			Map<String, List<Integer>> csvInfo = bean.getCsvInfo();
+			Map<String, List<String>> csvInfo = bean.getCsvInfo();
 			if (csvInfo == null) {
 				return new LinkedHashMap<>();
 			}
 
-			Map<String, List<Integer>> result = new LinkedHashMap<>();
-			for (Map.Entry<String, List<Integer>> e : csvInfo.entrySet()) {
+			Map<String, List<String>> result = new LinkedHashMap<>();
+			for (Map.Entry<String, List<String>> e : csvInfo.entrySet()) {
 				String originalKey = safe(e.getKey()).trim();
 				String canonicalKey = canonicalizeCsvId(originalKey);
-				List<Integer> seqs = normalizeSeqList(e.getValue());
+				List<String> seqs = normalizeSeqList(e.getValue());
 
 				if (seqs.isEmpty()) {
 					continue;
@@ -267,13 +267,13 @@ public class EachCsvTransaction {
 	 * 1. 現在の csvInfo
 	 * 2. 既存 snapshot
 	 */
-	private Map<String, List<Integer>> buildDeleteSnapshot(
+	private Map<String, List<String>> buildDeleteSnapshot(
 			List<String> csvIds,
-			Map<String, List<Integer>> csvFileSnapshot,
-			Map<String, List<Integer>> currentCsvInfo,
-			Map<String, List<Integer>> existingSnapshot) {
+			Map<String, List<String>> csvFileSnapshot,
+			Map<String, List<String>> currentCsvInfo,
+			Map<String, List<String>> existingSnapshot) {
 
-		Map<String, List<Integer>> result = new LinkedHashMap<>();
+		Map<String, List<String>> result = new LinkedHashMap<>();
 
 		for (String csvId : csvIds) {
 			if (csvId == null || csvId.isBlank()) {
@@ -282,7 +282,7 @@ public class EachCsvTransaction {
 
 			Set<String> lookupKeys = buildCsvIdLookupKeys(csvId);
 
-			List<Integer> seqs = findSeqListByAnyKey(csvFileSnapshot, lookupKeys);
+			List<String> seqs = findSeqListByAnyKey(csvFileSnapshot, lookupKeys);
 			if (seqs == null || seqs.isEmpty()) {
 				seqs = findSeqListByAnyKey(currentCsvInfo, lookupKeys);
 			}
@@ -299,8 +299,8 @@ public class EachCsvTransaction {
 		return result;
 	}
 
-	private List<Integer> findSeqListByAnyKey(
-			Map<String, List<Integer>> source,
+	private List<String> findSeqListByAnyKey(
+			Map<String, List<String>> source,
 			Set<String> keys) {
 
 		if (source == null || source.isEmpty() || keys == null || keys.isEmpty()) {
@@ -308,7 +308,7 @@ public class EachCsvTransaction {
 		}
 
 		for (String key : keys) {
-			List<Integer> seqs = source.get(key);
+			List<String> seqs = source.get(key);
 			if (seqs != null && !seqs.isEmpty()) {
 				return seqs;
 			}
@@ -321,10 +321,10 @@ public class EachCsvTransaction {
 	 * @param csvIds
 	 * @return
 	 */
-	private Map<String, List<Integer>> loadSeqSnapshotFromDeleteTargetCsvFiles(List<String> csvIds) {
+	private Map<String, List<String>> loadSeqSnapshotFromDeleteTargetCsvFiles(List<String> csvIds) {
 		final String METHOD_NAME = "loadSeqSnapshotFromDeleteTargetCsvFiles";
 
-		Map<String, List<Integer>> result = new LinkedHashMap<>();
+		Map<String, List<String>> result = new LinkedHashMap<>();
 		Path baseDir = Paths.get(config.getCsvFolder()).toAbsolutePath().normalize();
 		String bucket = config.getS3BucketsStats();
 		String prefix = normalizePrefix(finalPrefix);
@@ -346,7 +346,7 @@ public class EachCsvTransaction {
 					continue;
 				}
 
-				List<Integer> seqs = extractSeqListFromCsv(resolved.path);
+				List<String> seqs = extractSeqListFromCsv(resolved.path);
 				seqs = normalizeSeqList(seqs);
 
 				if (!seqs.isEmpty()) {
@@ -444,7 +444,7 @@ public class EachCsvTransaction {
 	/**
 	 * snapshot 読込
 	 */
-	private Map<String, List<Integer>> readSnapshot(Path snapshotPath) {
+	private Map<String, List<String>> readSnapshot(Path snapshotPath) {
 		final String METHOD_NAME = "readSnapshot";
 
 		try {
@@ -457,16 +457,16 @@ public class EachCsvTransaction {
 				return new LinkedHashMap<>();
 			}
 
-			Map<String, List<Integer>> map = JSON.readValue(
+			Map<String, List<String>> map = JSON.readValue(
 					json,
-					new TypeReference<LinkedHashMap<String, List<Integer>>>() {
+					new TypeReference<LinkedHashMap<String, List<String>>>() {
 					});
 
-			Map<String, List<Integer>> normalized = new LinkedHashMap<>();
-			for (Map.Entry<String, List<Integer>> e : map.entrySet()) {
+			Map<String, List<String>> normalized = new LinkedHashMap<>();
+			for (Map.Entry<String, List<String>> e : map.entrySet()) {
 				String originalKey = safe(e.getKey()).trim();
 				String canonicalKey = canonicalizeCsvId(originalKey);
-				List<Integer> seqs = normalizeSeqList(e.getValue());
+				List<String> seqs = normalizeSeqList(e.getValue());
 
 				if (seqs.isEmpty()) {
 					continue;
@@ -873,9 +873,9 @@ public class EachCsvTransaction {
 		return recordKey;
 	}
 
-	private List<Integer> extractSeqListFromCsv(Path csvPath) throws IOException {
+	private List<String> extractSeqListFromCsv(Path csvPath) throws IOException {
 		List<String> lines = Files.readAllLines(csvPath, StandardCharsets.UTF_8);
-		List<Integer> result = new ArrayList<>();
+		List<String> result = new ArrayList<>();
 
 		if (lines == null || lines.isEmpty()) {
 			return result;
@@ -924,7 +924,7 @@ public class EachCsvTransaction {
 			}
 
 			try {
-				result.add(Integer.valueOf(raw));
+				result.add(raw);
 			} catch (NumberFormatException ignore) {
 				// seq列に数値以外が入っている行は無視
 			}
@@ -1004,7 +1004,7 @@ public class EachCsvTransaction {
 	 */
 	private void writeSnapshot(
 			Path snapshotPath,
-			Map<String, List<Integer>> snapshot) throws IOException {
+			Map<String, List<String>> snapshot) throws IOException {
 
 		final String METHOD_NAME = "writeSnapshot";
 
@@ -1030,16 +1030,16 @@ public class EachCsvTransaction {
 	 */
 	private void retainSnapshotForFailed(
 			Path snapshotPath,
-			Map<String, List<Integer>> allSnapshot,
+			Map<String, List<String>> allSnapshot,
 			Set<String> failedCsvIds) throws IOException {
 
 		final String METHOD_NAME = "retainSnapshotForFailed";
 
-		Map<String, List<Integer>> remain = new LinkedHashMap<>();
+		Map<String, List<String>> remain = new LinkedHashMap<>();
 
 		if (failedCsvIds != null && !failedCsvIds.isEmpty()) {
 			for (String csvId : failedCsvIds) {
-				List<Integer> seqs = normalizeSeqList(allSnapshot.get(csvId));
+				List<String> seqs = normalizeSeqList(allSnapshot.get(csvId));
 				if (!seqs.isEmpty()) {
 					remain.put(csvId, seqs);
 				}
@@ -1054,7 +1054,7 @@ public class EachCsvTransaction {
 
 		writeSnapshot(snapshotPath, remain);
 
-		for (Map.Entry<String, List<Integer>> e : remain.entrySet()) {
+		for (Map.Entry<String, List<String>> e : remain.entrySet()) {
 			logWarn(METHOD_NAME, "snapshot残置 csvId=" + e.getKey()
 					+ ", seqList=" + e.getValue()
 					+ ", groupKey=" + groupKey(e.getValue()));
@@ -1358,7 +1358,7 @@ public class EachCsvTransaction {
 	 */
 	private void updateSeqList(
 			Set<String> deletedCsvIds,
-			Map<String, List<Integer>> deleteSnapshot) throws IOException {
+			Map<String, List<String>> deleteSnapshot) throws IOException {
 
 		final String METHOD_NAME = "updateSeqList";
 
@@ -1377,11 +1377,11 @@ public class EachCsvTransaction {
 			return;
 		}
 
-		List<List<Integer>> groups = readSeqListJson(localSeqPath);
+		List<List<String>> groups = readSeqListJson(localSeqPath);
 
-		Map<String, List<Integer>> deleteGroupMap = new LinkedHashMap<>();
+		Map<String, List<String>> deleteGroupMap = new LinkedHashMap<>();
 		for (String csvId : deletedCsvIds) {
-			List<Integer> seqs = normalizeSeqList(deleteSnapshot.get(csvId));
+			List<String> seqs = normalizeSeqList(deleteSnapshot.get(csvId));
 			if (seqs.isEmpty()) {
 				logWarn(METHOD_NAME, "snapshot に seqList が無いため除去スキップ csvId=" + csvId);
 				continue;
@@ -1395,12 +1395,12 @@ public class EachCsvTransaction {
 					+ ", groupKey=" + groupKey);
 		}
 
-		List<List<Integer>> newGroups = new ArrayList<>();
+		List<List<String>> newGroups = new ArrayList<>();
 		Set<String> removedGroupKeys = new LinkedHashSet<>();
 		int removed = 0;
 
-		for (List<Integer> group : groups) {
-			List<Integer> normalized = normalizeSeqList(group);
+		for (List<String> group : groups) {
+			List<String> normalized = normalizeSeqList(group);
 			String currentGroupKey = groupKey(normalized);
 
 			String matchedCsvId = findMatchedCsvId(deleteGroupMap, normalized);
@@ -1427,7 +1427,7 @@ public class EachCsvTransaction {
 					+ ", removed=" + removed
 					+ ", remaining=0");
 
-			for (Map.Entry<String, List<Integer>> e : deleteGroupMap.entrySet()) {
+			for (Map.Entry<String, List<String>> e : deleteGroupMap.entrySet()) {
 				String csvId = e.getKey();
 				String gk = groupKey(e.getValue());
 				if (!removedGroupKeys.contains(gk)) {
@@ -1457,7 +1457,7 @@ public class EachCsvTransaction {
 				+ ", removed=" + removed
 				+ ", remaining=" + newGroups.size());
 
-		for (Map.Entry<String, List<Integer>> e : deleteGroupMap.entrySet()) {
+		for (Map.Entry<String, List<String>> e : deleteGroupMap.entrySet()) {
 			String csvId = e.getKey();
 			String gk = groupKey(e.getValue());
 			if (!removedGroupKeys.contains(gk)) {
@@ -1477,7 +1477,7 @@ public class EachCsvTransaction {
 	 * seqList JSON 読込
 	 * 旧形式(csv改行区切り)も読めるようにしておく
 	 */
-	private List<List<Integer>> readSeqListJson(Path path) throws IOException {
+	private List<List<String>> readSeqListJson(Path path) throws IOException {
 		if (!Files.exists(path)) {
 			return new ArrayList<>();
 		}
@@ -1488,26 +1488,26 @@ public class EachCsvTransaction {
 		}
 
 		if (raw.startsWith("[")) {
-			List<List<Integer>> result = JSON.readValue(raw, new TypeReference<List<List<Integer>>>() {
+			List<List<String>> result = JSON.readValue(raw, new TypeReference<List<List<String>>>() {
 			});
 			return normalizeGroups(result);
 		}
 
-		List<List<Integer>> result = new ArrayList<>();
+		List<List<String>> result = new ArrayList<>();
 		for (String line : raw.split("\n")) {
 			String t = safe(line).trim();
 			if (t.isEmpty()) {
 				continue;
 			}
 
-			List<Integer> group = new ArrayList<>();
+			List<String> group = new ArrayList<>();
 			for (String part : t.split(",")) {
 				String s = safe(part).trim();
 				if (s.isEmpty()) {
 					continue;
 				}
 				try {
-					group.add(Integer.valueOf(s));
+					group.add(s);
 				} catch (NumberFormatException ignore) {
 				}
 			}
@@ -1521,14 +1521,14 @@ public class EachCsvTransaction {
 		return result;
 	}
 
-	private List<List<Integer>> normalizeGroups(List<List<Integer>> groups) {
+	private List<List<String>> normalizeGroups(List<List<String>> groups) {
 		if (groups == null || groups.isEmpty()) {
 			return new ArrayList<>();
 		}
 
-		List<List<Integer>> result = new ArrayList<>();
-		for (List<Integer> group : groups) {
-			List<Integer> normalized = normalizeSeqList(group);
+		List<List<String>> result = new ArrayList<>();
+		for (List<String> group : groups) {
+			List<String> normalized = normalizeSeqList(group);
 			if (!normalized.isEmpty()) {
 				result.add(normalized);
 			}
@@ -1536,13 +1536,13 @@ public class EachCsvTransaction {
 		return result;
 	}
 
-	private List<Integer> normalizeSeqList(List<Integer> src) {
+	private List<String> normalizeSeqList(List<String> src) {
 		if (src == null || src.isEmpty()) {
 			return new ArrayList<>();
 		}
 
-		List<Integer> ids = new ArrayList<>();
-		for (Integer n : new TreeSet<>(src)) {
+		List<String> ids = new ArrayList<>();
+		for (String n : new TreeSet<>(src)) {
 			if (n != null) {
 				ids.add(n);
 			}
@@ -1577,10 +1577,10 @@ public class EachCsvTransaction {
 		return s;
 	}
 
-	private String findMatchedCsvId(Map<String, List<Integer>> deleteGroupMap, List<Integer> normalizedGroup) {
+	private String findMatchedCsvId(Map<String, List<String>> deleteGroupMap, List<String> normalizedGroup) {
 		String currentGroupKey = groupKey(normalizedGroup);
 
-		for (Map.Entry<String, List<Integer>> e : deleteGroupMap.entrySet()) {
+		for (Map.Entry<String, List<String>> e : deleteGroupMap.entrySet()) {
 			String targetKey = groupKey(e.getValue());
 			if (currentGroupKey.equals(targetKey)) {
 				return e.getKey();
@@ -1590,7 +1590,7 @@ public class EachCsvTransaction {
 		return null;
 	}
 
-	private String groupKey(List<Integer> ids) {
+	private String groupKey(List<String> ids) {
 		return normalizeSeqList(ids).stream()
 				.map(String::valueOf)
 				.collect(Collectors.joining("-"));

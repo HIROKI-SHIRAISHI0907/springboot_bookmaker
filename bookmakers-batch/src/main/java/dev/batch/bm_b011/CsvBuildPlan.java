@@ -8,10 +8,10 @@ import java.util.Map;
 public class CsvBuildPlan {
 
 	/** 新規作成対象（既存CSVに無かった組み合わせ） */
-	Map<String, List<Integer>> newTargets = new LinkedHashMap<>();
+	Map<String, List<String>> newTargets = new LinkedHashMap<>();
 
 	/** 再作成対象のマップ：<既存CSVのS3相対キー, 再作成対象グループ> */
-	Map<String, List<Integer>> recreateByCsvKey = new LinkedHashMap<>();
+	Map<String, List<String>> recreateByCsvKey = new LinkedHashMap<>();
 
 	/**
 	 * newメソッド
@@ -20,7 +20,7 @@ public class CsvBuildPlan {
 	 * @param groups seqグループ
 	 * @return this
 	 */
-	CsvBuildPlan onlyNew(String prefix, List<Integer> groups) {
+	CsvBuildPlan onlyNew(String prefix, List<String> groups) {
 		if (groups == null || groups.isEmpty()) {
 			return this;
 		}
@@ -51,7 +51,7 @@ public class CsvBuildPlan {
 	 * @param groups seqグループ
 	 * @return this
 	 */
-	CsvBuildPlan onlyRecreate(String key, List<Integer> groups) {
+	CsvBuildPlan onlyRecreate(String key, List<String> groups) {
 		if (groups == null || groups.isEmpty()) {
 			return this;
 		}
