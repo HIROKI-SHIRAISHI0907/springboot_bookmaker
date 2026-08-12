@@ -84,13 +84,15 @@ public class FuturesAPIService {
             //   JSONの延期/遅延情報は「実データがまだ無い試合」に対してのみ適用する
             // =========================
 
-            // 終了済みデータがあれば FINISHED 優先
+            // 終了済みデータがあれば FINISHED 優先、終了済みデータがなくても今の時間を過ぎていたら終了
             int dataFinCnt = bookDataRepository.countByFinData(
                     dto.getGameTeamCategory(),
                     dto.getHomeTeam(),
                     dto.getAwayTeam());
 
-            if (dataFinCnt > 0) {
+            log.info("countByFinData check: {},{},{},{}", dto.getGameTeamCategory(),dto.getHomeTeam(),dto.getAwayTeam(),dataFinCnt);
+
+            if (isAfterScheduledTime(dto.getFutureTime(), now) && dataFinCnt > 0) {
                 dto.setStatus(FutureScheduleConstant.FINISHED.getCode());
                 continue;
             }
@@ -101,7 +103,9 @@ public class FuturesAPIService {
                     dto.getHomeTeam(),
                     dto.getAwayTeam());
 
-            if (dataRealCnt > 0) {
+            log.info("countByLiveData check: {},{},{},{}", dto.getGameTeamCategory(),dto.getHomeTeam(),dto.getAwayTeam(),dataRealCnt);
+
+            if (isAfterScheduledTime(dto.getFutureTime(), now) && dataRealCnt > 0) {
                 dto.setStatus(FutureScheduleConstant.LIVE.getCode());
                 continue;
             }
@@ -171,6 +175,18 @@ public class FuturesAPIService {
 
         try {
             return OffsetDateTime.parse(futureTime).toLocalDateTime().isAfter(now);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private boolean isAfterScheduledTime(String futureTime, LocalDateTime now) {
+        if (!hasText(futureTime)) {
+            return false;
+        }
+
+        try {
+            return OffsetDateTime.parse(futureTime).toLocalDateTime().isBefore(now);
         } catch (Exception e) {
             return false;
         }

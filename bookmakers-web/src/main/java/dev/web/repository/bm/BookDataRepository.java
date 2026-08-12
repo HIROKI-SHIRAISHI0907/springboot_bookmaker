@@ -36,7 +36,7 @@ public class BookDataRepository {
 
 		String sql = """
 				SELECT
-				  seq,
+				  seq_key,
 				  condition_result_data_seq_id,
 				  data_category,
 				  times,
@@ -134,13 +134,13 @@ public class BookDataRepository {
 				  away_team_style,
 				  probablity,
 				  prediction_score_time
-				FROM data
-				WHERE seq = :seq
+				FROM static_data
+				WHERE seq_key = :seqKey
 				""";
 
 		List<DataEntity> list = bmJdbcTemplate.query(
 				sql,
-				Map.of("seq", seq),
+				Map.of("seqKey", seq),
 				(rs, rowNum) -> mapDataEntity(rs));
 
 		return list.stream().findFirst();
@@ -153,7 +153,7 @@ public class BookDataRepository {
 
 		String sql = """
 				SELECT DISTINCT
-				  seq,
+				  seq_key,
 				  condition_result_data_seq_id,
 				  data_category,
 				  times,
@@ -251,8 +251,8 @@ public class BookDataRepository {
 				  away_team_style,
 				  probablity,
 				  prediction_score_time
-				FROM data
-				WHERE seq IN (:seqList)
+				FROM static_data
+				WHERE seq_key IN (:seqList)
 				""";
 
 		MapSqlParameterSource params = new MapSqlParameterSource();
@@ -265,7 +265,8 @@ public class BookDataRepository {
 	public int insert(DataEntity e) {
 
 		String sql = """
-				INSERT INTO data (
+				INSERT INTO static_data (
+				  seq_key,
 				  condition_result_data_seq_id,
 				  data_category,
 				  times,
@@ -364,6 +365,7 @@ public class BookDataRepository {
 				  probablity,
 				  prediction_score_time
 				) VALUES (
+				  :seqKey,
 				  :conditionResultDataSeqId,
 				  :dataCategory,
 				  :times,
@@ -569,7 +571,7 @@ public class BookDataRepository {
 				  away_team_style             = :awayTeamStyle,
 				  probablity                  = :probablity,
 				  prediction_score_time       = :predictionScoreTime
-				WHERE seq = :seq
+				WHERE seq_key = :seqKey
 				""";
 
 		return bmJdbcTemplate.update(sql, toParams(e));
@@ -577,15 +579,15 @@ public class BookDataRepository {
 
 	/** 物理削除（必要なら） */
 	public int deleteBySeq(String seq) {
-		String sql = "DELETE FROM data WHERE seq = :seq";
-		return bmJdbcTemplate.update(sql, Map.of("seq", seq));
+		String sql = "DELETE FROM data WHERE seq_key = :seqKey";
+		return bmJdbcTemplate.update(sql, Map.of("seqKey", seq));
 	}
 
 	/** ====== row mapper ====== */
 	private static DataEntity mapDataEntity(java.sql.ResultSet rs) throws java.sql.SQLException {
 		DataEntity e = new DataEntity();
 
-		e.setSeq(Long.parseLong(rs.getString("seq")));
+		e.setSeqKey(rs.getString("seq_key"));
 		e.setConditionResultDataSeqId(rs.getString("condition_result_data_seq_id"));
 		e.setDataCategory(rs.getString("data_category"));
 		e.setTimes(rs.getString("times"));
@@ -692,7 +694,7 @@ public class BookDataRepository {
 	private static MapSqlParameterSource toParams(DataEntity e) {
 		MapSqlParameterSource p = new MapSqlParameterSource();
 
-		p.addValue("seq", e.getSeq());
+		p.addValue("seqKey", e.getSeqKey());
 		p.addValue("conditionResultDataSeqId", e.getConditionResultDataSeqId());
 		p.addValue("dataCategory", e.getDataCategory());
 		p.addValue("times", e.getTimes());
@@ -799,7 +801,7 @@ public class BookDataRepository {
 
 	    StringBuilder sql = new StringBuilder("""
 	            SELECT
-	                seq,
+	                seq_key,
 	                data_category,
 	                times,
 	                record_time,
@@ -827,7 +829,7 @@ public class BookDataRepository {
 
 	    return bmJdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> {
 	        DataIngestRow r = new DataIngestRow();
-	        r.seq = rs.getString("seq");
+	        r.seq = rs.getString("seq_key");
 	        r.dataCategory = rs.getString("data_category");
 	        r.times = rs.getString("times");
 
@@ -865,7 +867,7 @@ public class BookDataRepository {
 
         String sql = """
             SELECT DISTINCT ON (d.game_link)
-              d.seq,
+              d.seq_key,
               d.data_category,
               d.home_team_name,
               d.away_team_name,
@@ -877,7 +879,7 @@ public class BookDataRepository {
                 WHEN regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
                 ELSE CAST((regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
               END AS round_no
-            FROM public.data d
+            FROM public.static_data d
             WHERE
               (
                 REPLACE(BTRIM(d.times), ' ', '') = '終了済'
@@ -905,7 +907,7 @@ public class BookDataRepository {
 
         List<EachScoreLostDataResponseDTO> list = bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
             var dto = new EachScoreLostDataResponseDTO();
-            dto.setSeq(rs.getLong("seq"));
+            dto.setSeq(rs.getLong("seq_key"));
             dto.setDataCategory(rs.getString("data_category"));
 
             int r = rs.getInt("round_no");
@@ -934,7 +936,7 @@ public class BookDataRepository {
 	public List<DataEntity> findAll() {
 		String sql = """
 				SELECT
-				  seq,
+				  seq_key,
 				  condition_result_data_seq_id,
 				  data_category,
 				  times,
@@ -1032,7 +1034,7 @@ public class BookDataRepository {
 				  away_team_style,
 				  probablity,
 				  prediction_score_time
-				FROM data
+				FROM static_data
 				ORDER BY seq DESC
 				""";
 
@@ -1043,7 +1045,7 @@ public class BookDataRepository {
 			String condId, String category, String times, String home, String away) {
 		String sql = """
 				SELECT
-				  seq,
+				  seq_key,
 				  condition_result_data_seq_id,
 				  data_category,
 				  times,
@@ -1141,7 +1143,7 @@ public class BookDataRepository {
 				  away_team_style,
 				  probablity,
 				  prediction_score_time
-				FROM data
+				FROM static_data
 				WHERE condition_result_data_seq_id = :condId
 				  AND data_category = :category
 				  AND times = :times
@@ -1169,7 +1171,7 @@ public class BookDataRepository {
 				  home_team_name,
 				  away_team_name,
 				  COUNT(*) AS cnt
-				FROM data
+				FROM static_data
 				WHERE condition_result_data_seq_id IS NOT NULL AND TRIM(condition_result_data_seq_id) <> ''
 					AND data_category IS NOT NULL               AND TRIM(data_category) <> ''
 					AND home_team_name IS NOT NULL             AND TRIM(home_team_name) <> ''
@@ -1200,14 +1202,14 @@ public class BookDataRepository {
 
 	    StringBuilder sql = new StringBuilder("""
 	            SELECT COUNT(*) AS cnt
-	            FROM data
-	            WHERE home_team_name = :homeTeamName
-	              AND away_team_name = :awayTeamName
-	              AND times IS NOT NULL
-	              AND TRIM(times) <> ''
-	              AND REPLACE(TRIM(times), ' ', '') <> '終了済'
-	              AND REPLACE(TRIM(times), ' ', '') NOT LIKE '%ペナルティ%'
-	            """);
+	    			FROM static_data
+	    		WHERE home_team_name = :homeTeamName
+	    		AND away_team_name = :awayTeamName
+	    		AND times IS NOT NULL
+	    		AND TRIM(times) <> ''
+	    		AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') <> '終了済'
+	    		AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') NOT LIKE '%ペナルティ%'
+            """);
 
 	    MapSqlParameterSource params = new MapSqlParameterSource();
 	    params.addValue("homeTeamName", homeTeamName);
@@ -1241,14 +1243,14 @@ public class BookDataRepository {
 
 	    StringBuilder sql = new StringBuilder("""
 	            SELECT COUNT(*) AS cnt
-	            FROM data
-	            WHERE home_team_name = :homeTeamName
-	              AND away_team_name = :awayTeamName
-	              AND times IS NOT NULL
-	              AND TRIM(times) <> ''
-	              AND REPLACE(TRIM(times), ' ', '') = '終了済'
-	              AND REPLACE(TRIM(times), ' ', '') NOT LIKE '%ペナルティ%'
-	            """);
+	    			FROM static_data
+	    		WHERE home_team_name = :homeTeamName
+	    			AND away_team_name = :awayTeamName
+	    			AND times IS NOT NULL
+	    			AND TRIM(times) <> ''
+	    			AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') = '終了済'
+	    			AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') NOT LIKE '%ペナルティ%'
+	    		""");
 
 	    MapSqlParameterSource params = new MapSqlParameterSource();
 	    params.addValue("homeTeamName", homeTeamName);
@@ -1297,7 +1299,7 @@ public class BookDataRepository {
 				      NULLIF(BTRIM(d.game_id), '')
 				    ) AS match_key,
 				    NULLIF(BTRIM(d.times), '') AS times
-				  FROM public.data d
+				  FROM public.static_data d
 				  WHERE COALESCE(
 				      NULLIF(BTRIM(d.match_id), ''),
 				      NULLIF((regexp_match(d.game_link, 'mid=([A-Za-z0-9]+)'))[1], ''),
