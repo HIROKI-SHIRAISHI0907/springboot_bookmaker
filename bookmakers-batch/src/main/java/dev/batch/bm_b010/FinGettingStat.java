@@ -36,6 +36,8 @@ public class FinGettingStat implements FinGettingEntityIF {
 	private static final String CLASS_NAME = FinGettingStat.class.getName();
 
 	@Autowired
+	private SeqKeyBatchService seqKeyService;
+	@Autowired
 	private FutureDBService futureDBService; // master
 	@Autowired
 	private DataDBService dataDBService; // bm
@@ -65,6 +67,9 @@ public class FinGettingStat implements FinGettingEntityIF {
 			List<DataEntity> entList = map.getValue();
 			for (DataEntity ent : entList) {
 				insertPath.add(filePath);
+				// 通番を発番
+				ent.setSeqKey(seqKeyService.create(ent.getHomeTeamName(),
+						ent.getAwayTeamName(), ent.getMatchId()));
 				if (ent.getTimes() == null || ent.getTimes().isEmpty()) {
 					// 終了済が未設定なら手動設定
 					ent.setTimes(BookMakersCommonConst.FIN);
