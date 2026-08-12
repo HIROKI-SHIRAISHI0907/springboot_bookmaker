@@ -498,13 +498,7 @@ public class AnalyzeManualStat {
 			return b;
 		}
 
-		// 3. seq が大きい方
-		long aSeq = parseSeqToLong(a.getSeq());
-		long bSeq = parseSeqToLong(b.getSeq());
-		if (aSeq >= bSeq) {
-			return a;
-		}
-		return b;
+		return a;
 	}
 
 	private boolean containsRound(String value) {
@@ -532,24 +526,13 @@ public class AnalyzeManualStat {
 		return Long.MIN_VALUE;
 	}
 
-	private long parseSeqToLong(Object seq) {
-		if (seq == null) {
-			return Long.MIN_VALUE;
-		}
-		try {
-			return Long.parseLong(String.valueOf(seq).trim());
-		} catch (NumberFormatException ex) {
-			return Long.MIN_VALUE;
-		}
-	}
-
 	/**
 	 * DataEntity -> BookDataEntity 変換
 	 */
 	private BookDataEntity toBookDataEntity(DataEntity src) {
 		BookDataEntity dest = new BookDataEntity();
 
-		dest.setSeq(src.getSeq() == null ? "" : String.valueOf(src.getSeq()));
+		dest.setSeq(src.getSeqKey() == null ? "" : src.getSeqKey());
 		dest.setConditionResultDataSeqId(nvl(src.getConditionResultDataSeqId()));
 		dest.setHomeRank(nvl(src.getHomeRank()));
 		dest.setGameTeamCategory(nvl(src.getDataCategory()));

@@ -79,7 +79,7 @@ public class OriginCsvService implements OriginIF {
 			for (BookDataEntity insEntity : datasEntities) {
 				DataEntity entity = this.mapper.toData(insEntity);
 				// 設定
-				entity.setSeq(null);
+				entity.setSeqKey(null);
 				files = entity.getFile();
 				DataEntity newEntry = entity;
 				insertList.add(newEntry);

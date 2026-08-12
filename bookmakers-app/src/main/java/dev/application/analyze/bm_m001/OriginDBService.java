@@ -9,6 +9,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
 import dev.application.domain.repository.bm.BookDataRepository;
+import dev.application.main.service.SeqKeyService;
 import dev.common.entity.DataEntity;
 import dev.common.logger.ManageLoggerComponent;
 
@@ -26,6 +27,10 @@ public class OriginDBService {
 
 	/** クラス名 */
 	private static final String CLASS_NAME = OriginDBService.class.getName();
+
+	/** SeqKeyServiceクラス */
+	@Autowired
+	private SeqKeyService seqKeyService;
 
 	/** BookDataRepositoryレポジトリクラス */
 	@Autowired
@@ -71,6 +76,9 @@ public class OriginDBService {
 			int end = Math.min(i + BATCH_SIZE, insertEntities.size());
 			List<DataEntity> batch = insertEntities.subList(i, end);
 			for (DataEntity entity : batch) {
+				// 通番を発番
+				entity.setSeqKey(seqKeyService.create(entity.getHomeTeamName(),
+						entity.getAwayTeamName(), entity.getMatchId()));
 				try {
 					int result = this.bookDataRepository.insert(entity);
 					if (result != 1) {

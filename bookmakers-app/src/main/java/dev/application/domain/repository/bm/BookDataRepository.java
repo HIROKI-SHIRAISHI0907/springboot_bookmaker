@@ -9,6 +9,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import dev.application.analyze.bm_m033.TeamPoints;
+import dev.application.main.service.SeqKeyDTO;
 import dev.common.entity.DataEntity;
 
 @Mapper
@@ -16,7 +17,7 @@ public interface BookDataRepository {
 
 	@Insert("""
 			INSERT INTO data (
-			    /* ★seq を含めない★ */
+			    seq_key,
 			    condition_result_data_seq_id,
 			    data_category,
 			    times,
@@ -127,6 +128,7 @@ public interface BookDataRepository {
 			    update_id,
 			    update_time
 			) VALUES (
+				#{seqKey},
 			    #{conditionResultDataSeqId},
 			    #{dataCategory},
 			    #{times},
@@ -244,7 +246,7 @@ public interface BookDataRepository {
 
 	@Select("""
 			SELECT COUNT(*)
-			FROM data
+			FROM static_data
 			WHERE data_category = #{dataCategory}
 			  AND times = #{times}
 			  AND home_team_name = #{homeTeamName}
@@ -255,14 +257,14 @@ public interface BookDataRepository {
 
 	@Select("""
 			SELECT *
-			FROM data
+			FROM static_data
 			""")
 	List<DataEntity> getData();
 
 	@Select("""
 			WITH team_list AS (
 			    SELECT home_team_name AS team
-			    FROM data
+			    FROM static_data
 			    WHERE times = '終了済'
 			      AND data_category LIKE CONCAT(#{country}, '%')
 			      AND data_category LIKE CONCAT('%', #{league}, '%')
@@ -275,7 +277,7 @@ public interface BookDataRepository {
 			      )
 			    UNION
 			    SELECT away_team_name AS team
-			    FROM data
+			    FROM static_data
 			    WHERE times = '終了済'
 			      AND data_category LIKE CONCAT(#{country}, '%')
 			      AND data_category LIKE CONCAT('%', #{league}, '%')
@@ -339,7 +341,7 @@ public interface BookDataRepository {
 			            END
 			        ) AS played
 			    FROM team_list t
-			    LEFT JOIN data d
+			    LEFT JOIN static_data d
 			      ON (d.home_team_name = t.team OR d.away_team_name = t.team)
 			     AND d.times = '終了済'
 			     AND d.data_category LIKE CONCAT(#{country}, '%')
@@ -372,7 +374,7 @@ public interface BookDataRepository {
 
 	@Select("""
 			SELECT
-			    seq AS seq,
+			    seq_key AS seqKey,
 			    condition_result_data_seq_id AS conditionResultDataSeqId,
 			    data_category AS dataCategory,
 			    times AS times,
@@ -478,14 +480,14 @@ public interface BookDataRepository {
 			    match_id AS matchId,
 			    time_sort_seconds AS timeSortSeconds,
 			    add_manual_flg AS addManualFlg
-			FROM data d
+			FROM static_data d
 			WHERE d.add_manual_flg = '1'
 			  AND (d.times = '終了済' OR d.times LIKE 'ペナルティ%')
 			  AND d.match_id IS NOT NULL
 			  AND d.match_id <> ''
 			  AND (
 			      SELECT COUNT(*)
-			      FROM data d2
+			      FROM static_data d2
 			      WHERE d2.match_id = d.match_id
 			  ) = 1
 			""")
@@ -494,7 +496,7 @@ public interface BookDataRepository {
 	@Select("""
 			SELECT
 				COUNT(*)
-			FROM data
+			FROM static_data
 				WHERE data_category = #{dataCategory}
 				AND home_team_name = #{homeTeamName}
 				AND away_team_name = #{awayTeamName}
@@ -516,7 +518,7 @@ public interface BookDataRepository {
 	 */
 	@Select("""
 			SELECT
-				seq AS seq,
+				seq_key AS seqKey,
 			    condition_result_data_seq_id AS conditionResultDataSeqId,
 			    data_category AS dataCategory,
 			    times AS times,
@@ -622,7 +624,7 @@ public interface BookDataRepository {
 			    match_id AS matchId,
 			    time_sort_seconds AS timeSortSeconds,
 			    add_manual_flg AS addManualFlg
-			FROM data
+			FROM static_data
 			WHERE data_category = #{dataCategory}
 				AND home_team_name = #{homeTeamName}
 				AND away_team_name = #{awayTeamName}
@@ -633,5 +635,38 @@ public interface BookDataRepository {
 			@Param("dataCategory") String dataCategory,
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
+
+	@Select("""
+			SELECT
+			    seq_key AS seqKey,
+				match_id AS matchId
+			FROM static_data
+				WHERE home_team_name = #{homeTeamName}
+				AND away_team_name = #{awayTeamName}
+			ORDER BY seq_key DESC
+			LIMIT 1;
+			""")
+	SeqKeyDTO findMatchId(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
+
+	@Select("""
+			SELECT
+			    seq_key AS seqKey,
+				match_id AS matchId
+			FROM static_data
+				WHERE match_id = #{matchId}
+			ORDER BY seq_key DESC
+			LIMIT 1;
+			""")
+	SeqKeyDTO findSeqKeyByMatchId(
+			@Param("matchId") String matchId);
+
+	@Select("""
+			SELECT COUNT(*)
+			FROM static_data
+			WHERE seq_key LIKE CONCAT(#{prefix}, '-%')
+			""")
+	int existsSeqKeyPrefix(@Param("prefix") String prefix);
 
 }
