@@ -579,7 +579,7 @@ public class BookDataRepository {
 
 	/** 物理削除（必要なら） */
 	public int deleteBySeq(String seq) {
-		String sql = "DELETE FROM data WHERE seq_key = :seqKey";
+		String sql = "DELETE FROM static_data WHERE seq_key = :seqKey";
 		return bmJdbcTemplate.update(sql, Map.of("seqKey", seq));
 	}
 
@@ -810,7 +810,7 @@ public class BookDataRepository {
 	                game_link,
 	                home_team_name,
 	                away_team_name
-	            FROM data
+	            FROM static_data
 	            WHERE 1 = 1
 	            """);
 
@@ -1035,7 +1035,7 @@ public class BookDataRepository {
 				  probablity,
 				  prediction_score_time
 				FROM static_data
-				ORDER BY seq DESC
+				ORDER BY seq_key DESC
 				""";
 
 		return bmJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, rowNum) -> mapDataEntity(rs));
@@ -1198,33 +1198,22 @@ public class BookDataRepository {
 	 * LIVEデータ存在チェック
 	 * @author shiraishitoshio
 	 */
-	public int countByLiveData(String dataCategory, String homeTeamName, String awayTeamName) {
+	public int countByLiveData(String homeTeamName, String awayTeamName) {
 
 	    StringBuilder sql = new StringBuilder("""
 	            SELECT COUNT(*) AS cnt
-	    			FROM static_data
-	    		WHERE home_team_name = :homeTeamName
-	    		AND away_team_name = :awayTeamName
-	    		AND times IS NOT NULL
-	    		AND TRIM(times) <> ''
-	    		AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') <> '終了済'
-	    		AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') NOT LIKE '%ペナルティ%'
-            """);
+	    FROM static_data
+	    WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
+	    AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
+	    AND times IS NOT NULL
+	    AND TRIM(times) <> ''
+	    AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') <> '終了済'
+	    AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') NOT LIKE '%ペナルティ%'
+	            """);
 
 	    MapSqlParameterSource params = new MapSqlParameterSource();
 	    params.addValue("homeTeamName", homeTeamName);
 	    params.addValue("awayTeamName", awayTeamName);
-
-	    if (dataCategory != null && !dataCategory.isBlank()) {
-	        sql.append("""
-	                AND (
-	                      data_category = :dataCategory
-	                   OR data_category LIKE :dataCategoryPrefix
-	                )
-	                """);
-	        params.addValue("dataCategory", dataCategory.trim());
-	        params.addValue("dataCategoryPrefix", dataCategory.trim() + ":%");
-	    }
 
 	    Integer count = bmJdbcTemplate.queryForObject(
 	            sql.toString(),
@@ -1239,33 +1228,22 @@ public class BookDataRepository {
 	 * 終了済みデータ存在チェック
 	 * @author shiraishitoshio
 	 */
-	public int countByFinData(String dataCategory, String homeTeamName, String awayTeamName) {
+	public int countByFinData(String homeTeamName, String awayTeamName) {
 
 	    StringBuilder sql = new StringBuilder("""
 	            SELECT COUNT(*) AS cnt
-	    			FROM static_data
-	    		WHERE home_team_name = :homeTeamName
-	    			AND away_team_name = :awayTeamName
-	    			AND times IS NOT NULL
-	    			AND TRIM(times) <> ''
-	    			AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') = '終了済'
-	    			AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') NOT LIKE '%ペナルティ%'
-	    		""");
+	    FROM static_data
+	    WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
+	    AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
+	    AND times IS NOT NULL
+	    AND TRIM(times) <> ''
+	    AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') = '終了済'
+	    AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') NOT LIKE '%ペナルティ%'
+	    """);
 
 	    MapSqlParameterSource params = new MapSqlParameterSource();
 	    params.addValue("homeTeamName", homeTeamName);
 	    params.addValue("awayTeamName", awayTeamName);
-
-	    if (dataCategory != null && !dataCategory.isBlank()) {
-	        sql.append("""
-	                AND (
-	                      data_category = :dataCategory
-	                   OR data_category LIKE :dataCategoryPrefix
-	                )
-	                """);
-	        params.addValue("dataCategory", dataCategory.trim());
-	        params.addValue("dataCategoryPrefix", dataCategory.trim() + ":%");
-	    }
 
 	    Integer count = bmJdbcTemplate.queryForObject(
 	            sql.toString(),

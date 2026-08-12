@@ -84,9 +84,8 @@ public class FuturesAPIService {
             //   JSONの延期/遅延情報は「実データがまだ無い試合」に対してのみ適用する
             // =========================
 
-            // 終了済みデータがあれば FINISHED 優先、終了済みデータがなくても今の時間を過ぎていたら終了
+            // 終了済みデータがあれば FINISHED 優先(表記ブレを防ぐためdataCategoryは検索から無視)
             int dataFinCnt = bookDataRepository.countByFinData(
-                    dto.getGameTeamCategory(),
                     dto.getHomeTeam(),
                     dto.getAwayTeam());
 
@@ -97,9 +96,8 @@ public class FuturesAPIService {
                 continue;
             }
 
-            // リアルタイムデータがあれば LIVE
+            // リアルタイムデータがあれば LIVE(表記ブレを防ぐためdataCategoryは検索から無視)
             int dataRealCnt = bookDataRepository.countByLiveData(
-                    dto.getGameTeamCategory(),
                     dto.getHomeTeam(),
                     dto.getAwayTeam());
 
@@ -168,28 +166,32 @@ public class FuturesAPIService {
         return null;
     }
 
-    private boolean isBeforeScheduledTime(String futureTime, LocalDateTime now) {
+    private LocalDateTime parseFutureTime(String futureTime) {
         if (!hasText(futureTime)) {
-            return false;
+            return null;
         }
-
         try {
-            return OffsetDateTime.parse(futureTime).toLocalDateTime().isAfter(now);
+            // オフセット付き（例: 2026-08-08T19:00:00+09:00）
+            return OffsetDateTime.parse(futureTime).toLocalDateTime();
         } catch (Exception e) {
-            return false;
+            // オフセットなし（例: 2026-08-08 19:00:00）
+            try {
+                return LocalDateTime.parse(futureTime.trim(),
+                        java.time.format.DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+            } catch (Exception e2) {
+                return null;
+            }
         }
     }
 
-    private boolean isAfterScheduledTime(String futureTime, LocalDateTime now) {
-        if (!hasText(futureTime)) {
-            return false;
-        }
+    private boolean isBeforeScheduledTime(String futureTime, LocalDateTime now) {
+        LocalDateTime scheduled = parseFutureTime(futureTime);
+        return scheduled != null && scheduled.isAfter(now);
+    }
 
-        try {
-            return OffsetDateTime.parse(futureTime).toLocalDateTime().isBefore(now);
-        } catch (Exception e) {
-            return false;
-        }
+    private boolean isAfterScheduledTime(String futureTime, LocalDateTime now) {
+        LocalDateTime scheduled = parseFutureTime(futureTime);
+        return scheduled != null && scheduled.isBefore(now);
     }
 
     private boolean hasText(String value) {
