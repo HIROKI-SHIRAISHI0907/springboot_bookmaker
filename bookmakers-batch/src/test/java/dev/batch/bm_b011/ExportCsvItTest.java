@@ -308,7 +308,7 @@ class ExportCsvItTest {
 		SeqWithKey r = new SeqWithKey();
 		r.setHomeTeamName(home);
 		r.setAwayTeamName(away);
-		r.setSeq(seq);
+		r.setSeqKey(String.valueOf(seq));
 		r.setTimes("第一ハーフ");
 		r.setDataCategory("ラウンド1");
 		return r;
