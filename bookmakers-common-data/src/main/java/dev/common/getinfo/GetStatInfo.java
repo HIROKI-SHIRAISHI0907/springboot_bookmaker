@@ -178,12 +178,14 @@ public class GetStatInfo {
 		}
 
 		return acc.entrySet().stream()
-				.sorted((a, b) -> compareCsvKey(a.getKey(), b.getKey()))
-				.collect(Collectors.toMap(
-						Map.Entry::getKey,
-						e -> new ArrayList<>(e.getValue()),
-						(x, y) -> x,
-						LinkedHashMap::new));
+		        .sorted((a, b) -> compareCsvKey(a.getKey(), b.getKey()))
+		        .collect(Collectors.toMap(
+		                Map.Entry::getKey,
+		                e -> e.getValue().stream()
+		                        .map(String::valueOf)
+		                        .collect(Collectors.toCollection(ArrayList::new)),
+		                (x, y) -> x,
+		                LinkedHashMap::new));
 	}
 
 	/**
@@ -443,12 +445,14 @@ public class GetStatInfo {
 		}
 
 		return acc.entrySet().stream()
-				.sorted((a, b) -> compareCsvKey(a.getKey(), b.getKey()))
-				.collect(Collectors.toMap(
-						Map.Entry::getKey,
-						e -> new ArrayList<>(e.getValue()),
-						(a, b) -> a,
-						LinkedHashMap::new));
+		        .sorted((a, b) -> compareCsvKey(a.getKey(), b.getKey()))
+		        .collect(Collectors.toMap(
+		                Map.Entry::getKey,
+		                e -> e.getValue().stream()
+		                        .map(String::valueOf)
+		                        .collect(Collectors.toCollection(ArrayList::new)),
+		                (a, b) -> a,
+		                LinkedHashMap::new));
 	}
 
 	/**
