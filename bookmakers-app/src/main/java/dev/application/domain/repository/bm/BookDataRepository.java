@@ -1,22 +1,19 @@
 package dev.application.domain.repository.bm;
-
 import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import dev.application.analyze.bm_m033.TeamPoints;
 import dev.application.main.service.SeqKeyDTO;
 import dev.common.entity.DataEntity;
-
 @Mapper
 public interface BookDataRepository {
-
+	// ★static_data向けに変更。seq_keyはアプリ側で採番済みのためRETURNING seq / useGeneratedKeysは不要
 	@Insert("""
-			INSERT INTO data (
+			INSERT INTO static_data (
 			    seq_key,
 			    condition_result_data_seq_id,
 			    data_category,
@@ -128,7 +125,7 @@ public interface BookDataRepository {
 			    update_id,
 			    update_time
 			) VALUES (
-				#{seqKey},
+			    #{seqKey},
 			    #{conditionResultDataSeqId},
 			    #{dataCategory},
 			    #{times},
@@ -196,7 +193,7 @@ public interface BookDataRepository {
 			    #{awayDuelCount},
 			    #{homeInterceptCount},
 			    #{awayInterceptCount},
-			    (CAST(NULLIF(#{recordTime}, '') AS timestamp) AT TIME ZONE 'Asia/Tokyo'),
+			    CAST(NULLIF(#{recordTime}, '') AS timestamp),
 			    #{weather},
 			    #{temparature},
 			    #{humid},
@@ -239,11 +236,9 @@ public interface BookDataRepository {
 			    'SYSTEM',
 			    NOW()
 			)
-			RETURNING seq
 			""")
-	@Options(useGeneratedKeys = true, keyProperty = "seq", keyColumn = "seq")
 	int insert(DataEntity entity);
-
+	// ★static_data向けに変更
 	@Select("""
 			SELECT COUNT(*)
 			FROM static_data
@@ -254,13 +249,11 @@ public interface BookDataRepository {
 			  AND match_id        = #{matchId}
 			""")
 	int findDataCount(DataEntity entity);
-
 	@Select("""
 			SELECT *
 			FROM static_data
 			""")
 	List<DataEntity> getData();
-
 	@Select("""
 			WITH team_list AS (
 			    SELECT home_team_name AS team
@@ -371,7 +364,6 @@ public interface BookDataRepository {
 			@Param("country") String country,
 			@Param("league") String league,
 			@Param("match") String match);
-
 	@Select("""
 			SELECT
 			    seq_key AS seqKey,
@@ -492,7 +484,6 @@ public interface BookDataRepository {
 			  ) = 1
 			""")
 	List<DataEntity> getFinData();
-
 	@Select("""
 			SELECT
 				COUNT(*)
@@ -511,7 +502,6 @@ public interface BookDataRepository {
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName,
 			@Param("matchId") String matchId);
-
 	/**
 	 * data_category + home_team_name + away_team_name で
 	 * seq降順の最新2件を取得
@@ -628,45 +618,44 @@ public interface BookDataRepository {
 			WHERE data_category = #{dataCategory}
 				AND home_team_name = #{homeTeamName}
 				AND away_team_name = #{awayTeamName}
-			ORDER BY seq DESC
+			ORDER BY seq_key DESC
 			LIMIT 2
 			""")
 	List<DataEntity> findLatestTwoByTeams(
 			@Param("dataCategory") String dataCategory,
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
-
+	// ★static_data向けに変更。カンマ抜け修正 + 連番部分を数値としてORDER BY（"9"が"10"より新しいと誤判定するのを防止）
 	@Select("""
 			SELECT
 			    seq_key AS seqKey,
-				match_id AS matchId
+			    match_id AS matchId
 			FROM static_data
-				WHERE home_team_name = #{homeTeamName}
-				AND away_team_name = #{awayTeamName}
-			ORDER BY seq_key DESC
-			LIMIT 1;
+			WHERE home_team_name = #{homeTeamName}
+			  AND away_team_name = #{awayTeamName}
+			ORDER BY CAST(SPLIT_PART(seq_key, '-', 2) AS INTEGER) DESC
+			LIMIT 1
 			""")
 	SeqKeyDTO findMatchId(
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
-
+	// ★static_data向けに変更。カンマ抜け修正 + 連番部分を数値としてORDER BY
 	@Select("""
 			SELECT
 			    seq_key AS seqKey,
-				match_id AS matchId
+			    match_id AS matchId
 			FROM static_data
-				WHERE match_id = #{matchId}
-			ORDER BY seq_key DESC
-			LIMIT 1;
+			WHERE match_id = #{matchId}
+			ORDER BY CAST(SPLIT_PART(seq_key, '-', 2) AS INTEGER) DESC
+			LIMIT 1
 			""")
 	SeqKeyDTO findSeqKeyByMatchId(
 			@Param("matchId") String matchId);
-
+	// ★新規追加：乱数base（match_idなしの初回キー）の重複チェック用
 	@Select("""
 			SELECT COUNT(*)
 			FROM static_data
 			WHERE seq_key LIKE CONCAT(#{prefix}, '-%')
 			""")
 	int existsSeqKeyPrefix(@Param("prefix") String prefix);
-
 }
