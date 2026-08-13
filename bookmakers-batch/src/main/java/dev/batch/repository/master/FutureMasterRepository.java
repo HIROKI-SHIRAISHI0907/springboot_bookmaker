@@ -61,7 +61,10 @@ public interface FutureMasterRepository {
 			        #{awayTeamAwayScore},
 			        #{awayTeamAwayLost},
 			        #{gameLink},
-			        CAST(NULLIF(BTRIM(CAST(#{dataTime} AS text)), '') AS timestamptz),
+			        COALESCE(
+						(CAST(NULLIF(BTRIM(CAST(#{dataTime} AS text)), '') AS timestamp) AT TIME ZONE 'Asia/Tokyo'),
+						NULL
+					),
 			        1,
 			        'SYSTEM',
 			        CURRENT_TIMESTAMP,
