@@ -6,7 +6,6 @@ import org.springframework.context.annotation.Configuration;
 import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.ecs.EcsClient;
-import software.amazon.awssdk.services.s3.S3Client;
 
 /**
  * AwsClientBean作成構成クラス
@@ -40,14 +39,4 @@ public class AwsClientConfig {
                 .build();
     }
 
-    /**
-     * S3
-     * @return
-     */
-    @Bean
-    public S3Client s3Client() {
-        return S3Client.builder()
-                .region(Region.of(System.getenv().getOrDefault("AWS_REGION", "ap-northeast-1")))
-                .build();
-    }
 }
