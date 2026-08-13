@@ -50,23 +50,21 @@ public class FuturesRepository {
 		return Timestamp.valueOf(targetDate.atStartOfDay());
 	}
 
-	private LocalDateTime getLocalDateTime(ResultSet rs, String columnLabel) throws SQLException {
-		Timestamp ts = rs.getTimestamp(columnLabel);
-		return ts == null ? null : ts.toLocalDateTime();
+	// getLocalDateTime を置き換え
+	private OffsetDateTime getOffsetDateTime(ResultSet rs, String columnLabel) throws SQLException {
+	    return rs.getObject(columnLabel, OffsetDateTime.class);
 	}
 
-	private String toIsoJstString(LocalDateTime ldt) {
-		if (ldt == null) {
-			return null;
-		}
-		return ldt.atZone(JST).toOffsetDateTime().toString();
+	// toIsoJstString を置き換え
+	private String toIsoJstString(OffsetDateTime odt) {
+	    if (odt == null) return null;
+	    return odt.atZoneSameInstant(JST).toOffsetDateTime().toString();
 	}
 
-	private OffsetDateTime toOffsetDateTimeJst(LocalDateTime ldt) {
-		if (ldt == null) {
-			return null;
-		}
-		return ldt.atZone(JST).toOffsetDateTime();
+	// toOffsetDateTimeJst も同様に
+	private OffsetDateTime toOffsetDateTimeJst(OffsetDateTime odt) {
+	    if (odt == null) return null;
+	    return odt.atZoneSameInstant(JST).toOffsetDateTime();
 	}
 
 	// --------------------------------------------------------
@@ -139,7 +137,7 @@ public class FuturesRepository {
 			m.setSeq(rs.getLong("seq"));
 			m.setGameTeamCategory(rs.getString("game_team_category"));
 
-			LocalDateTime ft = getLocalDateTime(rs, "future_time");
+			OffsetDateTime ft = getOffsetDateTime(rs, "future_time");
 			m.setFutureTime(toIsoJstString(ft));
 
 			m.setHomeTeam(rs.getString("home_team"));
@@ -177,7 +175,7 @@ public class FuturesRepository {
 			r.homeTeamName = rs.getString("home_team_name");
 			r.awayTeamName = rs.getString("away_team_name");
 
-			LocalDateTime ft = getLocalDateTime(rs, "future_time");
+			OffsetDateTime ft = getOffsetDateTime(rs, "future_time");
 			r.matchStartTime = toOffsetDateTimeJst(ft);
 
 			return r;
@@ -234,7 +232,7 @@ public class FuturesRepository {
 			m.setSeq(rs.getLong("seq"));
 			m.setGameTeamCategory(rs.getString("game_team_category"));
 
-			LocalDateTime ft = getLocalDateTime(rs, "future_time");
+			OffsetDateTime ft = getOffsetDateTime(rs, "future_time");
 			m.setFutureTime(toIsoJstString(ft));
 
 			m.setHomeTeam(rs.getString("home_team"));
@@ -297,7 +295,7 @@ public class FuturesRepository {
 			r.seq = rs.getLong("seq");
 			r.gameTeamCategory = rs.getString("game_team_category");
 
-			LocalDateTime ft = getLocalDateTime(rs, "future_time");
+			OffsetDateTime ft = getOffsetDateTime(rs, "future_time");
 			r.futureTime = toIsoJstString(ft);
 
 			r.homeTeamName = rs.getString("home_team_name");
@@ -359,7 +357,7 @@ public class FuturesRepository {
 			m.setSeq(rs.getLong("seq"));
 			m.setGameTeamCategory(rs.getString("game_team_category"));
 
-			LocalDateTime ft = getLocalDateTime(rs, "future_time");
+			OffsetDateTime ft = getOffsetDateTime(rs, "future_time");
 			m.setFutureTime(toIsoJstString(ft));
 
 			m.setHomeTeam(rs.getString("home_team"));
@@ -447,7 +445,7 @@ public class FuturesRepository {
 			int roundNo = rs.getInt("round_no");
 			dto.setRoundNo(rs.wasNull() ? null : String.valueOf(roundNo));
 
-			LocalDateTime rt = getLocalDateTime(rs, "record_time");
+			OffsetDateTime rt = getOffsetDateTime(rs, "record_time");
 			dto.setRecordTime(toIsoJstString(rt));
 
 			dto.setHomeTeamName(rs.getString("home_team_name"));
@@ -499,7 +497,7 @@ public class FuturesRepository {
 			java.util.Map<String, String> out = new java.util.HashMap<>();
 			while (rs.next()) {
 				String link = rs.getString("game_link");
-				LocalDateTime ft = getLocalDateTime(rs, "future_time");
+				OffsetDateTime ft = getOffsetDateTime(rs, "future_time");
 				if (link == null || link.isBlank() || ft == null) {
 					continue;
 				}
