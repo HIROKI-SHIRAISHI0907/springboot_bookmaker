@@ -440,15 +440,15 @@ public class DateUtil {
 	}
 
 	/**
-     * "2026-03-02 15:40:59" のような文字列を 90分前にして同形式で返す
+     * "2026-03-02 15:40:59" のような文字列を 120分前にして同形式で返す
      */
-    public static String minus90Minutes(String dateTimeStr) {
+    public static String minus120Minutes(String dateTimeStr) {
         if (dateTimeStr == null || dateTimeStr.isBlank()) {
             throw new IllegalArgumentException("dateTimeStr is null/blank");
         }
 
         LocalDateTime dt = LocalDateTime.parse(dateTimeStr.trim(), FMT);
-        LocalDateTime dtMinus = dt.minusMinutes(90);
+        LocalDateTime dtMinus = dt.minusMinutes(120);
         return dtMinus.format(FMT);
     }
 
