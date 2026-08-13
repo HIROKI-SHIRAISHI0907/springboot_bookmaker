@@ -123,9 +123,12 @@ public class FinGettingStat implements FinGettingEntityIF {
 		final Path jsonFilePath = Paths.get(jsonPath);
 		final String s3Key = "list/" + jsonFilePath.getFileName().toString();
 
+		// 既存のS3上のjsonがあれば読み込んで今回分とマージする
+		Map<String, String> mergedMap = mergeWithExisting(outputBucket, s3Key, mapList);
+
 		// リクエストで受け取ったデータをObjectMapperで変換
 		Files.createDirectories(jsonFilePath.getParent());
-		makeJson(jsonPath, mapList);
+		makeJson(jsonPath, mergedMap);
 
 		// upload
 		upload(outputBucket, s3Key, jsonFilePath);
@@ -236,6 +239,41 @@ public class FinGettingStat implements FinGettingEntityIF {
 
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
 				"bucket: " + bucket + ", key: " + key + ", file: " + file);
+	}
+
+	/**
+	 * S3上に既存のjsonがあれば読み込み、今回分のmapとマージ（追記）する。
+	 * 同じキー（dataCategory）が既に存在する場合は、今回分の値で上書きする。
+	 *
+	 * @param bucket バケット名
+	 * @param key    S3キー（例: list/b010_fin_getting_data_list.json）
+	 * @param newMap 今回分のマップ
+	 * @return マージ後のマップ（既存が無ければ newMap をそのまま返す）
+	 */
+	private Map<String, String> mergeWithExisting(String bucket, String key, Map<String, String> newMap) {
+	    final String METHOD_NAME = "mergeWithExisting";
+
+	    List<String> existingKeys = s3Operator.listKeys(bucket, key);
+	    if (existingKeys == null || !existingKeys.contains(key)) {
+	        // 既存が無ければ今回分のみ
+	        return newMap;
+	    }
+
+	    try {
+	        String existingJson = s3Operator.downloadTextUtf8(bucket, key);
+	        Map<String, String> existingMap = objectMapper.readValue(
+	                existingJson,
+	                objectMapper.getTypeFactory().constructMapType(Map.class, String.class, String.class));
+	        // 既存データに今回分を追記（同じキーは今回分で上書き）
+	        existingMap.putAll(newMap);
+	        return existingMap;
+	    } catch (Exception e) {
+	        this.manageLoggerComponent.debugErrorLog(
+	                PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+	                "bucket: " + bucket + ", key: " + key);
+	        // 既存分の読み込みに失敗した場合は今回分のみで続行
+	        return newMap;
+	    }
 	}
 
 }
