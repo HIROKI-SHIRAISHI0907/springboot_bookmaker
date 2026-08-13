@@ -20,9 +20,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
-import dev.common.constant.S3Const;
 import software.amazon.awssdk.core.sync.RequestBody;
-import software.amazon.awssdk.regions.Region;
 import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.s3.model.CopyObjectRequest;
 import software.amazon.awssdk.services.s3.model.Delete;
@@ -58,12 +56,10 @@ public class S3Operator {
 	}
 
 	/**
-	 * インスタンス生成（東京リージョンで生成）
+	 * S3Client をDIで受け取る
 	 */
-	public S3Operator() {
-		this.s3 = S3Client.builder()
-				.region(Region.of(S3Const.TOKYO_REGION_AP_NORTHEAST_1))
-				.build();
+	public S3Operator(S3Client s3Client) {
+		this.s3 = s3Client;
 	}
 
 	/**
