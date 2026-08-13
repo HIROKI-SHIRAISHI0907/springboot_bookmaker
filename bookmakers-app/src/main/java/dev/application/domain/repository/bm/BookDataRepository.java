@@ -5,8 +5,10 @@ import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
 import dev.application.analyze.bm_m033.TeamPoints;
+import dev.application.main.service.DataCategoryDTO;
 import dev.application.main.service.SeqKeyDTO;
 import dev.common.entity.DataEntity;
 @Mapper
@@ -232,9 +234,9 @@ public interface BookDataRepository {
 			 	#{timeSortSeconds},
 			 	#{addManualFlg},
 			    'SYSTEM',
-			    NOW(),
+			    CURRENT_TIMESTAMP,
 			    'SYSTEM',
-			    NOW()
+			    CURRENT_TIMESTAMP
 			)
 			""")
 	int insert(DataEntity entity);
@@ -629,14 +631,14 @@ public interface BookDataRepository {
 	@Select("""
 			SELECT
 			    seq_key AS seqKey,
-			    match_id AS matchId
+				match_id AS matchId,
+				times
 			FROM static_data
-			WHERE home_team_name = #{homeTeamName}
-			  AND away_team_name = #{awayTeamName}
-			ORDER BY CAST(SPLIT_PART(seq_key, '-', 2) AS INTEGER) DESC
-			LIMIT 1
+				WHERE home_team_name = #{homeTeamName}
+				AND away_team_name = #{awayTeamName}
+			ORDER BY register_time DESC;
 			""")
-	SeqKeyDTO findMatchId(
+	List<SeqKeyDTO> findMatchId(
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
 	// ★static_data向けに変更。カンマ抜け修正 + 連番部分を数値としてORDER BY
@@ -658,4 +660,39 @@ public interface BookDataRepository {
 			WHERE seq_key LIKE CONCAT(#{prefix}, '-%')
 			""")
 	int existsSeqKeyPrefix(@Param("prefix") String prefix);
+
+	@Update("""
+	        UPDATE static_data
+	        SET seq_key = #{newSeqKey},
+	            match_id = #{matchId}
+	        WHERE seq_key = #{oldSeqKey}
+	        """)
+	int updateSeqKey(@Param("oldSeqKey") String oldSeqKey,
+	                  @Param("newSeqKey") String newSeqKey,
+	                  @Param("matchId") String matchId);
+
+	@Select("""
+			SELECT
+				data_category AS dataCategory,
+				times
+			FROM static_data
+				WHERE home_team_name = #{homeTeamName}
+				AND away_team_name = #{awayTeamName}
+			ORDER BY register_time DESC;
+			""")
+	List<DataCategoryDTO> findDataCategory(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
+
+	@Update("""
+			UPDATE static_data
+			SET data_category = #{dataCategory}
+				WHERE home_team_name = #{homeTeamName}
+				AND away_team_name = #{awayTeamName}
+			ORDER BY register_time DESC;
+			""")
+	int updateByDataCategory(
+			@Param("dataCategory") String dataCategory,
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
 }

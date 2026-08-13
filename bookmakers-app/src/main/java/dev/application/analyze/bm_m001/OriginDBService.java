@@ -9,6 +9,7 @@ import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Component;
 
 import dev.application.domain.repository.bm.BookDataRepository;
+import dev.application.main.service.DataCategoryService;
 import dev.application.main.service.SeqKeyService;
 import dev.common.entity.DataEntity;
 import dev.common.logger.ManageLoggerComponent;
@@ -31,6 +32,10 @@ public class OriginDBService {
 	/** SeqKeyServiceクラス */
 	@Autowired
 	private SeqKeyService seqKeyService;
+
+	/** DataCategoryServiceクラス */
+	@Autowired
+	private DataCategoryService dataCategoryService;
 
 	/** BookDataRepositoryレポジトリクラス */
 	@Autowired
@@ -68,8 +73,9 @@ public class OriginDBService {
 	/**
 	 * 登録メソッド
 	 * @param insertEntities
+	 * @throws IllegalAccessException
 	 */
-	public int insertInBatch(List<DataEntity> insertEntities) {
+	public int insertInBatch(List<DataEntity> insertEntities) throws IllegalAccessException {
 		final String METHOD_NAME = "insertInBatch";
 		final int BATCH_SIZE = 100;
 		for (int i = 0; i < insertEntities.size(); i += BATCH_SIZE) {
@@ -79,6 +85,9 @@ public class OriginDBService {
 				// 通番を発番
 				entity.setSeqKey(seqKeyService.create(entity.getHomeTeamName(),
 						entity.getAwayTeamName(), entity.getMatchId()));
+				// データカテゴリの再設定
+				entity.setDataCategory(dataCategoryService.create(entity.getHomeTeamName(),
+						entity.getAwayTeamName(), entity.getDataCategory()));
 				try {
 					int result = this.bookDataRepository.insert(entity);
 					if (result != 1) {

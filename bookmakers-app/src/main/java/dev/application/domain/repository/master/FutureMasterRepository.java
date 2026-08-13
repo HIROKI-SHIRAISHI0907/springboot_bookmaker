@@ -63,4 +63,32 @@ public interface FutureMasterRepository {
 			""")
 	List<FutureEntity> findFutureDatesForManualStat();
 
+	@Select("""
+			SELECT
+				game_team_category
+			FROM
+				future_master
+			WHERE
+				normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+				AND game_team_category IS NOT NULL
+				AND BTRIM(game_team_category) <> ''
+			LIMIT 1
+		""")
+	String findGameTeamCategoryByTeams(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
+
+	@Update("""
+			UPDATE future_master
+			SET	game_team_category = #{dataCategory}
+			WHERE
+				normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC);
+		""")
+	int updateGameTeamCategoryByTeams(
+			@Param("dataCategory") String dataCategory,
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
+
 }

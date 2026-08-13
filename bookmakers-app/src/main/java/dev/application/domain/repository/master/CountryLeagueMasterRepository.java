@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 
 import dev.common.entity.CountryLeagueMasterEntity;
@@ -57,5 +58,23 @@ public interface CountryLeagueMasterRepository {
 			    	country_league_master;
 			""")
 	List<CountryLeagueMasterEntity> findData();
+
+	/**
+	 * チームから国リーグを1件取得
+	 */
+	@Select("""
+			    SELECT
+			    	id,
+			        country,
+			        league,
+			        sub_league AS subLeague,
+			        team
+			    FROM
+			    	country_league_master
+			    WHERE
+			    	normalize(team, NFKC) = normalize(#{team}, NFKC)
+			    LIMIT 1;
+			""")
+	CountryLeagueMasterEntity findCountryLeagueByTeam(@Param("team") String team);
 
 }
