@@ -40,16 +40,6 @@ public class FuturesRepository {
 	// ========================================================
 	// 共通ヘルパー
 	// ========================================================
-	private Timestamp toStartOfDayJstTimestamp(String date) {
-		LocalDate targetDate = LocalDate.parse(date.trim());
-		return Timestamp.valueOf(targetDate.atStartOfDay());
-	}
-
-	private Timestamp toNextStartOfDayJstTimestamp(String date) {
-		LocalDate targetDate = LocalDate.parse(date.trim()).plusDays(1);
-		return Timestamp.valueOf(targetDate.atStartOfDay());
-	}
-
 	// getLocalDateTime を置き換え
 	private OffsetDateTime getOffsetDateTime(ResultSet rs, String columnLabel) throws SQLException {
 	    return rs.getObject(columnLabel, OffsetDateTime.class);
@@ -343,8 +333,8 @@ public class FuturesRepository {
 			throw new IllegalArgumentException("offset must be greater than or equal to 0");
 		}
 
-		Timestamp dateStart = toStartOfDayJstTimestamp(date);
-		Timestamp dateEnd = toNextStartOfDayJstTimestamp(date);
+		OffsetDateTime dateStart = toStartOfDayJstOffsetDateTime(date);
+	    OffsetDateTime dateEnd = toNextStartOfDayJstOffsetDateTime(date);
 
 		MapSqlParameterSource params = new MapSqlParameterSource()
 				.addValue("dateStart", dateStart)
@@ -573,5 +563,25 @@ public class FuturesRepository {
 			}
 		}
 		return out;
+	}
+
+	/**
+	 * 日本時間検索用
+	 * @param date
+	 * @return
+	 */
+	private OffsetDateTime toStartOfDayJstOffsetDateTime(String date) {
+	    LocalDate targetDate = LocalDate.parse(date.trim());
+	    return targetDate.atStartOfDay(JST).toOffsetDateTime();
+	}
+
+	/**
+	 * 日本時間検索用
+	 * @param date
+	 * @return
+	 */
+	private OffsetDateTime toNextStartOfDayJstOffsetDateTime(String date) {
+	    LocalDate targetDate = LocalDate.parse(date.trim()).plusDays(1);
+	    return targetDate.atStartOfDay(JST).toOffsetDateTime();
 	}
 }
