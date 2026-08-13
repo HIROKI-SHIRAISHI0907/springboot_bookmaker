@@ -8,7 +8,9 @@ import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
 
+import dev.batch.bm_b010.DataCategoryDTO;
 import dev.batch.bm_b010.SeqKeyDTO;
 import dev.common.entity.DataEntity;
 
@@ -314,14 +316,14 @@ public interface BookDataRepository {
 	@Select("""
 			SELECT
 			    seq_key AS seqKey,
-				match_id AS matchId
+				match_id AS matchId,
+				times
 			FROM static_data
 				WHERE home_team_name = #{homeTeamName}
 				AND away_team_name = #{awayTeamName}
-			ORDER BY seq_key DESC
-			LIMIT 1;
+			ORDER BY register_time DESC;
 			""")
-	SeqKeyDTO findMatchId(
+	List<SeqKeyDTO> findMatchId(
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
 
@@ -344,4 +346,38 @@ public interface BookDataRepository {
 			""")
 	int existsSeqKeyPrefix(@Param("prefix") String prefix);
 
+	@Update("""
+	        UPDATE static_data
+	        SET seq_key = #{newSeqKey},
+	            match_id = #{matchId}
+	        WHERE seq_key = #{oldSeqKey}
+	        """)
+	int updateSeqKey(@Param("oldSeqKey") String oldSeqKey,
+	                  @Param("newSeqKey") String newSeqKey,
+	                  @Param("matchId") String matchId);
+
+	@Select("""
+			SELECT
+				data_category AS dataCategory,
+				times
+			FROM static_data
+				WHERE home_team_name = #{homeTeamName}
+				AND away_team_name = #{awayTeamName}
+			ORDER BY register_time DESC;
+			""")
+	List<DataCategoryDTO> findDataCategory(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
+
+	@Update("""
+			UPDATE static_data
+			SET data_category = #{dataCategory}
+				WHERE home_team_name = #{homeTeamName}
+				AND away_team_name = #{awayTeamName}
+			ORDER BY register_time DESC;
+			""")
+	int updateByDataCategory(
+			@Param("dataCategory") String dataCategory,
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
 }

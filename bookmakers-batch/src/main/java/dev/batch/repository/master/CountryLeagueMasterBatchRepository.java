@@ -266,4 +266,22 @@ public interface CountryLeagueMasterBatchRepository {
 	""")
 	int updateAllId(CountryLeagueMasterEntity entity);
 
+	/**
+	 * チームから国リーグを1件取得
+	 */
+	@Select("""
+			    SELECT
+			    	id,
+			        country,
+			        league,
+			        sub_league AS subLeague,
+			        team
+			    FROM
+			    	country_league_master
+			    WHERE
+			    	normalize(team, NFKC) = normalize(#{team}, NFKC)
+			    LIMIT 1;
+			""")
+	CountryLeagueMasterEntity findCountryLeagueByTeam(@Param("team") String team);
+
 }

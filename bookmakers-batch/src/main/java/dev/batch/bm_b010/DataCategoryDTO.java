@@ -3,11 +3,9 @@ package dev.batch.bm_b010;
 import lombok.Data;
 
 @Data
-public class SeqKeyDTO {
+public class DataCategoryDTO {
 
-	private String seqKey;
-
-	private String matchId;
+	private String dataCategory;
 
 	private String times;
 

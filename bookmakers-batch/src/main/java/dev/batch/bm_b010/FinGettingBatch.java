@@ -1,8 +1,5 @@
 package dev.batch.bm_b010;
 
-import java.nio.file.Path;
-import java.nio.file.Paths;
-import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 
@@ -13,12 +10,9 @@ import org.springframework.stereotype.Service;
 
 import dev.batch.common.AbstractJobBatchTemplate;
 import dev.batch.repository.bm.EcsScrapeTaskProgressBatchRepository;
-import dev.common.config.PathConfig;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
 import dev.common.getinfo.GetOriginFinInfo;
-import dev.common.s3.S3Operator;
-import dev.common.util.FileDeleteUtil;
 
 /**
  * 「終了済」欠損データ登録バッチ実行クラス。
@@ -121,12 +115,6 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
     private FutureStartFlgService futureStartFlgService;
 
     @Autowired
-    private PathConfig pathConfig;
-
-    @Autowired
-    private S3Operator s3Operator;
-
-    @Autowired
     private EcsScrapeTaskProgressBatchRepository ecsScrapeTaskProgressBatchRepository;
 
     @Override
@@ -137,28 +125,10 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
         this.manageLoggerComponent.debugStartInfoLog(
                 PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-        List<String> insertPath = new ArrayList<String>();
-        final String jsonFolder = pathConfig.getB008JsonFolder();
-        final String jsonPath = jsonFolder + "b008_fin_getting_data.json";
-        final Path jsonFilePath = Paths.get(jsonPath);
-        final String s3Key = jsonFilePath.getFileName().toString();
-        insertPath.add(s3Key);
-
         try {
             Map<String, List<DataEntity>> map = getOriginFinInfo.getData();
             if (!map.isEmpty()) {
             	this.finGettingStat.finGettingStat(map);
-
-                String bucket = pathConfig.getS3BucketsOutputsFin();
-                FileDeleteUtil.deleteS3Files(
-                        insertPath,
-                        bucket,
-                        s3Operator,
-                        manageLoggerComponent,
-                        PROJECT_NAME,
-                        CLASS_NAME,
-                        METHOD_NAME,
-                        "b008_fin_getting_data.json");
     		}
 
             updateFlg(map);
