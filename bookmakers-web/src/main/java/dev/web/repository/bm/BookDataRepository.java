@@ -473,7 +473,7 @@ public class BookDataRepository {
 	public int updateBySeq(DataEntity e) {
 
 		String sql = """
-				UPDATE data SET
+				UPDATE static_data SET
 				  condition_result_data_seq_id = :conditionResultDataSeqId,
 				  data_category               = :dataCategory,
 				  times                       = :times,
@@ -824,7 +824,7 @@ public class BookDataRepository {
 	    }
 
 	    sql.append("""
-	            ORDER BY COALESCE(record_time) DESC, seq DESC
+	            ORDER BY COALESCE(record_time) DESC, seq_key DESC
 	            """);
 
 	    return bmJdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> {
