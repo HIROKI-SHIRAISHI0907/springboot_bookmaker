@@ -10,7 +10,10 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import dev.common.constant.BookMakersCommonConst;
+import dev.web.api.bm_a003.CountryLeagueDTO;
+import dev.web.api.bm_a003.CountryLeagueSearchCondition;
 import dev.web.repository.bm.BookDataRepository;
+import dev.web.repository.master.CountryLeagueMasterWebRepository;
 import dev.web.repository.master.FuturesRepository;
 import lombok.AllArgsConstructor;
 
@@ -18,292 +21,323 @@ import lombok.AllArgsConstructor;
 @AllArgsConstructor
 public class IngestedDataService {
 
-    private final BookDataRepository bookDataRepository;
-    private final FuturesRepository futuresRepository;
+	private final BookDataRepository bookDataRepository;
+	private final FuturesRepository futuresRepository;
+	private final CountryLeagueMasterWebRepository countryLeagueMasterWebRepository;
 
-    public IngestedDataReferenceResponse search(IngestedDataReferenceRequest req) {
+	public IngestedDataReferenceResponse search(IngestedDataReferenceRequest req) {
 
-        // groupKey -> 集約結果
-        Map<String, IngestedRowDTO> grouped = new LinkedHashMap<>();
+		// groupKey -> 集約結果
+		Map<String, IngestedRowDTO> grouped = new LinkedHashMap<>();
 
-        // groupKey -> 同一試合群の data 件数
-        Map<String, Integer> sameMatchDataCountByGroupKey = new HashMap<>();
+		// groupKey -> 同一試合群の data 件数
+		Map<String, Integer> sameMatchDataCountByGroupKey = new HashMap<>();
 
-        // ===== future_master =====
-        var futures = futuresRepository.findFutureMasterByRegisterTime(req.getCountry());
+		// data_categoryに国が付与なしの場合を考慮して、チーム一覧を取得
+		CountryLeagueSearchCondition search = new CountryLeagueSearchCondition();
+		search.setCountry(req.getCountry());
+		List<CountryLeagueDTO> teamList = countryLeagueMasterWebRepository.search(search);
 
-        for (var r : futures) {
-            String gk = buildGroupKeyForFuture(r);
-            if (gk == null) {
-                // group化できないものは seq ベースで逃がす
-                gk = "FUTURE:" + r.seq;
-            }
+		// チームに紐づく future_master データを取得（チームごとに蓄積）
+		List<FuturesRepository.FutureMasterIngestRow> futuresList = new ArrayList<>();
+		for (CountryLeagueDTO dto : teamList) {
+		    futuresList.addAll(futuresRepository.findFutureMasterByRegisterTime(null, dto.getTeam()));
+		}
 
-            IngestedRowDTO row = grouped.get(gk);
-            if (row == null) {
-                row = new IngestedRowDTO();
-                row.setSeq(String.valueOf(r.seq));
-                row.setTable(IngestedRowDTO.TableName.FUTURE_MASTER);
-                row.setMatchKey(extractMidOrNull(r.gameLink));
-                row.setFutureExists(true);
-                row.setHasFinishedData(false);
-                grouped.put(gk, row);
-            } else {
-                row.setFutureExists(true);
-                if ((row.getMatchKey() == null || row.getMatchKey().isBlank()) && extractMidOrNull(r.gameLink) != null) {
-                    row.setMatchKey(extractMidOrNull(r.gameLink));
-                }
-            }
+		// ===== future_master（従来の国プレフィックス絞り込み） =====
+		List<FuturesRepository.FutureMasterIngestRow> futuresByCountry =
+		        futuresRepository.findFutureMasterByRegisterTime(req.getCountry(), null);
 
-            FutureMasterIngestSummaryDTO current = row.getFuture();
-            if (shouldReplaceFuture(current, r)) {
-                FutureMasterIngestSummaryDTO s = new FutureMasterIngestSummaryDTO();
-                s.setGameTeamCategory(r.gameTeamCategory);
-                s.setFutureTime(r.futureTime);
-                s.setHomeTeamName(r.homeTeamName);
-                s.setAwayTeamName(r.awayTeamName);
-                s.setGameLink(r.gameLink);
-                row.setFuture(s);
-            }
-        }
+		// futuresList と futuresByCountry をマージし、seq（主キー）で重複排除
+		Map<Long, FuturesRepository.FutureMasterIngestRow> futuresBySeq = new LinkedHashMap<>();
+		for (var r : futuresList) {
+		    futuresBySeq.put(r.seq, r);
+		}
+		for (var r : futuresByCountry) {
+		    futuresBySeq.putIfAbsent(r.seq, r);
+		}
+		List<FuturesRepository.FutureMasterIngestRow> futures = new ArrayList<>(futuresBySeq.values());
 
-        // ===== data =====
-        var dataRows = bookDataRepository.findDataByRegisterTime(req.getCountry());
+		for (var r : futures) {
+			String gk = buildGroupKeyForFuture(r);
+			if (gk == null) {
+				// group化できないものは seq ベースで逃がす
+				gk = "FUTURE:" + r.seq;
+			}
 
-        for (var r : dataRows) {
-            String gk = buildGroupKeyForData(r);
-            if (gk == null) {
-                gk = "DATA:" + r.seq;
-            }
+			IngestedRowDTO row = grouped.get(gk);
+			if (row == null) {
+				row = new IngestedRowDTO();
+				row.setSeq(String.valueOf(r.seq));
+				row.setTable(IngestedRowDTO.TableName.FUTURE_MASTER);
+				row.setMatchKey(extractMidOrNull(r.gameLink));
+				row.setFutureExists(true);
+				row.setHasFinishedData(false);
+				grouped.put(gk, row);
+			} else {
+				row.setFutureExists(true);
+				if ((row.getMatchKey() == null || row.getMatchKey().isBlank())
+						&& extractMidOrNull(r.gameLink) != null) {
+					row.setMatchKey(extractMidOrNull(r.gameLink));
+				}
+			}
 
-            sameMatchDataCountByGroupKey.merge(gk, 1, Integer::sum);
+			FutureMasterIngestSummaryDTO current = row.getFuture();
+			if (shouldReplaceFuture(current, r)) {
+				FutureMasterIngestSummaryDTO s = new FutureMasterIngestSummaryDTO();
+				s.setGameTeamCategory(r.gameTeamCategory);
+				s.setFutureTime(r.futureTime);
+				s.setHomeTeamName(r.homeTeamName);
+				s.setAwayTeamName(r.awayTeamName);
+				s.setGameLink(r.gameLink);
+				row.setFuture(s);
+			}
+		}
 
-            IngestedRowDTO row = grouped.get(gk);
-            if (row == null) {
-                row = new IngestedRowDTO();
-                row.setSeq(r.seq);
-                row.setTable(IngestedRowDTO.TableName.DATA);
-                row.setMatchKey(pickDataMatchKey(r.matchId, r.gameId, r.gameLink));
-                row.setFutureExists(false);
-                row.setHasFinishedData(false);
-                grouped.put(gk, row);
-            } else {
-                // dataがあるなら代表行は DATA 扱いに寄せる
-                row.setTable(IngestedRowDTO.TableName.DATA);
+		// ===== data =====
+		var dataRows = bookDataRepository.findDataByRegisterTime(req.getCountry());
 
-                if (row.getSeq() == null || row.getSeq().isBlank()) {
-                    row.setSeq(r.seq);
-                }
+		for (var r : dataRows) {
+			String gk = buildGroupKeyForData(r);
+			if (gk == null) {
+				gk = "DATA:" + r.seq;
+			}
 
-                if ((row.getMatchKey() == null || row.getMatchKey().isBlank())) {
-                    row.setMatchKey(pickDataMatchKey(r.matchId, r.gameId, r.gameLink));
-                }
-            }
+			sameMatchDataCountByGroupKey.merge(gk, 1, Integer::sum);
 
-            if (isFinishedLikeTimes(r.times)) {
-                row.setHasFinishedData(true);
-            }
+			IngestedRowDTO row = grouped.get(gk);
+			if (row == null) {
+				row = new IngestedRowDTO();
+				row.setSeq(r.seq);
+				row.setTable(IngestedRowDTO.TableName.DATA);
+				row.setMatchKey(pickDataMatchKey(r.matchId, r.gameId, r.gameLink));
+				row.setFutureExists(false);
+				row.setHasFinishedData(false);
+				grouped.put(gk, row);
+			} else {
+				// dataがあるなら代表行は DATA 扱いに寄せる
+				row.setTable(IngestedRowDTO.TableName.DATA);
 
-            DataIngestSummaryDTO current = row.getData();
-            if (shouldReplaceData(current, r)) {
-                DataIngestSummaryDTO s = new DataIngestSummaryDTO();
-                s.setDataCategory(r.dataCategory);
-                s.setHomeTeamName(r.homeTeamName);
-                s.setAwayTeamName(r.awayTeamName);
-                s.setGameId(r.gameId);
-                s.setGameLink(r.gameLink);
-                row.setData(s);
-            }
-        }
+				if (row.getSeq() == null || row.getSeq().isBlank()) {
+					row.setSeq(r.seq);
+				}
 
-        // ===== enrich =====
-        for (Map.Entry<String, IngestedRowDTO> e : grouped.entrySet()) {
-            String gk = e.getKey();
-            IngestedRowDTO row = e.getValue();
+				if ((row.getMatchKey() == null || row.getMatchKey().isBlank())) {
+					row.setMatchKey(pickDataMatchKey(r.matchId, r.gameId, r.gameLink));
+				}
+			}
 
-            if (row.getData() != null) {
-                row.getData().setSameMatchDataCount(
-                        sameMatchDataCountByGroupKey.getOrDefault(gk, 1)
-                );
-            }
-        }
+			if (isFinishedLikeTimes(r.times)) {
+				row.setHasFinishedData(true);
+			}
 
-        List<IngestedRowDTO> merged = new ArrayList<>(grouped.values());
+			DataIngestSummaryDTO current = row.getData();
+			if (shouldReplaceData(current, r)) {
+				DataIngestSummaryDTO s = new DataIngestSummaryDTO();
+				s.setDataCategory(r.dataCategory);
+				s.setHomeTeamName(r.homeTeamName);
+				s.setAwayTeamName(r.awayTeamName);
+				s.setGameId(r.gameId);
+				s.setGameLink(r.gameLink);
+				row.setData(s);
+			}
+		}
 
-        // ===== チェックボックス条件 =====
-        if (req.isOnlyMissingFinishedOrFuture()) {
-            merged = merged.stream()
-                    .filter(r ->
-                            Boolean.FALSE.equals(r.getHasFinishedData())
-                         || Boolean.FALSE.equals(r.getFutureExists()))
-                    .collect(Collectors.toList());
-        }
+		// ===== enrich =====
+		for (Map.Entry<String, IngestedRowDTO> e : grouped.entrySet()) {
+			String gk = e.getKey();
+			IngestedRowDTO row = e.getValue();
 
-        // ===== paging =====
-        int fromIdx = Math.min(req.getOffset(), merged.size());
-        int toIdx = Math.min(fromIdx + req.getLimit(), merged.size());
-        List<IngestedRowDTO> paged = merged.subList(fromIdx, toIdx);
+			if (row.getData() != null) {
+				row.getData().setSameMatchDataCount(
+						sameMatchDataCountByGroupKey.getOrDefault(gk, 1));
+			}
+		}
 
-        IngestedDataReferenceResponse res = new IngestedDataReferenceResponse();
-        res.setRows(paged);
-        res.setTotal(merged.size());
-        return res;
-    }
+		List<IngestedRowDTO> merged = new ArrayList<>(grouped.values());
 
-    // =========================================================
-    // representative selection
-    // =========================================================
+		// ===== チェックボックス条件 =====
+		if (req.isOnlyMissingFinishedOrFuture()) {
+			merged = merged.stream()
+					.filter(r -> Boolean.FALSE.equals(r.getHasFinishedData())
+							|| Boolean.FALSE.equals(r.getFutureExists()))
+					.collect(Collectors.toList());
+		}
 
-    private static boolean shouldReplaceFuture(FutureMasterIngestSummaryDTO current,
-                                               FuturesRepository.FutureMasterIngestRow candidate) {
-        if (current == null) {
-            return true;
-        }
+		// ===== paging =====
+		int fromIdx = Math.min(req.getOffset(), merged.size());
+		int toIdx = Math.min(fromIdx + req.getLimit(), merged.size());
+		List<IngestedRowDTO> paged = merged.subList(fromIdx, toIdx);
 
-        // gameLink があるものを優先
-        String curLink = trimToNull(current.getGameLink());
-        String newLink = trimToNull(candidate.gameLink);
-        if (curLink == null && newLink != null) {
-            return true;
-        }
+		IngestedDataReferenceResponse res = new IngestedDataReferenceResponse();
+		res.setRows(paged);
+		res.setTotal(merged.size());
+		return res;
+	}
 
-        // ラウンド付きカテゴリを優先
-        int curPriority = categoryPriority(current.getGameTeamCategory());
-        int newPriority = categoryPriority(candidate.gameTeamCategory);
-        if (newPriority > curPriority) {
-            return true;
-        }
+	// =========================================================
+	// representative selection
+	// =========================================================
 
-        return false;
-    }
+	private static boolean shouldReplaceFuture(FutureMasterIngestSummaryDTO current,
+			FuturesRepository.FutureMasterIngestRow candidate) {
+		if (current == null) {
+			return true;
+		}
 
-    private static boolean shouldReplaceData(DataIngestSummaryDTO current,
-                                             BookDataRepository.DataIngestRow candidate) {
-        if (current == null) {
-            return true;
-        }
+		// gameLink があるものを優先
+		String curLink = trimToNull(current.getGameLink());
+		String newLink = trimToNull(candidate.gameLink);
+		if (curLink == null && newLink != null) {
+			return true;
+		}
 
-        // gameLink があるものを優先
-        String curLink = trimToNull(current.getGameLink());
-        String newLink = trimToNull(candidate.gameLink);
-        if (curLink == null && newLink != null) {
-            return true;
-        }
+		// ラウンド付きカテゴリを優先
+		int curPriority = categoryPriority(current.getGameTeamCategory());
+		int newPriority = categoryPriority(candidate.gameTeamCategory);
+		if (newPriority > curPriority) {
+			return true;
+		}
 
-        // ラウンド付きカテゴリを優先
-        int curPriority = categoryPriority(current.getDataCategory());
-        int newPriority = categoryPriority(candidate.dataCategory);
-        if (newPriority > curPriority) {
-            return true;
-        }
+		return false;
+	}
 
-        return false;
-    }
+	private static boolean shouldReplaceData(DataIngestSummaryDTO current,
+			BookDataRepository.DataIngestRow candidate) {
+		if (current == null) {
+			return true;
+		}
 
-    // =========================================================
-    // groupKey
-    // =========================================================
+		// gameLink があるものを優先
+		String curLink = trimToNull(current.getGameLink());
+		String newLink = trimToNull(candidate.gameLink);
+		if (curLink == null && newLink != null) {
+			return true;
+		}
 
-    private static String buildGroupKeyForData(BookDataRepository.DataIngestRow r) {
-        String mid = trimToNull(r.matchId);
-        if (mid != null) {
-            return "MID:" + mid;
-        }
+		// ラウンド付きカテゴリを優先
+		int curPriority = categoryPriority(current.getDataCategory());
+		int newPriority = categoryPriority(candidate.dataCategory);
+		if (newPriority > curPriority) {
+			return true;
+		}
 
-        String extractedMid = extractMidOrNull(r.gameLink);
-        if (extractedMid != null) {
-            return "MID:" + extractedMid;
-        }
+		return false;
+	}
 
-        String league = normalizeLeagueIgnoringRound(r.dataCategory);
-        String home = trimToNull(r.homeTeamName);
-        String away = trimToNull(r.awayTeamName);
+	// =========================================================
+	// groupKey
+	// =========================================================
 
-        if (league == null || home == null || away == null) {
-            return null;
-        }
+	private static String buildGroupKeyForData(BookDataRepository.DataIngestRow r) {
+		String mid = trimToNull(r.matchId);
+		if (mid != null) {
+			return "MID:" + mid;
+		}
 
-        return "PAIR:" + league + "|" + home + "|" + away;
-    }
+		String extractedMid = extractMidOrNull(r.gameLink);
+		if (extractedMid != null) {
+			return "MID:" + extractedMid;
+		}
 
-    private static String buildGroupKeyForFuture(FuturesRepository.FutureMasterIngestRow r) {
-        String mid = extractMidOrNull(r.gameLink);
-        if (mid != null) {
-            return "MID:" + mid;
-        }
+		String league = normalizeLeagueIgnoringRound(r.dataCategory);
+		String home = trimToNull(r.homeTeamName);
+		String away = trimToNull(r.awayTeamName);
 
-        String league = normalizeLeagueIgnoringRound(r.gameTeamCategory);
-        String home = trimToNull(r.homeTeamName);
-        String away = trimToNull(r.awayTeamName);
+		if (league == null || home == null || away == null) {
+			return null;
+		}
 
-        if (league == null || home == null || away == null) {
-            return null;
-        }
+		return "PAIR:" + league + "|" + home + "|" + away;
+	}
 
-        return "PAIR:" + league + "|" + home + "|" + away;
-    }
+	private static String buildGroupKeyForFuture(FuturesRepository.FutureMasterIngestRow r) {
+		String mid = extractMidOrNull(r.gameLink);
+		if (mid != null) {
+			return "MID:" + mid;
+		}
 
-    private static String normalizeLeagueIgnoringRound(String category) {
-        String dc = trimToNull(category);
-        if (dc == null) return null;
+		String league = normalizeLeagueIgnoringRound(r.gameTeamCategory);
+		String home = trimToNull(r.homeTeamName);
+		String away = trimToNull(r.awayTeamName);
 
-        int idx = dc.indexOf(" - ");
-        if (idx < 0) return dc.trim();
-        return dc.substring(0, idx).trim();
-    }
+		if (league == null || home == null || away == null) {
+			return null;
+		}
 
-    // =========================================================
-    // matchKey helpers
-    // =========================================================
+		return "PAIR:" + league + "|" + home + "|" + away;
+	}
 
-    private static String pickDataMatchKey(String matchId, String gameId, String gameLink) {
-        String mid = trimToNull(matchId);
-        if (mid != null) return mid;
+	private static String normalizeLeagueIgnoringRound(String category) {
+		String dc = trimToNull(category);
+		if (dc == null)
+			return null;
 
-        String extracted = extractMidOrNull(gameLink);
-        if (trimToNull(extracted) != null) return extracted;
+		int idx = dc.indexOf(" - ");
+		if (idx < 0)
+			return dc.trim();
+		return dc.substring(0, idx).trim();
+	}
 
-        String gid = trimToNull(gameId);
-        if (gid != null) return gid;
+	// =========================================================
+	// matchKey helpers
+	// =========================================================
 
-        return null;
-    }
+	private static String pickDataMatchKey(String matchId, String gameId, String gameLink) {
+		String mid = trimToNull(matchId);
+		if (mid != null)
+			return mid;
 
-    private static String extractMidOrNull(String gameLink) {
-        String gl = trimToNull(gameLink);
-        if (gl == null) return null;
+		String extracted = extractMidOrNull(gameLink);
+		if (trimToNull(extracted) != null)
+			return extracted;
 
-        var m = java.util.regex.Pattern
-                .compile("[?&]mid=([A-Za-z0-9]+)")
-                .matcher(gl);
+		String gid = trimToNull(gameId);
+		if (gid != null)
+			return gid;
 
-        return m.find() ? m.group(1) : null;
-    }
+		return null;
+	}
 
-    // =========================================================
-    // utils
-    // =========================================================
+	private static String extractMidOrNull(String gameLink) {
+		String gl = trimToNull(gameLink);
+		if (gl == null)
+			return null;
 
-    private static String trimToNull(String s) {
-        if (s == null) return null;
-        String t = s.trim();
-        return t.isBlank() ? null : t;
-    }
+		var m = java.util.regex.Pattern
+				.compile("[?&]mid=([A-Za-z0-9]+)")
+				.matcher(gl);
 
-    private static boolean isFinishedLikeTimes(String times) {
-        String t = trimToNull(times);
-        if (t == null) return false;
+		return m.find() ? m.group(1) : null;
+	}
 
-        String norm = t.replaceAll("\\s+", "");
+	// =========================================================
+	// utils
+	// =========================================================
 
-        return BookMakersCommonConst.FIN.equals(t)
-            || norm.contains("ペナルティ");
-    }
+	private static String trimToNull(String s) {
+		if (s == null)
+			return null;
+		String t = s.trim();
+		return t.isBlank() ? null : t;
+	}
 
-    private static int categoryPriority(String category) {
-        String dc = trimToNull(category);
-        if (dc == null) return 0;
-        boolean hasRound = dc.contains("ラウンド") || dc.contains("Round");
-        return hasRound ? 2 : 1;
-    }
+	private static boolean isFinishedLikeTimes(String times) {
+		String t = trimToNull(times);
+		if (t == null)
+			return false;
+
+		String norm = t.replaceAll("\\s+", "");
+
+		return BookMakersCommonConst.FIN.equals(t)
+				|| norm.contains("ペナルティ");
+	}
+
+	private static int categoryPriority(String category) {
+		String dc = trimToNull(category);
+		if (dc == null)
+			return 0;
+		boolean hasRound = dc.contains("ラウンド") || dc.contains("Round");
+		return hasRound ? 2 : 1;
+	}
 }

@@ -252,7 +252,7 @@ public class FuturesRepository {
 	}
 
 	// ========= future_master =========
-	public List<FutureMasterIngestRow> findFutureMasterByRegisterTime(String country) {
+	public List<FutureMasterIngestRow> findFutureMasterByRegisterTime(String country, String team) {
 		StringBuilder sql = new StringBuilder("""
 				SELECT
 					seq,
@@ -273,6 +273,19 @@ public class FuturesRepository {
 					AND game_team_category LIKE :countryLike
 					""");
 			params.addValue("countryLike", country.trim() + ":%");
+		}
+
+		if (team != null && !team.isBlank()) {
+			sql.append("""
+					AND
+					(
+						normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
+					OR
+						normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
+					)
+					""");
+			params.addValue("homeTeamName", team.trim());
+			params.addValue("awayTeamName", team.trim());
 		}
 
 		sql.append("""
@@ -299,8 +312,9 @@ public class FuturesRepository {
 	/**
 	 * 互換用オーバーロード
 	 */
-	public List<FutureMasterIngestRow> findFutureMasterByRegisterTime(String country, String keyword) {
-		return findFutureMasterByRegisterTime(country);
+	public List<FutureMasterIngestRow> findFutureMasterByRegisterTime(String country, String keyword,
+			String team) {
+		return findFutureMasterByRegisterTime(country, team);
 	}
 
 	/**
