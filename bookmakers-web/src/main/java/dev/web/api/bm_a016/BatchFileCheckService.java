@@ -38,6 +38,9 @@ public class BatchFileCheckService {
 	private static final String FILE_SEASON_DATA = "season_data.csv";
 	private static final String FILE_ALL_LEAGUE_DATA = "all_league_master.csv";
 
+	/** fin配下判定用prefix */
+	private static final String PREFIX_FIN = "fin/";
+
 	/**
 	 * B014 readyFlg=false で必要なCSV
 	 * 基本は b015_team_location.csv を正とする
@@ -226,18 +229,14 @@ public class BatchFileCheckService {
 
 	/**
 	 * B010
-	 * json, fin 以外の直フォルダが1以上
+	 * fin/ 配下の json ファイルが1件以上あれば実行可能
 	 */
 	private BatchFileCheckTaskWrapper buildB010() {
 		String bucket = BUCKET_OUTPUTS_FIN;
-
-		long directFolderCount = countDirectFoldersExcluding(bucket, Set.of("json", "fin"));
-
-		boolean ready = directFolderCount >= 1;
-
+		long finJsonFileCount = countJsonFilesInPrefix(bucket, PREFIX_FIN);
+		boolean ready = finJsonFileCount >= 1;
 		List<BatchFileCheckItemWrapper> items = new ArrayList<>();
-		items.add(countItem("対象直フォルダ数（json / fin 除外後）", bucket, directFolderCount, true, directFolderCount >= 1));
-
+		items.add(countItem("finフォルダ内のjsonファイル数", bucket, finJsonFileCount, true, ready));
 		return task("B010", ready, ready ? "準備OK" : "件数取得失敗", items);
 	}
 
@@ -328,6 +327,17 @@ public class BatchFileCheckService {
 		return folderNames.stream()
 				.map(this::trimSlash)
 				.filter(name -> !excludeFolderNames.contains(name))
+				.count();
+	}
+
+	/**
+	 * 指定prefix直下のjsonファイル件数をカウント
+	 */
+	private long countJsonFilesInPrefix(String bucket, String prefix) {
+		List<String> keys = this.s3FileCountService.listDirectFileKeys(bucket, prefix);
+		return keys.stream()
+				.map(this::fileName)
+				.filter(name -> name.toLowerCase().endsWith(".json"))
 				.count();
 	}
 
