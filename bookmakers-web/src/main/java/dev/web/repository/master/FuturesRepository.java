@@ -1,7 +1,6 @@
 package dev.web.repository.master;
 
 import java.sql.ResultSet;
-import java.sql.SQLException;
 import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
@@ -16,6 +15,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import dev.common.util.DateOffsetDecisionUtil;
 import dev.web.api.bm_w001.FuturesResponseDTO;
 import lombok.Data;
 
@@ -35,26 +35,6 @@ public class FuturesRepository {
 	public FuturesRepository(
 			@Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate) {
 		this.masterJdbcTemplate = masterJdbcTemplate;
-	}
-
-	// ========================================================
-	// 共通ヘルパー
-	// ========================================================
-	// getLocalDateTime を置き換え
-	private OffsetDateTime getOffsetDateTime(ResultSet rs, String columnLabel) throws SQLException {
-	    return rs.getObject(columnLabel, OffsetDateTime.class);
-	}
-
-	// toIsoJstString を置き換え
-	private String toIsoJstString(OffsetDateTime odt) {
-	    if (odt == null) return null;
-	    return odt.atZoneSameInstant(JST).toOffsetDateTime().toString();
-	}
-
-	// toOffsetDateTimeJst も同様に
-	private OffsetDateTime toOffsetDateTimeJst(OffsetDateTime odt) {
-	    if (odt == null) return null;
-	    return odt.atZoneSameInstant(JST).toOffsetDateTime();
 	}
 
 	// --------------------------------------------------------
@@ -127,8 +107,8 @@ public class FuturesRepository {
 			m.setSeq(rs.getLong("seq"));
 			m.setGameTeamCategory(rs.getString("game_team_category"));
 
-			OffsetDateTime ft = getOffsetDateTime(rs, "future_time");
-			m.setFutureTime(toIsoJstString(ft));
+			OffsetDateTime ft = DateOffsetDecisionUtil.getOffsetDateTime(rs, "future_time");
+			m.setFutureTime(DateOffsetDecisionUtil.toIsoJstString(ft));
 
 			m.setHomeTeam(rs.getString("home_team"));
 			m.setAwayTeam(rs.getString("away_team"));
@@ -165,8 +145,8 @@ public class FuturesRepository {
 			r.homeTeamName = rs.getString("home_team_name");
 			r.awayTeamName = rs.getString("away_team_name");
 
-			OffsetDateTime ft = getOffsetDateTime(rs, "future_time");
-			r.matchStartTime = toOffsetDateTimeJst(ft);
+			OffsetDateTime ft = DateOffsetDecisionUtil.getOffsetDateTime(rs, "future_time");
+			r.matchStartTime = DateOffsetDecisionUtil.toOffsetDateTimeJst(ft);
 
 			return r;
 		});
@@ -222,8 +202,8 @@ public class FuturesRepository {
 			m.setSeq(rs.getLong("seq"));
 			m.setGameTeamCategory(rs.getString("game_team_category"));
 
-			OffsetDateTime ft = getOffsetDateTime(rs, "future_time");
-			m.setFutureTime(toIsoJstString(ft));
+			OffsetDateTime ft = DateOffsetDecisionUtil.getOffsetDateTime(rs, "future_time");
+			m.setFutureTime(DateOffsetDecisionUtil.toIsoJstString(ft));
 
 			m.setHomeTeam(rs.getString("home_team"));
 			m.setAwayTeam(rs.getString("away_team"));
@@ -285,8 +265,8 @@ public class FuturesRepository {
 			r.seq = rs.getLong("seq");
 			r.gameTeamCategory = rs.getString("game_team_category");
 
-			OffsetDateTime ft = getOffsetDateTime(rs, "future_time");
-			r.futureTime = toIsoJstString(ft);
+			OffsetDateTime ft = DateOffsetDecisionUtil.getOffsetDateTime(rs, "future_time");
+			r.futureTime = DateOffsetDecisionUtil.toIsoJstString(ft);
 
 			r.homeTeamName = rs.getString("home_team_name");
 			r.awayTeamName = rs.getString("away_team_name");
@@ -333,8 +313,8 @@ public class FuturesRepository {
 			throw new IllegalArgumentException("offset must be greater than or equal to 0");
 		}
 
-		OffsetDateTime dateStart = toStartOfDayJstOffsetDateTime(date);
-	    OffsetDateTime dateEnd = toNextStartOfDayJstOffsetDateTime(date);
+		OffsetDateTime dateStart = DateOffsetDecisionUtil.toStartOfDayJstOffsetDateTime(date);
+	    OffsetDateTime dateEnd = DateOffsetDecisionUtil.toNextStartOfDayJstOffsetDateTime(date);
 
 		MapSqlParameterSource params = new MapSqlParameterSource()
 				.addValue("dateStart", dateStart)
@@ -347,8 +327,8 @@ public class FuturesRepository {
 			m.setSeq(rs.getLong("seq"));
 			m.setGameTeamCategory(rs.getString("game_team_category"));
 
-			OffsetDateTime ft = getOffsetDateTime(rs, "future_time");
-			m.setFutureTime(toIsoJstString(ft));
+			OffsetDateTime ft = DateOffsetDecisionUtil.getOffsetDateTime(rs, "future_time");
+			m.setFutureTime(DateOffsetDecisionUtil.toIsoJstString(ft));
 
 			m.setHomeTeam(rs.getString("home_team"));
 			m.setAwayTeam(rs.getString("away_team"));
@@ -435,8 +415,8 @@ public class FuturesRepository {
 			int roundNo = rs.getInt("round_no");
 			dto.setRoundNo(rs.wasNull() ? null : String.valueOf(roundNo));
 
-			OffsetDateTime rt = getOffsetDateTime(rs, "record_time");
-			dto.setRecordTime(toIsoJstString(rt));
+			OffsetDateTime rt = DateOffsetDecisionUtil.getOffsetDateTime(rs, "record_time");
+			dto.setRecordTime(DateOffsetDecisionUtil.toIsoJstString(rt));
 
 			dto.setHomeTeamName(rs.getString("home_team_name"));
 			dto.setAwayTeamName(rs.getString("away_team_name"));
@@ -487,11 +467,11 @@ public class FuturesRepository {
 			java.util.Map<String, String> out = new java.util.HashMap<>();
 			while (rs.next()) {
 				String link = rs.getString("game_link");
-				OffsetDateTime ft = getOffsetDateTime(rs, "future_time");
+				OffsetDateTime ft = DateOffsetDecisionUtil.getOffsetDateTime(rs, "future_time");
 				if (link == null || link.isBlank() || ft == null) {
 					continue;
 				}
-				out.put(link, toIsoJstString(ft));
+				out.put(link, DateOffsetDecisionUtil.toIsoJstString(ft));
 			}
 			return out;
 		});
@@ -565,23 +545,4 @@ public class FuturesRepository {
 		return out;
 	}
 
-	/**
-	 * 日本時間検索用
-	 * @param date
-	 * @return
-	 */
-	private OffsetDateTime toStartOfDayJstOffsetDateTime(String date) {
-	    LocalDate targetDate = LocalDate.parse(date.trim());
-	    return targetDate.atStartOfDay(JST).toOffsetDateTime();
-	}
-
-	/**
-	 * 日本時間検索用
-	 * @param date
-	 * @return
-	 */
-	private OffsetDateTime toNextStartOfDayJstOffsetDateTime(String date) {
-	    LocalDate targetDate = LocalDate.parse(date.trim()).plusDays(1);
-	    return targetDate.atStartOfDay(JST).toOffsetDateTime();
-	}
 }
