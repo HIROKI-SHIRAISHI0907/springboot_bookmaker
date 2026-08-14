@@ -54,10 +54,8 @@ public class CountryLeagueSeasonMasterWebRepository {
 			dto.setId(rs.getString("id"));
 			dto.setCountry(rs.getString("country"));
 			dto.setLeague(rs.getString("league"));
-			OffsetDateTime fts = DateOffsetDecisionUtil.getOffsetDateTime(rs, rs.getString("start_season_date"));
-			dto.setStartSeasonDate(DateOffsetDecisionUtil.toIsoJstString(fts));
-			OffsetDateTime fte = DateOffsetDecisionUtil.getOffsetDateTime(rs, rs.getString("end_season_date"));
-			dto.setEndSeasonDate(DateOffsetDecisionUtil.toIsoJstString(fte));
+			dto.setStartSeasonDate(rs.getString("start_season_date"));
+			dto.setEndSeasonDate(rs.getString("end_season_date"));
 			dto.setSeasonYear(rs.getString("season_year"));
 			dto.setRound(rs.getString("round"));
 			dto.setPath(rs.getString("path"));
@@ -109,15 +107,17 @@ public class CountryLeagueSeasonMasterWebRepository {
 			params.addValue("delFlg", cond.getDelFlg());
 		}
 
-		sql.append(" ORDER BY country, league ");
+		sql.append(" ORDER BY country ASC ");
 
 		return masterJdbcTemplate.query(sql.toString(), params, (rs, n) -> {
 			CountryLeagueSeasonDTO dto = new CountryLeagueSeasonDTO();
 			dto.setId(rs.getString("id"));
 			dto.setCountry(rs.getString("country"));
 			dto.setLeague(rs.getString("league"));
-			dto.setStartSeasonDate(rs.getString("start_season_date"));
-			dto.setEndSeasonDate(rs.getString("end_season_date"));
+			OffsetDateTime fts = DateOffsetDecisionUtil.getOffsetDateTime(rs, rs.getString("start_season_date"));
+			dto.setStartSeasonDate(DateOffsetDecisionUtil.toIsoJstString(fts));
+			OffsetDateTime fte = DateOffsetDecisionUtil.getOffsetDateTime(rs, rs.getString("end_season_date"));
+			dto.setEndSeasonDate(DateOffsetDecisionUtil.toIsoJstString(fte));
 			dto.setSeasonYear(rs.getString("season_year"));
 			dto.setRound(rs.getString("round"));
 			dto.setPath(rs.getString("path"));
