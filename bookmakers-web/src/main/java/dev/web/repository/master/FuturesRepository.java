@@ -546,7 +546,7 @@ public class FuturesRepository {
 	}
 
 	 /**
-     * 更新: 指定した home/away チーム名(NFKC正規化して比較)に紐づく static_data の
+     * 更新: 指定した home/away チーム名(NFKC正規化して比較)に紐づく future_master の
      * dataCategory を、同一 home/away の組み合わせを持つ行すべてに対して新しい値で上書きする。
      *
      * @param homeTeamName 更新対象を絞り込むホームチーム名
