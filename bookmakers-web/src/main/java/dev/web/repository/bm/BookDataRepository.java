@@ -12,6 +12,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.common.entity.DataEntity;
+import dev.web.api.bm_a025.RealTimeDataDTO;
 import dev.web.api.bm_w014.EachScoreLostDataResponseDTO;
 import lombok.EqualsAndHashCode;
 
@@ -30,6 +31,16 @@ public class BookDataRepository {
 			@Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate) {
 		this.bmJdbcTemplate = bmJdbcTemplate;
 	}
+
+	/** データ形式判定の正規表現を CASE 式として埋め込むための共通 SQL 断片 */
+    private static final String CATEGORY_FORMAT_CASE = """
+            CASE
+                WHEN data_category ~ '^[^:]+:\\s.+\\s-\\s*ラウンド\\s+\\d+$' THEN 'COUNTRY_LEAGUE_ROUND'
+                WHEN data_category ~ '^[^:]+\\s-\\s*ラウンド\\s+\\d+$'      THEN 'LEAGUE_ROUND'
+                WHEN data_category ~ '^[^:]+:\\s[^:]+$'                    THEN 'COUNTRY_LEAGUE'
+                ELSE NULL
+            END
+            """;
 
 	/** seq で1件取得 */
 	public Optional<DataEntity> findBySeq(String seq) {
@@ -1260,6 +1271,8 @@ public class BookDataRepository {
 		public String dataCategory;
 		public String homeTeamName;
 		public String awayTeamName;
+		public String formattedDataCategory;
+		public String categoryFormatIcon;
 		public long cnt;
 	}
 
@@ -1319,5 +1332,147 @@ public class BookDataRepository {
 			out.put(e.getKey(), e.getValue());
 		return out;
 	}
+
+	/**
+     * 全取得用: dataCategory × home_team_name × away_team_name でグルーピングした件数を取得。
+     * home/away の組み合わせ単位で、dataCategory の形式が揃っているかどうかの
+     * アイコン文字列(同一カテゴリ名 / 混在)を付与する。
+     */
+    public List<RealTimeDataDTO> findAllGrouping() {
+
+        String sql = """
+                WITH classified AS (
+                    SELECT
+                        data_category,
+                        home_team_name,
+                        away_team_name,
+                        %s AS category_format
+                    FROM static_data
+                ),
+                grouped AS (
+                    SELECT
+                        data_category,
+                        home_team_name,
+                        away_team_name,
+                        category_format,
+                        COUNT(*) AS cnt
+                    FROM classified
+                    GROUP BY data_category, home_team_name, away_team_name, category_format
+                ),
+                format_consistency AS (
+                    SELECT
+                        home_team_name,
+                        away_team_name,
+                        CASE
+                            WHEN COUNT(DISTINCT COALESCE(category_format, '__NONE__')) = 1
+                            THEN '同一カテゴリ名'
+                            ELSE '混在'
+                        END AS category_format_icon
+                    FROM classified
+                    GROUP BY home_team_name, away_team_name
+                )
+                SELECT
+                    g.data_category,
+                    CASE WHEN g.category_format IS NOT NULL THEN g.data_category ELSE NULL END AS formatted_data_category,
+                    g.home_team_name,
+                    g.away_team_name,
+                    g.cnt,
+                    fc.category_format_icon
+                FROM grouped g
+                JOIN format_consistency fc
+                    ON g.home_team_name = fc.home_team_name
+                   AND g.away_team_name = fc.away_team_name
+                """.formatted(CATEGORY_FORMAT_CASE);
+
+        return bmJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, rowNum) -> {
+            RealTimeDataDTO dto = new RealTimeDataDTO();
+            dto.setDataCategory(rs.getString("data_category"));
+            dto.setFormattedDataCategory(rs.getString("formatted_data_category"));
+            dto.setHomeTeamName(rs.getString("home_team_name"));
+            dto.setAwayTeamName(rs.getString("away_team_name"));
+            dto.setCnt(rs.getLong("cnt"));
+            dto.setCategoryFormatIcon(rs.getString("category_format_icon"));
+            return dto;
+        });
+    }
+
+    /**
+     * search用: 指定した home/away チーム名 (NFKC正規化して比較) に紐づく
+     * data_category を1件取得する。同じ home/away の組み合わせに紐づく
+     * data_category 全体の形式が揃っているかどうかのアイコン文字列も付与する。
+     */
+    public List<BusinessGroupCountRow> findAllByDataCategory(String homeTeamName, String awayTeamName) {
+
+        String sql = """
+                WITH classified AS (
+                    SELECT
+                        data_category,
+                        home_team_name,
+                        away_team_name,
+                        %s AS category_format
+                    FROM static_data
+                    WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
+                      AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
+                ),
+                format_consistency AS (
+                    SELECT
+                        CASE
+                            WHEN COUNT(DISTINCT COALESCE(category_format, '__NONE__')) = 1
+                            THEN '同一カテゴリ名'
+                            ELSE '混在'
+                        END AS category_format_icon
+                    FROM classified
+                )
+                SELECT
+                    c.data_category,
+                    CASE WHEN c.category_format IS NOT NULL THEN c.data_category ELSE NULL END AS formatted_data_category,
+                    c.home_team_name,
+                    c.away_team_name,
+                    fc.category_format_icon
+                FROM classified c
+                CROSS JOIN format_consistency fc
+                LIMIT 1
+                """.formatted(CATEGORY_FORMAT_CASE);
+
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("homeTeamName", homeTeamName);
+        params.addValue("awayTeamName", awayTeamName);
+
+        return bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
+            BusinessGroupCountRow r = new BusinessGroupCountRow();
+            r.dataCategory = rs.getString("data_category");
+            r.formattedDataCategory = rs.getString("formatted_data_category");
+            r.homeTeamName = rs.getString("home_team_name");
+            r.awayTeamName = rs.getString("away_team_name");
+            r.categoryFormatIcon = rs.getString("category_format_icon");
+            return r;
+        });
+    }
+
+    /**
+     * 更新: 指定した home/away チーム名(NFKC正規化して比較)に紐づく static_data の
+     * dataCategory を、同一 home/away の組み合わせを持つ行すべてに対して新しい値で上書きする。
+     *
+     * @param homeTeamName 更新対象を絞り込むホームチーム名
+     * @param awayTeamName 更新対象を絞り込むアウェーチーム名
+     * @param newDataCategory 上書き後の dataCategory
+     * @return 更新された行数(同一 home/away の組み合わせを持つ行が複数あれば2件以上になり得る)
+     */
+    public int updateNewDataCategory(String homeTeamName, String awayTeamName, String newDataCategory) {
+
+        String sql = """
+                UPDATE static_data
+                SET data_category = :newDataCategory
+                WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
+                  AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("homeTeamName", homeTeamName);
+        params.addValue("awayTeamName", awayTeamName);
+        params.addValue("newDataCategory", newDataCategory);
+
+        return bmJdbcTemplate.update(sql, params);
+    }
 
 }
