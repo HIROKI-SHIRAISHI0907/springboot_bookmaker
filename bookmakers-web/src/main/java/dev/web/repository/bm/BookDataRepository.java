@@ -1462,7 +1462,9 @@ public class BookDataRepository {
 
         String sql = """
                 UPDATE static_data
-                SET data_category = :newDataCategory
+                SET
+                	data_category = :newDataCategory,
+                	update_time = CURRENT_TIMESTAMP
                 WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
                   AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
                 """;

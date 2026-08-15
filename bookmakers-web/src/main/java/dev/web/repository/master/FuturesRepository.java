@@ -545,4 +545,32 @@ public class FuturesRepository {
 		return out;
 	}
 
+	 /**
+     * 更新: 指定した home/away チーム名(NFKC正規化して比較)に紐づく static_data の
+     * dataCategory を、同一 home/away の組み合わせを持つ行すべてに対して新しい値で上書きする。
+     *
+     * @param homeTeamName 更新対象を絞り込むホームチーム名
+     * @param awayTeamName 更新対象を絞り込むアウェーチーム名
+     * @param newDataCategory 上書き後の dataCategory
+     * @return 更新された行数(同一 home/away の組み合わせを持つ行が複数あれば2件以上になり得る)
+     */
+    public int updateNewDataCategory(String homeTeamName, String awayTeamName, String newDataCategory) {
+
+        String sql = """
+                UPDATE future_master
+                SET
+                	game_team_category = :newDataCategory,
+                	update_time = CURRENT_TIMESTAMP
+                WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
+                  AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
+                """;
+
+        MapSqlParameterSource params = new MapSqlParameterSource();
+        params.addValue("homeTeamName", homeTeamName);
+        params.addValue("awayTeamName", awayTeamName);
+        params.addValue("newDataCategory", newDataCategory);
+
+        return masterJdbcTemplate.update(sql, params);
+    }
+
 }

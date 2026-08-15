@@ -1,11 +1,14 @@
 package dev.web.controller;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.ModelAttribute;
 import org.springframework.web.bind.annotation.PatchMapping;
+import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
@@ -14,6 +17,11 @@ import dev.common.entity.DataEntity;
 import dev.web.api.bm_a001.DataRequest;
 import dev.web.api.bm_a001.DataResponse;
 import dev.web.api.bm_a001.DataService;
+import dev.web.api.bm_a025.RealTimeDataDTO;
+import dev.web.api.bm_a025.RealTimeDataRequest;
+import dev.web.api.bm_a025.RealTimeDataResponse;
+import dev.web.api.bm_a025.RealTimeDataSearchCondition;
+import dev.web.api.bm_a025.RealTimeDataService;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -27,6 +35,8 @@ import lombok.RequiredArgsConstructor;
 public class DataWebController {
 
     private final DataService service;
+
+    private final RealTimeDataService realTimeDataService;
 
     /**
      * dataを更新する。
@@ -59,5 +69,31 @@ public class DataWebController {
     public ResponseEntity<Optional<DataEntity>> find(@RequestBody DataRequest req) {
         return ResponseEntity.ok(service.find(req));
     }
+
+    /**
+	 * real-time-data を全件取得する。
+	 *
+	 * GET /api/real-time-data
+	 */
+	@GetMapping("/real-time-data")
+	public ResponseEntity<List<RealTimeDataDTO>> findAll() {
+		return ResponseEntity.ok(realTimeDataService.findGroupingAll());
+	}
+
+	/**
+	 * real-time-data を条件検索する（指定された条件のみ WHERE に効く）。
+	 *
+	 * GET /api/real-time-data/search
+	 */
+	@GetMapping("/real-time-data/search")
+	public ResponseEntity<List<RealTimeDataDTO>> search(
+			@ModelAttribute RealTimeDataSearchCondition cond) {
+		return ResponseEntity.ok(realTimeDataService.search(cond));
+	}
+
+	@PostMapping("/real-time-data/update")
+	public ResponseEntity<RealTimeDataResponse> update(@RequestBody RealTimeDataRequest dto) {
+		return ResponseEntity.ok(realTimeDataService.update(dto));
+	}
 
 }

@@ -8,6 +8,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.web.repository.bm.BookDataRepository;
 import dev.web.repository.bm.BookDataRepository.BusinessGroupCountRow;
+import dev.web.repository.master.FuturesRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -20,6 +21,8 @@ import lombok.RequiredArgsConstructor;
 public class RealTimeDataService {
 
 	private final BookDataRepository repo;
+
+	private final FuturesRepository futuresRepository;
 
 	/**
 	 * dataCategoryでグルーピングしたものを取得
@@ -55,11 +58,13 @@ public class RealTimeDataService {
         RealTimeDataResponse res = new RealTimeDataResponse();
 
         try {
-            int updated = repo.updateNewDataCategory(dto.getHomeTeamName(),
+            int updatedData = repo.updateNewDataCategory(dto.getHomeTeamName(),
             		dto.getAwayTeamName(), dto.getDataCategory());
-            if (updated >= 1) {
+            int updatedFuture = futuresRepository.updateNewDataCategory(dto.getHomeTeamName(),
+            		dto.getAwayTeamName(), dto.getDataCategory());
+            if (updatedData >= 0 && updatedFuture >= 0) {
                 res.setResponseCode("200");
-                res.setMessage("更新成功しました。(" + updated + "件)");
+                res.setMessage("更新成功しました。");
                 return res;
             }
             res.setResponseCode("404");
