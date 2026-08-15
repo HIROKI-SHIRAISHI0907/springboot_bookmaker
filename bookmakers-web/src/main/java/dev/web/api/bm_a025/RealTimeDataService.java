@@ -68,7 +68,7 @@ public class RealTimeDataService {
                 return res;
             }
             res.setResponseCode("404");
-            res.setMessage("更新対象が見つかりませんでした。");
+            res.setMessage("更新対象が見つからないものがありました。");
             return res;
         } catch (Exception e) {
             res.setResponseCode("500");
