@@ -1,25 +1,18 @@
 package dev.web.api.bm_a025;
 
+import java.util.List;
+
 import lombok.Data;
 
 /**
- * team_color_masterAPIリクエスト
+ * RealTimeDataRequestリクエスト
  * @author shiraishitoshio
  *
  */
 @Data
 public class RealTimeDataRequest {
 
-	/** ID */
-	private String id;
-
-	/** 国カテゴリ */
-	private String dataCategory;
-
-	/** ホーム */
-	private String homeTeamName;
-
-	/** アウェー */
-	private String awayTeamName;
+	/** リスト */
+	private List<RealTimeDataSubDTO> requestDTO;
 
 }

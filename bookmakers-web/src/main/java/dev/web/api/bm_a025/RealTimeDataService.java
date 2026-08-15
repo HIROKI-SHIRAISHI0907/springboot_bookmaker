@@ -49,32 +49,39 @@ public class RealTimeDataService {
 		return dto;
 	}
 
-	  /**
-     * 更新
-     * dataCategoryを新しい値にして、同一 home/away の組み合わせを持つ行すべてに上書きする。
-     */
-    @Transactional
-    public RealTimeDataResponse update(RealTimeDataRequest dto) {
-        RealTimeDataResponse res = new RealTimeDataResponse();
+	/**
+	* 更新
+	* dataCategoryを新しい値にして、同一 home/away の組み合わせを持つ行すべてに上書きする。
+	*/
+	@Transactional
+	public RealTimeDataResponse update(RealTimeDataRequest dto) {
+		RealTimeDataResponse res = new RealTimeDataResponse();
 
-        try {
-            int updatedData = repo.updateNewDataCategory(dto.getHomeTeamName(),
-            		dto.getAwayTeamName(), dto.getDataCategory());
-            int updatedFuture = futuresRepository.updateNewDataCategory(dto.getHomeTeamName(),
-            		dto.getAwayTeamName(), dto.getDataCategory());
-            if (updatedData >= 0 && updatedFuture >= 0) {
-                res.setResponseCode("200");
-                res.setMessage("更新成功しました。");
-                return res;
-            }
-            res.setResponseCode("404");
-            res.setMessage("更新対象が見つからないものがありました。");
-            return res;
-        } catch (Exception e) {
-            res.setResponseCode("500");
-            res.setMessage("システムエラーが発生しました。");
-            return res;
-        }
-    }
+		List<RealTimeDataSubDTO> req = dto.getRequestDTO();
+		try {
+			int updatedData = -1;
+			int updatedFuture = -1;
+			for (RealTimeDataSubDTO dtoReq : req) {
+				updatedData = repo.updateNewDataCategory(dtoReq.getHomeTeamName(),
+						dtoReq.getAwayTeamName(), dtoReq.getDataCategory());
+				updatedFuture = futuresRepository.updateNewDataCategory(dtoReq.getHomeTeamName(),
+						dtoReq.getAwayTeamName(), dtoReq.getDataCategory());
+				if (updatedData >= 0 && updatedFuture >= 0) {
+					res.setResponseCode("200");
+					res.setMessage("更新成功しました。");
+					return res;
+				} else {
+					res.setResponseCode("404");
+					res.setMessage("更新対象が見つからないものがありました。");
+					return res;
+				}
+			}
+		} catch (Exception e) {
+			res.setResponseCode("500");
+			res.setMessage("システムエラーが発生しました。");
+			return res;
+		}
+		return res;
+	}
 
 }
