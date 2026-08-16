@@ -14,6 +14,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -25,6 +26,8 @@ import dev.batch.bm_b012.FinGettingDTO.Item;
 import dev.batch.repository.bm.BookDataRepository;
 import dev.batch.repository.master.FutureMasterRepository;
 import dev.common.config.PathConfig;
+import dev.common.constant.MessageCdConst;
+import dev.common.entity.FutureEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
 import dev.common.util.DateOffsetDecisionUtil;
@@ -97,8 +100,22 @@ public class RealFinDataConvertJsonStat {
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// 1) bookdatarepositoryから「終了済」がないデータのみ取得しjsonにmappingするためのdtoに入れ替え
-		List<SeqKeyDTO> withoutFinList = bookDataRepository.findMatchIdsWithoutFinishedCategoryByTeams();
+		// システム時間をUTC時間に直して条件句に入れる（startは00:00:00で、endは23:59:59を語尾につける）
+		String[] todayRange = DateOffsetDecisionUtil.todayRangeAsUtcIsoStrings();
+		String todayStart = todayRange[0];
+		String todayEnd = todayRange[1];
+		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME
+				,MessageCdConst.MCD00099I_LOG, "システム時間検索期間: " + todayStart + "~" + todayEnd);
+
+		List<FutureEntity> todayFutureList = futureMasterRepository.findTodayFinData(todayStart, todayEnd);
+
+		// 1) 「その日の」bookdatarepositoryから「終了済」がないデータのみ取得しjsonにmappingするためのdtoに入れ替え
+		List<TeamPair> teamPairs = todayFutureList.stream()
+		        .map(f -> new TeamPair(f.getHomeTeamName(), f.getAwayTeamName()))
+		        .collect(Collectors.toList());
+		List<SeqKeyDTO> withoutFinList = bookDataRepository.findMatchIdsWithoutFinishedCategoryByTeams(
+				teamPairs);
+
 		List<Item> list = new ArrayList<FinGettingDTO.Item>();
 		for (SeqKeyDTO dto : withoutFinList) {
 			String gameLink = futureMasterRepository.findGameLinkWithoutFinishedCategoryByTeamsWithTeam(

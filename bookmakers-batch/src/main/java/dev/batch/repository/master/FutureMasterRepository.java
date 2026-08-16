@@ -187,4 +187,20 @@ public interface FutureMasterRepository {
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
 
+	@Select("""
+			SELECT
+ 				home_team_name AS homeTeamName,
+ 				away_team_name AS awayTeamName
+ 				future_time AS futureTime
+ 			FROM
+ 				future_master
+			WHERE
+				(future_time > #{todayStart}
+				AND future_time <= #{todayEnd})
+				AND start_flg = '1'
+		""")
+	List<FutureEntity> findTodayFinData(
+			@Param("todayStart") String todayStart,
+			@Param("todayEnd") String todayEnd);
+
 }
