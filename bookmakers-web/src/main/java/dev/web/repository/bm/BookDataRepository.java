@@ -1477,4 +1477,42 @@ public class BookDataRepository {
         return bmJdbcTemplate.update(sql, params);
     }
 
+    /**
+     * home_team_name / away_team_name (NFKC正規化) 単位で、
+     * data_category が「終了済」の行が1件も存在しない組み合わせの
+     * match_id / home_team_name / away_team_name を取得
+     * @author shiraishitoshio
+     */
+    public List<MatchTeamRow> findMatchIdsWithoutFinishedCategoryByTeams() {
+        String sql = """
+                SELECT DISTINCT
+                  d.match_id,
+                  d.home_team_name,
+                  d.away_team_name
+                FROM static_data d
+                WHERE d.match_id IS NOT NULL
+                  AND TRIM(d.match_id) <> ''
+                  AND NOT EXISTS (
+                        SELECT 1
+                        FROM static_data d2
+                        WHERE normalize(d2.home_team_name, NFKC) = normalize(d.home_team_name, NFKC)
+                          AND normalize(d2.away_team_name, NFKC) = normalize(d.away_team_name, NFKC)
+                          AND REPLACE(TRIM(normalize(d2.data_category, NFKC)), ' ', '') = '終了済'
+                  )
+                """;
+        return bmJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, rowNum) -> {
+            MatchTeamRow r = new MatchTeamRow();
+            r.matchId = rs.getString("match_id");
+            r.homeTeamName = rs.getString("home_team_name");
+            r.awayTeamName = rs.getString("away_team_name");
+            return r;
+        });
+    }
+
+    public static class MatchTeamRow {
+        public String matchId;
+        public String homeTeamName;
+        public String awayTeamName;
+    }
+
 }

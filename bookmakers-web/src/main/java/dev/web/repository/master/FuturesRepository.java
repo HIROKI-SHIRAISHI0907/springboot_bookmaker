@@ -252,8 +252,8 @@ public class FuturesRepository {
 						normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
 					)
 					""");
-			params.addValue("homeTeamName", team.trim());
-			params.addValue("awayTeamName", team.trim());
+			params.addValue("homeTeamName", team);
+			params.addValue("awayTeamName", team);
 		}
 
 		sql.append("""
