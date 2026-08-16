@@ -100,10 +100,10 @@ public class RealFinDataConvertJsonStat {
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// システム時間をUTC時間に直して条件句に入れる（startは00:00:00で、endは23:59:59を語尾につける）
-		String[] todayRange = DateOffsetDecisionUtil.todayRangeAsUtcIsoStrings();
-		String todayStart = todayRange[0];
-		String todayEnd = todayRange[1];
+		// バッチは日付変更直後(00:10想定)に実行し、「前日1日分」をUTC時間の検索範囲として使う
+		String[] previousDayRange = DateOffsetDecisionUtil.previousDayRangeAsUtcIsoStrings();
+		String todayStart = previousDayRange[0];
+		String todayEnd = previousDayRange[1];
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME
 				,MessageCdConst.MCD00099I_LOG, "システム時間検索期間: " + todayStart + "~" + todayEnd);
 
