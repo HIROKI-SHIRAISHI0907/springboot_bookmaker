@@ -161,6 +161,7 @@ public class RealFinDataConvertJsonStat {
 			String matchId = it.getMatchId();
 			String matchUrl = it.getMatchUrl();
 
+			// 有無チェック(matchUrlはなくてもいい)
 			if (matchDate == null) {
 				throw new IllegalArgumentException("matchDate がありません: index=" + i);
 			}
