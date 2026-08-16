@@ -154,6 +154,7 @@ public class RealFinDataConvertJsonStat {
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		this.manageLoggerComponent.clear();
 	}
+
 	/**
 	 * S3上の fin/b008_fin_getting_*.json を全て読み取り、
 	 * 各ファイル内の "matchKey" 値を集めた集合を返す。
@@ -202,6 +203,7 @@ public class RealFinDataConvertJsonStat {
 		}
 		return existingMatchKeys;
 	}
+
 	/**
 	 * FinGettingRequest(matches) を
 	 * { "yyyy-MM-dd": [ {matchKey, matchUrl?}, ... ] } に変換し、
@@ -209,10 +211,10 @@ public class RealFinDataConvertJsonStat {
 	 *
 	 * @return アップロードしたS3 key
 	 */
-	private Map<String, List<Map<String, Object>>> toOutputMap(List<FinGettingDTO.Item> items) {
+	private Map<String, List<Map<String, Object>>> toOutputMap(Set<FinGettingDTO.Item> items) {
 		Map<String, List<Map<String, Object>>> out = new LinkedHashMap<>();
-		for (int i = 0; i < items.size(); i++) {
-			FinGettingDTO.Item it = items.get(i);
+		int i = 0;
+		for (FinGettingDTO.Item it : items) {
 			LocalDate matchDate = it.getMatchDate();
 			String matchId = it.getMatchId();
 			String matchUrl = it.getMatchUrl();
@@ -230,9 +232,11 @@ public class RealFinDataConvertJsonStat {
 				row.put("matchUrl", matchUrl.trim());
 			}
 			out.computeIfAbsent(dateKey, k -> new ArrayList<>()).add(row);
+			i++;
 		}
 		return out;
 	}
+
 	/**
      * recordTime(UTC想定の文字列)をJSTに変換し、日付部分だけを取り出す
      */
