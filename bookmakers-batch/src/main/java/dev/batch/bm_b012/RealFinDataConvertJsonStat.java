@@ -24,7 +24,6 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.batch.bm_b010.SeqKeyDTO;
-import dev.batch.bm_b012.FinGettingDTO.Item;
 import dev.batch.repository.bm.BookDataRepository;
 import dev.batch.repository.master.FutureMasterRepository;
 import dev.common.config.PathConfig;
@@ -105,7 +104,7 @@ public class RealFinDataConvertJsonStat {
 		        .collect(Collectors.toList());
 		List<SeqKeyDTO> withoutFinList = bookDataRepository.findMatchIdsWithoutFinishedCategoryByTeams(
 				teamPairs);
-		List<Item> list = new ArrayList<FinGettingDTO.Item>();
+		Set<FinGettingDTO.Item> list = new HashSet<FinGettingDTO.Item>();
 		int skippedCount = 0;
 		for (SeqKeyDTO dto : withoutFinList) {
 			// 既存jsonに同じmatchKey(=matchId)が既にあればスキップ
