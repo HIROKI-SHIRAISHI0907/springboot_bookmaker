@@ -195,8 +195,8 @@ public interface FutureMasterRepository {
  			FROM
  				future_master
 			WHERE
-				(future_time > #{todayStart}
-				AND future_time <= #{todayEnd})
+				(future_time > #{todayStart}::timestamptz
+				AND future_time <= #{todayEnd}::timestamptz)
 				AND start_flg = '1'
 		""")
 	List<FutureEntity> findTodayFinData(
