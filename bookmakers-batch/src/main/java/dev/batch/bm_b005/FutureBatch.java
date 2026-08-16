@@ -77,12 +77,13 @@ public class FutureBatch extends AbstractJobBatchTemplate {
 	protected void doExecute(JobContext ctx) throws Exception {
 		// 未来CSVデータ情報を取得
 		Map<String, List<FutureEntity>> getFutureMap = this.getFutureInfo.getData();
-		if (getFutureMap.isEmpty()) {
+		if (getFutureMap == null || getFutureMap.isEmpty()) {
 			endLog();
 			return;
 		}
 		// BM_M022登録(Transactional)
 		this.futureStat.futureStat(getFutureMap);
+		endLog();
 	}
 
 	/**

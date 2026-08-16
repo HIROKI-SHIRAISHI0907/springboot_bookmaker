@@ -81,7 +81,7 @@ public class TeamMemberMasterBatch extends AbstractJobBatchTemplate {
 	protected void doExecute(JobContext ctx) throws Exception {
 
 		Map<String, List<TeamMemberMasterEntity>> getMemberMap = this.getMemberInfo.getData();
-		if (getMemberMap.isEmpty()) {
+		if (getMemberMap == null || getMemberMap.isEmpty()) {
 			endLog();
 			return;
 		}

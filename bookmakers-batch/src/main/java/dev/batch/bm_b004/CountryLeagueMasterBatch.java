@@ -82,7 +82,7 @@ public class CountryLeagueMasterBatch extends AbstractJobBatchTemplate {
 		final String METHOD_NAME = "doExecute";
 		// マスタデータ情報を取得
 		Map<String, List<CountryLeagueMasterEntity>> listMap = this.getTeamMasterInfo.getData();
-		if (listMap.isEmpty()) {
+		if (listMap == null || listMap.isEmpty()) {
 			endLog();
 			return;
 		}

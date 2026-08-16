@@ -70,7 +70,7 @@ public class AllLeagueMasterBatch extends AbstractJobBatchTemplate {
 
 		// 全容マスタデータ情報を取得
 		Map<String, List<AllLeagueMasterEntity>> listMap = this.getAllLeagueInfo.getData();
-		if (listMap.isEmpty()) {
+		if (listMap == null || listMap.isEmpty()) {
 			endLog();
 			return;
 		}

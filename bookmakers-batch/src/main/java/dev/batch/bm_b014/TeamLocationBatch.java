@@ -77,12 +77,13 @@ public class TeamLocationBatch extends AbstractJobBatchTemplate {
 	protected void doExecute(JobContext ctx) throws Exception {
 		// 地理データ情報を取得
 		List<TeamLocationEntity> listMap = this.geograficInfo.getData();
-		if (listMap.isEmpty()) {
+		if (listMap == null || listMap.isEmpty()) {
 			endLog();
 			return;
 		}
 
 		this.teamLocationStat.teamLocationStat(listMap, ctx.readyFlg());
+		endLog();
 	}
 
 	/**

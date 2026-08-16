@@ -127,7 +127,7 @@ public class FinGettingBatch extends AbstractJobBatchTemplate {
 
         try {
             Map<String, List<DataEntity>> map = getOriginFinInfo.getData();
-            if (!map.isEmpty()) {
+            if (map != null && !map.isEmpty()) {
             	this.finGettingStat.finGettingStat(map);
     		}
 
