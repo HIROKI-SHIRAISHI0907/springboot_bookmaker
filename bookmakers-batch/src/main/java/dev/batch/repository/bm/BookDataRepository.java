@@ -380,4 +380,22 @@ public interface BookDataRepository {
 			@Param("dataCategory") String dataCategory,
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
+
+	@Select("""
+			 SELECT DISTINCT
+                  d.match_id AS matchId,
+                  d.record_time AS recordTime,
+                  d.home_team_name AS homeTeamName,
+                  d.away_team_name AS awayTeamName
+                FROM static_data d
+                WHERE d.match_id IS NOT NULL
+                  AND TRIM(d.match_id) <> ''
+                  AND NOT EXISTS (
+                        SELECT 1
+                        FROM static_data d2
+                        WHERE normalize(d2.home_team_name, NFKC) = normalize(d.home_team_name, NFKC)
+                          AND normalize(d2.away_team_name, NFKC) = normalize(d.away_team_name, NFKC)
+                          AND REPLACE(TRIM(normalize(d2.data_category, NFKC)), ' ', '') = '終了済'
+			""")
+	List<SeqKeyDTO> findMatchIdsWithoutFinishedCategoryByTeams();
 }

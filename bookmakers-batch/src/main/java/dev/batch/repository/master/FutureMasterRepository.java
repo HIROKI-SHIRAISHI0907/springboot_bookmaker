@@ -172,5 +172,19 @@ public interface FutureMasterRepository {
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
 
+	@Select("""
+			SELECT
+ 				game_link
+ 			FROM
+ 				future_master
+			WHERE
+				home_team_name = #{homeTeamName}
+				AND away_team_name = #{awayTeamName}
+				AND game_link IS NOT NULL
+			LIMIT 1
+		""")
+	String findGameLinkWithoutFinishedCategoryByTeamsWithTeam(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
 
 }

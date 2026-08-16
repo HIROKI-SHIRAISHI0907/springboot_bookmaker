@@ -11,4 +11,10 @@ public class SeqKeyDTO {
 
 	private String times;
 
+	private String homeTeamName;
+
+	private String awayTeamName;
+
+	private String recordTime;
+
 }
