@@ -70,7 +70,8 @@ public final class DateOffsetDecisionUtil {
     /**
      * システム日付(対象タイムゾーン基準の「今日」)の 00:00:00〜23:59:59 を
      * UTCのISO8601文字列(例: 2026-08-15T15:00:00Z)に変換して返す。
-     * timestamptz カラムに対して #{todayStart} / #{todayEnd} のようにそのままバインドする用途。
+     * ただし、現在時刻がまだ当日23:59:59に達していない場合は、
+     * 終了時刻を "現在時刻 - 1時間" に留める(未確定データを拾いすぎないようにするため)。
      *
      * @return [0]=当日開始(UTC文字列), [1]=当日終了(UTC文字列)
      */
@@ -80,9 +81,17 @@ public final class DateOffsetDecisionUtil {
         OffsetDateTime startOfDay = toStartOfDayJstOffsetDateTime(today.toString()); // 00:00:00
         OffsetDateTime endOfDay = startOfDay.plusHours(23).plusMinutes(59).plusSeconds(59); // 23:59:59
 
+        OffsetDateTime now = OffsetDateTime.now(ZONE);
+        OffsetDateTime cappedEnd = now.isBefore(endOfDay) ? now.minusHours(1) : endOfDay;
+
+        // 現在時刻-1時間が当日開始より前(=日付が変わった直後など)になる場合は開始時刻に丸める
+        if (cappedEnd.isBefore(startOfDay)) {
+            cappedEnd = startOfDay;
+        }
+
         String todayStart = startOfDay.withOffsetSameInstant(ZoneOffset.UTC)
                 .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
-        String todayEnd = endOfDay.withOffsetSameInstant(ZoneOffset.UTC)
+        String todayEnd = cappedEnd.withOffsetSameInstant(ZoneOffset.UTC)
                 .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
 
         return new String[] { todayStart, todayEnd };
