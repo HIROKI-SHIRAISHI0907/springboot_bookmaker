@@ -190,7 +190,7 @@ public interface FutureMasterRepository {
 	@Select("""
 			SELECT
  				home_team_name AS homeTeamName,
- 				away_team_name AS awayTeamName
+ 				away_team_name AS awayTeamName,
  				future_time AS futureTime
  			FROM
  				future_master
