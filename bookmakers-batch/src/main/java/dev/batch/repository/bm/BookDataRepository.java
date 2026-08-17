@@ -261,7 +261,7 @@ public interface BookDataRepository {
 	@Select("""
 			SELECT COUNT(*)
 			FROM static_data
-			WHERE data_category = #{dataCategory}
+			WHERE data_category IS NOT NULL
 			  AND times = #{times}
 			  AND home_team_name = #{homeTeamName}
 			  AND away_team_name = #{awayTeamName}
