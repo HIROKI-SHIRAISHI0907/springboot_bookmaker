@@ -689,7 +689,6 @@ public interface BookDataRepository {
 			SET data_category = #{dataCategory}
 				WHERE home_team_name = #{homeTeamName}
 				AND away_team_name = #{awayTeamName}
-			ORDER BY register_time DESC;
 			""")
 	int updateByDataCategory(
 			@Param("dataCategory") String dataCategory,
