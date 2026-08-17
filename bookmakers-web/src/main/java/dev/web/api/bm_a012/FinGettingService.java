@@ -1,5 +1,4 @@
 package dev.web.api.bm_a012;
-
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
@@ -21,67 +20,62 @@ import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.common.config.PathConfig;
+import dev.common.constant.B008OutputLockKeysConst;
+import dev.common.lock.PgAdvisoryLock;
 import dev.common.s3.S3Operator;
 import lombok.RequiredArgsConstructor;
-
 @Service
 @Transactional
 @RequiredArgsConstructor
 public class FinGettingService {
-
 	private static final String S3_PREFIX = "fin/";
 	private static final String FILE_PREFIX = "b008_fin_getting_data_";
-
 	private static final Pattern FILE_PATTERN = Pattern.compile(
 			"^" + Pattern.quote(S3_PREFIX + FILE_PREFIX) + "(\\d+)\\.json$"
 	);
-
 	private final ObjectMapper objectMapper;
 	private final PathConfig pathConfig;
 	private final S3Operator s3Operator;
-
+	private final PgAdvisoryLock advisoryLock;
 	/**
 	 * FinGettingRequest(matches) を
 	 * { "yyyy-MM-dd": [ {matchKey, matchUrl?}, ... ] } に変換し、
 	 * 連番付きファイル名で JSON 出力 → S3へアップロードする。
 	 *
+	 * 既存matchKeyの読み取り〜アップロードまでは、RealFinDataConvertJsonStat(バッチ側)と
+	 * 同じロックキー(B008OutputLockKeys.B008_FIN_GETTING_JSON)で排他制御する。
+	 *
 	 * @return アップロードしたS3 key
 	 */
 	public String convertAndUpload(FinGettingRequest req) throws Exception {
-
-		// 1) 入力チェック
+		// 1) 入力チェック(S3状態に依存しないためロック外)
 		if (req == null || req.getMatches() == null || req.getMatches().isEmpty()) {
 			throw new IllegalArgumentException("matches がありません（または空です）");
 		}
-
-		// 2) 既存のJSONをロード
 		final String outputBucket = pathConfig.getS3BucketsOutputsFin();
-		Set<String> existingMatchKeys = loadExistingMatchKeys(outputBucket);
 
-		// 2) Map化
-		Map<String, List<Map<String, Object>>> out = toOutputMap(req.getMatches(), existingMatchKeys);
+		// 2)〜5) 既存matchKeyの読み取りからアップロードまでを排他制御する
+		return advisoryLock.runExclusive(B008OutputLockKeysConst.B008_FIN_GETTING_JSON, () -> {
+			Set<String> existingMatchKeys = loadExistingMatchKeys(outputBucket);
 
-		// 3) 次の連番をS3から決定
-		final int nextSeq = s3Operator.findNextSequenceNumber(
-				outputBucket,
-				S3_PREFIX + FILE_PREFIX,
-				FILE_PATTERN
-		);
+			Map<String, List<Map<String, Object>>> out = toOutputMap(req.getMatches(), existingMatchKeys);
 
-		final String fileName = FILE_PREFIX + nextSeq + ".json";
+			final int nextSeq = s3Operator.findNextSequenceNumber(
+					outputBucket,
+					S3_PREFIX + FILE_PREFIX,
+					FILE_PATTERN
+			);
+			final String fileName = FILE_PREFIX + nextSeq + ".json";
 
-		// 4) ローカルへJSON出力
-		final String jsonFolder = pathConfig.getB008JsonFolder(); // 例: /tmp/json/
-		final Path jsonFilePath = Paths.get(jsonFolder, fileName);
+			final String jsonFolder = pathConfig.getB008JsonFolder(); // 例: /tmp/json/
+			final Path jsonFilePath = Paths.get(jsonFolder, fileName);
+			Files.createDirectories(jsonFilePath.getParent());
+			objectMapper.writerWithDefaultPrettyPrinter().writeValue(jsonFilePath.toFile(), out);
 
-		Files.createDirectories(jsonFilePath.getParent());
-		objectMapper.writerWithDefaultPrettyPrinter().writeValue(jsonFilePath.toFile(), out);
-
-		// 5) S3へアップロード
-		final String s3Key = S3_PREFIX + fileName;
-		s3Operator.uploadFile(outputBucket, s3Key, jsonFilePath);
-
-		return s3Key;
+			final String s3Key = S3_PREFIX + fileName;
+			s3Operator.uploadFile(outputBucket, s3Key, jsonFilePath);
+			return s3Key;
+		});
 	}
 
 	/**
@@ -93,7 +87,6 @@ public class FinGettingService {
 		Set<String> existingMatchKeys = new HashSet<>();
 		List<String> existingKeys;
 		try {
-			// prefix配下を一覧取得し、FILE_PATTERNに一致するキー(=b008_fin_getting_data_*.json)のみに絞り込む
 			existingKeys = s3Operator.listKeys(bucket, S3_PREFIX + FILE_PREFIX).stream()
 					.filter(key -> FILE_PATTERN.matcher(key).matches())
 					.collect(Collectors.toList());
@@ -133,36 +126,28 @@ public class FinGettingService {
 		Map<String, List<Map<String, Object>>> out = new LinkedHashMap<>();
 		for (int i = 0; i < items.size(); i++) {
 			FinGettingRequest.Item it = items.get(i);
-
 			LocalDate matchDate = it.getMatchDate();
 			String matchId = it.getMatchId();
 			String matchUrl = it.getMatchUrl();
-
 			if (matchDate == null) {
 				throw new IllegalArgumentException("matchDate がありません: index=" + i);
 			}
 			if (matchId == null || matchId.isBlank()) {
 				throw new IllegalArgumentException("matchId がありません: index=" + i);
 			}
-
 			String trimmedMatchId = matchId.trim();
 	        // existingMatchKeysに存在しない場合にスキップ
 	        if (!existingMatchKeys.contains(trimmedMatchId)) {
 	            continue;
 	        }
-
 			String dateKey = matchDate.toString();
-
 			Map<String, Object> row = new HashMap<>();
 			row.put("matchKey", matchId.trim());
-
 			if (matchUrl != null && !matchUrl.isBlank()) {
 				row.put("matchUrl", matchUrl.trim());
 			}
-
 			out.computeIfAbsent(dateKey, k -> new ArrayList<>()).add(row);
 		}
 		return out;
 	}
-
 }
