@@ -42,7 +42,7 @@ public class RealTimeDataService {
 		for (BusinessGroupCountRow row : list) {
 			RealTimeDataDTO data = new RealTimeDataDTO();
 			data.setHomeTeamName(row.homeTeamName);
-			data.setAwayTeamName(row.homeTeamName);
+			data.setAwayTeamName(row.awayTeamName);
 			data.setDataCategory(row.dataCategory);
 			dto.add(data);
 		}
@@ -66,7 +66,7 @@ public class RealTimeDataService {
 						dtoReq.getAwayTeamName(), dtoReq.getDataCategory());
 				updatedFuture = futuresRepository.updateNewDataCategory(dtoReq.getHomeTeamName(),
 						dtoReq.getAwayTeamName(), dtoReq.getDataCategory());
-				if (updatedData >= 0 && updatedFuture >= 0) {
+				if (updatedData > 0 && updatedFuture > 0) {
 					res.setResponseCode("200");
 					res.setMessage("更新成功しました。");
 					return res;
