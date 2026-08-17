@@ -96,7 +96,8 @@ public class RealFinDataConvertJsonStat {
 		String todayStart = previousDayRange[0];
 		String todayEnd = previousDayRange[1];
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME
-				,MessageCdConst.MCD00099I_LOG, "システム時間検索期間: " + todayStart + "~" + todayEnd);
+			    ,MessageCdConst.MCD00099I_LOG, "システム時間検索期間: " + todayStart + "~" + todayEnd +
+			    "(日本時間換算: " + DateOffsetDecisionUtil.toIsoJstRangeString(previousDayRange) + ")");
 		List<FutureEntity> todayFutureList = futureMasterRepository.findTodayFinData(todayStart, todayEnd);
 		// 1) 「その日の」bookdatarepositoryから「終了済」がないデータのみ取得しjsonにmappingするためのdtoに入れ替え
 		List<TeamPair> teamPairs = todayFutureList.stream()
