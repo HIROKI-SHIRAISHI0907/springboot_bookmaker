@@ -180,7 +180,6 @@ public interface FutureMasterRepository {
 			WHERE
 				home_team_name = #{homeTeamName}
 				AND away_team_name = #{awayTeamName}
-				AND game_link IS NOT NULL
 			LIMIT 1
 		""")
 	String findGameLinkWithoutFinishedCategoryByTeamsWithTeam(
