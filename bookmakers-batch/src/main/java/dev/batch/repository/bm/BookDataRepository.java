@@ -253,7 +253,7 @@ public interface BookDataRepository {
 			WHERE data_category = #{dataCategory}
 			  AND times = #{times}
 			  AND normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
-			  AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC);
+			  AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
 			  AND match_id        = #{matchId}
 			""")
 	int findDataCount(DataEntity entity);
@@ -321,7 +321,7 @@ public interface BookDataRepository {
 				times
 			FROM static_data
 				WHERE normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
-				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC);
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
 			ORDER BY register_time DESC;
 			""")
 	List<SeqKeyDTO> findMatchId(
@@ -363,7 +363,7 @@ public interface BookDataRepository {
 				times
 			FROM static_data
 				WHERE normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
-				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC);
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
 			ORDER BY register_time DESC;
 			""")
 	List<DataCategoryDTO> findDataCategory(
