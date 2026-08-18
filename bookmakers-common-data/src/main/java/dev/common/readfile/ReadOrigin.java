@@ -1,8 +1,9 @@
 package dev.common.readfile;
-
 import java.io.BufferedReader;
+import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.PushbackInputStream;
 import java.nio.charset.StandardCharsets;
 import java.util.ArrayList;
 import java.util.List;
@@ -17,7 +18,6 @@ import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.DataEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.dto.ReadFileOutputDTO;
-
 /**
  * ファイル読み込みクラス
  * @author shiraishitoshio
@@ -25,21 +25,18 @@ import dev.common.readfile.dto.ReadFileOutputDTO;
  */
 @Component
 public class ReadOrigin implements ReadFileBodyIF {
-
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = ReadOrigin.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
-
 	/** クラス名 */
 	private static final String CLASS_NAME = ReadOrigin.class.getName();
-
 	/** 必須列数（0～103 を使うため 104 列必要） */
 	private static final int REQUIRED_COLUMN_COUNT = 104;
-
+	/** UTF-8 BOM（EF BB BF） */
+	private static final int[] UTF8_BOM = { 0xEF, 0xBB, 0xBF };
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
-
 	/**
 	 * 統計データファイルの中身を取得する
 	 * @param is ストリーム名
@@ -49,12 +46,11 @@ public class ReadOrigin implements ReadFileBodyIF {
 	@Override
 	public ReadFileOutputDTO getFileBodyFromStream(InputStream is, String key) {
 		final String METHOD_NAME = "getFileBodyFromStream";
-
 		ReadFileOutputDTO dto = new ReadFileOutputDTO();
 		List<DataEntity> entityList = new ArrayList<>();
-
 		try (
-				BufferedReader br = new BufferedReader(new InputStreamReader(is, StandardCharsets.UTF_8));
+				InputStream bomSafeIs = skipUtf8Bom(is);
+				BufferedReader br = new BufferedReader(new InputStreamReader(bomSafeIs, StandardCharsets.UTF_8));
 				CSVParser parser = CSVFormat.DEFAULT.builder()
 						.setDelimiter(',')
 						.setQuote('"')
@@ -63,34 +59,30 @@ public class ReadOrigin implements ReadFileBodyIF {
 						.parse(br)
 		) {
 			int row = 0;
-
 			for (CSVRecord record : parser) {
 				row++;
-
 				// ヘッダスキップ
 				if (row == 1) {
 					continue;
 				}
-
 				// 空行スキップ
 				if (record == null || record.size() == 0 || isRecordEffectivelyEmpty(record)) {
 					continue;
 				}
-
 				// 必須列数チェック
 				if (record.size() < REQUIRED_COLUMN_COUNT) {
-					String msg = "CSV column shortage"
-							+ " key=" + key
-							+ " row=" + row
-							+ " columnSize=" + record.size()
-							+ " required=" + REQUIRED_COLUMN_COUNT;
-					this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, null);
-					continue;
+				    String rawRow = String.join(",", record.values());
+				    String msg = "CSV column shortage"
+				            + " key=" + key
+				            + " row=" + row
+				            + " columnSize=" + record.size()
+				            + " required=" + REQUIRED_COLUMN_COUNT
+				            + " rawRow=[" + rawRow + "]";
+				    this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, null);
+				    continue;
 				}
-
 				DataEntity mappingDto = new DataEntity();
 				mappingDto.setFile(key); // S3 key を保存
-
 				mappingDto.setHomeRank(get(record, 0));
 				mappingDto.setDataCategory(get(record, 1));
 				mappingDto.setTimes(get(record, 2));
@@ -192,8 +184,7 @@ public class ReadOrigin implements ReadFileBodyIF {
 				mappingDto.setProbablity(get(record, 98));
 				mappingDto.setPredictionScoreTime(get(record, 99));
 				mappingDto.setMatchId(normalizeMatchId(get(record, 100).trim()));
-
-				String timeSortSecondsRaw = get(record, 101).trim();
+				String timeSortSecondsRaw = get(record, 102).trim();
 				try {
 					mappingDto.setTimeSortSeconds(Integer.parseInt(timeSortSecondsRaw));
 				} catch (Exception e) {
@@ -204,15 +195,12 @@ public class ReadOrigin implements ReadFileBodyIF {
 					this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msg, e);
 					mappingDto.setTimeSortSeconds(1);
 				}
-
-				mappingDto.setAtThatTimes(get(record, 102));
+				mappingDto.setAtThatTimes(get(record, 103));
 				entityList.add(mappingDto);
 			}
-
 			dto.setResultCd(BookMakersCommonConst.NORMAL_CD);
 			dto.setDataList(entityList);
 			return dto;
-
 		} catch (Exception e) {
 			dto.setExceptionProject(PROJECT_NAME);
 			dto.setExceptionClass(CLASS_NAME);
@@ -223,7 +211,26 @@ public class ReadOrigin implements ReadFileBodyIF {
 			return dto;
 		}
 	}
-
+	/**
+	 * UTF-8 BOM（EF BB BF）が先頭にあればスキップして返す。
+	 * BOMが無ければ読み取ったバイトを押し戻して元のまま返す。
+	 * @param is 元のストリーム
+	 * @return BOMスキップ済みのストリーム
+	 * @throws IOException 読み取り失敗時
+	 */
+	private static InputStream skipUtf8Bom(InputStream is) throws IOException {
+		PushbackInputStream pis = new PushbackInputStream(is, UTF8_BOM.length);
+		byte[] head = new byte[UTF8_BOM.length];
+		int n = pis.read(head, 0, UTF8_BOM.length);
+		boolean isBom = n == UTF8_BOM.length
+				&& (head[0] & 0xFF) == UTF8_BOM[0]
+				&& (head[1] & 0xFF) == UTF8_BOM[1]
+				&& (head[2] & 0xFF) == UTF8_BOM[2];
+		if (!isBom && n > 0) {
+			pis.unread(head, 0, n);
+		}
+		return pis;
+	}
 	/**
 	 * CSVRecord から安全に値を取得
 	 * @param record CSVレコード
@@ -240,7 +247,6 @@ public class ReadOrigin implements ReadFileBodyIF {
 		String value = record.get(index);
 		return value == null ? "" : value;
 	}
-
 	/**
 	 * 実質空行判定
 	 * @param record CSVレコード
@@ -255,7 +261,6 @@ public class ReadOrigin implements ReadFileBodyIF {
 		}
 		return true;
 	}
-
 	/**
 	 * ".0" を除去
 	 * @param value 元値
@@ -267,7 +272,6 @@ public class ReadOrigin implements ReadFileBodyIF {
 		}
 		return value.replace(".0", "");
 	}
-
 	/**
 	 * matchidの正規化
 	 * @param raw raw
@@ -277,19 +281,16 @@ public class ReadOrigin implements ReadFileBodyIF {
 		if (raw == null) {
 			return null;
 		}
-
 		// ?mid=XXXX を最優先で拾う
 		var m1 = java.util.regex.Pattern.compile("[?&#]mid=([A-Za-z0-9]+)").matcher(raw);
 		if (m1.find()) {
 			return m1.group(1);
 		}
-
 		// /match/{mid}/ …形式
 		var m2 = java.util.regex.Pattern.compile("/match/([A-Za-z0-9]{6,20})(?:/|$)").matcher(raw);
 		if (m2.find()) {
 			return m2.group(1);
 		}
-
 		// それ以外はそのまま
 		return raw.trim();
 	}
