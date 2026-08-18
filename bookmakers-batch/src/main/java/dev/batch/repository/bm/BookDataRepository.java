@@ -5,7 +5,6 @@ import java.util.List;
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
-import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
@@ -19,7 +18,7 @@ import dev.common.entity.DataEntity;
 public interface BookDataRepository {
 
 	@Insert("""
-			INSERT INTO data (
+			INSERT INTO static_data (
 			    seq_key,
 			    condition_result_data_seq_id,
 			    data_category,
@@ -242,9 +241,7 @@ public interface BookDataRepository {
 			    'SYSTEM',
 			    CURRENT_TIMESTAMP
 			)
-			RETURNING seq
 			""")
-	@Options(useGeneratedKeys = true, keyProperty = "seq", keyColumn = "seq")
 	int insert(DataEntity entity);
 
 	@Select("""
