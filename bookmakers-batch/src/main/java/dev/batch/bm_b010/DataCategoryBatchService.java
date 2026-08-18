@@ -67,7 +67,7 @@ public class DataCategoryBatchService {
 		// なければhome,awayをcountry_league_masterで調べて国およびリーグ名を取得する
 		CountryLeagueMasterEntity entityHome = countryLeagueMasterBatchRepository.findCountryLeagueByTeam(home);
 		CountryLeagueMasterEntity entityAway = countryLeagueMasterBatchRepository.findCountryLeagueByTeam(away);
-		if (entityHome == null || entityAway == null || !entityHome.getTeam().equals(entityAway.getTeam())) {
+		if (entityHome == null || entityAway == null) {
 			return null;
 		}
 
