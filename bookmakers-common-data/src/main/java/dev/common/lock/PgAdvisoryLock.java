@@ -9,6 +9,7 @@ import java.util.concurrent.Callable;
 
 import javax.sql.DataSource;
 
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
 import lombok.RequiredArgsConstructor;
@@ -29,7 +30,11 @@ public class PgAdvisoryLock {
 	private static final long DEFAULT_MAX_WAIT_MILLIS = 30_000L;
 	private static final long POLL_INTERVAL_MILLIS = 200L;
 
-	private final DataSource dataSource;
+	private DataSource dataSource;
+
+	public PgAdvisoryLock(@Qualifier("bmDataSource") DataSource dataSource) {
+		this.dataSource = dataSource;
+	}
 
 	public <T> T runExclusive(long lockKey, Callable<T> action) throws Exception {
 		return runExclusive(lockKey, DEFAULT_MAX_WAIT_MILLIS, action);
