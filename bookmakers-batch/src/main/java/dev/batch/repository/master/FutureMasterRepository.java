@@ -178,8 +178,8 @@ public interface FutureMasterRepository {
  			FROM
  				future_master
 			WHERE
-				home_team_name = #{homeTeamName}
-				AND away_team_name = #{awayTeamName}
+				normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC);
 			LIMIT 1
 		""")
 	String findGameLinkWithoutFinishedCategoryByTeamsWithTeam(

@@ -252,8 +252,8 @@ public interface BookDataRepository {
 			FROM static_data
 			WHERE data_category = #{dataCategory}
 			  AND times = #{times}
-			  AND home_team_name = #{homeTeamName}
-			  AND away_team_name = #{awayTeamName}
+			  AND normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+			  AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC);
 			  AND match_id        = #{matchId}
 			""")
 	int findDataCount(DataEntity entity);
@@ -263,8 +263,8 @@ public interface BookDataRepository {
 			FROM static_data
 			WHERE data_category IS NOT NULL
 			  AND times = #{times}
-			  AND home_team_name = #{homeTeamName}
-			  AND away_team_name = #{awayTeamName}
+			  AND normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+			  AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC);
 			""")
 	int findFinCount(DataEntity entity);
 
@@ -320,8 +320,8 @@ public interface BookDataRepository {
 				match_id AS matchId,
 				times
 			FROM static_data
-				WHERE home_team_name = #{homeTeamName}
-				AND away_team_name = #{awayTeamName}
+				WHERE normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC);
 			ORDER BY register_time DESC;
 			""")
 	List<SeqKeyDTO> findMatchId(
@@ -362,8 +362,8 @@ public interface BookDataRepository {
 				data_category AS dataCategory,
 				times
 			FROM static_data
-				WHERE home_team_name = #{homeTeamName}
-				AND away_team_name = #{awayTeamName}
+				WHERE normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC);
 			ORDER BY register_time DESC;
 			""")
 	List<DataCategoryDTO> findDataCategory(
@@ -373,9 +373,8 @@ public interface BookDataRepository {
 	@Update("""
 			UPDATE static_data
 			SET data_category = #{dataCategory}
-				WHERE home_team_name = #{homeTeamName}
-				AND away_team_name = #{awayTeamName}
-			ORDER BY register_time DESC;
+				WHERE normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC);
 			""")
 	int updateByDataCategory(
 			@Param("dataCategory") String dataCategory,
