@@ -79,7 +79,7 @@ public class DataCategoryService {
 			}
 		}
 
-		if (country == null && league == null) return "XXX: YYY - " + ROUND + " 0";
+		if (country == null || league == null) return "XXX: YYY - " + ROUND + " 0";
 
 		StringBuilder connection = new StringBuilder(country + ": " + league);
 
