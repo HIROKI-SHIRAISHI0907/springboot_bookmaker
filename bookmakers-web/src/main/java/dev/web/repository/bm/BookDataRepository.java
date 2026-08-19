@@ -1158,8 +1158,8 @@ public class BookDataRepository {
 				WHERE condition_result_data_seq_id = :condId
 				  AND data_category = :category
 				  AND times = :times
-				  AND home_team_name = :home
-				  AND away_team_name = :away
+				  AND normalize(home_team_name, NFKC) = normalize(:home, NFKC)
+				  AND normalize(away_team_name, NFKC) = normalize(:away, NFKC)
 				""";
 
 		var params = new MapSqlParameterSource()
@@ -1185,8 +1185,8 @@ public class BookDataRepository {
 				FROM static_data
 				WHERE condition_result_data_seq_id IS NOT NULL AND TRIM(condition_result_data_seq_id) <> ''
 					AND data_category IS NOT NULL               AND TRIM(data_category) <> ''
-					AND home_team_name IS NOT NULL             AND TRIM(home_team_name) <> ''
-					AND away_team_name IS NOT NULL             AND TRIM(away_team_name) <> ''
+					AND normalize(home_team_name, NFKC) IS NOT NULL  AND TRIM(home_team_name) <> ''
+					AND normalize(away_team_name, NFKC) IS NOT NULL  AND TRIM(away_team_name) <> ''
 				GROUP BY
 					condition_result_data_seq_id,
 					home_team_name,
