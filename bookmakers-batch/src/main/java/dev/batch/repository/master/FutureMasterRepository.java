@@ -202,4 +202,50 @@ public interface FutureMasterRepository {
 			@Param("todayStart") String todayStart,
 			@Param("todayEnd") String todayEnd);
 
+	@Select("""
+			SELECT
+				game_team_category AS gameTeamCategory,
+ 				home_team_name AS homeTeamName,
+ 				away_team_name AS awayTeamName
+ 			FROM
+ 				future_master
+			WHERE
+				(future_time > #{todayStart}::timestamptz
+				AND future_time <= #{todayEnd}::timestamptz)
+				AND start_flg = '1'
+		""")
+	List<FutureEntity> findWeeksData(
+			@Param("todayStart") String todayStart,
+			@Param("todayEnd") String todayEnd);
+
+	@Select("""
+			SELECT
+				game_team_category
+			FROM
+				future_master
+			WHERE
+				(
+					normalize(home_team_name, NFKC) = normalize(#{team}, NFKC)
+				OR
+					normalize(away_team_name, NFKC) = normalize(#{team}, NFKC)
+				)
+				AND
+				game_team_category IS NOT NULL
+			LIMIT 1
+		""")
+	String findGameTeamCategoryByTeams(
+			@Param("team") String team);
+
+	@Update("""
+	        UPDATE future_master
+	        SET game_team_category = #{dataCategory}
+	        WHERE normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+	          AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+	          AND (game_team_category IS NULL OR game_team_category NOT LIKE '%ラウンド%')
+	        """)
+	int updateByGameTeamCategoryWithNotRound(
+	        @Param("dataCategory") String dataCategory,
+	        @Param("homeTeamName") String homeTeamName,
+	        @Param("awayTeamName") String awayTeamName);
+
 }

@@ -1,4 +1,5 @@
 package dev.batch.repository.bm;
+
 import java.util.List;
 
 import org.apache.ibatis.annotations.Delete;
@@ -12,6 +13,7 @@ import dev.batch.bm_b010.DataCategoryDTO;
 import dev.batch.bm_b010.SeqKeyDTO;
 import dev.batch.bm_b012.TeamPair;
 import dev.common.entity.DataEntity;
+
 @Mapper
 public interface BookDataRepository {
 
@@ -400,34 +402,65 @@ public interface BookDataRepository {
 			@Param("dataCategory") String dataCategory,
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
+
 	@Select("""
-	        <script>
-	        SELECT DISTINCT
-	          d.match_id AS matchId,
-	          d.record_time AS recordTime,
-	          d.home_team_name AS homeTeamName,
-	          d.away_team_name AS awayTeamName
-	        FROM static_data d
-	        WHERE d.match_id IS NOT NULL
-	          AND TRIM(d.match_id) &lt;&gt; ''
-	          <if test="teamPairs != null and teamPairs.size() > 0">
-	          AND (normalize(d.home_team_name, NFKC), normalize(d.away_team_name, NFKC)) IN (
-	            VALUES
-	            <foreach collection="teamPairs" item="pair" separator=",">
-	              (normalize(#{pair.homeTeamName}, NFKC), normalize(#{pair.awayTeamName}, NFKC))
-	            </foreach>
-	          )
-	          </if>
-	          AND NOT EXISTS (
-	                SELECT 1
-	                FROM static_data d2
-	                WHERE normalize(d2.home_team_name, NFKC) = normalize(d.home_team_name, NFKC)
-	                  AND normalize(d2.away_team_name, NFKC) = normalize(d.away_team_name, NFKC)
-	                  AND REPLACE(TRIM(normalize(d2.data_category, NFKC)), ' ', '') = '終了済'
-	          )
-	        </script>
-	        """)
+			<script>
+			SELECT DISTINCT
+			  d.match_id AS matchId,
+			  d.record_time AS recordTime,
+			  d.home_team_name AS homeTeamName,
+			  d.away_team_name AS awayTeamName
+			FROM static_data d
+			WHERE d.match_id IS NOT NULL
+			  AND TRIM(d.match_id) &lt;&gt; ''
+			  <if test="teamPairs != null and teamPairs.size() > 0">
+			  AND (normalize(d.home_team_name, NFKC), normalize(d.away_team_name, NFKC)) IN (
+			    VALUES
+			    <foreach collection="teamPairs" item="pair" separator=",">
+			      (normalize(#{pair.homeTeamName}, NFKC), normalize(#{pair.awayTeamName}, NFKC))
+			    </foreach>
+			  )
+			  </if>
+			  AND NOT EXISTS (
+			        SELECT 1
+			        FROM static_data d2
+			        WHERE normalize(d2.home_team_name, NFKC) = normalize(d.home_team_name, NFKC)
+			          AND normalize(d2.away_team_name, NFKC) = normalize(d.away_team_name, NFKC)
+			          AND REPLACE(TRIM(normalize(d2.data_category, NFKC)), ' ', '') = '終了済'
+			  )
+			</script>
+			""")
 	List<SeqKeyDTO> findMatchIdsWithoutFinishedCategoryByTeams(
-	        @Param("teamPairs") List<TeamPair> teamPairs);
+			@Param("teamPairs") List<TeamPair> teamPairs);
+
+	@Select("""
+				SELECT
+					data_category
+				FROM
+					static_data
+				WHERE
+					(
+						normalize(home_team_name, NFKC) = normalize(#{team}, NFKC)
+					OR
+						normalize(away_team_name, NFKC) = normalize(#{team}, NFKC)
+					)
+					AND
+					data_category IS NOT NULL
+				LIMIT 1
+			""")
+	String findDataCategoryByTeams(
+			@Param("team") String team);
+
+	@Update("""
+	        UPDATE static_data
+	        SET data_category = #{dataCategory}
+	        WHERE normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+	          AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+	          AND (data_category IS NULL OR data_category NOT LIKE '%ラウンド%')
+	        """)
+	int updateByDataCategoryWithNotRound(
+	        @Param("dataCategory") String dataCategory,
+	        @Param("homeTeamName") String homeTeamName,
+	        @Param("awayTeamName") String awayTeamName);
 
 }
