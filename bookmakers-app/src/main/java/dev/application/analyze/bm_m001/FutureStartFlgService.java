@@ -29,8 +29,8 @@ public class FutureStartFlgService {
 	/** クラス名 */
 	private static final String CLASS_NAME = FutureStartFlgService.class.getName();
 
-	/** 有効 */
-	private static final String STRAT_FLG_0 = "0";
+	/** 試合開始有効 */
+	private static final String STRAT_FLG_1 = "1";
 
 	/**
 	 * 論理削除レポジトリ
@@ -74,13 +74,13 @@ public class FutureStartFlgService {
 					String home = list.get(0).getHomeTeamName();
 					String away = list.get(0).getAwayTeamName();
 					if (home != null && away != null) {
-						startFlgUpdate(home, away, STRAT_FLG_0);
+						startFlgUpdate(home, away, STRAT_FLG_1);
 					}
 				}
 			}
 		} else {
 			// 現在時刻前のフラグ更新
-			startFlgUpdate(STRAT_FLG_0);
+			startFlgUpdate(STRAT_FLG_1);
 		}
 
 		// endLog
