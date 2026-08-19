@@ -87,6 +87,8 @@ public class FinGettingStat implements FinGettingEntityIF {
 			List<DataEntity> entList = map.getValue();
 			for (DataEntity ent : entList) {
 				insertPath.add(filePath);
+				String teamNames = ent.getHomeTeamName() + "-" + ent.getAwayTeamName();
+			    mapList.put(ent.getDataCategory(), teamNames);
 				if (ent.getTimes() == null || ent.getTimes().isEmpty()) {
 					// 終了済が未設定なら手動設定
 					ent.setTimes(BookMakersCommonConst.FIN);
@@ -123,9 +125,6 @@ public class FinGettingStat implements FinGettingEntityIF {
 				List<FutureEntity> list = List.of(fe);
 				List<FutureEntity> selEntities = futureDBService.selectInBatch(list, fillChar);
 				futureDBService.insertInBatchOrThrow(selEntities);
-
-				String teamNames = ent.getHomeTeamName() + "-" + ent.getAwayTeamName();
-			    mapList.put(ent.getDataCategory(), teamNames);
 			}
 
 		}
