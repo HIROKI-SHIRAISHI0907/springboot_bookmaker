@@ -1,6 +1,8 @@
 package dev.batch.bm_b097;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -61,34 +63,51 @@ public class AutoAssignmentDataCategoryService {
 
 		List<FutureEntity> weekFutureList = futureMasterRepository.findWeeksData(todayStart, todayEnd);
 
-		// データカテゴリのセットを取得
+		// データカテゴリのセットを取得（同一カードの重複は除去）
 		List<TeamPairWithDataCategory> pairs = weekFutureList.stream()
 		        .map(f -> new TeamPairWithDataCategory(f.getGameTeamCategory(),
-		        		f.getHomeTeamName(), f.getAwayTeamName()))
+		        f.getHomeTeamName(), f.getAwayTeamName()))
 		        .collect(Collectors.toList());
+
+		Set<String> processedPairs = new HashSet<>();
 
 		// update
 		for (TeamPairWithDataCategory pairWithDataCategory : pairs) {
-			String home = pairWithDataCategory.getHomeTeamName();
-			String away = pairWithDataCategory.getAwayTeamName();
-			String dataCategory = pairWithDataCategory.getDataCategory();
-			// 「ラウンド」が存在するか
-			if (dataCategory != null && roundChk(dataCategory)) {
-				continue;
-			}
+		    String home = pairWithDataCategory.getHomeTeamName();
+		    String away = pairWithDataCategory.getAwayTeamName();
+		    String dataCategory = pairWithDataCategory.getDataCategory();
 
-			// ラウンドがない場合、同じチームから別のデータカテゴリを取得する
-			String newDataCategory = getDataCategoryWithNull(home);
-			if (newDataCategory == null) {
-				newDataCategory = getDataCategoryWithNull(away);
-			}
+		    // 同一カードはこのバッチ内で1回だけ処理する
+		    if (!processedPairs.add(home + "|" + away)) {
+		        continue;
+		    }
 
-			// ラウンドがない（dataCategoryがnull or XX: YYYリーグのみ）
-			newDataCategory = extractLeagueOnly(newDataCategory);
+		    // 「ラウンド」が存在するか
+		    if (roundChk(dataCategory)) {
+		        continue;
+		    }
 
-			// 更新
-			this.bookDataRepository.updateByDataCategoryWithNotRound(newDataCategory, home, away);
-			this.futureMasterRepository.updateByGameTeamCategoryWithNotRound(newDataCategory, home, away);
+		    // ラウンドがない場合、同じチームから別のデータカテゴリを取得する
+		    String newDataCategory = getDataCategoryWithNull(home);
+		    if (newDataCategory == null) {
+		        newDataCategory = getDataCategoryWithNull(away);
+		    }
+
+		    // どこにも代替カテゴリが見つからない場合は更新しない
+		    // （nullで更新すると、既にラウンド無しの正しい値が入っている行までNULLで上書きしてしまうため）
+		    if (newDataCategory == null) {
+		        continue;
+		    }
+
+		    // XX: YYY リーグ - ラウンド Z 形式であれば、リーグ名部分だけを取り出す
+		    newDataCategory = extractLeagueOnly(newDataCategory);
+		    if (newDataCategory.isEmpty()) {
+		        continue;
+		    }
+
+		    // 更新
+		    this.bookDataRepository.updateByDataCategoryWithNotRound(newDataCategory, home, away);
+		    this.futureMasterRepository.updateByGameTeamCategoryWithNotRound(newDataCategory, home, away);
 		}
 
 		// endLog
