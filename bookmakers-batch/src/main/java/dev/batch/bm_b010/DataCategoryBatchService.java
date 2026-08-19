@@ -67,13 +67,20 @@ public class DataCategoryBatchService {
 		// なければhome,awayをcountry_league_masterで調べて国およびリーグ名を取得する
 		CountryLeagueMasterEntity entityHome = countryLeagueMasterBatchRepository.findCountryLeagueByTeam(home);
 		CountryLeagueMasterEntity entityAway = countryLeagueMasterBatchRepository.findCountryLeagueByTeam(away);
-		if (entityHome == null || entityAway == null) {
-			return null;
+
+		String country = null;
+		String league = null;
+		if (entityHome != null) {
+			country = entityHome.getCountry();
+			league = entityHome.getLeague();
+		} else {
+			if (entityAway != null) {
+				country = entityAway.getCountry();
+				league = entityAway.getLeague();
+			}
 		}
 
 		// 国とリーグを取得して連結
-		String country = entityHome.getCountry();
-		String league = entityHome.getLeague();
 		StringBuilder connection = new StringBuilder(country + ": " + league);
 
 		// future_masterから該当の予定チームを取得し「ラウンド」を確認する
@@ -87,8 +94,8 @@ public class DataCategoryBatchService {
 		// 「ラウンド」の後ろの数字部分(X)を取得して連結
 		Matcher roundMatcher = Pattern.compile(ROUND + "\\s*(\\d+)").matcher(containsRoundFuture);
 		if (roundMatcher.find()) {
-		    String round = roundMatcher.group(1);
-		    connection.append(" - ").append(ROUND + " " + round);
+			String round = roundMatcher.group(1);
+			connection.append(" - ").append(ROUND + " " + round);
 		}
 
 		try {

@@ -110,21 +110,19 @@ public class FinGettingStat implements FinGettingEntityIF {
 				ent.setSeqKey(seqKeyService.create(ent.getHomeTeamName(),
 						ent.getAwayTeamName(), ent.getMatchId()));
 				// データカテゴリの再設定
-				ent.setDataCategory(dataCategoryBatchService.create(ent.getHomeTeamName(),
-						ent.getAwayTeamName(), ent.getDataCategory()));
+				String dataCategory = dataCategoryBatchService.create(ent.getHomeTeamName(),
+						ent.getAwayTeamName(), ent.getDataCategory());
+				ent.setDataCategory(dataCategory);
 				// 手動フラグを設定
 				ent.setAddManualFlg("1");
 
 				DataEntity insertEntities = dataDBService.selectInBatch(ent);
 				dataDBService.insertInBatchOrThrow(insertEntities);
-			}
 
-			for (DataEntity ent : entList) {
 				FutureEntity fe = buildFutureEntity(ent);
 				List<FutureEntity> list = List.of(fe);
-
-				List<FutureEntity> insertEntities = futureDBService.selectInBatch(list, fillChar);
-				futureDBService.insertInBatchOrThrow(insertEntities);
+				List<FutureEntity> selEntities = futureDBService.selectInBatch(list, fillChar);
+				futureDBService.insertInBatchOrThrow(selEntities);
 
 				String teamNames = ent.getHomeTeamName() + "-" + ent.getAwayTeamName();
 			    mapList.put(ent.getDataCategory(), teamNames);
