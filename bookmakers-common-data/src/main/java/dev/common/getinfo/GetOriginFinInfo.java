@@ -43,7 +43,7 @@ import software.amazon.awssdk.services.s3.model.S3Object;
  * 3) 同一 mid 内の seq=...csv は文字列順
  *
  * 返すMap:
- * - Key: ローカルファイルパス（OriginStat が Files.deleteIfExists できるように）
+ * - Key: S3キー（FinGettingStat が S3のファイルを削除できるように）
  * - Value: DataEntity一覧（DataEntity.file には S3 key をセット）
  */
 @Component
@@ -136,8 +136,8 @@ public class GetOriginFinInfo {
 					continue;
 				}
 
-				// ★Mapキーはローカルパス（OriginStatが削除できる）
-				resultMap.put(r.localPath, r.entities);
+				// ★Mapキーは本来のS3キー（FinGettingStatがS3から削除できるように）
+				resultMap.put(r.s3Key, r.entities);
 			}
 
 		} catch (InterruptedException ie) {
@@ -330,13 +330,11 @@ public class GetOriginFinInfo {
 	private static class ReadOneResult {
 		final boolean ok;
 		final String s3Key;
-		final String localPath;
 		final List<DataEntity> entities;
 
 		private ReadOneResult(boolean ok, String s3Key, String localPath, List<DataEntity> entities, Throwable thrown) {
 			this.ok = ok;
 			this.s3Key = s3Key;
-			this.localPath = localPath;
 			this.entities = entities;
 		}
 
