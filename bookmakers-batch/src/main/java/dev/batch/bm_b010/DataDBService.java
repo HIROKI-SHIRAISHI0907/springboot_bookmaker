@@ -30,6 +30,10 @@ public class DataDBService {
 	@Autowired
 	private BookDataRepository bookDataRepository;
 
+	/** static_dataへのINSERTをSAVEPOINT付きネストトランザクションで実行するヘルパー */
+	@Autowired
+	private StaticDataInsertExecutor staticDataInsertExecutor;
+
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
@@ -56,7 +60,11 @@ public class DataDBService {
 			return;
 
 		try {
-			int result = bookDataRepository.insert(insertEntities);
+			// staticDataInsertExecutor.insert() はPropagation.NESTEDで実行される。
+			// ここでDuplicateKeyExceptionをcatchする時点では、既にSAVEPOINTまで
+			// ロールバック済みなので、外側のトランザクション（finGettingStat側）は
+			// 正常な状態のまま処理を継続できる。
+			int result = staticDataInsertExecutor.insert(insertEntities);
 			if (result != 1) {
 				throw new Exception("bm insert failed. result=" + result);
 			}
