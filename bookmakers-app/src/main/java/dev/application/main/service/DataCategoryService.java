@@ -67,13 +67,20 @@ public class DataCategoryService {
 		// なければhome,awayをcountry_league_masterで調べて国およびリーグ名を取得する
 		CountryLeagueMasterEntity entityHome = countryLeagueMasterRepository.findCountryLeagueByTeam(home);
 		CountryLeagueMasterEntity entityAway = countryLeagueMasterRepository.findCountryLeagueByTeam(away);
-		if (entityHome == null || entityAway == null || !entityHome.getTeam().equals(entityAway.getTeam())) {
-			return null;
+		String country = null;
+		String league = null;
+		if (entityHome != null) {
+			country = entityHome.getCountry();
+			league = entityHome.getLeague();
+		} else {
+			if (entityAway != null) {
+				country = entityAway.getCountry();
+				league = entityAway.getLeague();
+			}
 		}
 
-		// 国とリーグを取得して連結
-		String country = entityHome.getCountry();
-		String league = entityHome.getLeague();
+		if (country == null && league == null) return "XXX: YYY - " + ROUND + " 0";
+
 		StringBuilder connection = new StringBuilder(country + ": " + league);
 
 		// future_masterから該当の予定チームを取得し「ラウンド」を確認する
