@@ -20,6 +20,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.batch.bm_b005.FutureDBService;
 import dev.batch.interf.FinGettingEntityIF;
+import dev.batch.repository.bm.BookDataRepository;
 import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
@@ -58,6 +59,8 @@ public class FinGettingStat implements FinGettingEntityIF {
 	@Autowired
 	private DataDBService dataDBService; // bm
 	@Autowired
+	private BookDataRepository bookDataRepository;
+	@Autowired
 	private PathConfig config;
 	@Autowired
 	private S3Operator s3Operator;
@@ -84,17 +87,31 @@ public class FinGettingStat implements FinGettingEntityIF {
 			List<DataEntity> entList = map.getValue();
 			for (DataEntity ent : entList) {
 				insertPath.add(filePath);
+				if (ent.getTimes() == null || ent.getTimes().isEmpty()) {
+					// 終了済が未設定なら手動設定
+					ent.setTimes(BookMakersCommonConst.FIN);
+				}
+				// 終了済かつ、同一home/awayチーム名の組み合わせで既に終了済データが登録済みの場合は、
+				// 同じ試合(match_id)の重複スナップショット（同一フォルダに複数ファイルが
+				// 紛れ込んだケース等）とみなしてスキップする。
+				// times=終了済であれば、同一home/awayチーム名の組み合わせは必ず同一match_idになる
+				// という前提のもとでの判定。
+				if (BookMakersCommonConst.FIN.equals(ent.getTimes())
+						&& bookDataRepository.findFinCount(ent) > 0) {
+					this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
+							"終了済データが既に登録済みのためスキップします。"
+									+ " home=" + ent.getHomeTeamName()
+									+ ", away=" + ent.getAwayTeamName()
+									+ ", matchId=" + ent.getMatchId()
+									+ ", filePath=" + filePath);
+					continue;
+				}
 				// 通番を発番
 				ent.setSeqKey(seqKeyService.create(ent.getHomeTeamName(),
 						ent.getAwayTeamName(), ent.getMatchId()));
 				// データカテゴリの再設定
 				ent.setDataCategory(dataCategoryBatchService.create(ent.getHomeTeamName(),
 						ent.getAwayTeamName(), ent.getDataCategory()));
-				if (ent.getTimes() == null || ent.getTimes().isEmpty()) {
-					// 終了済が未設定なら手動設定
-					ent.setTimes(BookMakersCommonConst.FIN);
-				}
-
 				// 手動フラグを設定
 				ent.setAddManualFlg("1");
 
