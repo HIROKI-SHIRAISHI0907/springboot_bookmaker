@@ -80,7 +80,7 @@ public class DataCategoryBatchService {
 			}
 		}
 
-		if (country == null && league == null) return "XXX: YYY - " + ROUND + " 0";
+		if (country == null || league == null) return "XXX: YYY - " + ROUND + " 0";
 
 		// 国とリーグを取得して連結
 		StringBuilder connection = new StringBuilder(country + ": " + league);
