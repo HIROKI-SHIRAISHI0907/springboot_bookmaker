@@ -121,6 +121,28 @@ public final class DateOffsetDecisionUtil {
 		return new String[] { rangeStart, rangeEnd };
 	}
 
+
+	/**
+	 * 直近の「まる1週間(00:00:00〜23:59:59)」を対象タイムゾーン基準で求め、UTCのISO8601文字列で返す。
+	 * バッチが1週間後(例: 00:10)に実行される想定で、
+	 * 実行時点の「今日」ではなく「前日」を対象にする(前日は実行時点で完全に過ぎているためキャップ不要)。
+	 *
+	 * @return [0]=前日開始(UTC文字列), [1]=前日終了(UTC文字列)
+	 */
+	public static String[] previousWeekDaysRangeAsUtcIsoStrings() {
+		LocalDate targetDate = LocalDate.now(ZONE).minusDays(7); // 実行時点の「1週間前」
+
+		OffsetDateTime startOfDay = toStartOfDayJstOffsetDateTime(targetDate.toString()); // 00:00:00
+		OffsetDateTime endOfDay = startOfDay.plusDays(6).plusHours(23).plusMinutes(59).plusSeconds(59); // 23:59:59
+
+		String rangeStart = startOfDay.withOffsetSameInstant(ZoneOffset.UTC)
+				.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+		String rangeEnd = endOfDay.withOffsetSameInstant(ZoneOffset.UTC)
+				.format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+
+		return new String[] { rangeStart, rangeEnd };
+	}
+
 	/**
 	 * timestamptz カラムを String にマッピングした値(UTC想定)を、
 	 * 対象タイムゾーンの日付(LocalDate)に変換する。
