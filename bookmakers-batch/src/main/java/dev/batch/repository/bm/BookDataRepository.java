@@ -1,5 +1,4 @@
 package dev.batch.repository.bm;
-
 import java.util.List;
 
 import org.apache.ibatis.annotations.Delete;
@@ -13,9 +12,29 @@ import dev.batch.bm_b010.DataCategoryDTO;
 import dev.batch.bm_b010.SeqKeyDTO;
 import dev.batch.bm_b012.TeamPair;
 import dev.common.entity.DataEntity;
-
 @Mapper
 public interface BookDataRepository {
+
+	/**
+	 * 対戦カード（home/away）単位でPostgreSQLのトランザクションスコープ・アドバイザリロックを取得する。
+	 * SeqKeyBatchService#create() の先頭（findMatchIdで既存行を読む直前）で呼び出すことで、
+	 * 「既存seq_keyを読む → 次の連番を計算する → INSERTする」という一連の処理を
+	 * 同一対戦カードに対しては複数プロセス（複数ECSタスク）間でも直列化できる。
+	 * ロックは呼び出し元のトランザクションがCOMMIT/ROLLBACKされた時点で自動的に解放されるため、
+	 * 明示的なunlockは不要（ただし、create()〜insert()が同一トランザクション内で
+	 * 実行されていることが前提）。
+	 * ロックキーはfindMatchId等と同じくnormalize(..., NFKC)したhome/awayチーム名から算出しており、
+	 * 同一対戦カードは常に同じロックキーになる。
+	 */
+	@Select("""
+			SELECT pg_advisory_xact_lock(
+			    hashtext(
+			        normalize(#{homeTeamName}, NFKC) || '|' || normalize(#{awayTeamName}, NFKC)
+			    )::bigint
+			)
+			""")
+	void lockByTeams(@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
 
 	@Insert("""
 			INSERT INTO static_data (
@@ -377,7 +396,6 @@ public interface BookDataRepository {
 			@Param("dataCategory") String dataCategory,
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
-
 	@Select("""
 	        <script>
 	        SELECT DISTINCT
@@ -407,4 +425,5 @@ public interface BookDataRepository {
 	        """)
 	List<SeqKeyDTO> findMatchIdsWithoutFinishedCategoryByTeams(
 	        @Param("teamPairs") List<TeamPair> teamPairs);
+
 }

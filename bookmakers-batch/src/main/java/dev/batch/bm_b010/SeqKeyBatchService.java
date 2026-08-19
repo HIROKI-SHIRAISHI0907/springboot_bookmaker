@@ -1,5 +1,4 @@
 package dev.batch.bm_b010;
-
 import java.security.SecureRandom;
 import java.util.ArrayList;
 import java.util.Collections;
@@ -11,7 +10,6 @@ import org.springframework.stereotype.Component;
 import com.amazonaws.util.StringUtils;
 
 import dev.batch.repository.bm.BookDataRepository;
-
 /**
  * seq_key発番処理
  * @author shiraishitoshio
@@ -19,9 +17,7 @@ import dev.batch.repository.bm.BookDataRepository;
  */
 @Component
 public class SeqKeyBatchService {
-
     private static final String RANDOM_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
-
     private static final SecureRandom RANDOM = new SecureRandom();
 
     @Autowired
@@ -38,31 +34,39 @@ public class SeqKeyBatchService {
      * 4) 過去は正式なmatch_idだった試合群で、今回match_idがnullの場合は、
      *    過去の正式なmatch_idを引き継いで連番だけ+1する
      *
+     * 【追記】ここから先（既存seq_keyの読み取り〜呼び出し元でのINSERT）は、
+     * FinGettingStat#finGettingStat() のトランザクション内で bookDataRepository.lockByTeams()
+     * によるPostgreSQLのトランザクションスコープ・アドバイザリロックに守られている。
+     * これにより、同一対戦カード（home/away）を複数のECSタスクが同時処理しても、
+     * 一方がcommitするまでもう一方はこのロック取得でブロックされるため、
+     * static_data_pkey の重複キーエラー（seq_keyの二重採番）が発生しなくなる。
+     *
      * @param home 対象試合のホームチーム名
      * @param away 対象試合のアウェーチーム名
      * @param matchId 対象試合ID（null許容）
      * @return 生成されたseq_key（例: "12345678-1"）
      */
     public synchronized String create(String home, String away, String matchId) {
+        // ★追加：この対戦カードに対する一連の処理（既存seq_key読み取り〜INSERT）を
+        //         プロセス（ECSタスク）をまたいで直列化する。
+        //         呼び出し元 FinGettingStat#finGettingStat() が @Transactional なので、
+        //         このロックはそのトランザクションがcommit/rollbackされるまで自動的に保持される。
+        bookDataRepository.lockByTeams(home, away);
         List<SeqKeyDTO> existDto = bookDataRepository.findMatchId(home, away);
-
         if (StringUtils.hasValue(matchId)) {
             // ---- 1) 正式なmatch_idが来ているケース ----
             if (existDto == null || existDto.isEmpty()) {
                 // 初回登録
                 return matchId + "-1";
             }
-
             String existingMatchId = sameChk(existDto);
             if (matchId.equals(existingMatchId)) {
                 // 4) 既に同じmatch_idで採番されている試合群 → そのまま連番+1
                 return nextRenban(existDto.get(0).getSeqKey());
             }
-
             // 3) それまでランダム値（または別のmatch_id）だった試合群に
             //    正式なmatch_idが連携された → 過去分を正式match_idへ書き換えて連番を振り直す
             return overwriteAndAppend(matchId, existDto);
-
         } else {
             // ---- 2) match_idが来ていないケース ----
             if (existDto == null || existDto.isEmpty()) {
@@ -88,14 +92,12 @@ public class SeqKeyBatchService {
         // 古い順に並べ直してから連番を1から振り直す
         List<SeqKeyDTO> ascending = new ArrayList<>(existDto);
         Collections.reverse(ascending);
-
         int renban = 0;
         for (SeqKeyDTO dto : ascending) {
             renban++;
             String newSeqKey = matchId + "-" + renban;
             bookDataRepository.updateSeqKey(dto.getSeqKey(), newSeqKey, matchId);
         }
-
         return matchId + "-" + (renban + 1);
     }
 
@@ -113,7 +115,6 @@ public class SeqKeyBatchService {
             }
             candidate = sb.toString();
         } while (bookDataRepository.existsSeqKeyPrefix(candidate) > 0);
-
         return candidate;
     }
 
@@ -138,23 +139,19 @@ public class SeqKeyBatchService {
         if (existDto == null || existDto.isEmpty()) {
             return null;
         }
-
         String matchId = null;
         for (SeqKeyDTO dto : existDto) {
             String seqKey = dto.getSeqKey();
             if (seqKey == null || !seqKey.contains("-")) {
                 throw new IllegalArgumentException("seqKeyの形式が不正です: " + seqKey);
             }
-
             String currentMatchId = seqKey.split("-", 2)[0];
-
             if (matchId == null) {
                 matchId = currentMatchId;
             } else if (!matchId.equals(currentMatchId)) {
                 return null;
             }
         }
-
         return matchId;
     }
 }
