@@ -25,15 +25,19 @@ public interface BookDataRepository {
 	 * 実行されていることが前提）。
 	 * ロックキーはfindMatchId等と同じくnormalize(..., NFKC)したhome/awayチーム名から算出しており、
 	 * 同一対戦カードは常に同じロックキーになる。
+	 *
+	 * 戻り値は常に false（pg_advisory_xact_lockの戻り値はvoidなのでIS NULL判定は必ずfalse）。
+	 * MyBatisがvoid型を直接マッピングできないため、Boolean型に変換して受け取っているだけで、
+	 * 呼び出し側で戻り値を使う必要はない。
 	 */
 	@Select("""
 			SELECT pg_advisory_xact_lock(
 			    hashtext(
 			        normalize(#{homeTeamName}, NFKC) || '|' || normalize(#{awayTeamName}, NFKC)
 			    )::bigint
-			)
+			) IS NULL
 			""")
-	void lockByTeams(@Param("homeTeamName") String homeTeamName,
+	Boolean lockByTeams(@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
 
 	@Insert("""
