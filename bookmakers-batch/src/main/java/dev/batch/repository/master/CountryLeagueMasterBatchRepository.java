@@ -280,6 +280,8 @@ public interface CountryLeagueMasterBatchRepository {
 			    	country_league_master
 			    WHERE
 			    	normalize(team, NFKC) = normalize(#{team}, NFKC)
+			    AND
+			    	del_flg = '0'
 			    LIMIT 1;
 			""")
 	CountryLeagueMasterEntity findCountryLeagueByTeam(@Param("team") String team);
