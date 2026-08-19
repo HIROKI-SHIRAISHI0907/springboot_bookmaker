@@ -28,7 +28,7 @@ public class FutureStartFlgService {
 
     private static final String CLASS_NAME = FutureStartFlgService.class.getName();
 
-    private static final String STRAT_FLG_0 = "0";
+    private static final String STRAT_FLG_1 = "1";
 
     @Autowired
     private FutureMasterRepository futureMasterRepository;
@@ -65,12 +65,12 @@ public class FutureStartFlgService {
                     String home = list.get(0).getHomeTeamName();
                     String away = list.get(0).getAwayTeamName();
                     if (home != null && away != null) {
-                        startFlgUpdate(home, away, STRAT_FLG_0);
+                        startFlgUpdate(home, away, STRAT_FLG_1);
                     }
                 }
             }
         } else {
-            startFlgUpdate(STRAT_FLG_0);
+            startFlgUpdate(STRAT_FLG_1);
         }
 
         this.manageLoggerComponent.debugEndInfoLog(
