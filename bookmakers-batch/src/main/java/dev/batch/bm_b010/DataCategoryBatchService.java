@@ -86,7 +86,7 @@ public class DataCategoryBatchService {
 		StringBuilder connection = new StringBuilder(country + ": " + league);
 
 		// future_masterから該当の予定チームを取得し「ラウンド」を確認する
-		String containsRoundFuture = futureMasterRepository.findGameTeamCategoryByTeams(home, away);
+		String containsRoundFuture = futureMasterRepository.findGameTeamCategoryByBothTeams(home, away);
 		// 取得できない場合(未来マスタスクレイピングから撮り損ねているケース)
 		if (containsRoundFuture == null) {
 			// そのまま返す

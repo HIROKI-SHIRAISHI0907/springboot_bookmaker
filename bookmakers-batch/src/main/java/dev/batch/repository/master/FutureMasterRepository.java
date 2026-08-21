@@ -156,7 +156,7 @@ public interface FutureMasterRepository {
 				AND BTRIM(game_team_category) <> ''
 			LIMIT 1
 		""")
-	String findGameTeamCategoryByTeams(
+	String findGameTeamCategoryByBothTeams(
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
 
