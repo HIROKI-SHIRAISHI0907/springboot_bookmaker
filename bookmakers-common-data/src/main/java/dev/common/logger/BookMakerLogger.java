@@ -96,9 +96,18 @@ public class BookMakerLogger {
 	private static String buildMessage(String projectName, String className, String methodName,
 	        String level, String messageCd, Exception e, String... fillChar) {
 
-	    String messageText = null;
+		String messageText = null;
 	    if (messageCd != null && !messageCd.isBlank()) {
-	        messageText = MessageSourceProvider.getMessage(messageCd, fillChar);
+	        try {
+	            messageText = MessageSourceProvider.getMessage(messageCd, fillChar);
+	        } catch (Exception resolveEx) {
+	            // メッセージコード解決に失敗しても、ログ出力自体は止めない
+	            log.warn("[BookMakerLogger] メッセージコード解決失敗: messageCd={}, fillChar={}",
+	                    messageCd,
+	                    (fillChar == null) ? null : String.join(", ", fillChar),
+	                    resolveEx);
+	            messageText = null; // 以降は既存のフォールバック(備考)ロジックに任せる
+	        }
 	    }
 
 	    String extra = null;
