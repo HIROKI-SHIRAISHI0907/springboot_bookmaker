@@ -63,11 +63,17 @@ public class AutoAssignmentDataCategoryService {
 
 		List<FutureEntity> weekFutureList = futureMasterRepository.findWeeksData(todayStart, todayEnd);
 
+		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME
+			    ,MessageCdConst.MCD00099I_LOG, "weekFutureList: " + weekFutureList.size() + "件");
+
 		// データカテゴリのセットを取得（同一カードの重複は除去）
 		List<TeamPairWithDataCategory> pairs = weekFutureList.stream()
 		        .map(f -> new TeamPairWithDataCategory(f.getGameTeamCategory(),
 		        f.getHomeTeamName(), f.getAwayTeamName()))
 		        .collect(Collectors.toList());
+
+		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME
+			    ,MessageCdConst.MCD00099I_LOG, "pairs: " + pairs + "");
 
 		Set<String> processedPairs = new HashSet<>();
 
@@ -77,12 +83,16 @@ public class AutoAssignmentDataCategoryService {
 		    String away = pairWithDataCategory.getAwayTeamName();
 		    String dataCategory = pairWithDataCategory.getDataCategory();
 
+		    this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME
+				    ,MessageCdConst.MCD00099I_LOG, "home: " + home + ", away: " + away + ", dataCategory: "
+				    + dataCategory);
+
 		    // 同一カードはこのバッチ内で1回だけ処理する
 		    if (!processedPairs.add(home + "|" + away)) {
 		        continue;
 		    }
 
-		    // 「ラウンド」が存在するか
+		    // 「ラウンド」が存在する場合は、何もしない
 		    if (roundChk(dataCategory)) {
 		        continue;
 		    }
