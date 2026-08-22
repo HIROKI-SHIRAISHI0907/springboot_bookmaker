@@ -1,5 +1,4 @@
 package dev.batch.bm_b011;
-
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashSet;
@@ -16,7 +15,6 @@ import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.DataEntity;
 import dev.common.entity.StatSizeFinalizeEntity;
 import dev.common.util.ExecuteMainUtil;
-
 /**
  * 特定の条件に応じたCSVを追加作成判断するためのヘルパークラス
  * @author shiraishitoshio
@@ -24,17 +22,13 @@ import dev.common.util.ExecuteMainUtil;
  */
 @Component
 public class CsvArtifactHelper {
-
 	/** フラグ: 0 */
 	private static final String STAT_SIZE_FINALIZE_FLG_0 = "0";
-
 	/** フラグデータ */
 	private List<StatSizeFinalizeEntity> flgData;
-
 	/** StatSizeFinalizeMasterRepositoryレポジトリクラス */
 	@Autowired
 	private StatSizeFinalizeMasterRepository statSizeFinalizeMasterRepository;
-
 	/**
 	 * フラグが0のものの条件データを取得
 	 * @return
@@ -50,7 +44,6 @@ public class CsvArtifactHelper {
 		}
 		return flgData;
 	}
-
 	/**
 	 * 条件データを設定するメインクラス
 	 * @return
@@ -62,7 +55,6 @@ public class CsvArtifactHelper {
 		csvArtifactResource = setOption2ndNum(flgData, csvArtifactResource);
 		return csvArtifactResource;
 	}
-
 	/**
 	 * フラグが0に設定されている選択肢1情報を設定する
 	 * @param entities
@@ -71,23 +63,19 @@ public class CsvArtifactHelper {
 	 */
 	public CsvArtifactResource setOption1stNum(List<StatSizeFinalizeEntity> entities,
 	        CsvArtifactResource csvArtifactResource) {
-
 	    if (entities == null || entities.isEmpty()) {
 	        return csvArtifactResource;
 	    }
-
 	    for (StatSizeFinalizeEntity entity : entities) {
 	        if (entity == null) {
 	            continue;
 	        }
-
 	        String optionNum = entity.getOptionNum();
 	        if (optionNum == null || optionNum.isBlank()) {
 	            // ここで「どのレコードが壊れているか」追えるようにログ推奨
 	            // log.warn("StatSizeFinalize optionNum is null. entity={}", entity);
 	            continue;
 	        }
-
 	        switch (optionNum) {
 	        case "1": {
 	            String opt = entity.getOptions();
@@ -95,13 +83,11 @@ public class CsvArtifactHelper {
 	                // log.warn("OptionNum=1 but options is blank. entity={}", entity);
 	                break;
 	            }
-
 	            String[] scores = opt.split("-", -1); // 空要素も保持
 	            if (scores.length < 2 || scores[0].isBlank() || scores[1].isBlank()) {
 	                // log.warn("OptionNum=1 but options format invalid: {}", opt);
 	                break;
 	            }
-
 	            csvArtifactResource.setHomeScore(scores[0].trim());
 	            csvArtifactResource.setAwayScore(scores[1].trim());
 	            break;
@@ -113,7 +99,6 @@ public class CsvArtifactHelper {
 	    }
 	    return csvArtifactResource;
 	}
-
 	/**
 	 * フラグが0に設定されている選択肢2情報を設定する
 	 * @param entities
@@ -122,43 +107,34 @@ public class CsvArtifactHelper {
 	 */
 	public CsvArtifactResource setOption2ndNum(List<StatSizeFinalizeEntity> entities,
 	        CsvArtifactResource csvArtifactResource) {
-
 	    List<String> countryList = new ArrayList<>();
 	    List<String> leagueList = new ArrayList<>();
-
 	    if (entities == null || entities.isEmpty()) {
 	        csvArtifactResource.setCountry(countryList);
 	        csvArtifactResource.setLeague(leagueList);
 	        return csvArtifactResource;
 	    }
-
 	    for (StatSizeFinalizeEntity entity : entities) {
 	        if (entity == null) continue;
-
 	        String optionNum = entity.getOptionNum();
 	        if (!"2".equals(optionNum)) continue;
-
 	        String opt = entity.getOptions();
 	        if (opt == null || opt.isBlank()) {
 	            // log.warn("OptionNum=2 but options is blank. entity={}", entity);
 	            continue;
 	        }
-
 	        String[] target = opt.split(":", 2);
 	        if (target.length < 2 || target[0].isBlank() || target[1].isBlank()) {
 	            // log.warn("OptionNum=2 but options format invalid: {}", opt);
 	            continue;
 	        }
-
 	        countryList.add(target[0].trim());
 	        leagueList.add(target[1].trim());
 	    }
-
 	    csvArtifactResource.setCountry(countryList);
 	    csvArtifactResource.setLeague(leagueList);
 	    return csvArtifactResource;
 	}
-
 	/**
 	 * フラグ条件当てはまるか, ,異常データを削除できるか精査する
 	 * @param result
@@ -174,7 +150,6 @@ public class CsvArtifactHelper {
 		}
 		return false;
 	}
-
 	/**
 	 * 統計データ用の条件ラッパーメソッド
 	 * @param StatConditionDTO
@@ -186,10 +161,8 @@ public class CsvArtifactHelper {
 			List<StatSizeFinalizeEntity> flgData = getMaster();
 			this.flgData = flgData;
 		}
-
 		// 選択肢2(国リーグに関する制限付きINPUTを精査)
 		CsvArtifactResource csvArtifactResource = setOption2ndNum(flgData, new CsvArtifactResource());
-
 		// 返却値
 		List<ConditionData> list = new ArrayList<ConditionData>();
 		if (dto == null) {
@@ -212,7 +185,6 @@ public class CsvArtifactHelper {
 			}
 			return list;
 		}
-
 		// 条件データ
 		List<ConditionData> conditions = dto.getMain();
 		for (ConditionData dtos : conditions) {
@@ -228,7 +200,6 @@ public class CsvArtifactHelper {
 		}
 		return list;
 	}
-
 	/**
 	 * スコアに関する制限付きINPUTを精査
 	 * @param result
@@ -242,7 +213,6 @@ public class CsvArtifactHelper {
 		if (hS != null && aS != null) {
 			Integer reqHome = Integer.parseInt(hS);
 			Integer reqAway = Integer.parseInt(aS);
-
 			// 完全一致で“含まれているか”をチェック
 			Optional<DataEntity> scoreHit = findFirstScoreExact(result, reqHome, reqAway);
 			if (!scoreHit.isPresent()) {
@@ -252,9 +222,15 @@ public class CsvArtifactHelper {
 		}
 		return true;
 	}
-
 	/**
 	 * 国リーグに関する制限付きINPUTを精査
+	 * グループ内のいずれかの行のdataCategoryが、選択肢2（country/league）の
+	 * 許可リストに一致すればOKとする。
+	 * ※ 従来は result の「最後の行」1件のみを見ていたが、result はこの時点で
+	 *   seqKey順に並んでいる保証が無く、たまたま最後に来た行のdataCategoryが
+	 *   未解決/表記ゆれだった場合に、同じリーグの他の試合が不当に除外されて
+	 *   しまう不具合があった。グループ内のいずれかの行が条件に一致すれば
+	 *   通す方式に変更し、この揺れに対して頑健にする。
 	 * @param result
 	 * @param csvArtifactResource
 	 * @return
@@ -275,29 +251,47 @@ public class CsvArtifactHelper {
 			if (result == null || result.isEmpty()) {
 				return false;
 			}
-			String countryLeague = result.get(result.size() - 1).getDataCategory();
-			String[] split = ExecuteMainUtil.splitLeagueInfo(countryLeague);
-			String resultCountry = split[0].trim();
-			String resultLeague = split[1].trim();
-			for (int i = 0; i < country.size(); i++) {
-				String newLeague = league.get(i);
-				// スーペルリーガ - チャンピオンシップグループ
-				if (league.get(i).contains("-")) {
-					newLeague = newLeague.split("-")[0].trim();
-					// イタリア／セリエ Aなど
-				} else if (league.get(i).contains("／")) {
-					newLeague = newLeague.split("／")[1].trim();
+			for (DataEntity d : result) {
+				if (d == null) {
+					continue;
 				}
-				// 組み合わせが1つでも引っかかったらOK
-				if (country.get(i).equals(resultCountry) && newLeague.equals(resultLeague)) {
-					return true;
+				String countryLeague = d.getDataCategory();
+				if (countryLeague == null || countryLeague.isBlank()) {
+					continue;
+				}
+				String[] split;
+				try {
+					split = ExecuteMainUtil.splitLeagueInfo(countryLeague);
+				} catch (Exception e) {
+					continue;
+				}
+				if (split == null || split.length < 2 || split[0] == null || split[1] == null) {
+					continue;
+				}
+				String resultCountry = split[0].trim();
+				String resultLeague = split[1].trim();
+				if (resultCountry.isEmpty() || resultLeague.isEmpty()) {
+					continue;
+				}
+				for (int i = 0; i < country.size(); i++) {
+					String newLeague = league.get(i);
+					// スーペルリーガ - チャンピオンシップグループ
+					if (league.get(i).contains("-")) {
+						newLeague = newLeague.split("-")[0].trim();
+						// イタリア／セリエ Aなど
+					} else if (league.get(i).contains("／")) {
+						newLeague = newLeague.split("／")[1].trim();
+					}
+					// 組み合わせが1つでも引っかかったらOK
+					if (country.get(i).equals(resultCountry) && newLeague.equals(resultLeague)) {
+						return true;
+					}
 				}
 			}
 			return false;
 		}
 		return true;
 	}
-
 	/**
 	 * 引数で渡ってきたスコアの閾値以上のデータ群になっているかを判定する
 	 * @param series
@@ -307,12 +301,10 @@ public class CsvArtifactHelper {
 	 */
 	private static Optional<DataEntity> findFirstScoreExact(
 			List<DataEntity> series, Integer homeScore, Integer awayScore) {
-
 		if ((homeScore == null) && (awayScore == null)) {
 			// 条件なし → そのまま通す想定
 			return Optional.ofNullable(series.isEmpty() ? null : series.get(0));
 		}
-
 		for (DataEntity e : series) {
 			String hs = e.getHomeScore();
 			String as = e.getAwayScore();
@@ -332,7 +324,6 @@ public class CsvArtifactHelper {
 		}
 		return Optional.empty();
 	}
-
 	// 共通の正規化関数を用意
 	private static String normalizeTimes(String times) {
 		if (times == null)
@@ -346,7 +337,6 @@ public class CsvArtifactHelper {
 		// 45+1' や 90+3' などを "451" / "903" のような数値文字列に正規化
 		return times.replace(":", "").replace("+", "").replace("'", "");
 	}
-
 	/**
 	 * 異常データの削除
 	 * 1. 同一時系列の削除
@@ -355,20 +345,15 @@ public class CsvArtifactHelper {
 	public List<DataEntity> abnormalChk(List<DataEntity> entityList) {
 		if (entityList == null)
 			return Collections.emptyList();
-
 		List<DataEntity> result = new ArrayList<>();
 		// 順序もわかりやすくしたいなら LinkedHashSet
 		Set<String> timesSet = new LinkedHashSet<>();
-
 		int prevMinute = -1; // 単調増加チェック用
-
 		for (DataEntity d : entityList) {
 			String raw = d.getTimes();
-
 			// すでに FT が入っていれば、それ以降はゴミとみなして打ち切り
 			if (timesSet.contains(BookMakersCommonConst.FIN))
 				break;
-
 			// 試合未実施／無効トークンはスキップ
 			if (BookMakersCommonConst.POSTPONED.equals(raw)
 					|| BookMakersCommonConst.SUPENDING_GAME.equals(raw)
@@ -379,10 +364,8 @@ public class CsvArtifactHelper {
 					|| BookMakersCommonConst.ABANDONED_MATCH.equals(raw)) {
 				continue;
 			}
-
 			// 正規化
 			String norm = normalizeTimes(raw);
-
 			// HT / 1H / FT 等はそのまま採用
 			if (BookMakersCommonConst.HALF_TIME.equals(raw)
 					|| BookMakersCommonConst.FIRST_HALF_TIME.equals(raw)
@@ -390,7 +373,6 @@ public class CsvArtifactHelper {
 				timesSet.add(norm); // ← ここで norm は特殊トークンそのまま
 				continue;
 			}
-
 			// 分数（45+1' → "451" など）を数値化して単調増加チェック
 			try {
 				int minute = Integer.parseInt(norm);
@@ -403,7 +385,6 @@ public class CsvArtifactHelper {
 				// もし未知の文字列が来たら採用しない（保守的に）
 			}
 		}
-
 		// ★ フィルタ側も“正規化したキー”で判定するのがポイント
 		// まだ拾っていない時刻の集合（true→初回、false→2回目以降）
 		Set<String> remaining = new HashSet<>(timesSet);
@@ -416,5 +397,4 @@ public class CsvArtifactHelper {
 		}
 		return result;
 	}
-
 }
