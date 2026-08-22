@@ -63,6 +63,10 @@ public class ExportCsvService {
 	private static final Pattern ROUND_TOKEN = Pattern.compile("ラウンド\\s*[0-9０-９]+");
 	/** CSV出力ファイル名（末尾が数値.csv）から通し番号を取り出す正規表現 */
 	private static final Pattern CSV_NO_PATTERN = Pattern.compile("(^|.*/)(\\d+)\\.csv$", Pattern.CASE_INSENSITIVE);
+	/** 試合時間（times）が「ハーフタイム」であることを示す値 */
+	private static final String TIMES_HALFTIME = "ハーフタイム";
+	/** 試合時間（times）が「終了済」であることを示す値 */
+	private static final String TIMES_FINISHED = "終了済";
 	/** trueの場合、S3を使わずローカルのみでCSVを生成する */
 	@Value("${exportcsv.local-only:false}")
 	private boolean localOnly;
@@ -591,15 +595,16 @@ public class ExportCsvService {
 	    return newTargetsByFolder;
 	}
 	/**
-	 * dataCategoryから「国: リーグ名 - ラウンド名」（ラウンドが無ければ「国: リーグ名」のみ）形式の
-	 * フォルダ名を組み立てる。
-	 * 「国: リーグ名」を最低限特定できない場合は null を返す（＝CSV生成対象外の合図）。
+	 * dataCategoryから「国: リーグ名 - ラウンドN」形式のフォルダ名を組み立てる。
+	 * 「国: リーグ名」を特定できない場合、または {@link #resolveEffectiveRoundName} で
+	 * 数値ラウンドを特定できない場合は null を返す（＝CSV生成対象外の合図。
+	 * ラウンド番号が付き次第、次回実行で自動的に対象になる）。
 	 * 物理的なフォルダ名（S3キー/ローカルパス）としては、既存の {@link #canonicalizeFolderSegment(String)}
 	 * によりコロンはハイフンに正規化される（例: "日本: J1リーグ - ラウンド5" -> "日本-J1リーグ-ラウンド5"）。
 	 * これは季末削除処理（EachCsvTransaction 等）が前提とするハイフン正規形との整合を保つための仕様。
 	 *
 	 * @param category 判定対象のdataCategory
-	 * @return 「国: リーグ名[ - ラウンド名]」形式の論理フォルダ名。国/リーグを特定できない場合はnull
+	 * @return 「国: リーグ名 - ラウンドN」形式の論理フォルダ名。特定できない場合はnull
 	 */
 	private String buildCountryLeagueRoundFolderName(String category) {
 	    String normalized = safe(category).trim();
@@ -628,40 +633,23 @@ public class ExportCsvService {
 	    return country + ": " + league + " - " + roundName;
 	}
 	/**
-	 * dataCategoryから「ラウンド名」を解決する。
-	 * まず {@link CsvFileNameService#extractRoundName(String)} を試し、
-	 * 「ラウンドN」形式の数値ラウンドが取れればそれを使う。
-	 * 数値ラウンドが取れない場合（extractRoundNameが空/"unknown"/"不明"を含む値を返す場合）でも、
-	 * "クラウスラ"/"アペルトゥラ" 等のステージ名がdataCategoryの「国: リーグ」より後ろに
-	 * 残っていれば、それを採用する。
-	 * どちらも得られない場合のみ空文字を返す（＝本当にラウンド/ステージ不明）。
-	 * フォルダ名は季末削除処理（EachCsvTransaction 等）が「-ラウンド」を前提に
-	 * パースするため、戻り値には必ず先頭に「ラウンド」を含める
-	 * （数値ラウンドは元々「ラウンドN」形式で返るためそのまま、
-	 * ステージ名フォールバックの場合は「ラウンド」を明示的に付与する）。
+	 * dataCategoryから「ラウンドN」形式の数値ラウンド名を解決する。
+	 * {@link CsvFileNameService#extractRoundName(String)} の戻り値が
+	 * 「ラウンド」＋数字のみ（{@link #ROUND_TOKEN} に完全一致、前後に余計な文字を含まない）
+	 * の場合だけ有効なラウンドとみなして採用する。
+	 * "クラウスラ"/"アペルトゥラ" 等のステージ名のみで数値ラウンドが得られない場合や、
+	 * 空/"unknown"/"不明"の場合は空文字を返す（＝CSV生成対象外の合図。
+	 * dataCategoryに数値ラウンドが入り次第、次回実行で自動的に対象になる）。
 	 *
 	 * @param normalized 判定対象のdataCategory（trim済み）
-	 * @param country 国名
-	 * @param league リーグ名
-	 * @return 解決できた「ラウンド」始まりのラウンド/ステージ名。解決できない場合は空文字
+	 * @param country 国名（現在未使用。呼び出し規約上受け取る）
+	 * @param league リーグ名（現在未使用。呼び出し規約上受け取る）
+	 * @return 「ラウンドN」形式のラウンド名。解決できない場合は空文字
 	 */
 	private String resolveEffectiveRoundName(String normalized, String country, String league) {
 	    String roundName = safe(this.csvFileNameService.extractRoundName(normalized)).trim();
-	    boolean hasValidRound = !roundName.isEmpty()
-	            && !"unknown".equalsIgnoreCase(roundName)
-	            && !roundName.contains("不明");
-	    if (hasValidRound) {
-	        return roundName.startsWith("ラウンド") ? roundName : ("ラウンド" + roundName);
-	    }
-	    String base = country + ": " + league;
-	    String remainder = normalized.startsWith(base) ? normalized.substring(base.length()).trim() : "";
-	    if (remainder.startsWith("-")) {
-	        remainder = remainder.substring(1).trim();
-	    }
-	    if (!remainder.isEmpty() && !remainder.contains("不明") && !"unknown".equalsIgnoreCase(remainder)) {
-	        // ★ 「ラウンド」が付いていることを前提とする下流処理との整合のため、
-	        //   ステージ名（クラウスラ/アペルトゥラ等）にも「ラウンド」を付与する。
-	        return remainder.startsWith("ラウンド") ? remainder : ("ラウンド" + remainder);
+	    if (!roundName.isEmpty() && ROUND_TOKEN.matcher(roundName).matches()) {
+	        return roundName;
 	    }
 	    return "";
 	}
@@ -1432,11 +1420,13 @@ public class ExportCsvService {
 				.collect(Collectors.toList());
 	}
 	/**
-	 * seqKeyの一覧からDataEntityを取得し、CSV化条件の判定・異常データ除去・
-	 * スコア/対戦カード情報の補完までを行う。
-	 * addManualFlg="1"の行（手動確定行。例: スナップショットが無く「終了済」1件のみの試合）は、
-	 * {@link CsvArtifactHelper#csvCondition}／{@link CsvArtifactHelper#abnormalChk} の判定で
-	 * 通常のグループが除外される場合でも、それ単体でCSV化対象として救済する。
+	 * seqKeyの一覧からDataEntityを取得し、試合状態（times）による絞り込み・
+	 * CSV化条件の判定・異常データ除去・スコア/対戦カード情報の補完までを行う。
+	 * まず {@link #applyFinishedStateFilter(List)} で「それ以外」「ハーフタイム」「終了済」の
+	 * 組み合わせに応じた対象行の絞り込み・スキップ判定を行い（詳細は同メソッドのJavaDoc参照）、
+	 * その後 {@link CsvArtifactHelper#csvCondition}／{@link CsvArtifactHelper#abnormalChk} を適用する。
+	 * それでも対象が空になった場合、addManualFlg="1"（手動確定）の行があれば、
+	 * それ単体でCSV化対象として救済する。
 	 *
 	 * @param ids 対象のseqKey一覧
 	 * @param csvArtifactResource CSV生成条件
@@ -1469,7 +1459,16 @@ public class ExportCsvService {
 		    logInfo(METHOD_NAME, "findByData() 結果なしのため null返却 label=" + label);
 		    return null;
 		}
-		List<DataEntity> result = raw;
+		List<DataEntity> stateFiltered = applyFinishedStateFilter(raw);
+		logInfo(METHOD_NAME, "applyFinishedStateFilter() 後 label=" + label
+				+ ", raw.size=" + raw.size()
+				+ ", stateFiltered.size=" + (stateFiltered == null ? 0 : stateFiltered.size()));
+		if (stateFiltered == null || stateFiltered.isEmpty()) {
+			logInfo(METHOD_NAME,
+					"「それ以外」を含まない ハーフタイム+終了済のみの組み合わせのためCSV生成をスキップ label=" + label);
+			return null;
+		}
+		List<DataEntity> result = stateFiltered;
 		boolean condition = this.helper.csvCondition(result, csvArtifactResource);
 		logInfo(METHOD_NAME, "csvCondition 判定 label=" + label + ", result=" + condition);
 		if (!condition) {
@@ -1480,7 +1479,10 @@ public class ExportCsvService {
 					+ ", result.size=" + (result == null ? 0 : result.size()));
 		}
 		if (result == null || result.isEmpty()) {
-			List<DataEntity> manualRows = extractManualFlaggedRows(raw);
+			List<DataEntity> manualRows = extractManualFlaggedRows(stateFiltered);
+			if (manualRows.isEmpty()) {
+				manualRows = extractManualFlaggedRows(raw);
+			}
 			if (manualRows.isEmpty()) {
 				logInfo(METHOD_NAME, "csvCondition/abnormalChk 後 empty かつ手動確定行も無いため null返却 label=" + label);
 				return null;
@@ -1497,6 +1499,63 @@ public class ExportCsvService {
 		logInfo(METHOD_NAME, "applyCanonicalMatchKeys() 完了 label=" + label);
 		logInfo(METHOD_NAME, "終了 label=" + label + ", final.size=" + result.size());
 		return result;
+	}
+	/**
+	 * 試合時間（times）の内容に応じて、CSV化対象の行を絞り込む/スキップ判定する。
+	 * 行を「それ以外（通常のスナップショット）」「ハーフタイム」「終了済」の3種類に分類し、
+	 * その組み合わせにより次のとおり判定する。
+	 * <ul>
+	 *   <li>「終了済」のみ（それ以外・ハーフタイムが無い） → 「終了済」の行だけを返す（単体CSV）</li>
+	 *   <li>「それ以外」「ハーフタイム」「終了済」がすべて存在する → 全行をそのまま返す（通常どおりseqKey順でCSV作成）</li>
+	 *   <li>「ハーフタイム」「終了済」のみ（それ以外が無い） → 空リストを返す（CSV作成しない）</li>
+	 *   <li>「それ以外」「終了済」のみ（ハーフタイムが無い） → 「終了済」の行だけを返す（単体CSV）</li>
+	 *   <li>上記いずれにも当てはまらない組み合わせ（試合進行中で「終了済」がまだ無い等） → 全行をそのまま返す</li>
+	 * </ul>
+	 *
+	 * @param raw 対象の行一覧（未フィルタ）
+	 * @return CSV化対象として採用する行一覧。CSV作成自体をしない場合は空リスト
+	 */
+	private static List<DataEntity> applyFinishedStateFilter(List<DataEntity> raw) {
+		if (raw == null || raw.isEmpty()) {
+			return raw;
+		}
+		List<DataEntity> otherRows = new ArrayList<>();
+		List<DataEntity> finishedRows = new ArrayList<>();
+		boolean hasHalftime = false;
+		for (DataEntity d : raw) {
+			if (d == null) {
+				continue;
+			}
+			String t = safe(d.getTimes()).trim();
+			if (TIMES_FINISHED.equals(t)) {
+				finishedRows.add(d);
+			} else if (TIMES_HALFTIME.equals(t)) {
+				hasHalftime = true;
+			} else {
+				otherRows.add(d);
+			}
+		}
+		boolean hasOther = !otherRows.isEmpty();
+		boolean hasFinished = !finishedRows.isEmpty();
+		if (!hasOther && !hasHalftime && hasFinished) {
+			// 「終了済」のみ → 単体CSV
+			return finishedRows;
+		}
+		if (hasOther && hasHalftime && hasFinished) {
+			// 全部揃っている → 全行を通常どおり採用
+			return raw;
+		}
+		if (!hasOther && hasHalftime && hasFinished) {
+			// ハーフタイム＋終了済のみ（それ以外が無い） → CSV作成しない
+			return Collections.emptyList();
+		}
+		if (hasOther && !hasHalftime && hasFinished) {
+			// それ以外＋終了済のみ（ハーフタイムが無い） → 終了済のみの単体CSV
+			return finishedRows;
+		}
+		// 試合進行中（終了済がまだ無い）等、上記に該当しない組み合わせは
+		// 従来どおり全行を対象として通常の判定・CSV作成に進める。
+		return raw;
 	}
 	/**
 	 * 行一覧の中から addManualFlg="1"（手動確定）の行だけを取り出す。
