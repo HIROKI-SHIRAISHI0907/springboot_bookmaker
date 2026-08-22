@@ -43,7 +43,6 @@ import dev.common.entity.CsvDetailManageEntity;
 import dev.common.entity.DataEntity;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.filemng.FileMngWrapper;
-import dev.common.getinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
 import dev.common.util.ExecuteMainUtil;
@@ -100,9 +99,6 @@ public class ExportCsvService {
 
 	@Autowired
 	private S3Operator s3Operator;
-
-	@Autowired
-	private GetStatInfo getStatInfo;
 
 	@Autowired
 	private PathConfig config;
@@ -267,11 +263,7 @@ public class ExportCsvService {
 
 		logInfo(METHOD_NAME, "buildWorkItems() 開始");
 		List<CsvWorkItem> workItems = buildWorkItems(
-				LOCAL_DIR,
-				plan,
-				csvArtifactResource,
-				METHOD_NAME,
-				true);
+		        LOCAL_DIR, plan, csvInfoRow, csvArtifactResource, METHOD_NAME);
 		logInfo(METHOD_NAME, "buildWorkItems() 終了 workItems.size=" + workItems.size());
 
 		if (workItems.isEmpty()) {
@@ -444,11 +436,7 @@ public class ExportCsvService {
 
 			logInfo(METHOD_NAME, "buildWorkItems() 開始");
 			List<CsvWorkItem> workItems = buildWorkItems(
-					LOCAL_DIR,
-					plan,
-					csvArtifactResource,
-					METHOD_NAME,
-					false);
+			        LOCAL_DIR, plan, csvInfoRow, csvArtifactResource, METHOD_NAME);
 			logInfo(METHOD_NAME, "buildWorkItems() 終了 workItems.size=" + workItems.size());
 
 			if (workItems.isEmpty()) {
@@ -520,138 +508,258 @@ public class ExportCsvService {
 	/**
 	 * {@link CsvBuildPlan} の再作成対象・新規対象を、実際にCSVを生成するための
 	 * {@link CsvWorkItem} のリストに変換する。
-	 * 新規対象はフォルダ（国-リーグ-ラウンド）単位でグルーピングし、
-	 * S3またはローカルの既存最大CSV番号の続きから採番する。
+	 * 新規対象はdataCategoryから決定した「国: リーグ名[ - ラウンド名]」フォルダ単位でグルーピングし、
+	 * ファイル名は「home_team_name-away_team_name.csv」とする。
+	 * 同一フォルダ内で対戦カードが重複する場合（同じ2チームが複数回対戦する場合等）は、
+	 * 既存CSV（csvInfoRow）およびこの呼び出し内で既に割り当てたキーと衝突しないよう、
+	 * ファイル名に "_2" 等の連番を付与して区別する。
 	 *
-	 * @param localDir CSV出力先のローカルディレクトリ
+	 * @param localDir CSV出力先のローカルディレクトリ（未使用だが呼び出し規約上受け取る）
 	 * @param plan 再作成対象・新規対象を保持するプラン
+	 * @param csvInfoRow 既存CSVレジストリ（csvId→seqKeyリスト）。新規ファイル名の重複回避に使用
 	 * @param csvArtifactResource CSV生成条件（スコア・国リーグ制限）
 	 * @param parentMethod 呼び出し元メソッド名（ログ用）
-	 * @param s3Mode true の場合S3上の最大CSV番号を、falseの場合ローカルの最大CSV番号を基準に採番する
 	 * @return 生成対象のworkItem一覧（CSV相対キー順にソート済み）
 	 */
 	private List<CsvWorkItem> buildWorkItems(
-			Path localDir,
-			CsvBuildPlan plan,
-			CsvArtifactResource csvArtifactResource,
-			String parentMethod,
-			boolean s3Mode) {
-		final String METHOD_NAME = "buildWorkItems";
-		logInfo(METHOD_NAME, "開始 recreateByCsvKey.size="
-				+ (plan == null ? 0 : plan.recreateByCsvKey.size())
-				+ ", newTargets.size=" + (plan == null ? 0 : plan.newTargets.size())
-				+ ", s3Mode=" + s3Mode
-				+ ", localDir=" + localDir);
+	        Path localDir,
+	        CsvBuildPlan plan,
+	        Map<String, List<String>> csvInfoRow,
+	        CsvArtifactResource csvArtifactResource,
+	        String parentMethod) {
+	    final String METHOD_NAME = "buildWorkItems";
+	    logInfo(METHOD_NAME, "開始 recreateByCsvKey.size="
+	            + (plan == null ? 0 : plan.recreateByCsvKey.size())
+	            + ", newTargets.size=" + (plan == null ? 0 : plan.newTargets.size())
+	            + ", localDir=" + localDir);
 
-		List<CsvWorkItem> workItems = new ArrayList<>();
-		for (Map.Entry<String, List<String>> entry : plan.recreateByCsvKey.entrySet()) {
-			String relativeKey = canonicalizeCsvId(entry.getKey());
-			List<String> ids = normalizeSeqList(entry.getValue());
-			if (relativeKey.isBlank() || ids.isEmpty()) {
-				logWarn(METHOD_NAME, "recreate skip relativeKey=" + shortKey(relativeKey)
-						+ ", ids=" + ids);
-				continue;
-			}
-			workItems.add(new CsvWorkItem(relativeKey, ids));
-			logInfo(METHOD_NAME, "recreate add relativeKey=" + shortKey(relativeKey)
-					+ ", ids=" + ids);
-		}
+	    List<CsvWorkItem> workItems = new ArrayList<>();
+	    Set<String> reservedRelativeKeys = new LinkedHashSet<>();
+	    if (csvInfoRow != null) {
+	        for (String k : csvInfoRow.keySet()) {
+	            String ck = canonicalizeCsvId(k);
+	            if (!ck.isBlank()) {
+	                reservedRelativeKeys.add(ck);
+	            }
+	        }
+	    }
 
-		logInfo(METHOD_NAME, "resolveNewTargetsByFolder() 開始");
-		Map<String, List<List<String>>> newTargetsByFolder = resolveNewTargetsByFolder(
-				plan.newTargets,
-				csvArtifactResource,
-				parentMethod);
-		logInfo(METHOD_NAME, "resolveNewTargetsByFolder() 終了 folderCount=" + newTargetsByFolder.size());
+	    for (Map.Entry<String, List<String>> entry : plan.recreateByCsvKey.entrySet()) {
+	        String relativeKey = canonicalizeCsvId(entry.getKey());
+	        List<String> ids = normalizeSeqList(entry.getValue());
+	        if (relativeKey.isBlank() || ids.isEmpty()) {
+	            logWarn(METHOD_NAME, "recreate skip relativeKey=" + shortKey(relativeKey)
+	                    + ", ids=" + ids);
+	            continue;
+	        }
+	        reservedRelativeKeys.add(relativeKey);
+	        workItems.add(new CsvWorkItem(relativeKey, ids));
+	        logInfo(METHOD_NAME, "recreate add relativeKey=" + shortKey(relativeKey)
+	                + ", ids=" + ids);
+	    }
 
-		if (!newTargetsByFolder.isEmpty()) {
-			if (s3Mode) {
-				logInfo(METHOD_NAME, "S3採番用 maxCsvNo 取得開始 folderCount=" + newTargetsByFolder.keySet().size());
-				Map<String, Integer> s3MaxByFolder = getStatInfo.getMaxCsvNoByFolders(newTargetsByFolder.keySet());
-				logInfo(METHOD_NAME, "S3採番用 maxCsvNo 取得終了 result.size=" + s3MaxByFolder.size());
-				for (Map.Entry<String, List<List<String>>> e : newTargetsByFolder.entrySet()) {
-					String folderName = canonicalizeFolderSegment(e.getKey());
-					List<List<String>> groups = e.getValue();
-					groups.sort(Comparator.comparingInt(ExportCsvService::minSeqOfIds));
-					int maxOnS3 = s3MaxByFolder.getOrDefault(folderName, 0);
-					int nextNo = maxOnS3 + 1;
-					for (int i = 0; i < groups.size(); i++) {
-						int csvNo = nextNo + i;
-						String relativeKey = canonicalizeCsvId(
-								joinS3Key(folderName, csvNo + BookMakersCommonConst.CSV));
-						workItems.add(new CsvWorkItem(relativeKey, groups.get(i)));
-						logInfo(METHOD_NAME, "new add(S3) relativeKey=" + shortKey(relativeKey)
-								+ ", ids=" + groups.get(i));
-					}
-				}
-			} else {
-				for (Map.Entry<String, List<List<String>>> e : newTargetsByFolder.entrySet()) {
-					String folderName = canonicalizeFolderSegment(e.getKey());
-					List<List<String>> groups = e.getValue();
-					groups.sort(Comparator.comparingInt(ExportCsvService::minSeqOfIds));
-					int maxLocal = getMaxCsvNoFromLocal(localDir.resolve(folderName));
-					int nextNo = maxLocal + 1;
-					for (int i = 0; i < groups.size(); i++) {
-						int csvNo = nextNo + i;
-						String relativeKey = canonicalizeCsvId(
-								joinS3Key(folderName, csvNo + BookMakersCommonConst.CSV));
-						workItems.add(new CsvWorkItem(relativeKey, groups.get(i)));
-						logInfo(METHOD_NAME, "new add(Local) relativeKey=" + shortKey(relativeKey)
-								+ ", ids=" + groups.get(i));
-					}
-				}
-			}
-		}
+	    logInfo(METHOD_NAME, "resolveNewTargetsByFolder() 開始");
+	    Map<String, List<NewTargetGroup>> newTargetsByFolder = resolveNewTargetsByFolder(
+	            plan.newTargets,
+	            csvArtifactResource,
+	            parentMethod);
+	    logInfo(METHOD_NAME, "resolveNewTargetsByFolder() 終了 folderCount=" + newTargetsByFolder.size());
 
-		workItems.sort((a, b) -> compareCsvRelativeKey(a.getRelativeKey(), b.getRelativeKey()));
-		logInfo(METHOD_NAME, "終了 workItems.size=" + workItems.size());
-		return workItems;
+	    for (Map.Entry<String, List<NewTargetGroup>> e : newTargetsByFolder.entrySet()) {
+	        String folderName = canonicalizeFolderSegment(e.getKey());
+	        List<NewTargetGroup> groups = e.getValue();
+	        groups.sort(Comparator.comparingInt(g -> minSeqOfIds(g.seqIds)));
+	        for (NewTargetGroup group : groups) {
+	            String relativeKey = buildUniqueCsvRelativeKey(
+	                    folderName, group.homeTeamName, group.awayTeamName, reservedRelativeKeys);
+	            workItems.add(new CsvWorkItem(relativeKey, group.seqIds));
+	            logInfo(METHOD_NAME, "new add relativeKey=" + shortKey(relativeKey)
+	                    + ", ids=" + group.seqIds);
+	        }
+	    }
+
+	    workItems.sort((a, b) -> compareCsvRelativeKey(a.getRelativeKey(), b.getRelativeKey()));
+	    logInfo(METHOD_NAME, "終了 workItems.size=" + workItems.size());
+	    return workItems;
 	}
 
 	/**
-	 * 新規対象グループ（一時キー→seqIds）を、試合の対戦カード・ラウンドから
-	 * 決定したフォルダ名単位でグルーピングし直す。
+	 * 新規対象グループ（一時キー→seqIds）を、dataCategoryから決定した
+	 * 「国: リーグ名[ - ラウンド名]」フォルダ単位でグルーピングし直す。
+	 * 「国: リーグ名」を最低限特定できないグループはCSV生成対象から除外する
+	 * （※除外されたグループもDB上には残るため、別画面等でdata_categoryが修正された後の
+	 * 次回実行時には自動的に再評価され、CSVが作られるようになる）。
 	 *
 	 * @param newTargets 新規対象（一時キー→seqIds）
 	 * @param csvArtifactResource CSV生成条件（未使用だが呼び出し規約上受け取る）
 	 * @param parentMethod 呼び出し元メソッド名（ログ用）
-	 * @return フォルダ名→（グループ内のseqIdsのリスト）のマップ
+	 * @return フォルダ名（正規化前の「国: リーグ - ラウンド」形式）→対象一覧のマップ
 	 */
-	private Map<String, List<List<String>>> resolveNewTargetsByFolder(
-			Map<String, List<String>> newTargets,
-			CsvArtifactResource csvArtifactResource,
-			String parentMethod) {
-		final String METHOD_NAME = "resolveNewTargetsByFolder";
-		logInfo(METHOD_NAME, "開始 newTargets.size=" + (newTargets == null ? 0 : newTargets.size()));
+	private Map<String, List<NewTargetGroup>> resolveNewTargetsByFolder(
+	        Map<String, List<String>> newTargets,
+	        CsvArtifactResource csvArtifactResource,
+	        String parentMethod) {
+	    final String METHOD_NAME = "resolveNewTargetsByFolder";
+	    logInfo(METHOD_NAME, "開始 newTargets.size=" + (newTargets == null ? 0 : newTargets.size()));
 
-		Map<String, List<List<String>>> newTargetsByFolder = new LinkedHashMap<>();
-		if (newTargets == null || newTargets.isEmpty()) {
-			logInfo(METHOD_NAME, "newTargets 空のため終了");
-			return newTargetsByFolder;
-		}
+	    Map<String, List<NewTargetGroup>> newTargetsByFolder = new LinkedHashMap<>();
+	    if (newTargets == null || newTargets.isEmpty()) {
+	        logInfo(METHOD_NAME, "newTargets 空のため終了");
+	        return newTargetsByFolder;
+	    }
 
-		for (Map.Entry<String, List<String>> entry : newTargets.entrySet()) {
-			String tempKey = entry.getKey();
-			List<String> ids = normalizeSeqList(entry.getValue());
-			if (ids.isEmpty()) {
-				logWarn(METHOD_NAME, "skip ids empty tempKey=" + tempKey);
-				continue;
-			}
-			logInfo(METHOD_NAME, "preview fetch 開始 tempKey=" + tempKey + ", ids=" + ids);
-			List<CsvPreviewRow> preview = fetchPreview(ids, "resolveNewTargetsByFolder");
-			logInfo(METHOD_NAME, "preview fetch 終了 tempKey=" + tempKey
-					+ ", preview.size=" + (preview == null ? 0 : preview.size()));
-			if (preview == null || preview.isEmpty()) {
-				logWarn(METHOD_NAME, "skip preview empty tempKey=" + tempKey);
-				continue;
-			}
-			String folderName = canonicalizeFolderSegment(resolveRoundFolderNamePreview(preview));
-			logInfo(METHOD_NAME, "folder resolve tempKey=" + tempKey + ", folderName=" + folderName);
-			newTargetsByFolder.computeIfAbsent(folderName, k -> new ArrayList<>()).add(ids);
-		}
+	    int skippedByCategory = 0;
+	    for (Map.Entry<String, List<String>> entry : newTargets.entrySet()) {
+	        String tempKey = entry.getKey();
+	        List<String> ids = normalizeSeqList(entry.getValue());
+	        if (ids.isEmpty()) {
+	            logWarn(METHOD_NAME, "skip ids empty tempKey=" + tempKey);
+	            continue;
+	        }
+	        logInfo(METHOD_NAME, "preview fetch 開始 tempKey=" + tempKey + ", ids=" + ids);
+	        List<CsvPreviewRow> preview = fetchPreview(ids, "resolveNewTargetsByFolder");
+	        logInfo(METHOD_NAME, "preview fetch 終了 tempKey=" + tempKey
+	                + ", preview.size=" + (preview == null ? 0 : preview.size()));
+	        if (preview == null || preview.isEmpty()) {
+	            logWarn(METHOD_NAME, "skip preview empty tempKey=" + tempKey);
+	            continue;
+	        }
+	        CsvPreviewRow row = findPreviewRowWithTeams(preview);
+	        String homeTeamName = safe(row.getHomeTeamName()).trim();
+	        String awayTeamName = safe(row.getAwayTeamName()).trim();
+	        if (homeTeamName.isEmpty()) {
+	            homeTeamName = safe(firstPreviewValue(preview, CsvPreviewRow::getHomeTeamName, false)).trim();
+	        }
+	        if (awayTeamName.isEmpty()) {
+	            awayTeamName = safe(firstPreviewValue(preview, CsvPreviewRow::getAwayTeamName, false)).trim();
+	        }
+	        String resolvedCategory = resolveCategoryWithFutureFallback(
+	                safe(row.getDataCategory()).trim(),
+	                homeTeamName,
+	                awayTeamName,
+	                METHOD_NAME);
+	        String folderName = buildCountryLeagueRoundFolderName(resolvedCategory);
+	        if (folderName == null) {
+	            skippedByCategory++;
+	            logWarn(METHOD_NAME, "「国: リーグ名」を特定できないためCSV生成をスキップ tempKey=" + tempKey
+	                    + ", resolvedCategory=" + resolvedCategory
+	                    + ", home=" + homeTeamName
+	                    + ", away=" + awayTeamName
+	                    + " (data_categoryが修正され次第、次回実行で自動的に対象になります)");
+	            continue;
+	        }
+	        logInfo(METHOD_NAME, "folder resolve tempKey=" + tempKey + ", folderName=" + folderName);
+	        newTargetsByFolder.computeIfAbsent(folderName, k -> new ArrayList<>())
+	                .add(new NewTargetGroup(ids, homeTeamName, awayTeamName));
+	    }
 
-		logInfo(METHOD_NAME, "終了 folderCount=" + newTargetsByFolder.size());
-		return newTargetsByFolder;
+	    if (skippedByCategory > 0) {
+	        logWarn(METHOD_NAME, "「国: リーグ名」不明によりCSV生成をスキップした件数=" + skippedByCategory);
+	    }
+	    logInfo(METHOD_NAME, "終了 folderCount=" + newTargetsByFolder.size());
+	    return newTargetsByFolder;
+	}
+
+	/**
+	 * dataCategoryから「国: リーグ名 - ラウンド名」（ラウンドが無ければ「国: リーグ名」のみ）形式の
+	 * フォルダ名を組み立てる。
+	 * 「国: リーグ名」を最低限特定できない場合は null を返す（＝CSV生成対象外の合図）。
+	 * 物理的なフォルダ名（S3キー/ローカルパス）としては、既存の {@link #canonicalizeFolderSegment(String)}
+	 * によりコロンはハイフンに正規化される（例: "日本: J1リーグ - ラウンド5" -> "日本-J1リーグ-ラウンド5"）。
+	 * これは季末削除処理（EachCsvTransaction 等）が前提とするハイフン正規形との整合を保つための仕様。
+	 *
+	 * @param category 判定対象のdataCategory
+	 * @return 「国: リーグ名[ - ラウンド名]」形式の論理フォルダ名。国/リーグを特定できない場合はnull
+	 */
+	private String buildCountryLeagueRoundFolderName(String category) {
+	    String normalized = safe(category).trim();
+	    if (normalized.isEmpty()) {
+	        return null;
+	    }
+	    List<String> countryLeague;
+	    try {
+	        countryLeague = ExecuteMainUtil.getCountryLeagueByRegex(normalized);
+	    } catch (Exception e) {
+	        return null;
+	    }
+	    if (countryLeague == null || countryLeague.size() < 2) {
+	        return null;
+	    }
+	    String country = safe(countryLeague.get(0)).trim();
+	    String league = safe(countryLeague.get(1)).trim();
+	    if (country.isEmpty() || league.isEmpty()) {
+	        return null;
+	    }
+	    String roundName = safe(this.csvFileNameService.extractRoundName(normalized)).trim();
+	    boolean hasValidRound = !roundName.isEmpty() && !"unknown".equalsIgnoreCase(roundName);
+	    String base = country + ": " + league;
+	    return hasValidRound ? (base + " - " + roundName) : base;
+	}
+
+	/**
+	 * チーム名をファイル名の一部として使えるようにサニタイズする。
+	 * パス区切り文字・OSで問題になりやすい記号を "_" に置換し、連続空白を圧縮する。
+	 *
+	 * @param value 対象のチーム名
+	 * @return サニタイズ後の文字列
+	 */
+	private static String sanitizeFileNameSegment(String value) {
+	    String s = Normalizer.normalize(safe(value), Normalizer.Form.NFKC).trim();
+	    if (s.isEmpty()) {
+	        return "";
+	    }
+	    s = s.replaceAll("[\\\\/:*?\"<>|]", "_");
+	    s = s.replaceAll("\\s+", " ").trim();
+	    return s;
+	}
+
+	/** フォルダ決定後の新規CSV対象1件（対象seqId一覧・対戦カード）を表す内部クラス */
+	private static final class NewTargetGroup {
+	    private final List<String> seqIds;
+	    private final String homeTeamName;
+	    private final String awayTeamName;
+
+	    private NewTargetGroup(List<String> seqIds, String homeTeamName, String awayTeamName) {
+	        this.seqIds = seqIds;
+	        this.homeTeamName = homeTeamName;
+	        this.awayTeamName = awayTeamName;
+	    }
+	}
+
+	/**
+	 * フォルダ名・対戦カードから「home_team_name-away_team_name.csv」形式のCSV相対キーを組み立てる。
+	 * 既に予約済み（既存CSV、またはこの呼び出し内で既に割り当て済み）のキーと衝突する場合は
+	 * "_2", "_3", ... を付与して一意になるまで採番する。採番したキーは reservedRelativeKeys に登録する。
+	 *
+	 * @param folderName 正規化済みフォルダ名
+	 * @param homeTeamName ホームチーム名
+	 * @param awayTeamName アウェイチーム名
+	 * @param reservedRelativeKeys 予約済みキー集合（このメソッド内で更新される）
+	 * @return 一意なCSV相対キー
+	 */
+	private String buildUniqueCsvRelativeKey(
+	        String folderName,
+	        String homeTeamName,
+	        String awayTeamName,
+	        Set<String> reservedRelativeKeys) {
+	    String home = sanitizeFileNameSegment(homeTeamName);
+	    String away = sanitizeFileNameSegment(awayTeamName);
+	    if (home.isEmpty()) {
+	        home = "unknown-home";
+	    }
+	    if (away.isEmpty()) {
+	        away = "unknown-away";
+	    }
+	    String baseFileName = home + "-" + away;
+	    String relativeKey = canonicalizeCsvId(joinS3Key(folderName, baseFileName + BookMakersCommonConst.CSV));
+	    int suffix = 2;
+	    while (reservedRelativeKeys.contains(relativeKey)) {
+	        relativeKey = canonicalizeCsvId(
+	                joinS3Key(folderName, baseFileName + "_" + suffix + BookMakersCommonConst.CSV));
+	        suffix++;
+	    }
+	    reservedRelativeKeys.add(relativeKey);
+	    return relativeKey;
 	}
 
 	/**
@@ -1228,52 +1336,6 @@ public class ExportCsvService {
 	}
 
 	/**
-	 * 指定フォルダ配下に存在するローカルCSVファイル名（例: "12.csv"）から、
-	 * 現在の最大CSV番号を求める。
-	 *
-	 * @param localDir 対象のローカルフォルダ
-	 * @return 最大CSV番号（フォルダが存在しない・ファイルが無い場合は0）
-	 */
-	private int getMaxCsvNoFromLocal(Path localDir) {
-		final String METHOD_NAME = "getMaxCsvNoFromLocal";
-		int max = 0;
-		try {
-			if (localDir == null || !Files.isDirectory(localDir)) {
-				return 0;
-			}
-			try (var stream = Files.list(localDir)) {
-				for (Path p : stream.collect(Collectors.toList())) {
-					if (p == null) {
-						continue;
-					}
-					String name = p.getFileName().toString();
-					Matcher m = CSV_NO_PATTERN.matcher(name);
-					if (!m.find()) {
-						continue;
-					}
-					try {
-						int n = Integer.parseInt(m.group(2));
-						if (n > max) {
-							max = n;
-						}
-					} catch (NumberFormatException ignore) {
-					}
-				}
-			}
-		} catch (Exception e) {
-			this.manageLoggerComponent.debugWarnLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00099I_LOG,
-					"ローカル最大CSV番号の取得に失敗 localDir=" + localDir);
-			return 0;
-		}
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-				"ローカル最大CSV番号=" + max + " (dir=" + localDir + ")");
-		return max;
-	}
-
-	/**
 	 * 連番をソートする
 	 * 改善版:
 	 * - findGroupTargetsPage() は home/away/match_id 単位
@@ -1614,31 +1676,6 @@ public class ExportCsvService {
 		applyCanonicalPreviewMatchKeys(result);
 		logInfo(METHOD_NAME, "終了 label=" + label + ", final.size=" + result.size());
 		return result;
-	}
-
-	/**
-	 * folder 判定用オーバーロード
-	 * @param group
-	 * @return
-	 */
-	private String resolveRoundFolderNamePreview(List<CsvPreviewRow> group) {
-		final String METHOD_NAME = "resolveRoundFolderNamePreview";
-		CsvPreviewRow row = findPreviewRowWithTeams(group);
-		String homeTeamName = safe(row.getHomeTeamName()).trim();
-		String awayTeamName = safe(row.getAwayTeamName()).trim();
-		String resolvedCategory = resolveCategoryWithFutureFallback(
-				safe(row.getDataCategory()).trim(),
-				homeTeamName,
-				awayTeamName,
-				METHOD_NAME);
-		String folderBase = csvFileNameService.makeFolderNameFromTeams(
-				homeTeamName,
-				awayTeamName);
-		String roundName = safe(csvFileNameService.extractRoundName(resolvedCategory)).trim();
-		if (roundName.isEmpty()) {
-			roundName = "unknown";
-		}
-		return folderBase + "-" + roundName;
 	}
 
 	/**

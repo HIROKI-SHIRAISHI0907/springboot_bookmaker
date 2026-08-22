@@ -333,34 +333,36 @@ public class SeasonDataWrapper {
 
 		dto.setCountryLeague(countryLeagueList);
 
+		// SeasonDataWrapper.execute() 内、末尾の3ブロックを以下の順序に変更
 		try {
-			this.autoSeasonHyphenTransaction.execute(dto);
+		    this.eachCsvTransaction.execute(dto);
 		} catch (Exception e) {
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
-					"autoSeasonHyphenTransaction");
-			throw e;
+		    this.manageLoggerComponent.debugErrorLog(
+		            PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+		            MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+		            "eachCsvTransaction");
+		    throw e;
 		}
 
 		try {
-			this.eachCsvTransaction.execute(dto);
+		    this.eachTableTransaction.execute(dto);
 		} catch (Exception e) {
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
-					"eachCsvTransaction");
-			throw e;
+		    this.manageLoggerComponent.debugErrorLog(
+		            PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+		            MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+		            "eachTableTransaction");
+		    throw e;
 		}
 
 		try {
-			this.eachTableTransaction.execute(dto);
+		    // CSV/テーブル削除が両方成功した後に end_season_date をクリアする
+		    this.autoSeasonHyphenTransaction.execute(dto);
 		} catch (Exception e) {
-			this.manageLoggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
-					"eachTableTransaction");
-			throw e;
+		    this.manageLoggerComponent.debugErrorLog(
+		            PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+		            MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+		            "autoSeasonHyphenTransaction");
+		    throw e;
 		}
 
 		// endLog
