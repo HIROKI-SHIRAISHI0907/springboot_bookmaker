@@ -1,5 +1,4 @@
 package dev.batch.bm_b011;
-
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -46,87 +45,62 @@ import dev.common.filemng.FileMngWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
 import dev.common.util.ExecuteMainUtil;
-
 /**
  * StatデータCSV出力ロジック（チャンク処理版）
  */
 @Component
 public class ExportCsvService {
-
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = ExportCsvService.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
-
 	/** クラス名 */
 	private static final String CLASS_NAME = ExportCsvService.class.getName();
-
 	/** 新規CSVグループの一時キーに付与するプレフィックス */
 	private static final String CSV_NEW_PREFIX = "mk";
-
 	/** seqList.txt（JSON形式）の読み書き用ObjectMapper */
 	private static final com.fasterxml.jackson.databind.ObjectMapper SEQ_JSON = new com.fasterxml.jackson.databind.ObjectMapper();
-
 	/** dataCategoryに「ラウンドN」が含まれているかを判定する正規表現 */
 	private static final Pattern ROUND_TOKEN = Pattern.compile("ラウンド\\s*[0-9０-９]+");
-
 	/** CSV出力ファイル名（末尾が数値.csv）から通し番号を取り出す正規表現 */
 	private static final Pattern CSV_NO_PATTERN = Pattern.compile("(^|.*/)(\\d+)\\.csv$", Pattern.CASE_INSENSITIVE);
-
 	/** trueの場合、S3を使わずローカルのみでCSVを生成する */
 	@Value("${exportcsv.local-only:false}")
 	private boolean localOnly;
-
 	/** S3出力時に付与する最終プレフィックス */
 	@Value("${exportcsv.final-prefix:}")
 	private String finalPrefix;
-
 	/** 処理対象が0件でも管理ファイル（seqList/data_team_list）を必ずPUTするか */
 	@Value("${exportcsv.always-put-manage-files:true}")
 	private boolean alwaysPutManageFiles;
-
 	/** workItemsを何件ずつのチャンクに分けて並列処理するか */
 	@Value("${exportcsv.work-chunk-size:20}")
 	private int workChunkSize;
-
 	/** DBから対象グループを取得する際の1ページあたりの件数 */
 	private static final int GROUP_PAGE_SIZE = 300;
-
 	@Autowired
 	private FileExistsService fileExistsService;
-
 	@Autowired
 	private CsvFileNameService csvFileNameService;
-
 	@Autowired
 	private S3Operator s3Operator;
-
 	@Autowired
 	private PathConfig config;
-
 	@Autowired
 	private ReaderCurrentCsvInfoBean bean;
-
 	@Autowired
 	private CsvArtifactHelper helper;
-
 	@Autowired
 	private BookCsvDataRepository bookCsvDataRepository;
-
 	@Autowired
 	private FutureMasterRepository futureMasterRepository;
-
 	@Autowired
 	private BookCsvDetailManageRepository csvDetailManageRepository;
-
 	@Autowired
 	private CountryLeagueSeasonMasterBatchRepository countryLeagueSeasonMasterBatchRepository;
-
 	@Autowired
 	private RootCauseWrapper rootCauseWrapper;
-
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
-
 	/**
 	 * 実行メソッド。
 	 * S3運用モード（localOnly=false）を前提に、DB上の最新グループと既存CSVレジストリ（csvInfoRow、
@@ -146,17 +120,14 @@ public class ExportCsvService {
 				+ ", finalPrefix=" + finalPrefix
 				+ ", workChunkSize=" + workChunkSize
 				+ ", groupPageSize=" + GROUP_PAGE_SIZE);
-
 		Path outDir = Paths.get(config.getCsvFolder()).toAbsolutePath().normalize();
 		Files.createDirectories(outDir);
 		logInfo(METHOD_NAME, "出力ディレクトリ準備完了 outDir=" + outDir);
-
 		if (localOnly) {
 			logInfo(METHOD_NAME, "localOnly=true のため executeLocalOnly へ移行");
 			executeLocalOnly(outDir);
 			return;
 		}
-
 		final String statsBucket = config.getS3BucketsStats();
 		final String prefix = normalizePrefix(finalPrefix);
 		final String seqFileName = "seqList.txt";
@@ -170,7 +141,6 @@ public class ExportCsvService {
 						+ ", prefix=" + prefix
 						+ ", localSeqPath=" + localSeqPath
 						+ ", localTeamPath=" + localTeamPath);
-
 		CsvArtifactResource csvArtifactResource;
 		try {
 			logInfo(METHOD_NAME, "helper.getData() 開始");
@@ -180,7 +150,6 @@ public class ExportCsvService {
 			logError(METHOD_NAME, "helper.getData() 失敗", e);
 			throw e;
 		}
-
 		int totalGroupCount = 0;
 		try {
 			logInfo(METHOD_NAME, "countGroupTargets() 開始");
@@ -189,7 +158,6 @@ public class ExportCsvService {
 		} catch (Exception e) {
 			logWarn(METHOD_NAME, "countGroupTargets() 失敗。処理継続");
 		}
-
 		boolean seqExists = fileExistsService.downloadIfExists(
 		        statsBucket,
 		        prefix,
@@ -203,11 +171,9 @@ public class ExportCsvService {
 		        localTeamPath,
 		        "data_team_list.txt download");
 		logInfo(METHOD_NAME, "管理ファイル取得結果 seqExists=" + seqExists + ", teamExists=" + teamExists);
-
 		logInfo(METHOD_NAME, "sortSeqs() 開始");
 		List<List<String>> currentGroups = normalizeGroups(sortSeqs());
 		logInfo(METHOD_NAME, "sortSeqs() 終了 currentGroups.size=" + currentGroups.size());
-
 		boolean firstRun = !seqExists || !Files.exists(localSeqPath);
 		logInfo(METHOD_NAME, "firstRun判定 result=" + firstRun + ", localSeqPathExists=" + Files.exists(localSeqPath));
 		// ※ firstRunはあくまで「参考情報（textGroupsを読むかどうか）」であり、
@@ -219,7 +185,6 @@ public class ExportCsvService {
 		if (!firstRun) {
 			logInfo(METHOD_NAME, "既存 seqListJson 読み込み完了 textGroups.size=" + textGroups.size());
 		}
-
 		Map<String, List<String>> csvInfoRow;
 		try {
 			logInfo(METHOD_NAME, "ReaderCurrentCsvInfoBean.init() 開始");
@@ -233,7 +198,6 @@ public class ExportCsvService {
 		}
 		csvInfoRow = canonicalizeCsvInfoMap(
 				(csvInfoRow != null) ? csvInfoRow : Collections.emptyMap());
-
 		// ★ firstRunであっても必ずcsvInfoRow（実CSVの実体）と突き合わせる。
 		//   真にバケットが空の初回実行ではcsvInfoRowも空になるため、結果的に全件が
 		//   newTargetsになり、従来のfirstRun専用「全部新規」分岐と同じ結果になる。
@@ -246,7 +210,6 @@ public class ExportCsvService {
 		logInfo(METHOD_NAME, "matchSeqCombPlan() 終了 recreateByCsvKey.size="
 				+ (plan == null ? 0 : plan.recreateByCsvKey.size())
 				+ ", newTargets.size=" + (plan == null ? 0 : plan.newTargets.size()));
-
 		if (plan == null || (plan.recreateByCsvKey.isEmpty() && plan.newTargets.isEmpty())) {
 			logInfo(METHOD_NAME, "処理対象なし plan空");
 			if (alwaysPutManageFiles) {
@@ -260,12 +223,10 @@ public class ExportCsvService {
 			endLog(METHOD_NAME, messageCd, fillChar);
 			return;
 		}
-
 		logInfo(METHOD_NAME, "buildWorkItems() 開始");
 		List<CsvWorkItem> workItems = buildWorkItems(
 		        LOCAL_DIR, plan, csvInfoRow, csvArtifactResource, METHOD_NAME);
 		logInfo(METHOD_NAME, "buildWorkItems() 終了 workItems.size=" + workItems.size());
-
 		if (workItems.isEmpty()) {
 			logInfo(METHOD_NAME, "workItems=0 のためCSV生成なし");
 			if (alwaysPutManageFiles) {
@@ -279,13 +240,11 @@ public class ExportCsvService {
 			endLog(METHOD_NAME, messageCd, fillChar);
 			return;
 		}
-
 		logInfo(METHOD_NAME,
 				"処理対象 summary workItems.size=" + workItems.size()
 						+ ", recreate=" + plan.recreateByCsvKey.size()
 						+ ", newTargets=" + plan.newTargets.size()
 						+ ", firstRun=" + firstRun);
-
 		int threads = Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors() / 2));
 		logInfo(METHOD_NAME, "ExecutorService 作成 threads=" + threads);
 		ExecutorService pool = Executors.newFixedThreadPool(threads);
@@ -315,11 +274,9 @@ public class ExportCsvService {
 				logWarn(METHOD_NAME, "ExecutorService shutdown 中に interrupt");
 			}
 		}
-
 		logInfo(METHOD_NAME, "registerCsvDetailManage() 開始 succeeded.size=" + processResult.succeeded.size());
 		registerCsvDetailManage(processResult.succeeded, METHOD_NAME);
 		logInfo(METHOD_NAME, "registerCsvDetailManage() 終了");
-
 		try {
 			logInfo(METHOD_NAME, "data_team_list 更新開始");
 			upsertDataTeamList(localTeamPath, csvInfoRow, processResult.succeeded, processResult.failedRelativeKeys);
@@ -331,7 +288,6 @@ public class ExportCsvService {
 			logError(METHOD_NAME, "data_team_list.txt 更新/PUT(final) 失敗", e);
 			throw (e instanceof IOException) ? (IOException) e : new IOException(e);
 		}
-
 		try {
 			logInfo(METHOD_NAME, "seqListJson 更新開始 currentGroups.size=" + currentGroups.size());
 			writeSeqListJson(localSeqPath, currentGroups);
@@ -343,7 +299,6 @@ public class ExportCsvService {
 			logError(METHOD_NAME, "seqList.txt 更新/PUT(final) 失敗", e);
 			throw (e instanceof IOException) ? (IOException) e : new IOException(e);
 		}
-
 		if (processResult.failedCount > 0) {
 			logWarn(METHOD_NAME, "失敗あり failedCount=" + processResult.failedCount
 					+ ", failedRelativeKeys.size=" + processResult.failedRelativeKeys.size());
@@ -351,7 +306,6 @@ public class ExportCsvService {
 		logInfo(METHOD_NAME, "execute 正常終了");
 		endLog(METHOD_NAME, null, null);
 	}
-
 	/**
 	 * localOnly=true の場合のエントリポイント。
 	 * S3への管理ファイルダウンロード/PUTを行わず、ローカルディレクトリのみを対象にCSVを生成する。
@@ -379,7 +333,6 @@ public class ExportCsvService {
 			} catch (Exception e) {
 				logWarn(METHOD_NAME, "countGroupTargets() 失敗。処理継続");
 			}
-
 			Map<String, List<String>> csvInfoRow;
 			try {
 				logInfo(METHOD_NAME, "ReaderCurrentCsvInfoBean.init() 開始");
@@ -393,11 +346,9 @@ public class ExportCsvService {
 			}
 			csvInfoRow = canonicalizeCsvInfoMap(
 					(csvInfoRow != null) ? csvInfoRow : Collections.emptyMap());
-
 			logInfo(METHOD_NAME, "sortSeqs() 開始");
 			List<List<String>> currentGroups = normalizeGroups(sortSeqs());
 			logInfo(METHOD_NAME, "sortSeqs() 終了 currentGroups.size=" + currentGroups.size());
-
 			boolean firstRun = !Files.exists(localSeqPath);
 			logInfo(METHOD_NAME, "firstRun=" + firstRun + ", localSeqPathExists=" + Files.exists(localSeqPath));
 			List<List<String>> textGroups = firstRun
@@ -406,14 +357,12 @@ public class ExportCsvService {
 			if (!firstRun) {
 				logInfo(METHOD_NAME, "既存 seqListJson 読み込み完了 textGroups.size=" + textGroups.size());
 			}
-
 			// ★ execute() と同様、firstRunでもcsvInfoRowと必ず突き合わせる。
 			logInfo(METHOD_NAME, "matchSeqCombPlan() 開始");
 			CsvBuildPlan plan = matchSeqCombPlan(textGroups, currentGroups, csvInfoRow);
 			logInfo(METHOD_NAME, "matchSeqCombPlan() 終了 recreateByCsvKey.size="
 					+ (plan == null ? 0 : plan.recreateByCsvKey.size())
 					+ ", newTargets.size=" + (plan == null ? 0 : plan.newTargets.size()));
-
 			if (plan == null || (plan.recreateByCsvKey.isEmpty() && plan.newTargets.isEmpty())) {
 				logInfo(METHOD_NAME, "処理対象なしのため管理ファイルのみ更新");
 				upsertDataTeamList(localTeamPath, csvInfoRow, Collections.emptyList(), Collections.emptySet());
@@ -423,7 +372,6 @@ public class ExportCsvService {
 				endLog(METHOD_NAME, messageCd, fillChar);
 				return;
 			}
-
 			CsvArtifactResource csvArtifactResource;
 			try {
 				logInfo(METHOD_NAME, "helper.getData() 開始");
@@ -433,12 +381,10 @@ public class ExportCsvService {
 				logError(METHOD_NAME, "helper.getData() 失敗", e);
 				throw (e instanceof IOException) ? (IOException) e : new IOException(e);
 			}
-
 			logInfo(METHOD_NAME, "buildWorkItems() 開始");
 			List<CsvWorkItem> workItems = buildWorkItems(
 			        LOCAL_DIR, plan, csvInfoRow, csvArtifactResource, METHOD_NAME);
 			logInfo(METHOD_NAME, "buildWorkItems() 終了 workItems.size=" + workItems.size());
-
 			if (workItems.isEmpty()) {
 				logInfo(METHOD_NAME, "workItems=0 のため管理ファイルのみ更新");
 				upsertDataTeamList(localTeamPath, csvInfoRow, Collections.emptyList(), Collections.emptySet());
@@ -448,7 +394,6 @@ public class ExportCsvService {
 				endLog(METHOD_NAME, messageCd, fillChar);
 				return;
 			}
-
 			int threads = Math.max(1, Math.min(4, Runtime.getRuntime().availableProcessors() / 2));
 			logInfo(METHOD_NAME, "ExecutorService 作成 threads=" + threads);
 			ExecutorService pool = Executors.newFixedThreadPool(threads);
@@ -478,19 +423,15 @@ public class ExportCsvService {
 					logWarn(METHOD_NAME, "ExecutorService shutdown 中に interrupt");
 				}
 			}
-
 			logInfo(METHOD_NAME, "registerCsvDetailManage() 開始 succeeded.size=" + processResult.succeeded.size());
 			registerCsvDetailManage(processResult.succeeded, METHOD_NAME);
 			logInfo(METHOD_NAME, "registerCsvDetailManage() 終了");
-
 			logInfo(METHOD_NAME, "data_team_list 更新開始");
 			upsertDataTeamList(localTeamPath, csvInfoRow, processResult.succeeded, processResult.failedRelativeKeys);
 			logInfo(METHOD_NAME, "data_team_list 更新終了");
-
 			logInfo(METHOD_NAME, "seqListJson 更新開始");
 			writeSeqListJson(localSeqPath, currentGroups);
 			logInfo(METHOD_NAME, "seqListJson 更新終了");
-
 			if (processResult.failedCount > 0) {
 				logWarn(METHOD_NAME, "失敗あり failedCount=" + processResult.failedCount);
 			}
@@ -504,7 +445,6 @@ public class ExportCsvService {
 			throw (e instanceof IOException) ? (IOException) e : new IOException(e);
 		}
 	}
-
 	/**
 	 * {@link CsvBuildPlan} の再作成対象・新規対象を、実際にCSVを生成するための
 	 * {@link CsvWorkItem} のリストに変換する。
@@ -532,7 +472,6 @@ public class ExportCsvService {
 	            + (plan == null ? 0 : plan.recreateByCsvKey.size())
 	            + ", newTargets.size=" + (plan == null ? 0 : plan.newTargets.size())
 	            + ", localDir=" + localDir);
-
 	    List<CsvWorkItem> workItems = new ArrayList<>();
 	    Set<String> reservedRelativeKeys = new LinkedHashSet<>();
 	    if (csvInfoRow != null) {
@@ -543,7 +482,6 @@ public class ExportCsvService {
 	            }
 	        }
 	    }
-
 	    for (Map.Entry<String, List<String>> entry : plan.recreateByCsvKey.entrySet()) {
 	        String relativeKey = canonicalizeCsvId(entry.getKey());
 	        List<String> ids = normalizeSeqList(entry.getValue());
@@ -557,14 +495,12 @@ public class ExportCsvService {
 	        logInfo(METHOD_NAME, "recreate add relativeKey=" + shortKey(relativeKey)
 	                + ", ids=" + ids);
 	    }
-
 	    logInfo(METHOD_NAME, "resolveNewTargetsByFolder() 開始");
 	    Map<String, List<NewTargetGroup>> newTargetsByFolder = resolveNewTargetsByFolder(
 	            plan.newTargets,
 	            csvArtifactResource,
 	            parentMethod);
 	    logInfo(METHOD_NAME, "resolveNewTargetsByFolder() 終了 folderCount=" + newTargetsByFolder.size());
-
 	    for (Map.Entry<String, List<NewTargetGroup>> e : newTargetsByFolder.entrySet()) {
 	        String folderName = canonicalizeFolderSegment(e.getKey());
 	        List<NewTargetGroup> groups = e.getValue();
@@ -577,12 +513,10 @@ public class ExportCsvService {
 	                    + ", ids=" + group.seqIds);
 	        }
 	    }
-
 	    workItems.sort((a, b) -> compareCsvRelativeKey(a.getRelativeKey(), b.getRelativeKey()));
 	    logInfo(METHOD_NAME, "終了 workItems.size=" + workItems.size());
 	    return workItems;
 	}
-
 	/**
 	 * 新規対象グループ（一時キー→seqIds）を、dataCategoryから決定した
 	 * 「国: リーグ名[ - ラウンド名]」フォルダ単位でグルーピングし直す。
@@ -601,13 +535,11 @@ public class ExportCsvService {
 	        String parentMethod) {
 	    final String METHOD_NAME = "resolveNewTargetsByFolder";
 	    logInfo(METHOD_NAME, "開始 newTargets.size=" + (newTargets == null ? 0 : newTargets.size()));
-
 	    Map<String, List<NewTargetGroup>> newTargetsByFolder = new LinkedHashMap<>();
 	    if (newTargets == null || newTargets.isEmpty()) {
 	        logInfo(METHOD_NAME, "newTargets 空のため終了");
 	        return newTargetsByFolder;
 	    }
-
 	    int skippedByCategory = 0;
 	    for (Map.Entry<String, List<String>> entry : newTargets.entrySet()) {
 	        String tempKey = entry.getKey();
@@ -652,14 +584,12 @@ public class ExportCsvService {
 	        newTargetsByFolder.computeIfAbsent(folderName, k -> new ArrayList<>())
 	                .add(new NewTargetGroup(ids, homeTeamName, awayTeamName));
 	    }
-
 	    if (skippedByCategory > 0) {
 	        logWarn(METHOD_NAME, "「国: リーグ名」不明によりCSV生成をスキップした件数=" + skippedByCategory);
 	    }
 	    logInfo(METHOD_NAME, "終了 folderCount=" + newTargetsByFolder.size());
 	    return newTargetsByFolder;
 	}
-
 	/**
 	 * dataCategoryから「国: リーグ名 - ラウンド名」（ラウンドが無ければ「国: リーグ名」のみ）形式の
 	 * フォルダ名を組み立てる。
@@ -697,20 +627,23 @@ public class ExportCsvService {
 	    }
 	    return country + ": " + league + " - " + roundName;
 	}
-
 	/**
 	 * dataCategoryから「ラウンド名」を解決する。
 	 * まず {@link CsvFileNameService#extractRoundName(String)} を試し、
 	 * 「ラウンドN」形式の数値ラウンドが取れればそれを使う。
 	 * 数値ラウンドが取れない場合（extractRoundNameが空/"unknown"/"不明"を含む値を返す場合）でも、
 	 * "クラウスラ"/"アペルトゥラ" 等のステージ名がdataCategoryの「国: リーグ」より後ろに
-	 * 残っていれば、それをラウンド名として採用する。
+	 * 残っていれば、それを採用する。
 	 * どちらも得られない場合のみ空文字を返す（＝本当にラウンド/ステージ不明）。
+	 * フォルダ名は季末削除処理（EachCsvTransaction 等）が「-ラウンド」を前提に
+	 * パースするため、戻り値には必ず先頭に「ラウンド」を含める
+	 * （数値ラウンドは元々「ラウンドN」形式で返るためそのまま、
+	 * ステージ名フォールバックの場合は「ラウンド」を明示的に付与する）。
 	 *
 	 * @param normalized 判定対象のdataCategory（trim済み）
 	 * @param country 国名
 	 * @param league リーグ名
-	 * @return 解決できたラウンド/ステージ名。解決できない場合は空文字
+	 * @return 解決できた「ラウンド」始まりのラウンド/ステージ名。解決できない場合は空文字
 	 */
 	private String resolveEffectiveRoundName(String normalized, String country, String league) {
 	    String roundName = safe(this.csvFileNameService.extractRoundName(normalized)).trim();
@@ -718,7 +651,7 @@ public class ExportCsvService {
 	            && !"unknown".equalsIgnoreCase(roundName)
 	            && !roundName.contains("不明");
 	    if (hasValidRound) {
-	        return roundName;
+	        return roundName.startsWith("ラウンド") ? roundName : ("ラウンド" + roundName);
 	    }
 	    String base = country + ": " + league;
 	    String remainder = normalized.startsWith(base) ? normalized.substring(base.length()).trim() : "";
@@ -726,11 +659,12 @@ public class ExportCsvService {
 	        remainder = remainder.substring(1).trim();
 	    }
 	    if (!remainder.isEmpty() && !remainder.contains("不明") && !"unknown".equalsIgnoreCase(remainder)) {
-	        return remainder;
+	        // ★ 「ラウンド」が付いていることを前提とする下流処理との整合のため、
+	        //   ステージ名（クラウスラ/アペルトゥラ等）にも「ラウンド」を付与する。
+	        return remainder.startsWith("ラウンド") ? remainder : ("ラウンド" + remainder);
 	    }
 	    return "";
 	}
-
 	/**
 	 * チーム名をファイル名の一部として使えるようにサニタイズする。
 	 * パス区切り文字・OSで問題になりやすい記号を "_" に置換し、連続空白を圧縮する。
@@ -747,20 +681,17 @@ public class ExportCsvService {
 	    s = s.replaceAll("\\s+", " ").trim();
 	    return s;
 	}
-
 	/** フォルダ決定後の新規CSV対象1件（対象seqId一覧・対戦カード）を表す内部クラス */
 	private static final class NewTargetGroup {
 	    private final List<String> seqIds;
 	    private final String homeTeamName;
 	    private final String awayTeamName;
-
 	    private NewTargetGroup(List<String> seqIds, String homeTeamName, String awayTeamName) {
 	        this.seqIds = seqIds;
 	        this.homeTeamName = homeTeamName;
 	        this.awayTeamName = awayTeamName;
 	    }
 	}
-
 	/**
 	 * フォルダ名・対戦カードから「home_team_name-away_team_name.csv」形式のCSV相対キーを組み立てる。
 	 * 既に予約済み（既存CSV、またはこの呼び出し内で既に割り当て済み）のキーと衝突する場合は
@@ -796,7 +727,6 @@ public class ExportCsvService {
 	    reservedRelativeKeys.add(relativeKey);
 	    return relativeKey;
 	}
-
 	/**
 	 * workItemsを {@link #workChunkSize} 件ずつのチャンクに分割し、
 	 * チャンクごとに {@link ExecutorService} で並列処理してCSVを生成する。
@@ -824,13 +754,11 @@ public class ExportCsvService {
 		logInfo(METHOD_NAME, "開始 workItems.size=" + (workItems == null ? 0 : workItems.size())
 				+ ", localMode=" + localMode
 				+ ", chunkSize=" + Math.max(1, workChunkSize));
-
 		ProcessResult processResult = new ProcessResult();
 		if (workItems == null || workItems.isEmpty()) {
 			logInfo(METHOD_NAME, "workItems 空のため終了");
 			return processResult;
 		}
-
 		int chunkSize = Math.max(1, workChunkSize);
 		for (int from = 0; from < workItems.size(); from += chunkSize) {
 			int to = Math.min(from + chunkSize, workItems.size());
@@ -838,7 +766,6 @@ public class ExportCsvService {
 			logInfo(METHOD_NAME, "chunk start from=" + (from + 1)
 					+ ", to=" + to
 					+ ", total=" + workItems.size());
-
 			List<CompletableFuture<CsvTaskResult>> futures = new ArrayList<>(chunk.size());
 			for (CsvWorkItem item : chunk) {
 				logInfo(METHOD_NAME, "future submit relativeKey=" + shortKey(item.getRelativeKey())
@@ -854,7 +781,6 @@ public class ExportCsvService {
 								parentMethod),
 						pool));
 			}
-
 			for (CompletableFuture<CsvTaskResult> future : futures) {
 				CsvTaskResult taskResult = future.join();
 				if (taskResult == null) {
@@ -890,13 +816,11 @@ public class ExportCsvService {
 					+ ", failed=" + processResult.failedCount
 					+ ", skipped=" + processResult.skippedCount);
 		}
-
 		logInfo(METHOD_NAME, "終了 success=" + processResult.successCount
 				+ ", failed=" + processResult.failedCount
 				+ ", skipped=" + processResult.skippedCount);
 		return processResult;
 	}
-
 	/**
 	 * workItemシングルプロセス
 	 * @param item
@@ -935,7 +859,6 @@ public class ExportCsvService {
 	            logInfo(METHOD_NAME, "skip result empty relativeKey=" + shortKey(item.getRelativeKey()));
 	            return CsvTaskResult.skipped(item.getRelativeKey());
 	        }
-
 	        step = "applyFutureFallbackToCsvRows";
 	        String resolvedCategory = applyFutureFallbackToCsvRows(result, METHOD_NAME);
 	        DataEntity row = findRowWithTeams(result);
@@ -950,7 +873,6 @@ public class ExportCsvService {
 	        if (resolvedCategory.isEmpty()) {
 	            resolvedCategory = safe(firstDataValue(result, DataEntity::getDataCategory, true)).trim();
 	        }
-
 	        step = "buildCsvArtifact";
 	        String filePath = baseDir.resolve(item.getRelativeKey()).toString();
 	        logInfo(METHOD_NAME, "buildCsvArtifact() 開始 filePath=" + filePath);
@@ -961,31 +883,26 @@ public class ExportCsvService {
 	            logInfo(METHOD_NAME, "skip artifact empty relativeKey=" + shortKey(item.getRelativeKey()));
 	            return CsvTaskResult.skipped(item.getRelativeKey());
 	        }
-
 	        CsvOutputMeta meta = new CsvOutputMeta(
 	                item.getRelativeKey(),
 	                resolvedCategory,
 	                homeTeamName,
 	                awayTeamName);
-
 	        step = "writeLocalCsv";
 	        logInfo(METHOD_NAME, "writeLocalCsv() 開始 filePath=" + art.getFilePath());
 	        writeLocalCsv(art);
 	        logInfo(METHOD_NAME, "writeLocalCsv() 終了 filePath=" + art.getFilePath());
-
 	        step = "verifyLocalCsvExists";
 	        Path written = Paths.get(art.getFilePath());
 	        if (!Files.exists(written)) {
 	            throw new IllegalStateException("CSV file was not created: " + written);
 	        }
-
 	        if (!localMode) {
 	            step = "putLocalFileToFinal";
 	            logInfo(METHOD_NAME, "putLocalFileToFinal() 開始 relativeKey=" + shortKey(item.getRelativeKey()));
 	            putLocalFileToFinal(bucket, prefix, baseDir, Paths.get(art.getFilePath()));
 	            logInfo(METHOD_NAME, "putLocalFileToFinal() 終了 relativeKey=" + shortKey(item.getRelativeKey()));
 	        }
-
 	        logInfo(METHOD_NAME, "成功 relativeKey=" + shortKey(item.getRelativeKey())
 	                + ", dataCategory=" + meta.getDataCategory()
 	                + ", home=" + meta.getHomeTeamName()
@@ -1001,7 +918,6 @@ public class ExportCsvService {
 	        return CsvTaskResult.failed(item.getRelativeKey());
 	    }
 	}
-
 	/**
 	 * CSV化対象の行群に対し、dataCategory/home/awayが欠けている行を
 	 * future_masterの情報で補完する。
@@ -1026,7 +942,6 @@ public class ExportCsvService {
 	            canonicalHome,
 	            canonicalAway,
 	            parentMethod);
-
 	    int categoryFilled = 0;
 	    int homeFilled = 0;
 	    int awayFilled = 0;
@@ -1057,7 +972,6 @@ public class ExportCsvService {
 	            + ", awayTeamName=" + canonicalAway);
 	    return resolvedCategory;
 	}
-
 	/**
 	 * CSV生成に成功した各グループについて、csv_detail_manageテーブルへ
 	 * upsert（新規登録または既存更新）を行う。
@@ -1074,7 +988,6 @@ public class ExportCsvService {
 			logInfo(METHOD_NAME, "対象なしのため終了");
 			return;
 		}
-
 		int index = 0;
 		for (CsvOutputMeta meta : succeeded) {
 			index++;
@@ -1101,7 +1014,6 @@ public class ExportCsvService {
 		}
 		logInfo(METHOD_NAME, "終了");
 	}
-
 	/**
 	 * dataCategoryまたはcsvIdからcountry/leagueを抽出し、
 	 * country_league_season_masterからシーズン年を取得する。
@@ -1155,7 +1067,6 @@ public class ExportCsvService {
 			return "";
 		}
 	}
-
 	/**
 	 * csv_detail_manageテーブルへ1件分の情報をupsertする。
 	 * 既存行があればUPDATE、無ければINSERTし、更新/挿入件数が1件でなければ例外を投げる。
@@ -1214,7 +1125,6 @@ public class ExportCsvService {
 					"csv_detail_manage 登録件数: " + result + "件 (" + context + ", csvId=" + csvId + ")");
 		}
 	}
-
 	/**
 	 * ログ出力用に「dataCategory(season): home vs away」形式のコンテキスト文字列を組み立てる。
 	 *
@@ -1235,7 +1145,6 @@ public class ExportCsvService {
 				safe(home).trim(),
 				safe(away).trim());
 	}
-
 	/**
 	 * dataCategoryから country/league が特定できなかった場合のフォールバックとして、
 	 * csvIdのフォルダ名部分（例: "日本-J1リーグ-ラウンド5"）からcountry/leagueを抽出する。
@@ -1268,7 +1177,6 @@ public class ExportCsvService {
 		String league = base.substring(firstHyphen + 1).trim();
 		return new String[] { country, league };
 	}
-
 	/**
 	 * JSON作成
 	 * @param out
@@ -1283,7 +1191,6 @@ public class ExportCsvService {
 				StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 		logInfo(METHOD_NAME, "終了 path=" + out + ", json.length=" + json.length());
 	}
-
 	/**
 	 * readJson
 	 * @param path
@@ -1337,7 +1244,6 @@ public class ExportCsvService {
 			return Collections.emptyList();
 		}
 	}
-
 	/**
 	 * ローカルに書き出したCSVファイルを、最終出力先のS3キーへアップロードする。
 	 *
@@ -1369,7 +1275,6 @@ public class ExportCsvService {
 			throw e;
 		}
 	}
-
 	/**
 	 * 連番をソートする
 	 * 改善版:
@@ -1458,7 +1363,6 @@ public class ExportCsvService {
 		logInfo(METHOD_NAME, "終了 result.groupCount=" + result.size());
 		return result;
 	}
-
 	/**
 	 * グループのリストに対し、各グループのseqKeyリストを {@link #normalizeSeqListStatic(List)}
 	 * で正規化する（重複除去・空グループ除外）。
@@ -1479,7 +1383,6 @@ public class ExportCsvService {
 		}
 		return out;
 	}
-
 	/**
 	 * {@link #normalizeSeqListStatic(List)} のインスタンスメソッド版ラッパー。
 	 *
@@ -1489,7 +1392,6 @@ public class ExportCsvService {
 	private List<String> normalizeSeqList(List<String> src) {
 		return normalizeSeqListStatic(src);
 	}
-
 	/**
 	 * seqKey（例: "zRLNYw4L-37"）から末尾のハイフン以降の連番部分を数値として取り出す。
 	 * ハイフンが無い場合は文字列全体を数値化する。数値化できない場合はInteger.MAX_VALUE（末尾扱い）。
@@ -1509,7 +1411,6 @@ public class ExportCsvService {
 			return Integer.MAX_VALUE;
 		}
 	}
-
 	/**
 	 * seqKeyのリストから重複を除去し、末尾連番部分（{@link #extractSeqNo(String)}）を
 	 * 数値として比較して昇順ソートする。
@@ -1530,10 +1431,12 @@ public class ExportCsvService {
 						.thenComparing(Comparator.naturalOrder()))
 				.collect(Collectors.toList());
 	}
-
 	/**
 	 * seqKeyの一覧からDataEntityを取得し、CSV化条件の判定・異常データ除去・
 	 * スコア/対戦カード情報の補完までを行う。
+	 * addManualFlg="1"の行（手動確定行。例: スナップショットが無く「終了済」1件のみの試合）は、
+	 * {@link CsvArtifactHelper#csvCondition}／{@link CsvArtifactHelper#abnormalChk} の判定で
+	 * 通常のグループが除外される場合でも、それ単体でCSV化対象として救済する。
 	 *
 	 * @param ids 対象のseqKey一覧
 	 * @param csvArtifactResource CSV生成条件
@@ -1552,32 +1455,39 @@ public class ExportCsvService {
 			logInfo(METHOD_NAME, "ids empty のため null返却 label=" + label);
 			return null;
 		}
-		List<DataEntity> result;
+		List<DataEntity> raw;
 		try {
 			logInfo(METHOD_NAME, "findByData() 開始 label=" + label + ", ids=" + ids);
-			result = this.bookCsvDataRepository.findByData(ids);
+			raw = this.bookCsvDataRepository.findByData(ids);
 			logInfo(METHOD_NAME, "findByData() 終了 label=" + label
-					+ ", result.size=" + (result == null ? 0 : result.size()));
+					+ ", result.size=" + (raw == null ? 0 : raw.size()));
 		} catch (Exception e) {
 			logError(METHOD_NAME, "findByData() 失敗 label=" + label + ", ids=" + ids, e);
 			throw e;
 		}
-		if (result == null || result.isEmpty()) {
+		if (raw == null || raw.isEmpty()) {
 		    logInfo(METHOD_NAME, "findByData() 結果なしのため null返却 label=" + label);
 		    return null;
 		}
+		List<DataEntity> result = raw;
 		boolean condition = this.helper.csvCondition(result, csvArtifactResource);
 		logInfo(METHOD_NAME, "csvCondition 判定 label=" + label + ", result=" + condition);
 		if (!condition) {
-			logInfo(METHOD_NAME, "csvCondition=false のため null返却 label=" + label);
-			return null;
+			result = null;
+		} else {
+			result = this.helper.abnormalChk(result);
+			logInfo(METHOD_NAME, "abnormalChk() 後 label=" + label
+					+ ", result.size=" + (result == null ? 0 : result.size()));
 		}
-		result = this.helper.abnormalChk(result);
-		logInfo(METHOD_NAME, "abnormalChk() 後 label=" + label
-				+ ", result.size=" + (result == null ? 0 : result.size()));
 		if (result == null || result.isEmpty()) {
-			logInfo(METHOD_NAME, "abnormalChk() 後 empty のため null返却 label=" + label);
-			return null;
+			List<DataEntity> manualRows = extractManualFlaggedRows(raw);
+			if (manualRows.isEmpty()) {
+				logInfo(METHOD_NAME, "csvCondition/abnormalChk 後 empty かつ手動確定行も無いため null返却 label=" + label);
+				return null;
+			}
+			logWarn(METHOD_NAME, "csvCondition/abnormalChk では対象外だったが、"
+					+ "addManualFlg=1 の行が" + manualRows.size() + "件あるため救済して続行 label=" + label);
+			result = manualRows;
 		}
 		result = new ArrayList<>(result);
 		logInfo(METHOD_NAME, "ArrayList copy 完了 label=" + label + ", result.size=" + result.size());
@@ -1588,7 +1498,24 @@ public class ExportCsvService {
 		logInfo(METHOD_NAME, "終了 label=" + label + ", final.size=" + result.size());
 		return result;
 	}
-
+	/**
+	 * 行一覧の中から addManualFlg="1"（手動確定）の行だけを取り出す。
+	 *
+	 * @param rows 対象の行一覧
+	 * @return addManualFlg="1"の行一覧（無ければ空リスト）
+	 */
+	private static List<DataEntity> extractManualFlaggedRows(List<DataEntity> rows) {
+		if (rows == null || rows.isEmpty()) {
+			return Collections.emptyList();
+		}
+		List<DataEntity> out = new ArrayList<>();
+		for (DataEntity d : rows) {
+			if (d != null && "1".equals(safe(d.getAddManualFlg()).trim())) {
+				out.add(d);
+			}
+		}
+		return out;
+	}
 	/**
 	 * CSV出力用のファイルパスと内容から {@link CsvArtifact} を組み立てる。
 	 *
@@ -1601,9 +1528,15 @@ public class ExportCsvService {
 		if (result == null || result.isEmpty()) {
 			return null;
 		}
-		return new CsvArtifact(path, result);
+		// ★ 書き出し直前の最終防御として、ここでも改めてseqKey末尾連番順に並べ直す。
+		//   fetchAndFilter()内のbackfillScores()で既に正しい順序になっているはずだが、
+		//   書き出し直前の呼び出し箇所を1つに集約しておくことで、
+		//   将来的に他の経路からbuildCsvArtifactが呼ばれても順序保証が崩れないようにする。
+		List<DataEntity> ordered = new ArrayList<>(result);
+		ordered.sort(Comparator.comparingInt(
+				(DataEntity d) -> extractSeqNo(Objects.toString(d.getSeqKey(), null))));
+		return new CsvArtifact(path, ordered);
 	}
-
 	/**
 	 * CsvArtifactの内容をローカルファイルへ書き出す。
 	 * 既存ファイルがあれば事前に削除してから書き出す。
@@ -1626,7 +1559,6 @@ public class ExportCsvService {
 		FileMngWrapper fw = new FileMngWrapper();
 		fw.csvWrite(art.getFilePath(), art.getContent());
 	}
-
 	/**
 	 * 指定ディレクトリが存在しない場合は作成する。
 	 *
@@ -1636,7 +1568,6 @@ public class ExportCsvService {
 	private static void ensureDir(Path dir) throws IOException {
 		Files.createDirectories(dir);
 	}
-
 	/**
 	 * 今回のDB状態（dbSeqs）と既存CSVレジストリ（csvInfoRow）を突き合わせ、
 	 * 「既存CSVの再作成対象」と「新規CSV対象」に振り分ける。
@@ -1687,7 +1618,6 @@ public class ExportCsvService {
 		}
 		return plan;
 	}
-
 	/**
 	 * 軽量版
 	 * @param ids
@@ -1712,7 +1642,6 @@ public class ExportCsvService {
 		logInfo(METHOD_NAME, "終了 label=" + label + ", final.size=" + result.size());
 		return result;
 	}
-
 	/**
 	 * 現在のカテゴリが「ラウンド情報を含む使用可能な値」でなければ、
 	 * future_masterから対戦カード（home/away、逆順も含む）に対応する
@@ -1780,7 +1709,6 @@ public class ExportCsvService {
 			return normalizedCategory;
 		}
 	}
-
 	/**
 	 * dataCategoryが「空でなく」「unknownでもなく」「ラウンド名を抽出できる」場合に
 	 * 使用可能なカテゴリとみなす。
@@ -1812,7 +1740,6 @@ public class ExportCsvService {
 	    }
 	    return !resolveEffectiveRoundName(normalized, country, league).isEmpty();
 	}
-
 	/**
 	 * home/awayのいずれかが埋まっている最初の行を返す。無ければ先頭行を返す。
 	 *
@@ -1829,7 +1756,6 @@ public class ExportCsvService {
 		}
 		return list.get(0);
 	}
-
 	/**
 	 * recordTime→seq順にソートした上で、スコアが空の行に直前の非空スコアを補完する
 	 * （プレビュー行版）。
@@ -1860,7 +1786,6 @@ public class ExportCsvService {
 			}
 		}
 	}
-
 	/**
 	 * グループ内の代表的なdataCategory/home/awayを求め、欠けている行に補完する
 	 * （プレビュー行版）。
@@ -1886,7 +1811,6 @@ public class ExportCsvService {
 			}
 		}
 	}
-
 	/**
 	 * グループ内で最初に見つかった非空の値を返す（プレビュー行版）。
 	 * preferRoundRow=true の場合、まずラウンド情報を含む行を優先して探す。
@@ -1922,7 +1846,6 @@ public class ExportCsvService {
 		}
 		return "";
 	}
-
 	/**
 	 * seqKeyのリストを結合してグループ全体の一意キー文字列を組み立てる。
 	 * 既存CSVレジストリのグループと、今回計算したDBグループが完全一致するかの判定に使う。
@@ -1943,7 +1866,6 @@ public class ExportCsvService {
 		}
 		return sb.toString();
 	}
-
 	/**
 	 * CSVファイル名またはS3キー（例: "xxx/12.csv"）から末尾の数値部分（CSV番号）を取り出す。
 	 *
@@ -1964,7 +1886,6 @@ public class ExportCsvService {
 			return null;
 		}
 	}
-
 	/**
 	 * data_team_list.txt を更新する。
 	 *
@@ -1993,7 +1914,6 @@ public class ExportCsvService {
 				+ ", csvInfoRow.size=" + (csvInfoRow == null ? 0 : csvInfoRow.size())
 				+ ", succeeded.size=" + (succeeded == null ? 0 : succeeded.size())
 				+ ", failedRelativeKeys.size=" + (failedRelativeKeys == null ? 0 : failedRelativeKeys.size()));
-
 		Map<String, String> csvKeyToLine = new LinkedHashMap<>();
 		if (Files.exists(out)) {
 			List<String> lines = Files.readAllLines(out, StandardCharsets.UTF_8);
@@ -2020,7 +1940,6 @@ public class ExportCsvService {
 			Files.writeString(out, "", StandardCharsets.UTF_8,
 					StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 		}
-
 		if (failedRelativeKeys != null) {
 			for (String csvKey : failedRelativeKeys) {
 				String normalizedKey = canonicalizeCsvId(csvKey);
@@ -2029,7 +1948,6 @@ public class ExportCsvService {
 				}
 			}
 		}
-
 		// ★ 自己修復: 実在するCSV（csvInfoRow ∪ 今回成功分）に属さない行を削除する。
 		//   これにより、破損・一部欠落・無関係な内容で上書きされていたファイルでも、
 		//   実CSVと無関係な行はすべて除去される。
@@ -2059,7 +1977,6 @@ public class ExportCsvService {
 		if (purged > 0) {
 			logWarn(METHOD_NAME, "実在しないCSVを指す行を削除 purged=" + purged);
 		}
-
 		if (succeeded != null) {
 			for (CsvOutputMeta meta : succeeded) {
 				if (meta == null) {
@@ -2086,7 +2003,6 @@ public class ExportCsvService {
 				csvKeyToLine.put(csvKey, csvKey + "\t" + desc);
 			}
 		}
-
 		// ★ 自己修復: csvInfoRowに存在するのに行が無いCSV（一部欠落・全面的な書き換え等）を、
 		//   DBのプレビューから description を再構築して補完する。
 		if (csvInfoRow != null && !csvInfoRow.isEmpty()) {
@@ -2141,7 +2057,6 @@ public class ExportCsvService {
 				logWarn(METHOD_NAME, "data_team_list 補完件数 repaired=" + repaired);
 			}
 		}
-
 		List<Map.Entry<String, String>> entries = new ArrayList<>(csvKeyToLine.entrySet());
 		entries.sort((a, b) -> compareCsvRelativeKey(a.getKey(), b.getKey()));
 		List<String> outLines = new ArrayList<>();
@@ -2152,7 +2067,6 @@ public class ExportCsvService {
 				StandardOpenOption.CREATE, StandardOpenOption.TRUNCATE_EXISTING);
 		logInfo(METHOD_NAME, "終了 path=" + out + ", outLines.size=" + outLines.size());
 	}
-
 	/**
 	 * 既存CSVレジストリのキー・seqKeyを正規化し、同一キーが複数あれば
 	 * seqKeyをマージした上で重複除去・ソートする。
@@ -2180,7 +2094,6 @@ public class ExportCsvService {
 		}
 		return result;
 	}
-
 	/**
 	 * CSVの相対キー（S3キー/ローカルパス）をNFKC正規化し、区切り文字を"/"に統一、
 	 * 先頭スラッシュ・連続スラッシュを除去し、フォルダ部分のみさらに
@@ -2218,7 +2131,6 @@ public class ExportCsvService {
 		}
 		return String.join("/", normalizedParts);
 	}
-
 	/**
 	 * フォルダ名（国-リーグ-ラウンド表記）の表記ゆれを吸収する。
 	 * 「国: リーグ」→「国-リーグ」への統一、ラウンド表記のハイフン・空白ゆれの統一、
@@ -2251,7 +2163,6 @@ public class ExportCsvService {
 		s = s.replaceAll(" {2,}", " ").trim();
 		return s;
 	}
-
 	/**
 	 * home/awayのいずれかが埋まっている最初の行を返す。無ければ先頭行を返す。
 	 *
@@ -2268,7 +2179,6 @@ public class ExportCsvService {
 		}
 		return list.get(0);
 	}
-
 	/**
 	 * nullを空文字に変換する（null安全なアクセサ）。
 	 *
@@ -2278,7 +2188,6 @@ public class ExportCsvService {
 	private static String safe(String s) {
 		return (s == null) ? "" : s;
 	}
-
 	/**
 	 * recordTime→seqKey末尾連番順にソートした上で、スコアが空の行に
 	 * 直前の非空スコアを補完する。
@@ -2315,7 +2224,6 @@ public class ExportCsvService {
 	        }
 	    }
 	}
-
 	/**
 	 * dataCategoryに「ラウンドN」が含まれているかを判定する。
 	 *
@@ -2325,7 +2233,6 @@ public class ExportCsvService {
 	private static boolean hasRound(String s) {
 		return s != null && ROUND_TOKEN.matcher(s).find();
 	}
-
 	/**
 	 * グループ内の代表的なdataCategory/home/away/matchIdを求め、
 	 * 欠けている行に補完する（DataEntity版）。
@@ -2355,7 +2262,6 @@ public class ExportCsvService {
 			}
 		}
 	}
-
 	/**
 	 * グループ内で最初に見つかった非空の値を返す（DataEntity版）。
 	 * preferRoundRow=true の場合、まずラウンド情報を含む行を優先して探す。
@@ -2391,7 +2297,6 @@ public class ExportCsvService {
 		}
 		return "";
 	}
-
 	/**
 	 * カテゴリが「使用可能」でない（＝ラウンド情報などで補完が必要）かどうかを判定する。
 	 *
@@ -2401,7 +2306,6 @@ public class ExportCsvService {
 	private boolean needsCategoryBackfill(String category) {
 	    return !isUsableCategory(category);
 	}
-
 	/**
 	 * CSV相対キーをフォルダ部分→CSV番号の順で比較する。
 	 * フォルダが同じ場合はCSV番号（末尾の数値）を昇順比較し、
@@ -2431,7 +2335,6 @@ public class ExportCsvService {
 		}
 		return Integer.compare(na, nb);
 	}
-
 	/**
 	 * キー文字列から最後の "/" より前の部分（フォルダ部分）を取り出す。
 	 *
@@ -2445,7 +2348,6 @@ public class ExportCsvService {
 		int idx = key.lastIndexOf('/');
 		return (idx >= 0) ? key.substring(0, idx) : "";
 	}
-
 	/**
 	 * 文字列がnullまたは空白のみかを判定する。
 	 *
@@ -2455,7 +2357,6 @@ public class ExportCsvService {
 	private static boolean isBlank(String s) {
 		return s == null || s.trim().isEmpty();
 	}
-
 	/**
 	 * S3キーの先頭スラッシュを除去する。
 	 *
@@ -2472,7 +2373,6 @@ public class ExportCsvService {
 		}
 		return k;
 	}
-
 	/**
 	 * プレフィックス文字列の前後のスラッシュを除去する。
 	 *
@@ -2488,7 +2388,6 @@ public class ExportCsvService {
 		p = p.replaceAll("/+$", "");
 		return p;
 	}
-
 	/**
 	 * プレフィックスとファイル名を結合してS3キーを組み立てる。
 	 *
@@ -2507,7 +2406,6 @@ public class ExportCsvService {
 		}
 		return p + "/" + f;
 	}
-
 	/**
 	 * seqKeyのリストの中から、末尾連番部分（{@link #extractSeqNo(String)}）の最小値を求める。
 	 * 新規CSV対象グループをCSV番号順に採番する際のソートキーとして使用する。
@@ -2528,7 +2426,6 @@ public class ExportCsvService {
 	    }
 	    return min;
 	}
-
 	/**
 	 * 処理対象が0件だった場合でも、data_team_list.txt / seqList.txt を
 	 * 最新のDB状態・既存CSVレジストリを基準に更新してS3へPUTする。
@@ -2566,7 +2463,6 @@ public class ExportCsvService {
 		logInfo(METHOD_NAME, "seqListJson PUT完了");
 		logInfo(METHOD_NAME, "終了");
 	}
-
 	/**
 	 * 処理終了時のログを出力する。messageCd/fillCharが両方指定されている場合のみ
 	 * 情報ログを追加出力し、最後に必ず終了ログを出す。
@@ -2581,35 +2477,27 @@ public class ExportCsvService {
 		}
 		this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, method, "end");
 	}
-
 	/** CSV1件分の生成対象（出力先の相対キーと対象seqKey一覧）を表す内部クラス */
 	private static final class CsvWorkItem {
-
 		private final String relativeKey;
 		private final List<String> seqIds;
-
 		private CsvWorkItem(String relativeKey, List<String> seqIds) {
 			this.relativeKey = relativeKey;
 			this.seqIds = seqIds;
 		}
-
 		public String getRelativeKey() {
 			return relativeKey;
 		}
-
 		public List<String> getSeqIds() {
 			return seqIds;
 		}
 	}
-
 	/** CSV生成成功時のメタ情報（csv_detail_manage登録・data_team_list更新に使用）を表す内部クラス */
 	private static final class CsvOutputMeta {
-
 		private final String relativeCsvKey;
 		private final String dataCategory;
 		private final String homeTeamName;
 		private final String awayTeamName;
-
 		private CsvOutputMeta(
 				String relativeCsvKey,
 				String dataCategory,
@@ -2620,69 +2508,54 @@ public class ExportCsvService {
 			this.homeTeamName = homeTeamName;
 			this.awayTeamName = awayTeamName;
 		}
-
 		public String getRelativeCsvKey() {
 			return relativeCsvKey;
 		}
-
 		public String getDataCategory() {
 			return dataCategory;
 		}
-
 		public String getHomeTeamName() {
 			return homeTeamName;
 		}
-
 		public String getAwayTeamName() {
 			return awayTeamName;
 		}
 	}
-
 	/** workItem1件の処理結果ステータス */
 	private enum CsvTaskStatus {
 		SUCCESS,
 		FAILED,
 		SKIPPED
 	}
-
 	/** workItem1件分の処理結果（ステータス・相対キー・成功時のメタ情報）を表す内部クラス */
 	private static final class CsvTaskResult {
-
 		private final CsvTaskStatus status;
 		private final String relativeKey;
 		private final CsvOutputMeta meta;
-
 		private CsvTaskResult(CsvTaskStatus status, String relativeKey, CsvOutputMeta meta) {
 			this.status = status;
 			this.relativeKey = relativeKey;
 			this.meta = meta;
 		}
-
 		public static CsvTaskResult success(String relativeKey, CsvOutputMeta meta) {
 			return new CsvTaskResult(CsvTaskStatus.SUCCESS, relativeKey, meta);
 		}
-
 		public static CsvTaskResult failed(String relativeKey) {
 			return new CsvTaskResult(CsvTaskStatus.FAILED, relativeKey, null);
 		}
-
 		public static CsvTaskResult skipped(String relativeKey) {
 			return new CsvTaskResult(CsvTaskStatus.SKIPPED, relativeKey, null);
 		}
-
 		public CsvTaskStatus getStatus() {
 			return status;
 		}
-
 		public String getRelativeKey() {
 			return relativeKey;
 		}
-
 		public CsvOutputMeta getMeta() {
 			return meta;
 		}
 	}
-
 	/** 一連のworkItem処理結果の集計（成功/失敗/スキップ件数と詳細）を保持する内部クラス */
 	private static final class ProcessResult {
 		private int successCount;
@@ -2691,7 +2564,6 @@ public class ExportCsvService {
 		private final List<CsvOutputMeta> succeeded = new ArrayList<>();
 		private final Set<String> failedRelativeKeys = new LinkedHashSet<>();
 	}
-
 	/**
 	 * 情報レベルのログを出力する。
 	 *
@@ -2703,7 +2575,6 @@ public class ExportCsvService {
 				PROJECT_NAME, CLASS_NAME, method,
 				MessageCdConst.MCD00099I_LOG, message);
 	}
-
 	/**
 	 * 警告レベルのログを出力する。
 	 *
@@ -2715,7 +2586,6 @@ public class ExportCsvService {
 				PROJECT_NAME, CLASS_NAME, method,
 				MessageCdConst.MCD00099I_LOG, message);
 	}
-
 	/**
 	 * エラーレベルのログを出力する。
 	 *
@@ -2728,7 +2598,6 @@ public class ExportCsvService {
 				PROJECT_NAME, CLASS_NAME, method,
 				MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e, message);
 	}
-
 	/**
 	 * ログ出力用にキー文字列を120文字までに丸める。
 	 *
@@ -2744,7 +2613,6 @@ public class ExportCsvService {
 		}
 		return key.substring(0, 120) + "...";
 	}
-
 	/**
 	 * 文字列中の全角数字を半角数字に変換する。
 	 *
