@@ -1,4 +1,5 @@
 package dev.batch.bm_b013;
+
 import java.io.IOException;
 import java.nio.charset.StandardCharsets;
 import java.nio.file.Files;
@@ -37,6 +38,7 @@ import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
 import dev.common.upload.RecordFileOperationOutputDTO;
 import dev.common.upload.RecordFileOperationService;
+
 /**
  * CSV関係の削除および txt ファイル更新
  *
@@ -47,51 +49,85 @@ import dev.common.upload.RecordFileOperationService;
  * - data_team_list.txt / seqList.txt の削除内容を詳細ログ出力
  * - 削除対象は country-league 単位の folder prefix（例: 日本-J1）で判定
  *
+ * 削除前バックアップ:
+ * - execute() 内で物理削除の直前に archiveDeleteTargetCsvFilesToRecordBucket(...) を必ず呼び出し、
+ *   削除対象CSV一式をZIP化して record バケット（RecordFileOperationService 経由）へアップロードしている。
+ *   アップロードが失敗した場合は例外を throw し、その回の物理削除自体を行わない（バックアップ必須化）。
+ *
  * 修正:
  * - localOnly=true のとき、ローカルCSVが実際に削除できたかを確認せずに
  *   常に成功扱いにしていたバグを修正（実際に削除できた場合のみ成功扱い）
  * - ローカル/S3いずれにも実体が無いが、snapshotに正当な seqList が残っている
  *   （＝前回実行で物理削除は成功したが txt/DB 反映前にクラッシュした）ケースを
  *   「削除済みとみなして後続処理を続行できる」ように救済
- * - findExistingS3CsvKey の「フォルダにCSVが1件だけ残っていたら採用」フォールバックを、
- *   実際の削除解決（deletePhysicalCsvFiles）では無効化。無関係な別CSVを誤って
- *   削除してしまう危険があるため（読み取り専用のseq読込・バックアップでは従来通り許可）
+ * - findExistingS3CsvKey の「フォルダ内CSVが1件だけなら採用」フォールバックを、
+ *   削除対象キー解決（deletePhysicalCsvFiles）では無効化し、無関係な別CSVを
+ *   誤って削除しないようにピンポイント性を担保
+ * - normalizeSeqList を seqKey の連番部分に基づく数値ソートに統一（ExportCsvService と同一ロジック）
  */
 @Component
 @Transactional(rollbackFor = Exception.class)
 public class EachCsvTransaction {
+
 	private static final String PROJECT_NAME = EachCsvTransaction.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
+
 	private static final String CLASS_NAME = EachCsvTransaction.class.getName();
+
 	private static final String SEASON_FIN_CSV_ZIP_FOLDER = "EachCsvTransaction";
+
 	private static final DateTimeFormatter DELETE_BACKUP_TS_FORMAT = DateTimeFormatter.ofPattern("yyyyMMddHHmmss");
+
 	private static final ObjectMapper JSON = new ObjectMapper();
+
 	/**
 	 * 削除途中失敗時に、どの csvId -> seqList を後続再処理すべきか保持する snapshot
 	 */
 	private static final String SNAPSHOT_FILE_NAME = "season_delete_seq_snapshot.json";
+
 	@Value("${exportcsv.local-only:false}")
 	private boolean localOnly;
+
 	@Value("${exportcsv.final-prefix:}")
 	private String finalPrefix;
+
 	@Autowired
 	private CsvDetailManageBatchRepository csvDetailManageBatchRepository;
+
 	@Autowired
 	private PathConfig config;
+
 	@Autowired
 	private S3Operator s3Operator;
+
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
+
 	@Autowired
 	private RecordFileOperationService recordFileOperationService;
+
 	@Autowired
 	private CsvFileNameService csvFileNameService;
+
 	@Autowired
 	private FileExistsService fileExistsService;
+
 	@Autowired
 	private ReaderCurrentCsvInfoBean bean;
+
 	/**
 	 * 実行メソッド
+	 *
+	 * 処理の流れ:
+	 * 1. countryLeague から削除対象 folder prefix / data_category prefix を作成
+	 * 2. 該当する csv_detail_manage を検索し、削除対象 csvId 一覧を確定
+	 * 3. 削除前の csvId -> seqList snapshot を作成・保存（クラッシュ時の再処理用）
+	 * 4. 削除対象CSVを record バケットへZIPバックアップ
+	 * 5. 物理CSVファイル（ローカル/S3）を削除
+	 * 6. 物理削除に成功した分だけ data_team_list.txt / seqList.txt / csv_detail_manage を更新
+	 *
+	 * @param dto 削除対象の country / league 情報を保持する DTO
+	 * @throws Exception 途中処理で回復不能な例外が発生した場合
 	 */
 	public void execute(TransactionDTO dto) throws Exception {
 		final String METHOD_NAME = "execute";
@@ -167,8 +203,14 @@ public class EachCsvTransaction {
 		retainSnapshotForFailed(snapshotPath, deleteSnapshot, deleteResult.failedOriginalCsvIds);
 		endLog(METHOD_NAME);
 	}
+
 	/**
-	 * 管理ファイルをローカルへ同期
+	 * 管理ファイル（seqList.txt / data_team_list.txt）を S3 からローカルへ同期する。
+	 * localOnly=true の場合はダウンロードをスキップする。
+	 *
+	 * @param bucket       S3 バケット名
+	 * @param prefix       S3 キー prefix
+	 * @param parentMethod 呼び出し元メソッド名（ログ用、未使用）
 	 */
 	private void prepareManageFilesLocalCache(String bucket, String prefix, String parentMethod) {
 		final String METHOD_NAME = "prepareManageFilesLocalCache";
@@ -181,8 +223,13 @@ public class EachCsvTransaction {
 		logInfo(METHOD_NAME, "管理ファイル同期結果 seqDownloaded=" + seqDownloaded
 				+ ", teamDownloaded=" + teamDownloaded);
 	}
+
 	/**
-	 * ReaderCurrentCsvInfoBean から csvId -> seqList を取得
+	 * ReaderCurrentCsvInfoBean から csvId -> seqList を取得する。
+	 * 取得したキーはオリジナル表記・正規化表記の両方で登録し、後続の lookup を容易にする。
+	 * localOnly=true の場合は空の Map を返す。
+	 *
+	 * @return csvId（オリジナル/正規化）をキーとした seqList の Map
 	 */
 	private Map<String, List<String>> loadCsvInfoSnapshot() {
 		final String METHOD_NAME = "loadCsvInfoSnapshot";
@@ -218,11 +265,19 @@ public class EachCsvTransaction {
 			return new LinkedHashMap<>();
 		}
 	}
+
 	/**
-	 * 削除対象 csvId について snapshot を作る
-	 * 優先:
-	 * 1. 現在の csvInfo
-	 * 2. 既存 snapshot
+	 * 削除対象 csvId ごとに、後続処理で使う seqList snapshot を組み立てる。
+	 * 優先順位:
+	 * 1. 削除対象CSV実体から直接読み取った seqList（csvFileSnapshot）
+	 * 2. 現在の csvInfo（currentCsvInfo）
+	 * 3. 既存の snapshot ファイル（existingSnapshot、前回実行の残骸）
+	 *
+	 * @param csvIds          削除対象 csvId 一覧
+	 * @param csvFileSnapshot CSV実体から読み取った csvId -> seqList
+	 * @param currentCsvInfo  ReaderCurrentCsvInfoBean 由来の csvId -> seqList
+	 * @param existingSnapshot 前回実行で残った snapshot ファイルの内容
+	 * @return csvId -> seqList の Map（今回実行分の確定 snapshot）
 	 */
 	private Map<String, List<String>> buildDeleteSnapshot(
 			List<String> csvIds,
@@ -249,6 +304,14 @@ public class EachCsvTransaction {
 		}
 		return result;
 	}
+
+	/**
+	 * 複数の lookup キー候補のいずれかで source から seqList を検索する。
+	 *
+	 * @param source 検索対象の Map（csvId -> seqList）
+	 * @param keys   lookup キー候補
+	 * @return 最初に一致した seqList。見つからない場合は null
+	 */
 	private List<String> findSeqListByAnyKey(
 			Map<String, List<String>> source,
 			Set<String> keys) {
@@ -263,10 +326,12 @@ public class EachCsvTransaction {
 		}
 		return null;
 	}
+
 	/**
-	 * 削除対象CSV実体から seq を読むメソッド
-	 * @param csvIds
-	 * @return
+	 * 削除対象CSV実体（ローカル優先、無ければS3から一時取得）から直接 seq を読み込む。
+	 *
+	 * @param csvIds 削除対象 csvId 一覧
+	 * @return csvId -> seqList の Map（実体を読めなかった csvId はキーに含まれない）
 	 */
 	private Map<String, List<String>> loadSeqSnapshotFromDeleteTargetCsvFiles(List<String> csvIds) {
 		final String METHOD_NAME = "loadSeqSnapshotFromDeleteTargetCsvFiles";
@@ -318,6 +383,20 @@ public class EachCsvTransaction {
 		}
 		return result;
 	}
+
+	/**
+	 * 単一 csvId について、seq 読み取り用のCSV実体を解決する。
+	 * 解決順序: ローカル(physicalCsvId) -> ローカル(csvId) -> S3（読み取り専用なので単一ファイルフォールバック許可）。
+	 * S3 から取得した場合は一時ファイルとしてダウンロードする（呼び出し元で削除が必要）。
+	 *
+	 * @param baseDir       ローカルCSVのベースディレクトリ
+	 * @param bucket        S3 バケット名
+	 * @param prefix        S3 キー prefix
+	 * @param csvId         オリジナル csvId
+	 * @param physicalCsvId 物理ファイル名としての csvId
+	 * @return 解決結果。どこにも実体が無い場合は null
+	 * @throws IOException S3ダウンロード等でI/Oエラーが発生した場合
+	 */
 	private ResolvedCsvSource resolveCsvSourceForSeqRead(
 			Path baseDir,
 			String bucket,
@@ -369,8 +448,13 @@ public class EachCsvTransaction {
 				+ ", key=" + resolvedS3Key);
 		return null;
 	}
+
 	/**
-	 * snapshot 読込
+	 * snapshot ファイル（JSON）を読み込む。
+	 * 読み込んだキーはオリジナル表記・正規化表記の両方で登録し、後続の lookup を容易にする。
+	 *
+	 * @param snapshotPath snapshot ファイルパス
+	 * @return csvId -> seqList の Map。ファイルが無い/空/壊れている場合は空の Map
 	 */
 	private Map<String, List<String>> readSnapshot(Path snapshotPath) {
 		final String METHOD_NAME = "readSnapshot";
@@ -408,6 +492,15 @@ public class EachCsvTransaction {
 			return new LinkedHashMap<>();
 		}
 	}
+
+	/**
+	 * csvId（フォルダ/ファイルパス）を正規化する。
+	 * NFKC正規化・区切り文字統一を行い、最後の要素（ファイル名）以外の各セグメントを
+	 * canonicalizeFolderSegment で正規化する。
+	 *
+	 * @param rawCsvId 正規化前の csvId
+	 * @return 正規化後の csvId（空の場合は空文字）
+	 */
 	private String canonicalizeCsvId(String rawCsvId) {
 		if (rawCsvId == null) {
 			return "";
@@ -438,9 +531,24 @@ public class EachCsvTransaction {
 		}
 		return String.join("/", normalizedParts);
 	}
+
+	/**
+	 * folder prefix を正規化する（canonicalizeFolderSegment のエイリアス）。
+	 *
+	 * @param value 正規化前の値
+	 * @return 正規化後の folder prefix
+	 */
 	private String canonicalizeFolderPrefix(String value) {
 		return canonicalizeFolderSegment(value);
 	}
+
+	/**
+	 * ハイフン統一形式（例: 日本-J1）を旧コロン形式（例: 日本: J1）へ変換する。
+	 * 後方互換のため、削除対象 prefix に旧形式も含めるために使用する。
+	 *
+	 * @param canonical ハイフン統一形式の値
+	 * @return 旧コロン形式の値。変換できない場合は canonical をそのまま返す
+	 */
 	private String toLegacyFolderPrefix(String canonical) {
 		if (canonical == null || canonical.isBlank()) {
 			return "";
@@ -456,6 +564,13 @@ public class EachCsvTransaction {
 		}
 		return country + ": " + league;
 	}
+
+	/**
+	 * csvId から、各種 Map の lookup に使うキー候補一式（オリジナル/正規化/物理ファイル名）を作成する。
+	 *
+	 * @param originalCsvId オリジナル csvId
+	 * @return lookup キー候補の集合
+	 */
 	private Set<String> buildCsvIdLookupKeys(String originalCsvId) {
 		Set<String> keys = new LinkedHashSet<>();
 		String original = safe(originalCsvId).trim();
@@ -478,6 +593,13 @@ public class EachCsvTransaction {
 		}
 		return keys;
 	}
+
+	/**
+	 * csvId から、ローカル実体削除の際に試すべき相対パス候補一式を作成する。
+	 *
+	 * @param originalCsvId オリジナル csvId
+	 * @return 物理ファイルパス候補の集合
+	 */
 	private Set<String> buildPhysicalCsvIdCandidates(String originalCsvId) {
 		Set<String> keys = new LinkedHashSet<>();
 		String original = safe(originalCsvId).trim();
@@ -500,6 +622,21 @@ public class EachCsvTransaction {
 		}
 		return keys;
 	}
+
+	/**
+	 * S3上に実在するCSVキーを解決する。
+	 * 解決順序: 完全一致 -> 正規化一致 -> ファイル名一致 -> （allowSingleFileFallback=true の場合のみ）
+	 * フォルダ内CSVが1件だけならそれを採用。
+	 *
+	 * @param bucket                  S3 バケット名
+	 * @param prefix                  S3 キー prefix
+	 * @param csvId                   オリジナル csvId
+	 * @param physicalCsvId           物理ファイル名としての csvId
+	 * @param allowSingleFileFallback 「フォルダ内CSVが1件だけなら採用」フォールバックを許可するか。
+	 *                                削除対象キー解決（destructive）では false を渡し、
+	 *                                無関係な別CSVの誤削除を防ぐ。読み取り専用用途では true を渡す。
+	 * @return 解決できたS3キー。解決できない場合は null
+	 */
 	private String findExistingS3CsvKey(
 			String bucket,
 			String prefix,
@@ -612,6 +749,13 @@ public class EachCsvTransaction {
 			return null;
 		}
 	}
+
+	/**
+	 * S3キーから親prefix（末尾スラッシュ含む）を抽出する。
+	 *
+	 * @param key S3キー
+	 * @return 親prefix。スラッシュが無い場合は空文字
+	 */
 	private String extractParentPrefix(String key) {
 		String k = safe(key).trim().replace("\\", "/");
 		int idx = k.lastIndexOf('/');
@@ -620,6 +764,13 @@ public class EachCsvTransaction {
 		}
 		return k.substring(0, idx + 1);
 	}
+
+	/**
+	 * S3キーからファイル名部分のみを抽出する。
+	 *
+	 * @param key S3キー
+	 * @return ファイル名部分
+	 */
 	private String extractFileName(String key) {
 		String k = safe(key).trim().replace("\\", "/");
 		int idx = k.lastIndexOf('/');
@@ -628,6 +779,14 @@ public class EachCsvTransaction {
 		}
 		return k.substring(idx + 1);
 	}
+
+	/**
+	 * キー同士の表記揺れ（コロン/ハイフン、ラウンド表記、全角/半角数字、空白）を吸収した
+	 * 比較用文字列を作成する。
+	 *
+	 * @param value 正規化前の値
+	 * @return 比較用に正規化された値
+	 */
 	private String normalizeKeyForCompare(String value) {
 		String s = safe(value).trim().replace("\\", "/");
 		s = Normalizer.normalize(s, Normalizer.Form.NFKC);
@@ -645,13 +804,17 @@ public class EachCsvTransaction {
 		s = s.replaceAll("\\s+", " ").trim();
 		return s;
 	}
+
 	/**
 	 * 削除対象CSVをZIP化して record バケットへバックアップする
 	 * - RecordFileOperationService#uploadCsvFilesAsZip を使用
 	 * - ローカルCSVを優先し、無ければ S3 から一時取得
+	 * - アップロード結果が null または getInfoCd() != 0 の場合は例外を throw する
+	 *   （＝バックアップに失敗した場合、呼び出し元 execute() は物理削除へ進まない）
+	 *
 	 * @param csvIds 削除対象 csvId 一覧
-	 * @return S3キー
-	 * @throws Exception
+	 * @return アップロードした ZIP の S3キー
+	 * @throws Exception バックアップ対象CSVを1件も取得できない場合、またはアップロードに失敗した場合
 	 */
 	private String archiveDeleteTargetCsvFilesToRecordBucket(List<String> csvIds) throws Exception {
 		final String METHOD_NAME = "archiveDeleteTargetCsvFilesToRecordBucket";
@@ -728,6 +891,14 @@ public class EachCsvTransaction {
 		}
 		return recordKey;
 	}
+
+	/**
+	 * CSVファイルから seq 列（またはヘッダが無い場合は1列目）の値一覧を抽出する。
+	 *
+	 * @param csvPath 読み込むCSVファイルのパス
+	 * @return 抽出した seq 値の一覧（数値順に正規化済み）
+	 * @throws IOException ファイル読み込みに失敗した場合
+	 */
 	private List<String> extractSeqListFromCsv(Path csvPath) throws IOException {
 		List<String> lines = Files.readAllLines(csvPath, StandardCharsets.UTF_8);
 		List<String> result = new ArrayList<>();
@@ -774,6 +945,13 @@ public class EachCsvTransaction {
 		}
 		return normalizeSeqList(result);
 	}
+
+	/**
+	 * ヘッダ行の中から "seq" または "id" というカラム名のインデックスを探す。
+	 *
+	 * @param columns ヘッダ行のカラム一覧
+	 * @return 見つかったインデックス。見つからない場合は -1
+	 */
 	private int findSeqColumnIndex(List<String> columns) {
 		for (int i = 0; i < columns.size(); i++) {
 			String name = stripQuotes(safe(columns.get(i))).trim();
@@ -784,6 +962,13 @@ public class EachCsvTransaction {
 		}
 		return -1;
 	}
+
+	/**
+	 * 簡易CSVパーサ。ダブルクォート囲み・エスケープ（""）に対応する。
+	 *
+	 * @param line 1行分のCSV文字列
+	 * @return カンマ区切りで分割したカラム一覧
+	 */
 	private List<String> parseSimpleCsvLine(String line) {
 		List<String> result = new ArrayList<>();
 		if (line == null) {
@@ -813,6 +998,13 @@ public class EachCsvTransaction {
 		result.add(current.toString());
 		return result;
 	}
+
+	/**
+	 * 値の前後を囲むダブルクォートを除去する。
+	 *
+	 * @param value 対象の値
+	 * @return クォート除去後の値
+	 */
 	private String stripQuotes(String value) {
 		String s = safe(value).trim();
 		if (s.length() >= 2 && s.startsWith("\"") && s.endsWith("\"")) {
@@ -820,17 +1012,29 @@ public class EachCsvTransaction {
 		}
 		return s;
 	}
+
+	/**
+	 * 文字列先頭のBOM（U+FEFF）を除去する。
+	 *
+	 * @param value 対象の値
+	 * @return BOM除去後の値
+	 */
 	private String removeBom(String value) {
 		if (value == null || value.isEmpty()) {
 			return value;
 		}
-		if (value.charAt(0) == '\uFEFF') {
+		if (value.charAt(0) == '﻿') {
 			return value.substring(1);
 		}
 		return value;
 	}
+
 	/**
-	 * snapshot 保存
+	 * snapshot をJSONファイルとして保存する。
+	 *
+	 * @param snapshotPath 保存先パス
+	 * @param snapshot     保存する csvId -> seqList の Map
+	 * @throws IOException ファイル書き込みに失敗した場合
 	 */
 	private void writeSnapshot(
 			Path snapshotPath,
@@ -849,8 +1053,15 @@ public class EachCsvTransaction {
 		logInfo(METHOD_NAME, "snapshot保存完了 path=" + snapshotPath
 				+ ", size=" + (snapshot == null ? 0 : snapshot.size()));
 	}
+
 	/**
-	 * failed 分だけ snapshot を残す
+	 * failed 分（物理削除に失敗した csvId）だけ snapshot ファイルに残す。
+	 * failed が空であれば snapshot ファイル自体を削除する。
+	 *
+	 * @param snapshotPath snapshot ファイルパス
+	 * @param allSnapshot  今回実行分の全 csvId -> seqList
+	 * @param failedCsvIds 物理削除に失敗した csvId 一覧
+	 * @throws IOException ファイル操作に失敗した場合
 	 */
 	private void retainSnapshotForFailed(
 			Path snapshotPath,
@@ -878,6 +1089,16 @@ public class EachCsvTransaction {
 					+ ", groupKey=" + groupKey(e.getValue()));
 		}
 	}
+
+	/**
+	 * S3上のCSVを一時ディレクトリへダウンロードする。
+	 *
+	 * @param bucket        S3 バケット名
+	 * @param s3Key         ダウンロード対象の S3 キー
+	 * @param physicalCsvId 一時ファイル名の生成に使う物理CSV名
+	 * @return ダウンロードした一時ファイルのパス。失敗時は null
+	 * @throws IOException 一時ディレクトリ作成等に失敗した場合
+	 */
 	private Path downloadCsvFromS3ToTemp(String bucket, String s3Key, String physicalCsvId) throws IOException {
 		final String METHOD_NAME = "downloadCsvFromS3ToTemp";
 		Path baseDir = Paths.get(config.getCsvFolder()).toAbsolutePath().normalize();
@@ -904,9 +1125,14 @@ public class EachCsvTransaction {
 			return null;
 		}
 	}
+
 	/**
 	 * DTO の countryLeague から csv_id 用 folder prefix を作成
 	 * 例: 日本-J1リーグ -> 日本-J1リーグ
+	 * 後方互換のため、旧コロン形式（例: 日本: J1リーグ）も併せて含める。
+	 *
+	 * @param dto 削除対象の country / league 情報を保持する DTO
+	 * @return folder prefix の一覧（重複なし）
 	 */
 	private List<String> buildCsvFolderPrefixes(TransactionDTO dto) {
 		Set<String> prefixes = new LinkedHashSet<>();
@@ -926,9 +1152,13 @@ public class EachCsvTransaction {
 		}
 		return new ArrayList<>(prefixes);
 	}
+
 	/**
 	 * DTO の countryLeague から data_category 用 folder prefix を作成
 	 * 例: 日本-J1リーグ -> 日本: J1リーグ
+	 *
+	 * @param dto 削除対象の country / league 情報を保持する DTO
+	 * @return data_category prefix の一覧（重複なし）
 	 */
 	private List<String> buildCsvFolderCategories(TransactionDTO dto) {
 		Set<String> prefixes = new LinkedHashSet<>();
@@ -951,6 +1181,7 @@ public class EachCsvTransaction {
 		}
 		return new ArrayList<>(prefixes);
 	}
+
 	/**
 	 * CSV実体削除
 	 * - countryLeagueMap の country / league から folder prefix を生成
@@ -964,9 +1195,11 @@ public class EachCsvTransaction {
 	 * - ローカル/S3のどちらにも実体が無いが、deleteSnapshotに正当なseqListが
 	 *   残っている場合は「前回実行で既に物理削除済み」とみなして成功扱いにし、
 	 *   txt/DBのクリーンアップが進むようにする
-	 * - S3キー解決は allowSingleFileFallback=false で行い、「フォルダにCSVが1件だけ
-	 *   残っていたから対象とみなす」という危険なフォールバックを削除処理では使わない
-	 * @throws IOException
+	 *
+	 * @param csvIds         削除対象 csvId 一覧
+	 * @param deleteSnapshot 削除前に確定させた csvId -> seqList snapshot（既に削除済みかの判定に使用）
+	 * @return 削除成功/失敗の内訳を保持する DeleteResult
+	 * @throws IOException ローカルファイル削除等でI/Oエラーが発生した場合
 	 */
 	private DeleteResult deletePhysicalCsvFiles(
 			List<String> csvIds,
@@ -1050,8 +1283,11 @@ public class EachCsvTransaction {
 		}
 		return result;
 	}
+
 	/**
 	 * 削除成功した CSV の親フォルダが空なら削除
+	 *
+	 * @param deletedPhysicalCsvIds 削除に成功したローカル相対パス一覧
 	 */
 	private void cleanupEmptyParentFolders(Set<String> deletedPhysicalCsvIds) {
 		final String METHOD_NAME = "cleanupEmptyParentFolders";
@@ -1087,9 +1323,15 @@ public class EachCsvTransaction {
 			}
 		}
 	}
+
 	/**
 	 * data_team_list.txt から対象 csv_id を削除
 	 * 削除した行をログ出力する
+	 *
+	 * @param deletedOriginalCsvIds     物理削除に成功したオリジナル csvId 一覧
+	 * @param deletedCanonicalCsvIds    物理削除に成功した正規化 csvId 一覧
+	 * @param deletedLocalRelativePaths 物理削除に成功したローカル相対パス一覧
+	 * @throws IOException ファイル読み書きに失敗した場合
 	 */
 	private void updateDataTeamList(
 			Set<String> deletedOriginalCsvIds,
@@ -1154,9 +1396,14 @@ public class EachCsvTransaction {
 			fileExistsService.uploadDataTeamListIfExists(bucket, prefix);
 		}
 	}
+
 	/**
 	 * seqList.txt から対象 seqGroup を削除
 	 * 削除内容を詳細ログ出力する
+	 *
+	 * @param deletedCsvIds  物理削除に成功した csvId 一覧
+	 * @param deleteSnapshot csvId -> seqList の snapshot（削除対象グループの特定に使用）
+	 * @throws IOException ファイル読み書きに失敗した場合
 	 */
 	private void updateSeqList(
 			Set<String> deletedCsvIds,
@@ -1252,9 +1499,14 @@ public class EachCsvTransaction {
 			logInfo(METHOD_NAME, "seqList.txt S3反映 result=" + uploaded);
 		}
 	}
+
 	/**
 	 * seqList JSON 読込
 	 * 旧形式(csv改行区切り)も読めるようにしておく
+	 *
+	 * @param path seqList.txt のパス
+	 * @return seqグループの一覧
+	 * @throws IOException ファイル読み込みに失敗した場合
 	 */
 	private List<List<String>> readSeqListJson(Path path) throws IOException {
 		if (!Files.exists(path)) {
@@ -1293,6 +1545,13 @@ public class EachCsvTransaction {
 		}
 		return result;
 	}
+
+	/**
+	 * seqグループ一覧の各グループを正規化する（空グループは除外）。
+	 *
+	 * @param groups 正規化前のseqグループ一覧
+	 * @return 正規化後のseqグループ一覧
+	 */
 	private List<List<String>> normalizeGroups(List<List<String>> groups) {
 		if (groups == null || groups.isEmpty()) {
 			return new ArrayList<>();
@@ -1306,11 +1565,15 @@ public class EachCsvTransaction {
 		}
 		return result;
 	}
+
 	/**
 	 * seqKey ("ハッシュ-連番" 形式) の連番部分を数値として抽出する。
 	 * ExportCsvService#extractSeqNo と同じロジック。
 	 * ここでの並び順はグルーピングの一意性そのものには影響しないが、
 	 * ログの可読性・保守性のために数値順で正規化する。
+	 *
+	 * @param seqKey "ハッシュ-連番" 形式の seqKey
+	 * @return 連番部分の数値。解析できない場合は Integer.MAX_VALUE
 	 */
 	private static int extractSeqNo(String seqKey) {
 		if (seqKey == null) {
@@ -1324,6 +1587,13 @@ public class EachCsvTransaction {
 			return Integer.MAX_VALUE;
 		}
 	}
+
+	/**
+	 * seqList を重複除去のうえ、seqKey の連番部分に基づいて数値順にソートする。
+	 *
+	 * @param src ソート前の seqList
+	 * @return 重複除去・数値ソート済みの seqList
+	 */
 	private List<String> normalizeSeqList(List<String> src) {
 		if (src == null || src.isEmpty()) {
 			return new ArrayList<>();
@@ -1335,6 +1605,14 @@ public class EachCsvTransaction {
 						.thenComparing(Comparator.naturalOrder()))
 				.collect(Collectors.toList());
 	}
+
+	/**
+	 * フォルダ名セグメントを正規化する（NFKC正規化、コロン->ハイフン統一、
+	 * ラウンド表記統一、全角数字の半角化、空白/ハイフンの整形）。
+	 *
+	 * @param segment 正規化前のセグメント
+	 * @return 正規化後のセグメント
+	 */
 	private String canonicalizeFolderSegment(String segment) {
 		String s = Normalizer.normalize(safe(segment), Normalizer.Form.NFKC).trim();
 		if (s.isEmpty()) {
@@ -1354,6 +1632,14 @@ public class EachCsvTransaction {
 		s = s.replaceAll(" {2,}", " ").trim();
 		return s;
 	}
+
+	/**
+	 * 正規化済み seqグループに一致する削除対象 csvId を探す。
+	 *
+	 * @param deleteGroupMap  csvId -> 削除対象seqList の Map
+	 * @param normalizedGroup 比較対象の正規化済みseqグループ
+	 * @return 一致した csvId。無ければ null
+	 */
 	private String findMatchedCsvId(Map<String, List<String>> deleteGroupMap, List<String> normalizedGroup) {
 		String currentGroupKey = groupKey(normalizedGroup);
 		for (Map.Entry<String, List<String>> e : deleteGroupMap.entrySet()) {
@@ -1364,14 +1650,35 @@ public class EachCsvTransaction {
 		}
 		return null;
 	}
+
+	/**
+	 * seqList を一意なグループ識別キー文字列に変換する（正規化 + ハイフン結合）。
+	 *
+	 * @param ids seqList
+	 * @return グループ識別キー文字列
+	 */
 	private String groupKey(List<String> ids) {
 		return normalizeSeqList(ids).stream()
 				.map(String::valueOf)
 				.collect(Collectors.joining("-"));
 	}
+
+	/**
+	 * null を空文字に変換するユーティリティ。
+	 *
+	 * @param s 対象文字列
+	 * @return null の場合は空文字、それ以外はそのまま
+	 */
 	private static String safe(String s) {
 		return (s == null) ? "" : s;
 	}
+
+	/**
+	 * S3 prefix の前後スラッシュを除去する。
+	 *
+	 * @param prefix 対象の prefix
+	 * @return 前後スラッシュを除去した prefix
+	 */
 	private static String normalizePrefix(String prefix) {
 		if (prefix == null) {
 			return "";
@@ -1381,6 +1688,13 @@ public class EachCsvTransaction {
 		p = p.replaceAll("/+$", "");
 		return p;
 	}
+
+	/**
+	 * S3キー先頭のスラッシュを除去する。
+	 *
+	 * @param key 対象のキー
+	 * @return 先頭スラッシュを除去したキー
+	 */
 	private static String normalizeS3Key(String key) {
 		if (key == null) {
 			return null;
@@ -1391,6 +1705,14 @@ public class EachCsvTransaction {
 		}
 		return k;
 	}
+
+	/**
+	 * prefix とファイル名を "/" で結合してS3キーを組み立てる。
+	 *
+	 * @param prefix   S3 キー prefix
+	 * @param fileName ファイル名
+	 * @return 結合後のS3キー
+	 */
 	private static String joinS3Key(String prefix, String fileName) {
 		String p = (prefix == null) ? "" : prefix.trim();
 		p = p.replaceAll("^/+", "");
@@ -1402,6 +1724,13 @@ public class EachCsvTransaction {
 		}
 		return p + "/" + f;
 	}
+
+	/**
+	 * 全角数字を半角数字に変換する。
+	 *
+	 * @param in 変換前の文字列
+	 * @return 変換後の文字列
+	 */
 	private static String toHalfWidthDigits(String in) {
 		StringBuilder sb = new StringBuilder(in.length());
 		for (char ch : in.toCharArray()) {
@@ -1413,29 +1742,59 @@ public class EachCsvTransaction {
 		}
 		return sb.toString();
 	}
+
+	/**
+	 * INFOレベルのログを出力する。
+	 *
+	 * @param method  出力元メソッド名
+	 * @param message ログメッセージ
+	 */
 	private void logInfo(String method, String message) {
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, method,
 				MessageCdConst.MCD00099I_LOG, message);
 	}
+
+	/**
+	 * WARNレベルのログを出力する。
+	 *
+	 * @param method  出力元メソッド名
+	 * @param message ログメッセージ
+	 */
 	private void logWarn(String method, String message) {
 		this.manageLoggerComponent.debugWarnLog(
 				PROJECT_NAME, CLASS_NAME, method,
 				MessageCdConst.MCD00099I_LOG, message);
 	}
+
+	/**
+	 * 処理終了ログを出力する。
+	 *
+	 * @param method 出力元メソッド名
+	 */
 	private void endLog(String method) {
 		this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, method, "end");
 	}
+
+	/**
+	 * seq読み取り/バックアップ用に解決したCSV実体の情報を保持する内部クラス。
+	 * temporary=true の場合、path は呼び出し元で削除すべき一時ファイルであることを示す。
+	 */
 	private static final class ResolvedCsvSource {
 		private final Path path;
 		private final boolean temporary;
 		private final String sourceType;
+
 		private ResolvedCsvSource(Path path, boolean temporary, String sourceType) {
 			this.path = path;
 			this.temporary = temporary;
 			this.sourceType = sourceType;
 		}
 	}
+
+	/**
+	 * deletePhysicalCsvFiles の結果（成功/失敗の内訳）を保持する内部クラス。
+	 */
 	private static final class DeleteResult {
 		private final Set<String> deletedOriginalCsvIds = new LinkedHashSet<>();
 		private final Set<String> deletedCanonicalCsvIds = new LinkedHashSet<>();
