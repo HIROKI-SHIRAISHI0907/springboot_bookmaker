@@ -25,7 +25,6 @@ public class BatchFileCheckService {
 	private static final String BUCKET_SEASON = "aws-s3-season-csv";
 	private static final String BUCKET_TEAM = "aws-s3-team-csv";
 	private static final String BUCKET_FUTURE = "aws-s3-future-csv";
-	private static final String BUCKET_STAT = "aws-s3-stat-csv";
 	private static final String BUCKET_OUTPUTS = "aws-s3-outputs-csv";
 	private static final String BUCKET_ALL_LEAGUE = "aws-s3-all-league-csv";
 	private static final String BUCKET_GEOGRAFIC = "aws-s3-geografic-csv";
@@ -33,8 +32,6 @@ public class BatchFileCheckService {
 
 	/** 共通キー */
 	private static final String JSON_B001_COUNTRY_LEAGUE = "json/b001_country_league.json";
-	private static final String FILE_DATA_TEAM_LIST = "data_team_list.txt";
-	private static final String FILE_SEQ_LIST = "seqList.txt";
 	private static final String FILE_SEASON_DATA = "season_data.csv";
 	private static final String FILE_ALL_LEAGUE_DATA = "all_league_master.csv";
 
@@ -66,7 +63,6 @@ public class BatchFileCheckService {
 		tasks.add(buildB003());
 		tasks.add(buildB004());
 		tasks.add(buildB005());
-		tasks.add(buildB006());
 		tasks.add(buildB007());
 		tasks.add(buildB008());
 		tasks.add(buildB010());
@@ -157,37 +153,6 @@ public class BatchFileCheckService {
 		items.add(countItem("直ファイル数", bucket, directFileCount, true, directFileCount >= 1));
 
 		return task("B005", ready, summary(ready), items);
-	}
-
-	/**
-	 * B006
-	 * aws-s3-stat-csv にある
-	 * - data_team_list.txt
-	 * - seqList.txt
-	 * の存在有無
-	 * および
-	 * - 上記2ファイルを除外した直フォルダ数
-	 * - 上記2ファイルを除外した直ファイル数
-	 * を表示
-	 */
-	private BatchFileCheckTaskWrapper buildB006() {
-		String bucket = BUCKET_STAT;
-
-		boolean dataTeamListExists = exists(bucket, FILE_DATA_TEAM_LIST);
-		boolean seqListExists = exists(bucket, FILE_SEQ_LIST);
-
-		long directFolderCount = countDirectFoldersExcluding(bucket, Set.of());
-		long directFileCount = countDirectFilesExcluding(bucket, Set.of(FILE_DATA_TEAM_LIST, FILE_SEQ_LIST));
-
-		boolean ready = dataTeamListExists && seqListExists;
-
-		List<BatchFileCheckItemWrapper> items = new ArrayList<>();
-		items.add(fileItem("data_team_list.txt", bucket, FILE_DATA_TEAM_LIST, dataTeamListExists, true, "txt"));
-		items.add(fileItem("seqList.txt", bucket, FILE_SEQ_LIST, seqListExists, true, "txt"));
-		items.add(countItem("直フォルダ数（除外後）", bucket, directFolderCount, false, true));
-		items.add(countItem("直ファイル数（data_team_list.txt / seqList.txt 除外後）", bucket, directFileCount, false, true));
-
-		return task("B006", ready, ready ? "準備OK" : "必須不足", items);
 	}
 
 	/**
