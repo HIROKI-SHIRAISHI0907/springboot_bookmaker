@@ -67,6 +67,8 @@ public class ExportCsvService {
 	private static final String TIMES_HALFTIME = "ハーフタイム";
 	/** 試合時間（times）が「終了済」であることを示す値 */
 	private static final String TIMES_FINISHED = "終了済";
+	/** CSV相対キーのフォルダ部分が「-ラウンドN」（数字のみ）で終わっているかを判定する正規表現 */
+	private static final Pattern VALID_ROUND_FOLDER_SUFFIX = Pattern.compile(".*-ラウンド[0-9]+$");
 	/** trueの場合、S3を使わずローカルのみでCSVを生成する */
 	@Value("${exportcsv.local-only:false}")
 	private boolean localOnly;
@@ -486,6 +488,7 @@ public class ExportCsvService {
 	            }
 	        }
 	    }
+	    Map<String, List<String>> reroutedToNewTargets = new LinkedHashMap<>();
 	    for (Map.Entry<String, List<String>> entry : plan.recreateByCsvKey.entrySet()) {
 	        String relativeKey = canonicalizeCsvId(entry.getKey());
 	        List<String> ids = normalizeSeqList(entry.getValue());
@@ -494,10 +497,24 @@ public class ExportCsvService {
 	                    + ", ids=" + ids);
 	            continue;
 	        }
+	        if (!folderHasValidNumericRound(relativeKey)) {
+	            // ★ 現行ルール（フォルダのラウンドは数字のみ）では無効なフォルダを指す
+	            //   既存CSV（旧ロジックで作られたステージ名フォルダ等）。これ以上の追記更新は止め、
+	            //   新規対象として再評価に回す。dataCategoryに数値ラウンドが付けば
+	            //   resolveNewTargetsByFolder() で正しいフォルダに新規作成される。
+	            //   無効フォルダの既存ファイル自体はここでは削除しない。
+	            logWarn(METHOD_NAME, "recreate対象のフォルダがラウンド無効(数字以外)のため更新を停止し、新規対象へ再ルーティング relativeKey="
+	                    + shortKey(relativeKey) + ", ids=" + ids);
+	            reroutedToNewTargets.put(CSV_NEW_PREFIX + "-" + ids.get(0), ids);
+	            continue;
+	        }
 	        reservedRelativeKeys.add(relativeKey);
 	        workItems.add(new CsvWorkItem(relativeKey, ids));
 	        logInfo(METHOD_NAME, "recreate add relativeKey=" + shortKey(relativeKey)
 	                + ", ids=" + ids);
+	    }
+	    if (!reroutedToNewTargets.isEmpty()) {
+	        plan.newTargets.putAll(reroutedToNewTargets);
 	    }
 	    logInfo(METHOD_NAME, "resolveNewTargetsByFolder() 開始");
 	    Map<String, List<NewTargetGroup>> newTargetsByFolder = resolveNewTargetsByFolder(
@@ -2406,6 +2423,22 @@ public class ExportCsvService {
 		}
 		int idx = key.lastIndexOf('/');
 		return (idx >= 0) ? key.substring(0, idx) : "";
+	}
+	/**
+	 * CSV相対キーのフォルダ部分が、現行ルール（ラウンドは数字のみ）で有効な
+	 * 「-ラウンドN」で終わっているかを判定する。
+	 * 旧ロジックで作られた「-ラウンドクラウスラ」のようなステージ名フォルダや、
+	 * フォルダ自体が無い/ラウンド表記が無いキーは無効と判定する。
+	 *
+	 * @param relativeKey 判定対象のCSV相対キー
+	 * @return フォルダが「-ラウンドN」（数字のみ）で終わっている場合true
+	 */
+	private static boolean folderHasValidNumericRound(String relativeKey) {
+		String folder = parentPath(relativeKey);
+		if (folder.isBlank()) {
+			return false;
+		}
+		return VALID_ROUND_FOLDER_SUFFIX.matcher(folder).matches();
 	}
 	/**
 	 * 文字列がnullまたは空白のみかを判定する。
