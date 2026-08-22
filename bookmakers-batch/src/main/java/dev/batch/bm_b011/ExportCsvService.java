@@ -69,6 +69,13 @@ public class ExportCsvService {
 	private static final String TIMES_FINISHED = "終了済";
 	/** CSV相対キーのフォルダ部分が「-ラウンドN」（数字のみ）で終わっているかを判定する正規表現 */
 	private static final Pattern VALID_ROUND_FOLDER_SUFFIX = Pattern.compile(".*-ラウンド[0-9]+$");
+	/**
+	 * 試合時間（times）が「ハーフタイム」「終了済」以外の場合に、
+	 * 通常のスナップショット行として許容できる数字表記（"28:12" "45+1'" "90+3'" 等、
+	 * 数字・コロン・プラス・アポストロフィのみで構成される値）かどうかを判定する正規表現。
+	 * 「第一ハーフ」のような、数字でもハーフタイム／終了済でもない文言はこれに一致しない。
+	 */
+	private static final Pattern NUMERIC_TIMES_VALUE = Pattern.compile("^[0-9:+']+$");
 	/** trueの場合、S3を使わずローカルのみでCSVを生成する */
 	@Value("${exportcsv.local-only:false}")
 	private boolean localOnly;
@@ -1528,6 +1535,9 @@ public class ExportCsvService {
 	 *   <li>「それ以外」「終了済」のみ（ハーフタイムが無い） → 「終了済」の行だけを返す（単体CSV）</li>
 	 *   <li>上記いずれにも当てはまらない組み合わせ（試合進行中で「終了済」がまだ無い等） → 全行をそのまま返す</li>
 	 * </ul>
+	 * なお、いずれの分類にも入る前に {@link #isNumericTimesValue(String)} による絞り込みを行い、
+	 * 「ハーフタイム」「終了済」でも数字表記（"28:12"等）でもない行（例："第一ハーフ"）は
+	 * 「それ以外」としても採用せず、以降の処理から完全に除外する。
 	 *
 	 * @param raw 対象の行一覧（未フィルタ）
 	 * @return CSV化対象として採用する行一覧。CSV作成自体をしない場合は空リスト
@@ -1536,6 +1546,7 @@ public class ExportCsvService {
 		if (raw == null || raw.isEmpty()) {
 			return raw;
 		}
+		List<DataEntity> cleaned = new ArrayList<>();
 		List<DataEntity> otherRows = new ArrayList<>();
 		List<DataEntity> finishedRows = new ArrayList<>();
 		boolean hasHalftime = false;
@@ -1546,11 +1557,16 @@ public class ExportCsvService {
 			String t = safe(d.getTimes()).trim();
 			if (TIMES_FINISHED.equals(t)) {
 				finishedRows.add(d);
+				cleaned.add(d);
 			} else if (TIMES_HALFTIME.equals(t)) {
 				hasHalftime = true;
-			} else {
+				cleaned.add(d);
+			} else if (isNumericTimesValue(t)) {
 				otherRows.add(d);
+				cleaned.add(d);
 			}
+			// 「ハーフタイム」「終了済」でも数字表記でもない行（例："第一ハーフ"）は
+			// otherRows にも cleaned にも含めず除外する。
 		}
 		boolean hasOther = !otherRows.isEmpty();
 		boolean hasFinished = !finishedRows.isEmpty();
@@ -1559,8 +1575,8 @@ public class ExportCsvService {
 			return finishedRows;
 		}
 		if (hasOther && hasHalftime && hasFinished) {
-			// 全部揃っている → 全行を通常どおり採用
-			return raw;
+			// 全部揃っている → 除外対象を除いた行を通常どおり採用
+			return cleaned;
 		}
 		if (!hasOther && hasHalftime && hasFinished) {
 			// ハーフタイム＋終了済のみ（それ以外が無い） → CSV作成しない
@@ -1571,8 +1587,23 @@ public class ExportCsvService {
 			return finishedRows;
 		}
 		// 試合進行中（終了済がまだ無い）等、上記に該当しない組み合わせは
-		// 従来どおり全行を対象として通常の判定・CSV作成に進める。
-		return raw;
+		// 除外対象を除いた行を対象として通常の判定・CSV作成に進める。
+		return cleaned;
+	}
+	/**
+	 * 試合時間（times）の値が、通常のスナップショット行として許容できる数字表記
+	 * （"28:12" "45+1'" "90+3'" 等、数字・コロン・プラス・アポストロフィのみで構成される値）
+	 * かどうかを判定する。
+	 * 「第一ハーフ」のような、数字でもハーフタイム／終了済でもない文言はfalseとなる。
+	 *
+	 * @param t トリム済みのtimes値
+	 * @return 数字表記として許容できる場合true
+	 */
+	private static boolean isNumericTimesValue(String t) {
+		if (t == null || t.isEmpty()) {
+			return false;
+		}
+		return NUMERIC_TIMES_VALUE.matcher(t).matches();
 	}
 	/**
 	 * 行一覧の中から addManualFlg="1"（手動確定）の行だけを取り出す。
