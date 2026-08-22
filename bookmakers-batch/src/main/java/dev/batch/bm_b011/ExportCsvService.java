@@ -690,16 +690,45 @@ public class ExportCsvService {
 	    if (country.isEmpty() || league.isEmpty()) {
 	        return null;
 	    }
-	    String roundName = safe(this.csvFileNameService.extractRoundName(normalized)).trim();
-	    boolean hasValidRound = !roundName.isEmpty()
-	            && !"unknown".equalsIgnoreCase(roundName)
-	            && !"不明".equals(roundName);
-	    if (!hasValidRound) {
-	        // ラウンドを特定できない場合はCSV生成自体をスキップする
-	        // （dataCategoryが修正され次第、次回実行で自動的に対象になる）
+	    String roundName = resolveEffectiveRoundName(normalized, country, league);
+	    if (roundName.isEmpty()) {
+	        // 数値ラウンドもステージ名も特定できない場合のみCSV生成をスキップする
 	        return null;
 	    }
 	    return country + ": " + league + " - " + roundName;
+	}
+
+	/**
+	 * dataCategoryから「ラウンド名」を解決する。
+	 * まず {@link CsvFileNameService#extractRoundName(String)} を試し、
+	 * 「ラウンドN」形式の数値ラウンドが取れればそれを使う。
+	 * 数値ラウンドが取れない場合（extractRoundNameが空/"unknown"/"不明"を含む値を返す場合）でも、
+	 * "クラウスラ"/"アペルトゥラ" 等のステージ名がdataCategoryの「国: リーグ」より後ろに
+	 * 残っていれば、それをラウンド名として採用する。
+	 * どちらも得られない場合のみ空文字を返す（＝本当にラウンド/ステージ不明）。
+	 *
+	 * @param normalized 判定対象のdataCategory（trim済み）
+	 * @param country 国名
+	 * @param league リーグ名
+	 * @return 解決できたラウンド/ステージ名。解決できない場合は空文字
+	 */
+	private String resolveEffectiveRoundName(String normalized, String country, String league) {
+	    String roundName = safe(this.csvFileNameService.extractRoundName(normalized)).trim();
+	    boolean hasValidRound = !roundName.isEmpty()
+	            && !"unknown".equalsIgnoreCase(roundName)
+	            && !roundName.contains("不明");
+	    if (hasValidRound) {
+	        return roundName;
+	    }
+	    String base = country + ": " + league;
+	    String remainder = normalized.startsWith(base) ? normalized.substring(base.length()).trim() : "";
+	    if (remainder.startsWith("-")) {
+	        remainder = remainder.substring(1).trim();
+	    }
+	    if (!remainder.isEmpty() && !remainder.contains("不明") && !"unknown".equalsIgnoreCase(remainder)) {
+	        return remainder;
+	    }
+	    return "";
 	}
 
 	/**
@@ -1767,17 +1796,21 @@ public class ExportCsvService {
 	    if ("unknown".equalsIgnoreCase(normalized)) {
 	        return false;
 	    }
-	    String roundName = safe(this.csvFileNameService.extractRoundName(normalized)).trim();
-	    if (roundName.isEmpty()) {
+	    List<String> countryLeague;
+	    try {
+	        countryLeague = ExecuteMainUtil.getCountryLeagueByRegex(normalized);
+	    } catch (Exception e) {
+	        countryLeague = null;
+	    }
+	    if (countryLeague == null || countryLeague.size() < 2) {
 	        return false;
 	    }
-	    if ("unknown".equalsIgnoreCase(roundName)) {
+	    String country = safe(countryLeague.get(0)).trim();
+	    String league = safe(countryLeague.get(1)).trim();
+	    if (country.isEmpty() || league.isEmpty()) {
 	        return false;
 	    }
-	    if ("不明".equals(roundName)) {
-	        return false;
-	    }
-	    return true;
+	    return !resolveEffectiveRoundName(normalized, country, league).isEmpty();
 	}
 
 	/**
