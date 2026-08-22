@@ -1,5 +1,4 @@
 package dev.batch.repository.bm;
-
 import java.util.List;
 
 import org.apache.ibatis.annotations.Mapper;
@@ -15,9 +14,9 @@ import dev.common.entity.DataEntity;
  * CSV出力用のデータ取得リポジトリ.
  *
  * 改善版:
- * - 対象グループは home_team_name + away_team_name 単位で取得
- * - 代表値として match_id / data_category / seq を返す
- * - seq一覧取得時は match_id を最優先、次に data_category、最後に home/away でフォールバック
+ * - 対象グループは home_team_name + away_team_name + match_id 単位で取得
+ * - 代表値として data_category / seq_key を返す
+ * - seq一覧取得時は home/away/match_id で厳密にスコープする
  */
 @Mapper
 public interface BookCsvDataRepository {
@@ -26,21 +25,25 @@ public interface BookCsvDataRepository {
      * CSV対象グループ件数取得.
      *
      * 粒度:
-     * - home_team_name + away_team_name
+     * - home_team_name + away_team_name + match_id
      */
     @Select("""
             SELECT COUNT(*)
             FROM (
               SELECT
                 d.home_team_name,
-                d.away_team_name
+                d.away_team_name,
+                d.match_id
               FROM static_data d
               WHERE
-                EXISTS (
+                d.match_id IS NOT NULL
+                AND BTRIM(d.match_id) <> ''
+                AND EXISTS (
                   SELECT 1
                   FROM static_data x
                   WHERE x.home_team_name = d.home_team_name
                     AND x.away_team_name = d.away_team_name
+                    AND x.match_id = d.match_id
                     AND x.times IN ('ハーフタイム', '第一ハーフ')
                 )
                 AND EXISTS (
@@ -48,12 +51,13 @@ public interface BookCsvDataRepository {
                   FROM static_data y
                   WHERE y.home_team_name = d.home_team_name
                     AND y.away_team_name = d.away_team_name
+                    AND y.match_id = d.match_id
                     AND (
                       y.times IN ('終了済', '第二ハーフ')
                       OR REPLACE(BTRIM(y.times), ' ', '') LIKE '%ペナルティ%'
                     )
                 )
-              GROUP BY d.home_team_name, d.away_team_name
+              GROUP BY d.home_team_name, d.away_team_name, d.match_id
             ) t
             """)
     int countGroupTargets();
@@ -62,12 +66,11 @@ public interface BookCsvDataRepository {
      * CSV対象グループ一覧をページング取得.
      *
      * 粒度:
-     * - home_team_name + away_team_name
+     * - home_team_name + away_team_name + match_id
      *
      * 代表値:
-     * - seq         : ラウンド付き data_category の最小seqを優先
+     * - seqKey      : ラウンド付き data_category を持つ行のseq_keyを優先
      * - dataCategory: ラウンド付き data_category を優先
-     * - matchId     : 非空の match_id があれば代表値を返す
      */
     @Select("""
             SELECT
@@ -80,33 +83,26 @@ public interface BookCsvDataRepository {
               SELECT
                 d.home_team_name AS homeTeamName,
                 d.away_team_name AS awayTeamName,
-
-                COALESCE(
-                  MAX(CASE
-                        WHEN d.match_id IS NOT NULL
-                         AND BTRIM(d.match_id) <> ''
-                        THEN d.match_id
-                      END),
-                  ''
-                ) AS matchId,
-
+                d.match_id AS matchId,
                 COALESCE(
                   MAX(CASE WHEN d.data_category LIKE '%ラウンド%' THEN d.data_category END),
                   MAX(d.data_category),
                   ''
                 ) AS dataCategory,
-
                 COALESCE(
-                  MIN(CASE WHEN d.data_category LIKE '%ラウンド%' THEN d.seq END),
-                  MIN(d.seqKey)
+                  MIN(CASE WHEN d.data_category LIKE '%ラウンド%' THEN d.seq_key END),
+                  MIN(d.seq_key)
                 ) AS seqKey
               FROM static_data d
               WHERE
-                EXISTS (
+                d.match_id IS NOT NULL
+                AND BTRIM(d.match_id) <> ''
+                AND EXISTS (
                   SELECT 1
                   FROM static_data x
                   WHERE x.home_team_name = d.home_team_name
                     AND x.away_team_name = d.away_team_name
+                    AND x.match_id = d.match_id
                     AND x.times IN ('ハーフタイム', '第一ハーフ')
                 )
                 AND EXISTS (
@@ -114,22 +110,22 @@ public interface BookCsvDataRepository {
                   FROM static_data y
                   WHERE y.home_team_name = d.home_team_name
                     AND y.away_team_name = d.away_team_name
+                    AND y.match_id = d.match_id
                     AND (
                       y.times IN ('終了済', '第二ハーフ')
                       OR REPLACE(BTRIM(y.times), ' ', '') LIKE '%ペナルティ%'
                     )
                 )
-              GROUP BY d.home_team_name, d.away_team_name
+              GROUP BY d.home_team_name, d.away_team_name, d.match_id
             ) t
-            ORDER BY t.homeTeamName, t.awayTeamName, t.seqKey
+            ORDER BY t.homeTeamName, t.awayTeamName, t.matchId, t.seqKey
             LIMIT #{limit} OFFSET #{offset}
             """)
     List<SeqWithKey> findGroupTargetsPage(@Param("limit") int limit,
                                           @Param("offset") int offset);
 
     /**
-     * 対象グループに属する seq 一覧を取得.
-     *
+     * 対象グループ（home/away/matchId）に属する seq_key 一覧を取得.
      */
     @Select("""
             <script>
@@ -138,6 +134,7 @@ public interface BookCsvDataRepository {
             FROM static_data
             WHERE home_team_name = #{homeTeamName}
               AND away_team_name = #{awayTeamName}
+              AND match_id = #{matchId}
             ORDER BY seq_key ASC
             </script>
             """)
@@ -147,7 +144,7 @@ public interface BookCsvDataRepository {
                                      @Param("dataCategory") String dataCategory);
 
     /**
-     * seq 指定で詳細データ取得.
+     * seq_key 指定で詳細データ取得.
      */
     @Options(useCache = false, flushCache = Options.FlushCachePolicy.TRUE)
     @Select("""
@@ -263,7 +260,7 @@ public interface BookCsvDataRepository {
             <where>
               <choose>
                 <when test="seqList != null and seqList.size() > 0">
-                  seq IN
+                  seq_key IN
                   <foreach collection="seqList" item="item" open="(" separator="," close=")">
                     #{item}
                   </foreach>
@@ -273,7 +270,7 @@ public interface BookCsvDataRepository {
                 </otherwise>
               </choose>
             </where>
-            ORDER BY seq ASC, record_time ASC
+            ORDER BY seq_key ASC, record_time ASC
             </script>
             """)
     List<DataEntity> findByData(@Param("seqList") List<String> seqList);
@@ -294,7 +291,7 @@ public interface BookCsvDataRepository {
             <where>
               <choose>
                 <when test="seqList != null and seqList.size() > 0">
-                  seq IN
+                  seq_key IN
                   <foreach collection="seqList" item="item" open="(" separator="," close=")">
                     #{item}
                   </foreach>
@@ -308,5 +305,4 @@ public interface BookCsvDataRepository {
             </script>
             """)
     List<CsvPreviewRow> findPreviewByData(@Param("seqList") List<String> seqList);
-
 }
