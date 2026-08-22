@@ -691,9 +691,15 @@ public class ExportCsvService {
 	        return null;
 	    }
 	    String roundName = safe(this.csvFileNameService.extractRoundName(normalized)).trim();
-	    boolean hasValidRound = !roundName.isEmpty() && !"unknown".equalsIgnoreCase(roundName);
-	    String base = country + ": " + league;
-	    return hasValidRound ? (base + " - " + roundName) : base;
+	    boolean hasValidRound = !roundName.isEmpty()
+	            && !"unknown".equalsIgnoreCase(roundName)
+	            && !"不明".equals(roundName);
+	    if (!hasValidRound) {
+	        // ラウンドを特定できない場合はCSV生成自体をスキップする
+	        // （dataCategoryが修正され次第、次回実行で自動的に対象になる）
+	        return null;
+	    }
+	    return country + ": " + league + " - " + roundName;
 	}
 
 	/**
@@ -1754,21 +1760,24 @@ public class ExportCsvService {
 	 * @return 使用可能な場合true
 	 */
 	private boolean isUsableCategory(String category) {
-		String normalized = safe(category).trim();
-		if (normalized.isEmpty()) {
-			return false;
-		}
-		if ("unknown".equalsIgnoreCase(normalized)) {
-			return false;
-		}
-		String roundName = safe(this.csvFileNameService.extractRoundName(normalized)).trim();
-		if (roundName.isEmpty()) {
-			return false;
-		}
-		if ("unknown".equalsIgnoreCase(roundName)) {
-			return false;
-		}
-		return true;
+	    String normalized = safe(category).trim();
+	    if (normalized.isEmpty()) {
+	        return false;
+	    }
+	    if ("unknown".equalsIgnoreCase(normalized)) {
+	        return false;
+	    }
+	    String roundName = safe(this.csvFileNameService.extractRoundName(normalized)).trim();
+	    if (roundName.isEmpty()) {
+	        return false;
+	    }
+	    if ("unknown".equalsIgnoreCase(roundName)) {
+	        return false;
+	    }
+	    if ("不明".equals(roundName)) {
+	        return false;
+	    }
+	    return true;
 	}
 
 	/**
@@ -2244,31 +2253,34 @@ public class ExportCsvService {
 	 * @param list 補完対象の行一覧（呼び出し元で書き換えられる）
 	 */
 	private static void backfillScores(List<DataEntity> list) {
-		if (list == null || list.isEmpty()) {
-			return;
-		}
-		list.sort(Comparator
-		        .comparing((DataEntity d) -> {
-		            String rt = d.getRecordTime();
-		            return (rt == null) ? "" : rt;
-		        })
-		        .thenComparingInt(d -> extractSeqNo(Objects.toString(d.getSeqKey(), null))));
-		String lastHome = null;
-		String lastAway = null;
-		for (DataEntity d : list) {
-			if (isBlank(d.getHomeScore()) && lastHome != null) {
-				d.setHomeScore(lastHome);
-			}
-			if (isBlank(d.getAwayScore()) && lastAway != null) {
-				d.setAwayScore(lastAway);
-			}
-			if (!isBlank(d.getHomeScore())) {
-				lastHome = d.getHomeScore();
-			}
-			if (!isBlank(d.getAwayScore())) {
-				lastAway = d.getAwayScore();
-			}
-		}
+	    if (list == null || list.isEmpty()) {
+	        return;
+	    }
+	    // ★ 並び順はseqKey末尾連番（採番順=記録順）を最優先にする。
+	    //   recordTimeは書式次第で文字列比較の結果が実時刻と食い違うことがあるため、
+	    //   同一連番内の補助的な比較キーとしてのみ使用する。
+	    list.sort(Comparator
+	            .comparingInt((DataEntity d) -> extractSeqNo(Objects.toString(d.getSeqKey(), null)))
+	            .thenComparing((DataEntity d) -> {
+	                String rt = d.getRecordTime();
+	                return (rt == null) ? "" : rt;
+	            }));
+	    String lastHome = null;
+	    String lastAway = null;
+	    for (DataEntity d : list) {
+	        if (isBlank(d.getHomeScore()) && lastHome != null) {
+	            d.setHomeScore(lastHome);
+	        }
+	        if (isBlank(d.getAwayScore()) && lastAway != null) {
+	            d.setAwayScore(lastAway);
+	        }
+	        if (!isBlank(d.getHomeScore())) {
+	            lastHome = d.getHomeScore();
+	        }
+	        if (!isBlank(d.getAwayScore())) {
+	            lastAway = d.getAwayScore();
+	        }
+	    }
 	}
 
 	/**
