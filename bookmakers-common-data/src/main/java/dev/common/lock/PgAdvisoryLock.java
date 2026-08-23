@@ -12,8 +12,6 @@ import javax.sql.DataSource;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Component;
 
-import lombok.RequiredArgsConstructor;
-
 /**
  * PostgreSQLのadvisory lockを使った、プロセス間・JVM間の排他制御ユーティリティ。
  * 同一DBに接続する複数のバッチ/APIプロセスの間で、S3上の特定prefixへの
@@ -24,13 +22,12 @@ import lombok.RequiredArgsConstructor;
  * (何らかの理由でロック保持側が固まった場合に、待ち側が無期限にブロックし続けるのを避けるため)
  */
 @Component
-@RequiredArgsConstructor
 public class PgAdvisoryLock {
 
 	private static final long DEFAULT_MAX_WAIT_MILLIS = 30_000L;
 	private static final long POLL_INTERVAL_MILLIS = 200L;
 
-	private DataSource dataSource;
+	private final DataSource dataSource;
 
 	public PgAdvisoryLock(@Qualifier("bmDataSource") DataSource dataSource) {
 		this.dataSource = dataSource;
