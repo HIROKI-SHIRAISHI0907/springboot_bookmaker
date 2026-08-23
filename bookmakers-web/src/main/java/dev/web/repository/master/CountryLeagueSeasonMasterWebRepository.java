@@ -43,7 +43,7 @@ public class CountryLeagueSeasonMasterWebRepository {
 				    FROM country_league_season_master
 				    WHERE
 				      del_flg = :delFlg
-				    ORDER BY country, league, season_year
+				    ORDER BY country
 				""");
 
 		MapSqlParameterSource params = new MapSqlParameterSource();
