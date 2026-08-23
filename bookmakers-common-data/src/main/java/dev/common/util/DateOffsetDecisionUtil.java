@@ -34,6 +34,10 @@ public final class DateOffsetDecisionUtil {
 	// ========================================================
 	// 共通ヘルパー
 	// ========================================================
+	// ZoneIdを返却する
+	public static ZoneId getZoneId() {
+		return ZONE;
+	}
 
 	// getLocalDateTime を置き換え
 	public static OffsetDateTime getOffsetDateTime(ResultSet rs, String columnLabel) throws SQLException {
