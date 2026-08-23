@@ -38,7 +38,7 @@ public class MatchDataRepository {
                         )
                         ORDER BY d.record_time DESC NULLS LAST, d.seq DESC
                     ) AS rn
-                FROM data d
+                FROM static_data d
                 WHERE CAST(d.record_time AS DATE) = CAST(:targetDate AS DATE)
             )
             SELECT COUNT(*)
@@ -84,7 +84,7 @@ public class MatchDataRepository {
                         )
                         ORDER BY d.record_time DESC NULLS LAST, d.seq DESC
                     ) AS rn
-                FROM data d
+                FROM static_data d
                 WHERE CAST(d.record_time AS DATE) = CAST(:targetDate AS DATE)
             )
             SELECT
