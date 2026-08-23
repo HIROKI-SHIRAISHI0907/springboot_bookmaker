@@ -79,9 +79,8 @@ public interface FutureMasterRepository {
 			    FROM
 			    	future_master
 			    WHERE
-			        game_team_category = #{gameTeamCategory} AND
-			        home_team_name = #{homeTeamName} AND
-			        away_team_name = #{awayTeamName};
+			        normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC);
 			""")
 	int findDataCount(FutureEntity entity);
 
@@ -98,8 +97,8 @@ public interface FutureMasterRepository {
 			    FROM
 			    	future_master
 			    WHERE
-			        home_team_name = #{homeTeamName} AND
-			        away_team_name = #{awayTeamName};
+			        normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC);
 			""")
 	List<FutureEntity> findOnlyTeam(FutureEntity entity);
 

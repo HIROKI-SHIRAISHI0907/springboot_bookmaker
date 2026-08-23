@@ -120,11 +120,6 @@ public class FinGettingStat implements FinGettingEntityIF {
 
 				DataEntity insertEntities = dataDBService.selectInBatch(ent);
 				dataDBService.insertInBatchOrThrow(insertEntities);
-
-				FutureEntity fe = buildFutureEntity(ent);
-				List<FutureEntity> list = List.of(fe);
-				List<FutureEntity> selEntities = futureDBService.selectInBatch(list, fillChar);
-				futureDBService.insertInBatchOrThrow(selEntities);
 			}
 
 		}
