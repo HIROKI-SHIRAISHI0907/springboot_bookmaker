@@ -3,7 +3,6 @@ package dev.web.api.bm_w001;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -12,6 +11,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.common.constant.FutureScheduleConstant;
 import dev.common.readfile.ReadDelayPostpone;
 import dev.common.readfile.dto.DelayPostponeMatchDto;
+import dev.common.util.DateOffsetDecisionUtil;
 import dev.web.repository.bm.BookDataRepository;
 import dev.web.repository.bm.LeaguesRepository;
 import dev.web.repository.bm.LeaguesRepository.TeamRow;
@@ -74,8 +74,8 @@ public class FuturesAPIService {
         // sourceKey=delay_postpone_2026-08-08.json)]
         log.info("delayPostponeJsonData check: {}", delayPostponeJsonData);
 
-        LocalDateTime now = LocalDateTime.now(); // ← システムのデフォルトタイムゾーン
-        boolean targetDateIsToday = LocalDate.now(ZoneId.of("Asia/Tokyo")).toString().equals(date); // ← 明示的にJST
+        LocalDateTime now = LocalDateTime.now(DateOffsetDecisionUtil.getZoneId()); // ← システムのデフォルトタイムゾーン
+        boolean targetDateIsToday = LocalDate.now(DateOffsetDecisionUtil.getZoneId()).toString().equals(date); // ← 明示的にJST
 
         for (FuturesResponseDTO dto : responseDTO) {
 

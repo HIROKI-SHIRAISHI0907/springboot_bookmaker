@@ -98,7 +98,7 @@ public class MatchDataRepository {
                 recordTime
             FROM ranked
             WHERE rn = 1
-            ORDER BY sortRecordTime DESC, homeTeamName ASC, awayTeamName ASC
+            ORDER BY sortRecordTime DESC
             LIMIT :limit OFFSET :offset
         """;
 
