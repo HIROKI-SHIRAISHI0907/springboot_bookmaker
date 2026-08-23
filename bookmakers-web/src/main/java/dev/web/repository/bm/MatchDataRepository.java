@@ -36,7 +36,7 @@ public class MatchDataRepository {
                             NULLIF(d.game_id, ''),
                             d.home_team_name || '|' || d.away_team_name || '|' || COALESCE(d.data_category, '')
                         )
-                        ORDER BY d.record_time DESC NULLS LAST, d.seq DESC
+                        ORDER BY d.record_time DESC NULLS LAST, d.seq_key DESC
                     ) AS rn
                 FROM static_data d
                 WHERE CAST(d.record_time AS DATE) = CAST(:targetDate AS DATE)
@@ -82,7 +82,7 @@ public class MatchDataRepository {
                             NULLIF(d.game_id, ''),
                             d.home_team_name || '|' || d.away_team_name || '|' || COALESCE(d.data_category, '')
                         )
-                        ORDER BY d.record_time DESC NULLS LAST, d.seq DESC
+                        ORDER BY d.record_time DESC NULLS LAST, d.seq_key DESC
                     ) AS rn
                 FROM static_data d
                 WHERE CAST(d.record_time AS DATE) = CAST(:targetDate AS DATE)
