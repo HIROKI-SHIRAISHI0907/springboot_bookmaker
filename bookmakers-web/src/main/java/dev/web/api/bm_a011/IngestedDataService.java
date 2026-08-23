@@ -1,5 +1,8 @@
 package dev.web.api.bm_a011;
 
+import java.time.Instant;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -156,12 +159,17 @@ public class IngestedDataService {
 
 		List<IngestedRowDTO> merged = new ArrayList<>(grouped.values());
 
+		// ===== 未開催（試合時間がまだ来ていない）行は、チェックボックスの状態に関わらず常に除外 =====
+		merged = merged.stream()
+		        .filter(r -> !isNotYetStarted(r))
+		        .collect(Collectors.toList());
+
 		// ===== チェックボックス条件 =====
 		if (req.isOnlyMissingFinishedOrFuture()) {
-			merged = merged.stream()
-					.filter(r -> Boolean.FALSE.equals(r.getHasFinishedData())
-							|| Boolean.FALSE.equals(r.getFutureExists()))
-					.collect(Collectors.toList());
+		    merged = merged.stream()
+		            .filter(r -> Boolean.FALSE.equals(r.getHasFinishedData())
+		                    || Boolean.FALSE.equals(r.getFutureExists()))
+		            .collect(Collectors.toList());
 		}
 
 		// ===== paging =====
@@ -309,6 +317,24 @@ public class IngestedDataService {
 				.matcher(gl);
 
 		return m.find() ? m.group(1) : null;
+	}
+
+	/**
+	 * まだ試合開始時刻を迎えていない（futureTime が現在時刻より未来の）行かどうかを判定する。
+	 * Instant（絶対時刻）同士の比較のため、タイムゾーンの取り違えは発生しない。
+	 * futureTime が取得できない場合は false（除外しない）とする。
+	 */
+	private static boolean isNotYetStarted(IngestedRowDTO row) {
+	    String futureTime = (row.getFuture() != null) ? row.getFuture().getFutureTime() : null;
+	    if (futureTime == null || futureTime.isBlank()) {
+	        return false;
+	    }
+	    try {
+	        Instant matchInstant = OffsetDateTime.parse(futureTime).toInstant();
+	        return matchInstant.isAfter(Instant.now());
+	    } catch (DateTimeParseException e) {
+	        return false;
+	    }
 	}
 
 	// =========================================================
