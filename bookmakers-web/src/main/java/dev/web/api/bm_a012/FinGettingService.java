@@ -121,6 +121,12 @@ public class FinGettingService {
 		return existingMatchKeys;
 	}
 
+	/**
+	 * JSONファイルを作成する上で必要なデータ構築を行う
+	 * @param items
+	 * @param existingMatchKeys
+	 * @return
+	 */
 	private Map<String, List<Map<String, Object>>> toOutputMap(List<FinGettingRequest.Item> items,
 			Set<String> existingMatchKeys) {
 		Map<String, List<Map<String, Object>>> out = new LinkedHashMap<>();
@@ -136,10 +142,11 @@ public class FinGettingService {
 				throw new IllegalArgumentException("matchId がありません: index=" + i);
 			}
 			String trimmedMatchId = matchId.trim();
-	        // existingMatchKeysに存在しない場合にスキップ
-	        if (!existingMatchKeys.contains(trimmedMatchId)) {
-	            continue;
-	        }
+			// 既にキュー(未処理の他ファイル)に同じmatchIdが存在する場合はスキップ（重複投入防止）
+			if (existingMatchKeys.contains(trimmedMatchId)) {
+			    continue;
+			}
+
 			String dateKey = matchDate.toString();
 			Map<String, Object> row = new HashMap<>();
 			row.put("matchKey", matchId.trim());
