@@ -18,18 +18,14 @@ import com.fasterxml.jackson.core.exc.StreamWriteException;
 import com.fasterxml.jackson.databind.DatabindException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import dev.batch.bm_b005.FutureDBService;
 import dev.batch.interf.FinGettingEntityIF;
 import dev.batch.repository.bm.BookDataRepository;
 import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
-import dev.common.entity.FutureEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
-import dev.common.util.DateStatHelper;
-import dev.common.util.DateUtil;
 import dev.common.util.FileDeleteUtil;
 
 /**
@@ -54,8 +50,6 @@ public class FinGettingStat implements FinGettingEntityIF {
 	private SeqKeyBatchService seqKeyService;
 	@Autowired
 	private DataCategoryBatchService dataCategoryBatchService;
-	@Autowired
-	private FutureDBService futureDBService; // master
 	@Autowired
 	private DataDBService dataDBService; // bm
 	@Autowired
@@ -82,7 +76,6 @@ public class FinGettingStat implements FinGettingEntityIF {
 		// 1) bm/master両方のDB処理（ここが “同一JTAトランザクション” に参加）
 		for (Map.Entry<String, List<DataEntity>> map : entities.entrySet()) {
 			String filePath = map.getKey();
-			String fillChar = "ファイル名: " + filePath;
 
 			List<DataEntity> entList = map.getValue();
 			for (DataEntity ent : entList) {
@@ -161,58 +154,6 @@ public class FinGettingStat implements FinGettingEntityIF {
 				});
 
 		manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-	}
-
-	/**
-	 * エンティティ設定
-	 * @param ent
-	 * @return
-	 */
-	private FutureEntity buildFutureEntity(DataEntity ent) {
-		FutureEntity entity = new FutureEntity();
-		entity.setGameTeamCategory(ent.getDataCategory());
-		entity.setFutureTime(resolveFutureTime(ent));
-		entity.setHomeRank(ent.getHomeRank());
-		entity.setAwayRank(ent.getAwayRank());
-		entity.setHomeTeamName(ent.getHomeTeamName());
-		entity.setAwayTeamName(ent.getAwayTeamName());
-		entity.setHomeMaxGettingScorer(ent.getHomeMaxGettingScorer());
-		entity.setAwayMaxGettingScorer(ent.getAwayMaxGettingScorer());
-		entity.setHomeTeamHomeScore(ent.getHomeTeamHomeScore());
-		entity.setAwayTeamHomeScore(ent.getAwayTeamHomeScore());
-		entity.setHomeTeamHomeLost(ent.getHomeTeamHomeLost());
-		entity.setAwayTeamHomeLost(ent.getAwayTeamHomeLost());
-		entity.setHomeTeamAwayScore(ent.getHomeTeamAwayScore());
-		entity.setAwayTeamAwayScore(ent.getAwayTeamAwayScore());
-		entity.setHomeTeamAwayLost(ent.getHomeTeamAwayLost());
-		entity.setAwayTeamAwayLost(ent.getAwayTeamAwayLost());
-		entity.setGameLink(ent.getGameLink());
-		entity.setDataTime(DateUtil.getSysDate()); // 登録日付
-		entity.setStartFlg("1"); // 開始済
-		return entity;
-	}
-
-	/**
-	 * futureTime の決定
-	 *
-	 * 優先順位:
-	 * 1. 当時の試合時間があればその値を使用
-	 *    - 例: "14.07.2026 07:00"
-	 *    - DB投入用に "yyyy-MM-dd HH:mm:ss" 形式へ正規化
-	 * 2. 無ければ従来どおり recordTime の120分前を使用
-	 */
-	private String resolveFutureTime(DataEntity ent) {
-		// なければ当時の時間を取得
-		String originalMatchTime = ent.getAtThatTimes();
-
-		if (originalMatchTime != null && !originalMatchTime.isBlank()) {
-			String normalized = DateStatHelper.toDateTimeText(originalMatchTime);
-			if (normalized != null && !normalized.isBlank()) {
-				return normalized;
-			}
-		}
-		// 記録時間
-		return DateUtil.minus120Minutes(ent.getRecordTime());
 	}
 
 	/**
