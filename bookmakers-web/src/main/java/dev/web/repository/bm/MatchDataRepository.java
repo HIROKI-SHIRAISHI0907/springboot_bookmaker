@@ -1,6 +1,8 @@
 package dev.web.repository.bm;
 
+import java.util.HashSet;
 import java.util.List;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -122,4 +124,53 @@ public class MatchDataRepository {
             }
         );
     }
+
+    /**
+     * csv_detail_manage に一致するレコードが存在するかを判定する。
+     * ExportCsvService#upsertCsvDetailManage と同じキー(data_category + season + home + away)で判定するが、
+     * home/away は表記ゆれを吸収するため NFKC 正規化した上で比較する。
+     */
+    public boolean existsCsvDetailManage(String dataCategory, String season, String homeTeamName, String awayTeamName) {
+        String sql = """
+            SELECT COUNT(*)
+            FROM csv_detail_manage
+            WHERE data_category = :dataCategory
+              AND season = :season
+              AND normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
+              AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
+        """;
+        Integer count = bmJdbcTemplate.queryForObject(
+                sql,
+                new MapSqlParameterSource()
+                        .addValue("dataCategory", dataCategory)
+                        .addValue("season", season)
+                        .addValue("homeTeamName", homeTeamName)
+                        .addValue("awayTeamName", awayTeamName),
+                Integer.class);
+        return count != null && count > 0;
+    }
+
+    /**
+     * 指定した matchId 群のうち、static_data に data_category = 'ハーフタイム' と '終了済' が
+     * 両方存在する matchId の集合を返す（CSV作成対象の判定に使用）。
+     */
+    public Set<String> findMatchIdsWithHalftimeAndFinished(List<String> matchIds) {
+        if (matchIds == null || matchIds.isEmpty()) {
+            return Set.of();
+        }
+        String sql = """
+            SELECT match_id
+            FROM static_data
+            WHERE match_id IN (:matchIds)
+              AND data_category IN ('ハーフタイム', '終了済')
+            GROUP BY match_id
+            HAVING COUNT(DISTINCT data_category) = 2
+        """;
+        List<String> rows = bmJdbcTemplate.queryForList(
+                sql,
+                new MapSqlParameterSource().addValue("matchIds", matchIds),
+                String.class);
+        return new HashSet<>(rows);
+    }
+
 }

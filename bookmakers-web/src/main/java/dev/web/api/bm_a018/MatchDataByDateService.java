@@ -2,21 +2,33 @@ package dev.web.api.bm_a018;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
+import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
+import java.util.Set;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import dev.common.util.ExecuteMainUtil;
 import dev.web.repository.bm.MatchDataRepository;
+import dev.web.repository.master.CountryLeagueSeasonMasterWebRepository;
 
 @Service
 public class MatchDataByDateService {
-
     private static final int DEFAULT_SIZE = 10;
     private static final int MAX_SIZE = 100;
 
+    public static final String CSV_STATUS_CREATED = "CREATED";
+    public static final String CSV_STATUS_TARGET = "TARGET";
+    public static final String CSV_STATUS_NOT_TARGET = "NOT_TARGET";
+
     @Autowired
     private MatchDataRepository matchDataRepository;
+
+    @Autowired
+    private CountryLeagueSeasonMasterWebRepository countryLeagueSeasonMasterWebRepository;
 
     public MatchDataByDateListResponse getMatchDataByDate(String targetDate, Integer page, Integer size) {
         String normalizedDate = normalizeTargetDate(targetDate);
@@ -26,7 +38,6 @@ public class MatchDataByDateService {
 
         int totalCount = matchDataRepository.countMatchDataByDate(normalizedDate);
         int totalPages = (totalCount == 0) ? 0 : (int) Math.ceil((double) totalCount / normalizedSize);
-
         if (totalPages > 0 && normalizedPage > totalPages) {
             normalizedPage = totalPages;
             offset = (normalizedPage - 1) * normalizedSize;
@@ -34,6 +45,8 @@ public class MatchDataByDateService {
 
         List<MatchDataByDateItemResource> items =
                 matchDataRepository.findMatchDataByDate(normalizedDate, normalizedSize, offset);
+
+        applyCsvStatus(items);
 
         MatchDataByDateListResponse response = new MatchDataByDateListResponse();
         response.setTargetDate(normalizedDate);
@@ -45,11 +58,87 @@ public class MatchDataByDateService {
         return response;
     }
 
+    /**
+     * 一覧の各行に csvStatus を付与する。
+     * 判定順序:
+     * 1. csv_detail_manage に一致するレコードがあれば CREATED（CSV作成済）
+     * 2. 同一matchIdで static_data に「ハーフタイム」「終了済」が両方存在すれば TARGET（CSV作成対象）
+     * 3. どちらでもなければ NOT_TARGET（CSV作成非対象）
+     */
+    private void applyCsvStatus(List<MatchDataByDateItemResource> items) {
+        if (items == null || items.isEmpty()) {
+            return;
+        }
+
+        List<String> matchIds = items.stream()
+                .map(MatchDataByDateItemResource::getMatchId)
+                .filter(id -> id != null && !id.isBlank())
+                .distinct()
+                .collect(Collectors.toList());
+        Set<String> targetMatchIds = matchDataRepository.findMatchIdsWithHalftimeAndFinished(matchIds);
+
+        // country/league -> season_year のキャッシュ（同一リクエスト内での重複解決を避ける）
+        Map<String, String> seasonCache = new HashMap<>();
+
+        for (MatchDataByDateItemResource item : items) {
+            if (isAlreadyCreated(item, seasonCache)) {
+                item.setCsvStatus(CSV_STATUS_CREATED);
+                continue;
+            }
+            String matchId = item.getMatchId();
+            if (matchId != null && !matchId.isBlank() && targetMatchIds.contains(matchId)) {
+                item.setCsvStatus(CSV_STATUS_TARGET);
+            } else {
+                item.setCsvStatus(CSV_STATUS_NOT_TARGET);
+            }
+        }
+    }
+
+    /**
+     * ExportCsvService#resolveSeasonSafely と同じ手順(dataCategoryからcountry/league抽出 → season解決)で
+     * csv_detail_manage の一致有無を判定する。country/league・season のいずれかが解決できない場合はfalse。
+     */
+    private boolean isAlreadyCreated(MatchDataByDateItemResource item, Map<String, String> seasonCache) {
+        String dataCategory = item.getDataCategory();
+        String home = item.getHomeTeamName();
+        String away = item.getAwayTeamName();
+        if (isBlank(dataCategory) || isBlank(home) || isBlank(away)) {
+            return false;
+        }
+        try {
+            List<String> countryLeague = ExecuteMainUtil.getCountryLeagueByRegex(dataCategory.trim());
+            if (countryLeague == null || countryLeague.size() < 2) {
+                return false;
+            }
+            String country = safe(countryLeague.get(0)).trim();
+            String league = safe(countryLeague.get(1)).trim();
+            if (country.isEmpty() || league.isEmpty()) {
+                return false;
+            }
+            String cacheKey = country + "\u0001" + league;
+            String season = seasonCache.computeIfAbsent(cacheKey,
+                    k -> safe(countryLeagueSeasonMasterWebRepository.findCurrentSeasonYear(country, league)).trim());
+            if (season.isEmpty()) {
+                return false;
+            }
+            return matchDataRepository.existsCsvDetailManage(dataCategory.trim(), season, home, away);
+        } catch (Exception e) {
+            return false;
+        }
+    }
+
+    private static boolean isBlank(String s) {
+        return s == null || s.isBlank();
+    }
+
+    private static String safe(String s) {
+        return s == null ? "" : s;
+    }
+
     private String normalizeTargetDate(String targetDate) {
         if (targetDate == null || targetDate.isBlank()) {
             return LocalDate.now().toString();
         }
-
         try {
             return LocalDate.parse(targetDate.trim()).toString();
         } catch (DateTimeParseException e) {

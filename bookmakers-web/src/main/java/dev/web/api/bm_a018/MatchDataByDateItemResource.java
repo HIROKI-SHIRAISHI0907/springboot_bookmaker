@@ -29,4 +29,7 @@ public class MatchDataByDateItemResource {
     /** 記録時間 */
     private String recordTime;
 
+    /** CSV作成ステータス: CREATED(作成済) / TARGET(作成対象) / NOT_TARGET(作成非対象) */
+    private String csvStatus;
+
 }
