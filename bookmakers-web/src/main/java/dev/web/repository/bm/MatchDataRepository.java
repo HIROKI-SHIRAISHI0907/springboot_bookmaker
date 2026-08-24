@@ -127,15 +127,15 @@ public class MatchDataRepository {
 
     /**
      * csv_detail_manage に一致するレコードが存在するかを判定する。
-     * ExportCsvService#upsertCsvDetailManage と同じキー(data_category + season + home + away)で判定するが、
-     * home/away は表記ゆれを吸収するため NFKC 正規化した上で比較する。
+     * data_category は完全一致、home/away は表記ゆれを吸収するため NFKC 正規化した上で比較する。
+     * season は country/league からの再計算に依存すると batch 側の算出ロジックとズレるリスクがあるため、
+     * 判定条件から除外している。
      */
-    public boolean existsCsvDetailManage(String dataCategory, String season, String homeTeamName, String awayTeamName) {
+    public boolean existsCsvDetailManage(String dataCategory, String homeTeamName, String awayTeamName) {
         String sql = """
             SELECT COUNT(*)
             FROM csv_detail_manage
             WHERE data_category = :dataCategory
-              AND season = :season
               AND normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
               AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
         """;
@@ -143,7 +143,6 @@ public class MatchDataRepository {
                 sql,
                 new MapSqlParameterSource()
                         .addValue("dataCategory", dataCategory)
-                        .addValue("season", season)
                         .addValue("homeTeamName", homeTeamName)
                         .addValue("awayTeamName", awayTeamName),
                 Integer.class);

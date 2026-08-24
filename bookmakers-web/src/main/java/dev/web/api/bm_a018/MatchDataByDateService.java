@@ -2,18 +2,14 @@ package dev.web.api.bm_a018;
 
 import java.time.LocalDate;
 import java.time.format.DateTimeParseException;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import dev.common.util.ExecuteMainUtil;
 import dev.web.repository.bm.MatchDataRepository;
-import dev.web.repository.master.CountryLeagueSeasonMasterWebRepository;
 
 @Service
 public class MatchDataByDateService {
@@ -26,9 +22,6 @@ public class MatchDataByDateService {
 
     @Autowired
     private MatchDataRepository matchDataRepository;
-
-    @Autowired
-    private CountryLeagueSeasonMasterWebRepository countryLeagueSeasonMasterWebRepository;
 
     public MatchDataByDateListResponse getMatchDataByDate(String targetDate, Integer page, Integer size) {
         String normalizedDate = normalizeTargetDate(targetDate);
@@ -77,11 +70,8 @@ public class MatchDataByDateService {
                 .collect(Collectors.toList());
         Set<String> targetMatchIds = matchDataRepository.findMatchIdsWithHalftimeAndFinished(matchIds);
 
-        // country/league -> season_year のキャッシュ（同一リクエスト内での重複解決を避ける）
-        Map<String, String> seasonCache = new HashMap<>();
-
         for (MatchDataByDateItemResource item : items) {
-            if (isAlreadyCreated(item, seasonCache)) {
+            if (isAlreadyCreated(item)) {
                 item.setCsvStatus(CSV_STATUS_CREATED);
                 continue;
             }
@@ -94,45 +84,18 @@ public class MatchDataByDateService {
         }
     }
 
-    /**
-     * ExportCsvService#resolveSeasonSafely と同じ手順(dataCategoryからcountry/league抽出 → season解決)で
-     * csv_detail_manage の一致有無を判定する。country/league・season のいずれかが解決できない場合はfalse。
-     */
-    private boolean isAlreadyCreated(MatchDataByDateItemResource item, Map<String, String> seasonCache) {
+    private boolean isAlreadyCreated(MatchDataByDateItemResource item) {
         String dataCategory = item.getDataCategory();
         String home = item.getHomeTeamName();
         String away = item.getAwayTeamName();
         if (isBlank(dataCategory) || isBlank(home) || isBlank(away)) {
             return false;
         }
-        try {
-            List<String> countryLeague = ExecuteMainUtil.getCountryLeagueByRegex(dataCategory.trim());
-            if (countryLeague == null || countryLeague.size() < 2) {
-                return false;
-            }
-            String country = safe(countryLeague.get(0)).trim();
-            String league = safe(countryLeague.get(1)).trim();
-            if (country.isEmpty() || league.isEmpty()) {
-                return false;
-            }
-            String cacheKey = country + "\u0001" + league;
-            String season = seasonCache.computeIfAbsent(cacheKey,
-                    k -> safe(countryLeagueSeasonMasterWebRepository.findCurrentSeasonYear(country, league)).trim());
-            if (season.isEmpty()) {
-                return false;
-            }
-            return matchDataRepository.existsCsvDetailManage(dataCategory.trim(), season, home, away);
-        } catch (Exception e) {
-            return false;
-        }
+        return matchDataRepository.existsCsvDetailManage(dataCategory.trim(), home, away);
     }
 
     private static boolean isBlank(String s) {
         return s == null || s.isBlank();
-    }
-
-    private static String safe(String s) {
-        return s == null ? "" : s;
     }
 
     private String normalizeTargetDate(String targetDate) {
