@@ -76,7 +76,9 @@ public class DataDBService {
 		} catch (DuplicateKeyException e) {
 			// 重複は成功扱いにしたいなら握る（現状踏襲）
 			String messageCd = MessageCdConst.MCD00002W_DUPLICATION_WARNING;
-			manageLoggerComponent.debugWarnLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
+			manageLoggerComponent.debugWarnLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+					"(" + insertEntities.getHomeTeamName() + " vs "
+							+ insertEntities.getAwayTeamName() + ")");
 		}
 	}
 }

@@ -78,7 +78,9 @@ public class FutureDBService {
 				} catch (DuplicateKeyException e) {
 					// 重複は成功扱い（現状踏襲）
 					manageLoggerComponent.debugWarnLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							MessageCdConst.MCD00002W_DUPLICATION_WARNING);
+							MessageCdConst.MCD00002W_DUPLICATION_WARNING,
+							"(" + entity.getHomeTeamName() + " vs "
+									+ entity.getAwayTeamName() + ")");
 				}
 			}
 		}
