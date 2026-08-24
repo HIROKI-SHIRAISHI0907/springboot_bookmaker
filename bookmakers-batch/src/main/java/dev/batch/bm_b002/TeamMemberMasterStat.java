@@ -358,6 +358,11 @@ public class TeamMemberMasterStat {
 		return existing;
 	}
 
+	/**
+	 * 引退扱いにする閾値に対応した引退フラグ設定
+	 * @param existing
+	 * @return
+	 */
 	private TeamMemberMasterEntity markMissingOrRetired(TeamMemberMasterEntity existing) {
 		int current = parseIntSafe(existing.getMissingCount());
 		int next = current + 1;

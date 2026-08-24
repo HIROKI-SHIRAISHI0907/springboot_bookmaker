@@ -72,7 +72,9 @@ public class FutureDBService {
 					}
 					String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 					this.manageLoggerComponent.debugInfoLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "登録件数: " + result + "件");
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+							"登録件数: " + result + "件 (" + entity.getHomeTeamName() + " vs "
+							+ entity.getAwayTeamName() + ")");
 				} catch (DuplicateKeyException e) {
 					// 重複は成功扱い（現状踏襲）
 					manageLoggerComponent.debugWarnLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,

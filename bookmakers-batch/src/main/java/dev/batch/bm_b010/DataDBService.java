@@ -70,7 +70,9 @@ public class DataDBService {
 			}
 			String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "登録件数: " + result + "件");
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
+					"登録件数: " + result + "件 (" + insertEntities.getHomeTeamName() + " vs "
+					+ insertEntities.getAwayTeamName() + ")");
 		} catch (DuplicateKeyException e) {
 			// 重複は成功扱いにしたいなら握る（現状踏襲）
 			String messageCd = MessageCdConst.MCD00002W_DUPLICATION_WARNING;
