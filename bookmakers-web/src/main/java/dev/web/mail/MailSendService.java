@@ -68,7 +68,8 @@ public class MailSendService {
 					return new RuntimeException(SYSTEM_ERROR_MESSAGE);
 				});
 
-		String mailSendKey = UUID.randomUUID().toString();
+		// メール送信キーを取得
+		String mailSendKey = getMailSendKey();
 
 		MailSendManagementEntity management = new MailSendManagementEntity();
 		management.setMailSendKey(mailSendKey);
@@ -77,10 +78,20 @@ public class MailSendService {
 		management.setMailId(mailInfo.getMailId());
 		management.setEnvelopeFrom(mailInfo.getFromAddress()); // ※エンベロープFromの決め方が別途あれば変更してください
 		management.setNotifyStatus(MailNoticeEnum.NOTIFY_STATUS_PENDING.getNoticeStatus());
-
+		management.setFailSendCount(0);
 		mailSendManagementRepository.insert(management);
-
 		return mailSendKey;
+	}
+
+	/**
+	 * メール送信キーを定義する
+	 * すでに登録済のキーであれば再帰的に取得する
+	 *
+	 */
+	private String getMailSendKey() {
+		String mailSendKey = UUID.randomUUID().toString();
+		return (!mailSendManagementRepository.findByMailSendKey(mailSendKey).isEmpty())
+				? getMailSendKey() : mailSendKey;
 	}
 
 	/**
