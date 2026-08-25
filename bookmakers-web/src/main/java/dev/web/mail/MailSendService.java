@@ -1,4 +1,4 @@
-package dev.common.mail;
+package dev.web.mail;
 
 import java.util.Properties;
 
