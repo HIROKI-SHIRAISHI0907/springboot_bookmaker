@@ -93,12 +93,20 @@ public class MailInfoMasterRepository {
 				      mail_id,
 				      mail_subject,
 				      mail_body,
-				      from_address
+				      from_address,
+				      register_id,
+				   	  register_time,
+				  	  update_id,
+				  	  update_time
 				    ) VALUES (
 				      :mailId,
 				      :mailSubject,
 				      :mailBody,
-				      :fromAddress
+				      :fromAddress,
+				      'SYSTEM',
+				  	  CURRENT_TIMESTAMP,
+				  	  'SYSTEM',
+				  	  CURRENT_TIMESTAMP
 				    )
 				""";
 		return masterJdbcTemplate.update(sql, toParams(dto));
@@ -113,7 +121,8 @@ public class MailInfoMasterRepository {
 				    SET
 				      mail_subject = :mailSubject,
 				      mail_body = :mailBody,
-				      from_address = :fromAddress
+				      from_address = :fromAddress,
+				      update_time = CURRENT_TIMESTAMP
 				    WHERE
 				      mail_id = :mailId
 				""";

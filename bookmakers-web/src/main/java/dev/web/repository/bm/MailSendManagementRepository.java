@@ -148,14 +148,22 @@ public class MailSendManagementRepository {
 				      to_address,
 				      mail_id,
 				      envelope_from,
-				      notify_status
+				      notify_status,
+				      register_id,
+				  	  register_time,
+				  	  update_id,
+				  	  update_time
 				    ) VALUES (
 				      :mailSendKey,
 				      :messageId,
 				      :toAddress,
 				      :mailId,
 				      :envelopeFrom,
-				      :notifyStatus
+				      :notifyStatus,
+				      'SYSTEM',
+				  	  CURRENT_TIMESTAMP,
+				  	  'SYSTEM',
+				  	  CURRENT_TIMESTAMP
 				    )
 				""";
 		return jdbcTemplate.update(sql, toParams(dto));
@@ -168,7 +176,8 @@ public class MailSendManagementRepository {
 		String sql = """
 				    UPDATE mail_send_manage
 				    SET
-				      notify_status = :notifyStatus
+				      notify_status = :notifyStatus,
+				      update_time = CURRENT_TIMESTAMP
 				    WHERE
 				      mail_send_key = :mailSendKey
 				""";
@@ -186,7 +195,8 @@ public class MailSendManagementRepository {
 		String sql = """
 				    UPDATE mail_send_management
 				    SET
-				      message_id = :messageId
+				      message_id = :messageId,
+				      update_time = CURRENT_TIMESTAMP
 				    WHERE
 				      mail_send_key = :mailSendKey
 				""";
