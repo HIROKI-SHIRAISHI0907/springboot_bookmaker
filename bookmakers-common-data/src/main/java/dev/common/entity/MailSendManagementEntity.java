@@ -11,10 +11,10 @@ import lombok.Data;
 @Data
 public class MailSendManagementEntity {
 
-	/** メール送信キー */
+	/** メール送信キー（一意のID） */
 	private String mailSendKey;
 
-	/** メッセージID */
+	/** メッセージID（） */
 	private String messageId;
 
 	/** 送信先メールアドレス */
@@ -26,7 +26,10 @@ public class MailSendManagementEntity {
 	/** エンベロープフロム */
 	private String envelopeFrom;
 
-	/** 通知ステータス */
+	/** 通知ステータス（通知前:0, 通知後:1） */
 	private String notifyStatus;
+
+	/** 送信失敗カウント */
+	private int failSendCount;
 
 }
