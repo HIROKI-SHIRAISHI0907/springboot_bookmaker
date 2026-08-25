@@ -8,7 +8,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.common.constant.FutureScheduleConstant;
+import dev.common.enums.FutureScheduleEnum;
 import dev.common.readfile.ReadDelayPostpone;
 import dev.common.readfile.dto.DelayPostponeMatchDto;
 import dev.common.util.DateOffsetDecisionUtil;
@@ -92,7 +92,7 @@ public class FuturesAPIService {
             log.info("countByFinData check: {},{},{},{}", dto.getGameTeamCategory(),dto.getHomeTeam(),dto.getAwayTeam(),dataFinCnt);
 
             if (isAfterScheduledTime(dto.getFutureTime(), now) && dataFinCnt > 0) {
-                dto.setStatus(FutureScheduleConstant.FINISHED.getCode());
+                dto.setStatus(FutureScheduleEnum.FINISHED.getCode());
                 continue;
             }
 
@@ -104,7 +104,7 @@ public class FuturesAPIService {
             log.info("countByLiveData check: {},{},{},{}", dto.getGameTeamCategory(),dto.getHomeTeam(),dto.getAwayTeam(),dataRealCnt);
 
             if (isAfterScheduledTime(dto.getFutureTime(), now) && dataRealCnt > 0) {
-                dto.setStatus(FutureScheduleConstant.LIVE.getCode());
+                dto.setStatus(FutureScheduleEnum.LIVE.getCode());
                 continue;
             }
 
@@ -121,7 +121,7 @@ public class FuturesAPIService {
             // まだ試合開始前なら SCHEDULED
             // =========================
             if (isBeforeScheduledTime(dto.getFutureTime(), now)) {
-                dto.setStatus(FutureScheduleConstant.SCHEDULED.getCode());
+                dto.setStatus(FutureScheduleEnum.SCHEDULED.getCode());
                 continue;
             }
 
@@ -131,7 +131,7 @@ public class FuturesAPIService {
 
             // DELAYED は「今日の試合」にだけ付ける
             if (targetDateIsToday) {
-                dto.setStatus(FutureScheduleConstant.DELAYED.getCode());
+                dto.setStatus(FutureScheduleEnum.DELAYED.getCode());
             }
         }
 
