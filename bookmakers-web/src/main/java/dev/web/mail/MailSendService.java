@@ -36,9 +36,11 @@ public class MailSendService {
 	/** メール情報マスタが見つからない等、システム都合で送信できない場合のメッセージ */
 	private static final String SYSTEM_ERROR_MESSAGE = "システムエラーが起きました。システム管理者に連絡してください。";
 
-	private final MailInfoMasterRepository mailInfoMasterWebRepository;
+	private final MailInfoMasterRepository mailInfoMasterRepository;
 	private final MailSendManagementRepository mailSendManagementRepository;
 	private final JwtCurrentUserService jwtCurrentUserService;
+
+	private static final String ENVELOPE_ADDRESS = "no-reply@sample.com";
 
 	/**
 	 * ログイン中ユーザー宛にメール送信を登録する。
@@ -62,7 +64,7 @@ public class MailSendService {
 	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
 	 */
 	public String send(String mailId, String toAddress) {
-		MailInfoMasterEntity mailInfo = mailInfoMasterWebRepository.findById(mailId)
+		MailInfoMasterEntity mailInfo = mailInfoMasterRepository.findById(mailId)
 				.orElseThrow(() -> {
 					log.error("メール情報マスタに該当データがありません。mailId={}", mailId);
 					return new RuntimeException(SYSTEM_ERROR_MESSAGE);
@@ -76,7 +78,7 @@ public class MailSendService {
 		management.setMessageId(null); // 実際の送信は別バッチのため、message_idはその際に更新する想定
 		management.setToAddress(toAddress);
 		management.setMailId(mailInfo.getMailId());
-		management.setEnvelopeFrom(mailInfo.getFromAddress()); // ※エンベロープFromの決め方が別途あれば変更してください
+		management.setEnvelopeFrom(ENVELOPE_ADDRESS);
 		management.setNotifyStatus(MailNoticeEnum.NOTIFY_STATUS_PENDING.getNoticeStatus());
 		management.setFailSendCount(0);
 		mailSendManagementRepository.insert(management);
