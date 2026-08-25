@@ -12,7 +12,7 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import dev.common.constant.FutureScheduleConstant;
+import dev.common.enums.FutureScheduleEnum;
 import dev.common.readfile.dto.DelayPostponeMatchDto;
 import lombok.RequiredArgsConstructor;
 import software.amazon.awssdk.core.ResponseInputStream;
@@ -278,11 +278,11 @@ public class ReadDelayPostpone {
      * 日本語ステータスをコード文字列に変換
      */
     private String toFutureSchedule(String statusTypeJa) {
-        if (FutureScheduleConstant.POSTPONED.getJapaneseMeaning().equals(statusTypeJa)) {
-            return FutureScheduleConstant.POSTPONED.getCode();
+        if (FutureScheduleEnum.POSTPONED.getJapaneseMeaning().equals(statusTypeJa)) {
+            return FutureScheduleEnum.POSTPONED.getCode();
         }
-        if (FutureScheduleConstant.DELAYED.getJapaneseMeaning().equals(statusTypeJa)) {
-            return FutureScheduleConstant.DELAYED.getCode();
+        if (FutureScheduleEnum.DELAYED.getJapaneseMeaning().equals(statusTypeJa)) {
+            return FutureScheduleEnum.DELAYED.getCode();
         }
         return null;
     }

@@ -1,4 +1,4 @@
-package dev.common.constant;
+package dev.common.enums;
 
 import java.util.Arrays;
 
@@ -7,7 +7,7 @@ import java.util.Arrays;
  * @author shiraishitoshio
  *
  */
-public enum FutureScheduleConstant {
+public enum FutureScheduleEnum {
 
 	/** ライブ中 */
 	LIVE("ライブ中", "LIVE"),
@@ -33,7 +33,7 @@ public enum FutureScheduleConstant {
 	/** 英単語コード */
 	private final String code;
 
-	FutureScheduleConstant(String japaneseMeaning, String code) {
+	FutureScheduleEnum(String japaneseMeaning, String code) {
 		this.japaneseMeaning = japaneseMeaning;
 		this.code = code;
 	}
@@ -62,7 +62,7 @@ public enum FutureScheduleConstant {
 	/**
 	 * コード文字列から enum を取得
 	 */
-	public static FutureScheduleConstant fromCode(String code) {
+	public static FutureScheduleEnum fromCode(String code) {
 		String trimmed = trim(code);
 		return Arrays.stream(values())
 				.filter(v -> v.code.equals(trimmed))
