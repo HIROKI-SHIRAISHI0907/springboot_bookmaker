@@ -24,7 +24,7 @@ import lombok.RequiredArgsConstructor;
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/api")
+@RequestMapping("/api/admin")
 public class MailInfoMasterWebController {
 
 	private final MailSendService service;
@@ -32,7 +32,7 @@ public class MailInfoMasterWebController {
 	/**
 	 * メール情報マスタにデータを登録する。
 	 *
-	 * PATCH /api/mailinfo
+	 * PATCH /api/admin/mailinfo
 	 */
 	@PatchMapping("/mailinfo")
 	public ResponseEntity<MailSendResponse> insert(
@@ -58,7 +58,7 @@ public class MailInfoMasterWebController {
 
 	/**
 	* メール情報マスタのデータを更新する。
-	* PATCH /api/mailinfo/update
+	* PATCH /api/admin/mailinfo/update
 	*/
 	@PatchMapping("/mailinfo/update")
 	public ResponseEntity<MailSendResponse> update(
@@ -85,7 +85,7 @@ public class MailInfoMasterWebController {
 	/**
 	 * メール情報マスタにデータを取得する。
 	 *
-	 * GET /api/mailinfo
+	 * GET /api/admin/mailinfo
 	 */
 	@GetMapping("/mailinfo")
 	public ResponseEntity<List<MailInfoMasterEntity>> getMailMaster() {
@@ -95,7 +95,7 @@ public class MailInfoMasterWebController {
 	/**
 	 * メール情報マスタにデータを1件取得する。
 	 *
-	 * GET /api/mailinfo/{mailId}
+	 * GET /api/admin/mailinfo/{mailId}
 	 */
 	@GetMapping("/mailinfo/{mailId}")
 	public ResponseEntity<MailInfoMasterEntity> getMailMasterByMailId(
