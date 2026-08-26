@@ -37,6 +37,8 @@ public class MailSendService {
 	/** メール情報マスタが見つからない等、システム都合で送信できない場合のメッセージ */
 	private static final String SYSTEM_ERROR_MESSAGE = "システムエラーが起きました。システム管理者に連絡してください。";
 
+	private static final String DUPLICATE_MESSAGE = "登録されているメールIDです。";
+
 	private final MailInfoMasterRepository mailInfoMasterRepository;
 	private final MailSendManagementRepository mailSendManagementRepository;
 	private final JwtCurrentUserService jwtCurrentUserService;
@@ -110,6 +112,12 @@ public class MailSendService {
 	 */
 	public MailSendResponse regMailMaster(MailInfoMasterEntity mailInfoMasterEntity) {
 		MailSendResponse response = new MailSendResponse();
+		if (!mailInfoMasterRepository.findById(mailInfoMasterEntity.getMailId()).isEmpty()) {
+			response.setResponseCode("404");
+			response.setMessage(DUPLICATE_MESSAGE);
+			return response;
+		}
+
 		try {
 			int result = mailInfoMasterRepository.insert(mailInfoMasterEntity);
 			if (result != 1) {

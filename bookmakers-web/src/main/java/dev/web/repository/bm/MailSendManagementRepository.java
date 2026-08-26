@@ -149,6 +149,7 @@ public class MailSendManagementRepository {
 				      mail_id,
 				      envelope_from,
 				      notify_status,
+				      fail_send_count,
 				      register_id,
 				  	  register_time,
 				  	  update_id,
@@ -160,6 +161,7 @@ public class MailSendManagementRepository {
 				      :mailId,
 				      :envelopeFrom,
 				      :notifyStatus,
+				      :failSendCount,
 				      'SYSTEM',
 				  	  CURRENT_TIMESTAMP,
 				  	  'SYSTEM',
@@ -193,7 +195,7 @@ public class MailSendManagementRepository {
 	// --------------------------------------------------------
 	public int updateMessageId(String mailSendKey, String messageId) {
 		String sql = """
-				    UPDATE mail_send_management
+				    UPDATE mail_send_manage
 				    SET
 				      message_id = :messageId,
 				      update_time = CURRENT_TIMESTAMP
@@ -214,6 +216,7 @@ public class MailSendManagementRepository {
 				.addValue("toAddress", dto.getToAddress())
 				.addValue("mailId", dto.getMailId())
 				.addValue("envelopeFrom", dto.getEnvelopeFrom())
-				.addValue("notifyStatus", dto.getNotifyStatus());
+				.addValue("notifyStatus", dto.getNotifyStatus())
+				.addValue("failSendCount", dto.getFailSendCount());
 	}
 }
