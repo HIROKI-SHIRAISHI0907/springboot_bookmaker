@@ -1,5 +1,6 @@
 package dev.web.mail;
 
+import java.util.List;
 import java.util.UUID;
 
 import org.springframework.stereotype.Service;
@@ -50,7 +51,7 @@ public class MailSendService {
 	 * @param mailId メール情報マスタのメールID
 	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
 	 */
-	public String send(String mailId) {
+	public MailSendResponse send(String mailId) {
 		String toAddress = resolveCurrentUserEmail();
 		return send(mailId, toAddress);
 	}
@@ -63,7 +64,7 @@ public class MailSendService {
 	 * @param toAddress 送信先メールアドレス（画面入力値など、呼び出し元で確定済みのもの）
 	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
 	 */
-	public String send(String mailId, String toAddress) {
+	public MailSendResponse send(String mailId, String toAddress) {
 		MailInfoMasterEntity mailInfo = mailInfoMasterRepository.findById(mailId)
 				.orElseThrow(() -> {
 					log.error("メール情報マスタに該当データがありません。mailId={}", mailId);
@@ -81,9 +82,110 @@ public class MailSendService {
 		management.setEnvelopeFrom(ENVELOPE_ADDRESS);
 		management.setNotifyStatus(MailNoticeEnum.NOTIFY_STATUS_PENDING.getNoticeStatus());
 		management.setFailSendCount(0);
-		mailSendManagementRepository.insert(management);
-		return mailSendKey;
+
+		MailSendResponse response = new MailSendResponse();
+		try {
+			int result = mailSendManagementRepository.insert(management);
+			if (result != 1) {
+				response.setResponseCode("500");
+				response.setMessage("メール送信管理に登録できませんでした。");
+				return response;
+			}
+		} catch (Exception e) {
+			response.setResponseCode("500");
+			response.setMessage(SYSTEM_ERROR_MESSAGE);
+			return response;
+		}
+		response.setResponseCode("200");
+		response.setMessage("登録成功");
+		response.setMailSendKey(mailSendKey);
+		return response;
 	}
+
+	/**
+	 * メール情報マスタにデータを登録する。
+	 * メール送信管理のテーブルのメールIDに対応するマスタ情報である
+	 *
+	 * @param mailInfoMasterEntity メール情報マスタのEntity
+	 */
+	public MailSendResponse regMailMaster(MailInfoMasterEntity mailInfoMasterEntity) {
+		MailSendResponse response = new MailSendResponse();
+		try {
+			int result = mailInfoMasterRepository.insert(mailInfoMasterEntity);
+			if (result != 1) {
+				response.setResponseCode("9");
+				response.setMessage("メール送信管理に登録できませんでした。");
+				return response;
+			}
+		} catch (Exception e) {
+			response.setResponseCode("500");
+			response.setMessage(SYSTEM_ERROR_MESSAGE);
+			return response;
+		}
+		response.setResponseCode("200");
+		response.setMessage("登録成功しました。");
+		return response;
+	}
+
+	/**
+	 * メール情報マスタにデータを更新する。
+	 *
+	 * @param mailInfoMasterEntity メール情報マスタのEntity
+	 */
+	public MailSendResponse updMailMaster(MailInfoMasterEntity mailInfoMasterEntity) {
+		MailSendResponse response = new MailSendResponse();
+		try {
+			int result = mailInfoMasterRepository.update(mailInfoMasterEntity);
+			if (result != 1) {
+				response.setResponseCode("500");
+				response.setMessage("メール送信管理を更新できませんでした。");
+				return response;
+			}
+		} catch (Exception e) {
+			response.setResponseCode("500");
+			response.setMessage(SYSTEM_ERROR_MESSAGE);
+			return response;
+		}
+		response.setResponseCode("200");
+		response.setMessage("更新成功しました。");
+		return response;
+	}
+
+	/**
+	 * メール情報マスタデータを全件する。
+	 * メール送信管理のテーブルのメールIDに対応するマスタ情報である
+	 *
+	 * @param mailInfoMasterEntity メール情報マスタのEntity
+	 */
+	public List<MailInfoMasterEntity> getMailMaster() {
+		try {
+			return mailInfoMasterRepository.findAll();
+		} catch (Exception e) {
+			return null;
+		}
+	}
+
+	/**
+	 * メール情報マスタデータを1件取得する。
+	 *
+	 * @param mailId メールID
+	 */
+	public MailInfoMasterEntity getMailMasterByMailId(String mailId) {
+		if (mailId == null || mailId.isEmpty()) {
+			log.error("mailIdがnullです。");
+			new RuntimeException(SYSTEM_ERROR_MESSAGE);
+		}
+
+		MailInfoMasterEntity mailInfo = mailInfoMasterRepository.findById(mailId)
+				.orElseThrow(() -> {
+					log.error("メール情報マスタに該当データがありません。mailId={}", mailId);
+					return new RuntimeException(SYSTEM_ERROR_MESSAGE);
+				});
+		return mailInfo;
+	}
+
+
+
 
 	/**
 	 * メール送信キーを定義する
