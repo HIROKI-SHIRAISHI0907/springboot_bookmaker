@@ -1,4 +1,4 @@
-package dev.batch.bm_b097;
+package dev.batch.bm_b096;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -6,25 +6,25 @@ import org.springframework.stereotype.Service;
 import dev.batch.common.AbstractJobBatchTemplate;
 
 /**
- * データカテゴリ自動付与バッチ
+ * メール起動バッチ
  * @author shiraishitoshio
  *
  */
-@Service("B097")
-public class AutoAssignmentDataCategoryBatch extends AbstractJobBatchTemplate {
+@Service("B096")
+public class MailLaunchBatch extends AbstractJobBatchTemplate {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = AutoAssignmentDataCategoryBatch.class.getProtectionDomain()
+	private static final String PROJECT_NAME = MailLaunchBatch.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = AutoAssignmentDataCategoryBatch.class.getName();
+	private static final String CLASS_NAME = MailLaunchBatch.class.getName();
 
 	/** エラーコード（運用ルールに合わせて変更） */
-	private static final String ERROR_CODE = "BM_B097_ERROR";
+	private static final String ERROR_CODE = "BM_B096_ERROR";
 
 	/** バッチコード */
-	private static final String BATCH_CODE = "B097";
+	private static final String BATCH_CODE = "B096";
 
 	/** オーバーライド */
 	@Override
@@ -47,16 +47,16 @@ public class AutoAssignmentDataCategoryBatch extends AbstractJobBatchTemplate {
 		return CLASS_NAME;
 	}
 
-	/** AutoAssignmentDataCategoryService */
+	/** MailLaunchService */
 	@Autowired
-	private AutoAssignmentDataCategoryService assignmentDataCategoryService;
+	private MailLaunchService mailLaunchService;
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	protected void doExecute(JobContext ctx) throws Exception {
-		this.assignmentDataCategoryService.execute();
+		this.mailLaunchService.execute();
 	}
 
 }
