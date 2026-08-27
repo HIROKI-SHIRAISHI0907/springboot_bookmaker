@@ -15,6 +15,7 @@ import jakarta.mail.PasswordAuthentication;
 import jakarta.mail.Session;
 import jakarta.mail.Transport;
 import jakarta.mail.internet.InternetAddress;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * GmailMailSenderComponentクラス
@@ -32,6 +33,7 @@ import jakarta.mail.internet.InternetAddress;
  * @author shiraishitoshio
  */
 @Component
+@Slf4j
 public class MailSendComponent {
 
 	@Value("${mail.smtp.host:smtp.gmail.com}")
@@ -59,6 +61,7 @@ public class MailSendComponent {
 
 		MailAccountsProperties.Account account = mailAccountsProperties.getAccounts().get(fromAddress);
 		if (account == null || account.getUsername() == null || account.getPassword() == null) {
+			log.error("ERROR account: {}" , account);
 			throw new MessagingException(
 					"fromAddress=" + fromAddress
 							+ " に対応するSMTP認証情報が未設定です（mail.accounts." + fromAddress + ".username / password）");

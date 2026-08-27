@@ -25,10 +25,10 @@ process:
       
 mail:
   accounts: 
-    "no-reply@example.com":
+    no-reply@example.com:
        username: no-reply@example.com
        password: xxxxxxxxxxxxxxxx
-    "pepw9cj8@gmail.com":
+    pepw9cj8@gmail.com:
        username: pepw9cj8@gmail.com
        password: jmvw lefi uddg tqfw
   
