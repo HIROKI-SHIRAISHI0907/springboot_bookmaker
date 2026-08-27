@@ -22,6 +22,15 @@ process:
       allLeague: aws-s3-all-league-csv
       noEcs: aws-s3-no-ecs-task-time-csv
       geografic: aws-s3-geografic-csv
+      
+mail:
+  accounts: 
+    "no-reply@example.com":
+       username: no-reply@example.com
+       password: xxxxxxxxxxxxxxxx
+    "pepw9cj8@gmail.com":
+       username: system-user
+       password: sonic3717
   
 spring:
   application:
