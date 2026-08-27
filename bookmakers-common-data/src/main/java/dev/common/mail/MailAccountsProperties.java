@@ -4,6 +4,7 @@ import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.stereotype.Component;
 
 /**
  * fromAddress（送信元メールアドレス）ごとのSMTP認証情報。
@@ -18,6 +19,7 @@ import org.springframework.boot.context.properties.ConfigurationProperties;
  *       username: support@example.com
  *       password: yyyyyyyyyyyyyyyy
  */
+@Component
 @ConfigurationProperties(prefix = "mail")
 public class MailAccountsProperties {
 
