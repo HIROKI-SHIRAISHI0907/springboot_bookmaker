@@ -17,6 +17,15 @@ process:
       teamData: aws-s3-team-data
       teamMemberData: aws-s3-team-member-data
       outputs: aws-s3-outputs
+      
+mail:
+  accounts: 
+    no-reply@example.com:
+       username: no-reply@example.com
+       password: xxxxxxxxxxxxxxxx
+    pepw9cj8@gmail.com:
+       username: pepw9cj8@gmail.com
+       password: jmvw lefi uddg tqfw
 
 spring:
   datasource:
