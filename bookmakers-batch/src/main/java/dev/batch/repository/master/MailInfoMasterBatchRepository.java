@@ -24,7 +24,7 @@ public interface MailInfoMasterBatchRepository {
 				from_address AS fromAddress
 			FROM mail_info_master
 			WHERE
-				mail_id = :mailId
+				mail_id = #{mailId}
 			LIMIT 1
             """)
     MailInfoMasterEntity findMailByMailIdInfo(
