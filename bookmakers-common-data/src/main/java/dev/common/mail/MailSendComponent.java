@@ -40,7 +40,7 @@ public class MailSendComponent {
 	@Value("${mail.smtp.port:587}")
 	private String smtpPort;
 
-	private final  MailAccountsProperties mailAccountsProperties;
+	private final MailAccountsProperties mailAccountsProperties;
 
 	public MailSendComponent(MailAccountsProperties mailAccountsProperties) {
 		this.mailAccountsProperties = mailAccountsProperties;
