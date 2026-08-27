@@ -2,7 +2,6 @@ package dev.common.mail;
 
 import java.util.Properties;
 
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
@@ -41,8 +40,11 @@ public class MailSendComponent {
 	@Value("${mail.smtp.port:587}")
 	private String smtpPort;
 
-	@Autowired
-	private MailAccountsProperties mailAccountsProperties;
+	private final  MailAccountsProperties mailAccountsProperties;
+
+	public MailSendComponent(MailAccountsProperties mailAccountsProperties) {
+		this.mailAccountsProperties = mailAccountsProperties;
+	}
 
 	/**
 	 * メールを送信する。
