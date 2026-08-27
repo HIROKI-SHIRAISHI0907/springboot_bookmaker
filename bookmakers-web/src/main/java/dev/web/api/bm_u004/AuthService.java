@@ -76,21 +76,6 @@ public class AuthService {
         return AuthResponse.ok("ログイン成功。", user.userId, user.authFlg);
     }
 
-    /**
-     * パスワード再設定
-     * @param req
-     * @return
-     */
-    public AuthResponse forgotPassword(ForgotPasswordRequest req) {
-        // TODO:
-        // 1. メールアドレス存在確認
-        // 2. 再設定トークン生成
-        // 3. DB保存（有効期限つき）
-        // 4. メール送信
-
-        return AuthResponse.of("200", "再設定リンクを送信しました。");
-    }
-
     private static String norm(String v) {
         if (v == null) return "";
         String s = v.trim();

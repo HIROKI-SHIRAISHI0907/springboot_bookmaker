@@ -1,10 +1,12 @@
 package dev.web.controller;
 
+
 import java.util.List;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -12,15 +14,16 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 
 import dev.web.api.bm_u004.AuthResponse;
 import dev.web.api.bm_u004.AuthService;
-import dev.web.api.bm_u004.ForgotPasswordRequest;
 import dev.web.api.bm_u004.LoginRequest;
 import dev.web.api.bm_u004.SignUpRequest;
 import dev.web.jwt.JwtService;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/auth")
+@Slf4j
 public class AuthController {
 
 	private final JwtService jwtService;
@@ -76,10 +79,36 @@ public class AuthController {
 		return ResponseEntity.ok(res);
 	}
 
-	@PostMapping("/forgot-password")
-	public ResponseEntity<AuthResponse> forgotPassword(@RequestBody ForgotPasswordRequest req) {
-		AuthResponse res = authService.forgotPassword(req);
-		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
+	@PostMapping("/logout")
+	public ResponseEntity<Void> logout(
+			@RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
+
+		String subject = extractSubjectSafely(authorizationHeader);
+		if (subject != null) {
+			log.info("logout: user={}", subject);
+		} else {
+			log.info("logout: subject不明のトークンでログアウト要求を受け付け");
+		}
+		return ResponseEntity.ok().build();
+	}
+
+	/**
+	 * authorizationHeaderの検証
+	 * @param authorizationHeader
+	 * @return
+	 */
+	private String extractSubjectSafely(String authorizationHeader) {
+		if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
+			return null;
+		}
+		String token = authorizationHeader.substring("Bearer ".length()).trim();
+		try {
+			DecodedJWT decoded = jwtService.verifyToken(token);
+			return decoded.getSubject();
+		} catch (Exception e) {
+			// 期限切れ/改ざん済みのトークンでも、ログアウト自体は成功として扱う
+			return null;
+		}
 	}
 
 	private static int parseStatus(String code) {
