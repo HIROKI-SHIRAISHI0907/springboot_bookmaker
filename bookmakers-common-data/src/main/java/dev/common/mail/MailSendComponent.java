@@ -59,7 +59,7 @@ public class MailSendComponent {
 	public String send(String fromAddress, String envelopeFrom, String toAddress, String subject, String body)
 			throws MessagingException {
 
-		MailAccountsProperties.Account account = mailAccountsProperties.getAccounts().get(fromAddress);
+		MailAccountsProperties.Account account = mailAccountsProperties.require(fromAddress);
 		if (account == null || account.getUsername() == null || account.getPassword() == null) {
 			log.error("mail.accounts keys = {}", mailAccountsProperties.getAccounts().keySet());
 			throw new MessagingException(

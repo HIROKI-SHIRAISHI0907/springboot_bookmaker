@@ -1,10 +1,11 @@
 package dev.common.mail;
 
-import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
 import org.springframework.stereotype.Component;
+
+import lombok.Data;
 
 /**
  * fromAddress（送信元メールアドレス）ごとのSMTP認証情報。
@@ -23,7 +24,13 @@ import org.springframework.stereotype.Component;
 @ConfigurationProperties(prefix = "mail")
 public class MailAccountsProperties {
 
-    private Map<String, Account> accounts = new LinkedHashMap<>();
+    private Map<String, Account> accounts;
+
+    public Account require(String mail) {
+    	Account cfg = mail == null ? null : accounts.get(mail);
+        if (cfg == null) throw new IllegalArgumentException("Unknown mail: " + mail);
+        return cfg;
+    }
 
     public Map<String, Account> getAccounts() {
         return accounts;
@@ -33,24 +40,9 @@ public class MailAccountsProperties {
         this.accounts = accounts;
     }
 
+    @Data
     public static class Account {
         private String username;
         private String password;
-
-        public String getUsername() {
-            return username;
-        }
-
-        public void setUsername(String username) {
-            this.username = username;
-        }
-
-        public String getPassword() {
-            return password;
-        }
-
-        public void setPassword(String password) {
-            this.password = password;
-        }
     }
 }
