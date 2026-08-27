@@ -99,7 +99,7 @@ public class MailSendService {
 			return response;
 		}
 		response.setResponseCode("200");
-		response.setMessage("登録成功");
+		response.setMessage("パスワード再設定のリンクを送りました。");
 		response.setMailSendKey(mailSendKey);
 		return response;
 	}

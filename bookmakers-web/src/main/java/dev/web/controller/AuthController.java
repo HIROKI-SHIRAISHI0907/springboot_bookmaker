@@ -1,9 +1,10 @@
 package dev.web.controller;
 
-
 import java.util.List;
 
+import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
@@ -14,9 +15,12 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 
 import dev.web.api.bm_u004.AuthResponse;
 import dev.web.api.bm_u004.AuthService;
+import dev.web.api.bm_u004.ForgotPasswordRequest;
 import dev.web.api.bm_u004.LoginRequest;
 import dev.web.api.bm_u004.SignUpRequest;
 import dev.web.jwt.JwtService;
+import dev.web.mail.MailSendResponse;
+import dev.web.mail.MailSendService;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -26,15 +30,29 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class AuthController {
 
+	/** パスワード再設定用メールのmail_info_master.mail_id */
+	private static final String PASSWORD_RESET_MAIL_ID = "bm-mail-001";
+
 	private final JwtService jwtService;
 	private final AuthService authService;
+	private final MailSendService service;
 
+	/**
+	 * 新規登録
+	 * @param req
+	 * @return
+	 */
 	@PostMapping("/signup")
 	public ResponseEntity<AuthResponse> signUp(@RequestBody SignUpRequest req) {
 		AuthResponse res = authService.signUp(req);
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
 
+	/**
+	 * ログインチェック
+	 * @param req
+	 * @return
+	 */
 	@PostMapping("/login")
 	public ResponseEntity<AuthResponse> login(@RequestBody LoginRequest req) {
 		AuthResponse res = authService.login(req);
@@ -79,6 +97,11 @@ public class AuthController {
 		return ResponseEntity.ok(res);
 	}
 
+	/**
+	 * ログアウト処理
+	 * @param authorizationHeader
+	 * @return
+	 */
 	@PostMapping("/logout")
 	public ResponseEntity<Void> logout(
 			@RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
@@ -90,6 +113,29 @@ public class AuthController {
 			log.info("logout: subject不明のトークンでログアウト要求を受け付け");
 		}
 		return ResponseEntity.ok().build();
+	}
+
+	/**
+	 * パスワード再設定を行うメール情報をDBに登録する。
+	 *
+	 * PATCH /api/auth/passwd/reset/view
+	 */
+	@PatchMapping("/passwd/reset/view")
+	public ResponseEntity<MailSendResponse> patchView(
+			@RequestBody ForgotPasswordRequest req) {
+
+		String email = req.getEmail();
+		MailSendResponse res = service.send(PASSWORD_RESET_MAIL_ID, email);
+
+		HttpStatus status = switch (res.getResponseCode()) {
+		case "200" -> HttpStatus.OK;
+		case "400" -> HttpStatus.BAD_REQUEST;
+		case "404" -> HttpStatus.NOT_FOUND;
+		case "409" -> HttpStatus.CONFLICT;
+		default -> HttpStatus.INTERNAL_SERVER_ERROR;
+		};
+
+		return ResponseEntity.status(status).body(res);
 	}
 
 	/**
