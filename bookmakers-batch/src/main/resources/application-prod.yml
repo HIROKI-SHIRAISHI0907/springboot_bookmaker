@@ -28,6 +28,15 @@ process:
       delayPostpone: ${S3_DELAYPOSTPONE:aws-s3-delay-postpone-csv}
       nextSeason: ${S3_NEXT_SEASON:aws-s3-next-season-info-csv}
       
+mail:
+  accounts: 
+    "no-reply@example.com":
+       username: no-reply@example.com
+       password: xxxxxxxxxxxxxxxx
+    "pepw9cj8@gmail.com":
+       username: pepw9cj8@gmail.com
+       password: jmvw lefi uddg tqfw
+      
 cleanup:
   enabled: true
   cron: "0 */5 * * * *"   # 5分おき
