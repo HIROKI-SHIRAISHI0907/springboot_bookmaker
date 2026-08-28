@@ -16,6 +16,7 @@ import dev.common.entity.MailSendManagementEntity;
 import dev.common.enums.MailNoticeEnum;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.mail.MailSendComponent;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * MailLaunchServiceロジック
@@ -23,6 +24,7 @@ import dev.common.mail.MailSendComponent;
  *
  */
 @Component
+@Slf4j
 public class MailLaunchService {
 
 	/** プロジェクト名 */
@@ -64,6 +66,7 @@ public class MailLaunchService {
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		log.info("passwordResetBaseUrl = {}", passwordResetBaseUrl);
 
 		// 現在メール送信管理に登録されている通知ステータスが0のものを取得
 		List<MailSendManagementEntity> noticeStatusPendingList = mailSendBatchRepository.findPendingNoticeStatus();
