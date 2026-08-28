@@ -61,12 +61,20 @@ public class MailSendComponent {
 	public String send(String fromAddress, String envelopeFrom, String toAddress, String subject, String body)
 			throws MessagingException {
 
-		MailAccountsProperties.Account account = mailAccountsProperties.require(fromAddress);
-		if (account == null || account.getUsername() == null || account.getPassword() == null) {
+		MailAccountsProperties.Account account;
+		try {
+			account = mailAccountsProperties.require(fromAddress);
+		} catch (IllegalArgumentException e) {
 			log.error("mail.accounts keys = {}", mailAccountsProperties.getAccounts().keySet());
 			throw new MessagingException(
 					"fromAddress=" + fromAddress
-							+ " に対応するSMTP認証情報が未設定です（mail.accounts." + fromAddress + ".username / password）");
+							+ " に対応するSMTP認証情報が未設定です（mail.accounts." + fromAddress + ".username / password）",
+					e);
+		}
+		if (account.getUsername() == null || account.getPassword() == null) {
+			throw new MessagingException(
+					"fromAddress=" + fromAddress
+							+ " のusername/passwordが未設定です（mail.accounts." + fromAddress + ".username / password）");
 		}
 		String smtpUsername = account.getUsername();
 		String smtpPassword = account.getPassword();

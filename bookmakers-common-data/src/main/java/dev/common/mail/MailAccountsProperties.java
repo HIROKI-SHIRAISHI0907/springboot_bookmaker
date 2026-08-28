@@ -1,5 +1,6 @@
 package dev.common.mail;
 
+import java.util.LinkedHashMap;
 import java.util.Map;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
@@ -24,7 +25,7 @@ import lombok.Data;
 @ConfigurationProperties(prefix = "mail")
 public class MailAccountsProperties {
 
-    private Map<String, Account> accounts;
+    private Map<String, Account> accounts = new LinkedHashMap<>();
 
     public Account require(String mail) {
     	Account cfg = mail == null ? null : accounts.get(mail);
