@@ -66,7 +66,7 @@ public class MailLaunchService {
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		log.info("passwordResetBaseUrl = {}", passwordResetBaseUrl);
+		log.info("passwordResetBaseUrl: {}", passwordResetBaseUrl);
 
 		// 現在メール送信管理に登録されている通知ステータスが0のものを取得
 		List<MailSendManagementEntity> noticeStatusPendingList = mailSendBatchRepository.findPendingNoticeStatus();
@@ -89,6 +89,9 @@ public class MailLaunchService {
 				continue;
 			}
 
+			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					"メール送信キー: " + mailSendKey);
+
 			// Bodyに「{{PASSWORD_RESET_URL}}」が入っていれば文字列置き換え
 			// URLに乗せるのはmailSendKeyのみ。「10分間有効」という期限そのものは
 			// URLに埋め込まず、リンクを踏んだ側（/reset-password/validate）が
@@ -101,8 +104,14 @@ public class MailLaunchService {
 			}
 
 			// メール送信
-			mailSendComponent.send(mailIdKeyDTO.getFromAddress(), envelopeFrom, toAddress,
-					mailIdKeyDTO.getMailSubject(), mailIdKeyDTO.getMailBody());
+			try {
+				mailSendComponent.send(mailIdKeyDTO.getFromAddress(), envelopeFrom, toAddress,
+						mailIdKeyDTO.getMailSubject(), mailBody);
+			} catch (Exception e) {
+				// 送信失敗数をインクリメントして更新
+				mailSendBatchRepository.updateFailSendCount(mailSendKey, failSendCount + 1);
+				continue;
+			}
 
 			// 通知ステータスを1に更新
 			mailSendBatchRepository.updateFromPendingToSendedStatus(

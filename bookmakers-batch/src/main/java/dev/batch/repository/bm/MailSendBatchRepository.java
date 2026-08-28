@@ -17,7 +17,7 @@ import dev.common.entity.MailSendManagementEntity;
 public interface MailSendBatchRepository {
 
 	/**
-	 * メール送信管理の中でステータスが通知前: '0'のものを取得する
+	 * メール送信管理の中でステータスが通知前: '0'のものかつ送信失敗が3回以上でないものを取得する
 	 */
 	@Select("""
             SELECT
@@ -30,7 +30,8 @@ public interface MailSendBatchRepository {
 				fail_send_count AS failSendCount
 			FROM mail_send_manage
 			WHERE
-				notify_status = '0'
+				notify_status = '0' AND
+				fail_send_count < 3
             """)
     List<MailSendManagementEntity> findPendingNoticeStatus();
 
