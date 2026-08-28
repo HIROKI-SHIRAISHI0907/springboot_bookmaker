@@ -30,12 +30,12 @@ process:
       
 mail:
   accounts: 
-    no-reply@example.com:
-       username: no-reply@example.com
-       password: xxxxxxxxxxxxxxxx
-    pepw9cj8@gmail.com:
+    system:
        username: pepw9cj8@gmail.com
        password: jmvw lefi uddg tqfw
+    noreply:
+       username: no-reply@example.com
+       password: xxxxxxxxxxxxxxxx
       
 cleanup:
   enabled: true
