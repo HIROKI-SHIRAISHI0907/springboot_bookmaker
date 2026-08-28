@@ -63,18 +63,16 @@ public class MailSendComponent {
 
 		MailAccountsProperties.Account account;
 		try {
-			account = mailAccountsProperties.require(fromAddress);
+			account = mailAccountsProperties.require("system");
 		} catch (IllegalArgumentException e) {
 			log.error("mail.accounts keys = {}", mailAccountsProperties.getAccounts().keySet());
 			throw new MessagingException(
-					"fromAddress=" + fromAddress
-							+ " に対応するSMTP認証情報が未設定です（mail.accounts." + fromAddress + ".username / password）",
+					"SMTP認証情報が未設定です",
 					e);
 		}
 		if (account.getUsername() == null || account.getPassword() == null) {
 			throw new MessagingException(
-					"fromAddress=" + fromAddress
-							+ " のusername/passwordが未設定です（mail.accounts." + fromAddress + ".username / password）");
+					"systemのusername/passwordが未設定です");
 		}
 		String smtpUsername = account.getUsername();
 		String smtpPassword = account.getPassword();

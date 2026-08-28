@@ -14,10 +14,10 @@ import lombok.Data;
  *
  * mail:
  *   accounts:
- *     "no-reply@example.com":
+ *     noreply:
  *       username: no-reply@example.com
  *       password: xxxxxxxxxxxxxxxx
- *     "support@example.com":
+ *     system:
  *       username: support@example.com
  *       password: yyyyyyyyyyyyyyyy
  */
