@@ -135,6 +135,15 @@ public class PasswordResetService {
         }
         if (isExpired(entity.getRegisterTime())) {
             // 発行から10分経過している（改ざん・使い回し対策）
+        	// 使用済みとして更新する
+        	try {
+        		mailSendManagementRepository.markSendedAsUsed(entity.getMailSendKey());
+        		log.info("{}分経過したリンクを踏まれたので、ステータスを「使用済み」にしました。"
+        				+ " mailSendKey: {}", VALID_MINUTES, entity.getMailSendKey());
+        	} catch (Exception e) {
+        		log.error("{}分経過したリンクをステータスを「使用済み」に変換する際にエラーが発生しました。"
+        				+ " mailSendKey: {}", VALID_MINUTES, entity.getMailSendKey());
+        	}
             return Optional.empty();
         }
         return entityOpt;
