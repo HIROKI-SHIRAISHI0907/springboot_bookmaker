@@ -34,6 +34,9 @@ public class MailSendManagementEntity {
 	/** 送信失敗カウント */
 	private int failSendCount;
 
+	/** 備考 */
+	private String bikou;
+
 	/** 登録時間 */
 	private Timestamp registerTime;
 
