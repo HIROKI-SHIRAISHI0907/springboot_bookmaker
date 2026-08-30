@@ -37,267 +37,268 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 	@Value("${mail.accounts.system:.username}")
 	private String sourceMailAddress;
 
-    @Autowired
-    @Qualifier("batchJobExecControl")
-    protected JobExecControlIF jobExecControl;
+	@Autowired
+	@Qualifier("batchJobExecControl")
+	protected JobExecControlIF jobExecControl;
 
-    @Autowired
-    protected BatchExecutionHistoryService executionHistoryService;
+	@Autowired
+	protected BatchExecutionHistoryService executionHistoryService;
 
-    @Autowired
-    protected ManageLoggerComponent manageLoggerComponent;
+	@Autowired
+	protected ManageLoggerComponent manageLoggerComponent;
 
-    @Autowired
-    protected MailSendBatchService mailSendBatchService;
+	@Autowired
+	protected MailSendBatchService mailSendBatchService;
 
-    /** バッチコード（例: B002） */
-    protected abstract String batchCode();
+	/** バッチコード（例: B002） */
+	protected abstract String batchCode();
 
-    /** エラーコード（例: BM_B002_ERROR） */
-    protected abstract String errorCode();
+	/** エラーコード（例: BM_B002_ERROR） */
+	protected abstract String errorCode();
 
-    /**
-     * バッチ本体（差分）。
-     *
-     * <p>
-     * データ取得・登録処理など、実処理を実装する。
-     * 長時間処理の場合は {@link JobContext#heartbeat()} を適宜呼ぶこと。
-     * </p>
-     */
-    protected abstract void doExecute(JobContext ctx) throws Exception;
+	/**
+	 * バッチ本体（差分）。
+	 *
+	 * <p>
+	 * データ取得・登録処理など、実処理を実装する。
+	 * 長時間処理の場合は {@link JobContext#heartbeat()} を適宜呼ぶこと。
+	 * </p>
+	 */
+	protected abstract void doExecute(JobContext ctx) throws Exception;
 
-    /** プロジェクト名（既存ログ仕様に合わせる） */
-    protected String projectName() {
-        return this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
-    }
+	/** プロジェクト名（既存ログ仕様に合わせる） */
+	protected String projectName() {
+		return this.getClass().getProtectionDomain().getCodeSource().getLocation().getPath();
+	}
 
-    /** クラス名（既存ログ仕様に合わせる） */
-    protected String className() {
-        return this.getClass().getName();
-    }
+	/** クラス名（既存ログ仕様に合わせる） */
+	protected String className() {
+		return this.getClass().getName();
+	}
 
-    /**
-     * 履歴表示用の実行名。
-     *
-     * @return 実行名
-     */
-    protected String executionName() {
-        return this.getClass().getSimpleName();
-    }
+	/**
+	 * 履歴表示用の実行名。
+	 *
+	 * @return 実行名
+	 */
+	protected String executionName() {
+		return this.getClass().getSimpleName();
+	}
 
-    /**
-     * バッチ名。
-     *
-     * <p>
-     * 履歴テーブル上での表示名として使用する。
-     * 必要に応じてサブクラスで override してよい。
-     * </p>
-     *
-     * @return バッチ名
-     */
-    protected String batchName() {
-        return this.getClass().getSimpleName();
-    }
+	/**
+	 * バッチ名。
+	 *
+	 * <p>
+	 * 履歴テーブル上での表示名として使用する。
+	 * 必要に応じてサブクラスで override してよい。
+	 * </p>
+	 *
+	 * @return バッチ名
+	 */
+	protected String batchName() {
+		return this.getClass().getSimpleName();
+	}
 
-    /**
-     * 実行前にスキップするかどうかを判定する。
-     *
-     * <p>
-     * デフォルトではスキップしない。
-     * 必要なバッチのみ override する。
-     * </p>
-     *
-     * @return true: スキップする / false: 実行する
-     */
-    protected boolean shouldSkipExecution() {
-        return false;
-    }
+	/**
+	 * 実行前にスキップするかどうかを判定する。
+	 *
+	 * <p>
+	 * デフォルトではスキップしない。
+	 * 必要なバッチのみ override する。
+	 * </p>
+	 *
+	 * @return true: スキップする / false: 実行する
+	 */
+	protected boolean shouldSkipExecution() {
+		return false;
+	}
 
-    /**
-     * スキップ時のログメッセージを返す。
-     *
-     * @return スキップ理由
-     */
-    protected String skipReason() {
-        return "実行条件によりスキップしました。";
-    }
+	/**
+	 * スキップ時のログメッセージを返す。
+	 *
+	 * @return スキップ理由
+	 */
+	protected String skipReason() {
+		return "実行条件によりスキップしました。";
+	}
 
-    /**
-     * 事前準備フラグを返す。（地理マスタバッチのみ）
-     *
-     * @return true or false
-     */
-    protected boolean chkReadyFlg() {
-        return false;
-    }
+	/**
+	 * 事前準備フラグを返す。（地理マスタバッチのみ）
+	 *
+	 * @return true or false
+	 */
+	protected boolean chkReadyFlg() {
+		return false;
+	}
 
-    @Override
-    public final int execute(boolean readyFlg) {
-        final String METHOD_NAME = "execute";
+	@Override
+	public final int execute(boolean readyFlg) {
+		final String METHOD_NAME = "execute";
 
-        if (manageLoggerComponent == null) {
-            throw new IllegalStateException("manageLoggerComponent is null. "
-                    + "This batch instance is not autowired by Spring. class=" + this.getClass());
-        }
+		if (manageLoggerComponent == null) {
+			throw new IllegalStateException("manageLoggerComponent is null. "
+					+ "This batch instance is not autowired by Spring. class=" + this.getClass());
+		}
 
-        manageLoggerComponent.debugStartInfoLog(projectName(), className(), METHOD_NAME);
+		manageLoggerComponent.debugStartInfoLog(projectName(), className(), METHOD_NAME);
 
-        if (shouldSkipExecution()) {
-            manageLoggerComponent.debugInfoLog(
-                    projectName(),
-                    className(),
-                    METHOD_NAME,
-                    null,
-                    skipReason());
-            manageLoggerComponent.debugEndInfoLog(projectName(), className(), METHOD_NAME);
-            return BatchConstant.BATCH_SUCCESS;
-        }
+		if (shouldSkipExecution()) {
+			manageLoggerComponent.debugInfoLog(
+					projectName(),
+					className(),
+					METHOD_NAME,
+					null,
+					skipReason());
+			manageLoggerComponent.debugEndInfoLog(projectName(), className(), METHOD_NAME);
+			return BatchConstant.BATCH_SUCCESS;
+		}
 
-        final String code = batchCode();
-        final String jobId = JobIdUtil.generate(code);
-        final LocalDateTime startTime = LocalDateTime.now();
+		final String code = batchCode();
+		final String jobId = JobIdUtil.generate(code);
+		final LocalDateTime startTime = LocalDateTime.now();
 
-        String finTime = null;
-        String batchCode = null;
+		String finTime = null;
+		String batchCode = null;
 
-        boolean jobInserted = false;
-        boolean historyStarted = false;
+		boolean jobInserted = false;
+		boolean historyStarted = false;
 
-        try {
-            // 0: QUEUED（受付）
-            boolean started = jobExecControl.jobStart(jobId, code);
-            if (!started) {
-                manageLoggerComponent.debugWarnLog(
-                        projectName(),
-                        className(),
-                        METHOD_NAME,
-                        errorCode(),
-                        "jobStart failed (duplicate or insert error). jobId=" + jobId);
-                return BatchConstant.BATCH_ERROR;
-            }
-            jobInserted = true;
+		try {
+			// 0: QUEUED（受付）
+			boolean started = jobExecControl.jobStart(jobId, code);
+			if (!started) {
+				manageLoggerComponent.debugWarnLog(
+						projectName(),
+						className(),
+						METHOD_NAME,
+						errorCode(),
+						"jobStart failed (duplicate or insert error). jobId=" + jobId);
+				return BatchConstant.BATCH_ERROR;
+			}
+			jobInserted = true;
 
-            // 1: STARTED（履歴登録）
-            executionHistoryService.registerBatchStart(
-                    jobId,
-                    executionName(),
-                    code,
-                    className(),
-                    METHOD_NAME,
-                    startTime);
-            historyStarted = true;
+			// 1: STARTED（履歴登録）
+			executionHistoryService.registerBatchStart(
+					jobId,
+					executionName(),
+					code,
+					className(),
+					METHOD_NAME,
+					startTime);
+			historyStarted = true;
 
-            // 2: RUNNING（実処理開始）
-            jobExecControl.jobRunning(jobId);
-            executionHistoryService.markBatchRunning(jobId);
+			// 2: RUNNING（実処理開始）
+			jobExecControl.jobRunning(jobId);
+			executionHistoryService.markBatchRunning(jobId);
 
-            JobContext ctx = new JobContext(jobId, code, readyFlg);
+			JobContext ctx = new JobContext(jobId, code, readyFlg);
 
-            // 実処理
-            doExecute(ctx);
+			// 実処理
+			doExecute(ctx);
 
-            // 3: SUCCESS（成功）
-            jobExecControl.jobEnd(jobId);
+			// 3: SUCCESS（成功）
+			jobExecControl.jobEnd(jobId);
 
-            executionHistoryService.markBatchSuccess(
-                    jobId,
-                    startTime,
-                    LocalDateTime.now());
+			executionHistoryService.markBatchSuccess(
+					jobId,
+					startTime,
+					LocalDateTime.now());
 
-            manageLoggerComponent.debugInfoLog(
-                    projectName(),
-                    className(),
-                    METHOD_NAME,
-                    null,
-                    code + " finished. jobId=" + jobId);
+			manageLoggerComponent.debugInfoLog(
+					projectName(),
+					className(),
+					METHOD_NAME,
+					null,
+					code + " finished. jobId=" + jobId);
 
+			if (!"B096".equals(batchCode())) {
+				batchCode = "BATCH_NAME=" + batchCode();
+				// 完了時間
+				finTime = "EXECUTED_AT=" + LocalDateTime.now().plusHours(9);
+				// 成功で、メール送信
+				mailSendBatchService.send(BATCH_MAIL_ID, sourceMailAddress, batchCode + "," + finTime);
+			}
 
-            batchCode = "BATCH_NAME=" + batchCode();
-            // 完了時間
-            finTime = "EXECUTED_AT=" + LocalDateTime.now().plusHours(9);
-            // 成功で、メール送信
-            mailSendBatchService.send(BATCH_MAIL_ID, sourceMailAddress, batchCode + "," + finTime);
+			return BatchConstant.BATCH_SUCCESS;
 
-            return BatchConstant.BATCH_SUCCESS;
+		} catch (Exception e) {
+			manageLoggerComponent.debugErrorLog(
+					projectName(),
+					className(),
+					METHOD_NAME,
+					errorCode(),
+					e,
+					"jobId=" + jobId);
 
-        } catch (Exception e) {
-            manageLoggerComponent.debugErrorLog(
-                    projectName(),
-                    className(),
-                    METHOD_NAME,
-                    errorCode(),
-                    e,
-                    "jobId=" + jobId);
+			// ジョブ実行制御テーブル側を FAILED へ
+			if (jobInserted) {
+				try {
+					jobExecControl.jobException(jobId);
+				} catch (Exception ex) {
+					manageLoggerComponent.debugWarnLog(
+							projectName(),
+							className(),
+							METHOD_NAME,
+							errorCode(),
+							"jobException failed. jobId=" + jobId + ", message=" + ex.getMessage());
+				}
+			}
 
-            // ジョブ実行制御テーブル側を FAILED へ
-            if (jobInserted) {
-                try {
-                    jobExecControl.jobException(jobId);
-                } catch (Exception ex) {
-                    manageLoggerComponent.debugWarnLog(
-                            projectName(),
-                            className(),
-                            METHOD_NAME,
-                            errorCode(),
-                            "jobException failed. jobId=" + jobId + ", message=" + ex.getMessage());
-                }
-            }
+			// 実行履歴テーブル側を FAILED へ
+			if (historyStarted) {
+				try {
+					executionHistoryService.markBatchFailure(
+							jobId,
+							startTime,
+							LocalDateTime.now(),
+							e);
+				} catch (Exception historyEx) {
+					manageLoggerComponent.debugErrorLog(
+							projectName(),
+							className(),
+							METHOD_NAME,
+							errorCode(),
+							historyEx,
+							"execution history update failed. jobId=" + jobId);
+				}
+			}
 
-            // 実行履歴テーブル側を FAILED へ
-            if (historyStarted) {
-                try {
-                    executionHistoryService.markBatchFailure(
-                            jobId,
-                            startTime,
-                            LocalDateTime.now(),
-                            e);
-                } catch (Exception historyEx) {
-                    manageLoggerComponent.debugErrorLog(
-                            projectName(),
-                            className(),
-                            METHOD_NAME,
-                            errorCode(),
-                            historyEx,
-                            "execution history update failed. jobId=" + jobId);
-                }
-            }
+			return BatchConstant.BATCH_ERROR;
 
-            return BatchConstant.BATCH_ERROR;
+		} finally {
+			manageLoggerComponent.debugEndInfoLog(projectName(), className(), METHOD_NAME);
+		}
+	}
 
-        } finally {
-            manageLoggerComponent.debugEndInfoLog(projectName(), className(), METHOD_NAME);
-        }
-    }
+	/**
+	 * サブクラスから jobId / batchCode / heartbeat を扱うためのコンテキスト。
+	 */
+	public final class JobContext {
+		private final String jobId;
+		private final String batchCode;
+		private final boolean readyFlg;
 
-    /**
-     * サブクラスから jobId / batchCode / heartbeat を扱うためのコンテキスト。
-     */
-    public final class JobContext {
-        private final String jobId;
-        private final String batchCode;
-        private final boolean readyFlg;
+		private JobContext(String jobId, String batchCode, boolean readyFlg) {
+			this.jobId = jobId;
+			this.batchCode = batchCode;
+			this.readyFlg = readyFlg;
+		}
 
-        private JobContext(String jobId, String batchCode, boolean readyFlg) {
-            this.jobId = jobId;
-            this.batchCode = batchCode;
-            this.readyFlg = readyFlg;
-        }
+		public String jobId() {
+			return jobId;
+		}
 
-        public String jobId() {
-            return jobId;
-        }
+		public String batchCode() {
+			return batchCode;
+		}
 
-        public String batchCode() {
-            return batchCode;
-        }
+		public boolean readyFlg() {
+			return readyFlg;
+		}
 
-        public boolean readyFlg() {
-            return readyFlg;
-        }
-
-        /** 生存通知（長時間処理の途中で適宜呼ぶ） */
-        public void heartbeat() {
-            jobExecControl.jobHeartbeat(jobId);
-        }
-    }
+		/** 生存通知（長時間処理の途中で適宜呼ぶ） */
+		public void heartbeat() {
+			jobExecControl.jobHeartbeat(jobId);
+		}
+	}
 }
