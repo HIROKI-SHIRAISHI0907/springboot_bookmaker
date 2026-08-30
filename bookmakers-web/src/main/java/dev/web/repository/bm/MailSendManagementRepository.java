@@ -44,6 +44,7 @@ public class MailSendManagementRepository {
 		dto.setMailId(rs.getString("mail_id"));
 		dto.setEnvelopeFrom(rs.getString("envelope_from"));
 		dto.setNotifyStatus(rs.getString("notify_status"));
+		dto.setRegisterTime(rs.getTimestamp("register_time"));
 		return dto;
 	};
 
@@ -58,12 +59,12 @@ public class MailSendManagementRepository {
 	public List<MailSendManagementEntity> findAll() {
 		String sql = """
 				    SELECT
-				      mail_send_key AS mailSendKey,
-				      message_id AS messageId,
-				      to_address AS toAddress,
-				      mail_id AS mailId,
-				      envelope_from AS envelopeFrom,
-				      notify_status AS notifyStatus
+				      mail_send_key,
+				      message_id,
+				      to_address,
+				      mail_id,
+				      envelope_from,
+				      notify_status
 				    FROM mail_send_management
 				    ORDER BY mail_send_key
 				""";
@@ -76,13 +77,13 @@ public class MailSendManagementRepository {
 	public Optional<MailSendManagementEntity> findByMailSendKey(String mailSendKey) {
 		String sql = """
 				    SELECT
-				      mail_send_key AS mailSendKey,
-				      message_id AS messageId,
-				      to_address AS toAddress,
-				      mail_id AS mailId,
-				      envelope_from AS envelopeFrom,
-				      notify_status AS notifyStatus,
-				      register_time AS registerTime
+				      mail_send_key,
+				      message_id,
+				      to_address,
+				      mail_id,
+				      envelope_from,
+				      notify_status,
+				      register_time
 				    FROM mail_send_manage
 				    WHERE
 				      mail_send_key = :mailSendKey
@@ -100,12 +101,12 @@ public class MailSendManagementRepository {
 	public Optional<MailSendManagementEntity> findByMessageId(String messageId) {
 		String sql = """
 				    SELECT
-				      mail_send_key AS mailSendKey,
-				      message_id AS messageId,
-				      to_address AS toAddress,
-				      mail_id AS mailId,
-				      envelope_from AS envelopeFrom,
-				      notify_status AS notifyStatus
+				      mail_send_key,
+				      message_id,
+				      to_address,
+				      mail_id,
+				      envelope_from,
+				      notify_status
 				    FROM mail_send_manage
 				    WHERE
 				      message_id = :messageId
@@ -123,12 +124,12 @@ public class MailSendManagementRepository {
 	public List<MailSendManagementEntity> findByNotifyStatus(String notifyStatus) {
 		String sql = """
 				    SELECT
-				      mail_send_key AS mailSendKey,
-				      message_id AS messageId,
-				      to_address AS toAddress,
-				      mail_id AS mailId,
-				      envelope_from AS envelopeFrom,
-				      notify_status AS notifyStatus
+				      mail_send_key,
+				      message_id,
+				      to_address,
+				      mail_id,
+				      envelope_from,
+				      notify_status
 				    FROM mail_send_manage
 				    WHERE
 				      notify_status = :notifyStatus
