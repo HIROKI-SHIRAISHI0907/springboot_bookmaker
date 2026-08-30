@@ -39,6 +39,12 @@ public class MailLaunchService {
 	/** パスワード再設定URLのプレースホルダー */
 	private static final String PASSWORD_RESET_URL_PLACEHOLDER = "{{PASSWORD_RESET_URL}}";
 
+	/** バッチ終了のプレースホルダー */
+	private static final String BATCH_NAME_PLACEHOLDER = "{{BATCH_NAME}}";
+
+	/** バッチ終了のプレースホルダー */
+	private static final String TARGET_NAME_PLACEHOLDER = "{{TARGET_NAME}}";
+
 	/**
 	 * パスワード再設定画面のベースURL（例: https://bm-stats-real.com/reset-password）。
 	 * 環境ごとにapplication.properties/application.ymlで切り替える想定。
@@ -81,6 +87,8 @@ public class MailLaunchService {
 			String envelopeFrom = entity.getEnvelopeFrom();
 			String toAddress = entity.getToAddress();
 			int failSendCount = entity.getFailSendCount();
+			String bikou = entity.getBikou();
+			String[] bikouList = bikou.split(",");
 
 			MailInfoMasterEntity mailIdKeyDTO = mailInfoMasterBatchRepository.findMailByMailIdInfo(mailId);
 			if (mailIdKeyDTO == null) {
@@ -91,6 +99,24 @@ public class MailLaunchService {
 
 			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 					"メール送信キー: " + mailSendKey);
+
+			// 件名の文字列を埋める
+			String mailSubject = mailIdKeyDTO.getMailSubject();
+			// 備考を取得
+			if (bikouList != null && bikouList.length != 0) {
+				for (String biko : bikouList) {
+					if (mailSubject != null &&
+							mailSubject.contains(BATCH_NAME_PLACEHOLDER)) {
+						// {{}}を除く
+						String placeHolder = BATCH_NAME_PLACEHOLDER.replace("{", "").replace("}", "");
+						// プレースホルダーに含まれた文字列なら
+						if (biko.contains(placeHolder)) {
+							String[] bikoSub = biko.split("\\=");
+							mailSubject = mailSubject.replace(BATCH_NAME_PLACEHOLDER, bikoSub[0]);
+						}
+					}
+				}
+			}
 
 			// Bodyに「{{PASSWORD_RESET_URL}}」が入っていれば文字列置き換え
 			// URLに乗せるのはmailSendKeyのみ。「10分間有効」という期限そのものは
@@ -103,10 +129,26 @@ public class MailLaunchService {
 				mailBody = mailBody.replace(PASSWORD_RESET_URL_PLACEHOLDER, passwordResetUrl);
 			}
 
+			// 本文が備考リストの場合
+			if (bikouList != null && bikouList.length != 0) {
+				for (String biko : bikouList) {
+					if (mailBody != null &&
+							mailBody.contains(TARGET_NAME_PLACEHOLDER)) {
+						// {{}}を除く
+						String placeHolder = TARGET_NAME_PLACEHOLDER.replace("{", "").replace("}", "");
+						// プレースホルダーに含まれた文字列なら
+						if (biko.contains(placeHolder)) {
+							String[] bikoSub = biko.split("\\=");
+							mailSubject = mailSubject.replace(TARGET_NAME_PLACEHOLDER, bikoSub[0]);
+						}
+					}
+				}
+			}
+
 			// メール送信
 			try {
 				mailSendComponent.send(mailIdKeyDTO.getFromAddress(), envelopeFrom, toAddress,
-						mailIdKeyDTO.getMailSubject(), mailBody);
+						mailSubject, mailBody);
 			} catch (Exception e) {
 				// 送信失敗数をインクリメントして更新
 				mailSendBatchRepository.updateFailSendCount(mailSendKey, failSendCount + 1);

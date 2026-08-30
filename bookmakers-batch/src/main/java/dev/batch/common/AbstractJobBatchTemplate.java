@@ -4,7 +4,9 @@ import java.time.LocalDateTime;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.beans.factory.annotation.Value;
 
+import dev.batch.bm_b096.MailSendBatchService;
 import dev.batch.interf.BatchIF;
 import dev.batch.interf.JobExecControlIF;
 import dev.batch.util.JobIdUtil;
@@ -27,6 +29,14 @@ import dev.common.logger.ManageLoggerComponent;
  */
 public abstract class AbstractJobBatchTemplate implements BatchIF {
 
+	private static final String BATCH_MAIL_ID = "bm-mail-002";
+
+	/**
+	 * メール送信元アドレス
+	 */
+	@Value("${mail.accounts.system:.username}")
+	private String sourceMailAddress;
+
     @Autowired
     @Qualifier("batchJobExecControl")
     protected JobExecControlIF jobExecControl;
@@ -36,6 +46,9 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 
     @Autowired
     protected ManageLoggerComponent manageLoggerComponent;
+
+    @Autowired
+    protected MailSendBatchService mailSendBatchService;
 
     /** バッチコード（例: B002） */
     protected abstract String batchCode();
@@ -144,6 +157,9 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
         final String jobId = JobIdUtil.generate(code);
         final LocalDateTime startTime = LocalDateTime.now();
 
+        String finTime = null;
+        String batchCode = null;
+
         boolean jobInserted = false;
         boolean historyStarted = false;
 
@@ -194,6 +210,13 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
                     METHOD_NAME,
                     null,
                     code + " finished. jobId=" + jobId);
+
+
+            batchCode = "BATCH_NAME=" + batchCode();
+            // 完了時間
+            finTime = "EXECUTED_AT=" + LocalDateTime.now().plusHours(9);
+            // 成功で、メール送信
+            mailSendBatchService.send(BATCH_MAIL_ID, sourceMailAddress, batchCode + "," + finTime);
 
             return BatchConstant.BATCH_SUCCESS;
 
