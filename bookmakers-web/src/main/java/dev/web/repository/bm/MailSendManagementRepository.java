@@ -218,21 +218,21 @@ public class MailSendManagementRepository {
 	 * @return
 	 */
 	public int markSendedAsUsed(String mailSendKey) {
-	    String sql = """
-	            UPDATE mail_send_manage
-	            SET
-	              notify_status = :used,
-	              update_time = CURRENT_TIMESTAMP
-	            WHERE
-	              mail_send_key = :mailSendKey
-	              AND notify_status = :sended
-	        """;
-	    return jdbcTemplate.update(
-	            sql,
-	            new MapSqlParameterSource()
-	                    .addValue("mailSendKey", mailSendKey)
-	                    .addValue("used", MailNoticeEnum.NOTIFY_STATUS_USED.getNoticeStatus())
-	                    .addValue("sended", MailNoticeEnum.NOTIFY_STATUS_SENDED.getNoticeStatus()));
+		String sql = """
+				    UPDATE mail_send_manage
+				    SET
+				      notify_status = :used,
+				      update_time = CURRENT_TIMESTAMP
+				    WHERE
+				      mail_send_key = :mailSendKey
+				      AND notify_status = :sended
+				""";
+		return jdbcTemplate.update(
+				sql,
+				new MapSqlParameterSource()
+						.addValue("mailSendKey", mailSendKey)
+						.addValue("used", MailNoticeEnum.NOTIFY_STATUS_USED.getNoticeStatus())
+						.addValue("sended", MailNoticeEnum.NOTIFY_STATUS_SENDED.getNoticeStatus()));
 	}
 
 	private MapSqlParameterSource toParams(MailSendManagementEntity dto) {

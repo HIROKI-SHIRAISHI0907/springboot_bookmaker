@@ -183,6 +183,26 @@ public class UserRepository {
     }
 
     /**
+     * 存在するEmailか
+     * @param email
+     * @return
+     */
+    public int findEmail(String email) {
+        String sql = """
+            SELECT
+        		COUNT(*)
+        	FROM
+        		users
+            WHERE email = :email
+        """;
+
+        var params = new MapSqlParameterSource()
+            .addValue("email", email);
+
+        return jdbc.queryForObject(sql, params, Integer.class);
+    }
+
+    /**
      * UserAdminRow
      *
      * authFlg:

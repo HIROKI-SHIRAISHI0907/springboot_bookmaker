@@ -14,6 +14,7 @@ import dev.web.jwt.JwtCurrentUserService;
 import dev.web.jwt.JwtCurrentUserService.CurrentUser;
 import dev.web.repository.bm.MailSendManagementRepository;
 import dev.web.repository.master.MailInfoMasterRepository;
+import dev.web.repository.user.UserRepository;
 import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -41,6 +42,7 @@ public class MailSendService {
 
 	private final MailInfoMasterRepository mailInfoMasterRepository;
 	private final MailSendManagementRepository mailSendManagementRepository;
+	private final UserRepository userRepository;
 	private final JwtCurrentUserService jwtCurrentUserService;
 
 	private static final String ENVELOPE_ADDRESS = "no-reply@sample.com";
@@ -67,11 +69,20 @@ public class MailSendService {
 	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
 	 */
 	public MailSendResponse send(String mailId, String toAddress) {
+		// メール情報マスタに存在するか
 		MailInfoMasterEntity mailInfo = mailInfoMasterRepository.findById(mailId)
 				.orElseThrow(() -> {
 					log.error("メール情報マスタに該当データがありません。mailId={}", mailId);
 					return new RuntimeException(SYSTEM_ERROR_MESSAGE);
 				});
+
+		MailSendResponse response = new MailSendResponse();
+		// 送信先メールアドレスが登録されているものか
+		if (userRepository.findEmail(toAddress) == 0) {
+			response.setResponseCode("404");
+			response.setMessage("使用されていないメールアドレスです。");
+			return response;
+		}
 
 		// メール送信キーを取得
 		String mailSendKey = getMailSendKey();
@@ -85,7 +96,7 @@ public class MailSendService {
 		management.setNotifyStatus(MailNoticeEnum.NOTIFY_STATUS_PENDING.getNoticeStatus());
 		management.setFailSendCount(0);
 
-		MailSendResponse response = new MailSendResponse();
+
 		try {
 			int result = mailSendManagementRepository.insert(management);
 			if (result != 1) {
