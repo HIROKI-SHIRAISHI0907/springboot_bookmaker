@@ -44,33 +44,33 @@ public class SeqKeyService {
      * @return 生成されたseq_key（例: "12345678-1"）
      */
     public synchronized String create(String home, String away, String matchId) {
-        List<SeqKeyDTO> existDto = bookDataRepository.findMatchId(home, away);
-
         if (StringUtils.hasValue(matchId)) {
-            // ---- 1) 正式なmatch_idが来ているケース ----
+            // 1) 正式なmatch_idそのもので直接検索する（他カードと混同しない一番安全な経路）
+            SeqKeyDTO latestForThisMatch = bookDataRepository.findSeqKeyByMatchId(matchId);
+            if (latestForThisMatch != null && StringUtils.hasValue(latestForThisMatch.getSeqKey())) {
+                return nextRenban(latestForThisMatch.getSeqKey());
+            }
+            // 2) このmatch_idでの登録がまだ無い場合のみ、
+            //    「進行中」の同一カードにランダム値ベースの未確定行が無いか確認する
+            List<SeqKeyDTO> existDto = bookDataRepository.findMatchId(home, away);
             if (existDto == null || existDto.isEmpty()) {
                 // 初回登録
                 return matchId + "-1";
             }
-
             String existingMatchId = sameChk(existDto);
             if (matchId.equals(existingMatchId)) {
-                // 4) 既に同じmatch_idで採番されている試合群 → そのまま連番+1
+                // 同じmatch_idで採番済みの試合群 → そのまま連番+1
                 return nextRenban(existDto.get(0).getSeqKey());
             }
-
-            // 3) それまでランダム値（または別のmatch_id）だった試合群に
-            //    正式なmatch_idが連携された → 過去分を正式match_idへ書き換えて連番を振り直す
+            // それまでランダム値だった進行中の試合群に、正式なmatch_idが連携された
+            // → 過去分(=同じ進行中の試合)を正式match_idへ書き換えて連番を振り直す
             return overwriteAndAppend(matchId, existDto);
-
         } else {
-            // ---- 2) match_idが来ていないケース ----
+            // ---- match_idが来ていないケース ----
+            List<SeqKeyDTO> existDto = bookDataRepository.findMatchId(home, away);
             if (existDto == null || existDto.isEmpty()) {
-                // 初回はランダム値を採番
                 return generateRandomStringAndChkSeqKey() + "-1";
             }
-            // 既存の採番（ランダムベース／過去に確定していたmatch_idベースいずれも）を
-            // そのまま引き継いで連番だけ+1する
             return nextRenban(existDto.get(0).getSeqKey());
         }
     }

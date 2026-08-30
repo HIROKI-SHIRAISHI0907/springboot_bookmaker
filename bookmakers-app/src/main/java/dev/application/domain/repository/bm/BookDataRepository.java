@@ -628,19 +628,24 @@ public interface BookDataRepository {
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
 	// ★static_data向けに変更。カンマ抜け修正 + 連番部分を数値としてORDER BY（"9"が"10"より新しいと誤判定するのを防止）
+	// 変更後：終了済み(times='終了済' / 'ペナルティ%')の過去カードと、
+	// 念のため直近6時間より前の古いレコードを対象から除外し、
+	// 「現在進行中の対戦」だけを見るようにする
 	@Select("""
-			SELECT
-			    seq_key AS seqKey,
-				match_id AS matchId,
-				times
-			FROM static_data
-				WHERE home_team_name = #{homeTeamName}
-				AND away_team_name = #{awayTeamName}
-			ORDER BY register_time DESC;
-			""")
+	        SELECT
+	            seq_key AS seqKey,
+	            match_id AS matchId,
+	            times
+	        FROM static_data
+	            WHERE home_team_name = #{homeTeamName}
+	            AND away_team_name = #{awayTeamName}
+	            AND (times IS NULL OR (times <> '終了済' AND times NOT LIKE 'ペナルティ%'))
+	            AND register_time >= CURRENT_TIMESTAMP - INTERVAL '6 hours'
+	        ORDER BY register_time DESC;
+	        """)
 	List<SeqKeyDTO> findMatchId(
-			@Param("homeTeamName") String homeTeamName,
-			@Param("awayTeamName") String awayTeamName);
+	        @Param("homeTeamName") String homeTeamName,
+	        @Param("awayTeamName") String awayTeamName);
 	// ★static_data向けに変更。カンマ抜け修正 + 連番部分を数値としてORDER BY
 	@Select("""
 			SELECT
