@@ -1,5 +1,7 @@
 package dev.common.entity;
 
+import java.sql.Timestamp;
+
 import lombok.Data;
 
 /**
@@ -31,5 +33,8 @@ public class MailSendManagementEntity {
 
 	/** 送信失敗カウント */
 	private int failSendCount;
+
+	/** 登録時間 */
+	private Timestamp registerTime;
 
 }

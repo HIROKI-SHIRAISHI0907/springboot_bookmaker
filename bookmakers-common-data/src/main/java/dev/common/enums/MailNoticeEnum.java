@@ -11,7 +11,10 @@ public enum MailNoticeEnum {
 	NOTIFY_STATUS_PENDING("通知前", "0"),
 
 	/** 通知後 */
-	NOTIFY_STATUS_SENDED("通知後", "1");
+	NOTIFY_STATUS_SENDED("通知後", "1"),
+
+	/** 使用済み */
+	NOTIFY_STATUS_USED("使用済み", "2");
 
 	/** 日本語の意味 */
 	private final String noticeName;
