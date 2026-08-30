@@ -160,6 +160,29 @@ public class UserRepository {
     }
 
     /**
+     * 新規のパスワードに更新する
+     * @param email
+     * @param passwordHash
+     * @param operatorId
+     * @return
+     */
+    public int updatePasswordByEmail(String email, String passwordHash, String operatorId) {
+        String sql = """
+            UPDATE users
+            SET
+                "passwordHash" = :passwordHash,
+                update_id = :op,
+                update_time = CURRENT_TIMESTAMP
+            WHERE email = :email
+        """;
+        var params = new MapSqlParameterSource()
+            .addValue("passwordHash", passwordHash)
+            .addValue("email", email)
+            .addValue("op", operatorId);
+        return jdbc.update(sql, params);
+    }
+
+    /**
      * UserAdminRow
      *
      * authFlg:

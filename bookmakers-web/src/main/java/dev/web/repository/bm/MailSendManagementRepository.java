@@ -10,6 +10,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.common.entity.MailSendManagementEntity;
+import dev.common.enums.MailNoticeEnum;
 
 /**
  * MailSendManagementRepositoryクラス
@@ -57,12 +58,12 @@ public class MailSendManagementRepository {
 	public List<MailSendManagementEntity> findAll() {
 		String sql = """
 				    SELECT
-				      mail_send_key,
-				      message_id,
-				      to_address,
-				      mail_id,
-				      envelope_from,
-				      notify_status
+				      mail_send_key AS mailSendKey,
+				      message_id AS messageId,
+				      to_address AS toAddress,
+				      mail_id AS mailId,
+				      envelope_from AS envelopeFrom,
+				      notify_status AS notifyStatus
 				    FROM mail_send_management
 				    ORDER BY mail_send_key
 				""";
@@ -75,12 +76,13 @@ public class MailSendManagementRepository {
 	public Optional<MailSendManagementEntity> findByMailSendKey(String mailSendKey) {
 		String sql = """
 				    SELECT
-				      mail_send_key,
-				      message_id,
-				      to_address,
-				      mail_id,
-				      envelope_from,
-				      notify_status
+				      mail_send_key AS mailSendKey,
+				      message_id AS messageId,
+				      to_address AS toAddress,
+				      mail_id AS mailId,
+				      envelope_from AS envelopeFrom,
+				      notify_status AS notifyStatus,
+				      register_time AS registerTime
 				    FROM mail_send_manage
 				    WHERE
 				      mail_send_key = :mailSendKey
@@ -98,12 +100,12 @@ public class MailSendManagementRepository {
 	public Optional<MailSendManagementEntity> findByMessageId(String messageId) {
 		String sql = """
 				    SELECT
-				      mail_send_key,
-				      message_id,
-				      to_address,
-				      mail_id,
-				      envelope_from,
-				      notify_status
+				      mail_send_key AS mailSendKey,
+				      message_id AS messageId,
+				      to_address AS toAddress,
+				      mail_id AS mailId,
+				      envelope_from AS envelopeFrom,
+				      notify_status AS notifyStatus
 				    FROM mail_send_manage
 				    WHERE
 				      message_id = :messageId
@@ -121,12 +123,12 @@ public class MailSendManagementRepository {
 	public List<MailSendManagementEntity> findByNotifyStatus(String notifyStatus) {
 		String sql = """
 				    SELECT
-				      mail_send_key,
-				      message_id,
-				      to_address,
-				      mail_id,
-				      envelope_from,
-				      notify_status
+				      mail_send_key AS mailSendKey,
+				      message_id AS messageId,
+				      to_address AS toAddress,
+				      mail_id AS mailId,
+				      envelope_from AS envelopeFrom,
+				      notify_status AS notifyStatus
 				    FROM mail_send_manage
 				    WHERE
 				      notify_status = :notifyStatus
@@ -207,6 +209,29 @@ public class MailSendManagementRepository {
 				new MapSqlParameterSource()
 						.addValue("mailSendKey", mailSendKey)
 						.addValue("messageId", messageId));
+	}
+
+	/**
+	 * notify_statusを使用済み
+	 * @param mailSendKey
+	 * @return
+	 */
+	public int markSendedAsUsed(String mailSendKey) {
+	    String sql = """
+	            UPDATE mail_send_manage
+	            SET
+	              notify_status = :used,
+	              update_time = CURRENT_TIMESTAMP
+	            WHERE
+	              mail_send_key = :mailSendKey
+	              AND notify_status = :sended
+	        """;
+	    return jdbcTemplate.update(
+	            sql,
+	            new MapSqlParameterSource()
+	                    .addValue("mailSendKey", mailSendKey)
+	                    .addValue("used", MailNoticeEnum.NOTIFY_STATUS_USED.getNoticeStatus())
+	                    .addValue("sended", MailNoticeEnum.NOTIFY_STATUS_SENDED.getNoticeStatus()));
 	}
 
 	private MapSqlParameterSource toParams(MailSendManagementEntity dto) {

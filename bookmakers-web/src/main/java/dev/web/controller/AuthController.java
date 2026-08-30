@@ -4,11 +4,13 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.auth0.jwt.interfaces.DecodedJWT;
@@ -17,6 +19,8 @@ import dev.web.api.bm_u004.AuthResponse;
 import dev.web.api.bm_u004.AuthService;
 import dev.web.api.bm_u004.ForgotPasswordRequest;
 import dev.web.api.bm_u004.LoginRequest;
+import dev.web.api.bm_u004.PasswordResetService;
+import dev.web.api.bm_u004.ResetPasswordConfirmRequest;
 import dev.web.api.bm_u004.SignUpRequest;
 import dev.web.jwt.JwtService;
 import dev.web.mail.MailSendResponse;
@@ -36,6 +40,7 @@ public class AuthController {
 	private final JwtService jwtService;
 	private final AuthService authService;
 	private final MailSendService service;
+	private final PasswordResetService passwordResetService;
 
 	/**
 	 * 新規登録
@@ -136,6 +141,29 @@ public class AuthController {
 		};
 
 		return ResponseEntity.status(status).body(res);
+	}
+
+	/**
+	 * リンクの有効性をチェック
+	 * @param key
+	 * @return
+	 */
+	@GetMapping("/passwd/reset/validate")
+	public ResponseEntity<AuthResponse> getPasswdResetValidate(@RequestParam("key") String key) {
+	    AuthResponse res = passwordResetService.validate(key);
+	    return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
+	}
+
+	/**
+	 * パスワード入力後の再設定
+	 * @param req
+	 * @return
+	 */
+	@PatchMapping("/passwd/reset/confirm")
+	public ResponseEntity<AuthResponse> patchPasswdResetConfirm(
+	        @RequestBody ResetPasswordConfirmRequest req) {
+	    AuthResponse res = passwordResetService.confirm(req.getKey(), req.getNewPassword());
+	    return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
 
 	/**
