@@ -44,6 +44,7 @@ public class MailSendManagementRepository {
 		dto.setMailId(rs.getString("mail_id"));
 		dto.setEnvelopeFrom(rs.getString("envelope_from"));
 		dto.setNotifyStatus(rs.getString("notify_status"));
+		dto.setBikou(rs.getString("bikou"));
 		dto.setRegisterTime(rs.getTimestamp("register_time"));
 		return dto;
 	};
@@ -153,6 +154,7 @@ public class MailSendManagementRepository {
 				      envelope_from,
 				      notify_status,
 				      fail_send_count,
+				      bikou,
 				      register_id,
 				  	  register_time,
 				  	  update_id,
@@ -165,6 +167,7 @@ public class MailSendManagementRepository {
 				      :envelopeFrom,
 				      :notifyStatus,
 				      :failSendCount,
+				      '',
 				      'SYSTEM',
 				  	  CURRENT_TIMESTAMP,
 				  	  'SYSTEM',
