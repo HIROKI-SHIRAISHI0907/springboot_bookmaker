@@ -13,6 +13,7 @@ import dev.batch.repository.master.MailInfoMasterBatchRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.MailInfoMasterEntity;
 import dev.common.entity.MailSendManagementEntity;
+import dev.common.enums.BatchCodeToMailEnum;
 import dev.common.enums.MailNoticeEnum;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.mail.MailSendComponent;
@@ -39,11 +40,8 @@ public class MailLaunchService {
 	/** パスワード再設定URLのプレースホルダー */
 	private static final String PASSWORD_RESET_URL_PLACEHOLDER = "{{PASSWORD_RESET_URL}}";
 
-	/** バッチ終了のプレースホルダー */
-	private static final String BATCH_NAME_PLACEHOLDER = "{{BATCH_NAME}}";
-
-	/** バッチ終了のプレースホルダー */
-	private static final String TARGET_NAME_PLACEHOLDER = "{{TARGET_NAME}}";
+	/** バッチコードのプレースホルダー */
+	private static final String BATCH_CODE_PLACEHOLDER = "BATCH_CODE";
 
 	/**
 	 * パスワード再設定画面のベースURL（例: https://bm-stats-real.com/reset-password）。
@@ -88,7 +86,6 @@ public class MailLaunchService {
 			String toAddress = entity.getToAddress();
 			int failSendCount = entity.getFailSendCount();
 			String bikou = entity.getBikou();
-			String[] bikouList = bikou.split(",");
 
 			MailInfoMasterEntity mailIdKeyDTO = mailInfoMasterBatchRepository.findMailByMailIdInfo(mailId);
 			if (mailIdKeyDTO == null) {
@@ -100,50 +97,16 @@ public class MailLaunchService {
 			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 					"メール送信キー: " + mailSendKey);
 
-			// 件名の文字列を埋める
-			String mailSubject = mailIdKeyDTO.getMailSubject();
-			// 備考を取得
-			if (bikouList != null && bikouList.length != 0) {
-				for (String biko : bikouList) {
-					if (mailSubject != null &&
-							mailSubject.contains(BATCH_NAME_PLACEHOLDER)) {
-						// {{}}を除く
-						String placeHolder = BATCH_NAME_PLACEHOLDER.replace("{", "").replace("}", "");
-						// プレースホルダーに含まれた文字列なら
-						if (biko.contains(placeHolder)) {
-							String[] bikoSub = biko.split("\\=");
-							mailSubject = mailSubject.replace(BATCH_NAME_PLACEHOLDER, bikoSub[0]);
-						}
-					}
-				}
-			}
-
-			// Bodyに「{{PASSWORD_RESET_URL}}」が入っていれば文字列置き換え
-			// URLに乗せるのはmailSendKeyのみ。「10分間有効」という期限そのものは
-			// URLに埋め込まず、リンクを踏んだ側（/reset-password/validate）が
-			// mail_send_manage.register_timeを基準にサーバー側で判定する想定。
+			String mailSubject = applyBikouPlaceholders(mailIdKeyDTO.getMailSubject(), bikou);
 			String mailBody = mailIdKeyDTO.getMailBody();
+
 			if (mailBody != null && mailBody.contains(PASSWORD_RESET_URL_PLACEHOLDER)) {
-				String encodedKey = URLEncoder.encode(mailSendKey, StandardCharsets.UTF_8);
-				String passwordResetUrl = passwordResetBaseUrl + "?key=" + encodedKey;
-				mailBody = mailBody.replace(PASSWORD_RESET_URL_PLACEHOLDER, passwordResetUrl);
+			    String encodedKey = URLEncoder.encode(mailSendKey, StandardCharsets.UTF_8);
+			    String passwordResetUrl = passwordResetBaseUrl + "?key=" + encodedKey;
+			    mailBody = mailBody.replace(PASSWORD_RESET_URL_PLACEHOLDER, passwordResetUrl);
 			}
 
-			// 本文が備考リストの場合
-			if (bikouList != null && bikouList.length != 0) {
-				for (String biko : bikouList) {
-					if (mailBody != null &&
-							mailBody.contains(TARGET_NAME_PLACEHOLDER)) {
-						// {{}}を除く
-						String placeHolder = TARGET_NAME_PLACEHOLDER.replace("{", "").replace("}", "");
-						// プレースホルダーに含まれた文字列なら
-						if (biko.contains(placeHolder)) {
-							String[] bikoSub = biko.split("\\=");
-							mailSubject = mailSubject.replace(TARGET_NAME_PLACEHOLDER, bikoSub[0]);
-						}
-					}
-				}
-			}
+			mailBody = applyBikouPlaceholders(mailBody, bikou);
 
 			// メール送信
 			try {
@@ -166,4 +129,32 @@ public class MailLaunchService {
 		this.manageLoggerComponent.clear();
 	}
 
+	/**
+	 * mail_send_manage.bikouを "KEY1=VALUE1,KEY2=VALUE2" 形式のkey=valueペアとして解釈し、
+	 * text中に含まれる "{{KEY1}}" のようなプレースホルダーをVALUE1に置換する。
+	 * 件名・本文どちらに対しても同じロジックで使える汎用メソッド。
+	 */
+	private String applyBikouPlaceholders(String text, String bikou) {
+	    if (text == null || bikou == null || bikou.isBlank()) {
+	        return text;
+	    }
+	    String result = text;
+	    for (String pair : bikou.split(",")) {
+	        String[] kv = pair.split("=", 2);
+	        if (kv.length != 2) {
+	            continue;
+	        }
+	        String key = kv[0].trim();
+	        String value = kv[1].trim();
+	        if (key.isEmpty()) {
+	            continue;
+	        }
+	        // valueを解決
+	        if (BATCH_CODE_PLACEHOLDER.equals(key))
+	        	value = BatchCodeToMailEnum.resolveBatchName(value);
+	        result = result.replace("（" + key + "）", value);
+	        result = result.replace("{{" + key + "}}", value);
+	    }
+	    return result;
+	}
 }
