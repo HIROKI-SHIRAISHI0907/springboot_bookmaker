@@ -5,6 +5,7 @@ app:
   future-csv-folder: /tmp/future/
   b001-json-folder: /tmp/json/
   b008-json-folder: /tmp/json/
+  notification.admin-email: hirokishiraishi73@gmail.com
   
 process:
   python:
