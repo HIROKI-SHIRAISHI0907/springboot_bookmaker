@@ -34,7 +34,7 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 	/**
 	 * メール送信元アドレス
 	 */
-	@Value("${mail.accounts.system:.username}")
+	@Value("${mail.accounts.system.username}")
 	private String sourceMailAddress;
 
 	@Autowired
