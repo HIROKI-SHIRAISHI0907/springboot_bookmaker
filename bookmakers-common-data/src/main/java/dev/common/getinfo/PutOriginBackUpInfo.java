@@ -3,7 +3,6 @@ package dev.common.getinfo;
 import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
-import java.nio.file.Paths;
 import java.nio.file.StandardCopyOption;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -52,8 +51,8 @@ public class PutOriginBackUpInfo {
 	 * 想定キー(zip内CSVエントリ / originのS3 key):
 	 * yyyy-MM-dd/mid=XXXX/seq=000001_yyyyMMddTHHmmss+0900.csv
 	 */
-	private static final Pattern KEY_PATTERN =
-			Pattern.compile("^(\\d{4}-\\d{2}-\\d{2})/mid=([^/]+)/seq=([^_/]+)_(.+)\\.csv$");
+	private static final Pattern KEY_PATTERN = Pattern
+			.compile("^(\\d{4}-\\d{2}-\\d{2})/mid=([^/]+)/seq=([^_/]+)_(.+)\\.csv$");
 
 	@Autowired
 	private PathConfig config;
@@ -150,11 +149,12 @@ public class PutOriginBackUpInfo {
 			}
 
 			for (LocalCsv csv : csvList) {
+				Path source = resolveActualLocalPath(csv);
 				Path dest = extractDir.resolve(csv.s3Key);
 				if (dest.getParent() != null) {
 					Files.createDirectories(dest.getParent());
 				}
-				Files.copy(Paths.get(csv.localPath), dest, StandardCopyOption.REPLACE_EXISTING);
+				Files.copy(source, dest, StandardCopyOption.REPLACE_EXISTING);
 			}
 
 			Path newZip = workDir.resolve("new-" + zipKey);
@@ -165,6 +165,16 @@ public class PutOriginBackUpInfo {
 		} finally {
 			deleteRecursivelyQuietly(workDir);
 		}
+	}
+
+	/**
+	 * entitiesのキー(localPath)は実際には {@link GetOriginInfo#getData(List)} が返す
+	 * S3 keyそのものであり、ローカルディスク上の実ファイルパスではない。
+	 * ダウンロード済みの実ファイルは {@link GetOriginInfo#resolveLocalPath(String)} が
+	 * 算出する一時フォルダ配下に存在するため、常にそちら経由で実パスを求める。
+	 */
+	private Path resolveActualLocalPath(LocalCsv csv) {
+		return GetOriginInfo.resolveLocalPath(csv.s3Key);
 	}
 
 	/**

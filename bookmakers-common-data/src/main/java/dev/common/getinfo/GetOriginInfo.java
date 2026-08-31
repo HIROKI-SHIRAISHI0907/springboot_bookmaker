@@ -43,6 +43,7 @@ import lombok.extern.slf4j.Slf4j;
 public class GetOriginInfo {
 
 	private static final String PROJECT_NAME = "BM_B001";
+
 	private static final String CLASS_NAME = "GetOriginInfo";
 
 	/** 必要に応じて既存値へ合わせてください */
@@ -50,45 +51,39 @@ public class GetOriginInfo {
 
 	/** 必要に応じて既存値へ合わせてください */
 	private static final int THREAD_COUNT = 8;
+
 	private static final long INVOKE_ALL_TIMEOUT_MINUTES = 10L;
 
 	/**
 	 * 想定キー:
 	 * yyyy-MM-dd/mid=XXXX/seq=000001_yyyyMMddTHHmmss+0900.csv
 	 */
-	private static final Pattern KEY_PATTERN =
-			Pattern.compile("^(\\d{4}-\\d{2}-\\d{2})/mid=([^/]+)/seq=([^_/]+)_(.+)\\.csv$");
-
+	private static final Pattern KEY_PATTERN = Pattern
+			.compile("^(\\d{4}-\\d{2}-\\d{2})/mid=([^/]+)/seq=([^_/]+)_(.+)\\.csv$");
 	@Autowired
 	private PathConfig config;
-
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
-
 	@Autowired
 	private S3Operator s3Operator;
-
 	@Autowired
 	private ReadOrigin readOrigin;
 
 	/**
 	 * S3上の対象CSVを読み込み、S3 key -> DataEntity一覧 で返す。
+	 * 戻り値のMapのキーは「ローカルファイルパス」ではなく「S3 key」であることに注意。
+	 * ダウンロード先のローカル実ファイルパスが必要な場合は {@link #resolveLocalPath(String)} を使うこと。
 	 */
 	public LinkedHashMap<String, List<DataEntity>> getData(List<?> items) {
-
 		final String METHOD_NAME = "getData";
-
 		String bucket = config.getS3BucketsOutputs();
 		String outputFolder = safeOutputFolder();
-
 		// 1) 全走査して matcher に合うkeyだけ抽出
 		List<String> matchedKeys = listAllMatchedKeys(bucket, OUTPUTS_CSV_KEY, items);
-
 		log.info("[B001] S3 bucket={} prefix={} keys.size={} keys(sample)={}",
 				bucket, OUTPUTS_CSV_KEY,
 				(matchedKeys == null ? -1 : matchedKeys.size()),
 				(matchedKeys == null ? null : matchedKeys.stream().limit(5).collect(Collectors.toList())));
-
 		if (matchedKeys.isEmpty()) {
 			manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
@@ -98,7 +93,6 @@ public class GetOriginInfo {
 
 		// 2) 要件どおりに並べ替え
 		List<String> orderedKeys = orderKeysByDateThenMidEncounterThenSeqString(matchedKeys);
-
 		try {
 			Files.createDirectories(Paths.get(outputFolder));
 		} catch (Exception e) {
@@ -111,20 +105,16 @@ public class GetOriginInfo {
 
 		LinkedHashMap<String, List<DataEntity>> result = new LinkedHashMap<>();
 		ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
-
 		try {
 			List<Callable<ReadOneResult>> tasks = new ArrayList<>();
 			for (String s3Key : orderedKeys) {
 				tasks.add(() -> readOne(bucket, s3Key, outputFolder));
 			}
-
-			List<Future<ReadOneResult>> futures =
-					executor.invokeAll(tasks, INVOKE_ALL_TIMEOUT_MINUTES, TimeUnit.MINUTES);
-
+			List<Future<ReadOneResult>> futures = executor.invokeAll(tasks, INVOKE_ALL_TIMEOUT_MINUTES,
+					TimeUnit.MINUTES);
 			for (int i = 0; i < futures.size(); i++) {
 				Future<ReadOneResult> f = futures.get(i);
 				String targetKey = orderedKeys.get(i);
-
 				if (f.isCancelled()) {
 					manageLoggerComponent.debugErrorLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
@@ -133,10 +123,8 @@ public class GetOriginInfo {
 							"ReadOriginS3 timeout/cancel: s3Key=" + targetKey);
 					continue;
 				}
-
 				try {
 					ReadOneResult r = f.get();
-
 					if (r == null) {
 						manageLoggerComponent.debugErrorLog(
 								PROJECT_NAME, CLASS_NAME, METHOD_NAME,
@@ -145,7 +133,6 @@ public class GetOriginInfo {
 								"ReadOriginS3 returned null: s3Key=" + targetKey);
 						continue;
 					}
-
 					if (!r.ok) {
 						log.error("[THROWABLE ERROR] ReadOriginS3 detail error: {}", r.thrown);
 						manageLoggerComponent.debugErrorLog(
@@ -158,9 +145,7 @@ public class GetOriginInfo {
 										+ ", localPath=" + nvl(r.localPath));
 						continue;
 					}
-
 					result.put(r.s3Key, r.entities == null ? Collections.emptyList() : r.entities);
-
 				} catch (Exception e) {
 					manageLoggerComponent.debugErrorLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
@@ -169,7 +154,6 @@ public class GetOriginInfo {
 							"ReadOriginS3 future.get failed: s3Key=" + targetKey);
 				}
 			}
-
 		} catch (InterruptedException e) {
 			Thread.currentThread().interrupt();
 			manageLoggerComponent.debugErrorLog(
@@ -178,7 +162,6 @@ public class GetOriginInfo {
 					e,
 					"ReadOriginS3 interrupted");
 			return result;
-
 		} catch (Exception e) {
 			manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
@@ -186,23 +169,28 @@ public class GetOriginInfo {
 					e,
 					"ReadOriginS3 unexpected error");
 			return result;
-
 		} finally {
 			shutdownExecutor(executor);
 		}
-
 		return result;
+	}
+
+	/**
+	 * getData()が返すMapのキー(S3 key)から、ダウンロード済みローカルCSVの実ファイルパスを逆算する。
+	 * ローカル一時フォルダの命名規則は本クラスの{@link #safeOutputFolder()}に依存するため、
+	 * OriginStatやPutOriginBackUpInfoなど他クラスからローカルCSVの実体を参照する場合は
+	 * 必ずこのメソッド経由でパスを求めること(直接Mapのキーをローカルパスとして扱わないこと)。
+	 */
+	public static Path resolveLocalPath(String s3Key) {
+		return buildSafeLocalPath(safeOutputFolder(), s3Key);
 	}
 
 	/**
 	 * S3の1CSVをローカル保存し、readOriginで解析する。
 	 */
 	private ReadOneResult readOne(String bucket, String s3Key, String outputFolder) {
-
 		final String METHOD_NAME = "readOne";
-
 		Path local = buildSafeLocalPath(outputFolder, s3Key);
-
 		try {
 			Files.createDirectories(local.getParent());
 		} catch (Exception e) {
@@ -226,9 +214,7 @@ public class GetOriginInfo {
 		}
 
 		try (InputStream is = Files.newInputStream(local)) {
-
 			ReadFileOutputDTO dto = readOrigin.getFileBodyFromStream(is, s3Key);
-
 			if (dto == null) {
 				return ReadOneResult.fail(
 						s3Key,
@@ -262,16 +248,13 @@ public class GetOriginInfo {
 					log.debug("[B001] setFile failed. s3Key={}", s3Key, ignore);
 				}
 			}
-
 			return ReadOneResult.ok(s3Key, local.toString(), list);
-
 		} catch (Exception e) {
 			manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00003E_EXECUTION_SKIP,
 					e,
 					"ReadOrigin local read/parse failed: s3Key=" + s3Key + ", localPath=" + local);
-
 			return ReadOneResult.fail(
 					s3Key,
 					local.toString(),
@@ -286,15 +269,12 @@ public class GetOriginInfo {
 	 * 今の S3Operator の listKeys(bucket, prefix) を使う版。
 	 */
 	private List<String> listAllMatchedKeys(String bucket, String prefix, List<?> items) {
-
 		final String METHOD_NAME = "listAllMatchedKeys";
-
 		try {
 			List<String> allKeys = s3Operator.listKeys(bucket, prefix == null ? "" : prefix);
 			if (allKeys == null || allKeys.isEmpty()) {
 				return Collections.emptyList();
 			}
-
 			List<String> matched = new ArrayList<>();
 			for (String key : allKeys) {
 				if (!isTargetCsvKey(key)) {
@@ -306,7 +286,6 @@ public class GetOriginInfo {
 				matched.add(key);
 			}
 			return matched;
-
 		} catch (Exception e) {
 			manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
@@ -324,23 +303,18 @@ public class GetOriginInfo {
 	 * 3. 同一 mid 内は seq 文字列順
 	 */
 	private List<String> orderKeysByDateThenMidEncounterThenSeqString(List<String> matchedKeys) {
-
 		if (matchedKeys == null || matchedKeys.isEmpty()) {
 			return Collections.emptyList();
 		}
-
 		Map<String, Map<String, Integer>> dateMidEncounterOrder = new LinkedHashMap<>();
-
 		for (String key : matchedKeys) {
 			KeyParts p = parseKeyParts(key);
 			String date = p.date;
 			String mid = p.mid;
-
 			dateMidEncounterOrder
 					.computeIfAbsent(date, d -> new LinkedHashMap<>())
 					.computeIfAbsent(mid, m -> dateMidEncounterOrder.get(date).size());
 		}
-
 		List<String> ordered = new ArrayList<>(matchedKeys);
 		ordered.sort(
 				Comparator.comparing((String key) -> parseKeyParts(key).date, Comparator.nullsLast(String::compareTo))
@@ -351,9 +325,7 @@ public class GetOriginInfo {
 									.getOrDefault(p.mid, Integer.MAX_VALUE);
 						})
 						.thenComparing(key -> parseKeyParts(key).seq, Comparator.nullsLast(String::compareTo))
-						.thenComparing(String::compareTo)
-		);
-
+						.thenComparing(String::compareTo));
 		return ordered;
 	}
 
@@ -369,14 +341,11 @@ public class GetOriginInfo {
 	 * items の実型が不明なので、文字列化＋代表getter群で雑に吸う。
 	 */
 	private boolean matchesAnyItem(String s3Key, List<?> items) {
-
 		if (items == null || items.isEmpty()) {
 			return true;
 		}
-
 		Set<String> candidates = new LinkedHashSet<>();
 		candidates.add(s3Key);
-
 		KeyParts p = parseKeyParts(s3Key);
 		if (p.mid != null && !p.mid.isEmpty()) {
 			candidates.add(p.mid);
@@ -387,50 +356,40 @@ public class GetOriginInfo {
 		if (p.seq != null && !p.seq.isEmpty()) {
 			candidates.add(p.seq);
 		}
-
 		for (Object item : items) {
 			for (String token : extractMatchTokens(item)) {
 				if (token == null || token.trim().isEmpty()) {
 					continue;
 				}
 				String normalized = token.trim();
-
 				for (String c : candidates) {
 					if (normalized.equals(c)) {
 						return true;
 					}
 				}
-
 				if (s3Key.contains(normalized)) {
 					return true;
 				}
 			}
 		}
-
 		return false;
 	}
 
 	private List<String> extractMatchTokens(Object item) {
-
 		if (item == null) {
 			return Collections.emptyList();
 		}
-
 		Set<String> tokens = new LinkedHashSet<>();
-
 		if (item instanceof CharSequence) {
 			tokens.add(item.toString());
 			return new ArrayList<>(tokens);
 		}
-
 		tokens.add(Objects.toString(item, ""));
-
 		addTokenByMethod(item, "getMatchKey", tokens);
 		addTokenByMethod(item, "getMid", tokens);
 		addTokenByMethod(item, "getS3Key", tokens);
 		addTokenByMethod(item, "getKey", tokens);
 		addTokenByMethod(item, "getId", tokens);
-
 		return new ArrayList<>(tokens);
 	}
 
@@ -438,7 +397,6 @@ public class GetOriginInfo {
 		try {
 			Method m = item.getClass().getMethod(methodName);
 			Object v = m.invoke(item);
-
 			if (v == null) {
 				return;
 			}
@@ -456,12 +414,12 @@ public class GetOriginInfo {
 		}
 	}
 
-	private Path buildSafeLocalPath(String outputFolder, String s3Key) {
+	private static Path buildSafeLocalPath(String outputFolder, String s3Key) {
 		String normalized = trimLeadingSlash(s3Key);
 		return Paths.get(outputFolder, normalized);
 	}
 
-	private String trimLeadingSlash(String s) {
+	private static String trimLeadingSlash(String s) {
 		if (s == null || s.isEmpty()) {
 			return "";
 		}
@@ -472,7 +430,7 @@ public class GetOriginInfo {
 		return s.substring(i);
 	}
 
-	private String safeOutputFolder() {
+	private static String safeOutputFolder() {
 		try {
 			String tmp = System.getProperty("java.io.tmpdir");
 			if (tmp == null || tmp.trim().isEmpty()) {
@@ -488,7 +446,6 @@ public class GetOriginInfo {
 		if (executor == null) {
 			return;
 		}
-
 		executor.shutdown();
 		try {
 			if (!executor.awaitTermination(30, TimeUnit.SECONDS)) {
@@ -508,12 +465,10 @@ public class GetOriginInfo {
 		if (key == null) {
 			return KeyParts.EMPTY;
 		}
-
 		Matcher m = KEY_PATTERN.matcher(key);
 		if (!m.matches()) {
 			return new KeyParts("", "", "", "");
 		}
-
 		return new KeyParts(
 				nvl(m.group(1)),
 				nvl(m.group(2)),
@@ -526,15 +481,11 @@ public class GetOriginInfo {
 	}
 
 	private enum ReadPhase {
-		PREPARE_LOCAL_DIR,
-		DOWNLOAD,
-		PARSE,
-		OPEN_STREAM_OR_PARSE
+		PREPARE_LOCAL_DIR, DOWNLOAD, PARSE, OPEN_STREAM_OR_PARSE
 	}
 
 	private static class KeyParts {
 		static final KeyParts EMPTY = new KeyParts("", "", "", "");
-
 		final String date;
 		final String mid;
 		final String seq;

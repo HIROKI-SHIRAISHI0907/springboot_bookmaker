@@ -451,15 +451,20 @@ public class GetOriginBackUpInfo {
 		}
 	}
 
+	/**
+	 * 注意: GetOriginInfo(バックアップ対象元CSVの取得クラス)が使う一時フォルダ
+	 * ("get-origin-info")とは別名にしている。同名にすると、そちらが使う
+	 * ローカル一時ファイルと混在し、削除・上書き事故につながるため。
+	 */
 	private String safeOutputFolder() {
 		try {
 			String tmp = System.getProperty("java.io.tmpdir");
 			if (tmp == null || tmp.trim().isEmpty()) {
-				return "/tmp/get-origin-info";
+				return "/tmp/get-origin-backup-info";
 			}
-			return Paths.get(tmp, "get-origin-info").toString();
+			return Paths.get(tmp, "get-origin-backup-info").toString();
 		} catch (Exception e) {
-			return "/tmp/get-origin-info";
+			return "/tmp/get-origin-backup-info";
 		}
 	}
 
