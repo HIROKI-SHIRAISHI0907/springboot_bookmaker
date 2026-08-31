@@ -90,6 +90,12 @@ public class PathConfig {
 	private String s3BucketsOutputs;
 
 	/**
+	 * S3バケット（outputsBackUp）
+	 */
+	@Value("${process.s3.buckets.outputsBk}")
+	private String s3BucketsOutputsBackUp;
+
+	/**
 	 * S3バケット（future）
 	 */
 	@Value("${process.s3.buckets.future}")
@@ -255,6 +261,15 @@ public class PathConfig {
 	 */
 	public String getS3BucketsOutputs() {
 	    return s3BucketsOutputs;
+	}
+
+	/**
+	 * Outputs（汎用出力）BackUp用のS3バケット名を取得する。
+	 *
+	 * @return Outputs用S3バケット名
+	 */
+	public String getS3BucketsOutputsBackUp() {
+	    return s3BucketsOutputsBackUp;
 	}
 
 	/**
