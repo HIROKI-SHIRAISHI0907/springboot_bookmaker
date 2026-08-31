@@ -68,7 +68,7 @@ public class OriginStat implements OriginEntityIF {
 	 * 仕様:
 	 * - 成功したCSVのみ successPaths に積む
 	 * - times空はDB登録しないが削除対象にする
-	 * - 登録0件(match_key重複等でinsertInBatchが0件返す)は削除対象にしない
+	 * - 登録0件(match_key重複等でinsertInBatchが0件返す)でもバックアップ格納したうえで削除する
 	 * - 失敗が1件でもあれば削除フェーズは実施しない
 	 * - 失敗が無い場合のみ、successPaths + timesEmptyPaths のCSVをバックアップ格納したうえで削除する
 	 * - バックアップ格納(mid単位zip追加)に1件でも失敗した場合、削除フェーズ全体を中止する
@@ -134,16 +134,15 @@ public class OriginStat implements OriginEntityIF {
 				});
 
 				if (Boolean.TRUE.equals(ok)) {
+					// 登録0件(match_key重複等)でもバックアップ格納・削除の対象にする
+					successPaths.add(filePath);
+					done++;
 					if (insertedCount.get() == 0) {
-						// 全件match_key重複等でDBに1件も登録されなかった場合は削除対象にしない
-						skipped++;
-						skippedPaths.add(filePath);
 						manageLoggerComponent.debugInfoLog(
 								PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-								String.format("登録0件(match_key重複等)のため削除対象外: %s", filePath));
+								String.format("登録0件(match_key重複等)ですがバックアップ・削除対象とします: %d/%d （%s）",
+										done, total, filePath));
 					} else {
-						successPaths.add(filePath);
-						done++;
 						manageLoggerComponent.debugInfoLog(
 								PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 								String.format("CSV登録完了: %d/%d （%s）", done, total, filePath));
