@@ -41,7 +41,7 @@ public class MailLaunchService {
 	private static final String PASSWORD_RESET_URL_PLACEHOLDER = "{{PASSWORD_RESET_URL}}";
 
 	/** バッチコードのプレースホルダー */
-	private static final String BATCH_CODE_PLACEHOLDER = "BATCH_CODE";
+	private static final String BATCH_NAME_PLACEHOLDER = "BATCH_NAME";
 
 	/**
 	 * パスワード再設定画面のベースURL（例: https://bm-stats-real.com/reset-password）。
@@ -150,7 +150,7 @@ public class MailLaunchService {
 	            continue;
 	        }
 	        // valueを解決
-	        if (BATCH_CODE_PLACEHOLDER.equals(key))
+	        if (BATCH_NAME_PLACEHOLDER.equals(key))
 	        	value = BatchCodeToMailEnum.resolveBatchName(value);
 	        result = result.replace("（" + key + "）", value);
 	        result = result.replace("{{" + key + "}}", value);
