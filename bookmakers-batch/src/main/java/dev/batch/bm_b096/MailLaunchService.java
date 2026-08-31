@@ -15,6 +15,7 @@ import dev.common.entity.MailInfoMasterEntity;
 import dev.common.entity.MailSendManagementEntity;
 import dev.common.enums.BatchCodeToMailEnum;
 import dev.common.enums.MailNoticeEnum;
+import dev.common.enums.ScrapeCodeToMailEnum;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.mail.MailSendComponent;
 import lombok.extern.slf4j.Slf4j;
@@ -42,6 +43,9 @@ public class MailLaunchService {
 
 	/** バッチコードのプレースホルダー */
 	private static final String BATCH_NAME_PLACEHOLDER = "BATCH_NAME";
+
+	/** スクレイプコードのプレースホルダー */
+	private static final String SCRAPE_NAME_PLACEHOLDER = "SCRAPE_NAME";
 
 	/**
 	 * パスワード再設定画面のベースURL（例: https://bm-stats-real.com/reset-password）。
@@ -152,6 +156,10 @@ public class MailLaunchService {
 	        // valueを解決
 	        if (BATCH_NAME_PLACEHOLDER.equals(key))
 	        	value = BatchCodeToMailEnum.resolveBatchName(value);
+
+	        if (SCRAPE_NAME_PLACEHOLDER.equals(key))
+	        	value = ScrapeCodeToMailEnum.resolveScrapeName(value);
+
 	        result = result.replace("（" + key + "）", value);
 	        result = result.replace("{{" + key + "}}", value);
 	    }
