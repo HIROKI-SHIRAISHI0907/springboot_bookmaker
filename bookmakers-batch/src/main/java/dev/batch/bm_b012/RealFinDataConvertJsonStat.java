@@ -109,14 +109,24 @@ public class RealFinDataConvertJsonStat {
 		int skippedCount = 0;
 		for (SeqKeyDTO dto : withoutFinList) {
 			// 既存jsonに同じmatchKey(=matchId)が既にあればスキップ
+			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME,
+					METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					"既存matchKey比較前: " + dto);
+
 			if (dto.getMatchId() != null && !existingMatchKeys.contains(dto.getMatchId().trim())) {
 				skippedCount++;
 				continue;
 			}
+
+			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME,
+					METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					"既存matchKey比較後: " + dto);
+
 			String gameLink = futureMasterRepository.findGameLinkWithoutFinishedCategoryByTeamsWithTeam(
 					dto.getHomeTeamName(), dto.getAwayTeamName());
 			FinGettingDTO.Item item = new FinGettingDTO.Item();
 			LocalDate time = toJstMatchDate(dto.getRecordTime());
+
 			if (time == null)
 				continue;
 			item.setMatchDate(time);
@@ -124,6 +134,7 @@ public class RealFinDataConvertJsonStat {
 			item.setMatchUrl(gameLink);
 			list.add(item);
 		}
+
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 				"既存matchKeyによりスキップした件数: " + skippedCount);
 		if (list.isEmpty()) {
@@ -131,8 +142,10 @@ public class RealFinDataConvertJsonStat {
 					"出力対象が0件のためファイル出力・アップロードをスキップします");
 			return;
 		}
+
 		// 2) Map化
 		Map<String, List<Map<String, Object>>> out = toOutputMap(list);
+
 		// 3) 次の連番をS3から決定
 		final int nextSeq = s3Operator.findNextSequenceNumber(
 				outputBucket,
@@ -143,7 +156,9 @@ public class RealFinDataConvertJsonStat {
 		final String jsonFolder = pathConfig.getB008JsonFolder(); // 例: /tmp/json/
 		final Path jsonFilePath = Paths.get(jsonFolder, fileName);
 		Files.createDirectories(jsonFilePath.getParent());
+
 		objectMapper.writerWithDefaultPrettyPrinter().writeValue(jsonFilePath.toFile(), out);
+
 		// 5) S3へアップロード
 		final String s3Key = S3_PREFIX + fileName;
 		s3Operator.uploadFile(outputBucket, s3Key, jsonFilePath);
