@@ -167,7 +167,7 @@ public class MailSendManagementRepository {
 				      :envelopeFrom,
 				      :notifyStatus,
 				      :failSendCount,
-				      '',
+				      :bikou,
 				      'SYSTEM',
 				  	  CURRENT_TIMESTAMP,
 				  	  'SYSTEM',
@@ -246,6 +246,7 @@ public class MailSendManagementRepository {
 				.addValue("mailId", dto.getMailId())
 				.addValue("envelopeFrom", dto.getEnvelopeFrom())
 				.addValue("notifyStatus", dto.getNotifyStatus())
-				.addValue("failSendCount", dto.getFailSendCount());
+				.addValue("failSendCount", dto.getFailSendCount())
+				.addValue("bikou", dto.getBikou());
 	}
 }

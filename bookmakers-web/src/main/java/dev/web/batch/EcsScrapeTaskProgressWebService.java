@@ -272,6 +272,7 @@ public class EcsScrapeTaskProgressWebService {
             // 失敗時は通知対象外
             return;
         }
+
         try {
             // バッチコード（B002等）をスクレイプコード（S002等）に変換したうえで、
             // ScrapeCodeToMailEnumで日本語のスクレイピング処理名に変換してから
@@ -280,7 +281,7 @@ public class EcsScrapeTaskProgressWebService {
             String scrapeName = ScrapeCodeToMailEnum.resolveScrapeName(scrapeCode);
             Map<String, String> placeholders = new LinkedHashMap<>();
             placeholders.put("SCRAPE_NAME", scrapeName);
-            placeholders.put("EXECUTED_AT", LocalDateTime.now().toString());
+            placeholders.put("EXECUTED_AT", LocalDateTime.now().plusHours(9).toString());
             mailSendService.sendSystemNotification(SCRAPE_COMPLETE_MAIL_ID, adminNotificationEmail, placeholders);
         } catch (Exception e) {
             log.error("スクレイピングタスク完了通知メールの登録に失敗しました。batchCd={}, finalStatus={}",
