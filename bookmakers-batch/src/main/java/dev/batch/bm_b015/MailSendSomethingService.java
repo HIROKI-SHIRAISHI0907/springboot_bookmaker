@@ -1,0 +1,264 @@
+package dev.batch.bm_b015;
+
+import java.sql.Timestamp;
+import java.time.Instant;
+import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.ZoneId;
+import java.util.ArrayList;
+import java.util.Comparator;
+import java.util.List;
+import java.util.UUID;
+
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
+import org.springframework.stereotype.Component;
+
+import com.fasterxml.jackson.databind.JsonNode;
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import dev.batch.repository.bm.MailSendBatchRepository;
+import dev.common.constant.MessageCdConst;
+import dev.common.entity.MailSendManagementEntity;
+import dev.common.enums.MailNoticeEnum;
+import dev.common.logger.ManageLoggerComponent;
+import dev.common.s3.S3Operator;
+
+/**
+ * MailSendSomethingServiceロジック
+ * @author shiraishitoshio
+ *
+ */
+@Component
+public class MailSendSomethingService {
+
+	/** プロジェクト名 */
+	private static final String PROJECT_NAME = MailSendSomethingService.class.getProtectionDomain()
+			.getCodeSource().getLocation().getPath();
+
+	/** クラス名 */
+	private static final String CLASS_NAME = MailSendSomethingService.class.getName();
+
+	/** 実行モード */
+	private static final String EXEC_MODE = "MAIL_LAUNCH";
+
+	/** リアルタイムスクレイピングECS稼働開始 */
+	private static final String BATCH_MAIL_ID_004 = "bm-mail-004";
+
+	/** リアルタイムスクレイピングECS稼働終了 */
+	private static final String BATCH_MAIL_ID_005 = "bm-mail-005";
+
+	/** シーズン終了間近のリーグのお知らせ */
+	private static final String BATCH_MAIL_ID_006 = "bm-mail-006";
+
+	/** ecs_slots_yyyy-MM-dd.json が置かれているS3バケット名 */
+	private static final String ECS_SLOTS_BUCKET = "aws-s3-no-ecs-task-time-csv";
+
+	/** ecs_slots_yyyy-MM-dd.json のファイル名プレフィックス */
+	private static final String ECS_SLOTS_FILE_PREFIX = "ecs_slots_";
+
+	/** DBのregister_time(UTC想定)をJVMのタイムゾーン(JST)起因のズレから補正するための時間 */
+	private static final int TIMEZONE_CORRECTION_HOURS = 9;
+
+	private static final String ENVELOPE_ADDRESS = "no-reply@sample.com";
+
+	/** bikouの「実行日時」プレースホルダーキー */
+	private static final String EXECUTED_AT_PLACEHOLDER = "EXECUTED_AT";
+
+	@Autowired
+	private MailSendBatchRepository mailSendBatchRepository;
+	@Autowired
+	private ManageLoggerComponent manageLoggerComponent;
+	@Autowired
+	private S3Operator s3Operator;
+	@Autowired
+	private ObjectMapper objectMapper;
+
+	/**
+	 * メール送信元アドレス
+	 */
+	@Value("${mail.accounts.system.username}")
+	private String sourceMailAddress;
+
+	/**
+	 * 契機処理によるメール送信バッチ実行
+	 * <p>
+	 * 1. bm-mail-004: リアルタイムスクレイピングECS稼働開始のお知らせ
+	 * 2. bm-mail-005: リアルタイムスクレイピングECS稼働終了のお知らせ
+	 * 3. bm-mail-006: シーズン終了間近のリーグのお知らせ
+	 * </p>
+	 * に関するメールを送信予約する。
+	 */
+	public void execute() throws Exception {
+		final String METHOD_NAME = "execute";
+		this.manageLoggerComponent.init(EXEC_MODE, null);
+		this.manageLoggerComponent.debugStartInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+
+		// リアルタイムスクレイピングのJSONマッピング情報を取得
+		checkEcsStopIntervalsAndNotify(METHOD_NAME);
+
+		// endLog
+		this.manageLoggerComponent.debugEndInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		this.manageLoggerComponent.clear();
+	}
+
+	/**
+	 * ecs_slots_yyyy-MM-dd.json（yyyy-MM-ddはJSTの本日日付）をS3から取得し、
+	 * ecs_stop_intervals（ECSを止める時間帯の配列）と現在時刻（JST）を比較する。
+	 *
+	 * ・現在時刻がいずれかのstop interval内に入っている場合 → bm-mail-005（稼働終了）
+	 * ・現在時刻がstop intervalの外で、直近に終わったintervalがある場合 → bm-mail-004（稼働開始）
+	 *
+	 * このバッチは繰り返し実行される想定のため、「その区切り（interval開始/終了）以降に
+	 * 既に登録済みかどうか」をmail_send_manageのregister_timeで判定し、多重登録を防ぐ
+	 * （{@link #notifyIfNotAlreadyRegistered(String, OffsetDateTime, OffsetDateTime)}）。
+	 *
+	 * ecs_slots_*.jsonがまだ存在しない場合や取得・パースに失敗した場合は、
+	 * このバッチ全体（キュー送信処理）を失敗させたくないのでログのみ出して継続する。
+	 */
+	private void checkEcsStopIntervalsAndNotify(String callerMethodName) {
+		final String METHOD_NAME = "checkEcsStopIntervalsAndNotify";
+		ZoneId jst = ZoneId.of("Asia/Tokyo");
+		LocalDate todayJst = LocalDate.now(jst);
+		String fileName = ECS_SLOTS_FILE_PREFIX + todayJst + ".json";
+
+		String content;
+		try {
+			content = s3Operator.downloadTextUtf8(ECS_SLOTS_BUCKET, fileName);
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					"ecs_slots取得に失敗したためECS稼働開始/終了通知はスキップします file=" + fileName + " error=" + e.getMessage());
+			return;
+		}
+		if (content == null || content.isBlank()) {
+			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					"ecs_slotsが未生成のためECS稼働開始/終了通知はスキップします file=" + fileName);
+			return;
+		}
+
+		List<EcsStopInterval> intervals;
+		try {
+			intervals = parseStopIntervals(content);
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					"ecs_slotsのパースに失敗したためECS稼働開始/終了通知はスキップします file=" + fileName + " error=" + e.getMessage());
+			return;
+		}
+
+		OffsetDateTime now = OffsetDateTime.now(jst);
+
+		// 現在時刻がいずれかのstop interval内に入っているか
+		EcsStopInterval activeInterval = intervals.stream()
+				.filter(iv -> !now.isBefore(iv.start()) && now.isBefore(iv.end()))
+				.findFirst()
+				.orElse(null);
+
+		if (activeInterval != null) {
+			// ECS停止時間帯に入っている → bm-mail-005（稼働終了）
+			// 「この停止時間帯が始まって以降」に既に登録済みでなければ新規登録する
+			notifyIfNotAlreadyRegistered(BATCH_MAIL_ID_005, activeInterval.start(), now);
+			return;
+		}
+
+		// 停止時間帯の外 → 直近に終わったintervalを探す（複数ある場合は最も遅く終わったもの）
+		EcsStopInterval lastEnded = intervals.stream()
+				.filter(iv -> !iv.end().isAfter(now))
+				.max(Comparator.comparing(EcsStopInterval::end))
+				.orElse(null);
+
+		if (lastEnded != null) {
+			// 「このintervalが終わって以降」に既に登録済みでなければ新規登録する
+			notifyIfNotAlreadyRegistered(BATCH_MAIL_ID_004, lastEnded.end(), now);
+		}
+	}
+
+	/**
+	 * JSON文字列からecs_stop_intervals配列を読み取る。
+	 *
+	 * @param content ecs_slots_*.jsonの中身
+	 * @return {start, end}のリスト（無ければ空リスト）
+	 */
+	private List<EcsStopInterval> parseStopIntervals(String content) throws Exception {
+		List<EcsStopInterval> intervals = new ArrayList<>();
+		JsonNode root = objectMapper.readTree(content);
+		JsonNode intervalsNode = root.path("ecs_stop_intervals");
+		if (intervalsNode.isArray()) {
+			for (JsonNode node : intervalsNode) {
+				OffsetDateTime start = OffsetDateTime.parse(node.path("start").asText());
+				OffsetDateTime end = OffsetDateTime.parse(node.path("end").asText());
+				intervals.add(new EcsStopInterval(start, end));
+			}
+		}
+		return intervals;
+	}
+
+	/**
+	 * 指定した境界時刻（interval開始 or 終了）以降に、指定mailIdが既にmail_send_manageへ
+	 * 登録済みでなければ、新規に送信予約を登録する。
+	 *
+	 * mail_send_manage.register_timeはCURRENT_TIMESTAMP（Postgres側のUTC時刻）で入るが、
+	 * JVMの既定タイムゾーンがJSTの場合、JDBCがこれをJSTとして読み込んでしまい、
+	 * 実際より9時間過去の値として扱われる（PasswordResetService#isExpiredと同じ現象）。
+	 * そのため、DBから読んだregister_timeには+9時間の補正をかけたうえで比較する。
+	 *
+	 * @param mailId       bm-mail-004 or bm-mail-005
+	 * @param boundaryJst  この時刻以降に送信登録済みかどうかを判定する境界（interval開始 or 終了、JST）
+	 * @param nowJst       現在時刻（bikouのEXECUTED_AT用）
+	 */
+	private void notifyIfNotAlreadyRegistered(String mailId, OffsetDateTime boundaryJst, OffsetDateTime nowJst) {
+		final String METHOD_NAME = "notifyIfNotAlreadyRegistered";
+		Timestamp latestRegisterTimeUtc = mailSendBatchRepository.findLatestRegisterTime(mailId);
+		if (latestRegisterTimeUtc != null) {
+			Instant corrected = latestRegisterTimeUtc.toInstant().plusSeconds(TIMEZONE_CORRECTION_HOURS * 3600L);
+			if (!corrected.isBefore(boundaryJst.toInstant())) {
+				// この境界以降に既に登録済みなのでスキップ（多重送信防止）
+				this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						MessageCdConst.MCD00099I_LOG,
+						"既に登録済みのため通知をスキップします mailId=" + mailId + " boundary=" + boundaryJst);
+				return;
+			}
+		}
+
+		MailSendManagementEntity entity = new MailSendManagementEntity();
+		entity.setMailSendKey(UUID.randomUUID().toString());
+		entity.setMessageId(null);
+		entity.setToAddress(sourceMailAddress);
+		entity.setMailId(mailId);
+		entity.setEnvelopeFrom(ENVELOPE_ADDRESS);
+		entity.setNotifyStatus(MailNoticeEnum.NOTIFY_STATUS_PENDING.getNoticeStatus());
+		entity.setFailSendCount(0);
+		entity.setBikou(EXECUTED_AT_PLACEHOLDER + "=" + nowJst.toLocalDateTime());
+		mailSendBatchRepository.insert(entity);
+
+		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+				"ECS稼働開始/終了通知を登録しました mailId=" + mailId + " boundary=" + boundaryJst);
+	}
+
+	/**
+	 * ECS停止時間帯（ecs_stop_intervals の1要素）。
+	 */
+	private static final class EcsStopInterval {
+
+		private final OffsetDateTime start;
+		private final OffsetDateTime end;
+
+		/**
+		 * @param start 停止開始時刻（JST）
+		 * @param end   停止終了時刻（JST）
+		 */
+		private EcsStopInterval(OffsetDateTime start, OffsetDateTime end) {
+			this.start = start;
+			this.end = end;
+		}
+
+		private OffsetDateTime start() {
+			return start;
+		}
+
+		private OffsetDateTime end() {
+			return end;
+		}
+	}
+}

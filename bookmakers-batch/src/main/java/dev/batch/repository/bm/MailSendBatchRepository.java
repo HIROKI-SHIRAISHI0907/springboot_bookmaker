@@ -1,5 +1,6 @@
 package dev.batch.repository.bm;
 
+import java.sql.Timestamp;
 import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
@@ -90,6 +91,23 @@ public interface MailSendBatchRepository {
 	int updateFailSendCount(
 			@Param("mailSendKey") String mailSendKey,
 			@Param("failSendCount") Integer failSendCount);
+
+	/**
+	 * 指定mailIdの最新register_timeを取得する。
+	 * ECS稼働開始/終了通知（bm-mail-004/005）などで、直近の区切り時刻以降に
+	 * 既に登録済みかどうかを判定し、多重登録を防ぐために使用する。
+	 * register_timeはCURRENT_TIMESTAMP（Postgres側のUTC時刻）で入る点に注意。
+	 * 該当データが無い場合はnullを返す。
+	 *
+	 * @param mailId メールID
+	 * @return 最新のregister_time（無ければnull）
+	 */
+	@Select("""
+			SELECT MAX(register_time)
+			FROM mail_send_manage
+			WHERE mail_id = #{mailId}
+			""")
+	Timestamp findLatestRegisterTime(@Param("mailId") String mailId);
 
 	/**
 	 * メール送信管理に登録する
