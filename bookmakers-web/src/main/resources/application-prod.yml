@@ -133,7 +133,7 @@ ecs:
     B008:
       cluster: ${ECS_B008_CLUSTER:bm-cluster}
       taskDefinition: ${ECS_B008_TASK_DEF:bm-batch}
-      container: ${ECS_B008_CONTAINER:timely-data-outputs-scraper}
+      container: ${ECS_B008_CONTAINER:bm-scraper}
       logGroup: ${ECS_B008_LOG_GROUP:/ecs/bm-batch}
       
     B009:
