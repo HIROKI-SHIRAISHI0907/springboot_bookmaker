@@ -8,12 +8,13 @@ import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneOffset;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 import java.util.stream.Collectors;
@@ -41,19 +42,27 @@ import dev.common.util.DateOffsetDecisionUtil;
  */
 @Component
 public class RealFinDataConvertJsonStat {
+
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = RealFinDataConvertJsonStat.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
+
 	/** クラス名 */
 	private static final String CLASS_NAME = RealFinDataConvertJsonStat.class.getName();
+
 	/** 実行モード */
 	private static final String EXEC_MODE = "REAL_FIN_DATA_CONVERT_JSON";
+
 	private static final String S3_PREFIX = "fin/";
+
 	private static final String FILE_PREFIX = "b008_fin_getting_data_";
+
 	private static final Pattern FILE_PATTERN = Pattern.compile(
 			"^" + Pattern.quote(S3_PREFIX + FILE_PREFIX) + "(\\d+)\\.json$");
+
 	private static final Pattern RECORD_TIME_PATTERN = Pattern.compile(
 			"^(\\d{4}-\\d{2}-\\d{2})[ T](\\d{2}:\\d{2}:\\d{2})(?:\\.\\d+)?\\s*([+-]\\d{2}(?::?\\d{2})?|Z)?$");
+
 	@Autowired
 	private BookDataRepository bookDataRepository;
 	@Autowired
@@ -73,6 +82,9 @@ public class RealFinDataConvertJsonStat {
 	 * 連番付きファイル名で JSON 出力 → S3へアップロードする。
 	 * 既に fin/b008_fin_getting_*.json に出力済みの matchKey は対象から除外する。
 	 *
+	 * 出力する日付キーは昇順（yyyy-MM-dd の文字列比較＝時系列順）に揃え、
+	 * 同一matchIdが複数の日付に紐づいた場合は、より古いmatchDateのものを1件だけ残す。
+	 *
 	 * 既存matchKeyの読み取り〜アップロードまでは、FinGettingService(API側)と
 	 * 同じロックキー(B008OutputLockKeys.B008_FIN_GETTING_JSON)で排他制御する。
 	 */
@@ -81,6 +93,7 @@ public class RealFinDataConvertJsonStat {
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+
 		final String outputBucket = pathConfig.getS3BucketsOutputsFin();
 
 		// バッチは日付変更直後(00:10想定)に実行し、「前日1日分」をUTC時間の検索範囲として使う
@@ -90,7 +103,9 @@ public class RealFinDataConvertJsonStat {
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 				"システム時間検索期間: " + todayStart + "~" + todayEnd +
 						"(日本時間換算: " + DateOffsetDecisionUtil.toIsoJstRangeString(previousDayRange) + ")");
+
 		List<FutureEntity> todayFutureList = futureMasterRepository.findTodayFinData(todayStart, todayEnd);
+
 		// 1) 「その日の」bookdatarepositoryから「終了済」がないデータのみ取得しjsonにmappingするためのdtoに入れ替え
 		List<TeamPair> teamPairs = todayFutureList.stream()
 				.map(f -> new TeamPair(f.getHomeTeamName(), f.getAwayTeamName()))
@@ -105,46 +120,53 @@ public class RealFinDataConvertJsonStat {
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 				"既存matchKey件数: " + existingMatchKeys.size());
 
-		Set<FinGettingDTO.Item> list = new HashSet<FinGettingDTO.Item>();
+		// matchIdをキーにして重複を1件へ集約する。
+		// 同一matchIdが複数のmatchDateに紐づいて出てきた場合は、より古いmatchDateを採用する。
+		Map<String, FinGettingDTO.Item> itemsByMatchId = new LinkedHashMap<>();
 		int skippedCount = 0;
 		for (SeqKeyDTO dto : withoutFinList) {
 			// 既存jsonに同じmatchKey(=matchId)が既にあればスキップ
 			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME,
 					METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 					"既存matchKey比較前: " + dto);
-
-			if (dto.getMatchId() != null && !existingMatchKeys.contains(dto.getMatchId().trim())) {
+			if (dto.getMatchId() != null && existingMatchKeys.contains(dto.getMatchId().trim())) {
 				skippedCount++;
 				continue;
 			}
-
 			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME,
 					METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 					"既存matchKey比較後: " + dto);
-
 			String gameLink = futureMasterRepository.findGameLinkWithoutFinishedCategoryByTeamsWithTeam(
 					dto.getHomeTeamName(), dto.getAwayTeamName());
-			FinGettingDTO.Item item = new FinGettingDTO.Item();
 			LocalDate time = toJstMatchDate(dto.getRecordTime());
-
-			if (time == null)
+			if (time == null) {
 				continue;
+			}
+			String matchId = dto.getMatchId();
+			if (matchId == null || matchId.isBlank()) {
+				continue;
+			}
+			FinGettingDTO.Item item = new FinGettingDTO.Item();
 			item.setMatchDate(time);
-			item.setMatchId(dto.getMatchId());
+			item.setMatchId(matchId);
 			item.setMatchUrl(gameLink);
-			list.add(item);
-		}
 
+			FinGettingDTO.Item existing = itemsByMatchId.get(matchId);
+			if (existing == null || item.getMatchDate().isBefore(existing.getMatchDate())) {
+				itemsByMatchId.put(matchId, item);
+			}
+		}
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 				"既存matchKeyによりスキップした件数: " + skippedCount);
-		if (list.isEmpty()) {
+
+		if (itemsByMatchId.isEmpty()) {
 			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 					"出力対象が0件のためファイル出力・アップロードをスキップします");
 			return;
 		}
 
-		// 2) Map化
-		Map<String, List<Map<String, Object>>> out = toOutputMap(list);
+		// 2) Map化（日付キー昇順、matchId重複は上で1件に集約済み）
+		Map<String, List<Map<String, Object>>> out = toOutputMap(itemsByMatchId.values());
 
 		// 3) 次の連番をS3から決定
 		final int nextSeq = s3Operator.findNextSequenceNumber(
@@ -152,11 +174,11 @@ public class RealFinDataConvertJsonStat {
 				S3_PREFIX + FILE_PREFIX,
 				FILE_PATTERN);
 		final String fileName = FILE_PREFIX + nextSeq + ".json";
+
 		// 4) ローカルへJSON出力
 		final String jsonFolder = pathConfig.getB008JsonFolder(); // 例: /tmp/json/
 		final Path jsonFilePath = Paths.get(jsonFolder, fileName);
 		Files.createDirectories(jsonFilePath.getParent());
-
 		objectMapper.writerWithDefaultPrettyPrinter().writeValue(jsonFilePath.toFile(), out);
 
 		// 5) S3へアップロード
@@ -216,8 +238,19 @@ public class RealFinDataConvertJsonStat {
 		return existingMatchKeys;
 	}
 
-	private Map<String, List<Map<String, Object>>> toOutputMap(Set<FinGettingDTO.Item> items) {
-		Map<String, List<Map<String, Object>>> out = new LinkedHashMap<>();
+	/**
+	 * FinGettingDTO.Itemの集まりを、日付キー（昇順）→ [{matchKey, matchUrl?}, ...] の
+	 * 出力用Mapへ変換する。
+	 *
+	 * 日付キーは"yyyy-MM-dd"形式（時系列順＝文字列の辞書順と一致）なので、
+	 * TreeMapを使うだけで日付の昇順が保証される。
+	 * 各行はmatchKeyが先・matchUrlが後という出力順序を保証するためLinkedHashMapを使用する。
+	 *
+	 * @param items 出力対象のItem（matchIdの重複は呼び出し元で解消済みであること）
+	 * @return 日付キー昇順のMap
+	 */
+	private Map<String, List<Map<String, Object>>> toOutputMap(Collection<FinGettingDTO.Item> items) {
+		Map<String, List<Map<String, Object>>> out = new TreeMap<>();
 		int i = 0;
 		for (FinGettingDTO.Item it : items) {
 			LocalDate matchDate = it.getMatchDate();
@@ -230,7 +263,7 @@ public class RealFinDataConvertJsonStat {
 				throw new IllegalArgumentException("matchId がありません: index=" + i);
 			}
 			String dateKey = matchDate.toString();
-			Map<String, Object> row = new HashMap<>();
+			Map<String, Object> row = new LinkedHashMap<>();
 			row.put("matchKey", matchId.trim());
 			if (matchUrl != null && !matchUrl.isBlank()) {
 				row.put("matchUrl", matchUrl.trim());
