@@ -8,7 +8,6 @@ import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -18,11 +17,10 @@ import org.springframework.stereotype.Component;
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import dev.batch.bm_b096.MailSendBatchService;
 import dev.batch.repository.bm.MailSendBatchRepository;
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
 import dev.common.constant.MessageCdConst;
-import dev.common.entity.MailSendManagementEntity;
-import dev.common.enums.MailNoticeEnum;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
 import dev.common.util.DateOffsetDecisionUtil;
@@ -69,8 +67,6 @@ public class MailSendSomethingService {
 	/** DBのregister_time(UTC想定)をJVMのタイムゾーン(JST)起因のズレから補正するための時間 */
 	private static final int TIMEZONE_CORRECTION_HOURS = 9;
 
-	private static final String ENVELOPE_ADDRESS = "no-reply@sample.com";
-
 	/** bikouの「実行日時」プレースホルダーキー */
 	private static final String EXECUTED_AT_PLACEHOLDER = "EXECUTED_AT";
 
@@ -79,6 +75,9 @@ public class MailSendSomethingService {
 
 	/** bikouの「シーズン終了予定日」プレースホルダーキー */
 	private static final String SEASON_END_DATE_PLACEHOLDER = "SEASON_END_DATE";
+
+	/** bikouの「通知予定日」プレースホルダーキー */
+	private static final String NOTICE_TIME_PLACEHOLDER = "NOTICE_TIME";
 
 	/**
 	 * bikou内で複数値（複数リーグ名・複数日付）を連結する際の区切り文字。
@@ -94,7 +93,8 @@ public class MailSendSomethingService {
 
 	/** シーズン終了間近とみなす閾値（本日から何日後までのend_season_dateを対象とするか） */
 	private static final int SEASON_END_THRESHOLD_DAYS = 7;
-
+	@Autowired
+	private MailSendBatchService mailSendBatchService;
 	@Autowired
 	private MailSendBatchRepository mailSendBatchRepository;
 	@Autowired
@@ -254,16 +254,9 @@ public class MailSendSomethingService {
 			}
 		}
 
-		MailSendManagementEntity entity = new MailSendManagementEntity();
-		entity.setMailSendKey(UUID.randomUUID().toString());
-		entity.setMessageId(null);
-		entity.setToAddress(sourceMailAddress);
-		entity.setMailId(mailId);
-		entity.setEnvelopeFrom(ENVELOPE_ADDRESS);
-		entity.setNotifyStatus(MailNoticeEnum.NOTIFY_STATUS_PENDING.getNoticeStatus());
-		entity.setFailSendCount(0);
-		entity.setBikou(EXECUTED_AT_PLACEHOLDER + "=" + nowJst.toLocalDateTime());
-		mailSendBatchRepository.insert(entity);
+		// 通知の送信予約
+		mailSendBatchService.send(mailId, sourceMailAddress,
+				EXECUTED_AT_PLACEHOLDER + "=" + nowJst.toLocalDateTime());
 
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 				"ECS稼働開始/終了通知を登録しました mailId=" + mailId + " boundary=" + boundaryJst);
@@ -290,6 +283,8 @@ public class MailSendSomethingService {
 	 *
 	 * country_league_season_masterの取得に失敗した場合は、このバッチ全体
 	 * （他の契機検知処理）を失敗させたくないのでログのみ出して継続する。
+	 *
+	 * この通知は1週間前から毎日10:00に送信されるようにする
 	 *
 	 * @param callerMethodName 呼び出し元メソッド名（ログ用）
 	 */
@@ -330,19 +325,12 @@ public class MailSendSomethingService {
 
 		OffsetDateTime nowJst = OffsetDateTime.now(jst);
 
-		MailSendManagementEntity entity = new MailSendManagementEntity();
-		entity.setMailSendKey(UUID.randomUUID().toString());
-		entity.setMessageId(null);
-		entity.setToAddress(sourceMailAddress);
-		entity.setMailId(BATCH_MAIL_ID_006);
-		entity.setEnvelopeFrom(ENVELOPE_ADDRESS);
-		entity.setNotifyStatus(MailNoticeEnum.NOTIFY_STATUS_PENDING.getNoticeStatus());
-		entity.setFailSendCount(0);
-		entity.setBikou(
+		// 通知の送信予約
+		mailSendBatchService.send(BATCH_MAIL_ID_006, sourceMailAddress,
 				LEAGUE_NAME_PLACEHOLDER + "=" + leagueNames + ","
 						+ SEASON_END_DATE_PLACEHOLDER + "=" + seasonEndDates + ","
-						+ EXECUTED_AT_PLACEHOLDER + "=" + nowJst.toLocalDateTime());
-		mailSendBatchRepository.insert(entity);
+						+ EXECUTED_AT_PLACEHOLDER + "=" + nowJst.toLocalDateTime() + ","
+						+ NOTICE_TIME_PLACEHOLDER + "=" + "10:00:00+0900");
 
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 				"シーズン終了間近通知を登録しました mailId=" + BATCH_MAIL_ID_006 + " leagues=" + leagueNames);
