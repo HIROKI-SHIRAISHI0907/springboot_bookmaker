@@ -1,7 +1,6 @@
 package dev.batch.bm_b003;
 
 import java.time.Year;
-import java.time.ZoneId;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
@@ -23,6 +22,7 @@ import dev.batch.repository.master.InitialMasterCsvRepository;
 import dev.common.constant.MasterNameConstant;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.entity.InitialReadingMasterCsvEntity;
+import dev.common.util.DateOffsetDecisionUtil;
 
 @Component
 public class CountryLeagueSeasonDBService {
@@ -31,9 +31,6 @@ public class CountryLeagueSeasonDBService {
 
 	/** バッチサイズ */
 	private static final int BATCH_SIZE = 100;
-
-	/** JST */
-	private static final ZoneId JST = ZoneId.of("Asia/Tokyo");
 
 	/** バッチ番号 */
 	private static final String BM_NUMBER = "BM_B003";
@@ -417,7 +414,7 @@ public class CountryLeagueSeasonDBService {
 			return false;
 		}
 
-		String currentYear = String.valueOf(Year.now(JST).getValue());
+		String currentYear = String.valueOf(Year.now(DateOffsetDecisionUtil.getZoneId()).getValue());
 
 		if (!containsYear(existing.getSeasonYear(), currentYear) && hasAnyMeaningfulSeasonData(incoming)) {
 			return true;

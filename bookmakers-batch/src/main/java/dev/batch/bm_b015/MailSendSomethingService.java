@@ -25,6 +25,7 @@ import dev.common.entity.MailSendManagementEntity;
 import dev.common.enums.MailNoticeEnum;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
+import dev.common.util.DateOffsetDecisionUtil;
 
 /**
  * MailSendSomethingServiceロジック
@@ -151,7 +152,7 @@ public class MailSendSomethingService {
 	 */
 	private void checkEcsStopIntervalsAndNotify(String callerMethodName) {
 		final String METHOD_NAME = "checkEcsStopIntervalsAndNotify";
-		ZoneId jst = ZoneId.of("Asia/Tokyo");
+		ZoneId jst = DateOffsetDecisionUtil.getZoneId();
 		LocalDate todayJst = LocalDate.now(jst);
 		String fileName = ECS_SLOTS_FILE_PREFIX + todayJst + ".json";
 
@@ -294,7 +295,7 @@ public class MailSendSomethingService {
 	 */
 	private void checkSeasonEndingSoonAndNotify(String callerMethodName) {
 		final String METHOD_NAME = "checkSeasonEndingSoonAndNotify";
-		ZoneId jst = ZoneId.of("Asia/Tokyo");
+		ZoneId jst = DateOffsetDecisionUtil.getZoneId();
 		LocalDate todayJst = LocalDate.now(jst);
 		LocalDate thresholdDateJst = todayJst.plusDays(SEASON_END_THRESHOLD_DAYS);
 
@@ -366,7 +367,8 @@ public class MailSendSomethingService {
 			return false;
 		}
 		Instant corrected = latestRegisterTimeUtc.toInstant().plusSeconds(TIMEZONE_CORRECTION_HOURS * 3600L);
-		LocalDate registeredDateJst = corrected.atZone(ZoneId.of("Asia/Tokyo")).toLocalDate();
+		LocalDate registeredDateJst = corrected.atZone(
+				DateOffsetDecisionUtil.getZoneId()).toLocalDate();
 		return registeredDateJst.isEqual(todayJst);
 	}
 

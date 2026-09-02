@@ -1,7 +1,6 @@
 package dev.batch.bm_b002;
 
 import java.time.LocalDate;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
@@ -23,6 +22,7 @@ import dev.common.config.PathConfig;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
+import dev.common.util.DateOffsetDecisionUtil;
 import dev.common.util.FileDeleteUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
@@ -39,7 +39,6 @@ public class TeamMemberMasterStat {
 	/** クラス名 */
 	private static final String CLASS_NAME = TeamMemberMasterStat.class.getName();
 
-	private static final ZoneId JST = ZoneId.of("Asia/Tokyo");
 	private static final DateTimeFormatter DATE_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd");
 
 	/**
@@ -73,7 +72,7 @@ public class TeamMemberMasterStat {
 		final String METHOD_NAME = "execute";
 
 		List<String> insertPath = new ArrayList<>();
-		String runDate = LocalDate.now(JST).format(DATE_FMT);
+		String runDate = LocalDate.now(DateOffsetDecisionUtil.getZoneId()).format(DATE_FMT);
 
 		// 既存データ全件取得
 		List<TeamMemberMasterEntity> existingList = repository.selectAll();
