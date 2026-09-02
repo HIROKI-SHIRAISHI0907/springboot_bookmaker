@@ -1,11 +1,14 @@
 package dev.batch.repository.master;
 
+import java.util.List;
+
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
+import dev.batch.bm_b095.StatusPair;
 import dev.batch.bm_b099.BatchJobExecEntity;
 
 @Mapper
@@ -25,7 +28,6 @@ public interface BatchJobExecRepository {
 		"	        #{batchCd},",
 		"	        #{status},",
 		"	        #{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)",
-		//"	        #{registerId}, #{registerTime}, #{updateId}, #{updateTime}",
 		"	    );"
 	})
 	int jobStartExec(BatchJobExecEntity entity);
@@ -49,7 +51,6 @@ public interface BatchJobExecRepository {
 			    	update_time = CURRENT_TIMESTAMP
 			    WHERE
 			        job_id = #{jobId}
-			        AND status IN ('0','1');
 			""")
 	int jobUpdateExc(@Param("jobId") String jobId, @Param("status") int status);
 
@@ -76,5 +77,19 @@ public interface BatchJobExecRepository {
 			        AND status IN ('0','1');
 			""")
 	int heartbeat(@Param("jobId") String jobId);
+
+	@Update("""
+		 DELETE
+			FROM batch_job_exec
+			<if test="teamPairs != null and teamPairs.size() > 0">
+				WHERE status IN (
+					VALUES
+					<foreach collection="statusPairs" item="pair" separator=",">
+			      		#{pair.status}
+			    	</foreach>
+				)
+		    </if>
+		""")
+	int deleteData(@Param("statusPairs") List<StatusPair> statusPairs);
 
 }

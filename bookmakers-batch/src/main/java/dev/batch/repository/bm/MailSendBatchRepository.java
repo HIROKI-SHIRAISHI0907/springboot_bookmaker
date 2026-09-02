@@ -147,4 +147,14 @@ public interface MailSendBatchRepository {
 			""")
 	int insert(MailSendManagementEntity entity);
 
+	@Update("""
+			 DELETE
+				FROM mail_send_manage
+			 WHERE
+			 	notify_status = '1'
+			 OR
+			 	fail_send_count >= #{failSendCount}
+			""")
+	int deleteData(@Param("failSendCount") int failSendCount);
+
 }

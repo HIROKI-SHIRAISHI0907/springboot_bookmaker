@@ -3,7 +3,6 @@ package dev.batch.bm_b095;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import dev.batch.bm_b096.MailLaunchService;
 import dev.batch.common.AbstractJobBatchTemplate;
 
 /**
@@ -48,16 +47,16 @@ public class DeleteDataBatch extends AbstractJobBatchTemplate {
 		return CLASS_NAME;
 	}
 
-	/** MailLaunchService */
+	/** DeleteDataService */
 	@Autowired
-	private MailLaunchService mailLaunchService;
+	private DeleteDataService deleteDataService;
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	protected void doExecute(JobContext ctx) throws Exception {
-		this.mailLaunchService.execute();
+		this.deleteDataService.execute();
 	}
 
 }
