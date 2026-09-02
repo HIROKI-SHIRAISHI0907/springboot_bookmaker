@@ -5,7 +5,6 @@ import java.sql.Timestamp;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
-import java.time.ZoneId;
 import java.util.List;
 import java.util.Map;
 
@@ -27,8 +26,6 @@ import lombok.Data;
  */
 @Repository
 public class FuturesRepository {
-
-	private static final ZoneId JST = ZoneId.of("Asia/Tokyo");
 
 	private final NamedParameterJdbcTemplate masterJdbcTemplate;
 
@@ -158,7 +155,7 @@ public class FuturesRepository {
 	 * - limit 件だけ返す
 	 */
 	public List<FuturesResponseDTO> findFutureMatchesFromNextDay(String country, String league, int limit) {
-		LocalDateTime tomorrowStartJst = LocalDate.now(JST)
+		LocalDateTime tomorrowStartJst = LocalDate.now(DateOffsetDecisionUtil.getZoneId())
 				.plusDays(1)
 				.atStartOfDay();
 

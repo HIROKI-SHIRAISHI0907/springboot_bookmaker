@@ -15,6 +15,7 @@ import org.springframework.stereotype.Service;
 
 import dev.common.constant.MessageCdConst;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.util.DateOffsetDecisionUtil;
 import dev.web.config.S3JobPropertiesConfig;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -68,8 +69,6 @@ public class S3FileCountService {
 
 	private static final String FALLBACK_MESSAGE = "件数を算出できませんでした。bucket/prefix や権限をご確認ください。";
 
-	private static final ZoneId JST = ZoneId.of("Asia/Tokyo");
-
 	private final S3Client s3;
 	private final S3JobPropertiesConfig props;
 
@@ -85,9 +84,10 @@ public class S3FileCountService {
 	/** ① 件数取得（POST /count） */
 	public S3FileCountResponse count(S3FileCountRequest req) {
 		final String METHOD_NAME = "count";
+		ZoneId jst = DateOffsetDecisionUtil.getZoneId();
 		S3JobPropertiesConfig.JobConfig cfg = props.require(req.getBatchCode());
 
-		LocalDate dayJst = (req.getDay() != null) ? req.getDay() : LocalDate.now(JST);
+		LocalDate dayJst = (req.getDay() != null) ? req.getDay() : LocalDate.now(jst);
 
 		String effectivePrefix = resolvePrefix(cfg.getPrefix(), req.getScope(), req.getPrefixOverride());
 		boolean recursive = cfg.isRecursive();
@@ -112,7 +112,7 @@ public class S3FileCountService {
 		// JSTの当日範囲 [start, end)
 		Instant start;
 		Instant end;
-		ZonedDateTime zStart = dayJst.atStartOfDay(JST);
+		ZonedDateTime zStart = dayJst.atStartOfDay(jst);
 		ZonedDateTime zEnd = zStart.plusDays(1);
 		start = zStart.toInstant();
 		end = zEnd.toInstant();

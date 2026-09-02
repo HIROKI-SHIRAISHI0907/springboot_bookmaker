@@ -1,6 +1,5 @@
 package dev.web.api.bm_u005;
 
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.stream.Collectors;
@@ -8,6 +7,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.common.util.DateOffsetDecisionUtil;
 import dev.web.repository.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -19,7 +19,7 @@ public class AdminUserService {
 
     private static final DateTimeFormatter FMT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
-                    .withZone(ZoneId.of("Asia/Tokyo"));
+                    .withZone(DateOffsetDecisionUtil.getZoneId());
 
     public AdminUserListResponse getUsers() {
         List<AdminUserItemResponse> users = userRepository.findAllUsers().stream()

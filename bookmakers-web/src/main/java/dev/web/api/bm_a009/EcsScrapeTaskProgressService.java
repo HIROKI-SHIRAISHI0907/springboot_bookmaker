@@ -1,7 +1,6 @@
 package dev.web.api.bm_a009;
 
 import java.time.Instant;
-import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
 import java.util.List;
 import java.util.Locale;
@@ -11,6 +10,7 @@ import java.util.regex.Pattern;
 
 import org.springframework.stereotype.Service;
 
+import dev.common.util.DateOffsetDecisionUtil;
 import dev.web.batch.EcsScrapeTaskProgressWebService;
 import dev.web.config.EcsScrapePropertiesConfig;
 import dev.web.repository.bm.EcsScrapeTaskProgressWebRepository;
@@ -357,7 +357,7 @@ public class EcsScrapeTaskProgressService {
             return null;
         }
         return Instant.ofEpochMilli(ms)
-                .atZone(ZoneId.of("Asia/Tokyo"))
+                .atZone(DateOffsetDecisionUtil.getZoneId())
                 .format(DateTimeFormatter.ISO_OFFSET_DATE_TIME);
     }
 

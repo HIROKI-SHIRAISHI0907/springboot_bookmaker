@@ -11,6 +11,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.common.util.DateOffsetDecisionUtil;
 import dev.web.repository.master.FuturesRepository;
 import dev.web.repository.user.NoticeRepository;
 import lombok.RequiredArgsConstructor;
@@ -28,7 +29,6 @@ public class NoticeAPIService {
 
     private final FuturesRepository futuresRepository;
 
-    private static final ZoneId ZONE = ZoneId.of("Asia/Tokyo");
     private static final String OP = "system";
 
     @Transactional
@@ -100,7 +100,8 @@ public class NoticeAPIService {
 
     @Transactional(readOnly = true)
     public List<NoticeResponse> listActiveForFront() {
-        OffsetDateTime now = OffsetDateTime.now(ZONE);
+    	ZoneId jst = DateOffsetDecisionUtil.getZoneId();
+        OffsetDateTime now = OffsetDateTime.now(jst);
 
         // 1) userDBから表示対象を取得
         List<NoticeRepository.NoticeRow> rows = noticeRepository.findActiveForFront(now);
@@ -133,7 +134,7 @@ public class NoticeAPIService {
                     res.setTitle("注目！！" + m.homeTeamName + " vs " + m.awayTeamName);
                     // bodyも自由に生成（例：開始時刻を入れる）
                     if (m.matchStartTime != null) {
-                        res.setBody("キックオフ: " + m.matchStartTime.atZoneSameInstant(ZONE).toLocalDateTime());
+                        res.setBody("キックオフ: " + m.matchStartTime.atZoneSameInstant(jst).toLocalDateTime());
                     } else {
                         res.setBody("本日の注目対戦です！");
                     }
