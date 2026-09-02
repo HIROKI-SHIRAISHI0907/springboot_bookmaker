@@ -1,5 +1,6 @@
 package dev.batch.repository.master;
 
+import java.sql.Timestamp;
 import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
@@ -8,6 +9,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
+import dev.batch.bm_b015.LeagueSeasonEndDTO;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 
 @Mapper
@@ -338,5 +340,44 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			 WHERE id = CAST(#{id} AS BIGINT)
 			""")
 	int updateById(CountryLeagueSeasonMasterEntity entity);
+
+	/**
+	 * end_season_date が指定期間（両端含む）内の、有効なリーグ情報を取得する。
+	 * シーズン終了間近通知（bm-mail-006）で、
+	 * 「end_season_dateの1週間前から当日まで」を検索する用途に使用する。
+	 *
+	 * CountryLeagueSeasonMasterEntity ではなく、メール表示用の
+	 * {@link LeagueSeasonEndDTO}（country・league・end_season_date）を返す。
+	 * リーグ表示名としての結合方法（country・leagueの組み立て方）や、
+	 * end_season_dateのJST変換・表示用フォーマットへの整形は、
+	 * 呼び出し側（MailSendSomethingService）で行う。
+	 *
+	 * end_season_dateはtimestamptz（UTCで保持）だが、このメソッド自体は
+	 * JST/UTCを意識しない単純な瞬時点（Timestamp）の範囲比較のみを行う。
+	 * 呼び出し側でJSTの日付範囲をUTCの瞬時点に変換したうえで渡すこと
+	 * （開始時刻は含む、終了時刻は含まない半開区間）。
+	 *
+	 * @param fromInclusive 検索開始時刻（含む）
+	 * @param toExclusive   検索終了時刻（含まない）
+	 * @return 該当するリーグの一覧（end_season_date昇順）
+	 */
+	@Select("""
+			    SELECT
+			        country,
+			        league,
+			        end_season_date AS endSeasonDate
+			    FROM
+			        country_league_season_master
+			    WHERE
+			        end_season_date IS NOT NULL AND
+			        del_flg = '0' AND
+			        end_season_date >= #{fromInclusive} AND
+			        end_season_date < #{toExclusive}
+			    ORDER BY
+			        end_season_date ASC
+			""")
+	List<LeagueSeasonEndDTO> findLeaguesEndingBetween(
+			@Param("fromInclusive") Timestamp fromInclusive,
+			@Param("toExclusive") Timestamp toExclusive);
 
 }
