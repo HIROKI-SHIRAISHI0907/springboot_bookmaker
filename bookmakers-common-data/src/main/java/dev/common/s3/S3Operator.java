@@ -187,6 +187,35 @@ public class S3Operator {
 	}
 
 	/**
+	 * 末尾ファイル名が一致するオブジェクトを、メタデータ（size・lastModified等）付きで取得する。
+	 * {@link #listKeysBySuffix(String, String)} はキー文字列しか返さないため、
+	 * サイズ・最終更新日時が必要な場合はこちらを使う。
+	 *
+	 * @param bucket バケット名
+	 * @param suffix 対象とするキーの末尾（例: ".zip"）
+	 * @return 一致したS3Object一覧（順不同、S3のlistObjectsV2の返却順）
+	 */
+	public List<S3Object> listObjectsBySuffix(String bucket, String suffix) {
+		List<S3Object> objects = new ArrayList<>();
+		String token = null;
+		do {
+			ListObjectsV2Request req = ListObjectsV2Request.builder()
+					.bucket(bucket)
+					.continuationToken(token)
+					.build();
+			ListObjectsV2Response res = s3.listObjectsV2(req);
+			for (S3Object obj : res.contents()) {
+				String key = obj.key();
+				if (key != null && key.endsWith(suffix)) {
+					objects.add(obj);
+				}
+			}
+			token = res.nextContinuationToken();
+		} while (token != null);
+		return objects;
+	}
+
+	/**
 	 * 一括削除
 	 * @param bucket
 	 * @param keys

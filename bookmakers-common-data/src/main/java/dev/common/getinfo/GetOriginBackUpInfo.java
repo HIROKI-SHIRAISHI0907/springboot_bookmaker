@@ -213,6 +213,24 @@ public class GetOriginBackUpInfo {
 	}
 
 	/**
+	 * 現在S3(バックアップ用バケット)に {@code <matchId>.zip} としてアップロードされている
+	 * 全match_id(=mid)の一覧を取得する。
+	 * <p>
+	 * {@link #getData(List)} がitems未指定時に使う一覧取得ロジック
+	 * （バケット直下の*.zipを全走査し、ファイル名(拡張子除く)をmidとして扱う）を
+	 * そのまま{@link #resolveTargetMids(String, List)}経由で利用する。
+	 * 呼び出し側で検索条件（country/league/finFlgなど）によるDB検索結果と
+	 * 突き合わせて絞り込む用途を想定している。
+	 * </p>
+	 *
+	 * @return アップロード済みのmatch_id一覧（S3から取得できない場合は空リスト）
+	 */
+	public List<String> listUploadedMatchIds() {
+		String bucket = config.getS3BucketsOutputsBackUp();
+		return resolveTargetMids(bucket, null);
+	}
+
+	/**
 	 * {@code bucket/mid名.zip} をダウンロードし、outputFolder配下に解凍する。
 	 * 解凍後、対象パターンに一致するCSVエントリ(zip内相対パス)一覧を返す。
 	 */
