@@ -160,7 +160,6 @@ public class PutOriginBackUpInfo {
 			Path newZip = workDir.resolve("new-" + zipKey);
 			zipArchiveHandler.compress(extractDir, newZip);
 
-			// 注意: S3Operatorのアップロードメソッド名は環境に合わせて調整してください。
 			s3Operator.uploadFile(bucket, zipKey, newZip);
 		} finally {
 			deleteRecursivelyQuietly(workDir);
