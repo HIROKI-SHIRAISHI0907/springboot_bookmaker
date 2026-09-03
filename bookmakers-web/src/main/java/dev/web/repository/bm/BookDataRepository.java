@@ -2,6 +2,7 @@ package dev.web.repository.bm;
 
 import java.sql.Timestamp;
 import java.time.ZoneOffset;
+import java.util.Collection;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
@@ -33,14 +34,14 @@ public class BookDataRepository {
 	}
 
 	/** データ形式判定の正規表現を CASE 式として埋め込むための共通 SQL 断片 */
-    private static final String CATEGORY_FORMAT_CASE = """
-            CASE
-                WHEN data_category ~ '^[^:]+:\\s.+\\s-\\s*ラウンド\\s+\\d+$' THEN 'COUNTRY_LEAGUE_ROUND'
-                WHEN data_category ~ '^[^:]+\\s-\\s*ラウンド\\s+\\d+$'      THEN 'LEAGUE_ROUND'
-                WHEN data_category ~ '^[^:]+:\\s[^:]+$'                    THEN 'COUNTRY_LEAGUE'
-                ELSE NULL
-            END
-            """;
+	private static final String CATEGORY_FORMAT_CASE = """
+			CASE
+			    WHEN data_category ~ '^[^:]+:\\s.+\\s-\\s*ラウンド\\s+\\d+$' THEN 'COUNTRY_LEAGUE_ROUND'
+			    WHEN data_category ~ '^[^:]+\\s-\\s*ラウンド\\s+\\d+$'      THEN 'LEAGUE_ROUND'
+			    WHEN data_category ~ '^[^:]+:\\s[^:]+$'                    THEN 'COUNTRY_LEAGUE'
+			    ELSE NULL
+			END
+			""";
 
 	/** seq で1件取得 */
 	public Optional<DataEntity> findBySeq(String seq) {
@@ -810,49 +811,49 @@ public class BookDataRepository {
 	// ========= data =========
 	public List<DataIngestRow> findDataByRegisterTime(String country) {
 
-	    StringBuilder sql = new StringBuilder("""
-	            SELECT
-	                seq_key,
-	                data_category,
-	                times,
-	                record_time,
-	                match_id,
-	                game_id,
-	                game_link,
-	                home_team_name,
-	                away_team_name
-	            FROM static_data
-	            WHERE 1 = 1
-	            """);
+		StringBuilder sql = new StringBuilder("""
+				SELECT
+				    seq_key,
+				    data_category,
+				    times,
+				    record_time,
+				    match_id,
+				    game_id,
+				    game_link,
+				    home_team_name,
+				    away_team_name
+				FROM static_data
+				WHERE 1 = 1
+				""");
 
-	    MapSqlParameterSource params = new MapSqlParameterSource();
+		MapSqlParameterSource params = new MapSqlParameterSource();
 
-	    if (country != null && !country.isBlank()) {
-	        sql.append("""
-	                AND data_category LIKE :countryLike
-	                """);
-	        params.addValue("countryLike", country.trim() + ":%");
-	    }
+		if (country != null && !country.isBlank()) {
+			sql.append("""
+					AND data_category LIKE :countryLike
+					""");
+			params.addValue("countryLike", country.trim() + ":%");
+		}
 
-	    sql.append("""
-	            ORDER BY COALESCE(record_time) DESC, seq_key DESC
-	            """);
+		sql.append("""
+				ORDER BY COALESCE(record_time) DESC, seq_key DESC
+				""");
 
-	    return bmJdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> {
-	        DataIngestRow r = new DataIngestRow();
-	        r.seq = rs.getString("seq_key");
-	        r.dataCategory = rs.getString("data_category");
-	        r.times = rs.getString("times");
+		return bmJdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> {
+			DataIngestRow r = new DataIngestRow();
+			r.seq = rs.getString("seq_key");
+			r.dataCategory = rs.getString("data_category");
+			r.times = rs.getString("times");
 
-	        r.recordTime = rs.getTimestamp("record_time");
+			r.recordTime = rs.getTimestamp("record_time");
 
-	        r.matchId = rs.getString("match_id");
-	        r.gameId = rs.getString("game_id");
-	        r.gameLink = rs.getString("game_link");
-	        r.homeTeamName = rs.getString("home_team_name");
-	        r.awayTeamName = rs.getString("away_team_name");
-	        return r;
-	    });
+			r.matchId = rs.getString("match_id");
+			r.gameId = rs.getString("game_id");
+			r.gameLink = rs.getString("game_link");
+			r.homeTeamName = rs.getString("home_team_name");
+			r.awayTeamName = rs.getString("away_team_name");
+			return r;
+		});
 	}
 
 	public static class DataIngestRow {
@@ -868,80 +869,80 @@ public class BookDataRepository {
 	}
 
 	public Optional<EachScoreLostDataResponseDTO> findEachScoreLoseMatchFinishedByRoundAndTeams(
-            String country,
-            String league,
-            String homeTeamName,
-            String awayTeamName,
-            int roundNo) {
+			String country,
+			String league,
+			String homeTeamName,
+			String awayTeamName,
+			int roundNo) {
 
-        String likeCond = country + ": " + league + "%";
+		String likeCond = country + ": " + league + "%";
 
-        String sql = """
-            SELECT DISTINCT ON (d.game_link)
-              d.seq_key,
-              d.data_category,
-              d.home_team_name,
-              d.away_team_name,
-              d.home_score,
-              d.away_score,
-              NULLIF(TRIM(d.game_link), '') AS link,
-              d.record_time,
-              CASE
-                WHEN regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
-                ELSE CAST((regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
-              END AS round_no
-            FROM public.static_data d
-            WHERE
-              (
-                REPLACE(BTRIM(d.times), ' ', '') = '終了済'
-                OR REPLACE(BTRIM(d.times), ' ', '') LIKE '%ペナルティ%'
-              )
-              AND d.data_category LIKE :likeCond
-              AND d.home_team_name = :homeTeam
-              AND d.away_team_name = :awayTeam
-              AND (
-                CASE
-                  WHEN regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
-                  ELSE CAST((regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
-                END
-              ) = :roundNo
-              AND d.game_link IS NOT NULL
-            ORDER BY d.game_link, d.record_time DESC
-            LIMIT 1
-            """;
+		String sql = """
+				SELECT DISTINCT ON (d.game_link)
+				  d.seq_key,
+				  d.data_category,
+				  d.home_team_name,
+				  d.away_team_name,
+				  d.home_score,
+				  d.away_score,
+				  NULLIF(TRIM(d.game_link), '') AS link,
+				  d.record_time,
+				  CASE
+				    WHEN regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
+				    ELSE CAST((regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
+				  END AS round_no
+				FROM public.static_data d
+				WHERE
+				  (
+				    REPLACE(BTRIM(d.times), ' ', '') = '終了済'
+				    OR REPLACE(BTRIM(d.times), ' ', '') LIKE '%ペナルティ%'
+				  )
+				  AND d.data_category LIKE :likeCond
+				  AND d.home_team_name = :homeTeam
+				  AND d.away_team_name = :awayTeam
+				  AND (
+				    CASE
+				      WHEN regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
+				      ELSE CAST((regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
+				    END
+				  ) = :roundNo
+				  AND d.game_link IS NOT NULL
+				ORDER BY d.game_link, d.record_time DESC
+				LIMIT 1
+				""";
 
-        var params = new MapSqlParameterSource()
-                .addValue("likeCond", likeCond)
-                .addValue("homeTeam", homeTeamName)
-                .addValue("awayTeam", awayTeamName)
-                .addValue("roundNo", roundNo);
+		var params = new MapSqlParameterSource()
+				.addValue("likeCond", likeCond)
+				.addValue("homeTeam", homeTeamName)
+				.addValue("awayTeam", awayTeamName)
+				.addValue("roundNo", roundNo);
 
-        List<EachScoreLostDataResponseDTO> list = bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
-            var dto = new EachScoreLostDataResponseDTO();
-            dto.setSeq(rs.getLong("seq_key"));
-            dto.setDataCategory(rs.getString("data_category"));
+		List<EachScoreLostDataResponseDTO> list = bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
+			var dto = new EachScoreLostDataResponseDTO();
+			dto.setSeq(rs.getLong("seq_key"));
+			dto.setDataCategory(rs.getString("data_category"));
 
-            int r = rs.getInt("round_no");
-            dto.setRoundNo(rs.wasNull() ? null : String.valueOf(r));
+			int r = rs.getInt("round_no");
+			dto.setRoundNo(rs.wasNull() ? null : String.valueOf(r));
 
-            Timestamp rt = rs.getTimestamp("record_time");
-            dto.setRecordTime(rt == null ? null : rt.toInstant().atOffset(ZoneOffset.UTC).toString());
+			Timestamp rt = rs.getTimestamp("record_time");
+			dto.setRecordTime(rt == null ? null : rt.toInstant().atOffset(ZoneOffset.UTC).toString());
 
-            dto.setHomeTeamName(rs.getString("home_team_name"));
-            dto.setAwayTeamName(rs.getString("away_team_name"));
+			dto.setHomeTeamName(rs.getString("home_team_name"));
+			dto.setAwayTeamName(rs.getString("away_team_name"));
 
-            String hs = rs.getString("home_score");
-            String as = rs.getString("away_score");
-            dto.setHomeScore(hs == null || hs.isBlank() ? null : Integer.valueOf(hs.trim()));
-            dto.setAwayScore(as == null || as.isBlank() ? null : Integer.valueOf(as.trim()));
+			String hs = rs.getString("home_score");
+			String as = rs.getString("away_score");
+			dto.setHomeScore(hs == null || hs.isBlank() ? null : Integer.valueOf(hs.trim()));
+			dto.setAwayScore(as == null || as.isBlank() ? null : Integer.valueOf(as.trim()));
 
-            dto.setLink(rs.getString("link"));
-            dto.setStatus("FINISHED");
-            return dto;
-        });
+			dto.setLink(rs.getString("link"));
+			dto.setStatus("FINISHED");
+			return dto;
+		});
 
-        return list.stream().findFirst();
-    }
+		return list.stream().findFirst();
+	}
 
 	/** dataを全件 DataEntity で取得（重いので注意） */
 	public List<DataEntity> findAll() {
@@ -1211,28 +1212,27 @@ public class BookDataRepository {
 	 */
 	public int countByLiveData(String homeTeamName, String awayTeamName) {
 
-	    StringBuilder sql = new StringBuilder("""
-	            SELECT COUNT(*) AS cnt
-	    FROM static_data
-	    WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
-	    AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
-	    AND times IS NOT NULL
-	    AND TRIM(times) <> ''
-	    AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') <> '終了済'
-	    AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') NOT LIKE '%ペナルティ%'
-	            """);
+		StringBuilder sql = new StringBuilder("""
+				        SELECT COUNT(*) AS cnt
+				FROM static_data
+				WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
+				AND times IS NOT NULL
+				AND TRIM(times) <> ''
+				AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') <> '終了済'
+				AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') NOT LIKE '%ペナルティ%'
+				        """);
 
-	    MapSqlParameterSource params = new MapSqlParameterSource();
-	    params.addValue("homeTeamName", homeTeamName);
-	    params.addValue("awayTeamName", awayTeamName);
+		MapSqlParameterSource params = new MapSqlParameterSource();
+		params.addValue("homeTeamName", homeTeamName);
+		params.addValue("awayTeamName", awayTeamName);
 
-	    Integer count = bmJdbcTemplate.queryForObject(
-	            sql.toString(),
-	            params,
-	            Integer.class
-	    );
+		Integer count = bmJdbcTemplate.queryForObject(
+				sql.toString(),
+				params,
+				Integer.class);
 
-	    return count != null ? count : 0;
+		return count != null ? count : 0;
 	}
 
 	/**
@@ -1241,28 +1241,27 @@ public class BookDataRepository {
 	 */
 	public int countByFinData(String homeTeamName, String awayTeamName) {
 
-	    StringBuilder sql = new StringBuilder("""
-	            SELECT COUNT(*) AS cnt
-	    FROM static_data
-	    WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
-	    AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
-	    AND times IS NOT NULL
-	    AND TRIM(times) <> ''
-	    AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') = '終了済'
-	    AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') NOT LIKE '%ペナルティ%'
-	    """);
+		StringBuilder sql = new StringBuilder("""
+				        SELECT COUNT(*) AS cnt
+				FROM static_data
+				WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
+				AND times IS NOT NULL
+				AND TRIM(times) <> ''
+				AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') = '終了済'
+				AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') NOT LIKE '%ペナルティ%'
+				""");
 
-	    MapSqlParameterSource params = new MapSqlParameterSource();
-	    params.addValue("homeTeamName", homeTeamName);
-	    params.addValue("awayTeamName", awayTeamName);
+		MapSqlParameterSource params = new MapSqlParameterSource();
+		params.addValue("homeTeamName", homeTeamName);
+		params.addValue("awayTeamName", awayTeamName);
 
-	    Integer count = bmJdbcTemplate.queryForObject(
-	            sql.toString(),
-	            params,
-	            Integer.class
-	    );
+		Integer count = bmJdbcTemplate.queryForObject(
+				sql.toString(),
+				params,
+				Integer.class);
 
-	    return count != null ? count : 0;
+		return count != null ? count : 0;
 	}
 
 	@EqualsAndHashCode
@@ -1334,185 +1333,227 @@ public class BookDataRepository {
 	}
 
 	/**
-     * 全取得用: dataCategory × home_team_name × away_team_name でグルーピングした件数を取得。
-     * home/away の組み合わせ単位で、dataCategory の形式が揃っているかどうかの
-     * アイコン文字列(同一カテゴリ名 / 混在)を付与する。
-     */
-    public List<RealTimeDataDTO> findAllGrouping() {
+	 * 全取得用: dataCategory × home_team_name × away_team_name でグルーピングした件数を取得。
+	 * home/away の組み合わせ単位で、dataCategory の形式が揃っているかどうかの
+	 * アイコン文字列(同一カテゴリ名 / 混在)を付与する。
+	 */
+	public List<RealTimeDataDTO> findAllGrouping() {
 
-        String sql = """
-                WITH classified AS (
-                    SELECT
-                        data_category,
-                        home_team_name,
-                        away_team_name,
-                        %s AS category_format
-                    FROM static_data
-                ),
-                grouped AS (
-                    SELECT
-                        data_category,
-                        home_team_name,
-                        away_team_name,
-                        category_format,
-                        COUNT(*) AS cnt
-                    FROM classified
-                    GROUP BY data_category, home_team_name, away_team_name, category_format
-                ),
-                format_consistency AS (
-                    SELECT
-                        home_team_name,
-                        away_team_name,
-                        CASE
-                            WHEN COUNT(DISTINCT COALESCE(category_format, '__NONE__')) = 1
-                            THEN '同一カテゴリ名'
-                            ELSE '混在'
-                        END AS category_format_icon
-                    FROM classified
-                    GROUP BY home_team_name, away_team_name
-                )
-                SELECT
-                    g.data_category,
-                    CASE WHEN g.category_format IS NOT NULL THEN g.data_category ELSE NULL END AS formatted_data_category,
-                    g.home_team_name,
-                    g.away_team_name,
-                    g.cnt,
-                    fc.category_format_icon
-                FROM grouped g
-                JOIN format_consistency fc
-                    ON g.home_team_name = fc.home_team_name
-                   AND g.away_team_name = fc.away_team_name
-                """.formatted(CATEGORY_FORMAT_CASE);
+		String sql = """
+				WITH classified AS (
+				    SELECT
+				        data_category,
+				        home_team_name,
+				        away_team_name,
+				        %s AS category_format
+				    FROM static_data
+				),
+				grouped AS (
+				    SELECT
+				        data_category,
+				        home_team_name,
+				        away_team_name,
+				        category_format,
+				        COUNT(*) AS cnt
+				    FROM classified
+				    GROUP BY data_category, home_team_name, away_team_name, category_format
+				),
+				format_consistency AS (
+				    SELECT
+				        home_team_name,
+				        away_team_name,
+				        CASE
+				            WHEN COUNT(DISTINCT COALESCE(category_format, '__NONE__')) = 1
+				            THEN '同一カテゴリ名'
+				            ELSE '混在'
+				        END AS category_format_icon
+				    FROM classified
+				    GROUP BY home_team_name, away_team_name
+				)
+				SELECT
+				    g.data_category,
+				    CASE WHEN g.category_format IS NOT NULL THEN g.data_category ELSE NULL END AS formatted_data_category,
+				    g.home_team_name,
+				    g.away_team_name,
+				    g.cnt,
+				    fc.category_format_icon
+				FROM grouped g
+				JOIN format_consistency fc
+				    ON g.home_team_name = fc.home_team_name
+				   AND g.away_team_name = fc.away_team_name
+				"""
+				.formatted(CATEGORY_FORMAT_CASE);
 
-        return bmJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, rowNum) -> {
-            RealTimeDataDTO dto = new RealTimeDataDTO();
-            dto.setDataCategory(rs.getString("data_category"));
-            dto.setFormattedDataCategory(rs.getString("formatted_data_category"));
-            dto.setHomeTeamName(rs.getString("home_team_name"));
-            dto.setAwayTeamName(rs.getString("away_team_name"));
-            dto.setCnt(rs.getLong("cnt"));
-            dto.setCategoryFormatIcon(rs.getString("category_format_icon"));
-            return dto;
-        });
-    }
+		return bmJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, rowNum) -> {
+			RealTimeDataDTO dto = new RealTimeDataDTO();
+			dto.setDataCategory(rs.getString("data_category"));
+			dto.setFormattedDataCategory(rs.getString("formatted_data_category"));
+			dto.setHomeTeamName(rs.getString("home_team_name"));
+			dto.setAwayTeamName(rs.getString("away_team_name"));
+			dto.setCnt(rs.getLong("cnt"));
+			dto.setCategoryFormatIcon(rs.getString("category_format_icon"));
+			return dto;
+		});
+	}
 
-    /**
-     * search用: 指定した home/away チーム名 (NFKC正規化して比較) に紐づく
-     * data_category を1件取得する。同じ home/away の組み合わせに紐づく
-     * data_category 全体の形式が揃っているかどうかのアイコン文字列も付与する。
-     */
-    public List<BusinessGroupCountRow> findAllByDataCategory(String homeTeamName, String awayTeamName) {
+	/**
+	 * search用: 指定した home/away チーム名 (NFKC正規化して比較) に紐づく
+	 * data_category を1件取得する。同じ home/away の組み合わせに紐づく
+	 * data_category 全体の形式が揃っているかどうかのアイコン文字列も付与する。
+	 */
+	public List<BusinessGroupCountRow> findAllByDataCategory(String homeTeamName, String awayTeamName) {
 
-        String sql = """
-                WITH classified AS (
-                    SELECT
-                        data_category,
-                        home_team_name,
-                        away_team_name,
-                        %s AS category_format
-                    FROM static_data
-                    WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
-                      AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
-                ),
-                format_consistency AS (
-                    SELECT
-                        CASE
-                            WHEN COUNT(DISTINCT COALESCE(category_format, '__NONE__')) = 1
-                            THEN '同一カテゴリ名'
-                            ELSE '混在'
-                        END AS category_format_icon
-                    FROM classified
-                )
-                SELECT
-                    c.data_category,
-                    CASE WHEN c.category_format IS NOT NULL THEN c.data_category ELSE NULL END AS formatted_data_category,
-                    c.home_team_name,
-                    c.away_team_name,
-                    fc.category_format_icon
-                FROM classified c
-                CROSS JOIN format_consistency fc
-                LIMIT 1
-                """.formatted(CATEGORY_FORMAT_CASE);
+		String sql = """
+				WITH classified AS (
+				    SELECT
+				        data_category,
+				        home_team_name,
+				        away_team_name,
+				        %s AS category_format
+				    FROM static_data
+				    WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
+				      AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
+				),
+				format_consistency AS (
+				    SELECT
+				        CASE
+				            WHEN COUNT(DISTINCT COALESCE(category_format, '__NONE__')) = 1
+				            THEN '同一カテゴリ名'
+				            ELSE '混在'
+				        END AS category_format_icon
+				    FROM classified
+				)
+				SELECT
+				    c.data_category,
+				    CASE WHEN c.category_format IS NOT NULL THEN c.data_category ELSE NULL END AS formatted_data_category,
+				    c.home_team_name,
+				    c.away_team_name,
+				    fc.category_format_icon
+				FROM classified c
+				CROSS JOIN format_consistency fc
+				LIMIT 1
+				"""
+				.formatted(CATEGORY_FORMAT_CASE);
 
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        params.addValue("homeTeamName", homeTeamName);
-        params.addValue("awayTeamName", awayTeamName);
+		MapSqlParameterSource params = new MapSqlParameterSource();
+		params.addValue("homeTeamName", homeTeamName);
+		params.addValue("awayTeamName", awayTeamName);
 
-        return bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
-            BusinessGroupCountRow r = new BusinessGroupCountRow();
-            r.dataCategory = rs.getString("data_category");
-            r.formattedDataCategory = rs.getString("formatted_data_category");
-            r.homeTeamName = rs.getString("home_team_name");
-            r.awayTeamName = rs.getString("away_team_name");
-            r.categoryFormatIcon = rs.getString("category_format_icon");
-            return r;
-        });
-    }
+		return bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
+			BusinessGroupCountRow r = new BusinessGroupCountRow();
+			r.dataCategory = rs.getString("data_category");
+			r.formattedDataCategory = rs.getString("formatted_data_category");
+			r.homeTeamName = rs.getString("home_team_name");
+			r.awayTeamName = rs.getString("away_team_name");
+			r.categoryFormatIcon = rs.getString("category_format_icon");
+			return r;
+		});
+	}
 
-    /**
-     * 更新: 指定した home/away チーム名(NFKC正規化して比較)に紐づく static_data の
-     * dataCategory を、同一 home/away の組み合わせを持つ行すべてに対して新しい値で上書きする。
-     *
-     * @param homeTeamName 更新対象を絞り込むホームチーム名
-     * @param awayTeamName 更新対象を絞り込むアウェーチーム名
-     * @param newDataCategory 上書き後の dataCategory
-     * @return 更新された行数(同一 home/away の組み合わせを持つ行が複数あれば2件以上になり得る)
-     */
-    public int updateNewDataCategory(String homeTeamName, String awayTeamName, String newDataCategory) {
+	/**
+	 * 更新: 指定した home/away チーム名(NFKC正規化して比較)に紐づく static_data の
+	 * dataCategory を、同一 home/away の組み合わせを持つ行すべてに対して新しい値で上書きする。
+	 *
+	 * @param homeTeamName 更新対象を絞り込むホームチーム名
+	 * @param awayTeamName 更新対象を絞り込むアウェーチーム名
+	 * @param newDataCategory 上書き後の dataCategory
+	 * @return 更新された行数(同一 home/away の組み合わせを持つ行が複数あれば2件以上になり得る)
+	 */
+	public int updateNewDataCategory(String homeTeamName, String awayTeamName, String newDataCategory) {
 
-        String sql = """
-                UPDATE static_data
-                SET
-                	data_category = :newDataCategory,
-                	update_time = CURRENT_TIMESTAMP
-                WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
-                  AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
-                """;
+		String sql = """
+				UPDATE static_data
+				SET
+					data_category = :newDataCategory,
+					update_time = CURRENT_TIMESTAMP
+				WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
+				  AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
+				""";
 
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        params.addValue("homeTeamName", homeTeamName);
-        params.addValue("awayTeamName", awayTeamName);
-        params.addValue("newDataCategory", newDataCategory);
+		MapSqlParameterSource params = new MapSqlParameterSource();
+		params.addValue("homeTeamName", homeTeamName);
+		params.addValue("awayTeamName", awayTeamName);
+		params.addValue("newDataCategory", newDataCategory);
 
-        return bmJdbcTemplate.update(sql, params);
-    }
+		return bmJdbcTemplate.update(sql, params);
+	}
 
-    /**
-     * home_team_name / away_team_name (NFKC正規化) 単位で、
-     * data_category が「終了済」の行が1件も存在しない組み合わせの
-     * match_id / home_team_name / away_team_name を取得
-     * @author shiraishitoshio
-     */
-    public List<MatchTeamRow> findMatchIdsWithoutFinishedCategoryByTeams() {
-        String sql = """
-                SELECT DISTINCT
-                  d.match_id,
-                  d.home_team_name,
-                  d.away_team_name
-                FROM static_data d
-                WHERE d.match_id IS NOT NULL
-                  AND TRIM(d.match_id) <> ''
-                  AND NOT EXISTS (
-                        SELECT 1
-                        FROM static_data d2
-                        WHERE normalize(d2.home_team_name, NFKC) = normalize(d.home_team_name, NFKC)
-                          AND normalize(d2.away_team_name, NFKC) = normalize(d.away_team_name, NFKC)
-                          AND REPLACE(TRIM(normalize(d2.data_category, NFKC)), ' ', '') = '終了済'
-                  )
-                """;
-        return bmJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, rowNum) -> {
-            MatchTeamRow r = new MatchTeamRow();
-            r.matchId = rs.getString("match_id");
-            r.homeTeamName = rs.getString("home_team_name");
-            r.awayTeamName = rs.getString("away_team_name");
-            return r;
-        });
-    }
+	/**
+	 * home_team_name / away_team_name (NFKC正規化) 単位で、
+	 * data_category が「終了済」の行が1件も存在しない組み合わせの
+	 * match_id / home_team_name / away_team_name を取得
+	 * @author shiraishitoshio
+	 */
+	public List<MatchTeamRow> findMatchIdsWithoutFinishedCategoryByTeams() {
+		String sql = """
+				SELECT DISTINCT
+				  d.match_id,
+				  d.home_team_name,
+				  d.away_team_name
+				FROM static_data d
+				WHERE d.match_id IS NOT NULL
+				  AND TRIM(d.match_id) <> ''
+				  AND NOT EXISTS (
+				        SELECT 1
+				        FROM static_data d2
+				        WHERE normalize(d2.home_team_name, NFKC) = normalize(d.home_team_name, NFKC)
+				          AND normalize(d2.away_team_name, NFKC) = normalize(d.away_team_name, NFKC)
+				          AND REPLACE(TRIM(normalize(d2.data_category, NFKC)), ' ', '') = '終了済'
+				  )
+				""";
+		return bmJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, rowNum) -> {
+			MatchTeamRow r = new MatchTeamRow();
+			r.matchId = rs.getString("match_id");
+			r.homeTeamName = rs.getString("home_team_name");
+			r.awayTeamName = rs.getString("away_team_name");
+			return r;
+		});
+	}
 
-    public static class MatchTeamRow {
-        public String matchId;
-        public String homeTeamName;
-        public String awayTeamName;
-    }
+	/**
+	 * 指定されたmatch_id一覧に該当するデータを取得する。
+	 * static_dataは件数が多いため、country/leagueのLIKE検索で全件走査するのではなく、
+	 * 呼び出し側で対象を絞り込んだmatch_id一覧（例: S3上に実在するzipのmatchId一覧）に対して
+	 * ピンポイントで取得する用途に使う。
+	 * country/league/finFlgによる絞り込みは行わないため、必要であれば呼び出し側で
+	 * 取得結果のdataCategory・timesを見て判定すること。
+	 *
+	 * @param matchIds 対象のmatch_id一覧
+	 * @return 該当データ一覧（match_id・data_category・times・home/away team name含む、空ならから配列）
+	 */
+	public List<DataIngestRow> findByMatchIds(Collection<String> matchIds) {
+		if (matchIds == null || matchIds.isEmpty()) {
+			return List.of();
+		}
+		String sql = """
+				SELECT
+				    d.seq_key,
+				    d.data_category,
+				    d.times,
+				    d.match_id,
+				    d.home_team_name,
+				    d.away_team_name
+				FROM static_data d
+				WHERE d.match_id IN (:matchIds)
+				""";
+		MapSqlParameterSource params = new MapSqlParameterSource();
+		params.addValue("matchIds", matchIds);
+		return bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
+			DataIngestRow r = new DataIngestRow();
+			r.seq = rs.getString("seq_key");
+			r.dataCategory = rs.getString("data_category");
+			r.times = rs.getString("times");
+			r.matchId = rs.getString("match_id");
+			r.homeTeamName = rs.getString("home_team_name");
+			r.awayTeamName = rs.getString("away_team_name");
+			return r;
+		});
+	}
+
+	public static class MatchTeamRow {
+		public String matchId;
+		public String homeTeamName;
+		public String awayTeamName;
+	}
 
 }
