@@ -1,5 +1,4 @@
 package dev.batch.bm_b010;
-
 import java.io.File;
 import java.io.IOException;
 import java.nio.file.Files;
@@ -24,10 +23,10 @@ import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
+import dev.common.getinfo.PutOriginBackUpInfo;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
 import dev.common.util.FileDeleteUtil;
-
 /**
  * FinGettingStat登録ロジック
  * @author shiraishitoshio
@@ -35,14 +34,11 @@ import dev.common.util.FileDeleteUtil;
  */
 @Service
 public class FinGettingStat implements FinGettingEntityIF {
-
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = FinGettingStat.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
-
 	/** クラス名 */
 	private static final String CLASS_NAME = FinGettingStat.class.getName();
-
 	/** JSON 生成に利用する ObjectMapper。 */
 	@Autowired
 	private ObjectMapper objectMapper;
@@ -59,8 +55,9 @@ public class FinGettingStat implements FinGettingEntityIF {
 	@Autowired
 	private S3Operator s3Operator;
 	@Autowired
+	private PutOriginBackUpInfo putOriginBackUpInfo;
+	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
-
 	/**
 	 * {@inheritDoc}
 	 */
@@ -69,14 +66,11 @@ public class FinGettingStat implements FinGettingEntityIF {
 	public void finGettingStat(Map<String, List<DataEntity>> entities) throws Exception {
 		final String METHOD_NAME = "finGettingStat";
 		manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-
 		List<String> insertPath = new ArrayList<>();
 		Map<String, String> mapList = new HashMap<>();
-
 		// 1) bm/master両方のDB処理（ここが “同一JTAトランザクション” に参加）
 		for (Map.Entry<String, List<DataEntity>> map : entities.entrySet()) {
 			String filePath = map.getKey();
-
 			List<DataEntity> entList = map.getValue();
 			for (DataEntity ent : entList) {
 				insertPath.add(filePath);
@@ -110,39 +104,50 @@ public class FinGettingStat implements FinGettingEntityIF {
 				ent.setDataCategory(dataCategory);
 				// 手動フラグを設定
 				ent.setAddManualFlg("1");
-
 				DataEntity insertEntities = dataDBService.selectInBatch(ent);
 				dataDBService.insertInBatchOrThrow(insertEntities);
 			}
-
 		}
 
 		// 2) 取得済み終了データ保存
 		String outputBucket = config.getS3BucketsOutputsFin();
-
 		final String jsonFolder = config.getB008JsonFolder(); // /tmp/json/
 		final String jsonPath = jsonFolder + "b010_fin_getting_data_list.json";
 		final Path jsonFilePath = Paths.get(jsonPath);
 		final String s3Key = "list/" + jsonFilePath.getFileName().toString();
-
 		// 既存のS3上のjsonがあれば読み込んで今回分とマージする
 		Map<String, String> mergedMap = mergeWithExisting(outputBucket, s3Key, mapList);
-
 		// リクエストで受け取ったデータをObjectMapperで変換
 		Files.createDirectories(jsonFilePath.getParent());
 		makeJson(jsonPath, mergedMap);
-
 		// upload
 		upload(outputBucket, s3Key, jsonFilePath);
 
-		// 3) afterCommitでS3削除（＝DBコミット成功後だけ消す）
+		// 3) afterCommitでバックアップ格納 → 成功分のみS3削除（＝DBコミット成功後だけ消す）
 		String bucket = config.getS3BucketsOutputsFin();
 		org.springframework.transaction.support.TransactionSynchronizationManager.registerSynchronization(
 				new org.springframework.transaction.support.TransactionSynchronization() {
 					@Override
 					public void afterCommit() {
+						// 3-1) mid単位のバックアップzip（aws-s3-outputs-csv-bk）へ追加格納
+						PutOriginBackUpInfo.BackupResult backupResult =
+								putOriginBackUpInfo.backup(entities, insertPath);
+						if (!backupResult.getFailedLocalPaths().isEmpty()) {
+							manageLoggerComponent.debugErrorLog(
+									PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+									MessageCdConst.MCD00003E_EXECUTION_SKIP,
+									null,
+									String.format(
+											"バックアップ格納に失敗したCSVがあるため、S3削除フェーズ全体を中止します。"
+													+ "backupSucceeded=%d, backupFailed=%d, backupFailedPaths=%s",
+											backupResult.getSucceededLocalPaths().size(),
+											backupResult.getFailedLocalPaths().size(),
+											backupResult.getFailedLocalPaths()));
+							return;
+						}
+						// 3-2) バックアップ格納に成功した分だけ、取得元（OUTPUTS_FIN）のS3を削除
 						FileDeleteUtil.deleteS3Files(
-								insertPath,
+								backupResult.getSucceededLocalPaths(),
 								bucket,
 								s3Operator,
 								manageLoggerComponent,
@@ -186,7 +191,6 @@ public class FinGettingStat implements FinGettingEntityIF {
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e,
 					"bucket: " + bucket + ", key: " + key + ", file: " + file);
 		}
-
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
 				"bucket: " + bucket + ", key: " + key + ", file: " + file);
 	}
@@ -202,13 +206,11 @@ public class FinGettingStat implements FinGettingEntityIF {
 	 */
 	private Map<String, String> mergeWithExisting(String bucket, String key, Map<String, String> newMap) {
 	    final String METHOD_NAME = "mergeWithExisting";
-
 	    List<String> existingKeys = s3Operator.listKeys(bucket, key);
 	    if (existingKeys == null || !existingKeys.contains(key)) {
 	        // 既存が無ければ今回分のみ
 	        return newMap;
 	    }
-
 	    try {
 	        String existingJson = s3Operator.downloadTextUtf8(bucket, key);
 	        Map<String, String> existingMap = objectMapper.readValue(
@@ -225,5 +227,4 @@ public class FinGettingStat implements FinGettingEntityIF {
 	        return newMap;
 	    }
 	}
-
 }
