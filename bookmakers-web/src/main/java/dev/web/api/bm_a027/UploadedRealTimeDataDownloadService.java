@@ -42,6 +42,18 @@ public class UploadedRealTimeDataDownloadService {
 
 	private final S3Operator s3Operator;
 
+	/**
+	 * 初期表示用に、検索条件なしで一覧を取得する。
+	 * S3にアップロードされている全zipを対象に、static_dataで補完できるものは補完して返す
+	 * （中身は search に空の条件を渡した場合と同じ）。
+	 *
+	 * @return 検索条件なしの一覧
+	 */
+	@Transactional(readOnly = true)
+	public List<UploadedRealTimeDataDownloadSearchResponse> init() {
+		return search(new UploadedRealTimeDataDownloadSearchCondition());
+	}
+
 	@Transactional(readOnly = true)
 	public List<UploadedRealTimeDataDownloadSearchResponse> search(UploadedRealTimeDataDownloadSearchCondition cond) {
 		String country = cond.getCountry();

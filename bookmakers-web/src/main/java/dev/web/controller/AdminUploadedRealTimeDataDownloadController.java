@@ -29,6 +29,16 @@ public class AdminUploadedRealTimeDataDownloadController {
 	private UploadedRealTimeDataDownloadService uploadedRealTimeDataDownloadService;
 
 	/**
+	 * real-time-data の初期表示用一覧を取得する（検索条件なし）。
+	 *
+	 * GET /api/real-time-data/upload/init
+	 */
+	@GetMapping("/real-time-data/upload/init")
+	public ResponseEntity<List<UploadedRealTimeDataDownloadSearchResponse>> init() {
+		return ResponseEntity.ok(uploadedRealTimeDataDownloadService.init());
+	}
+
+	/**
 	 * real-time-data を条件検索する（指定された条件のみ WHERE に効く）。
 	 *
 	 * GET /api/real-time-data/upload/search
