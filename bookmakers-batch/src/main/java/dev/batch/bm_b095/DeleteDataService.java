@@ -3,6 +3,7 @@ package dev.batch.bm_b095;
 import java.util.List;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Component;
 
 import dev.batch.constant.BatchStatusConstant;
 import dev.batch.repository.bm.MailSendBatchRepository;
@@ -15,6 +16,7 @@ import dev.common.logger.ManageLoggerComponent;
  * @author shiraishitoshio
  *
  */
+@Component
 public class DeleteDataService {
 
 	/** プロジェクト名 */
