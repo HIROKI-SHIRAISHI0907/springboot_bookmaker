@@ -18,6 +18,8 @@ import dev.common.enums.MailNoticeEnum;
 import dev.common.enums.ScrapeCodeToMailEnum;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.mail.MailSendComponent;
+import dev.common.mail.PutMailNoticeJson;
+import dev.common.util.MailConvertS3BucketUtil;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -58,6 +60,9 @@ public class MailLaunchService {
 	private MailSendComponent mailSendComponent;
 
 	@Autowired
+	private PutMailNoticeJson putMailNoticeJson;
+
+	@Autowired
 	private MailSendBatchRepository mailSendBatchRepository;
 
 	@Autowired
@@ -76,7 +81,7 @@ public class MailLaunchService {
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		log.info("passwordResetBaseUrl: {}", passwordResetBaseUrl);
 
-		// 現在メール送信管理に登録されている通知ステータスが0のものを取得
+		// 現在メール送信管理に登録されている通知ステータスが0のもの and 送信失敗数が2以下のものを取得
 		List<MailSendManagementEntity> noticeStatusPendingList = mailSendBatchRepository.findPendingNoticeStatus();
 
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
@@ -101,21 +106,41 @@ public class MailLaunchService {
 			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 					"メール送信キー: " + mailSendKey);
 
-			String mailSubject = applyBikouPlaceholders(mailIdKeyDTO.getMailSubject(), bikou);
+			BikouDTO bikouSubjectDTO = applyBikouPlaceholders(mailIdKeyDTO.getMailSubject(), bikou);
+			String mailSubject = bikouSubjectDTO.getText();
 			String mailBody = mailIdKeyDTO.getMailBody();
+			// バッチスクレイピングコード
+			String batchScrapeCd = bikouSubjectDTO.getBatchScrapeCd();
 
 			if (mailBody != null && mailBody.contains(PASSWORD_RESET_URL_PLACEHOLDER)) {
-			    String encodedKey = URLEncoder.encode(mailSendKey, StandardCharsets.UTF_8);
-			    String passwordResetUrl = passwordResetBaseUrl + "?key=" + encodedKey;
-			    mailBody = mailBody.replace(PASSWORD_RESET_URL_PLACEHOLDER, passwordResetUrl);
+				String encodedKey = URLEncoder.encode(mailSendKey, StandardCharsets.UTF_8);
+				String passwordResetUrl = passwordResetBaseUrl + "?key=" + encodedKey;
+				mailBody = mailBody.replace(PASSWORD_RESET_URL_PLACEHOLDER, passwordResetUrl);
 			}
 
-			mailBody = applyBikouPlaceholders(mailBody, bikou);
+			BikouDTO bikouBodyDTO = applyBikouPlaceholders(mailBody, bikou);
+			mailBody = bikouBodyDTO.getText();
+			// 取得できるバッチスクレイピングコードは本文でも同一のため取得なし
 
 			// メール送信
 			try {
 				mailSendComponent.send(mailIdKeyDTO.getFromAddress(), envelopeFrom, toAddress,
 						mailSubject, mailBody);
+
+				// メールIDからバケット名に変換し、処理キーを通知済に上書きする
+				String s3Bucket = MailConvertS3BucketUtil.getS3Bucket(mailId, batchScrapeCd);
+				if (s3Bucket == null || s3Bucket.isBlank()) {
+				    log.error("メールIDからS3バケットを特定できません。mailId={}, batchScrapeCd={}",
+				            mailId, batchScrapeCd);
+				    mailSendBatchRepository.updateFailSendCount(
+				            mailSendKey,
+				            failSendCount + 1
+				    );
+				    continue;
+				}
+
+				// メールID; bm-mail-001, bm-mail-006はbatchScrapeCdはnullの想定
+				putMailNoticeJson.updateNoticeCompleted(s3Bucket + ".json", mailSendKey);
 			} catch (Exception e) {
 				// 送信失敗数をインクリメントして更新
 				mailSendBatchRepository.updateFailSendCount(mailSendKey, failSendCount + 1);
@@ -125,12 +150,21 @@ public class MailLaunchService {
 			// 通知ステータスを1に更新
 			mailSendBatchRepository.updateFromPendingToSendedStatus(
 					mailSendKey, MailNoticeEnum.NOTIFY_STATUS_SENDED.getNoticeStatus());
+
+			// 少しスリープする
+			try {
+				Thread.sleep(100);
+			} catch (Exception e) {
+				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME,
+						METHOD_NAME, MessageCdConst.MCD00099I_LOG, e,
+						"スレッドスリープでエラーが起こりました。: " + e);
+			}
 		}
 
 		// endLog
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		this.manageLoggerComponent.clear();
+
 	}
 
 	/**
@@ -138,31 +172,36 @@ public class MailLaunchService {
 	 * text中に含まれる "{{KEY1}}" のようなプレースホルダーをVALUE1に置換する。
 	 * 件名・本文どちらに対しても同じロジックで使える汎用メソッド。
 	 */
-	private String applyBikouPlaceholders(String text, String bikou) {
-	    if (text == null || bikou == null || bikou.isBlank()) {
-	        return text;
-	    }
-	    String result = text;
-	    for (String pair : bikou.split(",")) {
-	        String[] kv = pair.split("=", 2);
-	        if (kv.length != 2) {
-	            continue;
-	        }
-	        String key = kv[0].trim();
-	        String value = kv[1].trim();
-	        if (key.isEmpty()) {
-	            continue;
-	        }
-	        // valueを解決
-	        if (BATCH_NAME_PLACEHOLDER.equals(key))
-	        	value = BatchCodeToMailEnum.resolveBatchName(value);
+	private BikouDTO applyBikouPlaceholders(String text, String bikou) {
+		BikouDTO bikouDto = new BikouDTO();
+		if (text == null || bikou == null || bikou.isBlank()) {
+			bikouDto.setText(text);
+			bikouDto.setBatchScrapeCd(null);
+			return bikouDto;
+		}
+		String result = text;
+		for (String pair : bikou.split(",")) {
+			String[] kv = pair.split("=", 2);
+			if (kv.length != 2) {
+				continue;
+			}
+			String key = kv[0].trim();
+			String value = kv[1].trim();
+			if (key.isEmpty()) {
+				continue;
+			}
+			// valueを解決
+			if (BATCH_NAME_PLACEHOLDER.equals(key))
+				value = BatchCodeToMailEnum.resolveBatchName(value);
 
-	        if (SCRAPE_NAME_PLACEHOLDER.equals(key))
-	        	value = ScrapeCodeToMailEnum.resolveScrapeName(value);
+			if (SCRAPE_NAME_PLACEHOLDER.equals(key))
+				value = ScrapeCodeToMailEnum.resolveScrapeName(value);
 
-	        result = result.replace("（" + key + "）", value);
-	        result = result.replace("{{" + key + "}}", value);
-	    }
-	    return result;
+			result = result.replace("（" + key + "）", value);
+			result = result.replace("{{" + key + "}}", value);
+			bikouDto.setText(result);
+			bikouDto.setBatchScrapeCd(value);
+		}
+		return bikouDto;
 	}
 }

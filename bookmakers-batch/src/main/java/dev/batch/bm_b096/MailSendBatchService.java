@@ -44,13 +44,14 @@ public class MailSendBatchService {
 	 * @param bikou バッチ実行時の件数情報など
 	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
 	 */
-	public void send(String mailId, String toAddress, String bikou) {
+	public String send(String mailId, String toAddress, String bikou) {
 		// メール情報マスタに存在するか
 		MailInfoMasterEntity mailInfo = mailInfoMasterBatchRepository.findMailByMailIdInfo(mailId);
 		if (mailInfo == null) {
 			log.error("メール情報マスタに該当データがありません。mailId={}", mailId);
 			new RuntimeException(SYSTEM_ERROR_MESSAGE);
-		};
+		}
+		;
 
 		// メール送信キーを取得
 		String mailSendKey = getMailSendKey();
@@ -67,8 +68,11 @@ public class MailSendBatchService {
 
 		try {
 			mailSendBatchRepository.insert(management);
+			return mailSendKey;
 		} catch (Exception e) {
+			// 登録エラーは無視
 		}
+		return null;
 	}
 
 	/**

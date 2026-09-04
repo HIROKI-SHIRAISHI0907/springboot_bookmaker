@@ -11,7 +11,11 @@ import dev.batch.interf.BatchIF;
 import dev.batch.interf.JobExecControlIF;
 import dev.batch.util.JobIdUtil;
 import dev.common.constant.BatchConstant;
+import dev.common.enums.BatchCodeToMailEnum;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.mail.PutMailNoticeJson;
+import dev.common.util.DateOffsetDecisionUtil;
+import dev.common.util.MailConvertS3BucketUtil;
 
 /**
  * ジョブ実行制御（jobStart/jobRunning/jobEnd/jobException/jobHeartbeat）と
@@ -46,6 +50,9 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 
 	@Autowired
 	protected ManageLoggerComponent manageLoggerComponent;
+
+	@Autowired
+	protected PutMailNoticeJson putMailNoticeJson;
 
 	@Autowired
 	protected MailSendBatchService mailSendBatchService;
@@ -211,12 +218,18 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 					null,
 					code + " finished. jobId=" + jobId);
 
-			if (!"B096".equals(batchCode())) {
+			// メール送信バッチ以外はメール送信管理に登録
+			if (!BatchCodeToMailEnum.B096.getBatchCode().equals(batchCode())) {
 				batchCode = "BATCH_NAME=" + batchCode();
 				// 完了時間
-				finTime = "EXECUTED_AT=" + LocalDateTime.now().plusHours(9);
+				finTime = "EXECUTED_AT=" + LocalDateTime.now(DateOffsetDecisionUtil.getZoneId());
 				// 成功で、メール送信
-				mailSendBatchService.send(BATCH_MAIL_ID, sourceMailAddress, batchCode + "," + finTime);
+				String mailSendKey = mailSendBatchService.send(BATCH_MAIL_ID,
+						sourceMailAddress, batchCode + "," + finTime);
+
+				// 送信できた処理キーをJSONに格納
+				if (mailSendKey != null)
+					putJson(BATCH_MAIL_ID, mailSendKey, batchCode());
 			}
 
 			return BatchConstant.BATCH_SUCCESS;
@@ -268,6 +281,17 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 		} finally {
 			manageLoggerComponent.debugEndInfoLog(projectName(), className(), METHOD_NAME);
 		}
+	}
+
+	/**
+	 * 処理キーを特定のJSONファイルに保存する
+	 * @param mailId
+	 * @param batchScrapeCd
+	 * @param mailProcessKey
+	 */
+	private void putJson(String mailId, String batchScrapeCd, String mailProcessKey) {
+		putMailNoticeJson.putJson(MailConvertS3BucketUtil
+				.getS3Bucket(mailId, batchScrapeCd), mailProcessKey);
 	}
 
 	/**
