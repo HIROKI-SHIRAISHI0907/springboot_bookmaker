@@ -28,6 +28,7 @@ process:
       outputsFin: ${S3_OUTPUTS_FIN:aws-s3-outputs-fin-csv}
       delayPostpone: ${S3_DELAYPOSTPONE:aws-s3-delay-postpone-csv}
       nextSeason: ${S3_NEXT_SEASON:aws-s3-next-season-info-csv}
+      mail: ${S3_MAIL:aws-s3-mail}
 
 server:
   port: 8080
