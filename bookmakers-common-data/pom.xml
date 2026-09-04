@@ -1,145 +1,231 @@
 <?xml version="1.0" encoding="UTF-8"?>
+
 <project xmlns="http://maven.apache.org/POM/4.0.0"
-	xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
-	xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
-	<modelVersion>4.0.0</modelVersion>
+         xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance"
+         xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 https://maven.apache.org/xsd/maven-4.0.0.xsd">
 
-	<parent>
-		<groupId>dev.parent</groupId>
-		<artifactId>bookmakers-parents</artifactId>
-		<version>0.0.1-SNAPSHOT</version>
-		<relativePath>../bookmakers-parents/pom.xml</relativePath>
-	</parent>
+    <modelVersion>4.0.0</modelVersion>
 
-	<artifactId>bookmakers-common-data</artifactId>
-	<name>bookmakers-common-data</name>
+    <!-- 親POM -->
+    <parent>
+        <groupId>dev.parent</groupId>
+        <artifactId>bookmakers-parents</artifactId>
+        <version>0.0.1-SNAPSHOT</version>
+        <relativePath>../bookmakers-parents/pom.xml</relativePath>
+    </parent>
 
-	<properties>
-		<java.version>21</java.version>
-	</properties>
+    <artifactId>bookmakers-common-data</artifactId>
+    <name>bookmakers-common-data</name>
 
-	<dependencies>
-		<!-- Spring Boot / Spring を使っているクラスがcommonにあるので必須 -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter</artifactId>
-		</dependency>
+    <!-- プロパティ -->
+    <properties>
+        <java.version>21</java.version>
+        <aws.java.sdk.version>2.29.21</aws.java.sdk.version>
+    </properties>
 
-		<!-- @Configuration や ThreadPoolTaskExecutor を使っているため -->
-		<dependency>
-			<groupId>org.springframework</groupId>
-			<artifactId>spring-context</artifactId>
-		</dependency>
+    <!-- AWS SDKのバージョンを統一 -->
+    <dependencyManagement>
+        <dependencies>
 
-		<dependency>
-			<groupId>org.springframework</groupId>
-			<artifactId>spring-context-support</artifactId>
-		</dependency>
+            <dependency>
+                <groupId>software.amazon.awssdk</groupId>
+                <artifactId>bom</artifactId>
+                <version>${aws.java.sdk.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
 
-		<!-- MyBatis（commonで使っているなら） -->
-		<dependency>
-			<groupId>org.mybatis.spring.boot</groupId>
-			<artifactId>mybatis-spring-boot-starter</artifactId>
-		</dependency>
+        </dependencies>
+    </dependencyManagement>
 
-		<!-- Flyway（commonで使っているなら） -->
-		<dependency>
-			<groupId>org.flywaydb</groupId>
-			<artifactId>flyway-core</artifactId>
-		</dependency>
+    <dependencies>
 
-		<!-- ロガー：slf4j は starter に含まれるが明示してもOK -->
-		<dependency>
-			<groupId>org.slf4j</groupId>
-			<artifactId>slf4j-api</artifactId>
-		</dependency>
+        <!-- ============================== -->
+        <!-- Spring Boot / Spring -->
+        <!-- ============================== -->
 
-		<!-- Apache POI -->
-		<dependency>
-			<groupId>org.apache.poi</groupId>
-			<artifactId>poi</artifactId>
-			<version>5.4.0</version>
-		</dependency>
-		<dependency>
-			<groupId>org.apache.poi</groupId>
-			<artifactId>poi-ooxml</artifactId>
-			<version>5.4.0</version>
-		</dependency>
+        <!-- Spring Boot -->
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter</artifactId>
+        </dependency>
 
-		<!-- AWS SDK S3 -->
-		<dependency>
-			<groupId>software.amazon.awssdk</groupId>
-			<artifactId>s3</artifactId>
-			<version>2.25.10</version>
-		</dependency>
+        <!-- Spring Context -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context</artifactId>
+        </dependency>
 
-		<!-- AWS SDK v2 : ECS -->
-		<dependency>
-			<groupId>software.amazon.awssdk</groupId>
-			<artifactId>ecs</artifactId>
-		</dependency>
+        <!-- Spring Context Support -->
+        <dependency>
+            <groupId>org.springframework</groupId>
+            <artifactId>spring-context-support</artifactId>
+        </dependency>
 
-		<!-- AWS SDK v2 : CloudWatch Logs -->
-		<dependency>
-			<groupId>software.amazon.awssdk</groupId>
-			<artifactId>cloudwatchlogs</artifactId>
-		</dependency>
 
-		<!-- Lombok -->
-		<dependency>
-			<groupId>org.projectlombok</groupId>
-			<artifactId>lombok</artifactId>
-			<scope>provided</scope>
-		</dependency>
+        <!-- ============================== -->
+        <!-- MyBatis -->
+        <!-- ============================== -->
 
-		<!-- DBドライバはcommonでは本来不要だが、以前入っていたので残すなら -->
-		<dependency>
-			<groupId>com.mysql</groupId>
-			<artifactId>mysql-connector-j</artifactId>
-			<scope>runtime</scope>
-		</dependency>
+        <dependency>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter</artifactId>
+        </dependency>
 
-		<dependency>
-			<groupId>com.h2database</groupId>
-			<artifactId>h2</artifactId>
-			<scope>runtime</scope>
-		</dependency>
 
-		<dependency>
-			<groupId>org.apache.commons</groupId>
-			<artifactId>commons-csv</artifactId>
-			<version>1.10.0</version>
-		</dependency>
+        <!-- ============================== -->
+        <!-- Flyway -->
+        <!-- ============================== -->
 
-		<!-- test -->
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-starter-test</artifactId>
-			<scope>test</scope>
-		</dependency>
+        <dependency>
+            <groupId>org.flywaydb</groupId>
+            <artifactId>flyway-core</artifactId>
+        </dependency>
 
-		<dependency>
-			<groupId>com.sun.mail</groupId>
-			<artifactId>jakarta.mail</artifactId>
-			<version>2.0.1</version>
-		</dependency>
 
-		<dependency>
-			<groupId>org.mybatis.spring.boot</groupId>
-			<artifactId>mybatis-spring-boot-starter-test</artifactId>
-			<scope>test</scope>
-		</dependency>
-		<dependency>
-			<groupId>org.springframework.boot</groupId>
-			<artifactId>spring-boot-configuration-processor</artifactId>
-			<optional>true</optional>
-		</dependency>
-	</dependencies>
+        <!-- ============================== -->
+        <!-- Logging -->
+        <!-- ============================== -->
 
-	<build>
-		<plugins>
-			<!-- common-data は実行jarではないので boot plugin は基本不要。 ただし残しても大きな害はないので、入れたいなら入れてOK。 -->
-		</plugins>
-	</build>
+        <dependency>
+            <groupId>org.slf4j</groupId>
+            <artifactId>slf4j-api</artifactId>
+        </dependency>
+
+
+        <!-- ============================== -->
+        <!-- Apache POI -->
+        <!-- ============================== -->
+
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi</artifactId>
+            <version>5.4.0</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.apache.poi</groupId>
+            <artifactId>poi-ooxml</artifactId>
+            <version>5.4.0</version>
+        </dependency>
+
+
+        <!-- ============================== -->
+        <!-- AWS SDK v2 -->
+        <!-- ============================== -->
+
+        <!-- S3 -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>s3</artifactId>
+        </dependency>
+
+        <!-- ECS -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>ecs</artifactId>
+        </dependency>
+
+        <!-- CloudWatch Logs -->
+        <dependency>
+            <groupId>software.amazon.awssdk</groupId>
+            <artifactId>cloudwatchlogs</artifactId>
+        </dependency>
+
+
+        <!-- ============================== -->
+        <!-- Lombok -->
+        <!-- ============================== -->
+
+        <dependency>
+            <groupId>org.projectlombok</groupId>
+            <artifactId>lombok</artifactId>
+            <scope>provided</scope>
+        </dependency>
+
+
+        <!-- ============================== -->
+        <!-- Database -->
+        <!-- ============================== -->
+
+        <!-- MySQL -->
+        <dependency>
+            <groupId>com.mysql</groupId>
+            <artifactId>mysql-connector-j</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+        <!-- H2 -->
+        <dependency>
+            <groupId>com.h2database</groupId>
+            <artifactId>h2</artifactId>
+            <scope>runtime</scope>
+        </dependency>
+
+
+        <!-- ============================== -->
+        <!-- Commons CSV -->
+        <!-- ============================== -->
+
+        <dependency>
+            <groupId>org.apache.commons</groupId>
+            <artifactId>commons-csv</artifactId>
+            <version>1.10.0</version>
+        </dependency>
+
+
+        <!-- ============================== -->
+        <!-- Jakarta Mail -->
+        <!-- ============================== -->
+
+        <dependency>
+            <groupId>com.sun.mail</groupId>
+            <artifactId>jakarta.mail</artifactId>
+            <version>2.0.1</version>
+        </dependency>
+
+
+        <!-- ============================== -->
+        <!-- Test -->
+        <!-- ============================== -->
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+        <dependency>
+            <groupId>org.mybatis.spring.boot</groupId>
+            <artifactId>mybatis-spring-boot-starter-test</artifactId>
+            <scope>test</scope>
+        </dependency>
+
+
+        <!-- ============================== -->
+        <!-- Configuration Processor -->
+        <!-- ============================== -->
+
+        <dependency>
+            <groupId>org.springframework.boot</groupId>
+            <artifactId>spring-boot-configuration-processor</artifactId>
+            <optional>true</optional>
+        </dependency>
+
+    </dependencies>
+
+
+    <!-- ============================== -->
+    <!-- Build -->
+    <!-- ============================== -->
+
+    <build>
+        <plugins>
+            <!--
+                common-data は実行jarではないため、
+                Spring Boot Maven Plugin は不要
+            -->
+        </plugins>
+    </build>
 
 </project>
