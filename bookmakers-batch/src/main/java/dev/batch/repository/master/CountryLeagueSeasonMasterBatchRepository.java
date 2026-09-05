@@ -9,7 +9,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
-import dev.batch.bm_b015.LeagueSeasonEndDTO;
+import dev.batch.bm_b094.LeagueSeasonEndDTO;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 
 @Mapper

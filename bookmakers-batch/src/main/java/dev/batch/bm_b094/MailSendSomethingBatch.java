@@ -1,4 +1,4 @@
-package dev.batch.bm_b015;
+package dev.batch.bm_b094;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -11,7 +11,7 @@ import dev.batch.common.AbstractJobBatchTemplate;
  * @author shiraishitoshio
  *
  */
-@Service("B015")
+@Service("B094")
 public class MailSendSomethingBatch extends AbstractJobBatchTemplate {
 
 	/** プロジェクト名 */
