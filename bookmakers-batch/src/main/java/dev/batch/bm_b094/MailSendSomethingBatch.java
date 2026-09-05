@@ -3,7 +3,6 @@ package dev.batch.bm_b094;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
-import dev.batch.bm_b096.MailLaunchService;
 import dev.batch.common.AbstractJobBatchTemplate;
 
 /**
@@ -48,16 +47,16 @@ public class MailSendSomethingBatch extends AbstractJobBatchTemplate {
 		return CLASS_NAME;
 	}
 
-	/** MailLaunchService */
+	/** MailSendSomethingService */
 	@Autowired
-	private MailLaunchService mailLaunchService;
+	private MailSendSomethingService mailSendSomethingService;
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	protected void doExecute(JobContext ctx) throws Exception {
-		this.mailLaunchService.execute();
+		this.mailSendSomethingService.execute();
 	}
 
 }
