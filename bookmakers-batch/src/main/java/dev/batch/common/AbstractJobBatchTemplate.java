@@ -219,7 +219,8 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 					code + " finished. jobId=" + jobId);
 
 			// メール送信バッチ以外はメール送信管理に登録
-			if (!BatchCodeToMailEnum.B096.getBatchCode().equals(batchCode())) {
+			if (!BatchCodeToMailEnum.B095.getBatchCode().equals(batchCode()) &&
+					!BatchCodeToMailEnum.B096.getBatchCode().equals(batchCode())) {
 				batchCode = "BATCH_NAME=" + batchCode();
 				// 完了時間
 				finTime = "EXECUTED_AT=" + LocalDateTime.now(DateOffsetDecisionUtil.getZoneId());
