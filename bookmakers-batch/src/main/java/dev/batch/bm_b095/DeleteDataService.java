@@ -45,6 +45,8 @@ public class DeleteDataService {
 	 * 1. メール送信管理(mail_send_manage)のメール送信済もしくは送信失敗が3回以上
 	 * (notify_status='1' or fail_send_count >= 3)
 	 * 2. バッチ実行管理(batch_job_exec)のステータスがstatus=10 or 99
+	 * 3. メール送信バッチECS制御用に格納したJSONファイル(aws-s3-mail) ある程度溜まっており通知済が全て入っていたら削除
+	 * 4. aws-s3-delay-postpone-csvにある延期ファイルが3ヶ月以上経過していたら削除
 	 * </p>
 	 */
 	public void execute() {
@@ -56,6 +58,7 @@ public class DeleteDataService {
 		deleteMailSendManageWithNoticeFinAndFailThreeTimesOver();
 		// 2. バッチ実行管理(batch_job_exec)のステータスがstatus=10 or 99
 		deleteBatchJobExecStatusSuccessAndFailed();
+		// 3. メール送信バッチECS制御用に格納したJSONファイル(aws-s3-mail) 削除 TODO
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);

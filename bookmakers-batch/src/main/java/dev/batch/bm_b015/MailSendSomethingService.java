@@ -3,8 +3,10 @@ package dev.batch.bm_b015;
 import java.sql.Timestamp;
 import java.time.Instant;
 import java.time.LocalDate;
+import java.time.LocalTime;
 import java.time.OffsetDateTime;
 import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.List;
@@ -21,15 +23,19 @@ import dev.batch.bm_b096.MailSendBatchService;
 import dev.batch.repository.bm.MailSendBatchRepository;
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
 import dev.common.constant.MessageCdConst;
+import dev.common.enums.ScrapeCodeToMailEnum;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.mail.PutMailNoticeJson;
 import dev.common.s3.S3Operator;
 import dev.common.util.DateOffsetDecisionUtil;
+import dev.common.util.MailConvertS3BucketUtil;
 
 /**
  * MailSendSomethingServiceロジック
  * <p>
  * 各種契機（ECSの稼働状況、シーズン終了間近のリーグなど）を検知し、
  * mail_send_manageへ送信予約を登録する「検知・登録」専用のバッチ。
+ * aws-s3-season-csvバケットのseason.jsonが存在するかつシーズン終了間近である場合に起動する。
  * 実際のメール送信はbm_b096.MailLaunchServiceが担う。
  * </p>
  *
@@ -79,6 +85,9 @@ public class MailSendSomethingService {
 	/** bikouの「通知予定日」プレースホルダーキー */
 	private static final String NOTICE_TIME_PLACEHOLDER = "NOTICE_TIME";
 
+	/** bikouの「通知予定日」通知時間 */
+	private static final String NOTICE_TIME = "10:00:00";
+
 	/**
 	 * bikou内で複数値（複数リーグ名・複数日付）を連結する際の区切り文字。
 	 * <p>
@@ -99,6 +108,8 @@ public class MailSendSomethingService {
 	private MailSendBatchRepository mailSendBatchRepository;
 	@Autowired
 	private CountryLeagueSeasonMasterBatchRepository countryLeagueSeasonMasterBatchRepository;
+	@Autowired
+	private PutMailNoticeJson putMailNoticeJson;
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
 	@Autowired
@@ -255,8 +266,11 @@ public class MailSendSomethingService {
 		}
 
 		// 通知の送信予約
-		mailSendBatchService.send(mailId, sourceMailAddress,
+		String mailSendKey = mailSendBatchService.send(mailId, sourceMailAddress,
 				EXECUTED_AT_PLACEHOLDER + "=" + nowJst.toLocalDateTime());
+		// JSON格納
+		if (mailSendKey != null)
+			putJson(mailId, ScrapeCodeToMailEnum.S009.getScrapeCode(), mailSendKey);
 
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 				"ECS稼働開始/終了通知を登録しました mailId=" + mailId + " boundary=" + boundaryJst);
@@ -300,7 +314,8 @@ public class MailSendSomethingService {
 
 		List<LeagueSeasonEndDTO> endingLeagues;
 		try {
-			endingLeagues = countryLeagueSeasonMasterBatchRepository.findLeaguesEndingBetween(fromInclusive, toExclusive);
+			endingLeagues = countryLeagueSeasonMasterBatchRepository.findLeaguesEndingBetween(fromInclusive,
+					toExclusive);
 		} catch (Exception e) {
 			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 					"country_league_season_masterの取得に失敗したためシーズン終了間近通知はスキップします error=" + e.getMessage());
@@ -325,12 +340,21 @@ public class MailSendSomethingService {
 
 		OffsetDateTime nowJst = OffsetDateTime.now(jst);
 
+		// どの世界時間でもNOTICE_TIMEになるようにする
+		String noticeTime = LocalDate.now(jst)
+				.atTime(LocalTime.parse(NOTICE_TIME))
+				.atZone(jst)
+				.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
+
 		// 通知の送信予約
-		mailSendBatchService.send(BATCH_MAIL_ID_006, sourceMailAddress,
+		String mailSendKey = mailSendBatchService.send(BATCH_MAIL_ID_006, sourceMailAddress,
 				LEAGUE_NAME_PLACEHOLDER + "=" + leagueNames + ","
 						+ SEASON_END_DATE_PLACEHOLDER + "=" + seasonEndDates + ","
 						+ EXECUTED_AT_PLACEHOLDER + "=" + nowJst.toLocalDateTime() + ","
-						+ NOTICE_TIME_PLACEHOLDER + "=" + "10:00:00+0900");
+						+ NOTICE_TIME_PLACEHOLDER + "=" + noticeTime);
+		// JSON格納
+		if (mailSendKey != null)
+			putJson(BATCH_MAIL_ID_006, null, mailSendKey);
 
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 				"シーズン終了間近通知を登録しました mailId=" + BATCH_MAIL_ID_006 + " leagues=" + leagueNames);
@@ -358,6 +382,17 @@ public class MailSendSomethingService {
 		LocalDate registeredDateJst = corrected.atZone(
 				DateOffsetDecisionUtil.getZoneId()).toLocalDate();
 		return registeredDateJst.isEqual(todayJst);
+	}
+
+	/**
+	 * 処理キーを特定のJSONファイルに保存する
+	 * @param mailId
+	 * @param batchScrapeCd
+	 * @param mailProcessKey
+	 */
+	private void putJson(String mailId, String batchScrapeCd, String mailProcessKey) {
+		putMailNoticeJson.putJson(MailConvertS3BucketUtil
+				.getS3Bucket(mailId, batchScrapeCd), mailProcessKey);
 	}
 
 	/**
