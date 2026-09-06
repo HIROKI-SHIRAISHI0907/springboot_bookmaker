@@ -30,6 +30,8 @@ import dev.common.mail.PutMailNoticeJson;
 import dev.common.s3.S3Operator;
 import dev.common.util.DateOffsetDecisionUtil;
 import dev.common.util.MailConvertS3BucketUtil;
+import lombok.EqualsAndHashCode;
+import lombok.ToString;
 
 /**
  * MailSendSomethingServiceロジック
@@ -467,6 +469,8 @@ public class MailSendSomethingService {
 	/**
 	 * ECS停止時間帯（ecs_stop_intervals の1要素）。
 	 */
+	@EqualsAndHashCode
+	@ToString
 	private static final class EcsStopInterval {
 
 		private final OffsetDateTime start;

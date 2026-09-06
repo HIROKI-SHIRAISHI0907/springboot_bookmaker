@@ -2,32 +2,27 @@
 FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
 
-# まずpomだけ入れて依存解決をキャッシュ
+# まず POM だけ（キャッシュ効かせる）
 COPY bookmakers-parents/pom.xml bookmakers-parents/pom.xml
 COPY bookmakers-common-data/pom.xml bookmakers-common-data/pom.xml
-COPY bookmakers-batch/pom.xml bookmakers-batch/pom.xml
 COPY bookmakers-web/pom.xml bookmakers-web/pom.xml
-COPY bookmakers-app/pom.xml bookmakers-app/pom.xml
 
+# 親POMを modules 無視でローカルinstall
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f bookmakers-parents/pom.xml -DskipTests -Dmaven.test.skip=true dependency:go-offline
+    mvn -N -f bookmakers-parents/pom.xml -DskipTests -Dmaven.test.skip=true install
 
-# ソース投入 → ビルド
-COPY bookmakers-parents/ bookmakers-parents/
+# ソース投入
 COPY bookmakers-common-data/ bookmakers-common-data/
-COPY bookmakers-batch/ bookmakers-batch/
 COPY bookmakers-web/ bookmakers-web/
-COPY bookmakers-app/ bookmakers-app/
 
+# common-data → web
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f bookmakers-parents/pom.xml -DskipTests -Dmaven.test.skip=true clean package
+    mvn -f bookmakers-common-data/pom.xml -DskipTests -Dmaven.test.skip=true clean install && \
+    mvn -f bookmakers-web/pom.xml -DskipTests -Dmaven.test.skip=true clean package
 
-# 実行イメージ
 FROM eclipse-temurin:21-jre
 WORKDIR /app
-
-# web の jar だけ入れる（ここが重要）
 COPY --from=build /workspace/bookmakers-web/target/*.jar /app/web.jar
-
 EXPOSE 8080
-CMD ["java","-jar","/app/web.jar"]
+ENTRYPOINT ["java","-jar","/app/web.jar"]
+

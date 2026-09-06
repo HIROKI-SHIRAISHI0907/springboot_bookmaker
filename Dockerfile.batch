@@ -1,28 +1,30 @@
 # syntax=docker/dockerfile:1.6
+
 FROM maven:3.9.9-eclipse-temurin-21 AS build
 WORKDIR /workspace
 
+# まずPOMだけ先にコピー
 COPY bookmakers-parents/pom.xml bookmakers-parents/pom.xml
 COPY bookmakers-common-data/pom.xml bookmakers-common-data/pom.xml
 COPY bookmakers-batch/pom.xml bookmakers-batch/pom.xml
-COPY bookmakers-web/pom.xml bookmakers-web/pom.xml
-COPY bookmakers-app/pom.xml bookmakers-app/pom.xml
 
+# 親POMを local repo に入れる
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f bookmakers-parents/pom.xml -DskipTests -Dmaven.test.skip=true dependency:go-offline
+    mvn -f bookmakers-parents/pom.xml -N install
 
-COPY bookmakers-parents/ bookmakers-parents/
+# ソースコピー
 COPY bookmakers-common-data/ bookmakers-common-data/
 COPY bookmakers-batch/ bookmakers-batch/
-COPY bookmakers-web/ bookmakers-web/
-COPY bookmakers-app/ bookmakers-app/
+COPY bookmakers-parents/ bookmakers-parents/
 
+# common-data -> batch の順で build
 RUN --mount=type=cache,target=/root/.m2 \
-    mvn -f bookmakers-parents/pom.xml -DskipTests -Dmaven.test.skip=true clean package
+    mvn -f bookmakers-common-data/pom.xml -DskipTests -Dmaven.test.skip=true clean install && \
+    mvn -f bookmakers-batch/pom.xml -DskipTests -Dmaven.test.skip=true clean package
 
 FROM eclipse-temurin:21-jre
 WORKDIR /app
 
-COPY --from=build /workspace/bookmakers-batch/target/*.jar /app/batch.jar
+COPY --from=build /workspace/bookmakers-batch/target/bookmakers-batch-0.0.1-SNAPSHOT.jar app.jar
 
-CMD ["java","-jar","/app/batch.jar"]
+ENTRYPOINT ["java", "-jar", "/app/app.jar"]

@@ -67,7 +67,7 @@ public class AuthController {
 			return ResponseEntity.status(status).body(res);
 		}
 
-		int authFlg = res.getAuthFlg() == null ? 2 : res.getAuthFlg();
+		int authFlg = res.getAuthFlg() == null ? 3 : res.getAuthFlg();
 
 		List<String> roles;
 		switch (authFlg) {
@@ -75,6 +75,9 @@ public class AuthController {
 			roles = List.of("ROLE_ADMIN", "ROLE_USER");
 			break;
 		case 2:
+			roles = List.of("ROLE_ADMIN_SUB", "ROLE_USER");
+			break;
+		case 3:
 		default:
 			roles = List.of("ROLE_USER");
 			break;

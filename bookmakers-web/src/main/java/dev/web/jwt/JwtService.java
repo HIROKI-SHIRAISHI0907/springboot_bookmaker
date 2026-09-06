@@ -27,7 +27,7 @@ import com.auth0.jwt.interfaces.DecodedJWT;
  * "iat": 1761991494, 発行日時 (Issued At)
  * "exp": 1761995094, 有効期限
  * "sub": "testuser", 権限リスト
- * "roles": ["ROLE_USER", "ROLE_ADMIN"]
+ * "roles": ["ROLE_USER", "ROLE_ADMIN" "ROLE_ADMIN_SUB"]
  * }
  *
  * SIGNATURE

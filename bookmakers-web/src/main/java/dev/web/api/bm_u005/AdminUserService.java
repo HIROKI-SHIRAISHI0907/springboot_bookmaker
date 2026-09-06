@@ -50,14 +50,28 @@ public class AdminUserService {
                     .build();
         }
 
-        if (req.getAuthFlg() == null || !(req.getAuthFlg() == 1 || req.getAuthFlg() == 2)) {
+        if (req.getAuthFlg() == null || !(req.getAuthFlg() == 1 || req.getAuthFlg() == 2
+        		|| req.getAuthFlg() == 3)) {
             return AdminUserActionResponse.builder()
                     .responseCode("400")
-                    .message("authFlg は 1 または 2 を指定してください。")
+                    .message("authFlg は 1 〜 3 を指定してください。")
                     .build();
         }
 
-        int result = userRepository.updateAuthFlg(req.getUserId(), req.getAuthFlg(), "admin");
+        String op = null;
+        switch (req.getAuthFlg()) {
+		case 1: {
+			op = "admin";
+			break;
+		}
+		case 2: {
+			op = "admin_sub";
+			break;
+		}
+		default:
+			throw new IllegalArgumentException("Unexpected value: " + req.getAuthFlg());
+		}
+        int result = userRepository.updateAuthFlg(req.getUserId(), req.getAuthFlg(), op);
 
         if (result != 1) {
             return AdminUserActionResponse.builder()
@@ -75,6 +89,9 @@ public class AdminUserService {
     private String toAuthLabel(Integer authFlg) {
         if (authFlg != null && authFlg == 1) {
             return "管理者";
+        }
+        if (authFlg != null && authFlg == 2) {
+            return "担当者";
         }
         return "一般";
     }
