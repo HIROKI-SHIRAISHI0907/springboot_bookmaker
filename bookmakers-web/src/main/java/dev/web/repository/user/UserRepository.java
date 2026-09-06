@@ -1,7 +1,9 @@
 package dev.web.repository.user;
-
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -43,10 +45,8 @@ public class UserRepository {
             FROM users
             WHERE email = :email
         """;
-
         var params = new MapSqlParameterSource()
             .addValue("email", email);
-
         var list = jdbc.query(sql, params, (rs, rowNum) -> {
             UserRow u = new UserRow();
             u.userId = rs.getLong("user_id");
@@ -56,8 +56,71 @@ public class UserRepository {
             u.authFlg = rs.getObject("auth_flg", Integer.class);
             return u;
         });
-
         return list.stream().findFirst();
+    }
+
+    /**
+     * 承認フロー（依頼/指令）でJWTのsubject(email)からuserIdを解決するために使用する。
+     * @param email
+     * @return userIdが見つかった場合はOptionalに包んで返す。存在しない場合は空のOptional。
+     */
+    public Optional<Long> findUserIdByEmail(String email) {
+        String sql = """
+            SELECT
+                user_id
+            FROM users
+            WHERE email = :email
+        """;
+        var params = new MapSqlParameterSource()
+            .addValue("email", email);
+        var list = jdbc.query(sql, params, (rs, rowNum) -> rs.getLong("user_id"));
+        return list.stream().findFirst();
+    }
+
+    /**
+     * 指定したauthFlgのuser_id一覧を取得する。
+     * 承認フローで「指令」を発行する際、その時点の担当者(authFlg=2)全員へ一斉送信するために使用する。
+     * @param authFlg
+     * @return
+     */
+    public List<Long> findUserIdsByAuthFlg(Integer authFlg) {
+        String sql = """
+            SELECT
+                user_id
+            FROM users
+            WHERE "authFlg" = :authFlg
+            ORDER BY user_id
+        """;
+        var params = new MapSqlParameterSource()
+            .addValue("authFlg", authFlg);
+        return jdbc.query(sql, params, (rs, rowNum) -> rs.getLong("user_id"));
+    }
+
+    /**
+     * user_idの集合から、画面表示用の名称（nameが未設定ならemail）をまとめて取得する。
+     * 承認フロー一覧で、起票者・宛先の担当者の表示名を出すために使用する。
+     * @param userIds
+     * @return user_id をキーとした表示名のMap。存在しないuser_idはキーに含まれない。
+     */
+    public Map<Long, String> findUserNamesByUserIds(Collection<Long> userIds) {
+        if (userIds == null || userIds.isEmpty()) {
+            return Map.of();
+        }
+        String sql = """
+            SELECT
+                user_id,
+                COALESCE(name, email) AS display_name
+            FROM users
+            WHERE user_id IN (:userIds)
+        """;
+        var params = new MapSqlParameterSource()
+            .addValue("userIds", userIds);
+        List<Object[]> rows = jdbc.query(sql, params, (rs, rowNum) ->
+                new Object[] { rs.getLong("user_id"), rs.getString("display_name") });
+        return rows.stream()
+                .collect(Collectors.toMap(
+                        row -> (Long) row[0],
+                        row -> (String) row[1]));
     }
 
     /**
@@ -93,14 +156,12 @@ public class UserRepository {
             )
             RETURNING user_id
         """;
-
         var params = new MapSqlParameterSource()
             .addValue("email", email)
             .addValue("passwordHash", passwordHash)
             .addValue("name", name)
             .addValue("authFlg", authFlg)
             .addValue("op", operatorId);
-
         return jdbc.queryForObject(sql, params, Long.class);
     }
 
@@ -123,7 +184,6 @@ public class UserRepository {
                 COALESCE(name, email),
                 user_id
         """;
-
         return jdbc.query(sql, new MapSqlParameterSource(), (rs, rowNum) -> {
             UserAdminRow u = new UserAdminRow();
             u.userId = rs.getLong("user_id");
@@ -152,12 +212,10 @@ public class UserRepository {
                 update_time = CURRENT_TIMESTAMP
             WHERE user_id = :userId
         """;
-
         var params = new MapSqlParameterSource()
             .addValue("authFlg", authFlg)
             .addValue("userId", userId)
             .addValue("op", operatorId);
-
         return jdbc.update(sql, params);
     }
 
@@ -197,10 +255,8 @@ public class UserRepository {
         		users
             WHERE email = :email
         """;
-
         var params = new MapSqlParameterSource()
             .addValue("email", email);
-
         return jdbc.queryForObject(sql, params, Integer.class);
     }
 
