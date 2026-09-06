@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import dev.common.constant.S3Const;
 import dev.common.entity.MailInfoMasterEntity;
 import dev.common.entity.MailSendManagementEntity;
 import dev.common.enums.MailNoticeEnum;
@@ -350,6 +351,6 @@ public class MailSendService {
 	 */
 	private void putJson(String mailId, String batchScrapeCd, String mailProcessKey) {
 		putMailNoticeJson.putJson(MailConvertS3BucketUtil
-				.getS3Bucket(mailId, batchScrapeCd) + ".json", mailProcessKey);
+				.getS3Bucket(mailId, batchScrapeCd) + S3Const.JSON, mailProcessKey);
 	}
 }
