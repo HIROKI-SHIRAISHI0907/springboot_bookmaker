@@ -237,12 +237,6 @@ public class MailSendSomethingService {
 	        return;
 	    }
 
-		if (content == null || content.isBlank()) {
-			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-					"ecs_slotsが未生成のためECS稼働開始/終了通知はスキップします file=" + fileName);
-			return;
-		}
-
 		List<EcsStopInterval> intervals;
 		try {
 			intervals = parseStopIntervals(content);
@@ -261,6 +255,10 @@ public class MailSendSomethingService {
 				.orElse(null);
 
 		if (activeInterval != null) {
+			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME,
+					METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					"ECS停止時間帯に入っています。"
+					+ "file=" + fileName + " activeInterval=" + activeInterval);
 			// ECS停止時間帯に入っている → bm-mail-005（稼働終了）
 			// 「この停止時間帯が始まって以降」に既に登録済みでなければ新規登録する
 			notifyIfNotAlreadyRegistered(BATCH_MAIL_ID_005, activeInterval.start(), now);
@@ -274,6 +272,10 @@ public class MailSendSomethingService {
 				.orElse(null);
 
 		if (lastEnded != null) {
+			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME,
+					METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					"ECS稼働時間帯に入っています。"
+					+ "file=" + fileName + " activeInterval=" + activeInterval);
 			// 「このintervalが終わって以降」に既に登録済みでなければ新規登録する
 			notifyIfNotAlreadyRegistered(BATCH_MAIL_ID_004, lastEnded.end(), now);
 		}
