@@ -22,6 +22,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.batch.bm_b096.MailSendBatchService;
 import dev.batch.repository.bm.MailSendBatchRepository;
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
+import dev.common.config.PathConfig;
 import dev.common.constant.MessageCdConst;
 import dev.common.enums.ScrapeCodeToMailEnum;
 import dev.common.logger.ManageLoggerComponent;
@@ -63,9 +64,6 @@ public class MailSendSomethingService {
 
 	/** シーズン終了間近のリーグのお知らせ */
 	private static final String BATCH_MAIL_ID_006 = "bm-mail-006";
-
-	/** ecs_slots_yyyy-MM-dd.json が置かれているS3バケット名 */
-	private static final String ECS_SLOTS_BUCKET = "aws-s3-no-ecs-task-time-csv";
 
 	/** ecs_slots_yyyy-MM-dd.json のファイル名プレフィックス */
 	private static final String ECS_SLOTS_FILE_PREFIX = "ecs_slots_";
@@ -115,6 +113,8 @@ public class MailSendSomethingService {
 	@Autowired
 	private S3Operator s3Operator;
 	@Autowired
+	private PathConfig pathConfig;
+	@Autowired
 	private ObjectMapper objectMapper;
 
 	/** システム通知（ECS稼働開始/終了、シーズン終了間近など）の送信元兼送り先アドレス */
@@ -162,19 +162,81 @@ public class MailSendSomethingService {
 	 * @param callerMethodName 呼び出し元メソッド名（ログ用）
 	 */
 	private void checkEcsStopIntervalsAndNotify(String callerMethodName) {
-		final String METHOD_NAME = "checkEcsStopIntervalsAndNotify";
-		ZoneId jst = DateOffsetDecisionUtil.getZoneId();
-		LocalDate todayJst = LocalDate.now(jst);
-		String fileName = ECS_SLOTS_FILE_PREFIX + todayJst + ".json";
+	    final String METHOD_NAME = "checkEcsStopIntervalsAndNotify";
 
-		String content;
-		try {
-			content = s3Operator.downloadTextUtf8(ECS_SLOTS_BUCKET, fileName);
-		} catch (Exception e) {
-			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-					"ecs_slots取得に失敗したためECS稼働開始/終了通知はスキップします file=" + fileName + " error=" + e.getMessage());
-			return;
-		}
+	    ZoneId jst = DateOffsetDecisionUtil.getZoneId();
+	    LocalDate todayJst = LocalDate.now(jst);
+	    String fileName = ECS_SLOTS_FILE_PREFIX + todayJst + ".json";
+	    String bucket = pathConfig.getS3NoEcs();
+
+	    // ① 取得前の情報
+	    this.manageLoggerComponent.debugInfoLog(
+	            PROJECT_NAME,
+	            CLASS_NAME,
+	            METHOD_NAME,
+	            MessageCdConst.MCD00099I_LOG,
+	            "ecs_slots取得開始"
+	                    + " bucket=" + bucket
+	                    + " key=" + fileName
+	                    + " todayJst=" + todayJst
+	                    + " zone=" + jst
+	                    + " nowJst=" + OffsetDateTime.now(jst));
+
+	    String content;
+	    try {
+	        content = s3Operator.downloadTextUtf8(bucket, fileName);
+
+	        // ② 取得成功
+	        this.manageLoggerComponent.debugInfoLog(
+	                PROJECT_NAME,
+	                CLASS_NAME,
+	                METHOD_NAME,
+	                MessageCdConst.MCD00099I_LOG,
+	                "ecs_slots取得成功"
+	                        + " bucket=" + bucket
+	                        + " key=" + fileName
+	                        + " contentLength=" + (content == null ? null : content.length()));
+
+	    } catch (Exception e) {
+
+	        // ③ 失敗時に例外の根本原因まで確認
+	        Throwable rootCause = e;
+	        while (rootCause.getCause() != null) {
+	            rootCause = rootCause.getCause();
+	        }
+
+	        String errorDetail =
+	                "ecs_slots取得失敗"
+	                        + " bucket=" + bucket
+	                        + " key=" + fileName
+	                        + " exception=" + e.getClass().getName()
+	                        + " message=" + e.getMessage()
+	                        + " rootException=" + rootCause.getClass().getName()
+	                        + " rootMessage=" + rootCause.getMessage();
+
+	        this.manageLoggerComponent.debugInfoLog(
+	                PROJECT_NAME,
+	                CLASS_NAME,
+	                METHOD_NAME,
+	                MessageCdConst.MCD00099I_LOG,
+	                errorDetail);
+
+	        return;
+	    }
+
+	    if (content == null || content.isBlank()) {
+	        this.manageLoggerComponent.debugInfoLog(
+	                PROJECT_NAME,
+	                CLASS_NAME,
+	                METHOD_NAME,
+	                MessageCdConst.MCD00099I_LOG,
+	                "ecs_slotsが未生成のためECS稼働開始/終了通知はスキップします"
+	                        + " bucket=" + bucket
+	                        + " key=" + fileName
+	                        + " contentLength=" + (content == null ? null : content.length()));
+	        return;
+	    }
+
 		if (content == null || content.isBlank()) {
 			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 					"ecs_slotsが未生成のためECS稼働開始/終了通知はスキップします file=" + fileName);
