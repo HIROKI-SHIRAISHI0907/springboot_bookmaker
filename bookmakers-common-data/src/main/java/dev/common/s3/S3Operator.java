@@ -21,6 +21,7 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
+import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.core.ResponseInputStream;
 import software.amazon.awssdk.core.sync.RequestBody;
 import software.amazon.awssdk.services.s3.S3Client;
@@ -45,6 +46,7 @@ import software.amazon.awssdk.services.s3.model.S3Object;
  * @author shiraishitoshio
  */
 @Component
+@Slf4j
 public class S3Operator {
 
 	/** 統計CSVパターン */
@@ -435,15 +437,38 @@ public class S3Operator {
 	 * @return 存在すればtrue、存在しなければfalse
 	 */
 	public boolean existsOnS3(String bucket, String key) {
-		try {
-			s3.headObject(HeadObjectRequest.builder()
-					.bucket(bucket)
-					.key(key)
-					.build());
-			return true;
-		} catch (NoSuchKeyException e) {
-			return false;
-		}
+	    try {
+	        s3.headObject(
+	            HeadObjectRequest.builder()
+	                .bucket(bucket)
+	                .key(key)
+	                .build()
+	        );
+
+	        return true;
+
+	    } catch (NoSuchKeyException e) {
+	        return false;
+
+	    } catch (S3Exception e) {
+	        log.error(
+	            "S3 HEAD ERROR: bucket={}, key={}, statusCode={}, errorCode={}, message={}",
+	            bucket,
+	            key,
+	            e.statusCode(),
+	            e.awsErrorDetails() != null
+	                ? e.awsErrorDetails().errorCode()
+	                : null,
+	            e.getMessage(),
+	            e
+	        );
+
+	        if (e.statusCode() == 404) {
+	            return false;
+	        }
+
+	        throw e;
+	    }
 	}
 
 	/**
