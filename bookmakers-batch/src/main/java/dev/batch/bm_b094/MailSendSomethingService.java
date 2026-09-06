@@ -279,6 +279,11 @@ public class MailSendSomethingService {
 			// 「このintervalが終わって以降」に既に登録済みでなければ新規登録する
 			notifyIfNotAlreadyRegistered(BATCH_MAIL_ID_004, lastEnded.end(), now);
 		}
+
+		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME,
+				METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+				"対象外時間です。"
+				+ "file=" + fileName + " intervals=" + intervals);
 	}
 
 	/**
