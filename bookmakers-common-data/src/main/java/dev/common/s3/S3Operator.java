@@ -445,12 +445,28 @@ public class S3Operator {
 	                .build()
 	        );
 
+	        log.info(
+	            "S3 HEAD SUCCESS: bucket={}, key={}",
+	            bucket,
+	            key
+	        );
+
 	        return true;
 
 	    } catch (NoSuchKeyException e) {
+
+	        log.warn(
+	            "S3 HEAD NoSuchKey: bucket={}, key={}, message={}",
+	            bucket,
+	            key,
+	            e.getMessage(),
+	            e
+	        );
+
 	        return false;
 
 	    } catch (S3Exception e) {
+
 	        log.error(
 	            "S3 HEAD ERROR: bucket={}, key={}, statusCode={}, errorCode={}, message={}",
 	            bucket,
