@@ -14,6 +14,7 @@ import org.springframework.util.StringUtils;
 
 import dev.common.util.DateOffsetDecisionUtil;
 import dev.web.repository.user.ApproveFlowRepository;
+import dev.web.repository.user.NoticeRepository;
 import dev.web.repository.user.UserRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -22,6 +23,8 @@ import lombok.RequiredArgsConstructor;
  *
  * 依頼 : 担当者(authFlg=2) が起票し、管理者(authFlg=1) が承認 or 差し戻しする。
  *        申請者本人は、管理者が処理する前であれば取り消せる。
+ *        targetKind=NOTICE の依頼は「お知らせ登録の承認」を表し、承認されると
+ *        対象のお知らせ(notices)が自動的にPUBLISHEDになる（下記approveRequest参照）。
  * 指令 : 管理者(authFlg=1) が起票し、その時点の担当者(authFlg=2)全員へ一斉送信する。
  *        各担当者は確認のみ行える。宛先全員が確認済みになるとヘッダーも自動的に「確認済」になる。
  *        管理者は自分が出した指令を差し戻し・取り消しできる（理由はcommentに残す）。
@@ -40,6 +43,7 @@ public class AdminApproveService {
 
     private final ApproveFlowRepository approveFlowRepository;
     private final UserRepository userRepository;
+    private final NoticeRepository noticeRepository;
 
     // ==================================================================
     // 依頼（担当者 → 管理者）
@@ -101,10 +105,41 @@ public class AdminApproveService {
                 .build();
     }
 
+    /**
+     * 依頼を承認する。
+     * targetKind=NOTICE の依頼の場合、承認と同時に対象のお知らせ(notices)をPUBLISHEDにする。
+     * お知らせの公開に失敗した場合(対象が見つからない等)は、依頼のステータスも変更しない
+     * （@Transactionalなので、ここでエラーレスポンスを返す＝何もコミットされない）。
+     */
     @Transactional
     public AdminApproveActionResponse approveRequest(String approveId, Long adminUserId) {
-        return changeRequestStatus(approveId, ApproveFlowConstants.REVIEW_STATUS_APPROVED, null,
-                ApproveFlowConstants.REVIEW_STATUS_REQUESTED, "承認しました。");
+        AdminApproveEntity entity = approveFlowRepository.findByIdForUpdate(approveId);
+        if (entity == null || !ApproveFlowConstants.TYPE_REVIEW.equals(entity.getInstructionOrReview())) {
+            return notFound("対象の依頼が見つかりません。");
+        }
+        if (!ApproveFlowConstants.REVIEW_STATUS_REQUESTED.equals(entity.getFlowStatus())) {
+            return conflict("この依頼は既に処理済みです。");
+        }
+
+        if (ApproveFlowConstants.TARGET_KIND_NOTICE.equals(entity.getTargetKind())) {
+            Long noticeId;
+            try {
+                noticeId = Long.valueOf(entity.getTargetApprovementInfo());
+            } catch (NumberFormatException e) {
+                return badRequest("対象のお知らせIDが不正です。");
+            }
+            int published = noticeRepository.publish(noticeId, String.valueOf(adminUserId));
+            if (published != 1) {
+                return notFound("対象のお知らせが見つかりません。承認前に削除された可能性があります。");
+            }
+        }
+
+        approveFlowRepository.updateStatus(approveId, ApproveFlowConstants.REVIEW_STATUS_APPROVED, null);
+        return AdminApproveActionResponse.builder()
+                .responseCode("200")
+                .message("承認しました。")
+                .approveId(approveId)
+                .build();
     }
 
     @Transactional
