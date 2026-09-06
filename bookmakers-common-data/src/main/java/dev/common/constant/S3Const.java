@@ -13,4 +13,7 @@ public class S3Const {
 	/** 東京リージョン */
 	public static final String TOKYO_REGION_AP_NORTHEAST_1 = "ap-northeast-1";
 
+	/** JSON */
+	public static final String JSON = ".json";
+
 }
