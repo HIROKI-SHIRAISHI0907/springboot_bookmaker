@@ -24,6 +24,7 @@ import dev.batch.repository.bm.MailSendBatchRepository;
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
 import dev.common.config.PathConfig;
 import dev.common.constant.MessageCdConst;
+import dev.common.constant.S3Const;
 import dev.common.enums.ScrapeCodeToMailEnum;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.mail.PutMailNoticeJson;
@@ -463,7 +464,7 @@ public class MailSendSomethingService {
 	 */
 	private void putJson(String mailId, String batchScrapeCd, String mailProcessKey) {
 		putMailNoticeJson.putJson(MailConvertS3BucketUtil
-				.getS3Bucket(mailId, batchScrapeCd) + ".json", mailProcessKey);
+				.getS3Bucket(mailId, batchScrapeCd) + S3Const.JSON, mailProcessKey);
 	}
 
 	/**
