@@ -67,12 +67,12 @@ public enum ScrapeCodeToMailEnum {
 	}
 
 	/**
-	 * バッチコードからバッチ名を解決する。
+	 * スクレイピングコードからバッチ名を解決する。
 	 * 該当するバッチコードが無い場合は、コードそのものを返す
 	 * （紐付けが漏れていてもメール送信自体は止めないようにするため）。
 	 *
-	 * @param batchCode バッチコード（例: "S012"）
-	 * @return バッチ名（該当なしの場合はbatchCodeをそのまま返す）
+	 * @param scrapeCode バッチコード（例: "S012"）
+	 * @return バッチ名（該当なしの場合はscrapeCodeをそのまま返す）
 	 */
 	public static String resolveScrapeName(String scrapeCode) {
 		if (scrapeCode == null) {
