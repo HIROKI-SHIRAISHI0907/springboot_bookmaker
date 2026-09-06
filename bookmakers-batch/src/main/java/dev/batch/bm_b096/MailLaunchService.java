@@ -193,14 +193,15 @@ public class MailLaunchService {
 			// valueを解決
 			if (BATCH_NAME_PLACEHOLDER.equals(key))
 				value = BatchCodeToMailEnum.resolveBatchName(value);
+				bikouDto.setBatchScrapeCd(value);
 
 			if (SCRAPE_NAME_PLACEHOLDER.equals(key))
 				value = ScrapeCodeToMailEnum.resolveScrapeName(value);
+				bikouDto.setBatchScrapeCd(value);
 
 			result = result.replace("（" + key + "）", value);
 			result = result.replace("{{" + key + "}}", value);
 			bikouDto.setText(result);
-			bikouDto.setBatchScrapeCd(value);
 		}
 		return bikouDto;
 	}
