@@ -124,9 +124,6 @@ public class MailLaunchService {
 
 			// メール送信
 			try {
-				mailSendComponent.send(mailIdKeyDTO.getFromAddress(), envelopeFrom, toAddress,
-						mailSubject, mailBody);
-
 				// メールIDからバケット名に変換し、処理キーを通知済に上書きする
 				String s3Bucket = MailConvertS3BucketUtil.getS3Bucket(mailId, batchScrapeCd);
 				if (s3Bucket == null || s3Bucket.isBlank()) {
@@ -138,6 +135,9 @@ public class MailLaunchService {
 				    );
 				    continue;
 				}
+
+				mailSendComponent.send(mailIdKeyDTO.getFromAddress(), envelopeFrom, toAddress,
+						mailSubject, mailBody);
 
 				// メールID; bm-mail-001, bm-mail-006はbatchScrapeCdはnullの想定
 				putMailNoticeJson.updateNoticeCompleted(s3Bucket + ".json", mailSendKey);
