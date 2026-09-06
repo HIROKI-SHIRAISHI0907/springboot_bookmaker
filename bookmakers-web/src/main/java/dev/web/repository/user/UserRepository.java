@@ -1,5 +1,6 @@
 package dev.web.repository.user;
 
+import java.util.List;
 import java.util.Optional;
 
 import org.springframework.beans.factory.annotation.Qualifier;
@@ -14,7 +15,8 @@ import lombok.RequiredArgsConstructor;
  *
  * authFlg:
  * 1 = 管理者ユーザー
- * 2 = 一般ユーザー
+ * 2 = 担当者（管理者サブ）ユーザー
+ * 3 = 一般ユーザー
  *
  * @author shiraishitoshio
  */
@@ -200,6 +202,50 @@ public class UserRepository {
             .addValue("email", email);
 
         return jdbc.queryForObject(sql, params, Integer.class);
+    }
+
+    /**
+     * 権限変更の判定(管理者は最大1人・管理者/担当者が0人にならないことのチェック)を
+     * 安全に行うため、usersテーブル全行をSELECT FOR UPDATEでロックしたうえで取得する。
+     *
+     * <p>呼び出し側({@code AdminUserService#updateAuthFlg})は必ず{@code @Transactional}な
+     * メソッドの中からこれを呼び、取得したロックを保持したまま人数チェックと
+     * {@link #updateAuthFlg(Long, Integer, String)}呼び出しまでを行うこと。
+     * トランザクションがコミット/ロールバックされるまでロックは解放されないため、
+     * ほぼ同時に来た複数の権限変更リクエストは、このSELECTの時点で直列化される
+     * (先に来た方の更新が確定するまで、後続はここで待たされる)。
+     *
+     * <p>なお、管理者0人の状態から2人が同時に「自分を管理者にする」操作を行うケースを
+     * 正しく防ぐには、既存の管理者/担当者の行だけでなく、対象ユーザー(まだ一般ユーザーで
+     * 行がauthFlg=1/2ではない場合もある)を含めて競合しうる全行をロックする必要があるため、
+     * あえて対象を絞らずテーブル全体をロック対象としている。
+     * ユーザー数が非常に多くなる場合は、このテーブル全体ロックがボトルネックになりうる点に注意。
+     *
+     * @return usersテーブルの全行(ロック済み)
+     */
+    public List<UserAdminRow> findAllUsersForUpdate() {
+        String sql = """
+            SELECT
+                user_id,
+                email,
+                name,
+                "authFlg" AS auth_flg,
+                register_time,
+                update_time
+            FROM users
+            ORDER BY user_id
+            FOR UPDATE
+        """;
+        return jdbc.query(sql, new MapSqlParameterSource(), (rs, rowNum) -> {
+            UserAdminRow u = new UserAdminRow();
+            u.userId = rs.getLong("user_id");
+            u.email = rs.getString("email");
+            u.name = rs.getString("name");
+            u.authFlg = rs.getObject("auth_flg", Integer.class);
+            u.registerTime = rs.getTimestamp("register_time");
+            u.updateTime = rs.getTimestamp("update_time");
+            return u;
+        });
     }
 
     /**
