@@ -62,11 +62,10 @@ public class ApproveFlowRepository {
     // ------------------------------------------------------------
     // 依頼（担当者 → 管理者）
     // ------------------------------------------------------------
-
     public List<AdminApproveEntity> findRequests() {
         String sql = """
                 SELECT %s
-                FROM admin_approve
+                FROM approve_flow
                 WHERE instruction_or_review = :type
                 ORDER BY register_time DESC
                 """.formatted(APPROVE_COLUMNS);
@@ -76,7 +75,7 @@ public class ApproveFlowRepository {
     public List<AdminApproveEntity> findRequestsBySubmitter(Long fromUserId) {
         String sql = """
                 SELECT %s
-                FROM admin_approve
+                FROM approve_flow
                 WHERE instruction_or_review = :type
                   AND from_user_id = :fromUserId
                 ORDER BY register_time DESC
@@ -106,7 +105,7 @@ public class ApproveFlowRepository {
                 SELECT a.approve_id, a.instruction_or_review, a.from_user_id, a.target_kind,
                        a.target_approvement_info, a.flow_status, a.comment, a.register_time, a.update_time
                 FROM approve_flow a
-                JOIN admin_approve_recipient r ON r.approve_id = a.approve_id
+                JOIN approve_flow_recipient r ON r.approve_id = a.approve_id
                 WHERE a.instruction_or_review = :type
                   AND r.user_id = :userId
                 ORDER BY a.register_time DESC
@@ -118,9 +117,8 @@ public class ApproveFlowRepository {
     }
 
     // ------------------------------------------------------------
-    // ヘッダー（admin_approve）共通
+    // ヘッダー（approve_flow）共通
     // ------------------------------------------------------------
-
     public AdminApproveEntity findById(String approveId) {
         String sql = """
                 SELECT %s
@@ -282,6 +280,98 @@ public class ApproveFlowRepository {
                 "confirmed", ApproveFlowConstants.CHK_FLG_CONFIRMED);
         Integer count = jdbc.queryForObject(sql, params, Integer.class);
         return count == null ? 0 : count;
+    }
+
+    // ------------------------------------------------------------
+    // 担当者退会時の後始末（AdminApproveService#handleUserWithdrawal から使用）
+    // ------------------------------------------------------------
+
+    /**
+     * 退会した担当者〈userId〉が起票者の依頼のうち、「申請済」のものを「保留」にする。
+     * 「差し戻し」「承認」「取り消し」のものはそのまま変更しない。
+     *
+     * @return 更新件数
+     */
+    public int pendRequestsBySubmitter(Long fromUserId) {
+        String sql = """
+                UPDATE approve_flow
+                SET
+                  flow_status = :pending,
+                  update_time = CURRENT_TIMESTAMP
+                WHERE instruction_or_review = :type
+                  AND from_user_id = :fromUserId
+                  AND flow_status = :requested
+                """;
+        Map<String, Object> params = Map.of(
+                "pending", ApproveFlowConstants.REVIEW_STATUS_PENDING,
+                "type", ApproveFlowConstants.TYPE_REVIEW,
+                "fromUserId", fromUserId,
+                "requested", ApproveFlowConstants.REVIEW_STATUS_REQUESTED);
+        return jdbc.update(sql, params);
+    }
+
+    /**
+     * 退会した担当者〈userId〉が宛先になっている指令のapproveId一覧を取得する。
+     * ヘッダーのステータス再判定（{@link #revertConfirmedHeadersToUnconfirmed}）に使用するため、
+     * {@link #resetRecipientsToUnconfirmedByUser} で更新する前に呼び出すこと。
+     */
+    public List<String> findInstructionApproveIdsByRecipientUser(Long userId) {
+        String sql = """
+                SELECT approve_id
+                FROM approve_flow_recipient
+                WHERE user_id = :userId
+                """;
+        return jdbc.query(sql, Map.of("userId", userId), (rs, rowNum) -> rs.getString("approve_id"));
+    }
+
+    /**
+     * 退会した担当者〈userId〉の指令の宛先ごとの確認状況を、現在の値によらず強制的に「未確認」に戻す
+     * （「元々確認済だった場合は、未確認に上書き」という要件のため）。
+     *
+     * @return 更新件数
+     */
+    public int resetRecipientsToUnconfirmedByUser(Long userId) {
+        String sql = """
+                UPDATE approve_flow_recipient
+                SET
+                  chk_flg        = :unconfirmed,
+                  confirmed_time = NULL,
+                  update_time    = CURRENT_TIMESTAMP
+                WHERE user_id = :userId
+                """;
+        Map<String, Object> params = Map.of(
+                "unconfirmed", ApproveFlowConstants.CHK_FLG_UNCONFIRMED,
+                "userId", userId);
+        return jdbc.update(sql, params);
+    }
+
+    /**
+     * 指定したapproveIdのうち、ヘッダーが「確認済」だった指令を「未確認」に差し戻す。
+     * 「差し戻し」「取り消し」済みのヘッダーは対象外（そのまま変更しない）。
+     * 宛先の誰か（退会した担当者）の確認が取り消されたことで、
+     * 「全員確認済み」という不変条件が崩れた場合の後始末に使用する。
+     *
+     * @return 更新件数
+     */
+    public int revertConfirmedHeadersToUnconfirmed(List<String> approveIds) {
+        if (approveIds == null || approveIds.isEmpty()) {
+            return 0;
+        }
+        String sql = """
+                UPDATE approve_flow
+                SET
+                  flow_status = :unconfirmed,
+                  update_time = CURRENT_TIMESTAMP
+                WHERE approve_id IN (:approveIds)
+                  AND instruction_or_review = :type
+                  AND flow_status = :confirmed
+                """;
+        Map<String, Object> params = Map.of(
+                "unconfirmed", ApproveFlowConstants.INSTRUCTION_STATUS_UNCONFIRMED,
+                "approveIds", approveIds,
+                "type", ApproveFlowConstants.TYPE_INSTRUCTION,
+                "confirmed", ApproveFlowConstants.INSTRUCTION_STATUS_CONFIRMED);
+        return jdbc.update(sql, params);
     }
 
     // ------------------------------------------------------------

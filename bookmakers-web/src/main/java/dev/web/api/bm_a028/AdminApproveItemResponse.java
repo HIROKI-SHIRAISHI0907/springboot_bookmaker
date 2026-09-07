@@ -29,7 +29,7 @@ public class AdminApproveItemResponse {
 
     private String targetApprovementInfo;
 
-    /** 依頼: 申請済/承認/差し戻し/取り消し　指令: 未確認/確認済/差し戻し/取り消し */
+    /** 依頼: 申請済/承認/差し戻し/取り消し/保留(申請者〈担当者〉退会時)　指令: 未確認/確認済/差し戻し/取り消し */
     private String flowStatus;
 
     private String comment;

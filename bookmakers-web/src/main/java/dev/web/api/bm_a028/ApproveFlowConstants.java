@@ -40,6 +40,11 @@ public final class ApproveFlowConstants {
     public static final String REVIEW_STATUS_REJECTED = "差し戻し";
     /** 申請者（担当者本人）が取り消した */
     public static final String REVIEW_STATUS_CANCELLED = "取り消し";
+    /**
+     * 保留（申請済のまま申請者〈担当者〉が退会したため、管理者が処理を継続できなくなった状態）。
+     * {@code AdminApproveService#handleUserWithdrawal} 参照。
+     */
+    public static final String REVIEW_STATUS_PENDING = "保留";
 
     // ------------------------------------------------------------
     // flowStatus（指令）… ヘッダー全体の状態

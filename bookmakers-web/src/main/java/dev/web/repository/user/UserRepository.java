@@ -4,14 +4,11 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
-
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
-
 import lombok.RequiredArgsConstructor;
-
 /**
  * UserRepository
  *
@@ -25,10 +22,21 @@ import lombok.RequiredArgsConstructor;
 @Repository
 @RequiredArgsConstructor
 public class UserRepository {
-
     private final @Qualifier("webUserJdbcTemplate")
     NamedParameterJdbcTemplate jdbc;
 
+    /**
+     * 退会済みを表す "authFlg" の値。
+     *
+     * 【要確認】退会処理そのもの（担当者の "authFlg" をこの値に更新する処理）は
+     * 本リポジトリの外（例: AdminUserService 等、今回のzipには含まれていないクラス）で
+     * 行われる想定です。実際の退会処理が別の値を使っている場合は、この定数を
+     * 実装に合わせて修正してください。
+     */
+    public static final int AUTH_FLG_WITHDRAWN = 9;
+
+    /** 退会済みユーザーの表示名・メールアドレスの代わりに表示するマスク文字列。 */
+    private static final String WITHDRAWN_DISPLAY_NAME = "退会済み";
     /**
      * ログイン用
      * @param email
@@ -58,7 +66,6 @@ public class UserRepository {
         });
         return list.stream().findFirst();
     }
-
     /**
      * 承認フロー（依頼/指令）でJWTのsubject(email)からuserIdを解決するために使用する。
      * @param email
@@ -76,7 +83,6 @@ public class UserRepository {
         var list = jdbc.query(sql, params, (rs, rowNum) -> rs.getLong("user_id"));
         return list.stream().findFirst();
     }
-
     /**
      * 指定したauthFlgのuser_id一覧を取得する。
      * 承認フローで「指令」を発行する際、その時点の担当者(authFlg=2)全員へ一斉送信するために使用する。
@@ -95,10 +101,14 @@ public class UserRepository {
             .addValue("authFlg", authFlg);
         return jdbc.query(sql, params, (rs, rowNum) -> rs.getLong("user_id"));
     }
-
     /**
      * user_idの集合から、画面表示用の名称（nameが未設定ならemail）をまとめて取得する。
      * 承認フロー一覧で、起票者・宛先の担当者の表示名を出すために使用する。
+     *
+     * <p>対象ユーザーが退会済み（"authFlg" = {@link #AUTH_FLG_WITHDRAWN}）の場合は、
+     * name/emailの代わりに「{@value #WITHDRAWN_DISPLAY_NAME}」を返す
+     * （退会した担当者の名前・メールアドレスを非表示にする要件のため）。
+     *
      * @param userIds
      * @return user_id をキーとした表示名のMap。存在しないuser_idはキーに含まれない。
      */
@@ -109,12 +119,17 @@ public class UserRepository {
         String sql = """
             SELECT
                 user_id,
-                COALESCE(name, email) AS display_name
+                CASE
+                    WHEN "authFlg" = :withdrawnFlg THEN :withdrawnDisplayName
+                    ELSE COALESCE(name, email)
+                END AS display_name
             FROM users
             WHERE user_id IN (:userIds)
         """;
         var params = new MapSqlParameterSource()
-            .addValue("userIds", userIds);
+            .addValue("userIds", userIds)
+            .addValue("withdrawnFlg", AUTH_FLG_WITHDRAWN)
+            .addValue("withdrawnDisplayName", WITHDRAWN_DISPLAY_NAME);
         List<Object[]> rows = jdbc.query(sql, params, (rs, rowNum) ->
                 new Object[] { rs.getLong("user_id"), rs.getString("display_name") });
         return rows.stream()
@@ -122,7 +137,6 @@ public class UserRepository {
                         row -> (Long) row[0],
                         row -> (String) row[1]));
     }
-
     /**
      * 新規登録
      * @param email
@@ -164,7 +178,6 @@ public class UserRepository {
             .addValue("op", operatorId);
         return jdbc.queryForObject(sql, params, Long.class);
     }
-
     /**
      * ユーザー検索
      * @return
@@ -195,7 +208,6 @@ public class UserRepository {
             return u;
         });
     }
-
     /**
      * 権限変更
      * @param userId
@@ -218,7 +230,6 @@ public class UserRepository {
             .addValue("op", operatorId);
         return jdbc.update(sql, params);
     }
-
     /**
      * 新規のパスワードに更新する
      * @param email
@@ -241,7 +252,6 @@ public class UserRepository {
             .addValue("op", operatorId);
         return jdbc.update(sql, params);
     }
-
     /**
      * 存在するEmailか
      * @param email
@@ -259,7 +269,6 @@ public class UserRepository {
             .addValue("email", email);
         return jdbc.queryForObject(sql, params, Integer.class);
     }
-
     /**
      * 権限変更の判定(管理者は最大1人・管理者/担当者が0人にならないことのチェック)を
      * 安全に行うため、usersテーブル全行をSELECT FOR UPDATEでロックしたうえで取得する。
@@ -303,7 +312,6 @@ public class UserRepository {
             return u;
         });
     }
-
     /**
      * UserAdminRow
      *
@@ -321,7 +329,6 @@ public class UserRepository {
         public java.sql.Timestamp registerTime;
         public java.sql.Timestamp updateTime;
     }
-
     /**
      * UserRow
      *

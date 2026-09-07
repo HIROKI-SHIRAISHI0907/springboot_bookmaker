@@ -365,6 +365,47 @@ public class AdminApproveService {
     }
 
     // ==================================================================
+    // 担当者退会時の後始末
+    // ==================================================================
+
+    /**
+     * 担当者が退会した際に呼び出す処理。
+     *
+     * <p><b>呼び出し方</b>： 担当者の {@code users."authFlg"} を退会済みの値
+     * （{@link UserRepository#AUTH_FLG_WITHDRAWN}）に更新する既存の退会処理
+     * （本zipには含まれていない {@code AdminUserService} 等）の中から、
+     * 同一トランザクション内でこのメソッドを呼び出してください。
+     * {@code authFlg} の更新とこのメソッドの処理が同一トランザクションでコミット／
+     * ロールバックされないと、退会したのに依頼・指令の状態だけ更新されない
+     * （またはその逆の）不整合が起こり得ます。
+     *
+     * <p>行う処理（観点5に対応）：
+     * <ol>
+     *   <li>退会した担当者が起票した依頼のうち「申請済」のものを「保留」にする
+     *       （「差し戻し」のものはそのまま）。</li>
+     *   <li>退会した担当者が宛先の指令について、{@code admin_approve_recipient} の
+     *       確認状況を（元々「確認済」だった場合を含め）強制的に「未確認」に戻す。</li>
+     *   <li>2.の結果、宛先全員確認済みで「確認済」になっていた指令ヘッダーがあれば、
+     *       「未確認」に差し戻す（「差し戻し」「取り消し」済みのヘッダーは対象外）。</li>
+     * </ol>
+     *
+     * <p>退会した担当者の表示名・メールアドレスは、{@code authFlg} が退会済みの値に
+     * なっていれば {@link UserRepository#findUserNamesByUserIds} 側で自動的に
+     * 「退会済み」にマスクされるため、ここでの対応は不要。
+     *
+     * @param withdrawnUserId 退会した担当者のuser_id
+     */
+    @Transactional
+    public void handleUserWithdrawal(Long withdrawnUserId) {
+        approveFlowRepository.pendRequestsBySubmitter(withdrawnUserId);
+
+        List<String> affectedInstructionIds =
+                approveFlowRepository.findInstructionApproveIdsByRecipientUser(withdrawnUserId);
+        approveFlowRepository.resetRecipientsToUnconfirmedByUser(withdrawnUserId);
+        approveFlowRepository.revertConfirmedHeadersToUnconfirmed(affectedInstructionIds);
+    }
+
+    // ==================================================================
     // 共通処理
     // ==================================================================
 

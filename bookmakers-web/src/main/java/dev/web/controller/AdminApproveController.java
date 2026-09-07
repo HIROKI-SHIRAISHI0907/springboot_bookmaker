@@ -73,62 +73,19 @@ public class AdminApproveController {
     @GetMapping("/requests")
     public ResponseEntity<AdminApproveListResponse> listRequests(
             @RequestHeader(value = "Authorization", required = false) String authorizationHeader) {
-
-        log.info(
-                "[AdminApproveController#listRequests] START. authorizationPresent={}",
-                authorizationHeader != null);
-
         CurrentUser current = resolveCurrentUser(authorizationHeader);
-
         if (current == null) {
-            log.warn(
-                    "[AdminApproveController#listRequests] Unauthorized. resolveCurrentUser returned null");
-
             return unauthorizedList();
         }
-
-        log.info(
-                "[AdminApproveController#listRequests] CurrentUser. userId={}, email={}, roles={}",
-                current.userId,
-                current.email,
-                current.roles);
-
         AdminApproveListResponse res;
-
         if (current.roles.contains("ROLE_ADMIN")) {
-
-            log.info(
-                    "[AdminApproveController#listRequests] Get requests for ADMIN. userId={}",
-                    current.userId);
-
             res = approveService.getRequestsForAdmin();
-
         } else if (current.roles.contains("ROLE_ADMIN_SUB")) {
-
-            log.info(
-                    "[AdminApproveController#listRequests] Get requests for ADMIN_SUB. userId={}",
-                    current.userId);
-
             res = approveService.getMyRequests(current.userId);
-
         } else {
-
-            log.warn(
-                    "[AdminApproveController#listRequests] Forbidden. userId={}, roles={}",
-                    current.userId,
-                    current.roles);
-
             return forbiddenList("管理者または担当者のみ依頼一覧を確認できます。");
         }
-
-        log.info(
-                "[AdminApproveController#listRequests] END. responseCode={}, itemCount={}",
-                res.getResponseCode(),
-                res.getItems() == null ? 0 : res.getItems().size());
-
-        return ResponseEntity
-                .status(parseStatus(res.getResponseCode()))
-                .body(res);
+        return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
     }
 
     /** 管理者が依頼を承認する */
@@ -278,104 +235,25 @@ public class AdminApproveController {
     // 共通処理
     // ------------------------------------------------------------
 
-    /**
-     * Authorizationヘッダーからログイン中ユーザー（userId・roles）を解決する
-     */
+    /** Authorizationヘッダーからログイン中ユーザー（userId・roles）を解決する */
     private CurrentUser resolveCurrentUser(String authorizationHeader) {
-
-        // Authorizationヘッダー自体が存在しない
-        if (authorizationHeader == null) {
-            log.warn("[AdminApproveController#resolveCurrentUser] Authorization header is null");
+        if (authorizationHeader == null || !authorizationHeader.startsWith("Bearer ")) {
             return null;
         }
-
-        // Bearer形式ではない
-        if (!authorizationHeader.startsWith("Bearer ")) {
-            log.warn(
-                    "[AdminApproveController#resolveCurrentUser] Authorization header does not start with Bearer. prefix={}",
-                    authorizationHeader.length() >= 10
-                            ? authorizationHeader.substring(0, 10)
-                            : authorizationHeader);
-            return null;
-        }
-
         String token = authorizationHeader.substring("Bearer ".length()).trim();
-
-        // トークン自体はログに出さない
-        log.info(
-                "[AdminApproveController#resolveCurrentUser] Authorization received. tokenLength={}",
-                token.length());
-
-        if (token.isEmpty()) {
-            log.warn("[AdminApproveController#resolveCurrentUser] Bearer token is empty");
-            return null;
-        }
-
         try {
-            // JWT検証
             DecodedJWT decoded = jwtService.verifyToken(token);
-
-            log.info(
-                    "[AdminApproveController#resolveCurrentUser] JWT verification succeeded. subject={}",
-                    decoded.getSubject());
-
             String email = decoded.getSubject();
-
-            // roles取得
-            java.util.List<String> roles =
-                    decoded.getClaim("roles").asList(String.class);
-
-            log.info(
-                    "[AdminApproveController#resolveCurrentUser] JWT claims. subject={}, roles={}",
-                    email,
-                    roles);
-
-            if (email == null || email.isBlank()) {
-                log.warn(
-                        "[AdminApproveController#resolveCurrentUser] JWT subject is null or blank");
+            // JwtService#generateTokenで積んだ"roles"クレームを想定。実装に合わせて調整してください。
+            java.util.List<String> roles = decoded.getClaim("roles").asList(String.class);
+            // AuthController#loginのJWT subjectはemailのため、userIdへの変換が必要。
+            java.util.Optional<Long> userId = userRepository.findUserIdByEmail(email);
+            if (userId.isEmpty() || roles == null) {
                 return null;
             }
-
-            if (roles == null) {
-                log.warn(
-                        "[AdminApproveController#resolveCurrentUser] JWT roles claim is null. subject={}",
-                        email);
-                return null;
-            }
-
-            // email → userId
-            java.util.Optional<Long> userId =
-                    userRepository.findUserIdByEmail(email);
-
-            log.info(
-                    "[AdminApproveController#resolveCurrentUser] User lookup. email={}, userIdPresent={}",
-                    email,
-                    userId.isPresent());
-
-            if (userId.isEmpty()) {
-                log.warn(
-                        "[AdminApproveController#resolveCurrentUser] User not found by email. email={}",
-                        email);
-                return null;
-            }
-
-            CurrentUser currentUser =
-                    new CurrentUser(email, userId.get(), roles);
-
-            log.info(
-                    "[AdminApproveController#resolveCurrentUser] CurrentUser resolved. userId={}, roles={}",
-                    currentUser.userId,
-                    currentUser.roles);
-
-            return currentUser;
-
+            return new CurrentUser(email, userId.get(), roles);
         } catch (Exception e) {
-            log.warn(
-                    "[AdminApproveController#resolveCurrentUser] Token verification/resolution failed. exceptionType={}, message={}",
-                    e.getClass().getName(),
-                    e.getMessage(),
-                    e);
-
+            log.warn("トークン検証に失敗しました: {}", e.getMessage());
             return null;
         }
     }
