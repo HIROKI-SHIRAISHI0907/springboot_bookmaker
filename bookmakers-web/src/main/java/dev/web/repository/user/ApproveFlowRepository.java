@@ -145,11 +145,13 @@ public class ApproveFlowRepository {
         String sql = """
                 INSERT INTO approve_flow (
                   approve_id, instruction_or_review, from_user_id, target_kind,
-                  target_approvement_info, flow_status, comment, register_time, update_time
+                  target_approvement_info, flow_status, comment, register_id,
+                  register_time, update_id, update_time
                 )
                 VALUES (
                   :approveId, :instructionOrReview, :fromUserId, :targetKind,
-                  :targetApprovementInfo, :flowStatus, :comment, :registerTime, :updateTime
+                  :targetApprovementInfo, :flowStatus, :comment, 'SYSTEM',
+                  :registerTime, 'SYSTEM', :updateTime
                 )
                 """;
         Map<String, Object> params = new HashMap<>();
@@ -192,10 +194,12 @@ public class ApproveFlowRepository {
         }
         String sql = """
                 INSERT INTO approve_flow_recipient (
-                  approve_id, user_id, chk_flg, confirmed_time, register_time, update_time
+                  approve_id, user_id, chk_flg, confirmed_time, register_id,
+                  register_time, update_id, update_time
                 )
                 VALUES (
-                  :approveId, :userId, :chkFlg, :confirmedTime, :registerTime, :updateTime
+                  :approveId, :userId, :chkFlg, :confirmedTime, 'SYSTEM',
+                  :registerTime, 'SYSTEM', :updateTime
                 )
                 """;
         Map<String, Object>[] batchParams = recipients.stream()
