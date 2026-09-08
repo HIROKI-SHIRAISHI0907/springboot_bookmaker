@@ -3,14 +3,19 @@ package dev.web.exception;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.server.ResponseStatusException;
 
+import com.amazonaws.SdkClientException;
+
 import dev.common.util.DateUtil;
 import jakarta.servlet.http.HttpServletRequest;
+import software.amazon.awssdk.awscore.exception.AwsServiceException;
 
 /**
  * 例外ハンドラークラス
@@ -25,6 +30,14 @@ public class GlobalExceptionHandler {
      */
     private static final DateTimeFormatter JAPANESE_FORMAT =
             DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+    private static final Logger log = LoggerFactory.getLogger(GlobalExceptionHandler.class);
+
+    @ExceptionHandler(AwsCostException.class)
+    public ResponseEntity<ApiErrorResponse> handleAwsCostException(AwsCostException e) {
+        log.warn("AwsCostException: {}", e.getMessage());
+        return ResponseEntity.status(e.getHttpStatus()).body(new ApiErrorResponse(e.getMessage()));
+    }
 
     /**
      * ResponseStatusException はステータスを尊重して返す
@@ -50,6 +63,27 @@ public class GlobalExceptionHandler {
         return ResponseEntity
                 .status(statusCode)
                 .body(error);
+    }
+
+    @ExceptionHandler(AwsServiceException.class)
+    public ResponseEntity<ApiErrorResponse> handleAwsServiceException(AwsServiceException e) {
+        // 認証エラー(InvalidClientTokenId, AccessDenied等)はここに来る。
+        log.warn("AWS API error: {}", e.awsErrorDetails() != null ? e.awsErrorDetails().errorMessage() : e.getMessage());
+        String message = "AWSからエラーが返却されました。認証情報または権限(ce:GetCostAndUsage等)を確認してください。";
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY).body(new ApiErrorResponse(message));
+    }
+
+    @ExceptionHandler(SdkClientException.class)
+    public ResponseEntity<ApiErrorResponse> handleSdkClientException(SdkClientException e) {
+        log.warn("AWS SDK client error: {}", e.getMessage());
+        return ResponseEntity.status(HttpStatus.BAD_GATEWAY)
+                .body(new ApiErrorResponse("AWSへの接続に失敗しました。ネットワークまたは認証情報を確認してください。"));
+    }
+
+    @ExceptionHandler(Exception.class)
+    public ResponseEntity<ApiErrorResponse> handleUnknown(Exception e) {
+        log.error("Unexpected error", e);
+        return ResponseEntity.internalServerError().body(new ApiErrorResponse("予期しないエラーが発生しました。"));
     }
 
     /**
