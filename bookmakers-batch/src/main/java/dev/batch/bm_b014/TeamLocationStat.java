@@ -2,12 +2,15 @@ package dev.batch.bm_b014;
 
 import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
+
+import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.batch.interf.TeamLocationEntityIF;
 import dev.batch.repository.bm.BookDataRepository;
@@ -40,6 +43,12 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 
 	/** データテーブル取得件数 */
 	private static final int LIMIT = 200;
+
+	/** Pythonバッチ(B015)への入力JSONファイル名 */
+	private static final String GEOGRAFIC_INPUT_KEY = "b015_geografic_input.json";
+
+	/** JSON変換用 */
+	private static final ObjectMapper OBJECT_MAPPER = new ObjectMapper();
 
 	@Autowired
 	private BookDataRepository bookDataRepository; // bm
@@ -84,6 +93,9 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 			throw new Exception(messageCd, e);
 		}
 
+		if (readyFlg)
+			return;
+
 		insertPath.add("b015_team_location.csv");
 		insertPath.add("b015_geografic_input.json");
 
@@ -108,6 +120,8 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 		final String METHOD_NAME = "readyFlgTrue";
 		// dataテーブルの全件数を取得
 		int total = bookDataRepository.countStadium();
+
+		List<Map<String, String>> geoInputItems = new ArrayList<>();
 		for (int offset = 0; offset < total; offset += LIMIT) {
 			List<DataEntity> list = bookDataRepository.findStadium(LIMIT, offset);
 
@@ -164,6 +178,13 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 									+ " stadium=" + studium);
 				}
 
+				Map<String, String> geoItem = new LinkedHashMap<>();
+				geoItem.put("country", nvl(countryLeague.get(0)));
+				geoItem.put("teamName", nvl(homeTeamName));
+				geoItem.put("homeCity", nvl(location));
+				geoItem.put("stadium", nvl(studium));
+				geoInputItems.add(geoItem);
+
 				String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
 				this.manageLoggerComponent.debugInfoLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "登録件数: " + rows + "件, (国: " +
@@ -176,6 +197,7 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, "全体登録件数: " + countAll + "件");
 
+			uploadGeograficInputJson(geoInputItems);
 		}
 	}
 
@@ -221,6 +243,38 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 			TeamLocationEntity insertEntity = buildInsertEntity(aft);
 			teamLocationDBService.insertInBatch(insertEntity, fillChar);
 		}
+	}
+
+	/**
+	 * ★追加メソッド
+	 * 新規登録したスタジアムのリストをJSONに変換し、b015_geografic_input.jsonとしてS3へアップロードする。
+	 * (このファイルをPythonバッチ(B015)が読み込み、Google Places APIで緯度経度を取得してb015_team_location.csvを生成する)
+	 */
+	private void uploadGeograficInputJson(List<Map<String, String>> items) {
+	    final String METHOD_NAME = "uploadGeograficInputJson";
+
+	    if (items.isEmpty()) {
+	        manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+	                MessageCdConst.MCD00099I_LOG,
+	                "新規登録スタジアムなし。" + GEOGRAFIC_INPUT_KEY + " は作成しません。");
+	        return;
+	    }
+
+	    try {
+	        String json = OBJECT_MAPPER.writeValueAsString(items);
+	        String bucket = config.getS3Geografic();
+
+	        s3Operator.putJson(bucket, GEOGRAFIC_INPUT_KEY, json);
+
+	        manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+	                MessageCdConst.MCD00099I_LOG,
+	                GEOGRAFIC_INPUT_KEY + " をアップロードしました。件数=" + items.size());
+	    } catch (Exception e) {
+	        String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+	        manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e,
+	                GEOGRAFIC_INPUT_KEY + " のアップロードに失敗しました");
+	        throw new RuntimeException(messageCd, e);
+	    }
 	}
 
 	private TeamLocationEntity buildUpdateEntity(Integer id, TeamLocationEntity src) {
