@@ -75,15 +75,24 @@ public class TeamLocationBatch extends AbstractJobBatchTemplate {
 	 */
 	@Override
 	protected void doExecute(JobContext ctx) throws Exception {
-		// 地理データ情報を取得
-		List<TeamLocationEntity> listMap = this.geograficInfo.getData();
-		if (listMap == null || listMap.isEmpty()) {
-			endLog();
-			return;
-		}
+	    boolean readyFlg = ctx.readyFlg();
 
-		this.teamLocationStat.teamLocationStat(listMap, ctx.readyFlg());
-		endLog();
+	    if (readyFlg) {
+	        // 事前準備フェーズ：dataテーブルから直接登録するのでS3のCSVは不要
+	        this.teamLocationStat.teamLocationStat(java.util.Collections.emptyList(), true);
+	        endLog();
+	        return;
+	    }
+
+	    // ここに来るのは「Google Geografic APIの結果CSVを取り込む」フェーズのみ
+	    List<TeamLocationEntity> listMap = this.geograficInfo.getData();
+	    if (listMap == null || listMap.isEmpty()) {
+	        endLog();
+	        return;
+	    }
+
+	    this.teamLocationStat.teamLocationStat(listMap, false);
+	    endLog();
 	}
 
 	/**
