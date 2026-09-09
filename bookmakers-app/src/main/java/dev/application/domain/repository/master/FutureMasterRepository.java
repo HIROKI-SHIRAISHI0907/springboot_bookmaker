@@ -26,7 +26,8 @@ public interface FutureMasterRepository {
 			    	future_master
 			    WHERE
 			        home_team_name = #{homeTeamName} AND
-			        away_team_name = #{awayTeamName};
+			        away_team_name = #{awayTeamName}
+			       AND start_flg = '0'
 			""")
 	List<FutureEntity> findOnlyTeam(FutureEntity entity);
 

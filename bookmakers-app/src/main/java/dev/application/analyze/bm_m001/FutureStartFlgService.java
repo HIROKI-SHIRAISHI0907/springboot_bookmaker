@@ -109,6 +109,10 @@ public class FutureStartFlgService {
 		entity.setHomeTeamName(home);
 		entity.setAwayTeamName(away);
 		List<FutureEntity> findList = this.futureMasterRepository.findOnlyTeam(entity);
+		String messageCdLog = MessageCdConst.MCD00099I_LOG;
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCdLog, fillChar, "更新対象: " +
+						findList + "件");
 		if (!findList.isEmpty()) {
 			int result = this.futureMasterRepository.updateStartFlg(
 					findList.get(0).getSeq(), flg);
