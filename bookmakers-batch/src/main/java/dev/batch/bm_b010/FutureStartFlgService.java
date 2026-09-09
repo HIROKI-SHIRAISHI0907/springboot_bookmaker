@@ -11,7 +11,6 @@ import dev.batch.repository.master.FutureMasterRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
 import dev.common.entity.FutureEntity;
-import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
@@ -23,124 +22,217 @@ import dev.common.logger.ManageLoggerComponent;
 @Transactional
 public class FutureStartFlgService {
 
-    private static final String PROJECT_NAME = FutureStartFlgService.class.getProtectionDomain()
-            .getCodeSource().getLocation().getPath();
+	/** プロジェクト名 */
+	private static final String PROJECT_NAME = FutureStartFlgService.class.getProtectionDomain()
+			.getCodeSource().getLocation().getPath();
 
-    private static final String CLASS_NAME = FutureStartFlgService.class.getName();
+	/** クラス名 */
+	private static final String CLASS_NAME = FutureStartFlgService.class.getName();
 
-    private static final String STRAT_FLG_1 = "1";
+	/** 試合開始有効 */
+	private static final String STRAT_FLG_1 = "1";
 
-    @Autowired
-    private FutureMasterRepository futureMasterRepository;
+	/**
+	 * 未来データレポジトリ
+	 */
+	@Autowired
+	private FutureMasterRepository futureMasterRepository;
 
-    @Autowired
-    private RootCauseWrapper rootCauseWrapper;
+	/** ログ管理クラス */
+	@Autowired
+	private ManageLoggerComponent manageLoggerComponent;
 
-    @Autowired
-    private ManageLoggerComponent manageLoggerComponent;
+	/**
+	 * 実行メソッド
+	 * @param csvMap アプリケーション実行時にdataテーブルに登録されたデータ
+	 * @return 処理結果
+	 * @throws Exception
+	 */
+	public int execute(Map<String, List<DataEntity>> csvMap) throws Exception {
+		final String METHOD_NAME = "execute";
 
-    public int execute(Map<String, List<DataEntity>> csvMap) throws Exception {
-        final String METHOD_NAME = "execute";
+		// 時間計測開始
+		long startTime = System.nanoTime();
 
-        long startTime = System.nanoTime();
+		// ログ出力
+		this.manageLoggerComponent.debugStartInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-        this.manageLoggerComponent.debugStartInfoLog(
-                PROJECT_NAME, CLASS_NAME, METHOD_NAME, "start");
+		// futureデータがあるか
+		if (this.futureMasterRepository.findAll() == 0) {
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					String.format("データが存在しません（%s）", "future_master"));
 
-        if (this.futureMasterRepository.findAll() == 0) {
-            this.manageLoggerComponent.debugInfoLog(
-                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-                    MessageCdConst.MCD00099I_LOG,
-                    "データが存在しません（future_master）");
+			// endLog
+			this.manageLoggerComponent.debugEndInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-            this.manageLoggerComponent.debugEndInfoLog(
-                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, "end");
-            return 0;
-        }
+			return 0;
+		}
 
-        if (csvMap != null && !csvMap.isEmpty()) {
-            for (Map.Entry<String, List<DataEntity>> map : csvMap.entrySet()) {
-                List<DataEntity> list = map.getValue();
-                if (list != null && !list.isEmpty()) {
-                    String home = list.get(0).getHomeTeamName();
-                    String away = list.get(0).getAwayTeamName();
-                    if (home != null && away != null) {
-                        startFlgUpdate(home, away, STRAT_FLG_1);
-                    }
-                }
-            }
-        } else {
-            startFlgUpdate(STRAT_FLG_1);
-        }
+		// app実行時に登録されたデータに関する更新
+		if (csvMap != null && !csvMap.isEmpty()) {
+			for (Map.Entry<String, List<DataEntity>> map : csvMap.entrySet()) {
 
-        this.manageLoggerComponent.debugEndInfoLog(
-                PROJECT_NAME, CLASS_NAME, METHOD_NAME, "end");
+				List<DataEntity> list = map.getValue();
 
-        long endTime = System.nanoTime();
-        long durationMs = (endTime - startTime) / 1_000_000;
+				if (list == null || list.isEmpty()) {
+					continue;
+				}
 
-        this.manageLoggerComponent.debugInfoLog(
-                PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-                MessageCdConst.MCD00099I_LOG,
-                "処理時間(ms): " + durationMs);
+				// 1つのCSVにつき、有効な試合データを1件更新
+				for (DataEntity dto : list) {
 
-        return 0;
-    }
+					if (dto == null) {
+						continue;
+					}
 
-    private synchronized void startFlgUpdate(String home, String away, String flg) {
-        final String METHOD_NAME = "startFlgUpdate";
-        String fillChar = setLoggerFillChar(home, away);
+					String home = dto.getHomeTeamName();
+					String away = dto.getAwayTeamName();
 
-        FutureEntity entity = new FutureEntity();
-        entity.setHomeTeamName(home);
-        entity.setAwayTeamName(away);
+					if (home != null && away != null) {
+						startFlgUpdate(home, away, STRAT_FLG_1);
 
-        List<FutureEntity> findList = this.futureMasterRepository.findOnlyTeam(entity);
-        if (!findList.isEmpty()) {
-            int result = this.futureMasterRepository.updateStartFlg(findList.get(0).getSeq(), flg);
-            if (result != 1) {
-                String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
-                this.rootCauseWrapper.throwUnexpectedRowCount(
-                        PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-                        messageCd,
-                        1, result,
-                        String.format("home=%s, away=%s", home, away));
-            }
+						// 1つのCSVにつき1試合を更新
+						break;
+					}
+				}
+			}
+		}
 
-            this.manageLoggerComponent.debugInfoLog(
-                    PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-                    MessageCdConst.MCD00006I_UPDATE_SUCCESS,
-                    fillChar,
-                    "更新件数: 1件");
-        }
-    }
+		/*
+		 * future_timeを過ぎた試合は、
+		 * CSVの有無に関係なくstart_flg=1に更新する。
+		 */
+		startFlgUpdate(STRAT_FLG_1);
 
-    private synchronized void startFlgUpdate(String flg) {
-        final String METHOD_NAME = "startFlgUpdate";
-        int result = -99;
-        try {
-            result = this.futureMasterRepository.updateFutureTimeFlg(flg);
-        } catch (Exception e) {
-            String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
-            this.manageLoggerComponent.createSystemException(
-                    PROJECT_NAME,
-                    CLASS_NAME,
-                    METHOD_NAME,
-                    messageCd,
-                    null,
-                    e);
-        }
+		// endLog
+		this.manageLoggerComponent.debugEndInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-        this.manageLoggerComponent.debugInfoLog(
-                PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-                MessageCdConst.MCD00006I_UPDATE_SUCCESS,
-                "更新件数: " + result + "件");
-    }
+		// 時間計測終了
+		long endTime = System.nanoTime();
+		long durationMs = (endTime - startTime) / 1_000_000;
 
-    private String setLoggerFillChar(String home, String away) {
-        StringBuilder stringBuilder = new StringBuilder();
-        stringBuilder.append("ホーム: ").append(home).append(", ");
-        stringBuilder.append("アウェー: ").append(away);
-        return stringBuilder.toString();
-    }
+		System.out.println("時間: " + durationMs);
+
+		return 0;
+	}
+
+	/**
+	 * チーム名を指定して試合開始フラグを更新する。
+	 *
+	 * @param home ホームチーム
+	 * @param away アウェーチーム
+	 * @param flg 試合開始フラグ
+	 * @throws Exception 更新失敗時
+	 */
+	private synchronized void startFlgUpdate(
+			String home,
+			String away,
+			String flg) throws Exception {
+
+		final String METHOD_NAME = "startFlgUpdate";
+
+		String fillChar = setLoggerFillChar(home, away);
+
+		FutureEntity entity = new FutureEntity();
+		entity.setHomeTeamName(home);
+		entity.setAwayTeamName(away);
+
+		List<FutureEntity> findList =
+				this.futureMasterRepository.findOnlyTeam(entity);
+
+		String messageCdLog = MessageCdConst.MCD00099I_LOG;
+
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME,
+				CLASS_NAME,
+				METHOD_NAME,
+				messageCdLog,
+				fillChar,
+				"更新対象: " + findList.size() + "件");
+
+		if (!findList.isEmpty()) {
+
+			int result = this.futureMasterRepository.updateStartFlg(
+					findList.get(0).getSeq(),
+					flg);
+
+			if (result != 1) {
+
+				this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME,
+						CLASS_NAME,
+						METHOD_NAME,
+						messageCdLog,
+						fillChar + "試合予定時間: "
+								+ findList.get(0).getFutureTime());
+
+				String messageCd =
+						MessageCdConst.MCD00008E_UPDATE_FAILED;
+
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME,
+						CLASS_NAME,
+						METHOD_NAME,
+						messageCd,
+						null);
+
+				throw new Exception();
+			}
+
+			String messageCd =
+					MessageCdConst.MCD00006I_UPDATE_SUCCESS;
+
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					messageCd,
+					fillChar,
+					"更新件数: 1件");
+		}
+	}
+
+	/**
+	 * 現在時刻を過ぎた試合の試合開始フラグを更新する。
+	 *
+	 * @param flg 試合開始フラグ
+	 * @throws Exception 更新失敗時
+	 */
+	private synchronized void startFlgUpdate(String flg) throws Exception {
+
+		final String METHOD_NAME = "startFlgUpdate";
+
+		int result =
+				this.futureMasterRepository.updateFutureTimeFlg(flg);
+
+		String messageCd =
+				MessageCdConst.MCD00006I_UPDATE_SUCCESS;
+
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME,
+				CLASS_NAME,
+				METHOD_NAME,
+				messageCd,
+				"更新件数: " + result + "件");
+	}
+
+	/**
+	 * 埋め字設定
+	 *
+	 * @param home ホーム
+	 * @param away アウェー
+	 * @return ログ表示文字列
+	 */
+	private String setLoggerFillChar(String home, String away) {
+		StringBuilder stringBuilder = new StringBuilder();
+		stringBuilder.append("ホーム: " + home + ", ");
+		stringBuilder.append("アウェー: " + away);
+		return stringBuilder.toString();
+	}
 }
