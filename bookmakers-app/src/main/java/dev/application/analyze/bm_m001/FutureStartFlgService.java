@@ -1,4 +1,3 @@
-```java
 package dev.application.analyze.bm_m001;
 
 import java.util.List;
@@ -231,12 +230,9 @@ public class FutureStartFlgService {
 	 * @return ログ表示文字列
 	 */
 	private String setLoggerFillChar(String home, String away) {
-
 		StringBuilder stringBuilder = new StringBuilder();
-
 		stringBuilder.append("ホーム: " + home + ", ");
 		stringBuilder.append("アウェー: " + away);
-
 		return stringBuilder.toString();
 	}
 
