@@ -80,12 +80,6 @@ public class GlobalExceptionHandler {
                 .body(new ApiErrorResponse("AWSへの接続に失敗しました。ネットワークまたは認証情報を確認してください。"));
     }
 
-    @ExceptionHandler(Exception.class)
-    public ResponseEntity<ApiErrorResponse> handleUnknown(Exception e) {
-        log.error("Unexpected error", e);
-        return ResponseEntity.internalServerError().body(new ApiErrorResponse("予期しないエラーが発生しました。"));
-    }
-
     /**
      * 想定外の例外（全ての例外の最後の砦）
      */
