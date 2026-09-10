@@ -12,7 +12,12 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 import org.springframework.util.StringUtils;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+
+import dev.common.entity.MailInfoMasterEntity;
 import dev.common.util.DateOffsetDecisionUtil;
+import dev.web.mail.MailSendResponse;
+import dev.web.mail.MailSendService;
 import dev.web.repository.user.ApproveFlowRepository;
 import dev.web.repository.user.NoticeRepository;
 import dev.web.repository.user.UserRepository;
@@ -25,6 +30,9 @@ import lombok.RequiredArgsConstructor;
  *        申請者本人は、管理者が処理する前であれば取り消せる。
  *        targetKind=NOTICE の依頼は「お知らせ登録の承認」を表し、承認されると
  *        対象のお知らせ(notices)が自動的にPUBLISHEDになる（下記approveRequest参照）。
+ *        targetKind=MAIL_INFO の依頼は「メール情報登録の承認」を表し、承認されると
+ *        targetApprovementInfoにJSON文字列で保持しているメール情報が実際にメール情報マスタへ
+ *        登録される（担当者はメール情報登録画面から直接登録できないため、この依頼経由で登録する）。
  * 指令 : 管理者(authFlg=1) が起票し、その時点の担当者(authFlg=2)全員へ一斉送信する。
  *        各担当者は確認のみ行える。宛先全員が確認済みになるとヘッダーも自動的に「確認済」になる。
  *        管理者は自分が出した指令を差し戻し・取り消しできる（理由はcommentに残す）。
@@ -44,6 +52,9 @@ public class AdminApproveService {
     private final ApproveFlowRepository approveFlowRepository;
     private final UserRepository userRepository;
     private final NoticeRepository noticeRepository;
+    private final MailSendService mailSendService;
+
+    private final ObjectMapper objectMapper = new ObjectMapper();
 
     // ==================================================================
     // 依頼（担当者 → 管理者）
@@ -110,6 +121,10 @@ public class AdminApproveService {
      * targetKind=NOTICE の依頼の場合、承認と同時に対象のお知らせ(notices)をPUBLISHEDにする。
      * お知らせの公開に失敗した場合(対象が見つからない等)は、依頼のステータスも変更しない
      * （@Transactionalなので、ここでエラーレスポンスを返す＝何もコミットされない）。
+     * targetKind=MAIL_INFO の依頼の場合、承認と同時にtargetApprovementInfoに保持している
+     * メール情報を実際にメール情報マスタへ登録する（登録できて初めてメール一覧に出てくる）。
+     * 登録に失敗した場合(承認前に同じmailIdが別経路で登録された等)も、依頼のステータスは
+     * 変更しない。
      */
     @Transactional
     public AdminApproveActionResponse approveRequest(String approveId, Long adminUserId) {
@@ -131,6 +146,26 @@ public class AdminApproveService {
             int published = noticeRepository.publish(noticeId, String.valueOf(adminUserId));
             if (published != 1) {
                 return notFound("対象のお知らせが見つかりません。承認前に削除された可能性があります。");
+            }
+        }
+
+        if (ApproveFlowConstants.TARGET_KIND_MAIL_INFO.equals(entity.getTargetKind())) {
+            MailInfoMasterEntity mailInfo;
+            try {
+                mailInfo = objectMapper.readValue(entity.getTargetApprovementInfo(), MailInfoMasterEntity.class);
+            } catch (Exception e) {
+                return badRequest("対象のメール情報の内容が不正です。");
+            }
+            // regMailMaster自体がmailIdの重複チェック・実際のinsertまで行う。
+            // ここではその結果(responseCode/message)をそのまま依頼の承認結果として返す
+            // (承認済にできるのはinsertが成功した"200"の場合のみ)。
+            MailSendResponse regResult = mailSendService.regMailMaster(mailInfo);
+            if (!"200".equals(regResult.getResponseCode())) {
+                return AdminApproveActionResponse.builder()
+                        .responseCode(regResult.getResponseCode())
+                        .message(regResult.getMessage())
+                        .approveId(approveId)
+                        .build();
             }
         }
 
@@ -412,11 +447,21 @@ public class AdminApproveService {
     private String validateTarget(String targetKind, String targetApprovementInfo) {
         if (!StringUtils.hasText(targetKind)
                 || !(ApproveFlowConstants.TARGET_KIND_NOTICE.equals(targetKind)
-                        || ApproveFlowConstants.TARGET_KIND_SCREEN.equals(targetKind))) {
-            return "targetKind は NOTICE または SCREEN を指定してください。";
+                        || ApproveFlowConstants.TARGET_KIND_SCREEN.equals(targetKind)
+                        || ApproveFlowConstants.TARGET_KIND_MAIL_INFO.equals(targetKind))) {
+            return "targetKind は NOTICE、SCREEN または MAIL_INFO を指定してください。";
         }
         if (!StringUtils.hasText(targetApprovementInfo)) {
             return "targetApprovementInfo は必須です。";
+        }
+        if (ApproveFlowConstants.TARGET_KIND_MAIL_INFO.equals(targetKind)) {
+            // 起票の時点でJSONとして壊れていないかだけ検証しておく
+            // (実際のmailId重複チェック等はregMailMaster任せで、承認時に行う)。
+            try {
+                objectMapper.readValue(targetApprovementInfo, MailInfoMasterEntity.class);
+            } catch (Exception e) {
+                return "targetApprovementInfo(メール情報)の形式が不正です。";
+            }
         }
         return null;
     }

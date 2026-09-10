@@ -28,6 +28,13 @@ public final class ApproveFlowConstants {
     public static final String TARGET_KIND_NOTICE = "NOTICE";
     /** targetApprovementInfo に画面名（自由入力）が入る */
     public static final String TARGET_KIND_SCREEN = "SCREEN";
+    /**
+     * targetApprovementInfo に、メール情報登録内容(mailId/mailSubject/mailBody/fromAddress)を
+     * JSON文字列化したものが入る。担当者(ROLE_ADMIN_SUB)がメール情報登録画面から登録しようとした際、
+     * 直接登録する代わりにこのtargetKindで依頼を起票し、管理者(ROLE_ADMIN)の承認時に
+     * 実際のメール情報マスタへのinsertを行う({@code AdminApproveService#approveRequest}参照)。
+     */
+    public static final String TARGET_KIND_MAIL_INFO = "MAIL_INFO";
 
     // ------------------------------------------------------------
     // flowStatus（依頼）
