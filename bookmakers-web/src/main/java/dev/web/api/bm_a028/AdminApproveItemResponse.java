@@ -24,6 +24,8 @@ public class AdminApproveItemResponse {
 
     private String fromUserName;
 
+    private String toEmail;
+
     /** "NOTICE" or "SCREEN" */
     private String targetKind;
 

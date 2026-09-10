@@ -4,10 +4,12 @@ import java.util.List;
 import java.util.Map;
 import java.util.Optional;
 import java.util.stream.Collectors;
+
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
+
 import lombok.RequiredArgsConstructor;
 /**
  * UserRepository
@@ -89,17 +91,25 @@ public class UserRepository {
      * @param authFlg
      * @return
      */
-    public List<Long> findUserIdsByAuthFlg(Integer authFlg) {
+    @SuppressWarnings("unchecked")
+	public List<UserRow> findUserIdsByAuthFlg(Integer authFlg) {
         String sql = """
             SELECT
-                user_id
+                user_id,
+                email
             FROM users
             WHERE "authFlg" = :authFlg
             ORDER BY user_id
         """;
         var params = new MapSqlParameterSource()
             .addValue("authFlg", authFlg);
-        return jdbc.query(sql, params, (rs, rowNum) -> rs.getLong("user_id"));
+        var list = jdbc.query(sql, params, (rs, rowNum) -> {
+            UserRow u = new UserRow();
+            u.userId = rs.getLong("user_id");
+            u.email = rs.getString("email");
+            return u;
+        });
+        return (List<UserRow>) list.stream();
     }
     /**
      * user_idの集合から、画面表示用の名称（nameが未設定ならemail）をまとめて取得する。
@@ -112,31 +122,62 @@ public class UserRepository {
      * @param userIds
      * @return user_id をキーとした表示名のMap。存在しないuser_idはキーに含まれない。
      */
-    public Map<Long, String> findUserNamesByUserIds(Collection<Long> userIds) {
+    /**
+     * user_idの集合から、画面表示用の名称（nameが未設定ならemail）とemailをまとめて取得する。
+     *
+     * 承認フロー一覧で、起票者・宛先の担当者の表示名とメールアドレスを出すために使用する。
+     *
+     * <p>対象ユーザーが退会済み（"authFlg" = {@link #AUTH_FLG_WITHDRAWN}）の場合は、
+     * name/emailの代わりに「{@value #WITHDRAWN_DISPLAY_NAME}」を返す
+     * （退会した担当者の名前・メールアドレスを非表示にする要件のため）。
+     *
+     * @param userIds user_idの集合
+     * @return user_idをキーとした表示名・メールアドレスのMap。
+     *         存在しないuser_idはキーに含まれない。
+     */
+    public Map<Long, UserRowData> findUserNamesByUserIds(Collection<Long> userIds) {
+
         if (userIds == null || userIds.isEmpty()) {
             return Map.of();
         }
+
         String sql = """
             SELECT
                 user_id,
                 CASE
                     WHEN "authFlg" = :withdrawnFlg THEN :withdrawnDisplayName
                     ELSE COALESCE(name, email)
-                END AS display_name
+                END AS display_name,
+                CASE
+                    WHEN "authFlg" = :withdrawnFlg THEN :withdrawnDisplayName
+                    ELSE email
+                END AS email
             FROM users
             WHERE user_id IN (:userIds)
-        """;
+            """;
+
         var params = new MapSqlParameterSource()
             .addValue("userIds", userIds)
             .addValue("withdrawnFlg", AUTH_FLG_WITHDRAWN)
             .addValue("withdrawnDisplayName", WITHDRAWN_DISPLAY_NAME);
-        List<Object[]> rows = jdbc.query(sql, params, (rs, rowNum) ->
-                new Object[] { rs.getLong("user_id"), rs.getString("display_name") });
+
+        List<UserRowData> rows = jdbc.query(
+            sql,
+            params,
+            (rs, rowNum) -> new UserRowData(
+                rs.getLong("user_id"),
+                rs.getString("display_name"),
+                rs.getString("email")
+            )
+        );
+
         return rows.stream()
-                .collect(Collectors.toMap(
-                        row -> (Long) row[0],
-                        row -> (String) row[1]));
+        	    .collect(Collectors.toMap(
+        	        row -> row.userId,
+        	        row -> row
+        	    ));
     }
+
     /**
      * 新規登録
      * @param email
@@ -344,5 +385,25 @@ public class UserRepository {
         public String passwordHash;
         public String name;
         public Integer authFlg;
+    }
+
+    /**
+     * UserRowData
+     *
+     * authFlg:
+     * 1 = 管理者ユーザー
+     * 2 = 一般ユーザー
+     *
+     * @author shiraishitoshio
+     */
+    public static class UserRowData {
+    	public Long userId;
+        public String email;
+        public String displayName;
+    	public UserRowData(long userId, String displayName, String email) {
+            this.userId = userId;
+            this.displayName = displayName;
+            this.email = email;
+        }
     }
 }

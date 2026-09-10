@@ -351,6 +351,6 @@ public class MailSendService {
 	 */
 	private void putJson(String mailId, String batchScrapeCd, String mailProcessKey) {
 		putMailNoticeJson.putJson(MailConvertS3BucketUtil
-				.getS3Bucket(mailId, batchScrapeCd) + S3Const.JSON, mailProcessKey);
+				.getS3Bucket(mailId, batchScrapeCd, null) + S3Const.JSON, mailProcessKey);
 	}
 }
