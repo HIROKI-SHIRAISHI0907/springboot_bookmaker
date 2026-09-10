@@ -125,7 +125,7 @@ public class MailLaunchService {
 			// メール送信
 			try {
 				// メールIDからバケット名に変換し、処理キーを通知済に上書きする
-				String s3Bucket = MailConvertS3BucketUtil.getS3Bucket(mailId, batchScrapeCd);
+				String s3Bucket = MailConvertS3BucketUtil.getS3Bucket(mailId, batchScrapeCd, null);
 				if (s3Bucket == null || s3Bucket.isBlank()) {
 				    log.error("メールIDからS3バケットを特定できません。mailId={}, batchScrapeCd={}",
 				            mailId, batchScrapeCd);

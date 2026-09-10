@@ -13,13 +13,13 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Component;
 
 import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.batch.bm_b096.MailSendBatchService;
+import dev.batch.config.MailConfig;
 import dev.batch.repository.bm.MailSendBatchRepository;
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
 import dev.common.config.PathConfig;
@@ -116,13 +116,11 @@ public class MailSendSomethingService {
 	@Autowired
 	private S3Operator s3Operator;
 	@Autowired
+	private MailConfig mailConfig;
+	@Autowired
 	private PathConfig pathConfig;
 	@Autowired
 	private ObjectMapper objectMapper;
-
-	/** システム通知（ECS稼働開始/終了、シーズン終了間近など）の送信元兼送り先アドレス */
-	@Value("${mail.accounts.system.username}")
-	private String sourceMailAddress;
 
 	/**
 	 * 契機処理によるメール送信予約バッチ実行
@@ -338,7 +336,7 @@ public class MailSendSomethingService {
 		}
 
 		// 通知の送信予約
-		String mailSendKey = mailSendBatchService.send(mailId, sourceMailAddress,
+		String mailSendKey = mailSendBatchService.send(mailId, mailConfig.getSourceMailAddress(),
 				EXECUTED_AT_PLACEHOLDER + "=" + nowJst.toLocalDateTime());
 		// JSON格納
 		if (mailSendKey != null)
@@ -419,7 +417,7 @@ public class MailSendSomethingService {
 				.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
 
 		// 通知の送信予約
-		String mailSendKey = mailSendBatchService.send(BATCH_MAIL_ID_006, sourceMailAddress,
+		String mailSendKey = mailSendBatchService.send(BATCH_MAIL_ID_006, mailConfig.getSourceMailAddress(),
 				LEAGUE_NAME_PLACEHOLDER + "=" + leagueNames + ","
 						+ SEASON_END_DATE_PLACEHOLDER + "=" + seasonEndDates + ","
 						+ EXECUTED_AT_PLACEHOLDER + "=" + nowJst.toLocalDateTime() + ","
@@ -464,7 +462,7 @@ public class MailSendSomethingService {
 	 */
 	private void putJson(String mailId, String batchScrapeCd, String mailProcessKey) {
 		putMailNoticeJson.putJson(MailConvertS3BucketUtil
-				.getS3Bucket(mailId, batchScrapeCd) + S3Const.JSON, mailProcessKey);
+				.getS3Bucket(mailId, batchScrapeCd, null) + S3Const.JSON, mailProcessKey);
 	}
 
 	/**

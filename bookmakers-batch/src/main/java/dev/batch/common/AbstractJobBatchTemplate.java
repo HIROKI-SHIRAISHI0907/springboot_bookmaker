@@ -11,6 +11,7 @@ import dev.batch.interf.BatchIF;
 import dev.batch.interf.JobExecControlIF;
 import dev.batch.util.JobIdUtil;
 import dev.common.constant.BatchConstant;
+import dev.common.constant.S3Const;
 import dev.common.enums.BatchCodeToMailEnum;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.mail.PutMailNoticeJson;
@@ -292,7 +293,7 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 	 */
 	private void putJson(String mailId, String batchScrapeCd, String mailProcessKey) {
 		putMailNoticeJson.putJson(MailConvertS3BucketUtil
-				.getS3Bucket(mailId, batchScrapeCd), mailProcessKey);
+				.getS3Bucket(mailId, batchScrapeCd, null) + S3Const.JSON, mailProcessKey);
 	}
 
 	/**
