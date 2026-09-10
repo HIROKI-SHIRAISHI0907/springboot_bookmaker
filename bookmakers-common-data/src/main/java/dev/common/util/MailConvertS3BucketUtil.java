@@ -36,7 +36,12 @@ public class MailConvertS3BucketUtil {
 			MailIdConstant.BM_MAIL_005, List.of(
 					ScrapeCodeToMailEnum.S009.getScrapeCode()),
 			MailIdConstant.BM_MAIL_006, List.of(
-					S3BucketConstant.S3_NEXT_SEASON_INFO));
+					S3BucketConstant.S3_NEXT_SEASON_INFO),
+			MailIdConstant.BM_MAIL_XXX, List.of(
+					S3BucketConstant.S3_MAIL_ACCEPT,
+					S3BucketConstant.S3_MAIL_REJECT,
+					S3BucketConstant.S3_MAIL_CANCEL,
+					S3BucketConstant.S3_MAIL_INSTRUCTION));
 
 	/** バッチコードマップ */
 	private static final Map<String, String> BATCH_CONVERT_MAP = Map.of(
@@ -101,9 +106,10 @@ public class MailConvertS3BucketUtil {
 	 * MailIdConstant.BM_MAIL_001, MailIdConstant.BM_MAIL_006の場合はbatchScrapeCdParam==nullでもいい
 	 * @return
 	 */
-	public static String getS3Bucket(String mailId, String batchScrapeCdParam) {
+	public static String getS3Bucket(String mailId, String batchScrapeCdParam, String mixBucket) {
 		if (!MailIdConstant.BM_MAIL_001.equals(mailId) &&
-				!MailIdConstant.BM_MAIL_006.equals(mailId)) {
+				!MailIdConstant.BM_MAIL_006.equals(mailId) &&
+				!MailIdConstant.BM_MAIL_XXX.equals(mailId)) {
 			// バッチコード・スクレイピングコードが指定されている場合は、
 			// 指定されたコードからS3バケットを取得
 			if (batchScrapeCdParam != null) {
@@ -124,6 +130,15 @@ public class MailConvertS3BucketUtil {
 		if (batchScrapeCdList.size() == 1
 				&& batchScrapeCdList.get(0).startsWith("aws-s3")) {
 			return batchScrapeCdList.get(0);
+		}
+
+		// 複数S3バケット名が設定されている場合
+		if (batchScrapeCdList.size() == 2) {
+			for (String bkList : batchScrapeCdList) {
+				if (bkList.equals(mixBucket)) {
+					return bkList;
+				}
+			}
 		}
 
 		// バッチコード・スクレイピングコードからS3バケットを取得

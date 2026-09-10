@@ -61,4 +61,16 @@ public class S3BucketConstant {
 	/** S3_DELETE_INFO(バケットではないが、体裁を合わせるため。) */
 	public static final String S3_DELETE_INFO = "aws-s3-delete-info";
 
+	/** S3_MAIL_ACCEPT(バケットではないが、体裁を合わせるため。) */
+	public static final String S3_MAIL_ACCEPT = "aws-s3-mail-accept";
+
+	/** S3_MAIL_REJECT(バケットではないが、体裁を合わせるため。) */
+	public static final String S3_MAIL_REJECT = "aws-s3-mail-reject";
+
+	/** S3_MAIL_CANCEL(バケットではないが、体裁を合わせるため。) */
+	public static final String S3_MAIL_CANCEL = "aws-s3-mail-cancel";
+
+	/** S3_MAIL_INSTRUCTION(バケットではないが、体裁を合わせるため。) */
+	public static final String S3_MAIL_INSTRUCTION = "aws-s3-mail-instruction";
+
 }

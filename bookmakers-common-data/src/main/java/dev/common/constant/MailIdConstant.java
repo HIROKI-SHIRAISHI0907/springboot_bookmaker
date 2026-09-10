@@ -31,5 +31,8 @@ public class MailIdConstant {
 	/** BM_MAIL_007(【bm-stats-real】シーズン終了のお知らせ) */
 	public static final String BM_MAIL_007 = "bm-mail-007";
 
+	/** BM_MAIL_XXX(メール承認、差し戻し) */
+	public static final String BM_MAIL_XXX = "bm-mail-xxx";
+
 
 }
