@@ -19,9 +19,9 @@ import com.fasterxml.jackson.databind.JsonNode;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.batch.bm_b096.MailSendBatchService;
-import dev.batch.config.MailConfig;
 import dev.batch.repository.bm.MailSendBatchRepository;
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
+import dev.common.config.MailConfig;
 import dev.common.config.PathConfig;
 import dev.common.constant.MessageCdConst;
 import dev.common.constant.S3Const;
