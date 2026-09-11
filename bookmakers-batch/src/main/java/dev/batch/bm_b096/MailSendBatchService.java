@@ -1,7 +1,5 @@
 package dev.batch.bm_b096;
 
-import java.util.UUID;
-
 import org.springframework.stereotype.Service;
 
 import dev.batch.repository.bm.MailSendBatchRepository;
@@ -9,6 +7,7 @@ import dev.batch.repository.master.MailInfoMasterBatchRepository;
 import dev.common.entity.MailInfoMasterEntity;
 import dev.common.entity.MailSendManagementEntity;
 import dev.common.enums.MailNoticeEnum;
+import dev.common.util.ProcessKeyUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -54,7 +53,7 @@ public class MailSendBatchService {
 		;
 
 		// メール送信キーを取得
-		String mailSendKey = getMailSendKey();
+		String mailSendKey = ProcessKeyUtil.getMailSendKey();
 
 		MailSendManagementEntity management = new MailSendManagementEntity();
 		management.setMailSendKey(mailSendKey);
@@ -73,18 +72,6 @@ public class MailSendBatchService {
 			// 登録エラーは無視
 		}
 		return null;
-	}
-
-	/**
-	 * メール送信キーを定義する
-	 * すでに登録済のキーであれば再帰的に取得する
-	 *
-	 */
-	private String getMailSendKey() {
-		String mailSendKey = UUID.randomUUID().toString();
-		return (!mailSendBatchRepository.findByMailSendKey(mailSendKey).isEmpty())
-				? getMailSendKey()
-				: mailSendKey;
 	}
 
 }
