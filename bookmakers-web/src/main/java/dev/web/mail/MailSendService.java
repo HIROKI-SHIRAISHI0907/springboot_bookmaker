@@ -3,7 +3,6 @@ package dev.web.mail;
 
 import java.util.List;
 import java.util.Map;
-import java.util.UUID;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -16,6 +15,7 @@ import dev.common.entity.MailSendManagementEntity;
 import dev.common.enums.MailNoticeEnum;
 import dev.common.mail.PutMailNoticeJson;
 import dev.common.util.MailConvertS3BucketUtil;
+import dev.common.util.ProcessKeyUtil;
 import dev.web.jwt.JwtCurrentUserService;
 import dev.web.jwt.JwtCurrentUserService.CurrentUser;
 import dev.web.repository.bm.MailSendManagementRepository;
@@ -143,7 +143,7 @@ public class MailSendService {
 		MailSendResponse response = new MailSendResponse();
 
 		// メール送信キーを取得
-		String mailSendKey = getMailSendKey();
+		String mailSendKey = ProcessKeyUtil.getMailSendKey();
 		String mailId = mailInfo.getMailId();
 
 		MailSendManagementEntity management = new MailSendManagementEntity();
@@ -296,19 +296,6 @@ public class MailSendService {
 					return new RuntimeException(SYSTEM_ERROR_MESSAGE);
 				});
 		return mailInfo;
-	}
-
-	/**
-	 * メール送信キーを発行する。
-	 * すでに登録済のキーであれば再帰的に取得する。
-	 *
-	 * @return 未使用のメール送信キー
-	 */
-	private String getMailSendKey() {
-		String mailSendKey = UUID.randomUUID().toString();
-		return (!mailSendManagementRepository.findByMailSendKey(mailSendKey).isEmpty())
-				? getMailSendKey()
-				: mailSendKey;
 	}
 
 	/**
