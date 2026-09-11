@@ -231,7 +231,7 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 
 				// 送信できた処理キーをJSONに格納
 				if (mailSendKey != null)
-					putJson(BATCH_MAIL_ID, mailSendKey, batchCode());
+					putJson(BATCH_MAIL_ID, batchCode(), mailSendKey);
 			}
 
 			return BatchConstant.BATCH_SUCCESS;
