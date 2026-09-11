@@ -72,10 +72,10 @@ public class AuthController {
 		List<String> roles;
 		switch (authFlg) {
 		case 1:
-			roles = List.of("ROLE_ADMIN", "ROLE_USER");
+			roles = List.of("ROLE_ADMIN");
 			break;
 		case 2:
-			roles = List.of("ROLE_ADMIN_SUB", "ROLE_USER");
+			roles = List.of("ROLE_ADMIN_SUB");
 			break;
 		case 3:
 		default:
