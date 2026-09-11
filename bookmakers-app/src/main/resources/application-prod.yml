@@ -29,6 +29,15 @@ process:
       nextSeason: ${S3_NEXT_SEASON:aws-s3-next-season-info-csv}
       mail: ${S3_MAIL:aws-s3-mail}
       
+mail:
+  accounts: 
+    system:
+       username: hirokishiraishi73@gmail.com
+       password: jmvw lefi uddg tqfw
+    noreply:
+       username: no-reply@example.com
+       password: xxxxxxxxxxxxxxxx
+      
 batch:
   mode: ${BATCH_MODE:worker}
 
