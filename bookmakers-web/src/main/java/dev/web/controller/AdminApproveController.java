@@ -112,7 +112,7 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.approveRequest(approveId, current.userId);
 		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
-		if (!"200".equals(res.getResponseCode())) {
+		if ("200".equals(res.getResponseCode())) {
 			MailSendResponse response = mailSendService.sendSystemNotification(MailIdConstant.BM_MAIL_XXX,
 					current.email, null);
 			String mailSendKey = response.getMailSendKey();
@@ -141,7 +141,7 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.rejectRequest(approveId, current.userId, req.getComment());
 		// 差し戻しメールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
-		if (!"200".equals(res.getResponseCode())) {
+		if ("200".equals(res.getResponseCode())) {
 			MailSendResponse response = mailSendService.sendSystemNotification(MailIdConstant.BM_MAIL_XXX,
 					current.email, null);
 			String mailSendKey = response.getMailSendKey();
@@ -170,7 +170,7 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.cancelRequest(approveId, current.userId, req.getComment());
 		// 依頼取り消しメールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
-		if (!"200".equals(res.getResponseCode())) {
+		if ("200".equals(res.getResponseCode())) {
 			MailSendResponse response = mailSendService.sendSystemNotification(MailIdConstant.BM_MAIL_XXX,
 					current.email, null);
 			String mailSendKey = response.getMailSendKey();
@@ -202,7 +202,7 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.createInstruction(current.userId, req);
 		// 指令送信メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
-		if (!"200".equals(res.getResponseCode())) {
+		if ("200".equals(res.getResponseCode())) {
 			MailSendResponse response = mailSendService.sendSystemNotification(MailIdConstant.BM_MAIL_XXX,
 					current.email, null);
 			String mailSendKey = response.getMailSendKey();
@@ -270,7 +270,7 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.rejectInstruction(approveId, current.userId, req.getComment());
 		// 差し戻しメールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
-		if (!"200".equals(res.getResponseCode())) {
+		if ("200".equals(res.getResponseCode())) {
 			MailSendResponse response = mailSendService.sendSystemNotification(MailIdConstant.BM_MAIL_XXX,
 					current.email, null);
 			String mailSendKey = response.getMailSendKey();
@@ -299,7 +299,7 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.cancelInstruction(approveId, current.userId, req.getComment());
 		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
-		if (!"200".equals(res.getResponseCode())) {
+		if ("200".equals(res.getResponseCode())) {
 			MailSendResponse response = mailSendService.sendSystemNotification(MailIdConstant.BM_MAIL_XXX,
 					current.email, null);
 			String mailSendKey = response.getMailSendKey();
