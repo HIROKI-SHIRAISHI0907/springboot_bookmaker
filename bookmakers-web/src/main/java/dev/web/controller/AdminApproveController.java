@@ -18,6 +18,7 @@ import dev.common.constant.S3BucketConstant;
 import dev.common.constant.S3Const;
 import dev.common.mail.PutMailNoticeJson;
 import dev.common.util.MailConvertS3BucketUtil;
+import dev.common.util.ProcessKeyUtil;
 import dev.web.api.bm_a028.AdminApproveActionResponse;
 import dev.web.api.bm_a028.AdminApproveListResponse;
 import dev.web.api.bm_a028.AdminApproveService;
@@ -113,9 +114,16 @@ public class AdminApproveController {
 		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
 		if ("200".equals(res.getResponseCode())) {
-			MailSendResponse response = mailSendService.sendSystemNotification(MailIdConstant.BM_MAIL_XXX,
-					current.email, null);
-			String mailSendKey = response.getMailSendKey();
+			String keyId = res.getKeyId();
+			// お知らせなどメールID以外の場合はそのままメールJSONへ。
+			String mailSendKey = null;
+			if (keyId != null) {
+				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
+						current.email, null);
+				mailSendKey = response.getMailSendKey();
+			} else {
+				mailSendKey = ProcessKeyUtil.getMailSendKey();
+			}
 			if (mailSendKey != null)
 				putMailNoticeJson.putJson(MailConvertS3BucketUtil
 						.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null,
@@ -142,9 +150,16 @@ public class AdminApproveController {
 		// 差し戻しメールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
 		if ("200".equals(res.getResponseCode())) {
-			MailSendResponse response = mailSendService.sendSystemNotification(MailIdConstant.BM_MAIL_XXX,
-					current.email, null);
-			String mailSendKey = response.getMailSendKey();
+			String keyId = res.getKeyId();
+			// お知らせなどメールID以外の場合はそのままメールJSONへ。
+			String mailSendKey = null;
+			if (keyId != null) {
+				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
+						current.email, null);
+				mailSendKey = response.getMailSendKey();
+			} else {
+				mailSendKey = ProcessKeyUtil.getMailSendKey();
+			}
 			if (mailSendKey != null)
 				putMailNoticeJson.putJson(MailConvertS3BucketUtil
 						.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null,
@@ -171,9 +186,16 @@ public class AdminApproveController {
 		// 依頼取り消しメールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
 		if ("200".equals(res.getResponseCode())) {
-			MailSendResponse response = mailSendService.sendSystemNotification(MailIdConstant.BM_MAIL_XXX,
-					current.email, null);
-			String mailSendKey = response.getMailSendKey();
+			String keyId = res.getKeyId();
+			// お知らせなどメールID以外の場合はそのままメールJSONへ。
+			String mailSendKey = null;
+			if (keyId != null) {
+				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
+						current.email, null);
+				mailSendKey = response.getMailSendKey();
+			} else {
+				mailSendKey = ProcessKeyUtil.getMailSendKey();
+			}
 			if (mailSendKey != null)
 				putMailNoticeJson.putJson(MailConvertS3BucketUtil
 						.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null,
@@ -203,9 +225,16 @@ public class AdminApproveController {
 		// 指令送信メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
 		if ("200".equals(res.getResponseCode())) {
-			MailSendResponse response = mailSendService.sendSystemNotification(MailIdConstant.BM_MAIL_XXX,
-					current.email, null);
-			String mailSendKey = response.getMailSendKey();
+			String keyId = res.getKeyId();
+			// お知らせなどメールID以外の場合はそのままメールJSONへ。
+			String mailSendKey = null;
+			if (keyId != null) {
+				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
+						current.email, null);
+				mailSendKey = response.getMailSendKey();
+			} else {
+				mailSendKey = ProcessKeyUtil.getMailSendKey();
+			}
 			if (mailSendKey != null)
 				putMailNoticeJson.putJson(MailConvertS3BucketUtil
 						.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null,
@@ -271,9 +300,16 @@ public class AdminApproveController {
 		// 差し戻しメールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
 		if ("200".equals(res.getResponseCode())) {
-			MailSendResponse response = mailSendService.sendSystemNotification(MailIdConstant.BM_MAIL_XXX,
-					current.email, null);
-			String mailSendKey = response.getMailSendKey();
+			String keyId = res.getKeyId();
+			// お知らせなどメールID以外の場合はそのままメールJSONへ。
+			String mailSendKey = null;
+			if (keyId != null) {
+				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
+						current.email, null);
+				mailSendKey = response.getMailSendKey();
+			} else {
+				mailSendKey = ProcessKeyUtil.getMailSendKey();
+			}
 			if (mailSendKey != null)
 				putMailNoticeJson.putJson(MailConvertS3BucketUtil
 						.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null,
@@ -300,9 +336,16 @@ public class AdminApproveController {
 		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
 		if ("200".equals(res.getResponseCode())) {
-			MailSendResponse response = mailSendService.sendSystemNotification(MailIdConstant.BM_MAIL_XXX,
-					current.email, null);
-			String mailSendKey = response.getMailSendKey();
+			String keyId = res.getKeyId();
+			// お知らせなどメールID以外の場合はそのままメールJSONへ。
+			String mailSendKey = null;
+			if (keyId != null) {
+				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
+						current.email, null);
+				mailSendKey = response.getMailSendKey();
+			} else {
+				mailSendKey = ProcessKeyUtil.getMailSendKey();
+			}
 			if (mailSendKey != null)
 				putMailNoticeJson.putJson(MailConvertS3BucketUtil
 						.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null,

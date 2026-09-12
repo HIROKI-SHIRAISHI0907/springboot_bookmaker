@@ -158,10 +158,9 @@ public class AdminApproveService {
 			return conflict("この依頼は既に処理済みです。");
 		}
 
+		Long noticeId = null;
 		if (ApproveFlowConstants.TARGET_KIND_NOTICE.equals(
 				entity.getTargetKind())) {
-
-			Long noticeId;
 
 			try {
 				noticeId = Long.valueOf(entity.getTargetApprovementInfo());
@@ -180,7 +179,6 @@ public class AdminApproveService {
 		}
 
 		MailInfoMasterEntity mailInfo = null;
-
 		if (ApproveFlowConstants.TARGET_KIND_MAIL_INFO.equals(
 				entity.getTargetKind())) {
 
@@ -281,6 +279,7 @@ public class AdminApproveService {
 			String comment,
 			String requiredCurrentStatus,
 			String successMessage) {
+		MailInfoMasterEntity mailInfo = null;
 
 		AdminApproveEntity entity = approveFlowRepository.findByIdForUpdate(approveId);
 
@@ -302,6 +301,11 @@ public class AdminApproveService {
 		return AdminApproveActionResponse.builder()
 				.responseCode("200")
 				.message(successMessage)
+				.keyId(mailInfo != null ? mailInfo.getMailId() : null)
+				.toMailAddress(
+						mailInfo != null
+								? mailInfo.getFromAddress()
+								: null)
 				.approveId(approveId)
 				.build();
 	}
