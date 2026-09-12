@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -101,5 +102,27 @@ public class MailInfoMasterWebController {
 	public ResponseEntity<MailInfoMasterEntity> getMailMasterByMailId(
 			@PathVariable String mailId) {
 		return ResponseEntity.ok(service.getMailMasterByMailId(mailId));
+	}
+
+	/**
+	 * メール情報マスタのデータを削除する。
+	 *
+	 * DELETE /api/admin/mailinfo/{mailId}
+	 */
+	@DeleteMapping("/mailinfo/{mailId}")
+	public ResponseEntity<MailSendResponse> delete(
+			@PathVariable String mailId) {
+
+		MailSendResponse res = service.delMailMaster(mailId);
+
+		HttpStatus status = switch (res.getResponseCode()) {
+		case "200" -> HttpStatus.OK; // SUCCESS
+		case "400" -> HttpStatus.BAD_REQUEST; // 必須不足
+		case "404" -> HttpStatus.NOT_FOUND; // NOT_FOUND
+		case "409" -> HttpStatus.CONFLICT; // 使用中のため削除不可
+		default -> HttpStatus.INTERNAL_SERVER_ERROR; // ERROR
+		};
+
+		return ResponseEntity.status(status).body(res);
 	}
 }

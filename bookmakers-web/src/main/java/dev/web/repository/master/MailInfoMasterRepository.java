@@ -129,6 +129,18 @@ public class MailInfoMasterRepository {
 		return masterJdbcTemplate.update(sql, toParams(dto));
 	}
 
+	// --------------------------------------------------------
+	// 削除
+	// --------------------------------------------------------
+	public int delete(String mailId) {
+		String sql = """
+				    DELETE FROM mail_info_master
+				    WHERE
+				      mail_id = :mailId
+				""";
+		return masterJdbcTemplate.update(sql, new MapSqlParameterSource().addValue("mailId", mailId));
+	}
+
 	private MapSqlParameterSource toParams(MailInfoMasterEntity dto) {
 		return new MapSqlParameterSource()
 				.addValue("mailId", dto.getMailId())

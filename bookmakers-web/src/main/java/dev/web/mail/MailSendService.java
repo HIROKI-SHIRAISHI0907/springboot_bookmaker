@@ -1,10 +1,10 @@
-// dev/web/mail/MailSendService.java
 package dev.web.mail;
 
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
 
+import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
@@ -45,6 +45,10 @@ public class MailSendService {
 	private static final String SYSTEM_ERROR_MESSAGE = "システムエラーが起きました。システム管理者に連絡してください。";
 
 	private static final String DUPLICATE_MESSAGE = "登録されているメールIDです。";
+
+	private static final String NOT_FOUND_MESSAGE = "対象のメール情報が見つかりません。";
+
+	private static final String IN_USE_MESSAGE = "このメール情報は送信管理で使用されているため削除できません。";
 
 	private static final String ENVELOPE_ADDRESS = "no-reply@sample.com";
 
@@ -261,6 +265,46 @@ public class MailSendService {
 
 		response.setResponseCode("200");
 		response.setMessage("更新成功しました。");
+		return response;
+	}
+
+	/**
+	 * メール情報マスタのデータを削除する。
+	 * 既にメール送信管理（mail_send_management）で使用されているメールIDの場合、
+	 * DB制約（外部キー等）によりDataIntegrityViolationExceptionが発生する構成であれば
+	 * 409として扱い、削除不可であることを呼び出し元に伝える。
+	 *
+	 * @param mailId メールID
+	 * @return 削除結果
+	 */
+	public MailSendResponse delMailMaster(String mailId) {
+		MailSendResponse response = new MailSendResponse();
+
+		if (mailInfoMasterRepository.findById(mailId).isEmpty()) {
+			response.setResponseCode("404");
+			response.setMessage(NOT_FOUND_MESSAGE);
+			return response;
+		}
+
+		try {
+			int result = mailInfoMasterRepository.delete(mailId);
+			if (result != 1) {
+				response.setResponseCode("500");
+				response.setMessage("メール情報マスタを削除できませんでした。");
+				return response;
+			}
+		} catch (DataIntegrityViolationException e) {
+			response.setResponseCode("409");
+			response.setMessage(IN_USE_MESSAGE);
+			return response;
+		} catch (Exception e) {
+			response.setResponseCode("500");
+			response.setMessage(SYSTEM_ERROR_MESSAGE);
+			return response;
+		}
+
+		response.setResponseCode("200");
+		response.setMessage("削除成功しました。");
 		return response;
 	}
 
