@@ -138,8 +138,15 @@ public class AdminApproveService {
 	}
 
 	/**
-	 * 依頼を承認する。
-	 */
+     * 依頼を承認する。
+     * targetKind=NOTICE の依頼の場合、承認と同時に対象のお知らせ(notices)をPUBLISHEDにする。
+     * お知らせの公開に失敗した場合(対象が見つからない等)は、依頼のステータスも変更しない
+     * （@Transactionalなので、ここでエラーレスポンスを返す＝何もコミットされない）。
+     * targetKind=MAIL_INFO の依頼の場合、承認と同時にtargetApprovementInfoに保持している
+     * メール情報を実際にメール情報マスタへ登録する（登録できて初めてメール一覧に出てくる）。
+     * 登録に失敗した場合(承認前に同じmailIdが別経路で登録された等)も、依頼のステータスは
+     * 変更しない。
+     */
 	@Transactional
 	public AdminApproveActionResponse approveRequest(
 			String approveId,
@@ -272,6 +279,29 @@ public class AdminApproveService {
 				.approveId(approveId)
 				.build();
 	}
+
+	/**
+     * 担当者が自分の依頼を削除する。
+     * cancelRequestとは違い、approve_flowの行自体をDELETEする(復元不可)。
+     * ステータスは問わない(申請済/承認/差し戻し/取り消しのどれでも削除できる)。
+     * 自分が申請した依頼以外は削除できない。
+     */
+    @Transactional
+    public AdminApproveActionResponse deleteRequest(String approveId, Long requesterUserId) {
+        AdminApproveEntity entity = approveFlowRepository.findByIdForUpdate(approveId);
+        if (entity == null || !ApproveFlowConstants.TYPE_REVIEW.equals(entity.getInstructionOrReview())) {
+            return notFound("対象の依頼が見つかりません。");
+        }
+        if (!entity.getFromUserId().equals(requesterUserId)) {
+            return forbidden("自分が申請した依頼のみ削除できます。");
+        }
+        approveFlowRepository.deleteById(approveId);
+        return AdminApproveActionResponse.builder()
+                .responseCode("200")
+                .message("依頼を削除しました。")
+                .approveId(approveId)
+                .build();
+    }
 
 	private AdminApproveActionResponse changeRequestStatus(
 			String approveId,
@@ -655,14 +685,32 @@ public class AdminApproveService {
 	// ==================================================================
 
 	/**
-	 * 担当者が退会した際に呼び出す処理。
-	 *
-	 * <p>
-	 * 1. 退会した担当者が起票した申請済み依頼を保留にする。
-	 * 2. 退会した担当者宛ての指令を未確認に戻す。
-	 * 3. その結果、確認済みだった指令ヘッダーを未確認に戻す。
-	 * </p>
-	 */
+     * 担当者が退会した際に呼び出す処理。
+     *
+     * <p><b>呼び出し方</b>： 担当者の {@code users."authFlg"} を退会済みの値
+     * （{@link UserRepository#AUTH_FLG_WITHDRAWN}）に更新する既存の退会処理
+     * （本zipには含まれていない {@code AdminUserService} 等）の中から、
+     * 同一トランザクション内でこのメソッドを呼び出してください。
+     * {@code authFlg} の更新とこのメソッドの処理が同一トランザクションでコミット／
+     * ロールバックされないと、退会したのに依頼・指令の状態だけ更新されない
+     * （またはその逆の）不整合が起こり得ます。
+     *
+     * <p>行う処理（観点5に対応）：
+     * <ol>
+     *   <li>退会した担当者が起票した依頼のうち「申請済」のものを「保留」にする
+     *       （「差し戻し」のものはそのまま）。</li>
+     *   <li>退会した担当者が宛先の指令について、{@code admin_approve_recipient} の
+     *       確認状況を（元々「確認済」だった場合を含め）強制的に「未確認」に戻す。</li>
+     *   <li>2.の結果、宛先全員確認済みで「確認済」になっていた指令ヘッダーがあれば、
+     *       「未確認」に差し戻す（「差し戻し」「取り消し」済みのヘッダーは対象外）。</li>
+     * </ol>
+     *
+     * <p>退会した担当者の表示名・メールアドレスは、{@code authFlg} が退会済みの値に
+     * なっていれば {@link UserRepository#findUserNamesByUserIds} 側で自動的に
+     * 「退会済み」にマスクされるため、ここでの対応は不要。
+     *
+     * @param withdrawnUserId 退会した担当者のuser_id
+     */
 	@Transactional
 	public void handleUserWithdrawal(
 			Long withdrawnUserId) {

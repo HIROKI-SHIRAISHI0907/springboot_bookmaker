@@ -181,6 +181,20 @@ public class ApproveFlowRepository {
         return jdbc.update(sql, params);
     }
 
+    /**
+     * approve_flowの行自体を削除する。
+     * 「依頼」の削除機能(担当者が自分の依頼を完全に削除する)から使用する。
+     * 「指令」はapprove_flow_recipientに宛先行が紐づくため、このメソッドでは削除しない
+     * (必要になった場合はapprove_flow_recipientを先に削除するメソッドを別途用意すること)。
+     */
+    public int deleteById(String approveId) {
+        String sql = """
+                DELETE FROM approve_flow
+                WHERE approve_id = :approveId
+                """;
+        return jdbc.update(sql, Map.of("approveId", approveId));
+    }
+
     // ------------------------------------------------------------
     // 宛先（admin_approve_recipient）… 指令のみで使用
     // ------------------------------------------------------------

@@ -2,6 +2,7 @@ package dev.web.controller;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PatchMapping;
 import org.springframework.web.bind.annotation.PathVariable;
@@ -72,6 +73,25 @@ public class AdminApproveController {
 			return forbidden("担当者のみ依頼を起票できます。");
 		}
 		AdminApproveActionResponse res = approveService.createRequest(current.userId, req);
+		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
+		// レスポンスコードが200でない場合は何もしない
+		if ("200".equals(res.getResponseCode())) {
+			String keyId = res.getKeyId();
+			// お知らせなどメールID以外の場合はそのままメールJSONへ。
+			String mailSendKey = null;
+			if (keyId != null) {
+				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
+						current.email, null);
+				mailSendKey = response.getMailSendKey();
+			} else {
+				mailSendKey = ProcessKeyUtil.getMailSendKey();
+			}
+			if (mailSendKey != null)
+				putMailNoticeJson.putJson(MailConvertS3BucketUtil
+						.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null,
+								S3BucketConstant.S3_MAIL_ACCEPT)
+						+ S3Const.JSON, mailSendKey);
+		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
 
@@ -113,6 +133,7 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.approveRequest(approveId, current.userId);
 		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
+		log.info("承認レスポンス: {}" + res);
 		if ("200".equals(res.getResponseCode())) {
 			String keyId = res.getKeyId();
 			// お知らせなどメールID以外の場合はそのままメールJSONへ。
@@ -200,6 +221,46 @@ public class AdminApproveController {
 				putMailNoticeJson.putJson(MailConvertS3BucketUtil
 						.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null,
 								S3BucketConstant.S3_MAIL_CANCEL)
+						+ S3Const.JSON, mailSendKey);
+		}
+		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
+	}
+
+	/**
+	 * 担当者が自分の依頼を削除する。
+	 * 「取り消す」(cancel)とは異なり、approve_flowの行自体を完全に削除する(復元不可)。
+	 * ステータスは問わない(申請済でも、既に承認/差し戻し/取り消し済みでも削除可能)。
+	 * 自分が申請した依頼以外は削除できない(AdminApproveService#deleteRequestでチェック)。
+	 */
+	@DeleteMapping("/requests/{approveId}")
+	public ResponseEntity<AdminApproveActionResponse> deleteRequest(
+			@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
+			@PathVariable String approveId) {
+		CurrentUser current = resolveCurrentUser(authorizationHeader);
+		if (current == null) {
+			return unauthorized();
+		}
+		if (!current.roles.contains("ROLE_ADMIN_SUB")) {
+			return forbidden("担当者のみ依頼を削除できます。");
+		}
+		AdminApproveActionResponse res = approveService.deleteRequest(approveId, current.userId);
+		// 依頼削除メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
+		// レスポンスコードが200でない場合は何もしない
+		if ("200".equals(res.getResponseCode())) {
+			String keyId = res.getKeyId();
+			// お知らせなどメールID以外の場合はそのままメールJSONへ。
+			String mailSendKey = null;
+			if (keyId != null) {
+				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
+						current.email, null);
+				mailSendKey = response.getMailSendKey();
+			} else {
+				mailSendKey = ProcessKeyUtil.getMailSendKey();
+			}
+			if (mailSendKey != null)
+				putMailNoticeJson.putJson(MailConvertS3BucketUtil
+						.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null,
+								S3BucketConstant.S3_MAIL_DELETE)
 						+ S3Const.JSON, mailSendKey);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
