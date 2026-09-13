@@ -133,7 +133,7 @@ public class MailConvertS3BucketUtil {
 		}
 
 		// 複数S3バケット名が設定されている場合
-		if (batchScrapeCdList.size() == 2) {
+		if (batchScrapeCdList.size() >= 2) {
 			for (String bkList : batchScrapeCdList) {
 				if (bkList.equals(mixBucket)) {
 					return bkList;

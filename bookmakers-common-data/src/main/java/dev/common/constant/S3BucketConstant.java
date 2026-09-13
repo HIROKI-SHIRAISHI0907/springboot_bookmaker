@@ -73,4 +73,7 @@ public class S3BucketConstant {
 	/** S3_MAIL_INSTRUCTION(バケットではないが、体裁を合わせるため。) */
 	public static final String S3_MAIL_INSTRUCTION = "aws-s3-mail-instruction";
 
+	/** S3_MAIL_DELETE(バケットではないが、体裁を合わせるため。) */
+	public static final String S3_MAIL_DELETE = "aws-s3-mail-delete";
+
 }
