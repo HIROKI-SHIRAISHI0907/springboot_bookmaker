@@ -1,5 +1,6 @@
 package dev.web.mail;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.stream.Collectors;
@@ -126,9 +127,10 @@ public class MailSendService {
 				});
 
 		// placeHoldersのvalue側(B or S始まりのコード)だけをまとめる
-		List<String> placeholderValues = placeholders.values().stream()
+		List<String> placeholderValues = (placeholders != null && !placeholders.isEmpty())
+				? placeholders.values().stream()
 		        .filter(v -> v != null && (v.startsWith("B") || v.startsWith("S")))
-		        .collect(Collectors.toList());
+		        .collect(Collectors.toList()) : new ArrayList<String>();
 
 		return insertManagement(mailInfo, toAddress, toBikou(placeholders), placeholderValues);
 	}

@@ -75,6 +75,7 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.createRequest(current.userId, req);
 		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
+		log.info("依頼起票レスポンス: ユーザー:({}),レスポンス:({})" , current, res);
 		if ("200".equals(res.getResponseCode())) {
 			String keyId = res.getKeyId();
 			// お知らせなどメールID以外の場合はそのままメールJSONへ。
@@ -133,7 +134,7 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.approveRequest(approveId, current.userId);
 		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
-		log.info("承認レスポンス: {}" + res);
+		log.info("依頼承認レスポンス: ユーザー:({}),レスポンス:({})" , current, res);
 		if ("200".equals(res.getResponseCode())) {
 			String keyId = res.getKeyId();
 			// お知らせなどメールID以外の場合はそのままメールJSONへ。
@@ -170,6 +171,7 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.rejectRequest(approveId, current.userId, req.getComment());
 		// 差し戻しメールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
+		log.info("依頼差し戻しレスポンス: ユーザー:({}),レスポンス:({})" , current, res);
 		if ("200".equals(res.getResponseCode())) {
 			String keyId = res.getKeyId();
 			// お知らせなどメールID以外の場合はそのままメールJSONへ。
@@ -206,6 +208,7 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.cancelRequest(approveId, current.userId, req.getComment());
 		// 依頼取り消しメールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
+		log.info("依頼取り消しレスポンス: ユーザー:({}),レスポンス:({})" , current, res);
 		if ("200".equals(res.getResponseCode())) {
 			String keyId = res.getKeyId();
 			// お知らせなどメールID以外の場合はそのままメールJSONへ。
@@ -246,6 +249,7 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.deleteRequest(approveId, current.userId);
 		// 依頼削除メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
+		log.info("依頼削除レスポンス: ユーザー:({}),レスポンス:({})" , current, res);
 		if ("200".equals(res.getResponseCode())) {
 			String keyId = res.getKeyId();
 			// お知らせなどメールID以外の場合はそのままメールJSONへ。
@@ -285,6 +289,7 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.createInstruction(current.userId, req);
 		// 指令送信メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
+		log.info("指令発行レスポンス: ユーザー:({}),レスポンス:({})" , current, res);
 		if ("200".equals(res.getResponseCode())) {
 			String keyId = res.getKeyId();
 			// お知らせなどメールID以外の場合はそのままメールJSONへ。
@@ -360,6 +365,7 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.rejectInstruction(approveId, current.userId, req.getComment());
 		// 差し戻しメールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
+		log.info("指令差し戻しレスポンス: ユーザー:({}),レスポンス:({})" , current, res);
 		if ("200".equals(res.getResponseCode())) {
 			String keyId = res.getKeyId();
 			// お知らせなどメールID以外の場合はそのままメールJSONへ。
@@ -396,6 +402,7 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.cancelInstruction(approveId, current.userId, req.getComment());
 		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
+		log.info("指令取り消しレスポンス: ユーザー:({}),レスポンス:({})" , current, res);
 		if ("200".equals(res.getResponseCode())) {
 			String keyId = res.getKeyId();
 			// お知らせなどメールID以外の場合はそのままメールJSONへ。
