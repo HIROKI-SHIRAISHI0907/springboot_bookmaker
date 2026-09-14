@@ -100,7 +100,8 @@ public class AdminApproveController {
 				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 				placeholders.put("APPROVE_ID", res.getApproveId());
 				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, placeholders, false);
+						current.email, placeholders,
+						(res.getKeyId() != null) ? true : false);
 				mailSendKey = response.getMailSendKey();
 			} else {
 				mailSendKey = ProcessKeyUtil.getMailSendKey();
@@ -171,7 +172,8 @@ public class AdminApproveController {
 				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 				placeholders.put("APPROVE_ID", res.getApproveId());
 				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, placeholders, false);
+						current.email, placeholders,
+						(res.getKeyId() != null) ? true : false);
 				mailSendKey = response.getMailSendKey();
 			} else {
 				mailSendKey = ProcessKeyUtil.getMailSendKey();
@@ -221,7 +223,8 @@ public class AdminApproveController {
 				placeholders.put("APPROVE_ID", res.getApproveId());
 				placeholders.put("REASON_SENTENCE", res.getComment());
 				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, placeholders, false);
+						current.email, placeholders,
+						(res.getKeyId() != null) ? true : false);
 				mailSendKey = response.getMailSendKey();
 			} else {
 				mailSendKey = ProcessKeyUtil.getMailSendKey();
@@ -270,7 +273,8 @@ public class AdminApproveController {
 				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 				placeholders.put("APPROVE_ID", res.getApproveId());
 				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, placeholders, false);
+						current.email, placeholders,
+						(res.getKeyId() != null) ? true : false);
 				mailSendKey = response.getMailSendKey();
 			} else {
 				mailSendKey = ProcessKeyUtil.getMailSendKey();
@@ -323,7 +327,8 @@ public class AdminApproveController {
 				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 				placeholders.put("APPROVE_ID", res.getApproveId());
 				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, placeholders, false);
+						current.email, placeholders,
+						(res.getKeyId() != null) ? true : false);
 				mailSendKey = response.getMailSendKey();
 			} else {
 				mailSendKey = ProcessKeyUtil.getMailSendKey();
@@ -376,7 +381,8 @@ public class AdminApproveController {
 				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 				placeholders.put("APPROVE_ID", res.getApproveId());
 				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, placeholders, false);
+						current.email, placeholders,
+						(res.getKeyId() != null) ? true : false);
 				mailSendKey = response.getMailSendKey();
 			} else {
 				mailSendKey = ProcessKeyUtil.getMailSendKey();
@@ -484,7 +490,8 @@ public class AdminApproveController {
 				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 				placeholders.put("APPROVE_ID", res.getApproveId());
 				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, placeholders, false);
+						current.email, placeholders,
+						(res.getKeyId() != null) ? true : false);
 				mailSendKey = response.getMailSendKey();
 			} else {
 				mailSendKey = ProcessKeyUtil.getMailSendKey();

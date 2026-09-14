@@ -282,7 +282,8 @@ public class EcsScrapeTaskProgressWebService {
             Map<String, String> placeholders = new LinkedHashMap<>();
             placeholders.put("SCRAPE_NAME", scrapeName);
             placeholders.put("EXECUTED_AT", LocalDateTime.now().plusHours(9).toString());
-            mailSendService.sendSystemNotification(SCRAPE_COMPLETE_MAIL_ID, adminNotificationEmail, placeholders);
+            mailSendService.sendSystemNotification(SCRAPE_COMPLETE_MAIL_ID,
+            		adminNotificationEmail, placeholders, false);
         } catch (Exception e) {
             log.error("スクレイピングタスク完了通知メールの登録に失敗しました。batchCd={}, finalStatus={}",
                     batchCd, finalStatus, e);
