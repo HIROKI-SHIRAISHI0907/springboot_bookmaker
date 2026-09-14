@@ -78,6 +78,7 @@ public class AdminApproveController {
 		if (!current.roles.contains("ROLE_ADMIN_SUB")) {
 			return forbidden("担当者のみ依頼を起票できます。");
 		}
+		log.info("依頼起票リクエスト: リクエスト:({})", req);
 		AdminApproveActionResponse res = approveService.createRequest(current.userId, req);
 		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
@@ -147,6 +148,7 @@ public class AdminApproveController {
 		if (!current.roles.contains("ROLE_ADMIN")) {
 			return forbidden("管理者のみ承認できます。");
 		}
+		log.info("依頼承認リクエスト: 承認ID:({})", approveId);
 		AdminApproveActionResponse res = approveService.approveRequest(approveId, current.userId);
 		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
@@ -194,6 +196,7 @@ public class AdminApproveController {
 		if (!current.roles.contains("ROLE_ADMIN")) {
 			return forbidden("管理者のみ差し戻しできます。");
 		}
+		log.info("依頼差し戻しリクエスト: リクエスト:({})", req);
 		AdminApproveActionResponse res = approveService.rejectRequest(approveId, current.userId, req.getComment());
 		// 差し戻しメールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
@@ -242,6 +245,7 @@ public class AdminApproveController {
 		if (!current.roles.contains("ROLE_ADMIN_SUB")) {
 			return forbidden("担当者のみ依頼を取り消せます。");
 		}
+		log.info("依頼取り消しリクエスト: リクエスト:({})", req);
 		AdminApproveActionResponse res = approveService.cancelRequest(approveId, current.userId, req.getComment());
 		// 依頼取り消しメールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
@@ -293,6 +297,7 @@ public class AdminApproveController {
 		if (!current.roles.contains("ROLE_ADMIN_SUB")) {
 			return forbidden("担当者のみ依頼を削除できます。");
 		}
+		log.info("依頼削除リクエスト: 削除ID:({})", approveId);
 		AdminApproveActionResponse res = approveService.deleteRequest(approveId, current.userId);
 		// 依頼削除メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
@@ -343,6 +348,7 @@ public class AdminApproveController {
 		if (!current.roles.contains("ROLE_ADMIN")) {
 			return forbidden("管理者のみ指令を発行できます。");
 		}
+		log.info("指令発行リクエスト: リクエスト:({})", req);
 		AdminApproveActionResponse res = approveService.createInstruction(current.userId, req);
 		// 指令送信メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
@@ -430,6 +436,7 @@ public class AdminApproveController {
 		if (!current.roles.contains("ROLE_ADMIN")) {
 			return forbidden("管理者のみ指令を差し戻せます。");
 		}
+		log.info("指令差し戻しリクエスト: リクエスト:({})", req);
 		AdminApproveActionResponse res = approveService.rejectInstruction(approveId, current.userId, req.getComment());
 		log.info("指令差し戻しレスポンス: ユーザー:({}),レスポンス:({})", current, res);
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
@@ -448,6 +455,7 @@ public class AdminApproveController {
 		if (!current.roles.contains("ROLE_ADMIN")) {
 			return forbidden("管理者のみ指令を取り消せます。");
 		}
+		log.info("指令取り消しリクエスト: リクエスト:({})", req);
 		AdminApproveActionResponse res = approveService.cancelInstruction(approveId, current.userId, req.getComment());
 		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
