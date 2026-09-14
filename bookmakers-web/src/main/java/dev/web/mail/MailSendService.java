@@ -10,6 +10,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
+import dev.common.config.MailConfig;
 import dev.common.constant.S3Const;
 import dev.common.entity.MailInfoMasterEntity;
 import dev.common.entity.MailSendManagementEntity;
@@ -51,13 +52,12 @@ public class MailSendService {
 
 	private static final String IN_USE_MESSAGE = "このメール情報は送信管理で使用されているため削除できません。";
 
-	private static final String ENVELOPE_ADDRESS = "no-reply@sample.com";
-
 	private final PutMailNoticeJson putMailNoticeJson;
 	private final MailInfoMasterRepository mailInfoMasterRepository;
 	private final MailSendManagementRepository mailSendManagementRepository;
 	private final UserRepository userRepository;
 	private final JwtCurrentUserService jwtCurrentUserService;
+	private final MailConfig mailConfig;
 
 	/**
 	 * ログイン中ユーザー宛にメール送信を登録する。
@@ -182,7 +182,7 @@ public class MailSendService {
 		management.setMessageId(null); // 実際の送信は別バッチのため、message_idはその際に更新する想定
 		management.setToAddress(toAddress);
 		management.setMailId(mailId);
-		management.setEnvelopeFrom(ENVELOPE_ADDRESS);
+		management.setEnvelopeFrom(mailConfig.getSourceMailAddress());
 		management.setNotifyStatus(MailNoticeEnum.NOTIFY_STATUS_PENDING.getNoticeStatus());
 		management.setFailSendCount(0);
 		management.setBikou(bikou);
