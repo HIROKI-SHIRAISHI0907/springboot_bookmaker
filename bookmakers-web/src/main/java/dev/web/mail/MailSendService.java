@@ -85,14 +85,9 @@ public class MailSendService {
 	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
 	 */
 	public MailSendResponse send(String mailId, String toAddress, boolean mailFlg) {
-		// メール情報マスタに存在するか（mailFlg=trueのときはチェックしない）
-		if (!mailFlg) {
-			mailInfoMasterRepository.findById(mailId)
-					.orElseThrow(() -> {
-						log.error("メール情報マスタに該当データがありません。mailId={}", mailId);
-						return new RuntimeException(SYSTEM_ERROR_MESSAGE);
-					});
-		}
+		// メール情報マスタに存在するか（mailFlg=trueのときはDBを引かず、mailIdだけを持つ
+		// mailInfoをそのまま組み立てる。まだマスタに登録されていない対象向け）。
+		MailInfoMasterEntity mailInfo = resolveMailInfo(mailId, mailFlg);
 
 		MailSendResponse response = new MailSendResponse();
 
@@ -103,9 +98,7 @@ public class MailSendService {
 			return response;
 		}
 
-		// mailFlg=trueのときはメール情報マスタを引かないため、mailIdはこの呼び出し自身の
-		// パラメータをそのままinsertManagementへ渡す（mailInfo.getMailId()には頼らない）。
-		return insertManagement(mailId, toAddress, null, null);
+		return insertManagement(mailInfo, toAddress, null, null);
 	}
 
 	/**
@@ -123,47 +116,66 @@ public class MailSendService {
 	 * @param mailId       メール情報マスタのメールID
 	 * @param toAddress    送信先メールアドレス（管理者通知用の固定アドレス等）
 	 * @param placeholders 件名・本文中の{{KEY}}を置換するためのkey-valueペア（無ければnullでよい）
+	 * @param mailFlg      trueの場合、メール情報マスタの存在チェックを行わずmailIdをそのまま使う
+	 *                     （承認フローの対象がMAIL_INFOで、まだマスタに登録されていない場合など）
 	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
 	 */
 	public MailSendResponse sendSystemNotification(String mailId, String toAddress, Map<String, String> placeholders,
 			boolean mailFlg) {
-		if (!mailFlg) {
-			mailInfoMasterRepository.findById(mailId)
-					.orElseThrow(() -> {
-						log.error("メール情報マスタに該当データがありません。mailId={}", mailId);
-						return new RuntimeException(SYSTEM_ERROR_MESSAGE);
-					});
-		}
+		MailInfoMasterEntity mailInfo = resolveMailInfo(mailId, mailFlg);
 
 		// placeHoldersのvalue側(B or S始まりのコード)だけをまとめる
 		List<String> placeholderValues = (placeholders != null && !placeholders.isEmpty())
 				? placeholders.values().stream()
-						.filter(v -> v != null && (v.startsWith("B") || v.startsWith("S")))
-						.collect(Collectors.toList())
-				: new ArrayList<String>();
+		        .filter(v -> v != null && (v.startsWith("B") || v.startsWith("S")))
+		        .collect(Collectors.toList()) : new ArrayList<String>();
 
-		return insertManagement(mailId, toAddress, toBikou(placeholders), placeholderValues);
+		return insertManagement(mailInfo, toAddress, toBikou(placeholders), placeholderValues);
+	}
+
+	/**
+	 * mailFlgに応じてmailInfoを解決する。
+	 * mailFlg=falseの場合はメール情報マスタから取得し、存在しなければ例外を投げる。
+	 * mailFlg=trueの場合はマスタを引かず、mailIdだけを持つmailInfoをそのまま組み立てて返す
+	 * （承認フローの対象がMAIL_INFOで、まだマスタに登録されていない場合など）。
+	 *
+	 * @param mailId  メールID
+	 * @param mailFlg trueの場合、マスタの存在チェックをスキップする
+	 * @return 解決したmailInfo（常に非null）
+	 */
+	private MailInfoMasterEntity resolveMailInfo(String mailId, boolean mailFlg) {
+		if (mailFlg) {
+			MailInfoMasterEntity mailInfo = new MailInfoMasterEntity();
+			mailInfo.setMailId(mailId);
+			return mailInfo;
+		}
+		return mailInfoMasterRepository.findById(mailId)
+				.orElseThrow(() -> {
+					log.error("メール情報マスタに該当データがありません。mailId={}", mailId);
+					return new RuntimeException(SYSTEM_ERROR_MESSAGE);
+				});
 	}
 
 	/**
 	 * メール送信管理テーブルへ、送信予定として1件登録する共通処理。
 	 * send() / sendSystemNotification() のどちらからも呼ばれる。
 	 *
-	 * mailIdは呼び出し元（send/sendSystemNotification）が既に持っているものをそのまま渡す。
-	 * mailFlg=trueの経路ではメール情報マスタを取得しない（mailInfoがnullになり得る）ため、
-	 * mailInfo.getMailId()には依存しない。
+	 * mailInfoは呼び出し元（resolveMailInfo経由）で必ず非nullが渡される。
+	 * mailFlg=trueの経路ではマスタから取得したものではなく、mailIdだけを持つ
+	 * mailInfoがそのまま渡ってくる。
 	 *
-	 * @param mailId    メール送信管理に登録するメールID
+	 * @param mailInfo  メール情報（少なくともmailIdは設定済み）
 	 * @param toAddress 送信先メールアドレス
 	 * @param bikou     mail_send_manage.bikouに保存する値（プレースホルダー置換用。無ければnull）
 	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
 	 */
-	private MailSendResponse insertManagement(String mailId, String toAddress, String bikou,
+	private MailSendResponse insertManagement(MailInfoMasterEntity mailInfo, String toAddress, String bikou,
 			List<String> placeholderValues) {
 		MailSendResponse response = new MailSendResponse();
 
 		// メール送信キーを取得
 		String mailSendKey = ProcessKeyUtil.getMailSendKey();
+		String mailId = mailInfo.getMailId();
 
 		MailSendManagementEntity management = new MailSendManagementEntity();
 		management.setMailSendKey(mailSendKey);
