@@ -381,8 +381,9 @@ public class MailSendService {
 	 * @param mailId
 	 * @param batchScrapeCd
 	 * @param mailProcessKey
+	 * @throws Exception
 	 */
-	private void putJson(String mailId, String batchScrapeCd, String mailProcessKey) {
+	private void putJson(String mailId, String batchScrapeCd, String mailProcessKey) throws Exception {
 		putMailNoticeJson.putJson(MailConvertS3BucketUtil
 				.getS3Bucket(mailId, batchScrapeCd, null) + S3Const.JSON, mailProcessKey);
 	}
