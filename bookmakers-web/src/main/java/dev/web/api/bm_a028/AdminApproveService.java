@@ -88,12 +88,26 @@ public class AdminApproveService {
 				.updateTime(now)
 				.build();
 
+		MailInfoMasterEntity mailInfo = null;
+		if (ApproveFlowConstants.TARGET_KIND_MAIL_INFO.equals(
+				req.getTargetKind())) {
+			try {
+				mailInfo = objectMapper.readValue(
+						entity.getTargetApprovementInfo(),
+						MailInfoMasterEntity.class);
+			} catch (Exception e) {
+				return badRequest(
+						"対象のメール情報の内容が不正です。");
+			}
+		}
+
 		approveFlowRepository.insert(entity);
 
 		return AdminApproveActionResponse.builder()
 				.responseCode("200")
 				.message("依頼を登録しました。")
 				.approveId(approveId)
+				.keyId(mailInfo != null ? mailInfo.getMailId() : null)
 				.returnDate(now)
 				.build();
 	}
@@ -274,6 +288,19 @@ public class AdminApproveService {
 
 		OffsetDateTime now = OffsetDateTime.now(DateOffsetDecisionUtil.getZoneId());
 
+		MailInfoMasterEntity mailInfo = null;
+		if (ApproveFlowConstants.TARGET_KIND_MAIL_INFO.equals(
+				entity.getTargetKind())) {
+			try {
+				mailInfo = objectMapper.readValue(
+						entity.getTargetApprovementInfo(),
+						MailInfoMasterEntity.class);
+			} catch (Exception e) {
+				return badRequest(
+						"対象のメール情報の内容が不正です。");
+			}
+		}
+
 		approveFlowRepository.updateStatus(
 				approveId,
 				ApproveFlowConstants.REVIEW_STATUS_CANCELLED,
@@ -284,6 +311,11 @@ public class AdminApproveService {
 				.message("依頼を取り消しました。")
 				.approveId(approveId)
 				.returnDate(now)
+				.keyId(mailInfo != null ? mailInfo.getMailId() : null)
+				.toMailAddress(
+						mailInfo != null
+								? mailInfo.getFromAddress()
+								: null)
 				.build();
 	}
 
@@ -302,13 +334,37 @@ public class AdminApproveService {
         if (!entity.getFromUserId().equals(requesterUserId)) {
             return forbidden("自分が申請した依頼のみ削除できます。");
         }
+
+        // 削除前にメール情報を解決する。ここで不正と判明した場合は
+        // 何もコミットされていない状態でエラーを返せる(削除後に解決すると
+        // 400応答なのに削除だけはコミットされてしまう不整合が起きる)。
+        MailInfoMasterEntity mailInfo = null;
+        if (ApproveFlowConstants.TARGET_KIND_MAIL_INFO.equals(
+                entity.getTargetKind())) {
+            try {
+                mailInfo = objectMapper.readValue(
+                        entity.getTargetApprovementInfo(),
+                        MailInfoMasterEntity.class);
+            } catch (Exception e) {
+                return badRequest(
+                        "対象のメール情報の内容が不正です。");
+            }
+        }
+
         approveFlowRepository.deleteById(approveId);
+
         OffsetDateTime now = OffsetDateTime.now(DateOffsetDecisionUtil.getZoneId());
+
         return AdminApproveActionResponse.builder()
                 .responseCode("200")
                 .message("依頼を削除しました。")
                 .approveId(approveId)
                 .returnDate(now)
+                .keyId(mailInfo != null ? mailInfo.getMailId() : null)
+                .toMailAddress(
+                        mailInfo != null
+                                ? mailInfo.getFromAddress()
+                                : null)
                 .build();
     }
 
@@ -318,7 +374,6 @@ public class AdminApproveService {
 			String comment,
 			String requiredCurrentStatus,
 			String successMessage) {
-		MailInfoMasterEntity mailInfo = null;
 
 		AdminApproveEntity entity = approveFlowRepository.findByIdForUpdate(approveId);
 
@@ -333,6 +388,19 @@ public class AdminApproveService {
 		}
 
 		OffsetDateTime now = OffsetDateTime.now(DateOffsetDecisionUtil.getZoneId());
+
+		MailInfoMasterEntity mailInfo = null;
+		if (ApproveFlowConstants.TARGET_KIND_MAIL_INFO.equals(
+				entity.getTargetKind())) {
+			try {
+				mailInfo = objectMapper.readValue(
+						entity.getTargetApprovementInfo(),
+						MailInfoMasterEntity.class);
+			} catch (Exception e) {
+				return badRequest(
+						"対象のメール情報の内容が不正です。");
+			}
+		}
 
 		approveFlowRepository.updateStatus(
 				approveId,
@@ -416,6 +484,19 @@ public class AdminApproveService {
 			approveFlowRepository.insertRecipients(recipients);
 		}
 
+		MailInfoMasterEntity mailInfo = null;
+		if (ApproveFlowConstants.TARGET_KIND_MAIL_INFO.equals(
+				req.getTargetKind())) {
+			try {
+				mailInfo = objectMapper.readValue(
+						entity.getTargetApprovementInfo(),
+						MailInfoMasterEntity.class);
+			} catch (Exception e) {
+				return badRequest(
+						"対象のメール情報の内容が不正です。");
+			}
+		}
+
 		return AdminApproveActionResponse.builder()
 				.responseCode("200")
 				.message(
@@ -424,6 +505,11 @@ public class AdminApproveService {
 								+ "名）")
 				.approveId(approveId)
 				.returnDate(now)
+				.keyId(mailInfo != null ? mailInfo.getMailId() : null)
+				.toMailAddress(
+						mailInfo != null
+								? mailInfo.getFromAddress()
+								: null)
 				.toMailAddressList(recipientsMailList)
 				.build();
 	}
@@ -683,6 +769,21 @@ public class AdminApproveService {
 					"この指令は既に差し戻し・取り消しされています。");
 		}
 
+		// reject/cancelのメール通知先テンプレートを解決するため、
+		// 依頼系と同じくtargetKind=MAIL_INFOの場合はここでmailInfoを解決する。
+		MailInfoMasterEntity mailInfo = null;
+		if (ApproveFlowConstants.TARGET_KIND_MAIL_INFO.equals(
+				header.getTargetKind())) {
+			try {
+				mailInfo = objectMapper.readValue(
+						header.getTargetApprovementInfo(),
+						MailInfoMasterEntity.class);
+			} catch (Exception e) {
+				return badRequest(
+						"対象のメール情報の内容が不正です。");
+			}
+		}
+
 		OffsetDateTime now = OffsetDateTime.now(DateOffsetDecisionUtil.getZoneId());
 
 		approveFlowRepository.updateStatus(
@@ -695,6 +796,11 @@ public class AdminApproveService {
 				.message(successMessage)
 				.approveId(approveId)
 				.returnDate(now)
+				.keyId(mailInfo != null ? mailInfo.getMailId() : null)
+				.toMailAddress(
+						mailInfo != null
+								? mailInfo.getFromAddress()
+								: null)
 				.build();
 	}
 

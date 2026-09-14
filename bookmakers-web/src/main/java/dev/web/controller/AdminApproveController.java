@@ -66,11 +66,12 @@ public class AdminApproveController {
 	// 依頼（担当者 → 管理者）
 	// ------------------------------------------------------------
 
-	/** 担当者が依頼を起票する */
+	/** 担当者が依頼を起票する
+	 * @throws Exception */
 	@PostMapping("/requests")
 	public ResponseEntity<AdminApproveActionResponse> createRequest(
 			@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-			@RequestBody CreateRequestRequest req) {
+			@RequestBody CreateRequestRequest req) throws Exception {
 		CurrentUser current = resolveCurrentUser(authorizationHeader);
 		if (current == null) {
 			return unauthorized();
@@ -136,11 +137,12 @@ public class AdminApproveController {
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
 
-	/** 管理者が依頼を承認する */
+	/** 管理者が依頼を承認する
+	 * @throws Exception */
 	@PatchMapping("/requests/{approveId}/approve")
 	public ResponseEntity<AdminApproveActionResponse> approveRequest(
 			@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-			@PathVariable String approveId) {
+			@PathVariable String approveId) throws Exception {
 		CurrentUser current = resolveCurrentUser(authorizationHeader);
 		if (current == null) {
 			return unauthorized();
@@ -183,12 +185,13 @@ public class AdminApproveController {
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
 
-	/** 管理者が依頼を差し戻す */
+	/** 管理者が依頼を差し戻す
+	 * @throws Exception */
 	@PatchMapping("/requests/{approveId}/reject")
 	public ResponseEntity<AdminApproveActionResponse> rejectRequest(
 			@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
 			@PathVariable String approveId,
-			@RequestBody ApproveActionRequest req) {
+			@RequestBody ApproveActionRequest req) throws Exception {
 		CurrentUser current = resolveCurrentUser(authorizationHeader);
 		if (current == null) {
 			return unauthorized();
@@ -232,12 +235,13 @@ public class AdminApproveController {
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
 
-	/** 担当者が自分の依頼を取り消す */
+	/** 担当者が自分の依頼を取り消す
+	 * @throws Exception */
 	@PatchMapping("/requests/{approveId}/cancel")
 	public ResponseEntity<AdminApproveActionResponse> cancelRequest(
 			@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
 			@PathVariable String approveId,
-			@RequestBody ApproveActionRequest req) {
+			@RequestBody ApproveActionRequest req) throws Exception {
 		CurrentUser current = resolveCurrentUser(authorizationHeader);
 		if (current == null) {
 			return unauthorized();
@@ -285,11 +289,12 @@ public class AdminApproveController {
 	 * 「取り消す」(cancel)とは異なり、approve_flowの行自体を完全に削除する(復元不可)。
 	 * ステータスは問わない(申請済でも、既に承認/差し戻し/取り消し済みでも削除可能)。
 	 * 自分が申請した依頼以外は削除できない(AdminApproveService#deleteRequestでチェック)。
+	 * @throws Exception
 	 */
 	@DeleteMapping("/requests/{approveId}")
 	public ResponseEntity<AdminApproveActionResponse> deleteRequest(
 			@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-			@PathVariable String approveId) {
+			@PathVariable String approveId) throws Exception {
 		CurrentUser current = resolveCurrentUser(authorizationHeader);
 		if (current == null) {
 			return unauthorized();
@@ -336,11 +341,12 @@ public class AdminApproveController {
 	// 指令（管理者 → 担当者全員）
 	// ------------------------------------------------------------
 
-	/** 管理者が指令を発行する（その時点の担当者全員へ一斉送信） */
+	/** 管理者が指令を発行する（その時点の担当者全員へ一斉送信）
+	 * @throws Exception */
 	@PostMapping("/instructions")
 	public ResponseEntity<AdminApproveActionResponse> createInstruction(
 			@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-			@RequestBody CreateInstructionRequest req) {
+			@RequestBody CreateInstructionRequest req) throws Exception {
 		CurrentUser current = resolveCurrentUser(authorizationHeader);
 		if (current == null) {
 			return unauthorized();
@@ -442,12 +448,13 @@ public class AdminApproveController {
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
 
-	/** 管理者が自分の出した指令を取り消す */
+	/** 管理者が自分の出した指令を取り消す
+	 * @throws Exception */
 	@PatchMapping("/instructions/{approveId}/cancel")
 	public ResponseEntity<AdminApproveActionResponse> cancelInstruction(
 			@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
 			@PathVariable String approveId,
-			@RequestBody ApproveActionRequest req) {
+			@RequestBody ApproveActionRequest req) throws Exception {
 		CurrentUser current = resolveCurrentUser(authorizationHeader);
 		if (current == null) {
 			return unauthorized();
