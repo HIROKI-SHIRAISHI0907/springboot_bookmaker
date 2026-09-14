@@ -7,10 +7,12 @@ import dev.common.constant.MailIdConstant;
 import dev.common.constant.S3BucketConstant;
 import dev.common.enums.BatchCodeToMailEnum;
 import dev.common.enums.ScrapeCodeToMailEnum;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * メールID→バケット名変換Utilクラス
  */
+@Slf4j
 public class MailConvertS3BucketUtil {
 
 	/** メールIDバケットマップ */
@@ -105,8 +107,9 @@ public class MailConvertS3BucketUtil {
 	 * もしくはスクレイピングコード(nullの場合は対象のバケットに全て格納する)<br>
 	 * MailIdConstant.BM_MAIL_001, MailIdConstant.BM_MAIL_006の場合はbatchScrapeCdParam==nullでもいい
 	 * @return
+	 * @throws Exception
 	 */
-	public static String getS3Bucket(String mailId, String batchScrapeCdParam, String mixBucket) {
+	public static String getS3Bucket(String mailId, String batchScrapeCdParam, String mixBucket) throws Exception {
 		if (!MailIdConstant.BM_MAIL_001.equals(mailId) &&
 				!MailIdConstant.BM_MAIL_006.equals(mailId) &&
 				!MailIdConstant.BM_MAIL_XXX.equals(mailId)) {
@@ -123,7 +126,8 @@ public class MailConvertS3BucketUtil {
 		List<String> batchScrapeCdList = getMailConvertBatchScrapeList(mailId);
 
 		if (batchScrapeCdList == null || batchScrapeCdList.isEmpty()) {
-			return null;
+			log.error("バケットが見つかりません。bucket={},mailId={}" , batchScrapeCdList, mailId);
+			throw new Exception();
 		}
 
 		// 既にS3バケット名が設定されている場合
@@ -155,7 +159,9 @@ public class MailConvertS3BucketUtil {
 			}
 		}
 
-		return null;
+		log.error("全てのバケットチェックを通り過ぎたため、バケットが見つかりません。"
+				+ "bucket={},mailId={},mixBucket={}" , batchScrapeCdParam, mailId, mixBucket);
+		throw new Exception();
 	}
 
 }
