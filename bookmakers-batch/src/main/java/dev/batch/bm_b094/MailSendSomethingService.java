@@ -161,8 +161,9 @@ public class MailSendSomethingService {
 	 * このバッチ全体（他の契機検知処理）を失敗させたくないのでログのみ出して継続する。
 	 *
 	 * @param callerMethodName 呼び出し元メソッド名（ログ用）
+	 * @throws Exception
 	 */
-	private void checkEcsStopIntervalsAndNotify(String callerMethodName) {
+	private void checkEcsStopIntervalsAndNotify(String callerMethodName) throws Exception {
 	    final String METHOD_NAME = "checkEcsStopIntervalsAndNotify";
 
 	    ZoneId jst = DateOffsetDecisionUtil.getZoneId();
@@ -320,8 +321,9 @@ public class MailSendSomethingService {
 	 * @param mailId      bm-mail-004 or bm-mail-005
 	 * @param boundaryJst この時刻以降に送信登録済みかどうかを判定する境界（interval開始 or 終了、JST）
 	 * @param nowJst      現在時刻（bikouのEXECUTED_AT用）
+	 * @throws Exception
 	 */
-	private void notifyIfNotAlreadyRegistered(String mailId, OffsetDateTime boundaryJst, OffsetDateTime nowJst) {
+	private void notifyIfNotAlreadyRegistered(String mailId, OffsetDateTime boundaryJst, OffsetDateTime nowJst) throws Exception {
 		final String METHOD_NAME = "notifyIfNotAlreadyRegistered";
 		Timestamp latestRegisterTimeUtc = mailSendBatchRepository.findLatestRegisterTime(mailId);
 		if (latestRegisterTimeUtc != null) {
@@ -371,8 +373,9 @@ public class MailSendSomethingService {
 	 * この通知は1週間前から毎日10:00に送信されるようにする
 	 *
 	 * @param callerMethodName 呼び出し元メソッド名（ログ用）
+	 * @throws Exception
 	 */
-	private void checkSeasonEndingSoonAndNotify(String callerMethodName) {
+	private void checkSeasonEndingSoonAndNotify(String callerMethodName) throws Exception {
 		final String METHOD_NAME = "checkSeasonEndingSoonAndNotify";
 		ZoneId jst = DateOffsetDecisionUtil.getZoneId();
 		LocalDate todayJst = LocalDate.now(jst);
@@ -459,8 +462,9 @@ public class MailSendSomethingService {
 	 * @param mailId
 	 * @param batchScrapeCd
 	 * @param mailProcessKey
+	 * @throws Exception
 	 */
-	private void putJson(String mailId, String batchScrapeCd, String mailProcessKey) {
+	private void putJson(String mailId, String batchScrapeCd, String mailProcessKey) throws Exception {
 		putMailNoticeJson.putJson(MailConvertS3BucketUtil
 				.getS3Bucket(mailId, batchScrapeCd, null) + S3Const.JSON, mailProcessKey);
 	}
