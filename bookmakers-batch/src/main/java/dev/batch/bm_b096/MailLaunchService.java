@@ -173,36 +173,40 @@ public class MailLaunchService {
 	 * 件名・本文どちらに対しても同じロジックで使える汎用メソッド。
 	 */
 	private BikouDTO applyBikouPlaceholders(String text, String bikou) {
-		BikouDTO bikouDto = new BikouDTO();
-		if (text == null || bikou == null || bikou.isBlank()) {
-			bikouDto.setText(text);
-			bikouDto.setBatchScrapeCd(null);
-			return bikouDto;
-		}
-		String result = text;
-		for (String pair : bikou.split(",")) {
-			String[] kv = pair.split("=", 2);
-			if (kv.length != 2) {
-				continue;
-			}
-			String key = kv[0].trim();
-			String value = kv[1].trim();
-			if (key.isEmpty()) {
-				continue;
-			}
-			// valueを解決
-			if (BATCH_NAME_PLACEHOLDER.equals(key))
-				bikouDto.setBatchScrapeCd(value);
-				value = BatchCodeToMailEnum.resolveBatchName(value);
+	    BikouDTO bikouDto = new BikouDTO();
+	    if (text == null || bikou == null || bikou.isBlank()) {
+	        bikouDto.setText(text);
+	        bikouDto.setBatchScrapeCd(null);
+	        return bikouDto;
+	    }
+	    String result = text;
+	    for (String pair : bikou.split(",")) {
+	        String[] kv = pair.split("=", 2);
+	        if (kv.length != 2) {
+	            continue;
+	        }
+	        String key = kv[0].trim();
+	        String value = kv[1].trim();
+	        if (key.isEmpty()) {
+	            continue;
+	        }
+	        if (BATCH_NAME_PLACEHOLDER.equals(key))
+	            bikouDto.setBatchScrapeCd(value);
+	        value = BatchCodeToMailEnum.resolveBatchName(value);
 
-			if (SCRAPE_NAME_PLACEHOLDER.equals(key))
-				bikouDto.setBatchScrapeCd(value);
-				value = ScrapeCodeToMailEnum.resolveScrapeName(value);
+	        if (SCRAPE_NAME_PLACEHOLDER.equals(key))
+	            bikouDto.setBatchScrapeCd(value);
+	        value = ScrapeCodeToMailEnum.resolveScrapeName(value);
 
-			result = result.replace("（" + key + "）", value);
-			result = result.replace("{{" + key + "}}", value);
-			bikouDto.setText(result);
-		}
-		return bikouDto;
+	        result = result.replace("（" + key + "）", value);
+	        result = result.replace("{{" + key + "}}", value);
+	    }
+
+	    // bikouに対応するkeyがなかった、あるいは {{ key }} のように空白入りで
+	    // 一致しなかった等で置換されずに残ったプレースホルダーを削除する
+	    result = result.replaceAll("\\{\\{\\s*[^{}]*?\\s*\\}\\}", "");
+
+	    bikouDto.setText(result);
+	    return bikouDto;
 	}
 }
