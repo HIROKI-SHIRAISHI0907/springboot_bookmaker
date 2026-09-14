@@ -1,5 +1,6 @@
 package dev.web.api.bm_a028;
 
+import java.time.OffsetDateTime;
 import java.util.List;
 
 import lombok.Builder;
@@ -24,4 +25,10 @@ public class AdminApproveActionResponse {
 
     /** 複数メールアドレス */
     private List<String> toMailAddressList;
+
+    /** 返却日時 */
+    private OffsetDateTime returnDate;
+
+    /** コメント（差し戻し時だけ） */
+    private String comment;
 }

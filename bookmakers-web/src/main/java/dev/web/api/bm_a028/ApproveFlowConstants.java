@@ -52,6 +52,8 @@ public final class ApproveFlowConstants {
      * {@code AdminApproveService#handleUserWithdrawal} 参照。
      */
     public static final String REVIEW_STATUS_PENDING = "保留";
+    /** 申請者（担当者本人）が削除した */
+    public static final String REVIEW_STATUS_DELETED = "削除";
 
     // ------------------------------------------------------------
     // flowStatus（指令）… ヘッダー全体の状態

@@ -94,6 +94,7 @@ public class AdminApproveService {
 				.responseCode("200")
 				.message("依頼を登録しました。")
 				.approveId(approveId)
+				.returnDate(now)
 				.build();
 	}
 
@@ -209,6 +210,8 @@ public class AdminApproveService {
 			}
 		}
 
+		OffsetDateTime now = OffsetDateTime.now(DateOffsetDecisionUtil.getZoneId());
+
 		approveFlowRepository.updateStatus(
 				approveId,
 				ApproveFlowConstants.REVIEW_STATUS_APPROVED,
@@ -218,6 +221,7 @@ public class AdminApproveService {
 				.responseCode("200")
 				.message("承認しました。")
 				.approveId(approveId)
+				.returnDate(now)
 				.keyId(mailInfo != null ? mailInfo.getMailId() : null)
 				.toMailAddress(
 						mailInfo != null
@@ -268,6 +272,8 @@ public class AdminApproveService {
 					"この依頼は既に処理済みのため取り消せません。");
 		}
 
+		OffsetDateTime now = OffsetDateTime.now(DateOffsetDecisionUtil.getZoneId());
+
 		approveFlowRepository.updateStatus(
 				approveId,
 				ApproveFlowConstants.REVIEW_STATUS_CANCELLED,
@@ -277,6 +283,7 @@ public class AdminApproveService {
 				.responseCode("200")
 				.message("依頼を取り消しました。")
 				.approveId(approveId)
+				.returnDate(now)
 				.build();
 	}
 
@@ -296,10 +303,12 @@ public class AdminApproveService {
             return forbidden("自分が申請した依頼のみ削除できます。");
         }
         approveFlowRepository.deleteById(approveId);
+        OffsetDateTime now = OffsetDateTime.now(DateOffsetDecisionUtil.getZoneId());
         return AdminApproveActionResponse.builder()
                 .responseCode("200")
                 .message("依頼を削除しました。")
                 .approveId(approveId)
+                .returnDate(now)
                 .build();
     }
 
@@ -323,6 +332,8 @@ public class AdminApproveService {
 			return conflict("この依頼は既に処理済みです。");
 		}
 
+		OffsetDateTime now = OffsetDateTime.now(DateOffsetDecisionUtil.getZoneId());
+
 		approveFlowRepository.updateStatus(
 				approveId,
 				newStatus,
@@ -337,6 +348,8 @@ public class AdminApproveService {
 								? mailInfo.getFromAddress()
 								: null)
 				.approveId(approveId)
+				.returnDate(now)
+				.comment(comment)
 				.build();
 	}
 
@@ -410,6 +423,7 @@ public class AdminApproveService {
 								+ assigneeUserIds.size()
 								+ "名）")
 				.approveId(approveId)
+				.returnDate(now)
 				.toMailAddressList(recipientsMailList)
 				.build();
 	}
@@ -598,6 +612,7 @@ public class AdminApproveService {
 				.responseCode("200")
 				.message("確認しました。")
 				.approveId(approveId)
+				.returnDate(now)
 				.build();
 	}
 
@@ -668,6 +683,8 @@ public class AdminApproveService {
 					"この指令は既に差し戻し・取り消しされています。");
 		}
 
+		OffsetDateTime now = OffsetDateTime.now(DateOffsetDecisionUtil.getZoneId());
+
 		approveFlowRepository.updateStatus(
 				approveId,
 				newStatus,
@@ -677,6 +694,7 @@ public class AdminApproveService {
 				.responseCode("200")
 				.message(successMessage)
 				.approveId(approveId)
+				.returnDate(now)
 				.build();
 	}
 

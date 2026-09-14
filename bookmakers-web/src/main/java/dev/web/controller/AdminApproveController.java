@@ -1,5 +1,8 @@
 package dev.web.controller;
 
+import java.util.HashMap;
+import java.util.Map;
+
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.DeleteMapping;
@@ -14,6 +17,7 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.auth0.jwt.interfaces.DecodedJWT;
 
+import dev.common.config.MailConfig;
 import dev.common.constant.MailIdConstant;
 import dev.common.constant.S3BucketConstant;
 import dev.common.constant.S3Const;
@@ -24,6 +28,7 @@ import dev.web.api.bm_a028.AdminApproveActionResponse;
 import dev.web.api.bm_a028.AdminApproveListResponse;
 import dev.web.api.bm_a028.AdminApproveService;
 import dev.web.api.bm_a028.ApproveActionRequest;
+import dev.web.api.bm_a028.ApproveFlowConstants;
 import dev.web.api.bm_a028.CreateInstructionRequest;
 import dev.web.api.bm_a028.CreateRequestRequest;
 import dev.web.jwt.JwtService;
@@ -55,6 +60,7 @@ public class AdminApproveController {
 	private final AdminApproveService approveService;
 	private final MailSendService mailSendService;
 	private final PutMailNoticeJson putMailNoticeJson;
+	private final MailConfig mailConfig;
 
 	// ------------------------------------------------------------
 	// 依頼（担当者 → 管理者）
@@ -75,14 +81,24 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.createRequest(current.userId, req);
 		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
-		log.info("依頼起票レスポンス: ユーザー:({}),レスポンス:({})" , current, res);
+		log.info("依頼起票レスポンス: ユーザー:({}),レスポンス:({})", current, res);
 		if ("200".equals(res.getResponseCode())) {
 			String keyId = res.getKeyId();
 			// お知らせなどメールID以外の場合はそのままメールJSONへ。
 			String mailSendKey = null;
 			if (keyId != null) {
+				Map<String, String> placeholders = new HashMap<String, String>();
+				placeholders.put("SUBJECT_TAG_NAME", "受付されました。");
+				placeholders.put("USER_NAME", String.valueOf(current.userId));
+				placeholders.put("FILL_NAME", "受付");
+				placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.TYPE_REVIEW);
+				placeholders.put("TARGET_SUMMARY", "NONE");
+				placeholders.put("TARGET_TITLE", ApproveFlowConstants.TYPE_REVIEW);
+				placeholders.put("TARGET_NAME", String.valueOf(current.userId));
+				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
+				placeholders.put("APPROVE_ID", res.getApproveId());
 				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, null);
+						current.email, placeholders);
 				mailSendKey = response.getMailSendKey();
 			} else {
 				mailSendKey = ProcessKeyUtil.getMailSendKey();
@@ -134,14 +150,24 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.approveRequest(approveId, current.userId);
 		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
-		log.info("依頼承認レスポンス: ユーザー:({}),レスポンス:({})" , current, res);
+		log.info("依頼承認レスポンス: ユーザー:({}),レスポンス:({})", current, res);
 		if ("200".equals(res.getResponseCode())) {
 			String keyId = res.getKeyId();
 			// お知らせなどメールID以外の場合はそのままメールJSONへ。
 			String mailSendKey = null;
 			if (keyId != null) {
+				Map<String, String> placeholders = new HashMap<String, String>();
+				placeholders.put("SUBJECT_TAG_NAME", "承認されました。");
+				placeholders.put("USER_NAME", String.valueOf(current.userId));
+				placeholders.put("FILL_NAME", "承認");
+				placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.REVIEW_STATUS_APPROVED);
+				placeholders.put("TARGET_SUMMARY", "NONE");
+				placeholders.put("TARGET_TITLE", ApproveFlowConstants.REVIEW_STATUS_APPROVED);
+				placeholders.put("TARGET_NAME", String.valueOf(mailConfig.getSourceMailAddress()));
+				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
+				placeholders.put("APPROVE_ID", res.getApproveId());
 				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, null);
+						current.email, placeholders);
 				mailSendKey = response.getMailSendKey();
 			} else {
 				mailSendKey = ProcessKeyUtil.getMailSendKey();
@@ -171,14 +197,25 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.rejectRequest(approveId, current.userId, req.getComment());
 		// 差し戻しメールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
-		log.info("依頼差し戻しレスポンス: ユーザー:({}),レスポンス:({})" , current, res);
+		log.info("依頼差し戻しレスポンス: ユーザー:({}),レスポンス:({})", current, res);
 		if ("200".equals(res.getResponseCode())) {
 			String keyId = res.getKeyId();
 			// お知らせなどメールID以外の場合はそのままメールJSONへ。
 			String mailSendKey = null;
 			if (keyId != null) {
+				Map<String, String> placeholders = new HashMap<String, String>();
+				placeholders.put("SUBJECT_TAG_NAME", "差し戻しされました。");
+				placeholders.put("USER_NAME", String.valueOf(current.userId));
+				placeholders.put("FILL_NAME", "差し戻し");
+				placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.REVIEW_STATUS_REJECTED);
+				placeholders.put("TARGET_SUMMARY", "NONE");
+				placeholders.put("TARGET_TITLE", ApproveFlowConstants.REVIEW_STATUS_REJECTED);
+				placeholders.put("TARGET_NAME", String.valueOf(mailConfig.getSourceMailAddress()));
+				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
+				placeholders.put("APPROVE_ID", res.getApproveId());
+				placeholders.put("REASON_SENTENCE", res.getComment());
 				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, null);
+						current.email, placeholders);
 				mailSendKey = response.getMailSendKey();
 			} else {
 				mailSendKey = ProcessKeyUtil.getMailSendKey();
@@ -208,14 +245,24 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.cancelRequest(approveId, current.userId, req.getComment());
 		// 依頼取り消しメールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
-		log.info("依頼取り消しレスポンス: ユーザー:({}),レスポンス:({})" , current, res);
+		log.info("依頼取り消しレスポンス: ユーザー:({}),レスポンス:({})", current, res);
 		if ("200".equals(res.getResponseCode())) {
 			String keyId = res.getKeyId();
 			// お知らせなどメールID以外の場合はそのままメールJSONへ。
 			String mailSendKey = null;
 			if (keyId != null) {
+				Map<String, String> placeholders = new HashMap<String, String>();
+				placeholders.put("SUBJECT_TAG_NAME", "取り消しされました。");
+				placeholders.put("USER_NAME", String.valueOf(current.userId));
+				placeholders.put("FILL_NAME", "取り消し");
+				placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.REVIEW_STATUS_CANCELLED);
+				placeholders.put("TARGET_SUMMARY", "NONE");
+				placeholders.put("TARGET_TITLE", ApproveFlowConstants.REVIEW_STATUS_CANCELLED);
+				placeholders.put("TARGET_NAME", String.valueOf(current.userId));
+				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
+				placeholders.put("APPROVE_ID", res.getApproveId());
 				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, null);
+						current.email, placeholders);
 				mailSendKey = response.getMailSendKey();
 			} else {
 				mailSendKey = ProcessKeyUtil.getMailSendKey();
@@ -249,14 +296,24 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.deleteRequest(approveId, current.userId);
 		// 依頼削除メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
-		log.info("依頼削除レスポンス: ユーザー:({}),レスポンス:({})" , current, res);
+		log.info("依頼削除レスポンス: ユーザー:({}),レスポンス:({})", current, res);
 		if ("200".equals(res.getResponseCode())) {
 			String keyId = res.getKeyId();
 			// お知らせなどメールID以外の場合はそのままメールJSONへ。
 			String mailSendKey = null;
 			if (keyId != null) {
+				Map<String, String> placeholders = new HashMap<String, String>();
+				placeholders.put("SUBJECT_TAG_NAME", "削除されました。");
+				placeholders.put("USER_NAME", String.valueOf(current.userId));
+				placeholders.put("FILL_NAME", "削除");
+				placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.REVIEW_STATUS_DELETED);
+				placeholders.put("TARGET_SUMMARY", "NONE");
+				placeholders.put("TARGET_TITLE", ApproveFlowConstants.REVIEW_STATUS_DELETED);
+				placeholders.put("TARGET_NAME", String.valueOf(current.userId));
+				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
+				placeholders.put("APPROVE_ID", res.getApproveId());
 				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, null);
+						current.email, placeholders);
 				mailSendKey = response.getMailSendKey();
 			} else {
 				mailSendKey = ProcessKeyUtil.getMailSendKey();
@@ -289,14 +346,25 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.createInstruction(current.userId, req);
 		// 指令送信メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
-		log.info("指令発行レスポンス: ユーザー:({}),レスポンス:({})" , current, res);
+		log.info("指令発行レスポンス: ユーザー:({}),レスポンス:({})", current, res);
 		if ("200".equals(res.getResponseCode())) {
 			String keyId = res.getKeyId();
 			// お知らせなどメールID以外の場合はそのままメールJSONへ。
 			String mailSendKey = null;
 			if (keyId != null) {
+				// 取り消しは指令を発行した担当者全員に送る
+				Map<String, String> placeholders = new HashMap<String, String>();
+				placeholders.put("SUBJECT_TAG_NAME", "発行されました。");
+				placeholders.put("USER_NAME", String.valueOf(mailConfig.getSourceMailAddress()));
+				placeholders.put("FILL_NAME", "発行");
+				placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.TYPE_INSTRUCTION);
+				placeholders.put("TARGET_SUMMARY", "NONE");
+				placeholders.put("TARGET_TITLE", ApproveFlowConstants.TYPE_INSTRUCTION);
+				placeholders.put("TARGET_NAME", String.valueOf(current.userId));
+				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
+				placeholders.put("APPROVE_ID", res.getApproveId());
 				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, null);
+						current.email, placeholders);
 				mailSendKey = response.getMailSendKey();
 			} else {
 				mailSendKey = ProcessKeyUtil.getMailSendKey();
@@ -363,26 +431,7 @@ public class AdminApproveController {
 			return forbidden("管理者のみ指令を差し戻せます。");
 		}
 		AdminApproveActionResponse res = approveService.rejectInstruction(approveId, current.userId, req.getComment());
-		// 差し戻しメールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
-		// レスポンスコードが200でない場合は何もしない
-		log.info("指令差し戻しレスポンス: ユーザー:({}),レスポンス:({})" , current, res);
-		if ("200".equals(res.getResponseCode())) {
-			String keyId = res.getKeyId();
-			// お知らせなどメールID以外の場合はそのままメールJSONへ。
-			String mailSendKey = null;
-			if (keyId != null) {
-				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, null);
-				mailSendKey = response.getMailSendKey();
-			} else {
-				mailSendKey = ProcessKeyUtil.getMailSendKey();
-			}
-			if (mailSendKey != null)
-				putMailNoticeJson.putJson(MailConvertS3BucketUtil
-						.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null,
-								S3BucketConstant.S3_MAIL_REJECT)
-						+ S3Const.JSON, mailSendKey);
-		}
+		log.info("指令差し戻しレスポンス: ユーザー:({}),レスポンス:({})", current, res);
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
 
@@ -402,14 +451,25 @@ public class AdminApproveController {
 		AdminApproveActionResponse res = approveService.cancelInstruction(approveId, current.userId, req.getComment());
 		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
 		// レスポンスコードが200でない場合は何もしない
-		log.info("指令取り消しレスポンス: ユーザー:({}),レスポンス:({})" , current, res);
+		log.info("指令取り消しレスポンス: ユーザー:({}),レスポンス:({})", current, res);
 		if ("200".equals(res.getResponseCode())) {
 			String keyId = res.getKeyId();
 			// お知らせなどメールID以外の場合はそのままメールJSONへ。
 			String mailSendKey = null;
 			if (keyId != null) {
+				// 取り消しは指令を発行した担当者全員に送る
+				Map<String, String> placeholders = new HashMap<String, String>();
+				placeholders.put("SUBJECT_TAG_NAME", "取り消しされました。");
+				placeholders.put("USER_NAME", String.valueOf(mailConfig.getSourceMailAddress()));
+				placeholders.put("FILL_NAME", "取り消し");
+				placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.INSTRUCTION_STATUS_CANCELLED);
+				placeholders.put("TARGET_SUMMARY", "NONE");
+				placeholders.put("TARGET_TITLE", ApproveFlowConstants.INSTRUCTION_STATUS_CANCELLED);
+				placeholders.put("TARGET_NAME", String.valueOf(current.userId));
+				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
+				placeholders.put("APPROVE_ID", res.getApproveId());
 				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, null);
+						current.email, placeholders);
 				mailSendKey = response.getMailSendKey();
 			} else {
 				mailSendKey = ProcessKeyUtil.getMailSendKey();
