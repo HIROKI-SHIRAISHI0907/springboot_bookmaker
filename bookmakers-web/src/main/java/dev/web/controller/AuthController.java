@@ -133,7 +133,7 @@ public class AuthController {
 			@RequestBody ForgotPasswordRequest req) {
 
 		String email = req.getEmail();
-		MailSendResponse res = service.send(PASSWORD_RESET_MAIL_ID, email);
+		MailSendResponse res = service.send(PASSWORD_RESET_MAIL_ID, email, false);
 
 		HttpStatus status = switch (res.getResponseCode()) {
 		case "200" -> HttpStatus.OK;
