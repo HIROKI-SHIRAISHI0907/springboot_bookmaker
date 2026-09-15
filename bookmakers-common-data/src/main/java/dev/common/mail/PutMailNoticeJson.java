@@ -31,6 +31,7 @@ import dev.common.s3.S3Operator;
  * <ul>
  *   <li>メール処理キーを「未通知」状態で登録する</li>
  *   <li>メール処理キーを「通知済」状態へ更新する</li>
+ *   <li>メール処理キーを「送信失敗」状態へ更新する</li>
  * </ul>
  *
  * <p>設計方針:
@@ -77,6 +78,9 @@ public class PutMailNoticeJson {
 
 	/** JSON内で「通知済」であることを表すフラグ値 */
 	private static final String NOTIFIED_FLAG = "通知済";
+
+	/** JSON内で「送信失敗」であることを表すフラグ値 */
+	private static final String FAILED_FLAG = "送信失敗";
 
 	@Autowired
 	private S3Operator s3Operator;
@@ -148,9 +152,43 @@ public class PutMailNoticeJson {
 	 * @param mailProcessKey 通知済へ更新するメール処理キー
 	 */
 	public void updateNoticeCompleted(String jsonFileName, String mailProcessKey) {
+		updateNoticeFlag(jsonFileName, mailProcessKey, NOTIFIED_FLAG, "通知済");
+	}
 
-		logger.debug("[{}] updateNoticeCompleted開始 project={}, jsonFileName={}",
-				CLASS_NAME, PROJECT_NAME, jsonFileName);
+	/**
+	 * 処理キーを送信失敗状態へ更新する。
+	 *
+	 * <p>送信が既定の回数（現状3回）失敗し、以降このバッチの対象から外れる
+	 * 処理キーについて、JSON上でも「送信失敗」であることを明示的に分かるように
+	 * 上書きする。
+	 *
+	 * <p>既存JSONから処理キーを取得し、指定された処理キーの値を「送信失敗」へ
+	 * 変更する。他の処理キーの値は変更しない。
+	 *
+	 * @param jsonFileName 格納JSONファイル名
+	 * @param mailProcessKey 送信失敗へ更新するメール処理キー
+	 */
+	public void updateNoticeFailed(String jsonFileName, String mailProcessKey) {
+		updateNoticeFlag(jsonFileName, mailProcessKey, FAILED_FLAG, "送信失敗");
+	}
+
+	/**
+	 * 処理キーの状態を指定されたフラグ値へ更新する共通処理。
+	 * updateNoticeCompleted / updateNoticeFailed から呼ばれる。
+	 *
+	 * @param jsonFileName 格納JSONファイル名
+	 * @param mailProcessKey 更新するメール処理キー
+	 * @param flagValue JSONに書き込むフラグ値（"通知済"・"送信失敗"等）
+	 * @param flagLabel ログ出力用のラベル（フラグ値と同じ文言でよい）
+	 */
+	private void updateNoticeFlag(
+			String jsonFileName,
+			String mailProcessKey,
+			String flagValue,
+			String flagLabel) {
+
+		logger.debug("[{}] updateNoticeFlag({})開始 project={}, jsonFileName={}",
+				CLASS_NAME, flagLabel, PROJECT_NAME, jsonFileName);
 
 		if (jsonFileName == null || jsonFileName.isEmpty()) {
 			logger.warn("[{}] jsonFileNameが未指定のため処理をスキップします。",
@@ -171,22 +209,22 @@ public class PutMailNoticeJson {
 
 		// 2. 処理キーの存在確認
 		if (!noticeMap.containsKey(mailProcessKey)) {
-			logger.warn("[{}] 通知済へ更新する処理キーがJSONに存在しません。"
+			logger.warn("[{}] {}へ更新する処理キーがJSONに存在しません。"
 					+ "処理キーを新規追加せず、処理をスキップします。"
 					+ "bucket={}, key={}, mailProcessKey={}",
-					CLASS_NAME, mailBucket, jsonFileName, mailProcessKey);
+					CLASS_NAME, flagLabel, mailBucket, jsonFileName, mailProcessKey);
 			return;
 		}
 
-		// 3. 通知済へ更新
-		noticeMap.put(mailProcessKey, NOTIFIED_FLAG);
+		// 3. 指定されたフラグ値へ更新
+		noticeMap.put(mailProcessKey, flagValue);
 
 		// 4. S3へ書き戻し
 		writeNoticeJson(mailBucket, jsonFileName, noticeMap);
 
-		logger.info("[{}] JSONの処理キーを通知済へ更新しました。"
+		logger.info("[{}] JSONの処理キーを{}へ更新しました。"
 				+ "bucket={}, key={}, mailProcessKey={}",
-				CLASS_NAME, mailBucket, jsonFileName, mailProcessKey);
+				CLASS_NAME, flagLabel, mailBucket, jsonFileName, mailProcessKey);
 	}
 
 	/**
