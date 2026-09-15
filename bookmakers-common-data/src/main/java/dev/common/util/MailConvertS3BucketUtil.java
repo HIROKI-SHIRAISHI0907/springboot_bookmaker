@@ -43,7 +43,8 @@ public class MailConvertS3BucketUtil {
 					S3BucketConstant.S3_MAIL_ACCEPT,
 					S3BucketConstant.S3_MAIL_REJECT,
 					S3BucketConstant.S3_MAIL_CANCEL,
-					S3BucketConstant.S3_MAIL_INSTRUCTION));
+					S3BucketConstant.S3_MAIL_INSTRUCTION,
+					S3BucketConstant.S3_MAIL_DELETE));
 
 	/** バッチコードマップ */
 	private static final Map<String, String> BATCH_CONVERT_MAP = Map.of(
