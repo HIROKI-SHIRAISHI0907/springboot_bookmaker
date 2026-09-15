@@ -5,6 +5,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 import java.util.UUID;
 import java.util.stream.Collectors;
 
@@ -14,6 +15,7 @@ import org.springframework.util.StringUtils;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 
+import dev.common.constant.MailIdConstant;
 import dev.common.entity.MailInfoMasterEntity;
 import dev.common.util.DateOffsetDecisionUtil;
 import dev.web.mail.MailSendResponse;
@@ -40,6 +42,20 @@ import lombok.RequiredArgsConstructor;
  *        各担当者は確認のみ行える。宛先全員が確認済みになるとヘッダーも自動的に「確認済」になる。
  *        管理者は自分が出した指令を差し戻し・取り消しできる。
  *
+ * -----------------------------------------------------------------
+ * 【keyId / toMailAddress について】
+ * 各レスポンスに含まれる keyId / toMailAddress は、targetKind=MAIL_INFO のときだけ
+ * 設定される「承認対象そのもの（これから登録されようとしている新しいメール種別）」の
+ * mailId / from_address であり、あくまで参照・表示用の情報。
+ *
+ * これらは「受付・承認・差し戻し・取り消し・削除・発行されました」という
+ * 承認フロー自体の状態変化を知らせる通知メールのテンプレート選択には使わない
+ * （そちらはtargetKindに関係なく常に固定の共通テンプレート
+ * MailIdConstant.BM_MAIL_XXX を使う。テンプレートIDの選択と送信登録は
+ * AdminApproveController側の責務）。承認対象のmailIdは承認されるまで
+ * mail_info_masterに存在しないため、これを通知メールのテンプレートとして
+ * 使うと必ず失敗する。
+ *
  * ※ AuthController/AdminUserServiceに合わせ、responseCodeは"200"/"400"/"404"/"409"等の文字列で返す。
  *
  * @author shiraishitoshio
@@ -50,6 +66,15 @@ public class AdminApproveService {
 
 	private static final DateTimeFormatter FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss")
 			.withZone(DateOffsetDecisionUtil.getZoneId());
+
+	/**
+	 * システムが直接参照する予約済みのmail_id。
+	 * targetKind=MAIL_INFOの依頼・指令で、このIDを新規登録対象として
+	 * 指定することを禁止する（システム通知テンプレートの乗っ取り・上書き防止）。
+	 * 他にもコードから固定参照しているmail_idがあれば、ここに追加すること。
+	 */
+	private static final Set<String> RESERVED_MAIL_IDS = Set.of(
+			MailIdConstant.BM_MAIL_XXX);
 
 	private final ApproveFlowRepository approveFlowRepository;
 	private final UserRepository userRepository;
@@ -156,7 +181,8 @@ public class AdminApproveService {
      * 依頼を承認する。
      * targetKind=NOTICE の依頼の場合、承認と同時に対象のお知らせ(notices)をPUBLISHEDにする。
      * お知らせの公開に失敗した場合(対象が見つからない等)は、依頼のステータスも変更しない
-     * （@Transactionalなので、ここでエラーレスポンスを返す＝何もコミットされない）。
+     * （早期returnの時点でapprove_flowへの書き込みがまだ行われていないため、このメソッドの
+     * トランザクションはコミットされても実質的な変更が無い）。
      * targetKind=MAIL_INFO の依頼の場合、承認と同時にtargetApprovementInfoに保持している
      * メール情報を実際にメール情報マスタへ登録する（登録できて初めてメール一覧に出てくる）。
      * 登録に失敗した場合(承認前に同じmailIdが別経路で登録された等)も、依頼のステータスは
@@ -523,10 +549,6 @@ public class AdminApproveService {
 
 		List<AdminApproveEntity> instructions = approveFlowRepository.findInstructions();
 
-		/*
-		 * 指令一覧に含まれる起票者を最初にまとめて取得する。
-		 * ループ内で毎回DB検索しない。
-		 */
 		Map<Long, UserRowData> fromUserNames = resolveUserNames(instructions.stream()
 				.map(AdminApproveEntity::getFromUserId)
 				.collect(Collectors.toList()));
@@ -553,9 +575,6 @@ public class AdminApproveService {
 			item.setConfirmedRecipientCount(
 					(int) confirmedCount);
 
-			/*
-			 * recipient側のuser_idからユーザー情報を取得する。
-			 */
 			Map<Long, UserRowData> recipientUsers = resolveUserNames(recipients.stream()
 					.map(AdminApproveRecipientEntity::getUserId)
 					.collect(Collectors.toList()));
@@ -769,8 +788,6 @@ public class AdminApproveService {
 					"この指令は既に差し戻し・取り消しされています。");
 		}
 
-		// reject/cancelのメール通知先テンプレートを解決するため、
-		// 依頼系と同じくtargetKind=MAIL_INFOの場合はここでmailInfoを解決する。
 		MailInfoMasterEntity mailInfo = null;
 		if (ApproveFlowConstants.TARGET_KIND_MAIL_INFO.equals(
 				header.getTargetKind())) {
@@ -808,33 +825,6 @@ public class AdminApproveService {
 	// 担当者退会時の後始末
 	// ==================================================================
 
-	/**
-     * 担当者が退会した際に呼び出す処理。
-     *
-     * <p><b>呼び出し方</b>： 担当者の {@code users."authFlg"} を退会済みの値
-     * （{@link UserRepository#AUTH_FLG_WITHDRAWN}）に更新する既存の退会処理
-     * （本zipには含まれていない {@code AdminUserService} 等）の中から、
-     * 同一トランザクション内でこのメソッドを呼び出してください。
-     * {@code authFlg} の更新とこのメソッドの処理が同一トランザクションでコミット／
-     * ロールバックされないと、退会したのに依頼・指令の状態だけ更新されない
-     * （またはその逆の）不整合が起こり得ます。
-     *
-     * <p>行う処理（観点5に対応）：
-     * <ol>
-     *   <li>退会した担当者が起票した依頼のうち「申請済」のものを「保留」にする
-     *       （「差し戻し」のものはそのまま）。</li>
-     *   <li>退会した担当者が宛先の指令について、{@code admin_approve_recipient} の
-     *       確認状況を（元々「確認済」だった場合を含め）強制的に「未確認」に戻す。</li>
-     *   <li>2.の結果、宛先全員確認済みで「確認済」になっていた指令ヘッダーがあれば、
-     *       「未確認」に差し戻す（「差し戻し」「取り消し」済みのヘッダーは対象外）。</li>
-     * </ol>
-     *
-     * <p>退会した担当者の表示名・メールアドレスは、{@code authFlg} が退会済みの値に
-     * なっていれば {@link UserRepository#findUserNamesByUserIds} 側で自動的に
-     * 「退会済み」にマスクされるため、ここでの対応は不要。
-     *
-     * @param withdrawnUserId 退会した担当者のuser_id
-     */
 	@Transactional
 	public void handleUserWithdrawal(
 			Long withdrawnUserId) {
@@ -879,23 +869,26 @@ public class AdminApproveService {
 		if (ApproveFlowConstants.TARGET_KIND_MAIL_INFO.equals(
 				targetKind)) {
 
+			MailInfoMasterEntity mailInfo;
 			try {
-				objectMapper.readValue(
+				mailInfo = objectMapper.readValue(
 						targetApprovementInfo,
 						MailInfoMasterEntity.class);
 			} catch (Exception e) {
 				return "targetApprovementInfo(メール情報)の形式が不正です。";
+			}
+
+			// 承認フロー自体の通知で使う固定の共通テンプレート(システム予約ID)を
+			// 依頼・指令の対象として新規登録させない。
+			if (mailInfo.getMailId() != null
+					&& RESERVED_MAIL_IDS.contains(mailInfo.getMailId())) {
+				return "そのメールIDはシステムで予約されているため使用できません。";
 			}
 		}
 
 		return null;
 	}
 
-	/**
-	 * AdminApproveEntityをレスポンスへ変換する。
-	 *
-	 * UserRowData / toItemResponse は既存仕様のものを使用。
-	 */
 	private AdminApproveItemResponse toItemResponse(
 			AdminApproveEntity e,
 			UserRowData fromUser) {

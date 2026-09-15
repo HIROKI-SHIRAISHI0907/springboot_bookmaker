@@ -23,7 +23,6 @@ import dev.common.constant.S3BucketConstant;
 import dev.common.constant.S3Const;
 import dev.common.mail.PutMailNoticeJson;
 import dev.common.util.MailConvertS3BucketUtil;
-import dev.common.util.ProcessKeyUtil;
 import dev.web.api.bm_a028.AdminApproveActionResponse;
 import dev.web.api.bm_a028.AdminApproveListResponse;
 import dev.web.api.bm_a028.AdminApproveService;
@@ -47,6 +46,21 @@ import lombok.extern.slf4j.Slf4j;
  * ロール判定はAuthController#loginで発行したJWTの"roles"クレームを見て行う想定。
  * JwtServiceの実装に応じて、クレーム名・取得方法は調整してください。
  *
+ * -----------------------------------------------------------------
+ * 【通知メールについての方針】
+ * 依頼/指令の targetKind は NOTICE / SCREEN / MAIL_INFO のいずれもあり得るが、
+ * 「受付・承認・差し戻し・取り消し・削除・発行されました」という
+ * “承認フロー自体の状態変化を知らせる通知メール” は、targetKindに関係なく
+ * 常に同じ固定テンプレート（mail_info_master.mail_id = MailIdConstant.BM_MAIL_XXX、
+ * 事前に登録済みであること）を使う。
+ *
+ * targetKind=MAIL_INFO の場合にAdminApproveServiceが返す keyId/toMailAddress は
+ * 「承認対象として登録されようとしている“新しいメール種別”自身の情報」であり、
+ * これは承認されるまでmail_info_masterに存在しない（存在してはいけない）。
+ * 以前の実装はこの「対象の情報」を誤って「通知メール自体のテンプレートID」として
+ * 使ってしまっており、承認される前は必ず存在しないIDを参照することになるため、
+ * 通知メールの送信が常に失敗していた。
+ *
  * @author shiraishitoshio
  */
 @RestController
@@ -66,12 +80,11 @@ public class AdminApproveController {
 	// 依頼（担当者 → 管理者）
 	// ------------------------------------------------------------
 
-	/** 担当者が依頼を起票する
-	 * @throws Exception */
+	/** 担当者が依頼を起票する */
 	@PostMapping("/requests")
 	public ResponseEntity<AdminApproveActionResponse> createRequest(
 			@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-			@RequestBody CreateRequestRequest req) throws Exception {
+			@RequestBody CreateRequestRequest req) {
 		CurrentUser current = resolveCurrentUser(authorizationHeader);
 		if (current == null) {
 			return unauthorized();
@@ -81,36 +94,19 @@ public class AdminApproveController {
 		}
 		log.info("依頼起票リクエスト: リクエスト:({})", req);
 		AdminApproveActionResponse res = approveService.createRequest(current.userId, req);
-		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
-		// レスポンスコードが200でない場合は何もしない
 		log.info("依頼起票レスポンス: ユーザー:({}),レスポンス:({})", current, res);
 		if ("200".equals(res.getResponseCode())) {
-			String keyId = res.getKeyId();
-			// お知らせなどメールID以外の場合はそのままメールJSONへ。
-			String mailSendKey = null;
-			if (keyId != null) {
-				Map<String, String> placeholders = new HashMap<String, String>();
-				placeholders.put("SUBJECT_TAG_NAME", "受付されました。");
-				placeholders.put("USER_NAME", String.valueOf(current.userId));
-				placeholders.put("FILL_NAME", "受付");
-				placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.TYPE_REVIEW);
-				placeholders.put("TARGET_SUMMARY", "NONE");
-				placeholders.put("TARGET_TITLE", ApproveFlowConstants.TYPE_REVIEW);
-				placeholders.put("TARGET_NAME", String.valueOf(current.userId));
-				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
-				placeholders.put("APPROVE_ID", res.getApproveId());
-				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, placeholders,
-						(res.getKeyId() != null) ? true : false);
-				mailSendKey = response.getMailSendKey();
-			} else {
-				mailSendKey = ProcessKeyUtil.getMailSendKey();
-			}
-			if (mailSendKey != null)
-				putMailNoticeJson.putJson(MailConvertS3BucketUtil
-						.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null,
-								S3BucketConstant.S3_MAIL_ACCEPT)
-						+ S3Const.JSON, mailSendKey);
+			Map<String, String> placeholders = new HashMap<String, String>();
+			placeholders.put("SUBJECT_TAG_NAME", "受付されました。");
+			placeholders.put("USER_NAME", String.valueOf(current.userId));
+			placeholders.put("FILL_NAME", "受付");
+			placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.TYPE_REVIEW);
+			placeholders.put("TARGET_SUMMARY", "NONE");
+			placeholders.put("TARGET_TITLE", ApproveFlowConstants.TYPE_REVIEW);
+			placeholders.put("TARGET_NAME", String.valueOf(current.userId));
+			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
+			placeholders.put("APPROVE_ID", res.getApproveId());
+			notifyApproveFlow(current.email, placeholders, S3BucketConstant.S3_MAIL_ACCEPT);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
@@ -138,12 +134,11 @@ public class AdminApproveController {
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
 
-	/** 管理者が依頼を承認する
-	 * @throws Exception */
+	/** 管理者が依頼を承認する */
 	@PatchMapping("/requests/{approveId}/approve")
 	public ResponseEntity<AdminApproveActionResponse> approveRequest(
 			@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-			@PathVariable String approveId) throws Exception {
+			@PathVariable String approveId) {
 		CurrentUser current = resolveCurrentUser(authorizationHeader);
 		if (current == null) {
 			return unauthorized();
@@ -153,47 +148,29 @@ public class AdminApproveController {
 		}
 		log.info("依頼承認リクエスト: 承認ID:({})", approveId);
 		AdminApproveActionResponse res = approveService.approveRequest(approveId, current.userId);
-		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
-		// レスポンスコードが200でない場合は何もしない
 		log.info("依頼承認レスポンス: ユーザー:({}),レスポンス:({})", current, res);
 		if ("200".equals(res.getResponseCode())) {
-			String keyId = res.getKeyId();
-			// お知らせなどメールID以外の場合はそのままメールJSONへ。
-			String mailSendKey = null;
-			if (keyId != null) {
-				Map<String, String> placeholders = new HashMap<String, String>();
-				placeholders.put("SUBJECT_TAG_NAME", "承認されました。");
-				placeholders.put("USER_NAME", String.valueOf(current.userId));
-				placeholders.put("FILL_NAME", "承認");
-				placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.REVIEW_STATUS_APPROVED);
-				placeholders.put("TARGET_SUMMARY", "NONE");
-				placeholders.put("TARGET_TITLE", ApproveFlowConstants.REVIEW_STATUS_APPROVED);
-				placeholders.put("TARGET_NAME", String.valueOf(mailConfig.getSourceMailAddress()));
-				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
-				placeholders.put("APPROVE_ID", res.getApproveId());
-				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, placeholders,
-						(res.getKeyId() != null) ? true : false);
-				mailSendKey = response.getMailSendKey();
-			} else {
-				mailSendKey = ProcessKeyUtil.getMailSendKey();
-			}
-			if (mailSendKey != null)
-				putMailNoticeJson.putJson(MailConvertS3BucketUtil
-						.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null,
-								S3BucketConstant.S3_MAIL_ACCEPT)
-						+ S3Const.JSON, mailSendKey);
+			Map<String, String> placeholders = new HashMap<String, String>();
+			placeholders.put("SUBJECT_TAG_NAME", "承認されました。");
+			placeholders.put("USER_NAME", String.valueOf(current.userId));
+			placeholders.put("FILL_NAME", "承認");
+			placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.REVIEW_STATUS_APPROVED);
+			placeholders.put("TARGET_SUMMARY", "NONE");
+			placeholders.put("TARGET_TITLE", ApproveFlowConstants.REVIEW_STATUS_APPROVED);
+			placeholders.put("TARGET_NAME", String.valueOf(mailConfig.getSourceMailAddress()));
+			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
+			placeholders.put("APPROVE_ID", res.getApproveId());
+			notifyApproveFlow(current.email, placeholders, S3BucketConstant.S3_MAIL_ACCEPT);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
 
-	/** 管理者が依頼を差し戻す
-	 * @throws Exception */
+	/** 管理者が依頼を差し戻す */
 	@PatchMapping("/requests/{approveId}/reject")
 	public ResponseEntity<AdminApproveActionResponse> rejectRequest(
 			@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
 			@PathVariable String approveId,
-			@RequestBody ApproveActionRequest req) throws Exception {
+			@RequestBody ApproveActionRequest req) {
 		CurrentUser current = resolveCurrentUser(authorizationHeader);
 		if (current == null) {
 			return unauthorized();
@@ -203,48 +180,30 @@ public class AdminApproveController {
 		}
 		log.info("依頼差し戻しリクエスト: リクエスト:({})", req);
 		AdminApproveActionResponse res = approveService.rejectRequest(approveId, current.userId, req.getComment());
-		// 差し戻しメールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
-		// レスポンスコードが200でない場合は何もしない
 		log.info("依頼差し戻しレスポンス: ユーザー:({}),レスポンス:({})", current, res);
 		if ("200".equals(res.getResponseCode())) {
-			String keyId = res.getKeyId();
-			// お知らせなどメールID以外の場合はそのままメールJSONへ。
-			String mailSendKey = null;
-			if (keyId != null) {
-				Map<String, String> placeholders = new HashMap<String, String>();
-				placeholders.put("SUBJECT_TAG_NAME", "差し戻しされました。");
-				placeholders.put("USER_NAME", String.valueOf(current.userId));
-				placeholders.put("FILL_NAME", "差し戻し");
-				placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.REVIEW_STATUS_REJECTED);
-				placeholders.put("TARGET_SUMMARY", "NONE");
-				placeholders.put("TARGET_TITLE", ApproveFlowConstants.REVIEW_STATUS_REJECTED);
-				placeholders.put("TARGET_NAME", String.valueOf(mailConfig.getSourceMailAddress()));
-				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
-				placeholders.put("APPROVE_ID", res.getApproveId());
-				placeholders.put("REASON_SENTENCE", res.getComment());
-				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, placeholders,
-						(res.getKeyId() != null) ? true : false);
-				mailSendKey = response.getMailSendKey();
-			} else {
-				mailSendKey = ProcessKeyUtil.getMailSendKey();
-			}
-			if (mailSendKey != null)
-				putMailNoticeJson.putJson(MailConvertS3BucketUtil
-						.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null,
-								S3BucketConstant.S3_MAIL_REJECT)
-						+ S3Const.JSON, mailSendKey);
+			Map<String, String> placeholders = new HashMap<String, String>();
+			placeholders.put("SUBJECT_TAG_NAME", "差し戻しされました。");
+			placeholders.put("USER_NAME", String.valueOf(current.userId));
+			placeholders.put("FILL_NAME", "差し戻し");
+			placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.REVIEW_STATUS_REJECTED);
+			placeholders.put("TARGET_SUMMARY", "NONE");
+			placeholders.put("TARGET_TITLE", ApproveFlowConstants.REVIEW_STATUS_REJECTED);
+			placeholders.put("TARGET_NAME", String.valueOf(mailConfig.getSourceMailAddress()));
+			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
+			placeholders.put("APPROVE_ID", res.getApproveId());
+			placeholders.put("REASON_SENTENCE", res.getComment());
+			notifyApproveFlow(current.email, placeholders, S3BucketConstant.S3_MAIL_REJECT);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
 
-	/** 担当者が自分の依頼を取り消す
-	 * @throws Exception */
+	/** 担当者が自分の依頼を取り消す */
 	@PatchMapping("/requests/{approveId}/cancel")
 	public ResponseEntity<AdminApproveActionResponse> cancelRequest(
 			@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
 			@PathVariable String approveId,
-			@RequestBody ApproveActionRequest req) throws Exception {
+			@RequestBody ApproveActionRequest req) {
 		CurrentUser current = resolveCurrentUser(authorizationHeader);
 		if (current == null) {
 			return unauthorized();
@@ -254,36 +213,19 @@ public class AdminApproveController {
 		}
 		log.info("依頼取り消しリクエスト: リクエスト:({})", req);
 		AdminApproveActionResponse res = approveService.cancelRequest(approveId, current.userId, req.getComment());
-		// 依頼取り消しメールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
-		// レスポンスコードが200でない場合は何もしない
 		log.info("依頼取り消しレスポンス: ユーザー:({}),レスポンス:({})", current, res);
 		if ("200".equals(res.getResponseCode())) {
-			String keyId = res.getKeyId();
-			// お知らせなどメールID以外の場合はそのままメールJSONへ。
-			String mailSendKey = null;
-			if (keyId != null) {
-				Map<String, String> placeholders = new HashMap<String, String>();
-				placeholders.put("SUBJECT_TAG_NAME", "取り消しされました。");
-				placeholders.put("USER_NAME", String.valueOf(current.userId));
-				placeholders.put("FILL_NAME", "取り消し");
-				placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.REVIEW_STATUS_CANCELLED);
-				placeholders.put("TARGET_SUMMARY", "NONE");
-				placeholders.put("TARGET_TITLE", ApproveFlowConstants.REVIEW_STATUS_CANCELLED);
-				placeholders.put("TARGET_NAME", String.valueOf(current.userId));
-				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
-				placeholders.put("APPROVE_ID", res.getApproveId());
-				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, placeholders,
-						(res.getKeyId() != null) ? true : false);
-				mailSendKey = response.getMailSendKey();
-			} else {
-				mailSendKey = ProcessKeyUtil.getMailSendKey();
-			}
-			if (mailSendKey != null)
-				putMailNoticeJson.putJson(MailConvertS3BucketUtil
-						.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null,
-								S3BucketConstant.S3_MAIL_CANCEL)
-						+ S3Const.JSON, mailSendKey);
+			Map<String, String> placeholders = new HashMap<String, String>();
+			placeholders.put("SUBJECT_TAG_NAME", "取り消しされました。");
+			placeholders.put("USER_NAME", String.valueOf(current.userId));
+			placeholders.put("FILL_NAME", "取り消し");
+			placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.REVIEW_STATUS_CANCELLED);
+			placeholders.put("TARGET_SUMMARY", "NONE");
+			placeholders.put("TARGET_TITLE", ApproveFlowConstants.REVIEW_STATUS_CANCELLED);
+			placeholders.put("TARGET_NAME", String.valueOf(current.userId));
+			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
+			placeholders.put("APPROVE_ID", res.getApproveId());
+			notifyApproveFlow(current.email, placeholders, S3BucketConstant.S3_MAIL_CANCEL);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
@@ -293,12 +235,11 @@ public class AdminApproveController {
 	 * 「取り消す」(cancel)とは異なり、approve_flowの行自体を完全に削除する(復元不可)。
 	 * ステータスは問わない(申請済でも、既に承認/差し戻し/取り消し済みでも削除可能)。
 	 * 自分が申請した依頼以外は削除できない(AdminApproveService#deleteRequestでチェック)。
-	 * @throws Exception
 	 */
 	@DeleteMapping("/requests/{approveId}")
 	public ResponseEntity<AdminApproveActionResponse> deleteRequest(
 			@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-			@PathVariable String approveId) throws Exception {
+			@PathVariable String approveId) {
 		CurrentUser current = resolveCurrentUser(authorizationHeader);
 		if (current == null) {
 			return unauthorized();
@@ -308,36 +249,19 @@ public class AdminApproveController {
 		}
 		log.info("依頼削除リクエスト: 削除ID:({})", approveId);
 		AdminApproveActionResponse res = approveService.deleteRequest(approveId, current.userId);
-		// 依頼削除メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
-		// レスポンスコードが200でない場合は何もしない
 		log.info("依頼削除レスポンス: ユーザー:({}),レスポンス:({})", current, res);
 		if ("200".equals(res.getResponseCode())) {
-			String keyId = res.getKeyId();
-			// お知らせなどメールID以外の場合はそのままメールJSONへ。
-			String mailSendKey = null;
-			if (keyId != null) {
-				Map<String, String> placeholders = new HashMap<String, String>();
-				placeholders.put("SUBJECT_TAG_NAME", "削除されました。");
-				placeholders.put("USER_NAME", String.valueOf(current.userId));
-				placeholders.put("FILL_NAME", "削除");
-				placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.REVIEW_STATUS_DELETED);
-				placeholders.put("TARGET_SUMMARY", "NONE");
-				placeholders.put("TARGET_TITLE", ApproveFlowConstants.REVIEW_STATUS_DELETED);
-				placeholders.put("TARGET_NAME", String.valueOf(current.userId));
-				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
-				placeholders.put("APPROVE_ID", res.getApproveId());
-				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, placeholders,
-						(res.getKeyId() != null) ? true : false);
-				mailSendKey = response.getMailSendKey();
-			} else {
-				mailSendKey = ProcessKeyUtil.getMailSendKey();
-			}
-			if (mailSendKey != null)
-				putMailNoticeJson.putJson(MailConvertS3BucketUtil
-						.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null,
-								S3BucketConstant.S3_MAIL_DELETE)
-						+ S3Const.JSON, mailSendKey);
+			Map<String, String> placeholders = new HashMap<String, String>();
+			placeholders.put("SUBJECT_TAG_NAME", "削除されました。");
+			placeholders.put("USER_NAME", String.valueOf(current.userId));
+			placeholders.put("FILL_NAME", "削除");
+			placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.REVIEW_STATUS_DELETED);
+			placeholders.put("TARGET_SUMMARY", "NONE");
+			placeholders.put("TARGET_TITLE", ApproveFlowConstants.REVIEW_STATUS_DELETED);
+			placeholders.put("TARGET_NAME", String.valueOf(current.userId));
+			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
+			placeholders.put("APPROVE_ID", res.getApproveId());
+			notifyApproveFlow(current.email, placeholders, S3BucketConstant.S3_MAIL_DELETE);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
@@ -346,12 +270,11 @@ public class AdminApproveController {
 	// 指令（管理者 → 担当者全員）
 	// ------------------------------------------------------------
 
-	/** 管理者が指令を発行する（その時点の担当者全員へ一斉送信）
-	 * @throws Exception */
+	/** 管理者が指令を発行する（その時点の担当者全員へ一斉送信する） */
 	@PostMapping("/instructions")
 	public ResponseEntity<AdminApproveActionResponse> createInstruction(
 			@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
-			@RequestBody CreateInstructionRequest req) throws Exception {
+			@RequestBody CreateInstructionRequest req) {
 		CurrentUser current = resolveCurrentUser(authorizationHeader);
 		if (current == null) {
 			return unauthorized();
@@ -361,37 +284,24 @@ public class AdminApproveController {
 		}
 		log.info("指令発行リクエスト: リクエスト:({})", req);
 		AdminApproveActionResponse res = approveService.createInstruction(current.userId, req);
-		// 指令送信メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
-		// レスポンスコードが200でない場合は何もしない
 		log.info("指令発行レスポンス: ユーザー:({}),レスポンス:({})", current, res);
 		if ("200".equals(res.getResponseCode())) {
-			String keyId = res.getKeyId();
-			// お知らせなどメールID以外の場合はそのままメールJSONへ。
-			String mailSendKey = null;
-			if (keyId != null) {
-				// 取り消しは指令を発行した担当者全員に送る
-				Map<String, String> placeholders = new HashMap<String, String>();
-				placeholders.put("SUBJECT_TAG_NAME", "発行されました。");
-				placeholders.put("USER_NAME", String.valueOf(mailConfig.getSourceMailAddress()));
-				placeholders.put("FILL_NAME", "発行");
-				placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.TYPE_INSTRUCTION);
-				placeholders.put("TARGET_SUMMARY", "NONE");
-				placeholders.put("TARGET_TITLE", ApproveFlowConstants.TYPE_INSTRUCTION);
-				placeholders.put("TARGET_NAME", String.valueOf(current.userId));
-				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
-				placeholders.put("APPROVE_ID", res.getApproveId());
-				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, placeholders,
-						(res.getKeyId() != null) ? true : false);
-				mailSendKey = response.getMailSendKey();
-			} else {
-				mailSendKey = ProcessKeyUtil.getMailSendKey();
+			Map<String, String> placeholders = new HashMap<String, String>();
+			placeholders.put("SUBJECT_TAG_NAME", "発行されました。");
+			placeholders.put("USER_NAME", String.valueOf(mailConfig.getSourceMailAddress()));
+			placeholders.put("FILL_NAME", "発行");
+			placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.TYPE_INSTRUCTION);
+			placeholders.put("TARGET_SUMMARY", "NONE");
+			placeholders.put("TARGET_TITLE", ApproveFlowConstants.TYPE_INSTRUCTION);
+			placeholders.put("TARGET_NAME", String.valueOf(current.userId));
+			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
+			placeholders.put("APPROVE_ID", res.getApproveId());
+			// 指令は宛先の担当者全員へ通知する（1通ずつ登録する）。
+			if (res.getToMailAddressList() != null) {
+				for (String toAddress : res.getToMailAddressList()) {
+					notifyApproveFlow(toAddress, placeholders, S3BucketConstant.S3_MAIL_INSTRUCTION);
+				}
 			}
-			if (mailSendKey != null)
-				putMailNoticeJson.putJson(MailConvertS3BucketUtil
-						.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null,
-								S3BucketConstant.S3_MAIL_INSTRUCTION)
-						+ S3Const.JSON, mailSendKey);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
@@ -451,16 +361,33 @@ public class AdminApproveController {
 		log.info("指令差し戻しリクエスト: リクエスト:({})", req);
 		AdminApproveActionResponse res = approveService.rejectInstruction(approveId, current.userId, req.getComment());
 		log.info("指令差し戻しレスポンス: ユーザー:({}),レスポンス:({})", current, res);
+		if ("200".equals(res.getResponseCode())) {
+			// 元の実装ではここに通知メール送信が無かったが、cancelInstructionと
+			// 対称の挙動にするため追加している。宛先(担当者全員)へは
+			// AdminApproveServiceが宛先一覧を返すようにしないと送れないため、
+			// 現状は指令を発行した管理者自身への確認通知にとどめている。
+			Map<String, String> placeholders = new HashMap<String, String>();
+			placeholders.put("SUBJECT_TAG_NAME", "差し戻しされました。");
+			placeholders.put("USER_NAME", String.valueOf(mailConfig.getSourceMailAddress()));
+			placeholders.put("FILL_NAME", "差し戻し");
+			placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.INSTRUCTION_STATUS_REJECTED);
+			placeholders.put("TARGET_SUMMARY", "NONE");
+			placeholders.put("TARGET_TITLE", ApproveFlowConstants.INSTRUCTION_STATUS_REJECTED);
+			placeholders.put("TARGET_NAME", String.valueOf(current.userId));
+			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
+			placeholders.put("APPROVE_ID", res.getApproveId());
+			placeholders.put("REASON_SENTENCE", res.getComment());
+			notifyApproveFlow(current.email, placeholders, S3BucketConstant.S3_MAIL_REJECT);
+		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
 
-	/** 管理者が自分の出した指令を取り消す
-	 * @throws Exception */
+	/** 管理者が自分の出した指令を取り消す */
 	@PatchMapping("/instructions/{approveId}/cancel")
 	public ResponseEntity<AdminApproveActionResponse> cancelInstruction(
 			@RequestHeader(value = "Authorization", required = false) String authorizationHeader,
 			@PathVariable String approveId,
-			@RequestBody ApproveActionRequest req) throws Exception {
+			@RequestBody ApproveActionRequest req) {
 		CurrentUser current = resolveCurrentUser(authorizationHeader);
 		if (current == null) {
 			return unauthorized();
@@ -470,37 +397,19 @@ public class AdminApproveController {
 		}
 		log.info("指令取り消しリクエスト: リクエスト:({})", req);
 		AdminApproveActionResponse res = approveService.cancelInstruction(approveId, current.userId, req.getComment());
-		// 承認メールを提出（メールIDを登録する処理だった場合サービス内のTransactionalをcommitしないとエラーになる）
-		// レスポンスコードが200でない場合は何もしない
 		log.info("指令取り消しレスポンス: ユーザー:({}),レスポンス:({})", current, res);
 		if ("200".equals(res.getResponseCode())) {
-			String keyId = res.getKeyId();
-			// お知らせなどメールID以外の場合はそのままメールJSONへ。
-			String mailSendKey = null;
-			if (keyId != null) {
-				// 取り消しは指令を発行した担当者全員に送る
-				Map<String, String> placeholders = new HashMap<String, String>();
-				placeholders.put("SUBJECT_TAG_NAME", "取り消しされました。");
-				placeholders.put("USER_NAME", String.valueOf(mailConfig.getSourceMailAddress()));
-				placeholders.put("FILL_NAME", "取り消し");
-				placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.INSTRUCTION_STATUS_CANCELLED);
-				placeholders.put("TARGET_SUMMARY", "NONE");
-				placeholders.put("TARGET_TITLE", ApproveFlowConstants.INSTRUCTION_STATUS_CANCELLED);
-				placeholders.put("TARGET_NAME", String.valueOf(current.userId));
-				placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
-				placeholders.put("APPROVE_ID", res.getApproveId());
-				MailSendResponse response = mailSendService.sendSystemNotification(keyId,
-						current.email, placeholders,
-						(res.getKeyId() != null) ? true : false);
-				mailSendKey = response.getMailSendKey();
-			} else {
-				mailSendKey = ProcessKeyUtil.getMailSendKey();
-			}
-			if (mailSendKey != null)
-				putMailNoticeJson.putJson(MailConvertS3BucketUtil
-						.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null,
-								S3BucketConstant.S3_MAIL_CANCEL)
-						+ S3Const.JSON, mailSendKey);
+			Map<String, String> placeholders = new HashMap<String, String>();
+			placeholders.put("SUBJECT_TAG_NAME", "取り消しされました。");
+			placeholders.put("USER_NAME", String.valueOf(mailConfig.getSourceMailAddress()));
+			placeholders.put("FILL_NAME", "取り消し");
+			placeholders.put("TARGET_KIND_LABEL", ApproveFlowConstants.INSTRUCTION_STATUS_CANCELLED);
+			placeholders.put("TARGET_SUMMARY", "NONE");
+			placeholders.put("TARGET_TITLE", ApproveFlowConstants.INSTRUCTION_STATUS_CANCELLED);
+			placeholders.put("TARGET_NAME", String.valueOf(current.userId));
+			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
+			placeholders.put("APPROVE_ID", res.getApproveId());
+			notifyApproveFlow(current.email, placeholders, S3BucketConstant.S3_MAIL_CANCEL);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
@@ -508,6 +417,38 @@ public class AdminApproveController {
 	// ------------------------------------------------------------
 	// 共通処理
 	// ------------------------------------------------------------
+
+	/**
+	 * 承認フロー（依頼/指令）の状態変化を知らせる通知メールを登録する。
+	 *
+	 * targetKindがNOTICE/SCREEN/MAIL_INFOのいずれであっても、常に同じ固定テンプレート
+	 * （MailIdConstant.BM_MAIL_XXX。あらかじめmail_info_masterに登録済みであること）を使う。
+	 * 承認対象そのもの（mailInfo.getMailId()など、まだマスタ未登録かもしれない値）を
+	 * ここに使ってはいけない。
+	 *
+	 * メール送信登録はベストエフォートとして扱い、失敗しても承認フロー自体の処理結果
+	 * （既にコミット済み）には影響させない。
+	 */
+	private void notifyApproveFlow(String toAddress, Map<String, String> placeholders, String s3BucketKind) {
+		try {
+			MailSendResponse response = mailSendService.sendSystemNotification(
+					MailIdConstant.BM_MAIL_XXX, toAddress, placeholders, false);
+			if (!"200".equals(response.getResponseCode())) {
+				log.warn("承認フロー通知メールの登録に失敗しました。responseCode={}, message={}, toAddress={}",
+						response.getResponseCode(), response.getMessage(), toAddress);
+				return;
+			}
+			String mailSendKey = response.getMailSendKey();
+			if (mailSendKey != null) {
+				putMailNoticeJson.putJson(
+						MailConvertS3BucketUtil.getS3Bucket(MailIdConstant.BM_MAIL_XXX, null, s3BucketKind)
+								+ S3Const.JSON,
+						mailSendKey);
+			}
+		} catch (Exception e) {
+			log.error("承認フロー通知メールの送信登録中に例外が発生しました。toAddress={}", toAddress, e);
+		}
+	}
 
 	/** Authorizationヘッダーからログイン中ユーザー（userId・roles）を解決する */
 	private CurrentUser resolveCurrentUser(String authorizationHeader) {
@@ -518,9 +459,7 @@ public class AdminApproveController {
 		try {
 			DecodedJWT decoded = jwtService.verifyToken(token);
 			String email = decoded.getSubject();
-			// JwtService#generateTokenで積んだ"roles"クレームを想定。実装に合わせて調整してください。
 			java.util.List<String> roles = decoded.getClaim("roles").asList(String.class);
-			// AuthController#loginのJWT subjectはemailのため、userIdへの変換が必要。
 			java.util.Optional<Long> userId = userRepository.findUserIdByEmail(email);
 			if (userId.isEmpty() || roles == null) {
 				return null;
