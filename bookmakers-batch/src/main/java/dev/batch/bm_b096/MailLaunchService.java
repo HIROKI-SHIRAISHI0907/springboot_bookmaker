@@ -122,25 +122,12 @@ public class MailLaunchService {
 			mailBody = bikouBodyDTO.getText();
 			// 取得できるバッチスクレイピングコードは本文でも同一のため取得なし
 
-			// メール送信
+			// メール送信（これが成功したら「送信できた」とみなす。S3の重複通知防止JSON更新は
+			// あくまで補助的な処理であり、これが解決できないことを理由にメール送信自体を
+			// スキップしてはいけない）
 			try {
-				// メールIDからバケット名に変換し、処理キーを通知済に上書きする
-				String s3Bucket = MailConvertS3BucketUtil.getS3Bucket(mailId, batchScrapeCd, null);
-				if (s3Bucket == null || s3Bucket.isBlank()) {
-				    log.error("メールIDからS3バケットを特定できません。mailId={}, batchScrapeCd={}",
-				            mailId, batchScrapeCd);
-				    mailSendBatchRepository.updateFailSendCount(
-				            mailSendKey,
-				            failSendCount + 1
-				    );
-				    continue;
-				}
-
 				mailSendComponent.send(mailIdKeyDTO.getFromAddress(), envelopeFrom, toAddress,
 						mailSubject, mailBody);
-
-				// メールID; bm-mail-001, bm-mail-006はbatchScrapeCdはnullの想定
-				putMailNoticeJson.updateNoticeCompleted(s3Bucket + ".json", mailSendKey);
 			} catch (Exception e) {
 				// 送信失敗数をインクリメントして更新
 				mailSendBatchRepository.updateFailSendCount(mailSendKey, failSendCount + 1);
@@ -150,6 +137,25 @@ public class MailLaunchService {
 			// 通知ステータスを1に更新
 			mailSendBatchRepository.updateFromPendingToSendedStatus(
 					mailSendKey, MailNoticeEnum.NOTIFY_STATUS_SENDED.getNoticeStatus());
+
+			// S3上の重複通知防止JSON更新はベストエフォート。
+			// 承認フロー系の通知(bm-mail-xxx等)のように、1回きりのイベントで
+			// そもそも重複防止JSONに対応するバケットを一意に特定できないメールIDもあるため、
+			// ここで失敗してもメール送信自体は既に成功しているので処理を継続する。
+			try {
+				String s3Bucket = MailConvertS3BucketUtil.getS3Bucket(mailId, batchScrapeCd, null);
+				if (s3Bucket != null && !s3Bucket.isBlank()) {
+					// メールID; bm-mail-001, bm-mail-006はbatchScrapeCdはnullの想定
+					putMailNoticeJson.updateNoticeCompleted(s3Bucket + ".json", mailSendKey);
+				} else {
+					log.warn("メールIDからS3バケットを特定できなかったため、重複通知防止JSONの更新をスキップします。"
+							+ "mailId={}, batchScrapeCd={}, mailSendKey={}",
+							mailId, batchScrapeCd, mailSendKey);
+				}
+			} catch (Exception e) {
+				log.warn("重複通知防止JSONの更新に失敗しましたが、メール送信自体は成功しているため処理を継続します。"
+						+ "mailId={}, mailSendKey={}", mailId, mailSendKey, e);
+			}
 
 			// 少しスリープする
 			try {
