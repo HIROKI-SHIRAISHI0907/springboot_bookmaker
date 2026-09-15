@@ -106,6 +106,7 @@ public class AdminApproveController {
 			placeholders.put("TARGET_NAME", String.valueOf(current.userId));
 			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 			placeholders.put("APPROVE_ID", res.getApproveId());
+			placeholders.put("MIX_BUCKET", S3BucketConstant.S3_MAIL_ACCEPT);
 			notifyApproveFlow(current.email, placeholders, S3BucketConstant.S3_MAIL_ACCEPT);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
@@ -160,6 +161,7 @@ public class AdminApproveController {
 			placeholders.put("TARGET_NAME", String.valueOf(mailConfig.getSourceMailAddress()));
 			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 			placeholders.put("APPROVE_ID", res.getApproveId());
+			placeholders.put("MIX_BUCKET", S3BucketConstant.S3_MAIL_ACCEPT);
 			notifyApproveFlow(current.email, placeholders, S3BucketConstant.S3_MAIL_ACCEPT);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
@@ -193,6 +195,7 @@ public class AdminApproveController {
 			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 			placeholders.put("APPROVE_ID", res.getApproveId());
 			placeholders.put("REASON_SENTENCE", res.getComment());
+			placeholders.put("MIX_BUCKET", S3BucketConstant.S3_MAIL_REJECT);
 			notifyApproveFlow(current.email, placeholders, S3BucketConstant.S3_MAIL_REJECT);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
@@ -225,6 +228,7 @@ public class AdminApproveController {
 			placeholders.put("TARGET_NAME", String.valueOf(current.userId));
 			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 			placeholders.put("APPROVE_ID", res.getApproveId());
+			placeholders.put("MIX_BUCKET", S3BucketConstant.S3_MAIL_CANCEL);
 			notifyApproveFlow(current.email, placeholders, S3BucketConstant.S3_MAIL_CANCEL);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
@@ -261,6 +265,7 @@ public class AdminApproveController {
 			placeholders.put("TARGET_NAME", String.valueOf(current.userId));
 			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 			placeholders.put("APPROVE_ID", res.getApproveId());
+			placeholders.put("MIX_BUCKET", S3BucketConstant.S3_MAIL_DELETE);
 			notifyApproveFlow(current.email, placeholders, S3BucketConstant.S3_MAIL_DELETE);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
@@ -296,6 +301,7 @@ public class AdminApproveController {
 			placeholders.put("TARGET_NAME", String.valueOf(current.userId));
 			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 			placeholders.put("APPROVE_ID", res.getApproveId());
+			placeholders.put("MIX_BUCKET", S3BucketConstant.S3_MAIL_INSTRUCTION);
 			// 指令は宛先の担当者全員へ通知する（1通ずつ登録する）。
 			if (res.getToMailAddressList() != null) {
 				for (String toAddress : res.getToMailAddressList()) {
@@ -377,6 +383,7 @@ public class AdminApproveController {
 			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 			placeholders.put("APPROVE_ID", res.getApproveId());
 			placeholders.put("REASON_SENTENCE", res.getComment());
+			placeholders.put("MIX_BUCKET", S3BucketConstant.S3_MAIL_REJECT);
 			notifyApproveFlow(current.email, placeholders, S3BucketConstant.S3_MAIL_REJECT);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
@@ -409,6 +416,7 @@ public class AdminApproveController {
 			placeholders.put("TARGET_NAME", String.valueOf(current.userId));
 			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 			placeholders.put("APPROVE_ID", res.getApproveId());
+			placeholders.put("MIX_BUCKET", S3BucketConstant.S3_MAIL_CANCEL);
 			notifyApproveFlow(current.email, placeholders, S3BucketConstant.S3_MAIL_CANCEL);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
