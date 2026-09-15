@@ -11,4 +11,7 @@ public class BikouDTO {
 	/** テキスト */
 	private String text;
 
+	/** バケット */
+	private String mixBucket;
+
 }

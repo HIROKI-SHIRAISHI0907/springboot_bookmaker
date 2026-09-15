@@ -49,6 +49,9 @@ public class MailLaunchService {
 	/** スクレイプコードのプレースホルダー */
 	private static final String SCRAPE_NAME_PLACEHOLDER = "SCRAPE_NAME";
 
+	/** バケットのプレースホルダー */
+	private static final String MIX_BUCKET = "MIX_BUCKET";
+
 	/**
 	 * パスワード再設定画面のベースURL（例: https://bm-stats-real.com/reset-password）。
 	 * 環境ごとにapplication.properties/application.ymlで切り替える想定。
@@ -109,6 +112,7 @@ public class MailLaunchService {
 			BikouDTO bikouSubjectDTO = applyBikouPlaceholders(mailIdKeyDTO.getMailSubject(), bikou);
 			String mailSubject = bikouSubjectDTO.getText();
 			String mailBody = mailIdKeyDTO.getMailBody();
+			String mixBucket = bikouSubjectDTO.getMixBucket();
 			// バッチスクレイピングコード
 			String batchScrapeCd = bikouSubjectDTO.getBatchScrapeCd();
 
@@ -120,6 +124,8 @@ public class MailLaunchService {
 
 			BikouDTO bikouBodyDTO = applyBikouPlaceholders(mailBody, bikou);
 			mailBody = bikouBodyDTO.getText();
+			if (mixBucket == null)
+				mixBucket = bikouBodyDTO.getMixBucket();
 			// 取得できるバッチスクレイピングコードは本文でも同一のため取得なし
 
 			// メール送信（これが成功したら「送信できた」とみなす。S3の重複通知防止JSON更新は
@@ -143,7 +149,7 @@ public class MailLaunchService {
 			// そもそも重複防止JSONに対応するバケットを一意に特定できないメールIDもあるため、
 			// ここで失敗してもメール送信自体は既に成功しているので処理を継続する。
 			try {
-				String s3Bucket = MailConvertS3BucketUtil.getS3Bucket(mailId, batchScrapeCd, null);
+				String s3Bucket = MailConvertS3BucketUtil.getS3Bucket(mailId, batchScrapeCd, mixBucket);
 				if (s3Bucket != null && !s3Bucket.isBlank()) {
 					// メールID; bm-mail-001, bm-mail-006はbatchScrapeCdはnullの想定
 					putMailNoticeJson.updateNoticeCompleted(s3Bucket + ".json", mailSendKey);
@@ -203,6 +209,9 @@ public class MailLaunchService {
 	        if (SCRAPE_NAME_PLACEHOLDER.equals(key))
 	            bikouDto.setBatchScrapeCd(value);
 	        value = ScrapeCodeToMailEnum.resolveScrapeName(value);
+
+	        if (MIX_BUCKET.equals(key))
+	        	bikouDto.setMixBucket(value);
 
 	        result = result.replace("（" + key + "）", value);
 	        result = result.replace("{{" + key + "}}", value);
