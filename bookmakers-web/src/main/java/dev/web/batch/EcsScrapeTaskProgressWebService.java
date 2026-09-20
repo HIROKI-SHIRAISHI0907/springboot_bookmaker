@@ -2,6 +2,7 @@
 package dev.web.batch;
 
 import java.time.LocalDateTime;
+import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
@@ -74,13 +75,17 @@ public class EcsScrapeTaskProgressWebService {
     /**
      * 開始レコードを登録する。
      *
+     * <p>DBの時刻カラムは全てUTC運用のため、start_time もUTCで保存する
+     * （JSTのウォールクロック値をそのまま入れると、タイムアウト判定SQL等で
+     * 実際の経過時間とズレて誤動作するため）。</p>
+     *
      * @param batchCd  バッチコード
      * @param status   ステータス
      * @param metadata メタデータ
      * @return progressId
      */
     public String insertStarted(String batchCd, String status, Map<String, Object> metadata) {
-        LocalDateTime now = LocalDateTime.now(DateOffsetDecisionUtil.getZoneId());
+        LocalDateTime now = LocalDateTime.now(ZoneOffset.UTC);
         String progressId = ProcessKeyUtil.getMailSendKey();
         EcsScrapeTaskProgressRecordEntity entity = new EcsScrapeTaskProgressRecordEntity();
         entity.setProgressId(progressId);
@@ -284,11 +289,11 @@ public class EcsScrapeTaskProgressWebService {
             Map<String, String> placeholders = new LinkedHashMap<>();
             placeholders.put("SCRAPE_NAME", scrapeName);
             placeholders.put("EXECUTED_AT", String.valueOf(
-            		LocalDateTime.now(DateOffsetDecisionUtil.getZoneId())));
+                    LocalDateTime.now(DateOffsetDecisionUtil.getZoneId())));
             mailSendService.sendSystemNotification(SCRAPE_COMPLETE_MAIL_ID,
-            		MailConvertS3BucketUtil.getJsonFileName(
-            				scrapeCode + "-" + SCRAPE_COMPLETE_MAIL_ID),
-            		adminNotificationEmail, placeholders, false);
+                    MailConvertS3BucketUtil.getJsonFileName(
+                            scrapeCode + "-" + SCRAPE_COMPLETE_MAIL_ID),
+                    adminNotificationEmail, placeholders, false);
         } catch (Exception e) {
             log.error("スクレイピングタスク完了通知メールの登録に失敗しました。batchCd={}, finalStatus={}",
                     batchCd, finalStatus, e);
