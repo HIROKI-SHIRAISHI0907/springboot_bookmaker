@@ -142,10 +142,28 @@ public class FuturesAPIService {
 
             // =========================
             // 実データが無い(もしくは古いデータしか無い)場合のみ、延期/遅延 JSON をチェック
+            //   ※公式に延期/遅延/中断と判明しているデータがあれば、それを最優先で信用する
             // =========================
             String delayPostponeData = findDelayPostponeStatus(dto, delayPostponeJsonData);
             if (delayPostponeData != null) {
                 dto.setStatus(delayPostponeData);
+                continue;
+            }
+
+            // =========================
+            // 開始予定時刻は過ぎているが、終了済データも直近の更新データも無いケース
+            //   システムデータ上に非終了状態のデータ(systemData.liveCount)が過去に存在するなら、
+            //   実際には試合が行われた（＝延期ではない）可能性が高く、単にバッチが
+            //   「終了済」フラグを立てないまま更新を止めているだけと考えられる。
+            //   これを「遅延」と区別するため STALLED（更新停止）とする。
+            // =========================
+            if (isAfterScheduledTime(dto.getFutureTime(), now)
+                    && systemData.getFinishedCount() == 0
+                    && realtimeData.getCurrentLiveCount() == 0
+                    && systemData.getLiveCount() > 0) {
+                dto.setStatus(FutureScheduleEnum.STALLED.getCode());
+                log.info("stalled check: {},{},{},sysLive={}",
+                        dto.getGameTeamCategory(), dto.getHomeTeam(), dto.getAwayTeam(), systemData.getLiveCount());
                 continue;
             }
 
@@ -158,7 +176,9 @@ public class FuturesAPIService {
             }
 
             // =========================
-            // ここから先は「開始予定時刻を過ぎたが終了済データも直近の更新データも延期情報も無い」
+            // ここから先は「開始予定時刻を過ぎたが、終了済データも直近の更新データも延期情報も、
+            // システム上の非終了データすらも一切無い」＝実データが一度も来ていないケース。
+            // この場合のみ、真に「遅延」の可能性が高いとみなす。
             // =========================
 
             // DELAYED は「今日の試合」にだけ付ける
