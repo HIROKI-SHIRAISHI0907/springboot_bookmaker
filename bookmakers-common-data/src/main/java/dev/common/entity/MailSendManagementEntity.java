@@ -31,6 +31,9 @@ public class MailSendManagementEntity {
 	/** 通知ステータス（通知前:0, 通知後:1） */
 	private String notifyStatus;
 
+	/** S3バケット管理用テキスト */
+	private String bucketInfo;
+
 	/** 送信失敗カウント */
 	private int failSendCount;
 
