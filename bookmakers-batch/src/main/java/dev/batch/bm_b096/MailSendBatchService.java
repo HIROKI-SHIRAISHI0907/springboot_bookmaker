@@ -39,11 +39,12 @@ public class MailSendBatchService {
 	 * 送信先メールアドレスを直接指定してメール送信を登録する。
 	 *
 	 * @param mailId    メール情報マスタのメールID
+	 * @param bucketName バケット名
 	 * @param toAddress 送信先メールアドレス（画面入力値など、呼び出し元で確定済みのもの）
 	 * @param bikou バッチ実行時の件数情報など
 	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
 	 */
-	public String send(String mailId, String toAddress, String bikou) {
+	public String send(String mailId, String bucketName, String toAddress, String bikou) {
 		// メール情報マスタに存在するか
 		MailInfoMasterEntity mailInfo = mailInfoMasterBatchRepository.findMailByMailIdInfo(mailId);
 		if (mailInfo == null) {
@@ -61,6 +62,7 @@ public class MailSendBatchService {
 		management.setToAddress(toAddress);
 		management.setMailId(mailInfo.getMailId());
 		management.setEnvelopeFrom(ENVELOPE_ADDRESS);
+		management.setBucketInfo(bucketName);
 		management.setNotifyStatus(MailNoticeEnum.NOTIFY_STATUS_PENDING.getNoticeStatus());
 		management.setBikou(bikou);
 		management.setFailSendCount(0);

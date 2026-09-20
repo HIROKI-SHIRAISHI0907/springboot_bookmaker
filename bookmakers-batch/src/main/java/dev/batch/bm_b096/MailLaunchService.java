@@ -19,7 +19,6 @@ import dev.common.enums.ScrapeCodeToMailEnum;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.mail.MailSendComponent;
 import dev.common.mail.PutMailNoticeJson;
-import dev.common.util.MailConvertS3BucketUtil;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -96,6 +95,7 @@ public class MailLaunchService {
 			String mailId = entity.getMailId();
 			String envelopeFrom = entity.getEnvelopeFrom();
 			String toAddress = entity.getToAddress();
+			String bucket = entity.getBucketInfo();
 			int failSendCount = entity.getFailSendCount();
 			String bikou = entity.getBikou();
 
@@ -113,8 +113,6 @@ public class MailLaunchService {
 			String mailSubject = bikouSubjectDTO.getText();
 			String mailBody = mailIdKeyDTO.getMailBody();
 			String mixBucket = bikouSubjectDTO.getMixBucket();
-			// バッチスクレイピングコード
-			String batchScrapeCd = bikouSubjectDTO.getBatchScrapeCd();
 
 			if (mailBody != null && mailBody.contains(PASSWORD_RESET_URL_PLACEHOLDER)) {
 				String encodedKey = URLEncoder.encode(mailSendKey, StandardCharsets.UTF_8);
@@ -149,18 +147,16 @@ public class MailLaunchService {
 			// そもそも重複防止JSONに対応するバケットを一意に特定できないメールIDもあるため、
 			// ここで失敗してもメール送信自体は既に成功しているので処理を継続する。
 			try {
-				String s3Bucket = MailConvertS3BucketUtil.getS3Bucket(mailId, batchScrapeCd, mixBucket);
-				if (s3Bucket != null && !s3Bucket.isBlank()) {
-					// メールID; bm-mail-001, bm-mail-006はbatchScrapeCdはnullの想定
-					putMailNoticeJson.updateNoticeCompleted(s3Bucket + ".json", mailSendKey);
+				if (bucket != null && !bucket.isBlank()) {
+					putMailNoticeJson.updateNoticeCompleted(bucket, mailSendKey);
 				} else {
 					log.warn("メールIDからS3バケットを特定できなかったため、重複通知防止JSONの更新をスキップします。"
-							+ "mailId={}, batchScrapeCd={}, mailSendKey={}",
-							mailId, batchScrapeCd, mailSendKey);
+							+ "bucket={}, mailSendKey={}",
+							bucket, mailSendKey);
 				}
 			} catch (Exception e) {
 				log.warn("重複通知防止JSONの更新に失敗しましたが、メール送信自体は成功しているため処理を継続します。"
-						+ "mailId={}, mailSendKey={}", mailId, mailSendKey, e);
+						+ "bucket={}, mailSendKey={}, e={}", bucket, mailSendKey, e);
 			}
 
 			// 少しスリープする

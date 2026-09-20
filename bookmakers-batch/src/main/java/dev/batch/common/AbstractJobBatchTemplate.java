@@ -11,7 +11,6 @@ import dev.batch.interf.BatchIF;
 import dev.batch.interf.JobExecControlIF;
 import dev.batch.util.JobIdUtil;
 import dev.common.constant.BatchConstant;
-import dev.common.constant.S3Const;
 import dev.common.enums.BatchCodeToMailEnum;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.mail.PutMailNoticeJson;
@@ -226,12 +225,15 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 				// 完了時間
 				finTime = "EXECUTED_AT=" + LocalDateTime.now(DateOffsetDecisionUtil.getZoneId());
 				// 成功で、メール送信
-				String mailSendKey = mailSendBatchService.send(BATCH_MAIL_ID,
+				String bucketName =
+						MailConvertS3BucketUtil.getJsonFileName(
+								batchCode() + BATCH_MAIL_ID);
+				String mailSendKey = mailSendBatchService.send(BATCH_MAIL_ID, bucketName,
 						sourceMailAddress, batchCode + "," + finTime);
 
 				// 送信できた処理キーをJSONに格納
 				if (mailSendKey != null)
-					putJson(BATCH_MAIL_ID, batchCode(), mailSendKey);
+					putJson(bucketName, mailSendKey);
 			}
 
 			return BatchConstant.BATCH_SUCCESS;
@@ -287,14 +289,13 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 
 	/**
 	 * 処理キーを特定のJSONファイルに保存する
-	 * @param mailId
-	 * @param batchScrapeCd
+	 * @param id
 	 * @param mailProcessKey
 	 * @throws Exception
 	 */
-	private void putJson(String mailId, String batchScrapeCd, String mailProcessKey) throws Exception {
+	private void putJson(String id, String mailProcessKey) throws Exception {
 		putMailNoticeJson.putJson(MailConvertS3BucketUtil
-				.getS3Bucket(mailId, batchScrapeCd, null) + S3Const.JSON, mailProcessKey);
+				.getJsonFileName(id), mailProcessKey);
 	}
 
 	/**

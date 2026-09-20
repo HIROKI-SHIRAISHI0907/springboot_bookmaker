@@ -24,8 +24,6 @@ import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
 import dev.common.config.MailConfig;
 import dev.common.config.PathConfig;
 import dev.common.constant.MessageCdConst;
-import dev.common.constant.S3Const;
-import dev.common.enums.ScrapeCodeToMailEnum;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.mail.PutMailNoticeJson;
 import dev.common.s3.S3Operator;
@@ -89,6 +87,9 @@ public class MailSendSomethingService {
 	/** bikouの「通知予定日」通知時間 */
 	private static final String NOTICE_TIME = "10:00:00";
 
+	/** 接頭辞 */
+	private static final String MAIL_PREFIX = "mail-send-something-";
+
 	/**
 	 * bikou内で複数値（複数リーグ名・複数日付）を連結する際の区切り文字。
 	 * <p>
@@ -123,12 +124,7 @@ public class MailSendSomethingService {
 	private ObjectMapper objectMapper;
 
 	/**
-	 * 契機処理によるメール送信予約バッチ実行
-	 * <p>
-	 * 1. bm-mail-004: リアルタイムスクレイピングECS稼働開始のお知らせ
-	 * 2. bm-mail-005: リアルタイムスクレイピングECS稼働終了のお知らせ
-	 * 3. bm-mail-006: シーズン終了間近のリーグのお知らせ
-	 * </p>
+	 * 契機処理によるメール送信予約バッチ実行<br>
 	 * を検知し、mail_send_manageへ登録する。実際の送信はbm_b096.MailLaunchServiceが行う。
 	 */
 	public void execute() throws Exception {
@@ -164,80 +160,79 @@ public class MailSendSomethingService {
 	 * @throws Exception
 	 */
 	private void checkEcsStopIntervalsAndNotify(String callerMethodName) throws Exception {
-	    final String METHOD_NAME = "checkEcsStopIntervalsAndNotify";
+		final String METHOD_NAME = "checkEcsStopIntervalsAndNotify";
 
-	    ZoneId jst = DateOffsetDecisionUtil.getZoneId();
-	    LocalDate todayJst = LocalDate.now(jst);
-	    String fileName = ECS_SLOTS_FILE_PREFIX + todayJst + ".json";
-	    String bucket = pathConfig.getS3NoEcs();
+		ZoneId jst = DateOffsetDecisionUtil.getZoneId();
+		LocalDate todayJst = LocalDate.now(jst);
+		String fileName = ECS_SLOTS_FILE_PREFIX + todayJst + ".json";
+		String bucket = pathConfig.getS3NoEcs();
 
-	    // ① 取得前の情報
-	    this.manageLoggerComponent.debugInfoLog(
-	            PROJECT_NAME,
-	            CLASS_NAME,
-	            METHOD_NAME,
-	            MessageCdConst.MCD00099I_LOG,
-	            "ecs_slots取得開始"
-	                    + " bucket=" + bucket
-	                    + " key=" + fileName
-	                    + " todayJst=" + todayJst
-	                    + " zone=" + jst
-	                    + " nowJst=" + OffsetDateTime.now(jst));
+		// ① 取得前の情報
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME,
+				CLASS_NAME,
+				METHOD_NAME,
+				MessageCdConst.MCD00099I_LOG,
+				"ecs_slots取得開始"
+						+ " bucket=" + bucket
+						+ " key=" + fileName
+						+ " todayJst=" + todayJst
+						+ " zone=" + jst
+						+ " nowJst=" + OffsetDateTime.now(jst));
 
-	    String content;
-	    try {
-	        content = s3Operator.downloadTextUtf8(bucket, fileName);
+		String content;
+		try {
+			content = s3Operator.downloadTextUtf8(bucket, fileName);
 
-	        // ② 取得成功
-	        this.manageLoggerComponent.debugInfoLog(
-	                PROJECT_NAME,
-	                CLASS_NAME,
-	                METHOD_NAME,
-	                MessageCdConst.MCD00099I_LOG,
-	                "ecs_slots取得成功"
-	                        + " bucket=" + bucket
-	                        + " key=" + fileName
-	                        + " contentLength=" + (content == null ? null : content.length()));
+			// ② 取得成功
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG,
+					"ecs_slots取得成功"
+							+ " bucket=" + bucket
+							+ " key=" + fileName
+							+ " contentLength=" + (content == null ? null : content.length()));
 
-	    } catch (Exception e) {
+		} catch (Exception e) {
 
-	        // ③ 失敗時に例外の根本原因まで確認
-	        Throwable rootCause = e;
-	        while (rootCause.getCause() != null) {
-	            rootCause = rootCause.getCause();
-	        }
+			// ③ 失敗時に例外の根本原因まで確認
+			Throwable rootCause = e;
+			while (rootCause.getCause() != null) {
+				rootCause = rootCause.getCause();
+			}
 
-	        String errorDetail =
-	                "ecs_slots取得失敗"
-	                        + " bucket=" + bucket
-	                        + " key=" + fileName
-	                        + " exception=" + e.getClass().getName()
-	                        + " message=" + e.getMessage()
-	                        + " rootException=" + rootCause.getClass().getName()
-	                        + " rootMessage=" + rootCause.getMessage();
+			String errorDetail = "ecs_slots取得失敗"
+					+ " bucket=" + bucket
+					+ " key=" + fileName
+					+ " exception=" + e.getClass().getName()
+					+ " message=" + e.getMessage()
+					+ " rootException=" + rootCause.getClass().getName()
+					+ " rootMessage=" + rootCause.getMessage();
 
-	        this.manageLoggerComponent.debugInfoLog(
-	                PROJECT_NAME,
-	                CLASS_NAME,
-	                METHOD_NAME,
-	                MessageCdConst.MCD00099I_LOG,
-	                errorDetail);
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG,
+					errorDetail);
 
-	        return;
-	    }
+			return;
+		}
 
-	    if (content == null || content.isBlank()) {
-	        this.manageLoggerComponent.debugInfoLog(
-	                PROJECT_NAME,
-	                CLASS_NAME,
-	                METHOD_NAME,
-	                MessageCdConst.MCD00099I_LOG,
-	                "ecs_slotsが未生成のためECS稼働開始/終了通知はスキップします"
-	                        + " bucket=" + bucket
-	                        + " key=" + fileName
-	                        + " contentLength=" + (content == null ? null : content.length()));
-	        return;
-	    }
+		if (content == null || content.isBlank()) {
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG,
+					"ecs_slotsが未生成のためECS稼働開始/終了通知はスキップします"
+							+ " bucket=" + bucket
+							+ " key=" + fileName
+							+ " contentLength=" + (content == null ? null : content.length()));
+			return;
+		}
 
 		List<EcsStopInterval> intervals;
 		try {
@@ -260,7 +255,7 @@ public class MailSendSomethingService {
 			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME,
 					METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 					"ECS停止時間帯に入っています。"
-					+ "file=" + fileName + " activeInterval=" + activeInterval);
+							+ "file=" + fileName + " activeInterval=" + activeInterval);
 			// ECS停止時間帯に入っている → bm-mail-005（稼働終了）
 			// 「この停止時間帯が始まって以降」に既に登録済みでなければ新規登録する
 			notifyIfNotAlreadyRegistered(BATCH_MAIL_ID_005, activeInterval.start(), now);
@@ -277,7 +272,7 @@ public class MailSendSomethingService {
 			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME,
 					METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 					"ECS稼働時間帯に入っています。"
-					+ "file=" + fileName + " activeInterval=" + activeInterval);
+							+ "file=" + fileName + " activeInterval=" + activeInterval);
 			// 「このintervalが終わって以降」に既に登録済みでなければ新規登録する
 			notifyIfNotAlreadyRegistered(BATCH_MAIL_ID_004, lastEnded.end(), now);
 		}
@@ -285,7 +280,7 @@ public class MailSendSomethingService {
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME,
 				METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 				"対象外時間です。"
-				+ "file=" + fileName + " intervals=" + intervals);
+						+ "file=" + fileName + " intervals=" + intervals);
 	}
 
 	/**
@@ -323,7 +318,8 @@ public class MailSendSomethingService {
 	 * @param nowJst      現在時刻（bikouのEXECUTED_AT用）
 	 * @throws Exception
 	 */
-	private void notifyIfNotAlreadyRegistered(String mailId, OffsetDateTime boundaryJst, OffsetDateTime nowJst) throws Exception {
+	private void notifyIfNotAlreadyRegistered(String mailId, OffsetDateTime boundaryJst, OffsetDateTime nowJst)
+			throws Exception {
 		final String METHOD_NAME = "notifyIfNotAlreadyRegistered";
 		Timestamp latestRegisterTimeUtc = mailSendBatchRepository.findLatestRegisterTime(mailId);
 		if (latestRegisterTimeUtc != null) {
@@ -337,12 +333,16 @@ public class MailSendSomethingService {
 			}
 		}
 
+		String bucketName = MailConvertS3BucketUtil.getJsonFileName(
+				MAIL_PREFIX + mailId);
+
 		// 通知の送信予約
-		String mailSendKey = mailSendBatchService.send(mailId, mailConfig.getSourceMailAddress(),
+		String mailSendKey = mailSendBatchService.send(mailId, bucketName,
+				mailConfig.getSourceMailAddress(),
 				EXECUTED_AT_PLACEHOLDER + "=" + nowJst.toLocalDateTime());
 		// JSON格納
 		if (mailSendKey != null)
-			putJson(mailId, ScrapeCodeToMailEnum.S009.getScrapeCode(), mailSendKey);
+			putJson(bucketName, mailSendKey);
 
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 				"ECS稼働開始/終了通知を登録しました mailId=" + mailId + " boundary=" + boundaryJst);
@@ -419,15 +419,19 @@ public class MailSendSomethingService {
 				.atZone(jst)
 				.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
 
+		String bucketName = MailConvertS3BucketUtil.getJsonFileName(
+				MAIL_PREFIX + BATCH_MAIL_ID_006);
+
 		// 通知の送信予約
-		String mailSendKey = mailSendBatchService.send(BATCH_MAIL_ID_006, mailConfig.getSourceMailAddress(),
+		String mailSendKey = mailSendBatchService.send(BATCH_MAIL_ID_006, bucketName,
+				mailConfig.getSourceMailAddress(),
 				LEAGUE_NAME_PLACEHOLDER + "=" + leagueNames + ","
 						+ SEASON_END_DATE_PLACEHOLDER + "=" + seasonEndDates + ","
 						+ EXECUTED_AT_PLACEHOLDER + "=" + nowJst.toLocalDateTime() + ","
 						+ NOTICE_TIME_PLACEHOLDER + "=" + noticeTime);
 		// JSON格納
 		if (mailSendKey != null)
-			putJson(BATCH_MAIL_ID_006, null, mailSendKey);
+			putJson(bucketName, mailSendKey);
 
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 				"シーズン終了間近通知を登録しました mailId=" + BATCH_MAIL_ID_006 + " leagues=" + leagueNames);
@@ -459,14 +463,12 @@ public class MailSendSomethingService {
 
 	/**
 	 * 処理キーを特定のJSONファイルに保存する
-	 * @param mailId
-	 * @param batchScrapeCd
-	 * @param mailProcessKey
+	 * @param id
 	 * @throws Exception
 	 */
-	private void putJson(String mailId, String batchScrapeCd, String mailProcessKey) throws Exception {
+	private void putJson(String id, String mailProcessKey) throws Exception {
 		putMailNoticeJson.putJson(MailConvertS3BucketUtil
-				.getS3Bucket(mailId, batchScrapeCd, null) + S3Const.JSON, mailProcessKey);
+				.getJsonFileName(id), mailProcessKey);
 	}
 
 	/**
