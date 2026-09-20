@@ -4,7 +4,6 @@ package dev.web.batch;
 import java.time.LocalDateTime;
 import java.util.LinkedHashMap;
 import java.util.Map;
-import java.util.UUID;
 
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
@@ -13,6 +12,9 @@ import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.common.enums.ScrapeCodeToMailEnum;
+import dev.common.util.DateOffsetDecisionUtil;
+import dev.common.util.MailConvertS3BucketUtil;
+import dev.common.util.ProcessKeyUtil;
 import dev.web.api.bm_a009.EcsScrapeTaskProgressRecordEntity;
 import dev.web.com.OpenProgressRecord;
 import dev.web.mail.MailSendService;
@@ -78,8 +80,8 @@ public class EcsScrapeTaskProgressWebService {
      * @return progressId
      */
     public String insertStarted(String batchCd, String status, Map<String, Object> metadata) {
-        LocalDateTime now = LocalDateTime.now();
-        String progressId = UUID.randomUUID().toString();
+        LocalDateTime now = LocalDateTime.now(DateOffsetDecisionUtil.getZoneId());
+        String progressId = ProcessKeyUtil.getMailSendKey();
         EcsScrapeTaskProgressRecordEntity entity = new EcsScrapeTaskProgressRecordEntity();
         entity.setProgressId(progressId);
         entity.setBatchCd(batchCd);
@@ -281,8 +283,11 @@ public class EcsScrapeTaskProgressWebService {
             String scrapeName = ScrapeCodeToMailEnum.resolveScrapeName(scrapeCode);
             Map<String, String> placeholders = new LinkedHashMap<>();
             placeholders.put("SCRAPE_NAME", scrapeName);
-            placeholders.put("EXECUTED_AT", LocalDateTime.now().plusHours(9).toString());
+            placeholders.put("EXECUTED_AT", String.valueOf(
+            		LocalDateTime.now(DateOffsetDecisionUtil.getZoneId())));
             mailSendService.sendSystemNotification(SCRAPE_COMPLETE_MAIL_ID,
+            		MailConvertS3BucketUtil.getJsonFileName(
+            				scrapeCode + "-" + SCRAPE_COMPLETE_MAIL_ID),
             		adminNotificationEmail, placeholders, false);
         } catch (Exception e) {
             log.error("スクレイピングタスク完了通知メールの登録に失敗しました。batchCd={}, finalStatus={}",

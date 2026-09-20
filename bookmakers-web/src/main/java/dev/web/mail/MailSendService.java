@@ -11,7 +11,6 @@ import org.springframework.web.context.request.RequestContextHolder;
 import org.springframework.web.context.request.ServletRequestAttributes;
 
 import dev.common.config.MailConfig;
-import dev.common.constant.S3Const;
 import dev.common.entity.MailInfoMasterEntity;
 import dev.common.entity.MailSendManagementEntity;
 import dev.common.enums.MailNoticeEnum;
@@ -65,12 +64,13 @@ public class MailSendService {
 	 * 検証し、JwtCurrentUserService経由で解決する。
 	 *
 	 * @param mailId メール情報マスタのメールID
+	 * @param bucketInfo バケット情報
 	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
 	 */
-	public MailSendResponse send(String mailId) {
+	public MailSendResponse send(String mailId, String bucketInfo) {
 		String toAddress = resolveCurrentUserEmail();
 		// この経路は常にメール情報マスタの実データを参照するため、mailFlg=falseで存在チェックを行う。
-		return send(mailId, toAddress, false);
+		return send(mailId, bucketInfo, toAddress, false);
 	}
 
 	/**
@@ -80,11 +80,13 @@ public class MailSendService {
 	 * （ユーザー向けの通知のため。管理者への固定アドレス通知等はsendSystemNotification()を使う）。
 	 *
 	 * @param mailId    メール情報マスタのメールID
+	 * @param bucketInfo  バケット情報
 	 * @param toAddress 送信先メールアドレス（画面入力値など、呼び出し元で確定済みのもの）
 	 * @param mailFlg   trueの場合、メール情報マスタの存在チェックを行わない
 	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
 	 */
-	public MailSendResponse send(String mailId, String toAddress, boolean mailFlg) {
+	public MailSendResponse send(String mailId, String bucketInfo,
+			String toAddress, boolean mailFlg) {
 		// メール情報マスタに存在するか（mailFlg=trueのときはDBを引かず、mailIdだけを持つ
 		// mailInfoをそのまま組み立てる。まだマスタに登録されていない対象向け）。
 		MailInfoMasterEntity mailInfo = resolveMailInfo(mailId, mailFlg);
@@ -98,7 +100,7 @@ public class MailSendService {
 			return response;
 		}
 
-		return insertManagement(mailInfo, toAddress, null, null);
+		return insertManagement(mailInfo, bucketInfo, toAddress, null, null);
 	}
 
 	/**
@@ -114,13 +116,15 @@ public class MailSendService {
 	 *   壊れて他のキーの置換もできなくなる（例: エラーメッセージ全文などの自由文はNG）。
 	 *
 	 * @param mailId       メール情報マスタのメールID
+	 * @param bucketInfo   バケット情報
 	 * @param toAddress    送信先メールアドレス（管理者通知用の固定アドレス等）
 	 * @param placeholders 件名・本文中の{{KEY}}を置換するためのkey-valueペア（無ければnullでよい）
 	 * @param mailFlg      trueの場合、メール情報マスタの存在チェックを行わずmailIdをそのまま使う
 	 *                     （承認フローの対象がMAIL_INFOで、まだマスタに登録されていない場合など）
 	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
 	 */
-	public MailSendResponse sendSystemNotification(String mailId, String toAddress, Map<String, String> placeholders,
+	public MailSendResponse sendSystemNotification(String mailId, String bucketInfo,
+			String toAddress, Map<String, String> placeholders,
 			boolean mailFlg) {
 		MailInfoMasterEntity mailInfo = resolveMailInfo(mailId, mailFlg);
 
@@ -130,7 +134,7 @@ public class MailSendService {
 		        .filter(v -> v != null && (v.startsWith("B") || v.startsWith("S")))
 		        .collect(Collectors.toList()) : new ArrayList<String>();
 
-		return insertManagement(mailInfo, toAddress, toBikou(placeholders), placeholderValues);
+		return insertManagement(mailInfo, bucketInfo, toAddress, toBikou(placeholders), placeholderValues);
 	}
 
 	/**
@@ -169,7 +173,8 @@ public class MailSendService {
 	 * @param bikou     mail_send_manage.bikouに保存する値（プレースホルダー置換用。無ければnull）
 	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
 	 */
-	private MailSendResponse insertManagement(MailInfoMasterEntity mailInfo, String toAddress, String bikou,
+	private MailSendResponse insertManagement(MailInfoMasterEntity mailInfo, String bucketInfo,
+			String toAddress, String bikou,
 			List<String> placeholderValues) {
 		MailSendResponse response = new MailSendResponse();
 
@@ -183,6 +188,7 @@ public class MailSendService {
 		management.setToAddress(toAddress);
 		management.setMailId(mailId);
 		management.setEnvelopeFrom(mailConfig.getSourceMailAddress());
+		management.setBucketInfo(bucketInfo);
 		management.setNotifyStatus(MailNoticeEnum.NOTIFY_STATUS_PENDING.getNoticeStatus());
 		management.setFailSendCount(0);
 		management.setBikou(bikou);
@@ -205,7 +211,7 @@ public class MailSendService {
 			// placeholderValuesは1つのみの想定
 			if (placeholderValues != null &&
 					!placeholderValues.isEmpty()) {
-				putJson(mailId, mailSendKey, placeholderValues.get(0));
+				putJson(bucketInfo, placeholderValues.get(0));
 			}
 			response.setResponseCode("200");
 			response.setMessage("処理が成功しました。");
@@ -403,13 +409,12 @@ public class MailSendService {
 
 	/**
 	 * 処理キーを特定のJSONファイルに保存する
-	 * @param mailId
-	 * @param batchScrapeCd
+	 * @param id
 	 * @param mailProcessKey
 	 * @throws Exception
 	 */
-	private void putJson(String mailId, String batchScrapeCd, String mailProcessKey) throws Exception {
+	private void putJson(String id, String mailProcessKey) throws Exception {
 		putMailNoticeJson.putJson(MailConvertS3BucketUtil
-				.getS3Bucket(mailId, batchScrapeCd, null) + S3Const.JSON, mailProcessKey);
+				.getJsonFileName(id), mailProcessKey);
 	}
 }
