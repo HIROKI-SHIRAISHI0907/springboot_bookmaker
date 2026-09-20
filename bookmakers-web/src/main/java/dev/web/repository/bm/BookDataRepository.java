@@ -1,6 +1,8 @@
 package dev.web.repository.bm;
 
 import java.sql.Timestamp;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.ZoneOffset;
 import java.util.Collection;
 import java.util.List;
@@ -1207,7 +1209,7 @@ public class BookDataRepository {
 	}
 
 	/**
-	 * LIVEデータ存在チェック
+	 * LIVEデータ存在チェック（鮮度は問わない）
 	 * @author shiraishitoshio
 	 */
 	public int countByLiveData(String homeTeamName, String awayTeamName) {
@@ -1242,10 +1244,20 @@ public class BookDataRepository {
 	public int countByFinData(String homeTeamName, String awayTeamName) {
 
 		StringBuilder sql = new StringBuilder("""
-				        SELECT COUNT(*) AS cnt
+				SELECT COUNT(*) AS cnt
 				FROM static_data
-				WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
-				AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
+				WHERE (
+				    normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
+				    OR normalize(home_team_name, NFKC) LIKE normalize(:homeTeamNameContains, NFKC)
+				    OR normalize(home_team_name, NFKC) LIKE normalize(:homeTeamNamePrefix, NFKC)
+				    OR normalize(home_team_name, NFKC) LIKE normalize(:homeTeamNameSuffix, NFKC)
+				)
+				AND (
+				    normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
+				    OR normalize(away_team_name, NFKC) LIKE normalize(:awayTeamNameContains, NFKC)
+				    OR normalize(away_team_name, NFKC) LIKE normalize(:awayTeamNamePrefix, NFKC)
+				    OR normalize(away_team_name, NFKC) LIKE normalize(:awayTeamNameSuffix, NFKC)
+				)
 				AND times IS NOT NULL
 				AND TRIM(times) <> ''
 				AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') = '終了済'
@@ -1254,7 +1266,14 @@ public class BookDataRepository {
 
 		MapSqlParameterSource params = new MapSqlParameterSource();
 		params.addValue("homeTeamName", homeTeamName);
+		params.addValue("homeTeamNameContains", "%" + escapeLike(homeTeamName) + "%");
+		params.addValue("homeTeamNamePrefix", escapeLike(homeTeamName) + "%");
+		params.addValue("homeTeamNameSuffix", "%" + escapeLike(homeTeamName));
+
 		params.addValue("awayTeamName", awayTeamName);
+		params.addValue("awayTeamNameContains", "%" + escapeLike(awayTeamName) + "%");
+		params.addValue("awayTeamNamePrefix", escapeLike(awayTeamName) + "%");
+		params.addValue("awayTeamNameSuffix", "%" + escapeLike(awayTeamName));
 
 		Integer count = bmJdbcTemplate.queryForObject(
 				sql.toString(),
@@ -1262,6 +1281,65 @@ public class BookDataRepository {
 				Integer.class);
 
 		return count != null ? count : 0;
+	}
+
+	/**
+	 * 現在進行中(リアルタイム)のLIVEデータの件数・最終更新時刻を取得する。
+	 * timesが「終了済/ペナルティ」以外であることに加え、
+	 * record_time(＝実データの記録時刻。update_timeではない)が
+	 * 直近(withinで指定した期間)以内に更新されているものだけを
+	 * 「今まさにライブ」とみなす。
+	 * これにより、終了済へ更新されないまま残っている古いデータを
+	 * LIVE判定から除外する。
+	 * @author shiraishitoshio
+	 */
+	public CurrentLiveDataResult findCurrentLiveData(String homeTeamName, String awayTeamName, Duration within) {
+
+		Timestamp threshold = Timestamp.from(Instant.now().minus(within));
+
+		StringBuilder sql = new StringBuilder("""
+				SELECT COUNT(*) AS cnt, MAX(record_time) AS last_updated_at
+				FROM static_data
+				WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
+				AND times IS NOT NULL
+				AND TRIM(times) <> ''
+				AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') <> '終了済'
+				AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') NOT LIKE '%ペナルティ%'
+				AND record_time IS NOT NULL
+				AND record_time >= :threshold
+				""");
+
+		MapSqlParameterSource params = new MapSqlParameterSource();
+		params.addValue("homeTeamName", homeTeamName);
+		params.addValue("awayTeamName", awayTeamName);
+		params.addValue("threshold", threshold);
+
+		return bmJdbcTemplate.queryForObject(sql.toString(), params, (rs, rowNum) -> {
+			CurrentLiveDataResult r = new CurrentLiveDataResult();
+			r.count = rs.getInt("cnt");
+			r.lastUpdatedAt = rs.getTimestamp("last_updated_at");
+			return r;
+		});
+	}
+
+	public static class CurrentLiveDataResult {
+		public int count;
+		public Timestamp lastUpdatedAt;
+	}
+
+	/**
+	 * LIKE検索用にワイルドカード文字(%, _, \)をエスケープする
+	 * PostgreSQLのLIKEはデフォルトのエスケープ文字が「\」のため、
+	 * ESCAPE句を省略してもそのまま機能する。
+	 */
+	private String escapeLike(String value) {
+		if (value == null) {
+			return null;
+		}
+		return value.replace("\\", "\\\\")
+				.replace("%", "\\%")
+				.replace("_", "\\_");
 	}
 
 	@EqualsAndHashCode

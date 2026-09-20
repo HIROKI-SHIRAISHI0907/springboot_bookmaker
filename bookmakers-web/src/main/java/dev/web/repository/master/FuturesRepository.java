@@ -17,6 +17,7 @@ import org.springframework.stereotype.Repository;
 import dev.common.util.DateOffsetDecisionUtil;
 import dev.web.api.bm_w001.FuturesResponseDTO;
 import lombok.Data;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * FuturesRepositoryクラス
@@ -25,6 +26,7 @@ import lombok.Data;
  *
  */
 @Repository
+@Slf4j
 public class FuturesRepository {
 
 	private final NamedParameterJdbcTemplate masterJdbcTemplate;
@@ -312,6 +314,8 @@ public class FuturesRepository {
 
 		OffsetDateTime dateStart = DateOffsetDecisionUtil.toStartOfDayJstOffsetDateTime(date);
 	    OffsetDateTime dateEnd = DateOffsetDecisionUtil.toNextStartOfDayJstOffsetDateTime(date);
+
+	    log.info("dateStart-dateEnd-offset: {} - {} - {}" ,dateStart, dateEnd, offset);
 
 		MapSqlParameterSource params = new MapSqlParameterSource()
 				.addValue("dateStart", dateStart)
