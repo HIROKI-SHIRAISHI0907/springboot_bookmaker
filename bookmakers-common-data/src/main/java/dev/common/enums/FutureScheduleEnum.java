@@ -25,7 +25,10 @@ public enum FutureScheduleEnum {
 	DELAYED("遅延", "DELAYED"),
 
 	/** 中断 */
-	INTERRUPTED("中断", "INTERRUPTED");
+	INTERRUPTED("中断", "INTERRUPTED"),
+
+	/** 更新停止（過去に非終了データはあるが、終了フラグも直近更新もない状態） */
+    STALLED("更新停止", "STALLED");
 
 	/** 日本語の意味 */
 	private final String japaneseMeaning;
