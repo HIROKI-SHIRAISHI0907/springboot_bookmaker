@@ -15,6 +15,7 @@ import dev.common.enums.FutureScheduleEnum;
 import dev.common.readfile.ReadDelayPostpone;
 import dev.common.readfile.dto.DelayPostponeMatchDto;
 import dev.common.util.DateOffsetDecisionUtil;
+import dev.common.util.RecordTimeConvertUtil;
 import dev.web.repository.bm.BookDataRepository;
 import dev.web.repository.bm.LeaguesRepository;
 import dev.web.repository.bm.LeaguesRepository.TeamRow;
@@ -117,10 +118,7 @@ public class FuturesAPIService {
             // --- リアルタイムデータ側の内訳をDTOにセット(record_time基準) ---
             FuturesResponseDTO.RealtimeDataStatus realtimeData = new FuturesResponseDTO.RealtimeDataStatus();
             realtimeData.setCurrentLiveCount(currentLive.count);
-            realtimeData.setLastUpdatedAt(
-                    currentLive.lastUpdatedAt == null
-                            ? null
-                            : currentLive.lastUpdatedAt.toInstant().atOffset(ZoneOffset.UTC).toString());
+            realtimeData.setLastUpdatedAt(RecordTimeConvertUtil.toApiUtcString(currentLive.lastUpdatedAt));
             dto.setRealtimeData(realtimeData);
 
             log.info("data check: {},{},{},fin={},sysLive={},rtLive={},lastUpdated={}",

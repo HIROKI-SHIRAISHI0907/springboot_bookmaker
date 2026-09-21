@@ -2,8 +2,7 @@ package dev.web.repository.bm;
 
 import java.sql.Timestamp;
 import java.time.Duration;
-import java.time.Instant;
-import java.time.ZoneOffset;
+import java.time.OffsetDateTime;
 import java.util.Collection;
 import java.util.List;
 import java.util.Map;
@@ -15,6 +14,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.common.entity.DataEntity;
+import dev.common.util.RecordTimeConvertUtil;
 import dev.web.api.bm_a025.RealTimeDataDTO;
 import dev.web.api.bm_w014.EachScoreLostDataResponseDTO;
 import lombok.EqualsAndHashCode;
@@ -927,8 +927,7 @@ public class BookDataRepository {
 			int r = rs.getInt("round_no");
 			dto.setRoundNo(rs.wasNull() ? null : String.valueOf(r));
 
-			Timestamp rt = rs.getTimestamp("record_time");
-			dto.setRecordTime(rt == null ? null : rt.toInstant().atOffset(ZoneOffset.UTC).toString());
+			dto.setRecordTime(RecordTimeConvertUtil.readAsApiUtcString(rs, "record_time"));
 
 			dto.setHomeTeamName(rs.getString("home_team_name"));
 			dto.setAwayTeamName(rs.getString("away_team_name"));
@@ -1289,16 +1288,22 @@ public class BookDataRepository {
 	 * record_time(＝実データの記録時刻。update_timeではない)が
 	 * 直近(withinで指定した期間)以内に更新されているものだけを
 	 * 「今まさにライブ」とみなす。
-	 * これにより、終了済へ更新されないまま残っている古いデータを
-	 * LIVE判定から除外する。
+	 *
+	 * lastUpdatedAt は cnt のしきい値(within)とは関係なく、
+	 * 「非終了状態のデータとして記録された、本当の最終更新時刻」を常に返す。
+	 * これにより、直近withinを過ぎて cnt=0 になった場合でも、
+	 * 「過去に更新実績があるが、直近では更新が止まっている（＝実質終了済とみなせる）」のか、
+	 * 「そもそも一度もデータが来ていない」のかを呼び出し側で区別できる。
 	 * @author shiraishitoshio
 	 */
 	public CurrentLiveDataResult findCurrentLiveData(String homeTeamName, String awayTeamName, Duration within) {
 
-		Timestamp threshold = Timestamp.from(Instant.now().minus(within));
+		Timestamp threshold = RecordTimeConvertUtil.freshnessThreshold(within);
 
 		StringBuilder sql = new StringBuilder("""
-				SELECT COUNT(*) AS cnt, MAX(record_time) AS last_updated_at
+				SELECT
+				    COUNT(*) FILTER (WHERE record_time >= :threshold) AS cnt,
+				    MAX(record_time) AS last_updated_at
 				FROM static_data
 				WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
 				AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
@@ -1307,7 +1312,6 @@ public class BookDataRepository {
 				AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') <> '終了済'
 				AND REPLACE(TRIM(normalize(times, NFKC)), ' ', '') NOT LIKE '%ペナルティ%'
 				AND record_time IS NOT NULL
-				AND record_time >= :threshold
 				""");
 
 		MapSqlParameterSource params = new MapSqlParameterSource();
@@ -1318,14 +1322,14 @@ public class BookDataRepository {
 		return bmJdbcTemplate.queryForObject(sql.toString(), params, (rs, rowNum) -> {
 			CurrentLiveDataResult r = new CurrentLiveDataResult();
 			r.count = rs.getInt("cnt");
-			r.lastUpdatedAt = rs.getTimestamp("last_updated_at");
+			r.lastUpdatedAt = RecordTimeConvertUtil.readAsJst(rs, "last_updated_at");
 			return r;
 		});
 	}
 
 	public static class CurrentLiveDataResult {
 		public int count;
-		public Timestamp lastUpdatedAt;
+		public OffsetDateTime lastUpdatedAt;
 	}
 
 	/**
