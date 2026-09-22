@@ -344,7 +344,9 @@ public interface BookDataRepository {
 			FROM static_data
 				WHERE normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
 				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
-			ORDER BY register_time DESC;
+			ORDER BY
+				(regexp_match(seq_key, '-(\\d+)$'))[1]::integer DESC,
+				register_time DESC;
 			""")
 	List<SeqKeyDTO> findMatchId(
 			@Param("homeTeamName") String homeTeamName,

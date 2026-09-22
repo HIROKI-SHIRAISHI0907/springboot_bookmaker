@@ -74,11 +74,32 @@ public class DataDBService {
 					"登録件数: " + result + "件 (" + insertEntities.getHomeTeamName() + " vs "
 					+ insertEntities.getAwayTeamName() + ")");
 		} catch (DuplicateKeyException e) {
-			// 重複は成功扱いにしたいなら握る（現状踏襲）
+			// 重複は成功扱いにしたいなら握る（現状踏襲）。
+			// ただし原因調査のため、実際にどの制約・値で重複したかを必ずログに残す。
 			String messageCd = MessageCdConst.MCD00002W_DUPLICATION_WARNING;
 			manageLoggerComponent.debugWarnLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
 					"(" + insertEntities.getHomeTeamName() + " vs "
-							+ insertEntities.getAwayTeamName() + ")");
+							+ insertEntities.getAwayTeamName()
+							+ ", seqKey=" + insertEntities.getSeqKey()
+							+ ", matchId=" + insertEntities.getMatchId()
+							+ ", times=" + insertEntities.getTimes()
+							+ ", dataCategory=" + insertEntities.getDataCategory()
+							+ ", cause=" + rootCauseMessage(e)
+							+ ")");
 		}
+	}
+
+	/**
+	 * DuplicateKeyExceptionの根本原因（PostgreSQLドライバが返す
+	 * "duplicate key value violates unique constraint ..." のメッセージ）を取り出す。
+	 * SpringのDuplicateKeyExceptionは通常SQLExceptionをラップしているため、
+	 * getMessage()だけだと制約名や重複値が省略されることがある。
+	 */
+	private static String rootCauseMessage(Throwable e) {
+		Throwable cur = e;
+		while (cur.getCause() != null && cur.getCause() != cur) {
+			cur = cur.getCause();
+		}
+		return cur.getMessage();
 	}
 }
