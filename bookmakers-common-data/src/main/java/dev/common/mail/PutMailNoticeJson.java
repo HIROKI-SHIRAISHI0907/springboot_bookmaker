@@ -3,8 +3,6 @@ package dev.common.mail;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -13,6 +11,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.common.config.PathConfig;
 import dev.common.s3.S3Operator;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * S3上にどのメールデータを格納したかを表す制御JSON(XXX.json)へ、
@@ -57,6 +56,7 @@ import dev.common.s3.S3Operator;
  *
  * @author shiraishitoshio
  */
+@Slf4j
 @Component
 public class PutMailNoticeJson {
 
@@ -69,9 +69,6 @@ public class PutMailNoticeJson {
 
 	/** クラス名 */
 	private static final String CLASS_NAME = PutMailNoticeJson.class.getName();
-
-	/** ロガー */
-	private static final Logger logger = LoggerFactory.getLogger(PutMailNoticeJson.class);
 
 	/** JSON内で「未通知」であることを表すフラグ値 */
 	private static final String UNNOTIFIED_FLAG = "";
@@ -102,17 +99,17 @@ public class PutMailNoticeJson {
 	 */
 	public void putJson(String jsonFileName, String mailProcessKey) {
 
-		logger.debug("[{}] putJson開始 project={}, jsonFileName={}",
+		log.info("[{}] putJson開始 project={}, jsonFileName={}",
 				CLASS_NAME, PROJECT_NAME, jsonFileName);
 
 		if (jsonFileName == null || jsonFileName.isEmpty()) {
-			logger.warn("[{}] jsonFileNameが未指定のため処理をスキップします。",
+			log.warn("[{}] jsonFileNameが未指定のため処理をスキップします。",
 					CLASS_NAME);
 			return;
 		}
 
 		if (mailProcessKey == null || mailProcessKey.isEmpty()) {
-			logger.warn("[{}] keyが未指定のため処理をスキップします。jsonFileName={}",
+			log.warn("[{}] keyが未指定のため処理をスキップします。jsonFileName={}",
 					CLASS_NAME, jsonFileName);
 			return;
 		}
@@ -124,10 +121,10 @@ public class PutMailNoticeJson {
 
 		// 2. 処理キーを未通知状態で登録
 		if (noticeMap.containsKey(mailProcessKey)) {
-			logger.info("[{}] 既に登録済みのキーです。上書きします。key={}",
+			log.info("[{}] 既に登録済みのキーです。上書きします。key={}",
 					CLASS_NAME, mailProcessKey);
 		} else {
-			logger.info("[{}] 新規のキーとして追記します。key={}",
+			log.info("[{}] 新規のキーとして追記します。key={}",
 					CLASS_NAME, mailProcessKey);
 		}
 
@@ -136,7 +133,7 @@ public class PutMailNoticeJson {
 		// 3. S3へ書き戻し
 		writeNoticeJson(mailBucket, jsonFileName, noticeMap);
 
-		logger.info("[{}] JSONへの処理キー登録が完了しました。bucket={}, key={}, mailProcessKey={}",
+		log.info("[{}] JSONへの処理キー登録が完了しました。bucket={}, key={}, mailProcessKey={}",
 				CLASS_NAME, mailBucket, jsonFileName, mailProcessKey);
 	}
 
@@ -187,17 +184,17 @@ public class PutMailNoticeJson {
 			String flagValue,
 			String flagLabel) {
 
-		logger.debug("[{}] updateNoticeFlag({})開始 project={}, jsonFileName={}",
+		log.info("[{}] updateNoticeFlag({})開始 project={}, jsonFileName={}",
 				CLASS_NAME, flagLabel, PROJECT_NAME, jsonFileName);
 
 		if (jsonFileName == null || jsonFileName.isEmpty()) {
-			logger.warn("[{}] jsonFileNameが未指定のため処理をスキップします。",
+			log.warn("[{}] jsonFileNameが未指定のため処理をスキップします。",
 					CLASS_NAME);
 			return;
 		}
 
 		if (mailProcessKey == null || mailProcessKey.isEmpty()) {
-			logger.warn("[{}] mailProcessKeyが未指定のため処理をスキップします。jsonFileName={}",
+			log.warn("[{}] mailProcessKeyが未指定のため処理をスキップします。jsonFileName={}",
 					CLASS_NAME, jsonFileName);
 			return;
 		}
@@ -209,7 +206,7 @@ public class PutMailNoticeJson {
 
 		// 2. 処理キーの存在確認
 		if (!noticeMap.containsKey(mailProcessKey)) {
-			logger.warn("[{}] {}へ更新する処理キーがJSONに存在しません。"
+			log.warn("[{}] {}へ更新する処理キーがJSONに存在しません。"
 					+ "処理キーを新規追加せず、処理をスキップします。"
 					+ "bucket={}, key={}, mailProcessKey={}",
 					CLASS_NAME, flagLabel, mailBucket, jsonFileName, mailProcessKey);
@@ -222,7 +219,7 @@ public class PutMailNoticeJson {
 		// 4. S3へ書き戻し
 		writeNoticeJson(mailBucket, jsonFileName, noticeMap);
 
-		logger.info("[{}] JSONの処理キーを{}へ更新しました。"
+		log.info("[{}] JSONの処理キーを{}へ更新しました。"
 				+ "bucket={}, key={}, mailProcessKey={}",
 				CLASS_NAME, flagLabel, mailBucket, jsonFileName, mailProcessKey);
 	}
@@ -243,7 +240,7 @@ public class PutMailNoticeJson {
 			String jsonFileName) {
 
 		if (!s3Operator.existsOnS3(mailBucket, jsonFileName)) {
-			logger.info(
+			log.info(
 					"[{}] 対象JSONがS3上に未アップロードのため、新規にMapを作成します。"
 							+ "bucket={}, key={}",
 					CLASS_NAME,
@@ -257,7 +254,7 @@ public class PutMailNoticeJson {
 
 			String existingJson = s3Operator.downloadTextUtf8(mailBucket, jsonFileName);
 			if (existingJson == null || existingJson.isBlank()) {
-				logger.warn(
+				log.warn(
 						"[{}] 既存JSONが空のため、新規にMapを作成します。"
 								+ "bucket={}, key={}",
 						CLASS_NAME,
@@ -274,7 +271,7 @@ public class PutMailNoticeJson {
 									String.class,
 									String.class));
 		} catch (Exception e) {
-			logger.error(
+			log.error(
 					"[{}] 既存JSONの取得/パースに失敗しました。"
 							+ "空Mapから作り直して処理を継続します。"
 							+ "bucket={}, key={}",
@@ -304,7 +301,7 @@ public class PutMailNoticeJson {
 		try {
 			updatedJson = objectMapper.writeValueAsString(noticeMap);
 		} catch (JsonProcessingException e) {
-			logger.error(
+			log.error(
 					"[{}] JSONへの変換に失敗しました。bucket={}, key={}",
 					CLASS_NAME,
 					mailBucket,
@@ -322,7 +319,7 @@ public class PutMailNoticeJson {
 					jsonFileName,
 					updatedJson);
 		} catch (Exception e) {
-			logger.error(
+			log.error(
 					"[{}] S3への書き戻しに失敗しました。bucket={}, key={}",
 					CLASS_NAME,
 					mailBucket,
