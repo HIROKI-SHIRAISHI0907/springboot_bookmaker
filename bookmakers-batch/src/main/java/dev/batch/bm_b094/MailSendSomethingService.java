@@ -419,11 +419,11 @@ public class MailSendSomethingService {
 				.atZone(jst)
 				.format(DateTimeFormatter.ofPattern("HH:mm:ss"));
 
-		String bucketName = MailConvertS3BucketUtil.getJsonFileName(
+		String fileName = MailConvertS3BucketUtil.getJsonFileName(
 				MAIL_PREFIX + BATCH_MAIL_ID_006);
 
 		// 通知の送信予約
-		String mailSendKey = mailSendBatchService.send(BATCH_MAIL_ID_006, bucketName,
+		String mailSendKey = mailSendBatchService.send(BATCH_MAIL_ID_006, fileName,
 				mailConfig.getSourceMailAddress(),
 				LEAGUE_NAME_PLACEHOLDER + "=" + leagueNames + ","
 						+ SEASON_END_DATE_PLACEHOLDER + "=" + seasonEndDates + ","
@@ -431,7 +431,7 @@ public class MailSendSomethingService {
 						+ NOTICE_TIME_PLACEHOLDER + "=" + noticeTime);
 		// JSON格納
 		if (mailSendKey != null)
-			putJson(bucketName, mailSendKey);
+			putJson(fileName, mailSendKey);
 
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 				"シーズン終了間近通知を登録しました mailId=" + BATCH_MAIL_ID_006 + " leagues=" + leagueNames);
@@ -463,12 +463,12 @@ public class MailSendSomethingService {
 
 	/**
 	 * 処理キーを特定のJSONファイルに保存する
-	 * @param id
+	 * @param fileName
+	 * @param mailProcessKey
 	 * @throws Exception
 	 */
-	private void putJson(String id, String mailProcessKey) throws Exception {
-		putMailNoticeJson.putJson(MailConvertS3BucketUtil
-				.getJsonFileName(id), mailProcessKey);
+	private void putJson(String fileName, String mailProcessKey) throws Exception {
+		putMailNoticeJson.putJson(fileName, mailProcessKey);
 	}
 
 	/**

@@ -226,15 +226,15 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 				// 完了時間
 				finTime = "EXECUTED_AT=" + LocalDateTime.now(DateOffsetDecisionUtil.getZoneId());
 				// 成功で、メール送信
-				String bucketName =
+				String fileName =
 						MailConvertS3BucketUtil.getJsonFileName(
 								batchCode() + "-" + BATCH_MAIL_ID);
-				String mailSendKey = mailSendBatchService.send(BATCH_MAIL_ID, bucketName,
+				String mailSendKey = mailSendBatchService.send(BATCH_MAIL_ID, fileName,
 						sourceMailAddress, batchCode + "," + finTime);
 
 				// 送信できた処理キーをJSONに格納
 				if (mailSendKey != null)
-					putJson(batchCode() + "-" + BATCH_MAIL_ID, mailSendKey);
+					putJson(fileName, mailSendKey);
 			}
 
 			return BatchConstant.BATCH_SUCCESS;
