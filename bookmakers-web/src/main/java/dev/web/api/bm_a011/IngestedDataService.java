@@ -172,6 +172,22 @@ public class IngestedDataService {
 		            .collect(Collectors.toList());
 		}
 
+		// ===== 試合予定時間（futureTime）が新しい順にソート。futureTimeが無い行は末尾に回す =====
+		merged.sort((a, b) -> {
+			Instant ta = parseFutureInstantOrNull(a);
+			Instant tb = parseFutureInstantOrNull(b);
+			if (ta == null && tb == null) {
+				return 0;
+			}
+			if (ta == null) {
+				return 1;
+			}
+			if (tb == null) {
+				return -1;
+			}
+			return tb.compareTo(ta);
+		});
+
 		// ===== paging =====
 		int fromIdx = Math.min(req.getOffset(), merged.size());
 		int toIdx = Math.min(fromIdx + req.getLimit(), merged.size());
@@ -320,21 +336,31 @@ public class IngestedDataService {
 	}
 
 	/**
+	 * row の futureTime を Instant にパースする。取得できない／パース失敗の場合は null を返す。
+	 */
+	private static Instant parseFutureInstantOrNull(IngestedRowDTO row) {
+		String futureTime = (row.getFuture() != null) ? row.getFuture().getFutureTime() : null;
+		if (futureTime == null || futureTime.isBlank()) {
+			return null;
+		}
+		try {
+			return OffsetDateTime.parse(futureTime).toInstant();
+		} catch (DateTimeParseException e) {
+			return null;
+		}
+	}
+
+	/**
 	 * まだ試合開始時刻を迎えていない（futureTime が現在時刻より未来の）行かどうかを判定する。
 	 * Instant（絶対時刻）同士の比較のため、タイムゾーンの取り違えは発生しない。
 	 * futureTime が取得できない場合は false（除外しない）とする。
 	 */
 	private static boolean isNotYetStarted(IngestedRowDTO row) {
-	    String futureTime = (row.getFuture() != null) ? row.getFuture().getFutureTime() : null;
-	    if (futureTime == null || futureTime.isBlank()) {
-	        return false;
-	    }
-	    try {
-	        Instant matchInstant = OffsetDateTime.parse(futureTime).toInstant();
-	        return matchInstant.isAfter(Instant.now());
-	    } catch (DateTimeParseException e) {
-	        return false;
-	    }
+		Instant matchInstant = parseFutureInstantOrNull(row);
+		if (matchInstant == null) {
+			return false;
+		}
+		return matchInstant.isAfter(Instant.now());
 	}
 
 	// =========================================================
