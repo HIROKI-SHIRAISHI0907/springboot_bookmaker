@@ -1,5 +1,6 @@
 package dev.web.controller;
 
+import java.util.HashMap;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
@@ -46,13 +47,36 @@ public class EcsScrapeTaskProgressController {
 
 	/**
 	 * 手動実行
+	 *
+	 * runMode / targetDate は未来データ取得スクレイピング（B005）用のオプション項目。
+	 * それ以外のバッチコードでは指定不要（従来通りbatchCdのみでOK）。
 	 */
 	@PostMapping("/ecs/run")
 	public ResponseEntity<Map<String, String>> run(
 			@RequestBody EcsScrapeTaskProgressRequest req) throws Exception {
 
 		String normalizedBatchCd = service.normalizeBatchCode(req.getBatchCd());
-		String taskArn = runService.runScrape(normalizedBatchCd, Map.of(), true);
+
+		String runMode = (req.getRunMode() != null && !req.getRunMode().isBlank())
+				? req.getRunMode().trim().toUpperCase()
+				: null;
+
+		if ("SPECIFIC_DATE".equals(runMode)
+				&& (req.getTargetDate() == null || req.getTargetDate().isBlank())) {
+			return ResponseEntity.badRequest().body(Map.of(
+					"error", "TARGET_DATE_REQUIRED"
+			));
+		}
+
+		Map<String, String> extraEnv = new HashMap<>();
+		if (runMode != null) {
+			extraEnv.put("RUN_MODE", runMode);
+		}
+		if ("SPECIFIC_DATE".equals(runMode) && req.getTargetDate() != null && !req.getTargetDate().isBlank()) {
+			extraEnv.put("TARGET_DATE", req.getTargetDate().trim());
+		}
+
+		String taskArn = runService.runScrape(normalizedBatchCd, extraEnv, true);
 
 		return ResponseEntity.accepted().body(Map.of(
 				"taskArn", taskArn,

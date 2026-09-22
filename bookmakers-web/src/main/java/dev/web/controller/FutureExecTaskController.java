@@ -1,10 +1,7 @@
 package dev.web.controller;
 
-import java.time.LocalDate;
-import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.Map;
-import java.util.Set;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -27,7 +24,7 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class FutureExecTaskController {
 
-	private static final Set<String> VALID_RUN_MODES = Set.of("WEEK", "NEXT_DAY_ONLY", "SPECIFIC_DATE");
+	private static final String BATCH_CODE = "B005";
 
 	private final EcsBatchTaskRunner runner;
 
@@ -42,46 +39,19 @@ public class FutureExecTaskController {
 	@PostMapping("/future")
 	public ResponseEntity<StatResponseResource> execute(@RequestBody(required = false) StatRequestResource req) {
 
-		String runMode = (req != null && req.getRunMode() != null && !req.getRunMode().isBlank())
-				? req.getRunMode().trim().toUpperCase()
-				: "WEEK";
+		// 必要ならリクエスト内容を env で渡す（nullは入れない）
+        Map<String, String> env = new HashMap<>();
+        // 例: env.put("COUNTRY", req.getCountry());
+        // 例: env.put("LEAGUE", req.getLeague());
 
-		if (!VALID_RUN_MODES.contains(runMode)) {
-			StatResponseResource errRes = new StatResponseResource();
-			errRes.setReturnCd("INVALID_RUN_MODE");
-			return ResponseEntity.badRequest().body(errRes);
-		}
+        String taskArn = runner.runBatch(BATCH_CODE, env);
 
-		String targetDate = (req != null) ? req.getTargetDate() : null;
+        StatResponseResource res = new StatResponseResource();
+        // あなたのDTO設計に合わせて詰めてOK
+        res.setReturnCd("ACCEPTED");
+        // resに taskArn を入れられるなら入れるのがおすすめ（進捗追跡できる）
+        res.setTaskArn(taskArn);
 
-		if ("SPECIFIC_DATE".equals(runMode)) {
-			if (targetDate == null || targetDate.isBlank()) {
-				StatResponseResource errRes = new StatResponseResource();
-				errRes.setReturnCd("TARGET_DATE_REQUIRED");
-				return ResponseEntity.badRequest().body(errRes);
-			}
-			try {
-				LocalDate.parse(targetDate);
-			} catch (DateTimeParseException e) {
-				StatResponseResource errRes = new StatResponseResource();
-				errRes.setReturnCd("TARGET_DATE_INVALID");
-				return ResponseEntity.badRequest().body(errRes);
-			}
-		}
-
-		// ECSタスクへ渡す環境変数（nullは入れない）
-		Map<String, String> env = new HashMap<>();
-		env.put("RUN_MODE", runMode);
-		if ("SPECIFIC_DATE".equals(runMode)) {
-			env.put("TARGET_DATE", targetDate);
-		}
-
-		String taskArn = runner.runBatch("B005", env);
-
-		StatResponseResource res = new StatResponseResource();
-		res.setReturnCd("ACCEPTED");
-		res.setTaskArn(taskArn);
-
-		return ResponseEntity.ok(res);
+        return ResponseEntity.ok(res);
 	}
 }
