@@ -234,7 +234,7 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 
 				// 送信できた処理キーをJSONに格納
 				if (mailSendKey != null)
-					putJson(bucketName, mailSendKey);
+					putJson(batchCode() + "-" + BATCH_MAIL_ID, mailSendKey);
 			}
 
 			return BatchConstant.BATCH_SUCCESS;
@@ -290,13 +290,12 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 
 	/**
 	 * 処理キーを特定のJSONファイルに保存する
-	 * @param id
+	 * @param fileName
 	 * @param mailProcessKey
 	 * @throws Exception
 	 */
-	private void putJson(String id, String mailProcessKey) throws Exception {
-		putMailNoticeJson.putJson(MailConvertS3BucketUtil
-				.getJsonFileName(id), mailProcessKey);
+	private void putJson(String fileName, String mailProcessKey) throws Exception {
+		putMailNoticeJson.putJson(fileName, mailProcessKey);
 	}
 
 	/**
