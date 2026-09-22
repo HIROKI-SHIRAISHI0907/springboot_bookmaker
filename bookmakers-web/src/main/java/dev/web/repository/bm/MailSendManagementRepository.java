@@ -14,7 +14,7 @@ import dev.common.enums.MailNoticeEnum;
 
 /**
  * MailSendManagementRepositoryクラス
- * メール送信管理（mail_send_management）へのアクセスを担当する。
+ * メール送信管理（mail_send_manage）へのアクセスを担当する。
  *
  * 想定テーブル定義
  *   mail_send_key : メール送信キー（主キー）
@@ -22,6 +22,7 @@ import dev.common.enums.MailNoticeEnum;
  *   to_address    : 送信先メールアドレス
  *   mail_id       : メールID（mail_info_masterへのFK）
  *   envelope_from : エンベロープフロム
+ *   bucket_info   : 通知用JSONファイル名（S3キー）
  *   notify_status : 通知ステータス（例: PENDING / SENT / FAILED / BOUNCED）
  *
  * ※テーブル名・カラム名・@Qualifierの値は実際のプロジェクトに合わせて置き換えてください。
@@ -43,6 +44,7 @@ public class MailSendManagementRepository {
 		dto.setToAddress(rs.getString("to_address"));
 		dto.setMailId(rs.getString("mail_id"));
 		dto.setEnvelopeFrom(rs.getString("envelope_from"));
+		dto.setBucketInfo(rs.getString("bucket_info"));
 		dto.setNotifyStatus(rs.getString("notify_status"));
 		dto.setBikou(rs.getString("bikou"));
 		dto.setRegisterTime(rs.getTimestamp("register_time"));
@@ -65,8 +67,9 @@ public class MailSendManagementRepository {
 				      to_address,
 				      mail_id,
 				      envelope_from,
+				      bucket_info,
 				      notify_status
-				    FROM mail_send_management
+				    FROM mail_send_manage
 				    ORDER BY mail_send_key
 				""";
 		return jdbcTemplate.query(sql, new MapSqlParameterSource(), ROW_MAPPER);
@@ -83,6 +86,7 @@ public class MailSendManagementRepository {
 				      to_address,
 				      mail_id,
 				      envelope_from,
+				      bucket_info,
 				      notify_status,
 				      register_time
 				    FROM mail_send_manage
@@ -107,6 +111,7 @@ public class MailSendManagementRepository {
 				      to_address,
 				      mail_id,
 				      envelope_from,
+				      bucket_info,
 				      notify_status
 				    FROM mail_send_manage
 				    WHERE
@@ -130,6 +135,7 @@ public class MailSendManagementRepository {
 				      to_address,
 				      mail_id,
 				      envelope_from,
+				      bucket_info,
 				      notify_status
 				    FROM mail_send_manage
 				    WHERE
@@ -152,6 +158,7 @@ public class MailSendManagementRepository {
 				      to_address,
 				      mail_id,
 				      envelope_from,
+				      bucket_info,
 				      notify_status,
 				      fail_send_count,
 				      bikou,
@@ -165,6 +172,7 @@ public class MailSendManagementRepository {
 				      :toAddress,
 				      :mailId,
 				      :envelopeFrom,
+				      :bucketInfo,
 				      :notifyStatus,
 				      :failSendCount,
 				      :bikou,
@@ -245,6 +253,7 @@ public class MailSendManagementRepository {
 				.addValue("toAddress", dto.getToAddress())
 				.addValue("mailId", dto.getMailId())
 				.addValue("envelopeFrom", dto.getEnvelopeFrom())
+				.addValue("bucketInfo", dto.getBucketInfo())
 				.addValue("notifyStatus", dto.getNotifyStatus())
 				.addValue("failSendCount", dto.getFailSendCount())
 				.addValue("bikou", dto.getBikou());
