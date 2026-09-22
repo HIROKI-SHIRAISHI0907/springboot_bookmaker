@@ -49,7 +49,7 @@ public class MailSendBatchService {
 	public String send(String mailId, String bucketName, String toAddress, String bikou) {
 		// メール情報マスタに存在するか
 		log.info("send check, mailId={},bucketName={},toAddress={}"
-				+ ",bikou", mailId, bucketName, toAddress, bikou);
+				+ ",bikou={}", mailId, bucketName, toAddress, bikou);
 		MailInfoMasterEntity mailInfo = mailInfoMasterBatchRepository.findMailByMailIdInfo(mailId);
 		if (mailInfo == null) {
 			log.error("メール情報マスタに該当データがありません。mailId={}", mailId);

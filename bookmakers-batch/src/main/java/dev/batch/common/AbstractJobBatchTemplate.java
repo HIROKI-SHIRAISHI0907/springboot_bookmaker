@@ -162,7 +162,8 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 
 		final String code = batchCode();
 		final String jobId = JobIdUtil.generate(code);
-		final LocalDateTime startTime = LocalDateTime.now();
+		final LocalDateTime startTime = LocalDateTime.now(
+				DateOffsetDecisionUtil.getZoneId());
 
 		String finTime = null;
 		String batchCode = null;
@@ -227,7 +228,7 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 				// 成功で、メール送信
 				String bucketName =
 						MailConvertS3BucketUtil.getJsonFileName(
-								batchCode() + BATCH_MAIL_ID);
+								batchCode() + "-" + BATCH_MAIL_ID);
 				String mailSendKey = mailSendBatchService.send(BATCH_MAIL_ID, bucketName,
 						sourceMailAddress, batchCode + "," + finTime);
 
