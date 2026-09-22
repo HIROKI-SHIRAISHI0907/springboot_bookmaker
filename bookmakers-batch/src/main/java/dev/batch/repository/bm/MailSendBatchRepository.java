@@ -28,6 +28,7 @@ public interface MailSendBatchRepository {
 				to_address AS toAddress,
 				mail_id AS mailId,
 				envelope_from AS envelopeFrom,
+				bucket_info AS bucketInfo,
 				notify_status AS notifyStatus,
 				fail_send_count AS failSendCount,
 				bikou
@@ -48,6 +49,7 @@ public interface MailSendBatchRepository {
 				to_address AS toAddress,
 				mail_id AS mailId,
 				envelope_from AS envelopeFrom,
+				bucket_info AS bucketInfo,
 				notify_status AS notifyStatus,
 				fail_send_count AS failSendCount,
 				bikou
@@ -123,6 +125,7 @@ public interface MailSendBatchRepository {
 			      to_address,
 			      mail_id,
 			      envelope_from,
+			      bucket_info,
 			      notify_status,
 			      fail_send_count,
 			      bikou,
@@ -136,6 +139,7 @@ public interface MailSendBatchRepository {
 			      #{toAddress},
 			      #{mailId},
 			      #{envelopeFrom},
+			      #{bucketInfo},
 			      #{notifyStatus},
 			      #{failSendCount},
 			      #{bikou},
