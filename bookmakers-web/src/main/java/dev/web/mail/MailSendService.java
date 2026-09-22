@@ -51,6 +51,8 @@ public class MailSendService {
 
 	private static final String IN_USE_MESSAGE = "このメール情報は送信管理で使用されているため削除できません。";
 
+	private static final String WEB = "WEB";
+
 	private final PutMailNoticeJson putMailNoticeJson;
 	private final MailInfoMasterRepository mailInfoMasterRepository;
 	private final MailSendManagementRepository mailSendManagementRepository;
@@ -131,8 +133,13 @@ public class MailSendService {
 		// placeHoldersのvalue側(B or S始まりのコード)だけをまとめる
 		List<String> placeholderValues = (placeholders != null && !placeholders.isEmpty())
 				? placeholders.values().stream()
-		        .filter(v -> v != null && (v.startsWith("B") || v.startsWith("S")))
-		        .collect(Collectors.toList()) : new ArrayList<String>();
+						.filter(v -> v != null && (v.startsWith("B") || v.startsWith("S")))
+						.collect(Collectors.toList())
+				: new ArrayList<String>();
+
+		log.info("sendSystemNotification check "
+				+ "mailId={},bucketInfo={},toAddress={},placeholders={},flg={}",
+				mailId, bucketInfo, toAddress, placeholders, mailFlg);
 
 		return insertManagement(mailInfo, bucketInfo, toAddress, toBikou(placeholders), placeholderValues);
 	}
@@ -151,8 +158,10 @@ public class MailSendService {
 		if (mailFlg) {
 			MailInfoMasterEntity mailInfo = new MailInfoMasterEntity();
 			mailInfo.setMailId(mailId);
+			log.info("resolveMailInfo mailFlg=true check, mailId={}", mailId);
 			return mailInfo;
 		}
+		log.info("resolveMailInfo mailFlg=false check, mailId={}", mailId);
 		return mailInfoMasterRepository.findById(mailId)
 				.orElseThrow(() -> {
 					log.error("メール情報マスタに該当データがありません。mailId={}", mailId);
@@ -191,7 +200,10 @@ public class MailSendService {
 		management.setBucketInfo(bucketInfo);
 		management.setNotifyStatus(MailNoticeEnum.NOTIFY_STATUS_PENDING.getNoticeStatus());
 		management.setFailSendCount(0);
+		management.setSourceInfo(WEB);
 		management.setBikou(bikou);
+
+		log.info("insertManagement check MailSendManagementEntity={}",management);
 
 		try {
 			int result = mailSendManagementRepository.insert(management);
@@ -205,6 +217,9 @@ public class MailSendService {
 			response.setMessage(SYSTEM_ERROR_MESSAGE);
 			return response;
 		}
+
+		log.info("insertManagement json"
+				+ " check placeholderValues={}",placeholderValues);
 
 		// JSON保存
 		try {
