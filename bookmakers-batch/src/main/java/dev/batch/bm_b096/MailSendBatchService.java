@@ -35,6 +35,8 @@ public class MailSendBatchService {
 
 	private static final String ENVELOPE_ADDRESS = "no-reply@sample.com";
 
+	private static final String BATCH = "BATCH";
+
 	/**
 	 * 送信先メールアドレスを直接指定してメール送信を登録する。
 	 *
@@ -46,6 +48,8 @@ public class MailSendBatchService {
 	 */
 	public String send(String mailId, String bucketName, String toAddress, String bikou) {
 		// メール情報マスタに存在するか
+		log.info("send check, mailId={},bucketName={},toAddress={}"
+				+ ",bikou", mailId, bucketName, toAddress, bikou);
 		MailInfoMasterEntity mailInfo = mailInfoMasterBatchRepository.findMailByMailIdInfo(mailId);
 		if (mailInfo == null) {
 			log.error("メール情報マスタに該当データがありません。mailId={}", mailId);
@@ -64,8 +68,11 @@ public class MailSendBatchService {
 		management.setEnvelopeFrom(ENVELOPE_ADDRESS);
 		management.setBucketInfo(bucketName);
 		management.setNotifyStatus(MailNoticeEnum.NOTIFY_STATUS_PENDING.getNoticeStatus());
-		management.setBikou(bikou);
 		management.setFailSendCount(0);
+		management.setBikou(bikou);
+		management.setSourceInfo(BATCH);
+
+		log.info("send check MailSendManagementEntity={}",management);
 
 		try {
 			mailSendBatchRepository.insert(management);

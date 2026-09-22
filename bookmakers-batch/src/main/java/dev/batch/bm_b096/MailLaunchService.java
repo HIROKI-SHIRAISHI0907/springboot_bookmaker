@@ -100,6 +100,7 @@ public class MailLaunchService {
 			String bikou = entity.getBikou();
 
 			MailInfoMasterEntity mailIdKeyDTO = mailInfoMasterBatchRepository.findMailByMailIdInfo(mailId);
+			log.info("mail master check, mailIdKeyDTO={}", mailIdKeyDTO);
 			if (mailIdKeyDTO == null) {
 				// 送信失敗数をインクリメントして更新
 				mailSendBatchRepository.updateFailSendCount(mailSendKey, failSendCount + 1);
@@ -129,6 +130,9 @@ public class MailLaunchService {
 			// メール送信（これが成功したら「送信できた」とみなす。S3の重複通知防止JSON更新は
 			// あくまで補助的な処理であり、これが解決できないことを理由にメール送信自体を
 			// スキップしてはいけない）
+			log.info("mail send check, mailIdKeyDTO={},envelopeFrom={},toAddress={}"
+					+ ",mailSubject={},mailBody={}", mailIdKeyDTO, envelopeFrom, toAddress
+					, mailSubject, mailBody);
 			try {
 				mailSendComponent.send(mailIdKeyDTO.getFromAddress(), envelopeFrom, toAddress,
 						mailSubject, mailBody);
@@ -146,6 +150,7 @@ public class MailLaunchService {
 			// 承認フロー系の通知(bm-mail-xxx等)のように、1回きりのイベントで
 			// そもそも重複防止JSONに対応するバケットを一意に特定できないメールIDもあるため、
 			// ここで失敗してもメール送信自体は既に成功しているので処理を継続する。
+			log.info("mail send json check, bucket={},mailSendKey={},", bucket, mailSendKey);
 			try {
 				if (bucket != null && !bucket.isBlank()) {
 					putMailNoticeJson.updateNoticeCompleted(bucket, mailSendKey);

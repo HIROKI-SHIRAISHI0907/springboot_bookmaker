@@ -133,9 +133,9 @@ public class MailSendSomethingService {
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
 		// リアルタイムスクレイピングのECS稼働開始/終了を検知
-		checkEcsStopIntervalsAndNotify(METHOD_NAME);
+		checkEcsStopIntervalsAndNotify();
 		// シーズン終了間近のリーグを検知
-		checkSeasonEndingSoonAndNotify(METHOD_NAME);
+		checkSeasonEndingSoonAndNotify();
 
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
@@ -159,7 +159,7 @@ public class MailSendSomethingService {
 	 * @param callerMethodName 呼び出し元メソッド名（ログ用）
 	 * @throws Exception
 	 */
-	private void checkEcsStopIntervalsAndNotify(String callerMethodName) throws Exception {
+	private void checkEcsStopIntervalsAndNotify() throws Exception {
 		final String METHOD_NAME = "checkEcsStopIntervalsAndNotify";
 
 		ZoneId jst = DateOffsetDecisionUtil.getZoneId();
@@ -375,7 +375,7 @@ public class MailSendSomethingService {
 	 * @param callerMethodName 呼び出し元メソッド名（ログ用）
 	 * @throws Exception
 	 */
-	private void checkSeasonEndingSoonAndNotify(String callerMethodName) throws Exception {
+	private void checkSeasonEndingSoonAndNotify() throws Exception {
 		final String METHOD_NAME = "checkSeasonEndingSoonAndNotify";
 		ZoneId jst = DateOffsetDecisionUtil.getZoneId();
 		LocalDate todayJst = LocalDate.now(jst);
