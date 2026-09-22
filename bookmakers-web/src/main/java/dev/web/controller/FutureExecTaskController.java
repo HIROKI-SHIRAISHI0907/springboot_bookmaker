@@ -1,7 +1,10 @@
 package dev.web.controller;
 
+import java.time.LocalDate;
+import java.time.format.DateTimeParseException;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.PostMapping;
@@ -15,7 +18,7 @@ import dev.web.batch.EcsBatchTaskRunner;
 import lombok.RequiredArgsConstructor;
 
 /**
- * RealTimeDataタスク実行用
+ * Futureタスク実行用
  * @author shiraishitoshio
  *
  */
@@ -24,27 +27,61 @@ import lombok.RequiredArgsConstructor;
 @RequiredArgsConstructor
 public class FutureExecTaskController {
 
-    private final EcsBatchTaskRunner runner;
+	private static final Set<String> VALID_RUN_MODES = Set.of("WEEK", "NEXT_DAY_ONLY", "SPECIFIC_DATE");
 
-    /**
-     * /future-exec-task を叩いたら B005 のFargateタスクを起動する
-     */
-    @PostMapping("/future")
-    public ResponseEntity<StatResponseResource> execute(@RequestBody StatRequestResource req) {
+	private final EcsBatchTaskRunner runner;
 
-        // 必要ならリクエスト内容を env で渡す（nullは入れない）
-        Map<String, String> env = new HashMap<>();
-        // 例: env.put("COUNTRY", req.getCountry());
-        // 例: env.put("LEAGUE", req.getLeague());
+	/**
+	 * /future を叩いたら B005 のFargateタスクを起動する。
+	 *
+	 * runMode:
+	 *   WEEK（省略時）  : 従来通り、今日から1週間分を取得
+	 *   NEXT_DAY_ONLY  : 翌日の1日分だけを取得
+	 *   SPECIFIC_DATE  : targetDate(YYYY-MM-DD) で指定した1日だけを取得（過去日・未来日どちらも可）
+	 */
+	@PostMapping("/future")
+	public ResponseEntity<StatResponseResource> execute(@RequestBody(required = false) StatRequestResource req) {
 
-        String taskArn = runner.runBatch("B005", env);
+		String runMode = (req != null && req.getRunMode() != null && !req.getRunMode().isBlank())
+				? req.getRunMode().trim().toUpperCase()
+				: "WEEK";
 
-        StatResponseResource res = new StatResponseResource();
-        // あなたのDTO設計に合わせて詰めてOK
-        res.setReturnCd("ACCEPTED");
-        // resに taskArn を入れられるなら入れるのがおすすめ（進捗追跡できる）
-        res.setTaskArn(taskArn);
+		if (!VALID_RUN_MODES.contains(runMode)) {
+			StatResponseResource errRes = new StatResponseResource();
+			errRes.setReturnCd("INVALID_RUN_MODE");
+			return ResponseEntity.badRequest().body(errRes);
+		}
 
-        return ResponseEntity.ok(res);
-    }
+		String targetDate = (req != null) ? req.getTargetDate() : null;
+
+		if ("SPECIFIC_DATE".equals(runMode)) {
+			if (targetDate == null || targetDate.isBlank()) {
+				StatResponseResource errRes = new StatResponseResource();
+				errRes.setReturnCd("TARGET_DATE_REQUIRED");
+				return ResponseEntity.badRequest().body(errRes);
+			}
+			try {
+				LocalDate.parse(targetDate);
+			} catch (DateTimeParseException e) {
+				StatResponseResource errRes = new StatResponseResource();
+				errRes.setReturnCd("TARGET_DATE_INVALID");
+				return ResponseEntity.badRequest().body(errRes);
+			}
+		}
+
+		// ECSタスクへ渡す環境変数（nullは入れない）
+		Map<String, String> env = new HashMap<>();
+		env.put("RUN_MODE", runMode);
+		if ("SPECIFIC_DATE".equals(runMode)) {
+			env.put("TARGET_DATE", targetDate);
+		}
+
+		String taskArn = runner.runBatch("B005", env);
+
+		StatResponseResource res = new StatResponseResource();
+		res.setReturnCd("ACCEPTED");
+		res.setTaskArn(taskArn);
+
+		return ResponseEntity.ok(res);
+	}
 }
