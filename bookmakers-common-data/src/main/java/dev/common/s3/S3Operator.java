@@ -455,12 +455,13 @@ public class S3Operator {
 
 	    } catch (NoSuchKeyException e) {
 
-	        log.warn(
-	            "S3 HEAD NoSuchKey: bucket={}, key={}, message={}",
+	        // オブジェクトが存在しないのは正常系（初回登録時など）。
+	        // 毎回スタックトレース付きのWARNを出すとエラーと区別がつかずログのノイズになるため、
+	        // ここでは例外を渡さず、INFOレベルで簡潔に記録するだけにする。
+	        log.info(
+	            "S3 HEAD NotFound（未存在。新規作成扱い）: bucket={}, key={}",
 	            bucket,
-	            key,
-	            e.getMessage(),
-	            e
+	            key
 	        );
 
 	        return false;
