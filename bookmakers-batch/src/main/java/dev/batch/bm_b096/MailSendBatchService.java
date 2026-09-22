@@ -27,6 +27,13 @@ import lombok.extern.slf4j.Slf4j;
 @RequiredArgsConstructor
 public class MailSendBatchService {
 
+	/** プロジェクト名 */
+	private static final String CLASS_NAME = MailSendBatchService.class
+			.getProtectionDomain()
+			.getCodeSource()
+			.getLocation()
+			.getPath();
+
 	/** メール情報マスタが見つからない等、システム都合で送信できない場合のメッセージ */
 	private static final String SYSTEM_ERROR_MESSAGE = "システムエラーが起きました。システム管理者に連絡してください。";
 
@@ -75,11 +82,12 @@ public class MailSendBatchService {
 		log.info("send check MailSendManagementEntity={}",management);
 
 		try {
-			mailSendBatchRepository.insert(management);
-			return mailSendKey;
-		} catch (Exception e) {
-			// 登録エラーは無視
-		}
+            mailSendBatchRepository.insert(management);
+            return mailSendKey;
+        } catch (Exception e) {
+            log.error("[{}] mail_send_management登録エラー。mailId={}, mailSendKey={}, bucketName={}",
+                    CLASS_NAME, mailId, mailSendKey, bucketName, e);
+        }
 		return null;
 	}
 
