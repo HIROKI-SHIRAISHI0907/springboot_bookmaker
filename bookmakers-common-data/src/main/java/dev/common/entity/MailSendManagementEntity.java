@@ -37,6 +37,9 @@ public class MailSendManagementEntity {
 	/** 送信失敗カウント */
 	private int failSendCount;
 
+	/** 取得元データ */
+	private String sourceInfo;
+
 	/** 備考 */
 	private String bikou;
 
