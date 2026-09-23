@@ -84,6 +84,17 @@ public interface FutureMasterRepository {
 			""")
 	int findDataCount(FutureEntity entity);
 
+	@Select("""
+	        SELECT
+	            COUNT(*)
+	        FROM
+	            future_master
+	        WHERE
+	            game_link IS NOT NULL
+	            AND substring(game_link from 'mid=([^&]+)') = #{mid}
+	        """)
+	int findCountByMid(@Param("mid") String mid);
+
 	@Update("""
 			  UPDATE future_master
 			  SET start_flg = #{startFlg}
