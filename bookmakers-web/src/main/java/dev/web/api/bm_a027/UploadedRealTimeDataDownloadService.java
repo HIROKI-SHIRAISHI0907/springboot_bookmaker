@@ -8,6 +8,7 @@ import java.util.Comparator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Set;
 
 import org.springframework.core.io.InputStreamResource;
 import org.springframework.core.io.Resource;
@@ -18,7 +19,6 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.common.config.PathConfig;
-import dev.common.constant.BookMakersCommonConst;
 import dev.common.s3.S3Operator;
 import dev.common.util.DateOffsetDecisionUtil;
 import dev.web.repository.bm.BookDataRepository;
@@ -98,6 +98,8 @@ public class UploadedRealTimeDataDownloadService {
 		List<DataIngestRow> staticDataList = repo.findByMatchIds(zipObjectsByCandidateMatchId.keySet());
 
 		// matchId単位で1件（seq_keyが最大＝最新のもの）に集約
+		// ※ dataCategory（国:リーグ）やチーム名表示用の代表行としてのみ使用し、
+		//   終了済判定にはこの1行ではなく finishedMatchIds を別途使う
 		Map<String, DataIngestRow> staticDataByMatchId = new LinkedHashMap<>();
 		for (DataIngestRow row : staticDataList) {
 			if (row.matchId == null) {
@@ -107,6 +109,11 @@ public class UploadedRealTimeDataDownloadService {
 					(existing, next) -> existing.seq != null && next.seq != null
 							&& existing.seq.compareTo(next.seq) >= 0 ? existing : next);
 		}
+
+		// 3-1) match_id単位で「終了済」の行が1件でも存在するかどうかを別途取得する。
+		//      1つのmatch_idに複数行（経過times違い）が存在するため、
+		//      集約済みの1行のtimesだけで判定すると誤判定するため。
+		Set<String> finishedMatchIds = repo.findFinishedMatchIds(zipObjectsByCandidateMatchId.keySet());
 
 		boolean hasCountry = country != null && !country.isBlank();
 		boolean hasLeague = league != null && !league.isBlank();
@@ -123,6 +130,7 @@ public class UploadedRealTimeDataDownloadService {
 			String candidateMatchId = entry.getKey();
 			S3Object obj = entry.getValue();
 			DataIngestRow row = staticDataByMatchId.get(candidateMatchId);
+			boolean isFinished = finishedMatchIds.contains(candidateMatchId);
 
 			if (hasSearchCondition) {
 				if (row == null) {
@@ -135,13 +143,13 @@ public class UploadedRealTimeDataDownloadService {
 				if (hasLeague && !matchesLeague(row.dataCategory, league)) {
 					continue;
 				}
-				if (finFlg && !BookMakersCommonConst.FIN.equals(row.times)) {
+				if (finFlg && !isFinished) {
 					continue;
 				}
 			}
 
 			String matchId = row != null ? row.matchId : candidateMatchId;
-			responseList.add(buildResponse(matchId, obj, row));
+			responseList.add(buildResponse(matchId, obj, row, isFinished));
 		}
 
 		return responseList;
@@ -186,11 +194,12 @@ public class UploadedRealTimeDataDownloadService {
 		return dataCategory != null && dataCategory.contains(": " + league.trim());
 	}
 
-	private UploadedRealTimeDataDownloadSearchResponse buildResponse(String matchId, S3Object obj, DataIngestRow row) {
+	private UploadedRealTimeDataDownloadSearchResponse buildResponse(
+			String matchId, S3Object obj, DataIngestRow row, boolean isFinished) {
 		UploadedRealTimeDataDownloadSearchResponse response = new UploadedRealTimeDataDownloadSearchResponse();
 		response.setFileName(matchId + ".zip");
 		response.setGameTeamName(row == null ? "" : row.homeTeamName + " vs " + row.awayTeamName);
-		response.setGameProcess(row != null && BookMakersCommonConst.FIN.equals(row.times) ? "0" : "1");
+		response.setGameProcess(isFinished ? "0" : "1");
 		response.setSize(formatSize(obj.size()));
 		response.setLastUpdateDate(toJstDate(obj));
 		return response;

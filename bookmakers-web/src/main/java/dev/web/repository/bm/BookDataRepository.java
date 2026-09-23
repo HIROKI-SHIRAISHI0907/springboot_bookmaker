@@ -4,9 +4,11 @@ import java.sql.Timestamp;
 import java.time.Duration;
 import java.time.OffsetDateTime;
 import java.util.Collection;
+import java.util.HashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Optional;
+import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -1630,6 +1632,36 @@ public class BookDataRepository {
 			r.awayTeamName = rs.getString("away_team_name");
 			return r;
 		});
+	}
+
+	/**
+	 * 指定されたmatch_id一覧のうち、times が「終了済」の行が1件でも存在する
+	 * match_id の集合を取得する。
+	 * <p>
+	 * 1つのmatch_idに対して試合経過ごとに複数のstatic_data行（times違い）が
+	 * 存在し得るため、findByMatchIdsで1行（最新のseq_key）だけに絞って判定すると、
+	 * その1行がたまたま「終了済」以外だった場合に誤って「対戦中」と判定されてしまう。
+	 * この誤判定を避けるため、match_id単位で「終了済」行の有無を別クエリで判定する。
+	 * </p>
+	 * @param matchIds 対象のmatch_id一覧
+	 * @return 「終了済」の行が1件以上存在するmatch_idの集合
+	 */
+	public Set<String> findFinishedMatchIds(Collection<String> matchIds) {
+		if (matchIds == null || matchIds.isEmpty()) {
+			return Set.of();
+		}
+		String sql = """
+				SELECT DISTINCT d.match_id
+				FROM static_data d
+				WHERE d.match_id IN (:matchIds)
+				  AND d.times IS NOT NULL
+				  AND TRIM(d.times) <> ''
+				  AND REPLACE(TRIM(normalize(d.times, NFKC)), ' ', '') = '終了済'
+				""";
+		MapSqlParameterSource params = new MapSqlParameterSource();
+		params.addValue("matchIds", matchIds);
+		List<String> rows = bmJdbcTemplate.query(sql, params, (rs, rowNum) -> rs.getString("match_id"));
+		return new HashSet<>(rows);
 	}
 
 	public static class MatchTeamRow {
