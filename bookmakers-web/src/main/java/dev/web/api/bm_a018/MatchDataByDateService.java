@@ -54,9 +54,10 @@ public class MatchDataByDateService {
     /**
      * 一覧の各行に csvStatus を付与する。
      * 判定順序:
-     * 1. csv_detail_manage に一致するレコードがあれば CREATED（CSV作成済）
-     * 2. 同一matchIdで static_data に「ハーフタイム」「終了済」が両方存在すれば TARGET（CSV作成対象）
-     * 3. どちらでもなければ NOT_TARGET（CSV作成非対象）
+     * 1. csv_detail_manage に一致するレコードがあれば CREATED（統計CSV作成済）
+     * 2. 同一matchIdの times に「前半の時間」「ハーフタイム」「後半の時間」「終了済」が
+     *    すべて存在すれば TARGET（統計CSV作成可）
+     * 3. それ以外は NOT_TARGET（統計CSV作成非対象）
      */
     private void applyCsvStatus(List<MatchDataByDateItemResource> items) {
         if (items == null || items.isEmpty()) {
@@ -68,7 +69,7 @@ public class MatchDataByDateService {
                 .filter(id -> id != null && !id.isBlank())
                 .distinct()
                 .collect(Collectors.toList());
-        Set<String> targetMatchIds = matchDataRepository.findMatchIdsWithHalftimeAndFinished(matchIds);
+        Set<String> targetMatchIds = matchDataRepository.findMatchIdsWithAllPhases(matchIds);
 
         for (MatchDataByDateItemResource item : items) {
             if (isAlreadyCreated(item)) {

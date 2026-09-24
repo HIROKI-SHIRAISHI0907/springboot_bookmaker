@@ -150,20 +150,35 @@ public class MatchDataRepository {
     }
 
     /**
-     * 指定した matchId 群のうち、static_data に data_category = 'ハーフタイム' と '終了済' が
-     * 両方存在する matchId の集合を返す（CSV作成対象の判定に使用）。
+     * 指定した matchId 群のうち、同一試合の times に
+     *   「前半の任意の時間」「ハーフタイム」「後半の任意の時間」「終了済」
+     * の4種類がすべて存在する matchId の集合を返す（統計CSV作成可の判定に使用）。
+     *
+     * 前半: times 先頭の数字が 0〜45（"45+2'" などのアディショナルタイムを含む）
+     * 後半: times 先頭の数字が 46以上（"90+3'" などを含む）
      */
-    public Set<String> findMatchIdsWithHalftimeAndFinished(List<String> matchIds) {
+    public Set<String> findMatchIdsWithAllPhases(List<String> matchIds) {
         if (matchIds == null || matchIds.isEmpty()) {
             return Set.of();
         }
         String sql = """
+            WITH t AS (
+                SELECT
+                    match_id,
+                    TRIM(times) AS times,
+                    CAST(SUBSTRING(TRIM(times) FROM '^([0-9]+)') AS INTEGER) AS minute
+                FROM data
+                WHERE match_id IN (:matchIds)
+                  AND times IS NOT NULL
+                  AND TRIM(times) <> ''
+            )
             SELECT match_id
-            FROM static_data
-            WHERE match_id IN (:matchIds)
-              AND data_category IN ('ハーフタイム', '終了済')
+            FROM t
             GROUP BY match_id
-            HAVING COUNT(DISTINCT data_category) = 2
+            HAVING BOOL_OR(minute BETWEEN 0 AND 45)
+               AND BOOL_OR(times = 'ハーフタイム')
+               AND BOOL_OR(minute >= 46)
+               AND BOOL_OR(times = '終了済')
         """;
         List<String> rows = bmJdbcTemplate.queryForList(
                 sql,
