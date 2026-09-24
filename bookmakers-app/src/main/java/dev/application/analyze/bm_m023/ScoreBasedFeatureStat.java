@@ -42,6 +42,7 @@ import dev.common.util.ExecuteMainUtil;
  * ・既存統計値の「平均」をそのまま合計として扱っていた不具合を修正
  *   （今回分を単独で集計 → 既存値とマージする方式に変更。標準偏差は並列分散公式で合成）
  * ・setInitData直後の initFormat で既存の最小値・最大値が上書きされていた不具合を修正
+ * ・前半/後半の判定で通番(seq)を文字列比較していたのを数値比較に修正（"10" < "9" 問題）
  */
 @Component
 public class ScoreBasedFeatureStat extends StatFormatResolver implements AnalyzeEntityIF {
@@ -420,14 +421,15 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				return null;
 			}
 
-			String halfTimeSeq = half.getSeq();
+			// 【修正】通番は数値で比較（文字列比較だと "10" < "9" になる）
+			final long halfTimeSeq = seqToLong(half.getSeq());
 			if (AverageStatisticsSituationConst.FIRST_DATA.equals(flg)) {
 				filteredList = entities.stream()
-						.filter(entity -> entity.getSeq().compareTo(halfTimeSeq) <= 0)
+						.filter(entity -> seqToLong(entity.getSeq()) <= halfTimeSeq)
 						.collect(Collectors.toList());
 			} else if (AverageStatisticsSituationConst.SECOND_DATA.equals(flg)) {
 				filteredList = entities.stream()
-						.filter(entity -> entity.getSeq().compareTo(halfTimeSeq) > 0)
+						.filter(entity -> seqToLong(entity.getSeq()) > halfTimeSeq)
 						.collect(Collectors.toList());
 			}
 		}
@@ -1838,6 +1840,20 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			return Double.parseDouble(removeQuote(value).replace("%", "").trim());
 		} catch (Exception e) {
 			return defaultValue;
+		}
+	}
+
+	/**
+	 * 【追加】通番を数値化（変換不可は末尾扱い）
+	 */
+	private static long seqToLong(String seq) {
+		if (seq == null || seq.isBlank()) {
+			return Long.MAX_VALUE;
+		}
+		try {
+			return Long.parseLong(seq.trim());
+		} catch (NumberFormatException e) {
+			return Long.MAX_VALUE;
 		}
 	}
 

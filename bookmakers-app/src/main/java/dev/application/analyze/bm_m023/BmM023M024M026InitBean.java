@@ -143,32 +143,32 @@ public class BmM023M024M026InitBean {
 	@PostConstruct
 	public void init() {
 		final String METHOD_NAME = "init";
-		// 全フィールド取得（※順序は保証されない可能性あり）
-		Field[] allFields = BookDataEntity.class.getDeclaredFields();
-		// 分析対象のフィールド範囲（homeExp 〜 awayInterceptCount）
-		int startIdx = -1;
-		int endIdx = -1;
-		for (int i = 0; i < allFields.length; i++) {
-			String name = allFields[i].getName();
-			if (name.equals("homeExp"))
-				startIdx = i;
-			if (name.equals("awayInterceptCount"))
-				endIdx = i;
-		}
 
-		if (startIdx == -1 || endIdx == -1 || startIdx > endIdx) {
-			String messageCd = MessageCdConst.MCD00013E_INITILIZATION_ERROR;
-			String fillChar = "対象フィールド範囲なし";
-			this.loggerComponent.debugErrorLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null, fillChar);
-			this.loggerComponent.createBusinessException(
-					PROJECT_NAME,
-					CLASS_NAME,
-					METHOD_NAME,
-					messageCd,
-					null, null);
-		}
-		// 初期化
+		// BookDataEntity（homeExp 〜 awayInterceptCount）
+		int[] range = findRange(BookDataEntity.class.getDeclaredFields(), "homeExp", "awayInterceptCount");
+		validateRange(METHOD_NAME, "BookDataEntity", range, true);
+		this.startIdx = range[0];
+		this.endIdx = range[1];
+
+		// ScoreBasedFeatureStatsEntity（homeExpStat 〜 awayInterceptCountStat）
+		range = findRange(ScoreBasedFeatureStatsEntity.class.getDeclaredFields(), "homeExpStat", "awayInterceptCountStat");
+		validateRange(METHOD_NAME, "ScoreBasedFeatureStatsEntity", range, true);
+		this.startInsertIdx = range[0];
+		this.endInsertIdx = range[1];
+
+		// EachTeamScoreBasedFeatureEntity（homeExpStat 〜 awayInterceptCountStat）
+		range = findRange(EachTeamScoreBasedFeatureEntity.class.getDeclaredFields(), "homeExpStat", "awayInterceptCountStat");
+		validateRange(METHOD_NAME, "EachTeamScoreBasedFeatureEntity", range, true);
+		this.startScoreInsertIdx = range[0];
+		this.endScoreInsertIdx = range[1];
+
+		// CalcCorrelationEntity（homeExpInfo 〜 awayInterceptCountInfo）※件数チェックはしない
+		range = findRange(CalcCorrelationEntity.class.getDeclaredFields(), "homeExpInfo", "awayInterceptCountInfo");
+		validateRange(METHOD_NAME, "CalcCorrelationEntity", range, false);
+		this.startCalcInsertIdx = range[0];
+		this.endCalcInsertIdx = range[1];
+
+		// 初期値
 		for (int cnt = 0; cnt < AverageStatisticsSituationConst.COUNTER; cnt++) {
 			this.minList[cnt] = "10000.0";
 			this.maxList[cnt] = "0.0";
@@ -181,62 +181,43 @@ public class BmM023M024M026InitBean {
 			this.timeSigmaList[cnt] = "0'";
 			this.timeCntList[cnt] = 0;
 		}
-		// 開始情報
-		this.startIdx = startIdx;
-		// 終了情報
-		this.endIdx = endIdx;
 
-		Field[] insertFields = ScoreBasedFeatureStatsEntity.class.getDeclaredFields();
-		// 分析対象のフィールド範囲（homeExp 〜 awayInterceptCount）
-		int startInsertIdx = -1;
-		int endInsertIdx = -1;
-		for (int i = 0; i < insertFields.length; i++) {
-			String name = insertFields[i].getName();
-			if (name.equals("homeExpStat"))
-				startInsertIdx = i;
-			if (name.equals("awayInterceptCountStat"))
-				endInsertIdx = i;
-		}
-		// 開始情報
-		this.startInsertIdx = startInsertIdx;
-		// 終了情報
-		this.endInsertIdx = endInsertIdx;
-
-		// 全フィールド取得（※順序は保証されない可能性あり）
-		Field[] insertScoreFields = EachTeamScoreBasedFeatureEntity.class.getDeclaredFields();
-		// 分析対象のフィールド範囲（homeExp 〜 awayInterceptCount）
-		int startScoreInsertIdx = -1;
-		int endScoreInsertIdx = -1;
-		for (int i = 0; i < insertScoreFields.length; i++) {
-			String name = insertScoreFields[i].getName();
-			if (name.equals("homeExpStat"))
-				startScoreInsertIdx = i;
-			if (name.equals("awayInterceptCountStat"))
-				endScoreInsertIdx = i;
-		}
-		// 開始情報
-		this.startScoreInsertIdx = startScoreInsertIdx;
-		// 終了情報
-		this.endScoreInsertIdx = endScoreInsertIdx;
-
-		Field[] insertSubFields = CalcCorrelationEntity.class.getDeclaredFields();
-		// 分析対象のフィールド範囲（homeExpInfo 〜 awayInterceptCountInfo）
-		int startCalcInsertIdx = -1;
-		int endCalcInsertIdx = -1;
-		for (int i = 0; i < insertSubFields.length; i++) {
-			String name = insertSubFields[i].getName();
-			if (name.equals("homeExpInfo"))
-				startCalcInsertIdx = i;
-			if (name.equals("awayInterceptCountInfo"))
-				endCalcInsertIdx = i;
-		}
-		// 開始情報
-		this.startCalcInsertIdx = startCalcInsertIdx;
-		// 終了情報
-		this.endCalcInsertIdx = endCalcInsertIdx;
-
-		for (int cnt = 0; cnt < AverageStatisticsSituationConst.COUNTER; cnt++) {
+		// 【修正】SPLIT_COUNTER 分すべて 0 で初期化（従来は COUNTER 分のみで後半16個が null）
+		for (int cnt = 0; cnt < this.skewnessCntList.length; cnt++) {
 			this.skewnessCntList[cnt] = 0;
+		}
+	}
+
+	/** 【追加】開始・終了フィールドの位置を取得 */
+	private int[] findRange(Field[] fields, String startName, String endName) {
+		int start = -1;
+		int end = -1;
+		for (int i = 0; i < fields.length; i++) {
+			String name = fields[i].getName();
+			if (name.equals(startName)) {
+				start = i;
+			}
+			if (name.equals(endName)) {
+				end = i;
+			}
+		}
+		return new int[] { start, end };
+	}
+
+	/** 【追加】範囲の妥当性チェック（不正なら起動時に例外） */
+	private void validateRange(String methodName, String target, int[] range, boolean checkCount) {
+		boolean invalid = range[0] < 0 || range[1] < 0 || range[0] > range[1];
+		if (!invalid && checkCount) {
+			invalid = (range[1] - range[0] + 1) != AverageStatisticsSituationConst.COUNTER;
+		}
+		if (invalid) {
+			String messageCd = MessageCdConst.MCD00013E_INITILIZATION_ERROR;
+			this.loggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, methodName, messageCd, null,
+					"対象フィールド範囲不正: " + target + " start=" + range[0] + ", end=" + range[1]
+							+ ", expectedCount=" + AverageStatisticsSituationConst.COUNTER);
+			this.loggerComponent.createBusinessException(
+					PROJECT_NAME, CLASS_NAME, methodName, messageCd, null, null);
 		}
 	}
 
