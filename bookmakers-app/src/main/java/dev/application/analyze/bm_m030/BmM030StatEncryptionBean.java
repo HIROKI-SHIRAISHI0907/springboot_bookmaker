@@ -33,6 +33,13 @@ import jakarta.annotation.PostConstruct;
  * OOM対策版:
  * - 旧実装の全件ロードはしない
  * - 暗号化/復号と fieldMap 管理に専念する
+ *
+ * 【修正履歴】
+ * ・FIELDMAP に homeInGoalExpInfo / awayInGoalExpInfo を追加
+ *   （StatEncryptionEntity・各Statエンティティの58項目と並び順を一致させる。
+ *     未追加だと BM_M023 の歪度・尖度が Donation 以降で2項目ずれていた）
+ * ・データ項目判定 isDataField / 自前の鍵・IVで復号する decrypto(String) を追加
+ * ・getSecretKey で未初期化の場合に初期化するよう変更
  */
 @Component
 public class BmM030StatEncryptionBean {
@@ -82,12 +89,19 @@ public class BmM030StatEncryptionBean {
 	/** 終了 */
 	private int endEncryptionIdx = -1;
 
-	/** フィールドマップ */
+	/**
+	 * フィールドマップ
+	 * ※並び順は StatEncryptionEntity / ScoreBasedFeatureStatsEntity / EachTeamScoreBasedFeatureEntity の
+	 *   統計項目（homeExp 〜 awayInterceptCount の58項目）と一致させること
+	 */
 	private static final Map<String, Function<BookDataEntity, String>> FIELDMAP;
 	static {
 		Map<String, Function<BookDataEntity, String>> fieldMap = new LinkedHashMap<>();
 		fieldMap.put("homeExpInfo", BookDataEntity::getHomeExp);
 		fieldMap.put("awayExpInfo", BookDataEntity::getAwayExp);
+		// 【追加】枠内ゴール期待値（BookDataEntity のゲッター名が異なる場合は合わせてください）
+		fieldMap.put("homeInGoalExpInfo", BookDataEntity::getHomeInGoalExp);
+		fieldMap.put("awayInGoalExpInfo", BookDataEntity::getAwayInGoalExp);
 		fieldMap.put("homeDonationInfo", BookDataEntity::getHomeBallPossesion);
 		fieldMap.put("awayDonationInfo", BookDataEntity::getAwayBallPossesion);
 		fieldMap.put("homeShootAllInfo", BookDataEntity::getHomeShootAll);
@@ -151,6 +165,7 @@ public class BmM030StatEncryptionBean {
 		try {
 			ensureCryptoInitialized();
 			ensureIndexInitialized();
+			validateFieldMap();
 		} catch (Exception e) {
 			String messageCd = MessageCdConst.MCD00013E_INITILIZATION_ERROR;
 			this.loggerComponent.debugErrorLog(
@@ -201,6 +216,21 @@ public class BmM030StatEncryptionBean {
 		}
 	}
 
+	/**
+	 * 【追加】自前の鍵・IVで復号
+	 */
+	public String decrypto(String encText) throws Exception {
+		ensureCryptoInitialized();
+		return decrypto(encText, this.secretKey, this.iv);
+	}
+
+	/**
+	 * 【追加】暗号化対象（統計データ）項目かどうか
+	 */
+	public boolean isDataField(String fieldName) {
+		return fieldName != null && FIELDMAP.containsKey(fieldName);
+	}
+
 	private void ensureCryptoInitialized() {
 		if (this.secretKey == null) {
 			this.secretKey = new SecretKeySpec(this.bmm030Key.getBytes(StandardCharsets.UTF_8), AES);
@@ -233,9 +263,35 @@ public class BmM030StatEncryptionBean {
 		this.endEncryptionIdx = endIdx;
 	}
 
+	/**
+	 * 【追加】FIELDMAP と StatEncryptionEntity の項目並びが一致しているか起動時に検証
+	 */
+	private void validateFieldMap() {
+		final String METHOD_NAME = "validateFieldMap";
+		Field[] allFields = StatEncryptionEntity.class.getDeclaredFields();
+		int idx = this.startEncryptionIdx;
+		for (String key : FIELDMAP.keySet()) {
+			if (idx < 0 || idx > this.endEncryptionIdx || !allFields[idx].getName().equals(key)) {
+				String messageCd = MessageCdConst.MCD00013E_INITILIZATION_ERROR;
+				this.loggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null,
+						"FIELDMAPとStatEncryptionEntityの項目並びが不一致: fieldMapKey=" + key
+								+ ", entityField=" + ((idx >= 0 && idx < allFields.length) ? allFields[idx].getName() : "none"));
+				return;
+			}
+			idx++;
+		}
+		if (idx != this.endEncryptionIdx + 1) {
+			String messageCd = MessageCdConst.MCD00013E_INITILIZATION_ERROR;
+			this.loggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, null,
+					"FIELDMAPの項目数がStatEncryptionEntityと不一致: fieldMapSize=" + FIELDMAP.size());
+		}
+	}
+
 	public SecretKeySpec getCommonKey() {
-	    ensureCryptoInitialized();
-	    return this.secretKey;
+		ensureCryptoInitialized();
+		return this.secretKey;
 	}
 
 	public String getBmm030Key() {
@@ -243,6 +299,7 @@ public class BmM030StatEncryptionBean {
 	}
 
 	public SecretKeySpec getSecretKey() {
+		ensureCryptoInitialized();
 		return secretKey;
 	}
 

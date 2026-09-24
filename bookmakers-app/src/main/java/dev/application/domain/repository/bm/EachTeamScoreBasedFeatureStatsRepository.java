@@ -10,6 +10,14 @@ import org.apache.ibatis.annotations.Update;
 
 import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureEntity;
 
+/**
+ * each_team_score_based_feature_stats Mapper
+ *
+ * 【修正履歴】
+ * ・home/away_long_pass_count_stat, home/away_duel_count_stat が INSERT/SELECT/UPDATE に含まれておらず、
+ *   計算済みの値が保存・読み込みされていなかったため追加
+ *   （テーブルに列が無い場合は ALTER TABLE で追加すること）
+ */
 @Mapper
 public interface EachTeamScoreBasedFeatureStatsRepository {
 
@@ -22,9 +30,13 @@ public interface EachTeamScoreBasedFeatureStatsRepository {
         "home_goal_head_stat, away_goal_head_stat, home_keeper_save_stat, away_keeper_save_stat, home_free_kick_stat, away_free_kick_stat,",
         "home_offside_stat, away_offside_stat, home_foul_stat, away_foul_stat, home_yellow_card_stat, away_yellow_card_stat,",
         "home_red_card_stat, away_red_card_stat, home_slow_in_stat, away_slow_in_stat, home_box_touch_stat, away_box_touch_stat,",
-        "home_pass_count_stat, away_pass_count_stat, home_final_third_pass_count_stat, away_final_third_pass_count_stat,",
+        "home_pass_count_stat, away_pass_count_stat,",
+        "home_long_pass_count_stat, away_long_pass_count_stat,",
+        "home_final_third_pass_count_stat, away_final_third_pass_count_stat,",
         "home_cross_count_stat, away_cross_count_stat, home_tackle_count_stat, away_tackle_count_stat,",
-        "home_clear_count_stat, away_clear_count_stat, home_intercept_count_stat, away_intercept_count_stat,",
+        "home_clear_count_stat, away_clear_count_stat,",
+        "home_duel_count_stat, away_duel_count_stat,",
+        "home_intercept_count_stat, away_intercept_count_stat,",
         "register_id, register_time, update_id, update_time",
         ") VALUES (",
         "#{situation}, #{score}, #{country}, #{league}, #{team}, #{homeExpStat}, #{awayExpStat}, #{homeInGoalExpStat}, #{awayInGoalExpStat}, #{homeDonationStat}, #{awayDonationStat},",
@@ -34,9 +46,13 @@ public interface EachTeamScoreBasedFeatureStatsRepository {
         "#{homeGoalHeadStat}, #{awayGoalHeadStat}, #{homeKeeperSaveStat}, #{awayKeeperSaveStat}, #{homeFreeKickStat}, #{awayFreeKickStat},",
         "#{homeOffsideStat}, #{awayOffsideStat}, #{homeFoulStat}, #{awayFoulStat}, #{homeYellowCardStat}, #{awayYellowCardStat},",
         "#{homeRedCardStat}, #{awayRedCardStat}, #{homeSlowInStat}, #{awaySlowInStat}, #{homeBoxTouchStat}, #{awayBoxTouchStat},",
-        "#{homePassCountStat}, #{awayPassCountStat}, #{homeFinalThirdPassCountStat}, #{awayFinalThirdPassCountStat},",
+        "#{homePassCountStat}, #{awayPassCountStat},",
+        "#{homeLongPassCountStat}, #{awayLongPassCountStat},",
+        "#{homeFinalThirdPassCountStat}, #{awayFinalThirdPassCountStat},",
         "#{homeCrossCountStat}, #{awayCrossCountStat}, #{homeTackleCountStat}, #{awayTackleCountStat},",
-        "#{homeClearCountStat}, #{awayClearCountStat}, #{homeInterceptCountStat}, #{awayInterceptCountStat},",
+        "#{homeClearCountStat}, #{awayClearCountStat},",
+        "#{homeDuelCountStat}, #{awayDuelCountStat},",
+        "#{homeInterceptCountStat}, #{awayInterceptCountStat},",
         "#{registerId}, CAST(#{registerTime} AS timestamptz), #{updateId}, CAST(#{updateTime}  AS timestamptz)",
         ")"
     })
@@ -54,9 +70,13 @@ public interface EachTeamScoreBasedFeatureStatsRepository {
         "home_offside_stat, away_offside_stat, home_foul_stat, away_foul_stat,",
         "home_yellow_card_stat, away_yellow_card_stat, home_red_card_stat, away_red_card_stat,",
         "home_slow_in_stat, away_slow_in_stat, home_box_touch_stat, away_box_touch_stat,",
-        "home_pass_count_stat, away_pass_count_stat, home_final_third_pass_count_stat, away_final_third_pass_count_stat,",
+        "home_pass_count_stat, away_pass_count_stat,",
+        "home_long_pass_count_stat, away_long_pass_count_stat,",
+        "home_final_third_pass_count_stat, away_final_third_pass_count_stat,",
         "home_cross_count_stat, away_cross_count_stat, home_tackle_count_stat, away_tackle_count_stat,",
-        "home_clear_count_stat, away_clear_count_stat, home_intercept_count_stat, away_intercept_count_stat",
+        "home_clear_count_stat, away_clear_count_stat,",
+        "home_duel_count_stat, away_duel_count_stat,",
+        "home_intercept_count_stat, away_intercept_count_stat",
         "FROM each_team_score_based_feature_stats ",
         "WHERE situation = #{situation} AND score = #{score} AND country = #{country} AND league = #{league} AND "
         + "team = #{team} ORDER BY id DESC LIMIT 1;"
@@ -76,9 +96,13 @@ public interface EachTeamScoreBasedFeatureStatsRepository {
         "home_offside_stat, away_offside_stat, home_foul_stat, away_foul_stat,",
         "home_yellow_card_stat, away_yellow_card_stat, home_red_card_stat, away_red_card_stat,",
         "home_slow_in_stat, away_slow_in_stat, home_box_touch_stat, away_box_touch_stat,",
-        "home_pass_count_stat, away_pass_count_stat, home_final_third_pass_count_stat, away_final_third_pass_count_stat,",
+        "home_pass_count_stat, away_pass_count_stat,",
+        "home_long_pass_count_stat, away_long_pass_count_stat,",
+        "home_final_third_pass_count_stat, away_final_third_pass_count_stat,",
         "home_cross_count_stat, away_cross_count_stat, home_tackle_count_stat, away_tackle_count_stat,",
-        "home_clear_count_stat, away_clear_count_stat, home_intercept_count_stat, away_intercept_count_stat",
+        "home_clear_count_stat, away_clear_count_stat,",
+        "home_duel_count_stat, away_duel_count_stat,",
+        "home_intercept_count_stat, away_intercept_count_stat",
         "FROM each_team_score_based_feature_stats ",
         "WHERE country = #{country} AND league = #{league} AND "
         + "team = #{team};"
@@ -97,9 +121,13 @@ public interface EachTeamScoreBasedFeatureStatsRepository {
         "home_offside_stat, away_offside_stat, home_foul_stat, away_foul_stat,",
         "home_yellow_card_stat, away_yellow_card_stat, home_red_card_stat, away_red_card_stat,",
         "home_slow_in_stat, away_slow_in_stat, home_box_touch_stat, away_box_touch_stat,",
-        "home_pass_count_stat, away_pass_count_stat, home_final_third_pass_count_stat, away_final_third_pass_count_stat,",
+        "home_pass_count_stat, away_pass_count_stat,",
+        "home_long_pass_count_stat, away_long_pass_count_stat,",
+        "home_final_third_pass_count_stat, away_final_third_pass_count_stat,",
         "home_cross_count_stat, away_cross_count_stat, home_tackle_count_stat, away_tackle_count_stat,",
-        "home_clear_count_stat, away_clear_count_stat, home_intercept_count_stat, away_intercept_count_stat",
+        "home_clear_count_stat, away_clear_count_stat,",
+        "home_duel_count_stat, away_duel_count_stat,",
+        "home_intercept_count_stat, away_intercept_count_stat",
         "FROM each_team_score_based_feature_stats;"
     })
     List<EachTeamScoreBasedFeatureEntity> findAllStatData();
@@ -150,6 +178,8 @@ public interface EachTeamScoreBasedFeatureStatsRepository {
         "away_box_touch_stat = #{awayBoxTouchStat},",
         "home_pass_count_stat = #{homePassCountStat},",
         "away_pass_count_stat = #{awayPassCountStat},",
+        "home_long_pass_count_stat = #{homeLongPassCountStat},",
+        "away_long_pass_count_stat = #{awayLongPassCountStat},",
         "home_final_third_pass_count_stat = #{homeFinalThirdPassCountStat},",
         "away_final_third_pass_count_stat = #{awayFinalThirdPassCountStat},",
         "home_cross_count_stat = #{homeCrossCountStat},",
@@ -158,6 +188,8 @@ public interface EachTeamScoreBasedFeatureStatsRepository {
         "away_tackle_count_stat = #{awayTackleCountStat},",
         "home_clear_count_stat = #{homeClearCountStat},",
         "away_clear_count_stat = #{awayClearCountStat},",
+        "home_duel_count_stat = #{homeDuelCountStat},",
+        "away_duel_count_stat = #{awayDuelCountStat},",
         "home_intercept_count_stat = #{homeInterceptCountStat},",
         "away_intercept_count_stat = #{awayInterceptCountStat} ",
         "WHERE id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER);"

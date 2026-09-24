@@ -1,7 +1,9 @@
 package dev.application.analyze.bm_m026;
 
 import java.lang.reflect.Field;
+import java.lang.reflect.Modifier;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.ConcurrentHashMap;
@@ -21,6 +23,7 @@ import dev.application.analyze.bm_m030.BmM030StatEncryptionBean;
 import dev.application.analyze.bm_m030.StatEncryptionEntity;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.domain.repository.bm.EachTeamScoreBasedFeatureStatsRepository;
+import dev.application.domain.repository.bm.StatEncryptionRepository;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
@@ -43,6 +46,9 @@ import lombok.extern.slf4j.Slf4j;
  * ・歪度と尖度で件数配列を共有していたのを分離
  * ・歪度/尖度で標準偏差0の場合の0除算をスキップ
  * ・スコアが空の場合に Integer.parseInt で例外になる箇所を安全化
+ * ・stat_encryption の既存データをDBから読み込んでいなかったため、毎回INSERTされ
+ *   歪度・尖度が今回分だけで計算されていた不具合を修正（既存1件取得＋復号→マージ→UPDATE）
+ * ・stat_encryption のマージ/暗号化で「i < 9」などの位置決め打ちをやめ、項目名で判定
  */
 @Component
 @Slf4j
@@ -101,6 +107,10 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	/** 読み取り専用Repository */
 	@Autowired
 	private EachTeamScoreBasedFeatureStatsRepository eachTeamScoreBasedFeatureStatsRepository;
+
+	/** 【追加】stat_encryption 読み取り用Repository */
+	@Autowired
+	private StatEncryptionRepository statEncryptionRepository;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -481,6 +491,14 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 		StatEncryptionEntity decidedEntity;
 		synchronized (getLock(key)) {
 			StatEncryptionEntity exist = bmM30Map.get(key);
+
+			// 【修正】実行中Mapになければ、DBの既存1件を取得して復号
+			if (exist == null) {
+				log.info("[BM_M026] before findAndDecryptExistingTeamEnc. key={}", key);
+				exist = findAndDecryptExistingTeamEnc(country, league, team, chkFinalBody);
+				log.info("[BM_M026] after findAndDecryptExistingTeamEnc. key={}, existNull={}, id={}",
+						key, exist == null, exist == null ? "" : safe(exist.getId()));
+			}
 
 			if (exist != null) {
 				StatEncryptionEntity addPart = buildBmM30Form(
@@ -1561,24 +1579,21 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			StatEncryptionEntity source, String ha) {
 
 		final String METHOD_NAME = "mergeStatEncryptionEntity";
-		Field[] fields = StatEncryptionEntity.class.getDeclaredFields();
 		String prefix = "H".equals(ha) ? "home" : "away";
 
-		int i = 0;
-		for (Field field : fields) {
-			String fieldName = field.getName();
-			if (!fieldName.startsWith(prefix) || i < 9) {
-				i++;
+		// 【修正】位置(i < 9)ではなく、FIELDMAP の項目名で対象を判定
+		for (String fieldName : this.bmM030StatEncryptionBean.getFieldMap().keySet()) {
+			if (!fieldName.startsWith(prefix)) {
 				continue;
 			}
 
 			try {
+				Field field = StatEncryptionEntity.class.getDeclaredField(fieldName);
 				field.setAccessible(true);
 				String targetValue = (String) field.get(target);
 				String sourceValue = (String) field.get(source);
 
 				if (sourceValue == null || sourceValue.isEmpty()) {
-					i++;
 					continue;
 				}
 
@@ -1594,8 +1609,91 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fieldName);
 			}
+		}
+		return target;
+	}
 
-			i++;
+	/**
+	 * 【追加】既存stat_encryption（チーム単位）1件取得＋復号
+	 * 同一キーの行が複数ある場合はIDが最大（最新）の1件を採用する
+	 */
+	private StatEncryptionEntity findAndDecryptExistingTeamEnc(
+			String country, String league, String team, String chkBody) {
+
+		final String METHOD_NAME = "findAndDecryptExistingTeamEnc";
+
+		try {
+			// チーム単位の専用検索（country, league, team, chk_body 一致・ID降順で1件）
+			// ※findEncDataByCondition は空の条件を無視するため、team が空だと M023 の行まで拾う恐れがある
+			if (isBlankStr(team) || isBlankStr(chkBody)) {
+				return null;
+			}
+			List<StatEncryptionEntity> list = this.statEncryptionRepository.findEncData(
+					country, league, team, chkBody);
+
+			if (list == null || list.isEmpty()) {
+				return null;
+			}
+
+			// 念のため、チーム単位（home/away が空）の行だけに絞り込む
+			StatEncryptionEntity latest = list.stream()
+					.filter(e -> e != null)
+					.filter(e -> team != null && team.equals(e.getTeam()))
+					.filter(e -> chkBody != null && chkBody.equals(e.getChkBody()))
+					.filter(e -> isBlankStr(e.getHome()) && isBlankStr(e.getAway()))
+					.max(Comparator.comparingLong(e -> safeParseLong(e.getId())))
+					.orElse(null);
+
+			if (latest == null) {
+				return null;
+			}
+
+			return decryptStatEncryptionEntity(latest);
+		} catch (Exception e) {
+			String messageCd = MessageCdConst.MCD00017E_ENCRYPTION_ERROR;
+			String fillChar = "既存stat_encryption取得/復号に失敗: "
+					+ "country=" + country + ", league=" + league
+					+ ", team=" + team + ", chkBody=" + chkBody;
+			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
+			// 復号に失敗したまま新規INSERTすると重複行が増えるため、例外として処理を止める
+			this.manageLoggerComponent.createSystemException(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, null);
+			return null;
+		}
+	}
+
+	/**
+	 * 【追加】復号（データ項目のみ）
+	 */
+	private StatEncryptionEntity decryptStatEncryptionEntity(StatEncryptionEntity entity) throws Exception {
+		StatEncryptionEntity decrypted = shallowCopyStatEncryptionEntity(entity);
+
+		for (String fieldName : this.bmM030StatEncryptionBean.getFieldMap().keySet()) {
+			Field field = StatEncryptionEntity.class.getDeclaredField(fieldName);
+			field.setAccessible(true);
+
+			String value = (String) field.get(entity);
+			if (value == null || value.isBlank()) {
+				continue;
+			}
+			field.set(decrypted, this.bmM030StatEncryptionBean.decrypto(value));
+		}
+
+		decrypted.setUpdFlg(true);
+		return decrypted;
+	}
+
+	/**
+	 * 【追加】浅いコピー（static項目は除く）
+	 */
+	private StatEncryptionEntity shallowCopyStatEncryptionEntity(StatEncryptionEntity source) throws Exception {
+		StatEncryptionEntity target = new StatEncryptionEntity();
+		for (Field field : StatEncryptionEntity.class.getDeclaredFields()) {
+			if (Modifier.isStatic(field.getModifiers())) {
+				continue;
+			}
+			field.setAccessible(true);
+			field.set(target, field.get(source));
 		}
 		return target;
 	}
@@ -1606,24 +1704,16 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 	private StatEncryptionEntity encryption(StatEncryptionEntity entity) {
 		final String METHOD_NAME = "encryption";
 		StatEncryptionEntity encryptedEntity = new StatEncryptionEntity();
-		encryptedEntity.setId(entity.getId());
-		encryptedEntity.setUpdFlg(entity.isUpdFlg());
 		try {
-			int i = 0;
-			Field[] fields = StatEncryptionEntity.class.getDeclaredFields();
-			for (Field field : fields) {
+			// 【修正】全項目をコピーした上で、FIELDMAP のデータ項目だけ暗号化（位置決め打ちをやめる）
+			encryptedEntity = shallowCopyStatEncryptionEntity(entity);
+			for (String fieldName : this.bmM030StatEncryptionBean.getFieldMap().keySet()) {
+				Field field = StatEncryptionEntity.class.getDeclaredField(fieldName);
 				field.setAccessible(true);
-
-				if (field.getType().equals(String.class)) {
-					String originalValue = (String) field.get(entity);
-					if (originalValue != null && !originalValue.isBlank() && i >= 9) {
-						String encryptedValue = this.bmM030StatEncryptionBean.encrypto(originalValue);
-						field.set(encryptedEntity, encryptedValue);
-					} else {
-						field.set(encryptedEntity, originalValue);
-					}
+				String originalValue = (String) field.get(entity);
+				if (originalValue != null && !originalValue.isBlank()) {
+					field.set(encryptedEntity, this.bmM030StatEncryptionBean.encrypto(originalValue));
 				}
-				i++;
 			}
 		} catch (Exception e) {
 			String messageCd = MessageCdConst.MCD00017E_ENCRYPTION_ERROR;
@@ -1781,6 +1871,23 @@ public class EachTeamScoreBasedFeatureStat extends StatFormatResolver implements
 			return Integer.parseInt(value.trim());
 		} catch (Exception e) {
 			return 0;
+		}
+	}
+
+	/** 【追加】空判定 */
+	private static boolean isBlankStr(String s) {
+		return s == null || s.isBlank();
+	}
+
+	/** 【追加】long変換（ID比較用） */
+	private static long safeParseLong(String value) {
+		if (value == null || value.isBlank()) {
+			return Long.MIN_VALUE;
+		}
+		try {
+			return Long.parseLong(value.trim());
+		} catch (Exception e) {
+			return Long.MIN_VALUE;
 		}
 	}
 
