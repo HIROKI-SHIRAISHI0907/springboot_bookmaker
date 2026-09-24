@@ -6,6 +6,7 @@ import java.nio.file.Paths;
 import java.time.Instant;
 import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
+import java.time.ZoneOffset;
 import java.time.format.DateTimeFormatter;
 import java.time.format.DateTimeParseException;
 import java.util.AbstractMap;
@@ -30,6 +31,7 @@ import dev.common.constant.MessageCdConst;
 import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
+import dev.common.util.DateOffsetDecisionUtil;
 import dev.common.util.DateUtil;
 
 /**
@@ -102,6 +104,27 @@ public class SeasonDataWrapper {
 
 		// シーズン終了日リストを保持
 		List<CountryLeagueSeasonMasterEntity> list = countryLeagueSeasonMasterBatchRepository.findDateList();
+
+		// end_season_date はDB上UTCで保持されているため、以降の処理は全て日本時間(JST)に変換してから使う
+		for (CountryLeagueSeasonMasterEntity entity : list) {
+			String rawEndSeasonDate = entity.getEndSeasonDate();
+			if (rawEndSeasonDate == null || rawEndSeasonDate.isBlank()) {
+				continue;
+			}
+
+			Instant endInstant = parseFinSeasonDate(rawEndSeasonDate);
+			if (endInstant == null) {
+				this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						MessageCdConst.MCD00001I_BATCH_EXECUTION_GREEN_FIN,
+						"end_season_date のJST変換に失敗、元の値のまま使用: " + rawEndSeasonDate);
+				continue;
+			}
+
+			OffsetDateTime jstEndSeasonDate =
+					DateOffsetDecisionUtil.toOffsetDateTimeJst(endInstant.atOffset(ZoneOffset.UTC));
+			entity.setEndSeasonDate(DateOffsetDecisionUtil.toIsoJstString(jstEndSeasonDate));
+		}
 
 		// シーズン終了日をシステム日時が超えているものをMap化
 		// country-league -> endSeasonDate のMap
@@ -371,24 +394,32 @@ public class SeasonDataWrapper {
 	}
 
 	/**
-	 * endSeasonDate を過ぎてから3日経過しているか
-	 * @param endSeasonDate
-	 * @param formatter
-	 * @param now
+	 * endSeasonDate(JST変換済み)を過ぎてから3日経過しているか
+	 * @param endSeasonDate JSTに変換済みのISO8601文字列(例: 2026-07-21T23:59:59+09:00)
+	 * @param formatter 未使用(呼び出し側との互換性のため引数は残す)
+	 * @param now システム日時(日本時間のLocalDateTime)
 	 * @return
 	 */
 	private boolean isBeforeNow(String endSeasonDate, DateTimeFormatter formatter, LocalDateTime now) {
-		if (endSeasonDate == null || endSeasonDate.length() < 19) {
+		if (endSeasonDate == null || endSeasonDate.isBlank()) {
 			return false;
 		}
-		String normalizedEndSeasonDate = endSeasonDate.substring(0, 19);
-		LocalDateTime endDateTime = LocalDateTime.parse(normalizedEndSeasonDate, formatter);
 
-		// endSeasonDate から3日後
-		LocalDateTime threeDaysAfterEnd = endDateTime.plusDays(3);
+		OffsetDateTime endDateTime;
+		try {
+			endDateTime = OffsetDateTime.parse(endSeasonDate.trim());
+		} catch (DateTimeParseException e) {
+			return false;
+		}
+
+		// endSeasonDate(JST)から3日後
+		OffsetDateTime threeDaysAfterEnd = endDateTime.plusDays(3);
+
+		// now(システム日時)を同じ基準(JST)のOffsetDateTimeに揃えて比較する
+		OffsetDateTime nowJst = now.atZone(DateOffsetDecisionUtil.getZoneId()).toOffsetDateTime();
 
 		// 「3日経過しているものだけ」を取りたいので、now がその3日後を超えているかで判定
-		return !now.isBefore(threeDaysAfterEnd);
+		return !nowJst.isBefore(threeDaysAfterEnd);
 	}
 
 	/**
@@ -417,6 +448,7 @@ public class SeasonDataWrapper {
 	 *   "2026-07-21 12:00:00+00"
 	 *   "2026-07-21 12:00:00+0000"
 	 *   "2026-07-21 12:00:00+00:00"
+	 *   "2026-07-21T23:59:59+09:00"（JST変換後のISO形式）
 	 *
 	 * @param dateStr 日付文字列(マーカー除去済み推奨)
 	 * @return パース成功: Instant / 失敗: null
