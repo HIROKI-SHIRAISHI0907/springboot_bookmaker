@@ -35,6 +35,13 @@ import dev.common.util.ExecuteMainUtil;
 
 /**
  * BM_M023統計分析ロジック（手動データ投入の場合は適用対象外）
+ *
+ * 【修正履歴】
+ * ・歪度と尖度で件数配列を共有していたため、尖度をスキップした項目に歪度の件数が残り
+ *   尖度が「-b」(≒-3) になっていた不具合を修正（件数配列を分離）
+ * ・既存統計値の「平均」をそのまま合計として扱っていた不具合を修正
+ *   （今回分を単独で集計 → 既存値とマージする方式に変更。標準偏差は並列分散公式で合成）
+ * ・setInitData直後の initFormat で既存の最小値・最大値が上書きされていた不具合を修正
  */
 @Component
 public class ScoreBasedFeatureStat extends StatFormatResolver implements AnalyzeEntityIF {
@@ -74,6 +81,28 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 
 	/** stat_encryption 更新専用 */
 	private final StatEncryptionTxWriter statEncryptionTxWriter;
+
+	/**
+	 * 【追加】統計値の配列一式（既存値 / 今回分 を分けて持つため）
+	 */
+	private static final class StatArrays {
+		String[] min;
+		Integer[] minCnt;
+		String[] max;
+		Integer[] maxCnt;
+		String[] ave;
+		Integer[] aveCnt;
+		String[] sigma;
+		Integer[] sigmaCnt;
+		String[] tMin;
+		Integer[] tMinCnt;
+		String[] tMax;
+		Integer[] tMaxCnt;
+		String[] tAve;
+		Integer[] tAveCnt;
+		String[] tSigma;
+		Integer[] tSigmaCnt;
+	}
 
 	public ScoreBasedFeatureStat(
 			BmM023M024M026InitBean bmM023M024M026InitBean,
@@ -487,66 +516,56 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 			return null;
 		}
 
-		String[] minList = this.bmM023M024M026InitBean.getMinList().clone();
-		String[] maxList = this.bmM023M024M026InitBean.getMaxList().clone();
-		String[] aveList = this.bmM023M024M026InitBean.getAvgList().clone();
-		String[] sigmaList = this.bmM023M024M026InitBean.getSigmaList().clone();
-		Integer[] minCntList = this.bmM023M024M026InitBean.getCntList().clone();
-		Integer[] maxCntList = this.bmM023M024M026InitBean.getCntList().clone();
-		Integer[] aveCntList = this.bmM023M024M026InitBean.getCntList().clone();
-		Integer[] sigmaCntList = this.bmM023M024M026InitBean.getCntList().clone();
-		String[] tMinList = this.bmM023M024M026InitBean.getTimeMinList().clone();
-		String[] tMaxList = this.bmM023M024M026InitBean.getTimeMaxList().clone();
-		String[] tAveList = this.bmM023M024M026InitBean.getTimeAvgList().clone();
-		String[] tSigmaList = this.bmM023M024M026InitBean.getTimeSigmaList().clone();
-		Integer[] tMinCntList = this.bmM023M024M026InitBean.getTimeCntList().clone();
-		Integer[] tMaxCntList = this.bmM023M024M026InitBean.getTimeCntList().clone();
-		Integer[] tAveCntList = this.bmM023M024M026InitBean.getTimeCntList().clone();
-		Integer[] tSigmaCntList = this.bmM023M024M026InitBean.getTimeCntList().clone();
+		// 【修正】既存値(prev)と今回分(cur)を分けて保持する
+		// 既存値: DBから読み込んだ min/max/平均/標準偏差/件数
+		StatArrays prev = newStatArrays();
+		setInitData(prev, statList);
 
-		setInitData(minList, minCntList, maxList, maxCntList, aveList, aveCntList, sigmaList, sigmaCntList,
-				tMinList, tMinCntList, tMaxList, tMaxCntList,
-				tAveList, tAveCntList, tSigmaList, tSigmaCntList,
-				statList);
-
+		// 今回分: 初期値から今回の filteredList だけで集計する
+		StatArrays cur = newStatArrays();
 		BookDataEntity returnDataEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
-		initFormat(returnDataEntity, minList, "Min");
-		initFormat(returnDataEntity, maxList, "Max");
+		initFormat(returnDataEntity, cur.min, "Min");
+		initFormat(returnDataEntity, cur.max, "Max");
 
 		for (BookDataEntity filter : filteredList) {
-			minList = setMin(filter, minList, minCntList);
-			maxList = setMax(filter, maxList, maxCntList);
-			aveList = setSumAve(filter, aveList, aveCntList);
-			tMinList = setTimeMin(filter, tMinList, tMinCntList);
-			tMaxList = setTimeMax(filter, tMaxList, tMaxCntList);
-			tAveList = setTimeSumAve(filter, tAveList, tAveCntList);
+			cur.min = setMin(filter, cur.min, cur.minCnt);
+			cur.max = setMax(filter, cur.max, cur.maxCnt);
+			cur.ave = setSumAve(filter, cur.ave, cur.aveCnt);
+			cur.tMin = setTimeMin(filter, cur.tMin, cur.tMinCnt);
+			cur.tMax = setTimeMax(filter, cur.tMax, cur.tMaxCnt);
+			cur.tAve = setTimeSumAve(filter, cur.tAve, cur.tAveCnt);
 		}
 
-		aveList = commonDivision(aveList, aveCntList, "");
-		tAveList = commonDivision(tAveList, tAveCntList, "'");
+		cur.ave = commonDivision(cur.ave, cur.aveCnt, "");
+		cur.tAve = commonDivision(cur.tAve, cur.tAveCnt, "'");
 
 		for (BookDataEntity filter : filteredList) {
-			sigmaList = setSumSigma(filter, aveList, sigmaList, sigmaCntList);
-			tSigmaList = setTimeSumSigma(filter, tAveList, tSigmaList, tSigmaCntList);
+			cur.sigma = setSumSigma(filter, cur.ave, cur.sigma, cur.sigmaCnt);
+			cur.tSigma = setTimeSumSigma(filter, cur.tAve, cur.tSigma, cur.tSigmaCnt);
 		}
 
-		sigmaList = commonDivision(sigmaList, sigmaCntList, "");
-		tSigmaList = commonDivision(tSigmaList, tSigmaCntList, "'");
+		cur.sigma = commonDivision(cur.sigma, cur.sigmaCnt, "");
+		cur.tSigma = commonDivision(cur.tSigma, cur.tSigmaCnt, "'");
 
-		for (int i = 0; i < sigmaList.length; i++) {
-			double sigma = safeParseDouble(sigmaList[i], 0.0);
-			double tSigma = safeParseDouble(removeQuote(tSigmaList[i]), 0.0);
-			sigmaList[i] = String.format("%.2f", Math.sqrt(sigma));
-			tSigmaList[i] = String.format("%.2f", Math.sqrt(tSigma));
+		for (int i = 0; i < cur.sigma.length; i++) {
+			double sigma = safeParseDouble(cur.sigma[i], 0.0);
+			double tSigma = safeParseDouble(removeQuote(cur.tSigma[i]), 0.0);
+			cur.sigma[i] = String.format("%.2f", Math.sqrt(sigma));
+			cur.tSigma[i] = String.format("%.2f", Math.sqrt(tSigma));
 		}
 
+		// 【修正】既存値と今回分をマージ
+		mergePrevious(prev, cur);
+
+		// 【修正】歪度と尖度で件数配列を分離する（共有すると尖度側に歪度の件数が残る）
 		String[] aveSkewKurtList = this.bmM023M024M026InitBean.getAvgList().clone();
 		String[] sigmaSkewKurtList = this.bmM023M024M026InitBean.getSigmaList().clone();
 		String[] skewnessList = this.bmM023M024M026InitBean.getSkewnessList().clone();
 		String[] kurtosisList = this.bmM023M024M026InitBean.getKurtosisList().clone();
-		Integer[] kurtosisCntList = this.bmM023M024M026InitBean.getSkewnessCntList().clone();
+		Integer[] skewnessCntList = newZeroCntList(AverageStatisticsSituationConst.COUNTER);
+		Integer[] kurtosisCntList = newZeroCntList(AverageStatisticsSituationConst.COUNTER);
 
-		skewnessList = setSkewness(decidedEntity, skewnessList, aveSkewKurtList, sigmaSkewKurtList, kurtosisCntList);
+		skewnessList = setSkewness(decidedEntity, skewnessList, aveSkewKurtList, sigmaSkewKurtList, skewnessCntList);
 		kurtosisList = setKurtosis(decidedEntity, kurtosisList, aveSkewKurtList, sigmaSkewKurtList, kurtosisCntList);
 
 		ScoreBasedFeatureStatsEntity entity = new ScoreBasedFeatureStatsEntity();
@@ -558,33 +577,33 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 
 			int idx = i - this.bmM023M024M026InitBean.getStartInsertIdx();
 
-			String min = formatDecimal(minList[idx]);
-			String max = formatDecimal(maxList[idx]);
-			String ave = formatDecimal(aveList[idx]);
-			String sigma = formatDecimal(sigmaList[idx]);
-			String tMin = formatDecimal(tMinList[idx]);
-			String tMax = formatDecimal(tMaxList[idx]);
-			String tAve = formatDecimal(tAveList[idx]);
-			String tSigma = formatDecimal(tSigmaList[idx]);
+			String min = formatDecimal(cur.min[idx]);
+			String max = formatDecimal(cur.max[idx]);
+			String ave = formatDecimal(cur.ave[idx]);
+			String sigma = formatDecimal(cur.sigma[idx]);
+			String tMin = formatDecimal(cur.tMin[idx]);
+			String tMax = formatDecimal(cur.tMax[idx]);
+			String tAve = formatDecimal(cur.tAve[idx]);
+			String tSigma = formatDecimal(cur.tSigma[idx]);
 			String skewness = skewnessList[idx];
 			String kurtosis = kurtosisList[idx];
 
 			stringBuilder.append(min).append(",")
-					.append(minCntList[idx]).append(",")
+					.append(cur.minCnt[idx]).append(",")
 					.append(max).append(",")
-					.append(maxCntList[idx]).append(",")
+					.append(cur.maxCnt[idx]).append(",")
 					.append(ave).append(",")
-					.append(aveCntList[idx]).append(",")
+					.append(cur.aveCnt[idx]).append(",")
 					.append(sigma).append(",")
-					.append(sigmaCntList[idx]).append(",")
+					.append(cur.sigmaCnt[idx]).append(",")
 					.append(tMin).append("'").append(",")
-					.append(tMinCntList[idx]).append(",")
+					.append(cur.tMinCnt[idx]).append(",")
 					.append(tMax).append("'").append(",")
-					.append(tMaxCntList[idx]).append(",")
+					.append(cur.tMaxCnt[idx]).append(",")
 					.append(tAve).append("'").append(",")
-					.append(tAveCntList[idx]).append(",")
+					.append(cur.tAveCnt[idx]).append(",")
 					.append(tSigma).append("'").append(",")
-					.append(tSigmaCntList[idx]).append(",")
+					.append(cur.tSigmaCnt[idx]).append(",")
 					.append(skewness).append(",")
 					.append(kurtosis);
 
@@ -604,6 +623,179 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 				country, league, home, away, flg, chkBody, updFlg);
 
 		return entity;
+	}
+
+	/**
+	 * 【追加】Beanの初期値から配列一式を生成
+	 */
+	private StatArrays newStatArrays() {
+		StatArrays s = new StatArrays();
+		s.min = this.bmM023M024M026InitBean.getMinList().clone();
+		s.max = this.bmM023M024M026InitBean.getMaxList().clone();
+		s.ave = this.bmM023M024M026InitBean.getAvgList().clone();
+		s.sigma = this.bmM023M024M026InitBean.getSigmaList().clone();
+		s.minCnt = this.bmM023M024M026InitBean.getCntList().clone();
+		s.maxCnt = this.bmM023M024M026InitBean.getCntList().clone();
+		s.aveCnt = this.bmM023M024M026InitBean.getCntList().clone();
+		s.sigmaCnt = this.bmM023M024M026InitBean.getCntList().clone();
+		s.tMin = this.bmM023M024M026InitBean.getTimeMinList().clone();
+		s.tMax = this.bmM023M024M026InitBean.getTimeMaxList().clone();
+		s.tAve = this.bmM023M024M026InitBean.getTimeAvgList().clone();
+		s.tSigma = this.bmM023M024M026InitBean.getTimeSigmaList().clone();
+		s.tMinCnt = this.bmM023M024M026InitBean.getTimeCntList().clone();
+		s.tMaxCnt = this.bmM023M024M026InitBean.getTimeCntList().clone();
+		s.tAveCnt = this.bmM023M024M026InitBean.getTimeCntList().clone();
+		s.tSigmaCnt = this.bmM023M024M026InitBean.getTimeCntList().clone();
+		return s;
+	}
+
+	/**
+	 * 【追加】0埋めの件数配列
+	 */
+	private Integer[] newZeroCntList(int size) {
+		Integer[] list = new Integer[size];
+		for (int i = 0; i < size; i++) {
+			list[i] = 0;
+		}
+		return list;
+	}
+
+	/**
+	 * 【追加】既存値(prev)と今回分(cur)をマージして cur に格納する
+	 */
+	private void mergePrevious(StatArrays prev, StatArrays cur) {
+		for (int i = 0; i < cur.min.length; i++) {
+			// 最小・最大（特徴量）
+			cur.min[i] = pickExtreme(prev.min[i], cnt(prev.minCnt[i]), cur.min[i], cnt(cur.minCnt[i]), true);
+			cur.minCnt[i] = cnt(cur.minCnt[i]) + cnt(prev.minCnt[i]);
+			cur.max[i] = pickExtreme(prev.max[i], cnt(prev.maxCnt[i]), cur.max[i], cnt(cur.maxCnt[i]), false);
+			cur.maxCnt[i] = cnt(cur.maxCnt[i]) + cnt(prev.maxCnt[i]);
+
+			// 最小・最大（時間）
+			cur.tMin[i] = pickTimeExtreme(prev.tMin[i], cnt(prev.tMinCnt[i]), cur.tMin[i], cnt(cur.tMinCnt[i]), true);
+			cur.tMinCnt[i] = cnt(cur.tMinCnt[i]) + cnt(prev.tMinCnt[i]);
+			cur.tMax[i] = pickTimeExtreme(prev.tMax[i], cnt(prev.tMaxCnt[i]), cur.tMax[i], cnt(cur.tMaxCnt[i]), false);
+			cur.tMaxCnt[i] = cnt(cur.tMaxCnt[i]) + cnt(prev.tMaxCnt[i]);
+
+			// 平均・標準偏差
+			mergeMoments(prev.ave, prev.aveCnt, prev.sigma, prev.sigmaCnt,
+					cur.ave, cur.aveCnt, cur.sigma, cur.sigmaCnt, i, "");
+			mergeMoments(prev.tAve, prev.tAveCnt, prev.tSigma, prev.tSigmaCnt,
+					cur.tAve, cur.tAveCnt, cur.tSigma, cur.tSigmaCnt, i, "'");
+		}
+	}
+
+	/**
+	 * 【追加】最小/最大の比較（setMin/setMaxと同じ判定ルール）
+	 */
+	private String pickExtreme(String prevVal, int prevCnt, String curVal, int curCnt, boolean isMin) {
+		if (prevCnt <= 0 || prevVal == null || prevVal.isBlank()) {
+			return curVal;
+		}
+		if (curCnt <= 0) {
+			return prevVal;
+		}
+		if (!isSameFormat(prevVal, curVal)) {
+			return curVal;
+		}
+		String p = parseStatValue(prevVal);
+		String c = parseStatValue(curVal);
+		if (p == null) {
+			return curVal;
+		}
+		if (c == null) {
+			return prevVal;
+		}
+		double pd = Double.parseDouble(p);
+		double cd = Double.parseDouble(c);
+		if (isMin) {
+			return pd < cd ? prevVal : curVal;
+		}
+		return pd > cd ? prevVal : curVal;
+	}
+
+	/**
+	 * 【追加】時間の最小/最大の比較
+	 */
+	private String pickTimeExtreme(String prevVal, int prevCnt, String curVal, int curCnt, boolean isMin) {
+		if (prevCnt <= 0 || prevVal == null || prevVal.isBlank()) {
+			return curVal;
+		}
+		if (curCnt <= 0) {
+			return prevVal;
+		}
+		double pd = safeParseDouble(prevVal, Double.NaN);
+		double cd = safeParseDouble(curVal, Double.NaN);
+		if (Double.isNaN(pd)) {
+			return curVal;
+		}
+		if (Double.isNaN(cd)) {
+			return prevVal;
+		}
+		if (isMin) {
+			return pd < cd ? prevVal : curVal;
+		}
+		return pd > cd ? prevVal : curVal;
+	}
+
+	/**
+	 * 【追加】平均・標準偏差（母標準偏差）のマージ
+	 * 平均   : (平均a×件数a + 平均b×件数b) / (件数a+件数b)
+	 * 偏差平方和 : M2a + M2b + (平均b-平均a)² × 件数a×件数b / (件数a+件数b)
+	 */
+	private void mergeMoments(
+			String[] prevAve, Integer[] prevAveCnt, String[] prevSigma, Integer[] prevSigmaCnt,
+			String[] curAve, Integer[] curAveCnt, String[] curSigma, Integer[] curSigmaCnt,
+			int i, String suffix) {
+
+		int naAve = cnt(prevAveCnt[i]);
+		int nbAve = cnt(curAveCnt[i]);
+		int naSig = cnt(prevSigmaCnt[i]);
+		int nbSig = cnt(curSigmaCnt[i]);
+
+		if (naAve <= 0) {
+			return; // 既存データなし → 今回分のまま
+		}
+
+		double meanA = safeParseDouble(prevAve[i], 0.0);
+		double meanB = safeParseDouble(curAve[i], 0.0);
+
+		if (nbAve <= 0) {
+			// 今回分なし → 既存値を採用
+			curAve[i] = prevAve[i];
+			curAveCnt[i] = naAve;
+			curSigma[i] = prevSigma[i];
+			curSigmaCnt[i] = naSig;
+			return;
+		}
+
+		// 平均
+		double mean = (meanA * naAve + meanB * nbAve) / (naAve + nbAve);
+		curAve[i] = String.valueOf(mean) + suffix;
+		curAveCnt[i] = naAve + nbAve;
+
+		// 標準偏差
+		int n = naSig + nbSig;
+		if (n <= 0) {
+			return;
+		}
+		double sigmaA = safeParseDouble(prevSigma[i], 0.0);
+		double sigmaB = safeParseDouble(curSigma[i], 0.0);
+		double m2a = sigmaA * sigmaA * naSig;
+		double m2b = sigmaB * sigmaB * nbSig;
+		double delta = meanB - meanA;
+		double m2 = m2a + m2b + delta * delta * ((double) naSig * nbSig) / n;
+		double sigma = Math.sqrt(m2 / n);
+
+		curSigma[i] = Double.isFinite(sigma) ? String.format("%.2f", sigma) : "0.00";
+		curSigmaCnt[i] = n;
+	}
+
+	/**
+	 * 【追加】null安全な件数
+	 */
+	private int cnt(Integer value) {
+		return value == null ? 0 : value;
 	}
 
 	/**
@@ -661,13 +853,10 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	}
 
 	/**
-	 * 初期値設定
+	 * 初期値設定（既存値の読み込み）
+	 * 【修正】読み込み先を StatArrays(prev) に変更
 	 */
-	private void setInitData(String[] minList, Integer[] minCntList, String[] maxList, Integer[] maxCntList,
-			String[] aveList, Integer[] aveCntList, String[] sigmaList, Integer[] sigmaCntList,
-			String[] tMinList, Integer[] tMinCntList, String[] tMaxList, Integer[] tMaxCntList,
-			String[] tAveList, Integer[] tAveCntList, String[] tSigmaList, Integer[] tSigmaCntList,
-			List<ScoreBasedFeatureStatsEntity> list) {
+	private void setInitData(StatArrays prev, List<ScoreBasedFeatureStatsEntity> list) {
 
 		final String METHOD_NAME = "setInitData";
 
@@ -691,22 +880,22 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 
 					String[] values = statValue.split(",");
 					if (values.length >= 16) {
-						minList[idx] = values[0].trim();
-						minCntList[idx] = Integer.parseInt(values[1].trim());
-						maxList[idx] = values[2].trim();
-						maxCntList[idx] = Integer.parseInt(values[3].trim());
-						aveList[idx] = values[4].trim();
-						aveCntList[idx] = Integer.parseInt(values[5].trim());
-						sigmaList[idx] = values[6].trim();
-						sigmaCntList[idx] = Integer.parseInt(values[7].trim());
-						tMinList[idx] = values[8].trim();
-						tMinCntList[idx] = Integer.parseInt(values[9].trim());
-						tMaxList[idx] = values[10].trim();
-						tMaxCntList[idx] = Integer.parseInt(values[11].trim());
-						tAveList[idx] = values[12].trim();
-						tAveCntList[idx] = Integer.parseInt(values[13].trim());
-						tSigmaList[idx] = values[14].trim();
-						tSigmaCntList[idx] = Integer.parseInt(values[15].trim());
+						prev.min[idx] = values[0].trim();
+						prev.minCnt[idx] = Integer.parseInt(values[1].trim());
+						prev.max[idx] = values[2].trim();
+						prev.maxCnt[idx] = Integer.parseInt(values[3].trim());
+						prev.ave[idx] = values[4].trim();
+						prev.aveCnt[idx] = Integer.parseInt(values[5].trim());
+						prev.sigma[idx] = values[6].trim();
+						prev.sigmaCnt[idx] = Integer.parseInt(values[7].trim());
+						prev.tMin[idx] = values[8].trim();
+						prev.tMinCnt[idx] = Integer.parseInt(values[9].trim());
+						prev.tMax[idx] = values[10].trim();
+						prev.tMaxCnt[idx] = Integer.parseInt(values[11].trim());
+						prev.tAve[idx] = values[12].trim();
+						prev.tAveCnt[idx] = Integer.parseInt(values[13].trim());
+						prev.tSigma[idx] = values[14].trim();
+						prev.tSigmaCnt[idx] = Integer.parseInt(values[15].trim());
 					}
 				} catch (Exception e) {
 					String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
@@ -1043,154 +1232,154 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	 * 歪度
 	 */
 	private String[] setSkewness(
-	        StatEncryptionEntity entity,
-	        String[] skewnessList,
-	        String[] aveList,
-	        String[] sigmaList,
-	        Integer[] cntList) {
+			StatEncryptionEntity entity,
+			String[] skewnessList,
+			String[] aveList,
+			String[] sigmaList,
+			Integer[] cntList) {
 
-	    final String METHOD_NAME = "setSkewness";
-	    Double[] skewness = new Double[AverageStatisticsSituationConst.COUNTER];
-	    for (int i = 0; i < skewness.length; i++) {
-	        skewness[i] = 0.0;
-	    }
+		final String METHOD_NAME = "setSkewness";
+		Double[] skewness = new Double[AverageStatisticsSituationConst.COUNTER];
+		for (int i = 0; i < skewness.length; i++) {
+			skewness[i] = 0.0;
+		}
 
-	    List<String> orderedFieldNames = new ArrayList<>(this.bmM030StatEncryptionBean.getFieldMap().keySet());
+		List<String> orderedFieldNames = new ArrayList<>(this.bmM030StatEncryptionBean.getFieldMap().keySet());
 
-	    for (int idx = 0; idx < orderedFieldNames.size() && idx < skewness.length; idx++) {
-	        String fieldName = orderedFieldNames.get(idx);
-	        String fillChar = "フィールド名: " + fieldName;
+		for (int idx = 0; idx < orderedFieldNames.size() && idx < skewness.length; idx++) {
+			String fieldName = orderedFieldNames.get(idx);
+			String fillChar = "フィールド名: " + fieldName;
 
-	        try {
-	            Field field = StatEncryptionEntity.class.getDeclaredField(fieldName);
-	            field.setAccessible(true);
+			try {
+				Field field = StatEncryptionEntity.class.getDeclaredField(fieldName);
+				field.setAccessible(true);
 
-	            String currentValue = (String) field.get(entity);
-	            fillChar += " , 値: " + currentValue;
+				String currentValue = (String) field.get(entity);
+				fillChar += " , 値: " + currentValue;
 
-	            if (currentValue == null || currentValue.isBlank()) {
-	                continue;
-	            }
+				if (currentValue == null || currentValue.isBlank()) {
+					continue;
+				}
 
-	            String[] skewList = currentValue.split(",");
+				String[] skewList = currentValue.split(",");
 
-	            int cnt = 0;
-	            ScoreBasedFeatureOutputDTO dto1 = setSkewnessOrKurtosisSumAve(skewList, cnt);
-	            String skewSumAve = dto1.getAve();
-	            cnt = Integer.parseInt(dto1.getCnt());
-	            String skewAve = (cnt == 0) ? "" : String.valueOf(Double.parseDouble(skewSumAve) / cnt);
+				int cnt = 0;
+				ScoreBasedFeatureOutputDTO dto1 = setSkewnessOrKurtosisSumAve(skewList, cnt);
+				String skewSumAve = dto1.getAve();
+				cnt = Integer.parseInt(dto1.getCnt());
+				String skewAve = (cnt == 0) ? "" : String.valueOf(Double.parseDouble(skewSumAve) / cnt);
 
-	            cnt = 0;
-	            ScoreBasedFeatureOutputDTO dto2 = setSkewnessOrKurtosisSumSigma(skewList, skewAve, cnt);
-	            String skewSumSigma = dto2.getSigma();
-	            cnt = Integer.parseInt(dto2.getCnt());
-	            String skewSigma = (cnt <= 1) ? ""
-	                    : String.valueOf(Math.sqrt(Double.parseDouble(skewSumSigma) / (cnt - 1)));
+				cnt = 0;
+				ScoreBasedFeatureOutputDTO dto2 = setSkewnessOrKurtosisSumSigma(skewList, skewAve, cnt);
+				String skewSumSigma = dto2.getSigma();
+				cnt = Integer.parseInt(dto2.getCnt());
+				String skewSigma = (cnt <= 1) ? ""
+						: String.valueOf(Math.sqrt(Double.parseDouble(skewSumSigma) / (cnt - 1)));
 
-	            if (skewAve.isBlank() || skewSigma.isBlank()) {
-	                continue;
-	            }
+				if (skewAve.isBlank() || skewSigma.isBlank()) {
+					continue;
+				}
 
-	            double sigma = Double.parseDouble(skewSigma);
-	            if (sigma == 0.0 || !Double.isFinite(sigma)) {
-	                continue;
-	            }
+				double sigma = Double.parseDouble(skewSigma);
+				if (sigma == 0.0 || !Double.isFinite(sigma)) {
+					continue;
+				}
 
-	            for (String skew : skewList) {
-	                String currentSkewnessNumeric = parseStatValue(skew);
-	                if (currentSkewnessNumeric == null || currentSkewnessNumeric.isBlank()) {
-	                    continue;
-	                }
+				for (String skew : skewList) {
+					String currentSkewnessNumeric = parseStatValue(skew);
+					if (currentSkewnessNumeric == null || currentSkewnessNumeric.isBlank()) {
+						continue;
+					}
 
-	                double z = (Double.parseDouble(currentSkewnessNumeric) - Double.parseDouble(skewAve)) / sigma;
-	                skewness[idx] += Math.pow(z, 3);
-	            }
-	            cntList[idx] = cnt;
-	        } catch (Exception e) {
-	            String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-	            this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-	        }
-	    }
+					double z = (Double.parseDouble(currentSkewnessNumeric) - Double.parseDouble(skewAve)) / sigma;
+					skewness[idx] += Math.pow(z, 3);
+				}
+				cntList[idx] = cnt;
+			} catch (Exception e) {
+				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
+				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
+			}
+		}
 
-	    for (int i = 0; i < skewness.length; i++) {
-	        int cnt = cntList[i];
-	        double skew = skewness[i];
+		for (int i = 0; i < skewness.length; i++) {
+			int cnt = cnt(cntList[i]);
+			double skew = skewness[i];
 
-	        if (cnt < 3 || !Double.isFinite(skew)) {
-	            skewnessList[i] = "0.000";
-	            continue;
-	        }
+			if (cnt < 3 || !Double.isFinite(skew)) {
+				skewnessList[i] = "0.000";
+				continue;
+			}
 
-	        double result = (cnt / ((cnt - 1.0) * (cnt - 2.0))) * skew;
-	        skewnessList[i] = Double.isFinite(result) ? String.format("%.3f", result) : "0.000";
-	    }
+			double result = (cnt / ((cnt - 1.0) * (cnt - 2.0))) * skew;
+			skewnessList[i] = Double.isFinite(result) ? String.format("%.3f", result) : "0.000";
+		}
 
-	    return skewnessList;
+		return skewnessList;
 	}
 
 	private ScoreBasedFeatureOutputDTO setSkewnessOrKurtosisSumAve(
-	        String[] valueList,
-	        int cnt) {
+			String[] valueList,
+			int cnt) {
 
-	    double sum = 0.0;
-	    int count = cnt;
+		double sum = 0.0;
+		int count = cnt;
 
-	    for (String value : valueList) {
-	        if (value == null || value.isBlank()) {
-	            continue;
-	        }
+		for (String value : valueList) {
+			if (value == null || value.isBlank()) {
+				continue;
+			}
 
-	        String numeric = parseStatValue(value);
-	        if (numeric == null || numeric.isBlank()) {
-	            continue;
-	        }
+			String numeric = parseStatValue(value);
+			if (numeric == null || numeric.isBlank()) {
+				continue;
+			}
 
-	        sum += Double.parseDouble(numeric);
-	        count++;
-	    }
+			sum += Double.parseDouble(numeric);
+			count++;
+		}
 
-	    ScoreBasedFeatureOutputDTO dto = new ScoreBasedFeatureOutputDTO();
-	    dto.setAve(String.valueOf(sum));   // 実体は合計
-	    dto.setCnt(String.valueOf(count));
-	    return dto;
+		ScoreBasedFeatureOutputDTO dto = new ScoreBasedFeatureOutputDTO();
+		dto.setAve(String.valueOf(sum)); // 実体は合計
+		dto.setCnt(String.valueOf(count));
+		return dto;
 	}
 
 	private ScoreBasedFeatureOutputDTO setSkewnessOrKurtosisSumSigma(
-	        String[] valueList,
-	        String ave,
-	        int cnt) {
+			String[] valueList,
+			String ave,
+			int cnt) {
 
-	    double sumSigma = 0.0;
-	    int count = cnt;
+		double sumSigma = 0.0;
+		int count = cnt;
 
-	    if (ave == null || ave.isBlank()) {
-	        ScoreBasedFeatureOutputDTO dto = new ScoreBasedFeatureOutputDTO();
-	        dto.setSigma("0");
-	        dto.setCnt(String.valueOf(count));
-	        return dto;
-	    }
+		if (ave == null || ave.isBlank()) {
+			ScoreBasedFeatureOutputDTO dto = new ScoreBasedFeatureOutputDTO();
+			dto.setSigma("0");
+			dto.setCnt(String.valueOf(count));
+			return dto;
+		}
 
-	    double mean = Double.parseDouble(ave);
+		double mean = Double.parseDouble(ave);
 
-	    for (String value : valueList) {
-	        if (value == null || value.isBlank()) {
-	            continue;
-	        }
+		for (String value : valueList) {
+			if (value == null || value.isBlank()) {
+				continue;
+			}
 
-	        String numeric = parseStatValue(value);
-	        if (numeric == null || numeric.isBlank()) {
-	            continue;
-	        }
+			String numeric = parseStatValue(value);
+			if (numeric == null || numeric.isBlank()) {
+				continue;
+			}
 
-	        double d = Double.parseDouble(numeric) - mean;
-	        sumSigma += d * d;
-	        count++;
-	    }
+			double d = Double.parseDouble(numeric) - mean;
+			sumSigma += d * d;
+			count++;
+		}
 
-	    ScoreBasedFeatureOutputDTO dto = new ScoreBasedFeatureOutputDTO();
-	    dto.setSigma(String.valueOf(sumSigma)); // 偏差平方和
-	    dto.setCnt(String.valueOf(count));
-	    return dto;
+		ScoreBasedFeatureOutputDTO dto = new ScoreBasedFeatureOutputDTO();
+		dto.setSigma(String.valueOf(sumSigma)); // 偏差平方和
+		dto.setCnt(String.valueOf(count));
+		return dto;
 	}
 
 	/**
@@ -1245,14 +1434,19 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 					continue;
 				}
 
+				// 【修正】標準偏差0の場合は0除算になるためスキップ（歪度と同じ扱い）
+				double sigma = Double.parseDouble(kurtSigma);
+				if (sigma == 0.0 || !Double.isFinite(sigma)) {
+					continue;
+				}
+
 				for (String kurt : kurtList) {
 					String currentKurtosisNumeric = parseStatValue(kurt);
 					if (currentKurtosisNumeric == null) {
 						continue;
 					}
 					kurtosis[idx] += Math.pow(
-							(Double.parseDouble(currentKurtosisNumeric) - Double.parseDouble(kurtAve))
-									/ Double.parseDouble(kurtSigma),
+							(Double.parseDouble(currentKurtosisNumeric) - Double.parseDouble(kurtAve)) / sigma,
 							4);
 				}
 				cntList[idx] = cnt;
@@ -1263,7 +1457,7 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		}
 
 		for (int i = 0; i < kurtosis.length; i++) {
-			int cnt = cntList[i];
+			int cnt = cnt(cntList[i]);
 			double kurt = kurtosis[i];
 
 			if (cnt < 4 || !Double.isFinite(kurt)) {
@@ -1280,8 +1474,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 
 		return kurtosisList;
 	}
-
-
 
 	/**
 	 * 初期フォーマット
@@ -1601,7 +1793,6 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	private Object getLock(String key) {
 		return lockMap.computeIfAbsent(key, k -> new Object());
 	}
-
 
 	/**
 	 * クォート除去
