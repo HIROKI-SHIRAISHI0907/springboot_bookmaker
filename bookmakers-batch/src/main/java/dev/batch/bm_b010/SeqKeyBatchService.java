@@ -1,8 +1,8 @@
 package dev.batch.bm_b010;
+
 import java.security.SecureRandom;
-import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
+import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -10,6 +10,7 @@ import org.springframework.stereotype.Component;
 import com.amazonaws.util.StringUtils;
 
 import dev.batch.repository.bm.BookDataRepository;
+
 /**
  * seq_key発番処理
  * @author shiraishitoshio
@@ -19,6 +20,12 @@ import dev.batch.repository.bm.BookDataRepository;
 public class SeqKeyBatchService {
     private static final String RANDOM_CHARS = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz";
     private static final SecureRandom RANDOM = new SecureRandom();
+
+    /**
+     * 振り直し時に一時退避する seq_key の接頭辞。
+     * 正式な seq_key（英数字-連番）には出てこない文字にしておくこと。
+     */
+    private static final String TEMP_PREFIX = "~";
 
     @Autowired
     private BookDataRepository bookDataRepository;
@@ -37,9 +44,6 @@ public class SeqKeyBatchService {
      * 【追記】ここから先（既存seq_keyの読み取り〜呼び出し元でのINSERT）は、
      * FinGettingStat#finGettingStat() のトランザクション内で bookDataRepository.lockByTeams()
      * によるPostgreSQLのトランザクションスコープ・アドバイザリロックに守られている。
-     * これにより、同一対戦カード（home/away）を複数のECSタスクが同時処理しても、
-     * 一方がcommitするまでもう一方はこのロック取得でブロックされるため、
-     * static_data_pkey の重複キーエラー（seq_keyの二重採番）が発生しなくなる。
      *
      * @param home 対象試合のホームチーム名
      * @param away 対象試合のアウェーチーム名
@@ -47,16 +51,18 @@ public class SeqKeyBatchService {
      * @return 生成されたseq_key（例: "12345678-1"）
      */
     public synchronized String create(String home, String away, String matchId) {
-        // ★追加：この対戦カードに対する一連の処理（既存seq_key読み取り〜INSERT）を
-        //         プロセス（ECSタスク）をまたいで直列化する。
-        //         呼び出し元 FinGettingStat#finGettingStat() が @Transactional なので、
-        //         このロックはそのトランザクションがcommit/rollbackされるまで自動的に保持される。
+        // この対戦カードに対する一連の処理（既存seq_key読み取り〜INSERT）を
+        // プロセス（ECSタスク）をまたいで直列化する。
         bookDataRepository.lockByTeams(home, away);
         List<SeqKeyDTO> existDto = bookDataRepository.findMatchId(home, away);
+
         if (StringUtils.hasValue(matchId)) {
             // ---- 1) 正式なmatch_idが来ているケース ----
             if (existDto == null || existDto.isEmpty()) {
-                // 初回登録
+                // 初回登録（ただし、同じmatch_idの行が別表記のチーム名で既にある可能性があるため確認）
+                if (bookDataRepository.existsSeqKeyPrefix(matchId) > 0) {
+                    return overwriteAndAppend(home, away, matchId);
+                }
                 return matchId + "-1";
             }
             String existingMatchId = sameChk(existDto);
@@ -66,7 +72,7 @@ public class SeqKeyBatchService {
             }
             // 3) それまでランダム値（または別のmatch_id）だった試合群に
             //    正式なmatch_idが連携された → 過去分を正式match_idへ書き換えて連番を振り直す
-            return overwriteAndAppend(matchId, existDto);
+            return overwriteAndAppend(home, away, matchId);
         } else {
             // ---- 2) match_idが来ていないケース ----
             if (existDto == null || existDto.isEmpty()) {
@@ -83,20 +89,39 @@ public class SeqKeyBatchService {
      * 過去分のseq_keyを正式なmatch_idベースに書き換えたうえで、
      * 新規レコード用のseq_keyを返す。
      *
+     * 1件ずつ直接上書きすると、振り直し先のキー（例: matchId-2）を
+     * まだ振り直していない別の行が使っていた場合に主キー重複になるため、
+     * 以下の2段階で振り直す。
+     *   1段階目: 対象行の seq_key を一時キー（"~" + 元のseq_key）へ退避
+     *   2段階目: 一時キーから matchId-1, matchId-2 ... へ振り直す
+     *
+     * 対象は「同一対戦カードの行」＋「すでに matchId- で始まる行」。
+     * （チーム名の表記違いで対戦カード検索に出てこない同一matchIdの行ともぶつからないようにする）
+     *
+     * @param home ホームチーム名
+     * @param away アウェーチーム名
      * @param matchId 正式なmatch_id
-     * @param existDto register_time降順の既存レコード一覧
      * @return 新規レコード用のseq_key
      */
-    private String overwriteAndAppend(String matchId, List<SeqKeyDTO> existDto) {
-        // existDtoはregister_time DESC（新しい→古い）で取得されているため、
-        // 古い順に並べ直してから連番を1から振り直す
-        List<SeqKeyDTO> ascending = new ArrayList<>(existDto);
-        Collections.reverse(ascending);
+    private String overwriteAndAppend(String home, String away, String matchId) {
+        List<SeqKeyDTO> targets = bookDataRepository.findSeqKeysForRenumber(home, away, matchId);
+        if (targets == null || targets.isEmpty()) {
+            return matchId + "-1";
+        }
+
+        List<String> oldKeys = targets.stream()
+                .map(SeqKeyDTO::getSeqKey)
+                .collect(Collectors.toList());
+
+        // 1段階目: 一時キーへ退避（ここで振り直し先とぶつかる行がなくなる）
+        bookDataRepository.moveSeqKeysToTemp(TEMP_PREFIX, oldKeys);
+
+        // 2段階目: 古い順に 1 から振り直す
         int renban = 0;
-        for (SeqKeyDTO dto : ascending) {
+        for (String oldKey : oldKeys) {
             renban++;
             String newSeqKey = matchId + "-" + renban;
-            bookDataRepository.updateSeqKey(dto.getSeqKey(), newSeqKey, matchId);
+            bookDataRepository.updateSeqKey(TEMP_PREFIX + oldKey, newSeqKey, matchId);
         }
         return matchId + "-" + (renban + 1);
     }

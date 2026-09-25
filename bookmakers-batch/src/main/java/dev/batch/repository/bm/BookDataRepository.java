@@ -465,4 +465,48 @@ public interface BookDataRepository {
 	        @Param("homeTeamName") String homeTeamName,
 	        @Param("awayTeamName") String awayTeamName);
 
+	/**
+	 * seq_key 振り直し対象を取得する。
+	 * 対象: 同一対戦カード(home/away)の行 ＋ すでに matchId- で始まる seq_key の行
+	 * 並び順: 登録が古い順 → 連番の小さい順（振り直し後の連番の順番になる）
+	 */
+	@Select("""
+			SELECT
+			    seq_key AS seqKey,
+			    match_id AS matchId,
+			    times
+			FROM static_data
+			WHERE (
+			        normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+			    AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+			      )
+			   OR seq_key LIKE CONCAT(#{matchId}, '-%')
+			ORDER BY
+			    register_time ASC,
+			    (regexp_match(seq_key, '-(\\d+)$'))[1]::integer ASC,
+			    seq_key ASC
+			""")
+	List<SeqKeyDTO> findSeqKeysForRenumber(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName,
+			@Param("matchId") String matchId);
+
+	/**
+	 * seq_key を一時キー（tempPrefix + 元のseq_key）に退避する。
+	 * 振り直し時の主キー重複を避けるための1段階目。
+	 */
+	@Update("""
+			<script>
+			UPDATE static_data
+			SET seq_key = CONCAT(#{tempPrefix}, seq_key)
+			WHERE seq_key IN
+			  <foreach collection='seqKeys' item='k' open='(' separator=',' close=')'>
+			    #{k}
+			  </foreach>
+			</script>
+			""")
+	int moveSeqKeysToTemp(
+			@Param("tempPrefix") String tempPrefix,
+			@Param("seqKeys") List<String> seqKeys);
+
 }
