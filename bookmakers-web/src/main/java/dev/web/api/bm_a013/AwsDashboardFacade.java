@@ -19,6 +19,7 @@ import org.springframework.stereotype.Service;
 import dev.web.api.bm_a013.DashboardDtos.DynamoSummary;
 import dev.web.api.bm_a013.DashboardDtos.Ec2Summary;
 import dev.web.api.bm_a013.DashboardDtos.EcsSummary;
+import dev.web.api.bm_a013.DashboardDtos.EventBridgeSummary;
 import dev.web.api.bm_a013.DashboardDtos.IamSummary;
 import dev.web.api.bm_a013.DashboardDtos.LambdaSummary;
 import dev.web.api.bm_a013.DashboardDtos.Overview;
@@ -28,6 +29,7 @@ import dev.web.api.bm_a013.DashboardDtos.RdsTables;
 import dev.web.api.bm_a013.DashboardDtos.RecordSet;
 import dev.web.api.bm_a013.DashboardDtos.Route53Summary;
 import dev.web.api.bm_a013.DashboardDtos.S3Summary;
+import dev.web.api.bm_a013.DashboardDtos.VpcSummary;
 import dev.web.config.AwsDashboardPropertiesConfig;
 import software.amazon.awssdk.services.sts.StsClient;
 
@@ -48,6 +50,8 @@ public class AwsDashboardFacade implements DisposableBean {
 	private final DynamoDbDashboardService dynamoService;
 	private final Ec2DashboardService ec2Service;
 	private final Route53DashboardService route53Service;
+	private final EventBridgeDashboardService eventBridgeService;
+	private final VpcDashboardService vpcService;
 	private final StsClient sts;
 	private final TtlCache cache;
 	private final AwsDashboardPropertiesConfig props;
@@ -58,7 +62,8 @@ public class AwsDashboardFacade implements DisposableBean {
 	public AwsDashboardFacade(EcsDashboardService ecsService, S3DashboardService s3Service,
 			RdsDashboardService rdsService, IamDashboardService iamService, LambdaDashboardService lambdaService,
 			DynamoDbDashboardService dynamoService, Ec2DashboardService ec2Service,
-			Route53DashboardService route53Service, StsClient sts, TtlCache cache,
+			Route53DashboardService route53Service, EventBridgeDashboardService eventBridgeService,
+			VpcDashboardService vpcService, StsClient sts, TtlCache cache,
 			AwsDashboardPropertiesConfig props) {
 		this.ecsService = ecsService;
 		this.s3Service = s3Service;
@@ -68,6 +73,8 @@ public class AwsDashboardFacade implements DisposableBean {
 		this.dynamoService = dynamoService;
 		this.ec2Service = ec2Service;
 		this.route53Service = route53Service;
+		this.eventBridgeService = eventBridgeService;
+		this.vpcService = vpcService;
 		this.sts = sts;
 		this.cache = cache;
 		this.props = props;
@@ -186,6 +193,25 @@ public class AwsDashboardFacade implements DisposableBean {
 		});
 	}
 
+	public EventBridgeSummary eventBridge(boolean refresh) {
+		final DateRange r = range(null);
+		return cache.get("eventbridge", refresh, new Supplier<EventBridgeSummary>() {
+			@Override
+			public EventBridgeSummary get() {
+				return eventBridgeService.summary(r);
+			}
+		});
+	}
+
+	public VpcSummary vpc(boolean refresh) {
+		return cache.get("vpc", refresh, new Supplier<VpcSummary>() {
+			@Override
+			public VpcSummary get() {
+				return vpcService.summary();
+			}
+		});
+	}
+
 	// ============ 概要 ============
 
 	public Overview overview(LocalDate date, final boolean refresh) {
@@ -253,6 +279,28 @@ public class AwsDashboardFacade implements DisposableBean {
 			public Map<String, Object> call() {
 				Route53Summary s = route53(refresh);
 				return metrics("ホストゾーン", s.getZoneCount(), "レコード数", s.getTotalRecords());
+			}
+		});
+
+		submit(names, futures, "EventBridge", new Callable<Map<String, Object>>() {
+			@Override
+			public Map<String, Object> call() {
+				EventBridgeSummary s = eventBridge(refresh);
+				if (s.getScheduleError() != null && s.getRuleError() != null) {
+					throw new IllegalStateException(s.getScheduleError());
+				}
+				return metrics("スケジュール", s.getScheduleCount(), "有効スケジュール", s.getEnabledScheduleCount(),
+						"ルール", s.getRuleCount(), "有効ルール", s.getEnabledRuleCount());
+			}
+		});
+		submit(names, futures, "VPC", new Callable<Map<String, Object>>() {
+			@Override
+			public Map<String, Object> call() {
+				VpcSummary s = vpc(refresh);
+				return metrics("VPC", s.getVpcCount(), "サブネット", s.getSubnetCount(),
+						"SG（全開放あり）", s.getSecurityGroupCount() + "（" + s.getOpenSecurityGroupCount() + "）",
+						"NAT ゲートウェイ", s.getActiveNatGatewayCount(),
+						"未使用 EIP", s.getUnassociatedElasticIpCount());
 			}
 		});
 

@@ -295,4 +295,159 @@ public final class DashboardDtos {
 		private final long totalRecords;
 		private final List<HostedZone> zones;
 	}
+
+	// ===================== EventBridge =====================
+
+	/** EventBridge Scheduler のスケジュール */
+	@Getter
+	@AllArgsConstructor
+	public static class EventBridgeSchedule {
+		private final String group;
+		private final String name;
+		/** ENABLED / DISABLED */
+		private final String state;
+		/** cron(...) / rate(...) / at(...) */
+		private final String expression;
+		private final String timezone;
+		/** 起動先（例: ecs:cluster/main） */
+		private final String target;
+		/** 起動先が ECS のときのタスク定義ファミリー */
+		private final String taskDefinition;
+		/** OFF / FLEXIBLE */
+		private final String flexibleWindow;
+		private final String description;
+		private final String lastModified;
+	}
+
+	/** EventBridge ルール */
+	@Getter
+	@AllArgsConstructor
+	public static class EventBridgeRule {
+		private final String bus;
+		private final String name;
+		private final String state;
+		/** スケジュール式（イベントパターンのルールは null） */
+		private final String scheduleExpression;
+		/** イベントパターンで起動するルールか */
+		private final boolean eventPattern;
+		private final String description;
+		/** AWS サービスが管理しているルール（例: ecs.amazonaws.com） */
+		private final String managedBy;
+		private final List<String> targets;
+	}
+
+	@Getter
+	@AllArgsConstructor
+	public static class EventBridgeSummary {
+		private final int scheduleCount;
+		private final int enabledScheduleCount;
+		private final int busCount;
+		private final int ruleCount;
+		private final int enabledRuleCount;
+		private final List<EventBridgeSchedule> schedules;
+		private final List<EventBridgeRule> rules;
+		/** Scheduler だけ取得できなかった場合のエラー */
+		private final String scheduleError;
+		/** ルールだけ取得できなかった場合のエラー */
+		private final String ruleError;
+	}
+
+	// ===================== VPC =====================
+
+	@Getter
+	@AllArgsConstructor
+	public static class VpcInfo {
+		private final String vpcId;
+		private final String name;
+		private final String cidr;
+		private final String state;
+		private final boolean defaultVpc;
+		private final int subnetCount;
+		private final int securityGroupCount;
+		/** アタッチされているインターネットゲートウェイ（無ければ null） */
+		private final String internetGatewayId;
+	}
+
+	@Getter
+	@AllArgsConstructor
+	public static class SubnetInfo {
+		private final String subnetId;
+		private final String name;
+		private final String vpcId;
+		private final String cidr;
+		private final String az;
+		private final Integer availableIps;
+		/** 起動時にパブリック IP を自動割り当てするか */
+		private final boolean publicOnLaunch;
+	}
+
+	@Getter
+	@AllArgsConstructor
+	public static class SecurityGroupInfo {
+		private final String groupId;
+		private final String name;
+		private final String vpcId;
+		private final String description;
+		/** インバウンドルール（例: "tcp 443 ← 0.0.0.0/0"） */
+		private final List<String> inbound;
+		private final int outboundRuleCount;
+		/** 0.0.0.0/0 または ::/0 から許可しているルールがある */
+		private final boolean openToWorld;
+	}
+
+	@Getter
+	@AllArgsConstructor
+	public static class NatGatewayInfo {
+		private final String natGatewayId;
+		private final String name;
+		private final String vpcId;
+		private final String subnetId;
+		private final String state;
+		/** public / private */
+		private final String connectivity;
+		private final String publicIp;
+	}
+
+	@Getter
+	@AllArgsConstructor
+	public static class VpcEndpointInfo {
+		private final String endpointId;
+		private final String vpcId;
+		private final String serviceName;
+		/** Interface / Gateway */
+		private final String type;
+		private final String state;
+	}
+
+	@Getter
+	@AllArgsConstructor
+	public static class ElasticIpInfo {
+		private final String publicIp;
+		private final String allocationId;
+		private final String name;
+		/** false = 未使用（時間課金される） */
+		private final boolean associated;
+		private final String instanceId;
+		private final String networkInterfaceId;
+	}
+
+	@Getter
+	@AllArgsConstructor
+	public static class VpcSummary {
+		private final int vpcCount;
+		private final int subnetCount;
+		private final int securityGroupCount;
+		private final int openSecurityGroupCount;
+		private final int internetGatewayCount;
+		private final int activeNatGatewayCount;
+		private final int endpointCount;
+		private final int elasticIpCount;
+		private final int unassociatedElasticIpCount;
+		private final List<VpcInfo> vpcs;
+		private final List<SubnetInfo> subnets;
+		private final List<SecurityGroupInfo> securityGroups;
+		private final List<NatGatewayInfo> natGateways;
+		private final List<VpcEndpointInfo> endpoints;
+		private final List<ElasticIpInfo> elasticIps;
+	}
 }

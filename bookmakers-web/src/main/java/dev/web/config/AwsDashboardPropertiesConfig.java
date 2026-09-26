@@ -4,13 +4,15 @@ import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.boot.context.properties.ConfigurationProperties;
+import org.springframework.context.annotation.Configuration;
 
 import lombok.Data;
 
 /**
- * aws.dashboard.* の設定値
+ * aws.dashboard.* の設定値（application.yml）
  */
 @Data
+@Configuration
 @ConfigurationProperties(prefix = "aws.dashboard")
 public class AwsDashboardPropertiesConfig {
 

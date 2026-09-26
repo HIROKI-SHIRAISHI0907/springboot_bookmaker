@@ -11,10 +11,12 @@ import software.amazon.awssdk.services.cloudwatchlogs.CloudWatchLogsClient;
 import software.amazon.awssdk.services.dynamodb.DynamoDbClient;
 import software.amazon.awssdk.services.ec2.Ec2Client;
 import software.amazon.awssdk.services.ecs.EcsClient;
+import software.amazon.awssdk.services.eventbridge.EventBridgeClient;
 import software.amazon.awssdk.services.iam.IamClient;
 import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.route53.Route53Client;
+import software.amazon.awssdk.services.scheduler.SchedulerClient;
 import software.amazon.awssdk.services.sts.StsClient;
 
 /**
@@ -103,5 +105,17 @@ public class AwsClientConfig {
 	@Bean(destroyMethod = "close")
 	public StsClient stsClient() {
 		return StsClient.builder().region(region).build();
+	}
+
+	/** EventBridge（ルール・イベントバス） */
+	@Bean(destroyMethod = "close")
+	public EventBridgeClient eventBridgeClient() {
+		return EventBridgeClient.builder().region(region).build();
+	}
+
+	/** EventBridge Scheduler（スケジュール） */
+	@Bean(destroyMethod = "close")
+	public SchedulerClient schedulerClient() {
+		return SchedulerClient.builder().region(region).build();
 	}
 }
