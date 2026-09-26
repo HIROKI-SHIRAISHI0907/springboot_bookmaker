@@ -90,6 +90,7 @@ public class WithdrawalController {
     }
 
     private static class CurrentUser {
+    	@SuppressWarnings("unused")
         final String email;
         final Long userId;
         final List<String> roles;
