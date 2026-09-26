@@ -7,66 +7,43 @@ import java.util.List;
 
 import org.springframework.stereotype.Service;
 
+import dev.web.api.bm_a013.DashboardDtos.RdsDatabaseRef;
 import dev.web.api.bm_a013.DashboardDtos.RdsInstance;
 import dev.web.api.bm_a013.DashboardDtos.RdsSummary;
-import dev.web.api.bm_a013.DashboardDtos.TableCount;
+import dev.web.api.bm_a013.DashboardDtos.RdsTables;
 import dev.web.config.AwsDashboardPropertiesConfig;
-import dev.web.repository.bm.TableCountRepository;
+import dev.web.repository.bm.RdsTableStatsRepository;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.rds.model.DBInstance;
 
 /**
- * RDS インスタンス情報（AWS API）＋ テーブル件数（Spring の DataSource 経由）
+ * RDS インスタンス情報（AWS API）＋ DB ごとのテーブル件数（アプリの DataSource 経由）
  */
 @Service
 public class RdsDashboardService {
 
 	private final RdsClient rds;
-	private final TableCountRepository tableCountRepository;
+	private final RdsTableStatsRepository tableStatsRepository;
 	private final AwsDashboardPropertiesConfig props;
 
-	public RdsDashboardService(RdsClient rds, TableCountRepository tableCountRepository,
+	public RdsDashboardService(RdsClient rds, RdsTableStatsRepository tableStatsRepository,
 			AwsDashboardPropertiesConfig props) {
 		this.rds = rds;
-		this.tableCountRepository = tableCountRepository;
+		this.tableStatsRepository = tableStatsRepository;
 		this.props = props;
 	}
 
+	/** インスタンス一覧 + 接続先 DB 一覧（件数はまだ数えない） */
 	public RdsSummary summary() {
 		List<RdsInstance> instances = fetchInstances();
+		List<RdsDatabaseRef> databases = tableStatsRepository.databases();
+		return new RdsSummary(instances.size(), instances, databases);
+	}
 
-		// テーブル件数は DB 接続なので、失敗してもインスタンス情報は返す
-		String database = null;
-		String schema = null;
-		List<TableCount> tables = new ArrayList<TableCount>();
-		String tableError = null;
-		try {
-			TableCountRepository.DbInfo info = tableCountRepository.dbInfo(props.getRdsSchema());
-			database = info.getDatabase();
-			schema = info.getSchema();
-			List<String> names = tableCountRepository.findTableNames(props.getRdsSchema(),
-					props.getRdsExcludeTables());
-			tables = props.isRdsExactCount()
-					? tableCountRepository.countExact(props.getRdsSchema(), names)
-					: tableCountRepository.countEstimated(props.getRdsSchema(), names);
-		} catch (Exception e) {
-			tableError = e.getClass().getSimpleName() + ": " + e.getMessage();
-		}
-
-		List<TableCount> sorted = new ArrayList<TableCount>(tables);
-		Collections.sort(sorted, new Comparator<TableCount>() {
-			@Override
-			public int compare(TableCount a, TableCount b) {
-				return Long.compare(b.getRows(), a.getRows());
-			}
-		});
-		long total = 0;
-		for (TableCount t : sorted) {
-			total += t.getRows();
-		}
-
-		return new RdsSummary(instances.size(), instances, database, schema, props.isRdsExactCount(),
-				sorted.size(), total, sorted, tableError);
+	/** 指定 DB の全スキーマのテーブル件数 */
+	public RdsTables tables(String databaseKey) {
+		return tableStatsRepository.tables(databaseKey, props.getRdsExcludeTables(), props.isRdsExactCount(),
+				props.getRdsExactCountMaxRows());
 	}
 
 	public List<RdsInstance> fetchInstances() {

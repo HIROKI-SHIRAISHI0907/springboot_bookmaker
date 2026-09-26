@@ -11,8 +11,8 @@ import java.util.concurrent.Callable;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
+import java.util.function.Supplier;
 
-import org.apache.logging.log4j.util.Supplier;
 import org.springframework.beans.factory.DisposableBean;
 import org.springframework.stereotype.Service;
 
@@ -24,6 +24,7 @@ import dev.web.api.bm_a013.DashboardDtos.LambdaSummary;
 import dev.web.api.bm_a013.DashboardDtos.Overview;
 import dev.web.api.bm_a013.DashboardDtos.OverviewItem;
 import dev.web.api.bm_a013.DashboardDtos.RdsSummary;
+import dev.web.api.bm_a013.DashboardDtos.RdsTables;
 import dev.web.api.bm_a013.DashboardDtos.RecordSet;
 import dev.web.api.bm_a013.DashboardDtos.Route53Summary;
 import dev.web.api.bm_a013.DashboardDtos.S3Summary;
@@ -33,6 +34,8 @@ import software.amazon.awssdk.services.sts.StsClient;
 /**
  * 各サービスをキャッシュ付きでまとめる窓口。
  * 概要タブは全サービスを並列に取得し、その結果はタブ表示でも再利用される。
+ *
+ * ※ Eclipse(ECJ) の型推論エラーを避けるため、ラムダではなく匿名クラスで書いている。
  */
 @Service
 public class AwsDashboardFacade implements DisposableBean {
@@ -116,6 +119,15 @@ public class AwsDashboardFacade implements DisposableBean {
 		});
 	}
 
+	public RdsTables rdsTables(final String databaseKey, boolean refresh) {
+		return cache.get("rds-tables:" + databaseKey, refresh, new Supplier<RdsTables>() {
+			@Override
+			public RdsTables get() {
+				return rdsService.tables(databaseKey);
+			}
+		});
+	}
+
 	public IamSummary iam(boolean refresh) {
 		final DateRange r = range(null);
 		return cache.get("iam", refresh, new Supplier<IamSummary>() {
@@ -182,45 +194,74 @@ public class AwsDashboardFacade implements DisposableBean {
 		List<String> names = new ArrayList<String>();
 		List<Future<Map<String, Object>>> futures = new ArrayList<Future<Map<String, Object>>>();
 
-		submit(names, futures, "ECS", () -> {
-			EcsSummary s = ecs(d, refresh);
-			return metrics("実行回数", s.getRunCount(), "起動タスク数", s.getLaunchedTaskCount(),
-					"失敗", s.getFailedRunCount(), "クラスター", s.getClusters().size());
+		submit(names, futures, "ECS", new Callable<Map<String, Object>>() {
+			@Override
+			public Map<String, Object> call() {
+				EcsSummary s = ecs(d, refresh);
+				return metrics("実行回数", s.getRunCount(), "起動タスク数", s.getLaunchedTaskCount(),
+						"失敗", s.getFailedRunCount(), "クラスター", s.getClusters().size());
+			}
 		});
-		submit(names, futures, "S3", () -> {
-			S3Summary s = s3(refresh);
-			return metrics("バケット数", s.getBucketCount(), "リージョン数", s.getByRegion().size());
+		submit(names, futures, "S3", new Callable<Map<String, Object>>() {
+			@Override
+			public Map<String, Object> call() {
+				S3Summary s = s3(refresh);
+				return metrics("バケット数", s.getBucketCount(), "リージョン数", s.getByRegion().size());
+			}
 		});
-		submit(names, futures, "RDS", () -> {
-			RdsSummary s = rds(refresh);
-			return metrics("インスタンス", s.getInstanceCount(), "テーブル数", s.getTableCount(),
-					"総レコード数", s.getTotalRows());
+		submit(names, futures, "RDS", new Callable<Map<String, Object>>() {
+			@Override
+			public Map<String, Object> call() {
+				RdsSummary s = rds(refresh);
+				return metrics("インスタンス", s.getInstanceCount(), "データベース", s.getDatabases().size());
+			}
 		});
-		submit(names, futures, "IAM", () -> {
-			Map<String, Integer> a = iam(refresh).getAccountSummary();
-			return metrics("ユーザー", nz(a.get("Users")), "ロール", nz(a.get("Roles")),
-					"ポリシー", nz(a.get("Policies")), "グループ", nz(a.get("Groups")));
+		submit(names, futures, "IAM", new Callable<Map<String, Object>>() {
+			@Override
+			public Map<String, Object> call() {
+				Map<String, Integer> a = iam(refresh).getAccountSummary();
+				return metrics("ユーザー", nz(a.get("Users")), "ロール", nz(a.get("Roles")),
+						"ポリシー", nz(a.get("Policies")), "グループ", nz(a.get("Groups")));
+			}
 		});
-		submit(names, futures, "Lambda", () -> {
-			LambdaSummary s = lambda(d, refresh);
-			return metrics("関数数", s.getFunctionCount(), "実行回数", s.getTotalInvocations(),
-					"エラー", s.getTotalErrors());
+		submit(names, futures, "Lambda", new Callable<Map<String, Object>>() {
+			@Override
+			public Map<String, Object> call() {
+				LambdaSummary s = lambda(d, refresh);
+				return metrics("関数数", s.getFunctionCount(), "実行回数", s.getTotalInvocations(),
+						"エラー", s.getTotalErrors());
+			}
 		});
-		submit(names, futures, "DynamoDB", () -> {
-			DynamoSummary s = dynamo(refresh);
-			return metrics("テーブル数", s.getTableCount(), "アイテム数(概算)", s.getTotalItems());
+		submit(names, futures, "DynamoDB", new Callable<Map<String, Object>>() {
+			@Override
+			public Map<String, Object> call() {
+				DynamoSummary s = dynamo(refresh);
+				return metrics("テーブル数", s.getTableCount(), "アイテム数(概算)", s.getTotalItems());
+			}
 		});
-		submit(names, futures, "EC2", () -> {
-			Ec2Summary s = ec2(refresh);
-			return metrics("インスタンス", s.getInstanceCount(), "稼働中", nz(s.getByState().get("running")),
-					"停止中", nz(s.getByState().get("stopped")));
+		submit(names, futures, "EC2", new Callable<Map<String, Object>>() {
+			@Override
+			public Map<String, Object> call() {
+				Ec2Summary s = ec2(refresh);
+				return metrics("インスタンス", s.getInstanceCount(),
+						"稼働中", nz(s.getByState().get("running")),
+						"停止中", nz(s.getByState().get("stopped")));
+			}
 		});
-		submit(names, futures, "Route53", () -> {
-			Route53Summary s = route53(refresh);
-			return metrics("ホストゾーン", s.getZoneCount(), "レコード数", s.getTotalRecords());
+		submit(names, futures, "Route53", new Callable<Map<String, Object>>() {
+			@Override
+			public Map<String, Object> call() {
+				Route53Summary s = route53(refresh);
+				return metrics("ホストゾーン", s.getZoneCount(), "レコード数", s.getTotalRecords());
+			}
 		});
 
-		String account = cache.<String>get("sts", refresh, () -> fetchAccountId());
+		String account = cache.get("sts", refresh, new Supplier<String>() {
+			@Override
+			public String get() {
+				return fetchAccountId();
+			}
+		});
 
 		// 各サービスの結果を待つ。失敗したサービスはエラーカードにする
 		List<OverviewItem> items = new ArrayList<OverviewItem>();
@@ -229,7 +270,8 @@ public class AwsDashboardFacade implements DisposableBean {
 				items.add(new OverviewItem(names.get(i), true, futures.get(i).get(), null));
 			} catch (Exception e) {
 				Throwable cause = e.getCause() != null ? e.getCause() : e;
-				items.add(new OverviewItem(names.get(i), false, Collections.<String, Object> emptyMap(),
+				Map<String, Object> empty = Collections.emptyMap();
+				items.add(new OverviewItem(names.get(i), false, empty,
 						cause.getClass().getSimpleName() + ": " + cause.getMessage()));
 			}
 		}

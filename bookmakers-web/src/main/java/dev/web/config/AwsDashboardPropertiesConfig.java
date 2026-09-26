@@ -20,14 +20,14 @@ public class AwsDashboardPropertiesConfig {
 	/** 日付の区切りに使うタイムゾーン */
 	private String zoneId = "Asia/Tokyo";
 
-	/** RDS テーブル件数取得対象のスキーマ（空なら接続のデフォルト） */
-	private String rdsSchema = "";
-
-	/** 件数取得から除外するテーブル */
+	/** 件数取得から除外するテーブル（"table" または "schema.table"） */
 	private List<String> rdsExcludeTables = new ArrayList<String>();
 
-	/** true: COUNT(*) / false: 統計情報からの推定値 */
+	/** true: 小さいテーブルは COUNT(*) で正確に数える / false: 常に統計情報の推定値 */
 	private boolean rdsExactCount = true;
+
+	/** 推定件数がこの値以下のテーブルだけ COUNT(*) する（大きいテーブルは推定値） */
+	private long rdsExactCountMaxRows = 1000000L;
 
 	/** キャッシュ秒数 */
 	private long cacheTtlSeconds = 300;

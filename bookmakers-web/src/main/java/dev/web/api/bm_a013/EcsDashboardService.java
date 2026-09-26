@@ -45,7 +45,7 @@ public class EcsDashboardService {
 		this.cloudTrail = cloudTrail;
 	}
 
-	/** イベント時刻（集計用）と画面表示用 DTO の組（record の代わり） */
+	/** イベント時刻（集計用）と画面表示用 DTO の組 */
 	private static final class TimedRun {
 		private final Instant time;
 		private final EcsRun run;
@@ -93,7 +93,6 @@ public class EcsDashboardService {
 			int[] v = e.getValue();
 			defs.add(new EcsTaskDefCount(e.getKey(), v[0], v[1], v[2]));
 		}
-		// 実行回数の多い順
 		Collections.sort(defs, new Comparator<EcsTaskDefCount>() {
 			@Override
 			public int compare(EcsTaskDefCount a, EcsTaskDefCount b) {
@@ -103,11 +102,6 @@ public class EcsDashboardService {
 
 		return new EcsSummary(range.getDate().toString(), runs.size(), launched, failedRuns,
 				hourly, defs, runs, fetchClusters());
-	}
-
-	/** その日の実行回数だけ（概要タブ用） */
-	public int runCount(DateRange range) {
-		return fetchRunTaskEvents(range).size();
 	}
 
 	private List<TimedRun> fetchRunTaskEvents(DateRange range) {
@@ -128,7 +122,6 @@ public class EcsDashboardService {
 			}
 			out.add(new TimedRun(ev.eventTime(), toRun(ev, range)));
 		}
-		// 時刻の古い順
 		Collections.sort(out, new Comparator<TimedRun>() {
 			@Override
 			public int compare(TimedRun a, TimedRun b) {
@@ -176,7 +169,6 @@ public class EcsDashboardService {
 		}
 
 		List<EcsCluster> out = new ArrayList<EcsCluster>();
-		// DescribeClusters は1回100件まで
 		for (int i = 0; i < arns.size(); i += 100) {
 			List<String> chunk = arns.subList(i, Math.min(i + 100, arns.size()));
 			for (Cluster c : ecs.describeClusters(DescribeClustersRequest.builder().clusters(chunk).build())

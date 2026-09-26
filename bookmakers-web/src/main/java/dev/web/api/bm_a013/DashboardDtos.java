@@ -118,25 +118,54 @@ public final class DashboardDtos {
 		private final Integer allocatedStorageGb;
 	}
 
+	/** テーブル 1件（estimated=true は統計情報からの推定値） */
 	@Getter
 	@AllArgsConstructor
 	public static class TableCount {
+		private final String schema;
 		private final String table;
 		private final long rows;
+		private final boolean estimated;
 	}
 
+	/** 接続先 DB（アプリに登録されている DataSource ごと） */
+	@Getter
+	@AllArgsConstructor
+	public static class RdsDatabaseRef {
+		/** API の db= に渡すキー（= DB 名） */
+		private final String key;
+		private final String database;
+		private final String product;
+		private final String beanName;
+		/** 接続できなかった場合のエラー */
+		private final String error;
+	}
+
+	/** RDS タブ上部（インスタンス + 接続先 DB 一覧） */
 	@Getter
 	@AllArgsConstructor
 	public static class RdsSummary {
 		private final int instanceCount;
 		private final List<RdsInstance> instances;
+		private final List<RdsDatabaseRef> databases;
+	}
+
+	/** 1 DB 分のテーブル件数（全スキーマ） */
+	@Getter
+	@AllArgsConstructor
+	public static class RdsTables {
+		private final String key;
 		private final String database;
-		private final String schema;
-		private final boolean exactCount;
+		private final String product;
+		private final List<String> schemas;
 		private final int tableCount;
 		private final long totalRows;
+		/** 推定値で表示しているテーブル数 */
+		private final int estimatedTableCount;
+		private final boolean exactCountEnabled;
+		/** この件数以下のテーブルだけ COUNT(*) */
+		private final long maxExactRows;
 		private final List<TableCount> tables;
-		private final String tableError;
 	}
 
 	// ===================== IAM =====================
