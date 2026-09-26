@@ -15,11 +15,11 @@
 	<name>bookmakers-web</name>
 
 	<properties>
-        <java.version>17</java.version>
-        <!-- AWS SDK for Java v2 -->
-        <aws.sdk.version>2.28.11</aws.sdk.version>
-        <pdfbox.version>3.0.3</pdfbox.version>
-    </properties>
+		<java.version>17</java.version>
+		<!-- AWS SDK for Java v2 -->
+		<aws.sdk.version>2.28.11</aws.sdk.version>
+		<pdfbox.version>3.0.3</pdfbox.version>
+	</properties>
 
 	<dependencies>
 		<dependency>
@@ -72,22 +72,23 @@
 		</dependency>
 
 		<dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>costexplorer</artifactId>
-            <version>${aws.sdk.version}</version>
-        </dependency>
-        <dependency>
-            <groupId>software.amazon.awssdk</groupId>
-            <artifactId>sts</artifactId>
-            <version>${aws.sdk.version}</version>
-        </dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>costexplorer</artifactId>
+			<version>${aws.sdk.version}</version>
+		</dependency>
 
-        <!-- PDF生成 -->
-        <dependency>
-            <groupId>org.apache.pdfbox</groupId>
-            <artifactId>pdfbox</artifactId>
-            <version>${pdfbox.version}</version>
-        </dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sts</artifactId>
+			<version>${aws.sdk.version}</version>
+		</dependency>
+
+		<!-- PDF生成 -->
+		<dependency>
+			<groupId>org.apache.pdfbox</groupId>
+			<artifactId>pdfbox</artifactId>
+			<version>${pdfbox.version}</version>
+		</dependency>
 
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
@@ -149,6 +150,52 @@
 			<groupId>org.springframework.boot</groupId>
 			<artifactId>spring-boot-starter-test</artifactId>
 			<scope>test</scope>
+		</dependency>
+
+		<!-- ===== AWS SDK for Java v2 ===== -->
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>ecs</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>cloudtrail</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>cloudwatch</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>s3</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>rds</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>iam</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>lambda</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>dynamodb</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>ec2</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>route53</artifactId>
+		</dependency>
+		<dependency>
+			<groupId>software.amazon.awssdk</groupId>
+			<artifactId>sts</artifactId>
 		</dependency>
 	</dependencies>
 

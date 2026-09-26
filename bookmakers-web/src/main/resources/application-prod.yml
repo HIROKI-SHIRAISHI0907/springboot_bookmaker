@@ -260,6 +260,24 @@ s3-job:
       prefix: null
       recursive: true
       
+ # AWS ダッシュボード用設定
+# 既存の application.yml に追記するか、spring.profiles.include: awsdashboard で読み込む
+aws:
+  dashboard:
+    # AWS リージョン（IAM / Route53 はグローバルなので自動で aws-global を使う）
+    region: ap-northeast-1
+    # 「その日」の区切りに使うタイムゾーン
+    zone-id: Asia/Tokyo
+    # RDS テーブル件数を取るスキーマ（空なら接続先のデフォルトスキーマ）
+    rds-schema: public
+    # 件数取得から除外するテーブル（大きすぎる・不要なもの）
+    rds-exclude-tables:
+      - flyway_schema_history
+    # true: COUNT(*) で正確に数える / false: DB統計情報の推定値（高速）
+    rds-exact-count: true
+    # API結果のキャッシュ秒数（AWS API の呼びすぎ防止）
+    cache-ttl-seconds: 300
+      
 logging:
   level:
     root: INFO
