@@ -10,18 +10,19 @@ import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
-import dev.application.awsdashboard.dto.ApiResult;
-import dev.application.awsdashboard.dto.DashboardDtos.DynamoSummary;
-import dev.application.awsdashboard.dto.DashboardDtos.Ec2Summary;
-import dev.application.awsdashboard.dto.DashboardDtos.EcsSummary;
-import dev.application.awsdashboard.dto.DashboardDtos.IamSummary;
-import dev.application.awsdashboard.dto.DashboardDtos.LambdaSummary;
-import dev.application.awsdashboard.dto.DashboardDtos.Overview;
-import dev.application.awsdashboard.dto.DashboardDtos.RdsSummary;
-import dev.application.awsdashboard.dto.DashboardDtos.RecordSet;
-import dev.application.awsdashboard.dto.DashboardDtos.Route53Summary;
-import dev.application.awsdashboard.dto.DashboardDtos.S3Summary;
-import dev.application.awsdashboard.service.AwsDashboardFacade;
+import dev.web.api.bm_a013.ApiResult;
+import dev.web.api.bm_a013.AwsDashboardFacade;
+import dev.web.api.bm_a013.DashboardDtos.DynamoSummary;
+import dev.web.api.bm_a013.DashboardDtos.Ec2Summary;
+import dev.web.api.bm_a013.DashboardDtos.EcsSummary;
+import dev.web.api.bm_a013.DashboardDtos.IamSummary;
+import dev.web.api.bm_a013.DashboardDtos.LambdaSummary;
+import dev.web.api.bm_a013.DashboardDtos.Overview;
+import dev.web.api.bm_a013.DashboardDtos.RdsSummary;
+import dev.web.api.bm_a013.DashboardDtos.RecordSet;
+import dev.web.api.bm_a013.DashboardDtos.Route53Summary;
+import dev.web.api.bm_a013.DashboardDtos.S3Summary;
+
 
 /**
  * AWS ダッシュボード API
