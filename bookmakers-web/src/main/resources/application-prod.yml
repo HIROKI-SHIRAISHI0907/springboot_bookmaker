@@ -60,6 +60,8 @@ spring:
       driver-class-name: com.amazonaws.secretsmanager.sql.AWSSecretsManagerPostgreSQLDriver
       url: ${USER_DB_URL}
       username: ${USER_DB_SECRET_ARN}
+  flyway:
+    enabled: false
 
 
 mybatis:
