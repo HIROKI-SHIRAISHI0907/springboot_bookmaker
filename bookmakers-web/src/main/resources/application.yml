@@ -3,8 +3,9 @@ app:
   output-csv-folder: /tmp/outputs/
   team-csv-folder: /tmp/teams_by_league/
   future-csv-folder: /tmp/future/
-  b001-json-folder: /tmp/json/b001/
-  b008-json-folder: /tmp/json/b008/
+  b001-json-folder: /tmp/json/
+  b008-json-folder: /tmp/json/
+  notification.admin-email: hirokishiraishi73@gmail.com
   
 process:
   python:
@@ -17,50 +18,49 @@ process:
       teamData: ${S3_TEAM_DATA:aws-s3-team-csv}
       teamMemberData: ${S3_TEAM_MEMBER_DATA:aws-s3-team-member-csv}
       outputs: ${S3_OUTPUTS:aws-s3-outputs-csv}
+      outputsBk: ${S3_OUTPUTS_BK:aws-s3-outputs-csv-bk}
       future: ${S3_FUTURE:aws-s3-future-csv}
       stats: ${S3_STATS:aws-s3-stat-csv}
-      allLeague: ${S3_STATS:aws-s3-all-league-csv}
+      allLeague: ${S3_ALL_LEAGUE:aws-s3-all-league-csv}
       noEcs: ${S3_NO_ECS:aws-s3-no-ecs-task-time-csv}
       geografic: ${S3_GEOGRAFIC:aws-s3-geografic-csv}
       record: ${S3_RECORD:aws-s3-record-csv}
       outputsFin: ${S3_OUTPUTS_FIN:aws-s3-outputs-fin-csv}
       delayPostpone: ${S3_DELAYPOSTPONE:aws-s3-delay-postpone-csv}
       nextSeason: ${S3_NEXT_SEASON:aws-s3-next-season-info-csv}
+      mail: ${S3_MAIL:aws-s3-mail}
       
-logging:
-  level:
-    com.zaxxer.hikari: DEBUG
-    org.springframework.jdbc.datasource: DEBUG
-    org.springframework.transaction: DEBUG
+mail:
+  accounts: 
+    system:
+       username: hirokishiraishi73@gmail.com
+       password: jmvw lefi uddg tqfw
+    noreply:
+       username: no-reply@example.com
+       password: xxxxxxxxxxxxxxxx
 
 server:
   port: 8080
   servlet:
     context-path: /v1
-  error:
-    include-message: always
-    include-binding-errors: always
 
 spring:
   datasource:
     bm:
-      url: ${BM_DB_URL:jdbc:postgresql://localhost:54320/soccer_bm?currentSchema=public}
-      username: ${BM_DB_USER:postgres}
-      password: ${BM_DB_PASS:sonic3717}
-      driver-class-name: org.postgresql.Driver
-    master:
-      url: ${MASTER_DB_URL:jdbc:postgresql://localhost:54320/soccer_bm_master?currentSchema=public}
-      username: ${MASTER_DB_USER:postgres}
-      password: ${MASTER_DB_PASS:sonic3717}
-      driver-class-name: org.postgresql.Driver
-    user:
-      url: ${USER_DB_URL:jdbc:postgresql://localhost:54320/soccer_bm_user?currentSchema=public}
-      username: ${USER_DB_USER:postgres}
-      password: ${USER_DB_PASS:sonic3717}
-      driver-class-name: org.postgresql.Driver
+      driver-class-name: com.amazonaws.secretsmanager.sql.AWSSecretsManagerPostgreSQLDriver
+      url: ${BM_DB_URL}
+      username: ${BM_DB_SECRET_ARN}
 
-  flyway:
-    enabled: false
+    master:
+      driver-class-name: com.amazonaws.secretsmanager.sql.AWSSecretsManagerPostgreSQLDriver
+      url: ${MASTER_DB_URL}
+      username: ${MASTER_DB_SECRET_ARN}
+
+    user:
+      driver-class-name: com.amazonaws.secretsmanager.sql.AWSSecretsManagerPostgreSQLDriver
+      url: ${USER_DB_URL}
+      username: ${USER_DB_SECRET_ARN}
+
 
 mybatis:
   type-handlers-package: dev.application.mybatis
@@ -72,7 +72,7 @@ security:
     issuer: bookmakers-web
     secret: ${JWT_SECRET:test}
     expires-in: 3600
-
+    
 google:
   cloud:
     project-id: ${GCP_PROJECT_ID:project-3135a1b3-4e03-44a7-bdf}
@@ -86,7 +86,7 @@ management:
     web:
       base-path: /actuator
       exposure:
-        include: health,info,mappings
+        include: health,info
   endpoint:
     health:
       show-details: never
@@ -94,9 +94,6 @@ management:
         enabled: true
         
 ecs:
-  default:
-    region: ${AWS_REGION:ap-northeast-1}
-    
   network:
     subnets:
       - subnet-067d3d5d9d5ea2e17
@@ -136,17 +133,17 @@ ecs:
       taskDefinition: ${ECS_B006_TASK_DEF:bookmakers-app}
       container: ${ECS_B006_CONTAINER:bookmakers-app}
       logGroup: ${ECS_B006_LOG_GROUP:/ecs/bookmakers-app}
-      
+    
     B007:
       cluster: ${ECS_B007_CLUSTER:all-league-cluster}
       taskDefinition: ${ECS_B007_TASK_DEF:all-league-batch}
       container: ${ECS_B007_CONTAINER:all-league-scraper}
       logGroup: ${ECS_B007_LOG_GROUP:/ecs/all-league-batch}
-
+      
     B008:
       cluster: ${ECS_B008_CLUSTER:bm-cluster}
       taskDefinition: ${ECS_B008_TASK_DEF:bm-batch}
-      container: ${ECS_B008_CONTAINER:timely-data-outputs-scraper}
+      container: ${ECS_B008_CONTAINER:bm-scraper}
       logGroup: ${ECS_B008_LOG_GROUP:/ecs/bm-batch}
       
     B009:
@@ -160,14 +157,28 @@ ecs:
       taskDefinition: ${ECS_B010_TASK_DEF:bm-fin-batch}
       container: ${ECS_B010_CONTAINER:timely-data-fin-outputs-scraper}
       logGroup: ${ECS_B010_LOG_GROUP:/ecs/bm-fin-batch}
+      
+    B014:
+      cluster: ${ECS_B014_CLUSTER:stats-backend}
+      taskDefinition: ${ECS_B014_TASK_DEF:bookmakers-app}
+      container: ${ECS_B014_CONTAINER:bookmakers-app}
+      logGroup: ${ECS_B014_LOG_GROUP:/ecs/bookmakers-app}
+      
+    B015:
+      cluster: ${ECS_B015_CLUSTER:geografic-cluster}
+      taskDefinition: ${ECS_B015_TASK_DEF:geografic-batch}
+      container: ${ECS_B015_CONTAINER:geografic-scraper}
+      logGroup: ${ECS_B015_LOG_GROUP:/ecs/geografic-batch}
     
   defaults:
+    region: ${AWS_REGION:ap-northeast-1}
     cluster: ${ECS_BATCH_CLUSTER:batch-backend}
     taskDefinition: ${ECS_BATCH_TASK_DEF:bookmakers-batch}
     container: ${ECS_BATCH_CONTAINER:bookmakers-batch}
     logGroup: ${ECS_BATCH_LOG_GROUP:/ecs/bookmakers-batch}
 
   job:
+    # B002〜B005, B009 は defaults or scraper 側（あなたの設計に合わせて）
     B002: {}
     B003: {}
     B004: {}
@@ -176,6 +187,7 @@ ecs:
     B009: {}
     B010: {}
     B011: {}
+    B013: {}
 
     # B006,B008,B012 は bookmakers-appを起動
     B006:
@@ -247,5 +259,37 @@ s3-job:
       bucket: aws-s3-record-csv
       prefix: null
       recursive: true
-     
+      
+ # AWS ダッシュボード用設定
+# 既存の application.yml に追記するか、spring.profiles.include: awsdashboard で読み込む
+aws:
+  dashboard:
+    # AWS リージョン（IAM / Route53 はグローバルなので自動で aws-global を使う）
+    region: ap-northeast-1
+    # 「その日」の区切りに使うタイムゾーン
+    zone-id: Asia/Tokyo
+    # RDS テーブル件数を取るスキーマ（空なら接続先のデフォルトスキーマ）
+    rds-schema: public
+    # 件数取得から除外するテーブル（大きすぎる・不要なもの）
+    rds-exclude-tables:
+      - flyway_schema_history
+    # true: COUNT(*) で正確に数える / false: DB統計情報の推定値（高速）
+    rds-exact-count: true
+    # API結果のキャッシュ秒数（AWS API の呼びすぎ防止）
+    cache-ttl-seconds: 300
+      
+logging:
+  level:
+    root: INFO
+
+    # アプリのパッケージ（使っているもの全部まとめる）
+    dev.web: INFO
+    dev.batch: INFO
+    dev.application: INFO
+    dev.common: INFO
+
+    # ノイズ抑制
+    com.zaxxer.hikari: OFF
+    org.springframework.jdbc: WARN
+    org.mybatis: WARN
       
