@@ -28,6 +28,7 @@ import dev.web.api.bm_a013.DashboardDtos.RdsTables;
 import dev.web.api.bm_a013.DashboardDtos.TableCount;
 import dev.web.config.AwsDashboardPropertiesConfig;
 import dev.web.repository.bm.AwsDailyStatsRepository;
+import dev.web.repository.bm.AwsDailyStatsRepository.Row;
 
 /**
  * 月次レポート用の日次スナップショットを集計して aws_daily_stats に保存する。
