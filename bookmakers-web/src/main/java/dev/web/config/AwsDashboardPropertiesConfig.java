@@ -31,6 +31,17 @@ public class AwsDashboardPropertiesConfig {
 	/** 推定件数がこの値以下のテーブルだけ COUNT(*) する（大きいテーブルは推定値） */
 	private long rdsExactCountMaxRows = 1000000L;
 
+	// ===================== 日次スナップショット（月次レポート用） =====================
+
+	/** 日次集計を有効にするか */
+	private boolean statsEnabled = true;
+
+	/** 日次集計を保存する DB 名（アプリの DataSource の接続先 DB 名） */
+	private String statsDatabase = "soccer_bm";
+
+	/** 毎日の集計でさかのぼって欠けている日を埋める日数（ECS / Lambda） */
+	private int statsBackfillDays = 7;
+
 	/** キャッシュ秒数 */
 	private long cacheTtlSeconds = 300;
 }

@@ -40,6 +40,11 @@ public class RdsDashboardService {
 		return new RdsSummary(instances.size(), instances, databases);
 	}
 
+	/** 接続先 DB 一覧だけ（RDS の AWS API を呼ばない） */
+	public List<RdsDatabaseRef> databases() {
+		return tableStatsRepository.databases();
+	}
+
 	/** 指定 DB の全スキーマのテーブル件数 */
 	public RdsTables tables(String databaseKey) {
 		return tableStatsRepository.tables(databaseKey, props.getRdsExcludeTables(), props.isRdsExactCount(),
