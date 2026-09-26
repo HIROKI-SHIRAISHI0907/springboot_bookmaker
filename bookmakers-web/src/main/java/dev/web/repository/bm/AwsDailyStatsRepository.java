@@ -91,10 +91,13 @@ public class AwsDailyStatsRepository {
 		if (rows.isEmpty()) {
 			return;
 		}
-		t.batchUpdate("INSERT INTO aws_daily_stats (stat_date, category, item_key, value, value2, estimated, collected_at) "
-				+ "VALUES (?, ?, ?, ?, ?, ?, NOW()) "
+		t.batchUpdate("INSERT INTO aws_daily_stats "
+				+ "(stat_date, category, item_key, value, value2, estimated, "
+				+ " register_id, register_time, update_id, update_time) "
+				+ "VALUES (?, ?, ?, ?, ?, ?, 'SYSTEM', CURRENT_TIMESTAMP, 'SYSTEM', CURRENT_TIMESTAMP) "
 				+ "ON CONFLICT (stat_date, category, item_key) DO UPDATE SET "
-				+ "value = EXCLUDED.value, value2 = EXCLUDED.value2, estimated = EXCLUDED.estimated, collected_at = NOW()",
+				+ "value = EXCLUDED.value, value2 = EXCLUDED.value2, estimated = EXCLUDED.estimated, "
+				+ "update_id = 'SYSTEM', update_time = CURRENT_TIMESTAMP",
 				new BatchPreparedStatementSetter() {
 					@Override
 					public void setValues(PreparedStatement ps, int i) throws SQLException {
