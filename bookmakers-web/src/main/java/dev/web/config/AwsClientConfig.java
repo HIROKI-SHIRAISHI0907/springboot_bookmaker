@@ -15,13 +15,14 @@ import software.amazon.awssdk.services.iam.IamClient;
 import software.amazon.awssdk.services.lambda.LambdaClient;
 import software.amazon.awssdk.services.rds.RdsClient;
 import software.amazon.awssdk.services.route53.Route53Client;
-import software.amazon.awssdk.services.s3.S3Client;
 import software.amazon.awssdk.services.sts.StsClient;
 
 /**
  * AwsClientBean作成構成クラス
- * @author shiraishitoshio
  *
+ * ※ S3Client は dev.common.config.S3ClientConfig で定義済みのため、ここでは定義しない。
+ *
+ * @author shiraishitoshio
  */
 @Configuration
 @EnableConfigurationProperties(AwsDashboardPropertiesConfig.class)
@@ -37,25 +38,25 @@ public class AwsClientConfig {
 	 * ECS
 	 * @return
 	 */
-    @Bean
-    public EcsClient ecsClient() {
-        // ECS(Fargate)ならタスクロール/実行ロールの認証情報が自動で使われる
-        // Region は環境変数 AWS_REGION があればそれを使う
-        return EcsClient.builder()
-                .region(Region.of(System.getenv().getOrDefault("AWS_REGION", "ap-northeast-1")))
-                .build();
-    }
+	@Bean
+	public EcsClient ecsClient() {
+		// ECS(Fargate)ならタスクロール/実行ロールの認証情報が自動で使われる
+		// Region は環境変数 AWS_REGION があればそれを使う
+		return EcsClient.builder()
+				.region(Region.of(System.getenv().getOrDefault("AWS_REGION", "ap-northeast-1")))
+				.build();
+	}
 
-    /**
-     * CloudWatch
-     * @return
-     */
-    @Bean
-    public CloudWatchLogsClient cloudWatchLogsClient() {
-        return CloudWatchLogsClient.builder()
-                .region(Region.of(System.getenv().getOrDefault("AWS_REGION", "ap-northeast-1")))
-                .build();
-    }
+	/**
+	 * CloudWatch Logs
+	 * @return
+	 */
+	@Bean
+	public CloudWatchLogsClient cloudWatchLogsClient() {
+		return CloudWatchLogsClient.builder()
+				.region(Region.of(System.getenv().getOrDefault("AWS_REGION", "ap-northeast-1")))
+				.build();
+	}
 
 	@Bean(destroyMethod = "close")
 	public CloudTrailClient cloudTrailClient() {
@@ -65,11 +66,6 @@ public class AwsClientConfig {
 	@Bean(destroyMethod = "close")
 	public CloudWatchClient cloudWatchClient() {
 		return CloudWatchClient.builder().region(region).build();
-	}
-
-	@Bean(destroyMethod = "close")
-	public S3Client s3Client() {
-		return S3Client.builder().region(region).build();
 	}
 
 	@Bean(destroyMethod = "close")
@@ -108,5 +104,4 @@ public class AwsClientConfig {
 	public StsClient stsClient() {
 		return StsClient.builder().region(region).build();
 	}
-
 }
