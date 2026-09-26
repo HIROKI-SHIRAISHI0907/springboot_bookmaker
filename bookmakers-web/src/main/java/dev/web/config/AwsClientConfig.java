@@ -1,6 +1,5 @@
 package dev.web.config;
 
-import org.springframework.boot.context.properties.EnableConfigurationProperties;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
@@ -27,7 +26,6 @@ import software.amazon.awssdk.services.sts.StsClient;
  * @author shiraishitoshio
  */
 @Configuration
-@EnableConfigurationProperties(AwsDashboardPropertiesConfig.class)
 public class AwsClientConfig {
 
 	private final Region region;
