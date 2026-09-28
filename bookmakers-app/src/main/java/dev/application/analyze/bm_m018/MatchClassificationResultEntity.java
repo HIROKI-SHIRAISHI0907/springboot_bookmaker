@@ -1,23 +1,87 @@
-package dev.application.analyze.bm_m019_bm_m020;
+package dev.application.analyze.bm_m018;
+
+import java.sql.Timestamp;
 
 import dev.common.entity.MetaEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
- * classify_Result_DataのDTOクラス
- * @author shiraishitoshio
+ * classify_result_data テーブルに対応するエンティティ（BM_M019 分類別の試合スナップショット）。
  *
+ * <h2>何を表すクラスか</h2>
+ * <p>
+ * 試合終了した試合の、ある時点の BookDataEntity の全項目＋その試合の分類モード。1試合につき次の行を持つ。
+ * </p>
+ * <ul>
+ *   <li>KICKOFF（goalNo=0）: 試合開始時（最初の行）</li>
+ *   <li>GOAL（goalNo=n）: 合計 n 点目のゴールを検出した行（1回の取得で2点入った場合は、2点目の行だけ）</li>
+ *   <li>HT（goalNo=その時点の合計得点）: ハーフタイムの行</li>
+ *   <li>FIN（goalNo=最終の合計得点）: 試合終了の行</li>
+ * </ul>
+ * <p>
+ * (season, country, league, homeTeamName, awayTeamName, snapshotType, goalNo) で一意。
+ * BM_M020（分類モード別の試合数）は、このテーブルから数えるビュー classify_result_data_detail で出す。
+ * </p>
+ *
+ * <h2>修正履歴</h2>
+ * <ul>
+ *   <li>id → seq（seq_counter 採番）。season・country・league・snapshotType・goalNo・dataSeq・matchId を追加。</li>
+ *   <li>BookDataEntity にあって抜けていた項目を追加: ロングパス数・デュエル勝利数（ホーム/アウェー）・matchId。</li>
+ *   <li>recordTime を String → Timestamp（RecordTimeConverter で変換）。classifyMode を String → Integer。</li>
+ * </ul>
+ *
+ * <h2>懸念点</h2>
+ * <ul>
+ *   <li><b>値は元データの文字列のまま</b>（"55%"、"80% (40/50)" など）。</li>
+ *   <li><b>項目名の綴り</b>（temparature / studium / probablity など）は BookDataEntity と同じ名前で自動マッピングされる。
+ *       違う場合は Mapper のビルド警告に出る。</li>
+ * </ul>
+ *
+ * @author shiraishitoshio
  */
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class MatchClassificationResultEntity extends MetaEntity {
 
-	/** ID */
-	private String id;
+	/** 時点: 試合開始時 */
+	public static final String SNAPSHOT_KICKOFF = "KICKOFF";
 
-	/** 分類モード */
-	private String classifyMode;
+	/** 時点: 得点した時点 */
+	public static final String SNAPSHOT_GOAL = "GOAL";
+
+	/** 時点: ハーフタイム */
+	public static final String SNAPSHOT_HT = "HT";
+
+	/** 時点: 試合終了時 */
+	public static final String SNAPSHOT_FIN = "FIN";
+
+	/** seq（主キー。「<シーズン>-<6桁枝番>」。Writer で seq_counter から採番する）【変更】id から変更 */
+	private String seq;
+
+	/** シーズン（country_league_season_master.season_year。Writer で設定）【追加】 */
+	private String season;
+
+	/** 国【追加】 */
+	private String country;
+
+	/** リーグ【追加】 */
+	private String league;
+
+	/** 分類モード（ClassifyMode の番号。試合単位で同じ値）【変更】String → Integer */
+	private Integer classifyMode;
+
+	/** 時点の種類（KICKOFF: 試合開始時 / GOAL: 得点した時点 / HT: ハーフタイム / FIN: 試合終了時）【追加】 */
+	private String snapshotType;
+
+	/** その時点までの合計得点数（KICKOFF は 0、GOAL は何点目か）【追加】 */
+	private Integer goalNo;
+
+	/** 元データ（BookDataEntity）の通番【追加】 */
+	private String dataSeq;
+
+	/** マッチID【追加】 */
+	private String matchId;
 
 	/** 対戦チームカテゴリ */
 	private String dataCategory;
@@ -85,10 +149,10 @@ public class MatchClassificationResultEntity extends MetaEntity {
 	/** アウェーブロックシュート */
 	private String awayBlockShoot;
 
-	/** ホームビックチャンス */
+	/** ホームビッグチャンス */
 	private String homeBigChance;
 
-	/** アウェービックチャンス */
+	/** アウェービッグチャンス */
 	private String awayBigChance;
 
 	/** ホームコーナーキック */
@@ -175,6 +239,12 @@ public class MatchClassificationResultEntity extends MetaEntity {
 	/** アウェーパス数 */
 	private String awayPassCount;
 
+	/** ホームロングパス数【追加】 */
+	private String homeLongPassCount;
+
+	/** アウェーロングパス数【追加】 */
+	private String awayLongPassCount;
+
 	/** ホームファイナルサードパス数 */
 	private String homeFinalThirdPassCount;
 
@@ -199,6 +269,12 @@ public class MatchClassificationResultEntity extends MetaEntity {
 	/** アウェークリア数 */
 	private String awayClearCount;
 
+	/** ホームデュエル勝利数【追加】 */
+	private String homeDuelCount;
+
+	/** アウェーデュエル勝利数【追加】 */
+	private String awayDuelCount;
+
 	/** ホームインターセプト数 */
 	private String homeInterceptCount;
 
@@ -206,7 +282,7 @@ public class MatchClassificationResultEntity extends MetaEntity {
 	private String awayInterceptCount;
 
 	/** 記録時間 */
-	private String recordTime;
+	private Timestamp recordTime;
 
 	/** 天気 */
 	private String weather;
@@ -300,5 +376,4 @@ public class MatchClassificationResultEntity extends MetaEntity {
 
 	/** スコア予想時間 */
 	private String predictionScoreTime;
-
 }

@@ -18,13 +18,13 @@ import dev.common.getinfo.GetStatInfo;
  */
 @SpringBootTest
 @ActiveProfiles("test")
-public class TeamTimeSegmentShootingStatTest {
+public class TeamTimeSegmentStatTest {
 
 	@Autowired
 	private GetStatInfo getStatInfo;
 
 	@Autowired
-	private TeamTimeSegmentShootingStat teamTimeSegmentShootingStat;
+	private TeamTimeSegmentStat teamTimeSegmentShootingStat;
 
 	/**
 	 * 処理速度実験

@@ -1,19 +1,59 @@
 package dev.application.analyze.bm_m006;
 
-import java.util.List;
+import java.util.HashMap;
+import java.util.LinkedHashMap;
+import java.util.Map;
+import java.util.TreeMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.dao.DuplicateKeyException;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.application.analyze.common.service.SeqNumberingService;
+import dev.application.analyze.interf.SeasonResolverIF;
 import dev.application.domain.repository.bm.CountryLeagueSummaryRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
- * BM_M006 登録・更新処理
+ * BM_M006 登録・更新処理（country_league_summary）。
+ *
+ * <h2>何をするクラスか</h2>
+ * <p>
+ * {@link CountryLeagueSummaryStat} が集計した「国,リーグ → 今回の試合数」を、
+ * 国 × リーグ × シーズンの行の csv_count に加算する（行がなければ作る）。
+ * </p>
+ *
+ * <h2>シーズン・seq</h2>
+ * <ul>
+ *   <li>シーズンは他の Writer と同じく {@link SeasonResolverIF}（country_league_season_master.season_year）から取得する。
+ *       1回の保存処理の中では国,リーグごとにキャッシュする。</li>
+ *   <li>seq は「&lt;シーズン&gt;-&lt;6桁枝番&gt;」を {@link SeqNumberingService}（seq_counter）で採番する。
+ *       既に行があるときは採番しない（番号を消費しない）。</li>
+ *   <li>シーズンが取得できない国,リーグは、DB 書き込みの前にスキップする（ログに出す）。他の国,リーグは保存する。</li>
+ * </ul>
+ *
+ * <h2>トランザクション</h2>
+ * <ul>
+ *   <li>1回の集計結果（全リーグ分）を <b>1トランザクション</b> で保存する。途中で失敗すると全件ロールバックされ、
+ *       一部のリーグだけ加算された状態は残らない（そのまま再実行すれば正しく加算される）。
+ *       行数はリーグ数程度で少ないため、トランザクションが長くなることはない。</li>
+ *   <li>加算は「csv_count = csv_count + 加算分」を1本の SQL（INSERT ... ON CONFLICT DO UPDATE）で行うため、
+ *       別プロセスが同時に動いても加算は消えない。以前の「読み取り → 加算 → UPDATE」と JVM 内ロックは廃止した。</li>
+ *   <li>行はキー順（国,リーグの文字列順）に処理し、同時実行時に行ロックを取る順番を揃えてデッドロックを起きにくくしている。</li>
+ *   <li>以前の DuplicateKeyException を捕まえて再読込する処理は、PostgreSQL では制約違反でトランザクションが中断されるため
+ *       動かなかった。ON CONFLICT で重複自体が起きないようにしたので廃止した。</li>
+ * </ul>
+ *
+ * <h2>懸念点・エラーが起こりそうな箇所</h2>
+ * <ul>
+ *   <li><b>csv_count は処理した回数の合計</b>: 同じ試合でも流れてくるたびに数える（仕様）。試合数としては使えない。</li>
+ *   <li><b>ロールバック後の再実行</b>: 失敗した回の入力を再処理すれば正しく加算される。成功した回を再処理すると二重に加算される。</li>
+ *   <li><b>採番の待ち</b>: 同じシーズンの採番は seq_counter の同じ行を更新するため、新規行があるときは同時実行が順番待ちになる。</li>
+ *   <li><b>シーズンは処理日基準</b>: シーズン切替直後に流れてきた前シーズンのデータは、新シーズンの行に加算される。</li>
+ * </ul>
  */
 @Service
 public class CountryLeagueSummaryWriter {
@@ -28,9 +68,23 @@ public class CountryLeagueSummaryWriter {
 	/** BM_STAT_NUMBER */
 	private static final String BM_NUMBER = "BM_M006";
 
+	/** 採番単位のテーブル名 */
+	private static final String TABLE_NAME = "country_league_summary";
+
 	/** CountryLeagueSummaryRepositoryレポジトリクラス */
 	@Autowired
 	private CountryLeagueSummaryRepository countryLeagueSummaryRepository;
+
+	/** seq 採番（seq_counter） */
+	@Autowired
+	private SeqNumberingService seqNumberingService;
+
+	/**
+	 * シーズン取得（実装: CountryLeagueSeasonResolver）。
+	 * 実装が無い場合もアプリが起動できるよう required = false。実装が無ければ全リーグをスキップする。
+	 */
+	@Autowired(required = false)
+	private SeasonResolverIF seasonResolver;
 
 	/** ログ管理ラッパー */
 	@Autowired
@@ -41,158 +95,158 @@ public class CountryLeagueSummaryWriter {
 	private ManageLoggerComponent manageLoggerComponent;
 
 	/**
-	 * 登録・更新
-	 * @param country 国
-	 * @param league リーグ
-	 * @param addCount 加算件数
+	 * 集計結果（全リーグ分）を1トランザクションで加算保存する。
+	 *
+	 * @param counts 国,リーグ（{@link CountryLeagueKey}）→ 今回の加算分（0 以下・null は無視）
 	 */
-	@Transactional
-	public void upsert(String country, String league, int addCount) {
-		CountryLeagueSummaryOutputDTO dto = getData(country, league);
-		saveWithDuplicateFallback(
-				dto.isUpdFlg(),
-				dto.getSeq(),
-				country,
-				league,
-				dto.getCnt(),
-				String.valueOf(addCount));
-	}
+	@Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+	public void addCountsAll(Map<CountryLeagueKey, Integer> counts) {
+		final String METHOD_NAME = "addCountsAll";
+		if (counts == null || counts.isEmpty()) {
+			return;
+		}
 
-	/**
-	 * DuplicateKey 時は再読込して update に切替
-	 * @param updFlg
-	 * @param id
-	 * @param country
-	 * @param league
-	 * @param befCnt
-	 * @param addCnt
-	 */
-	private void saveWithDuplicateFallback(
-			boolean updFlg,
-			String id,
-			String country,
-			String league,
-			String befCnt,
-			String addCnt) {
-
-		final String METHOD_NAME = "saveWithDuplicateFallback";
-
-		CountryLeagueSummaryEntity entity = new CountryLeagueSummaryEntity();
-		entity.setCountry(country);
-		entity.setLeague(league);
-		entity.setDataCount("0");
-
-		try {
-			if (updFlg) {
-				// 既存あり: 加算更新
-				int newCnt = parseOrZero(befCnt) + parseOrZero(addCnt);
-				entity.setId(id);
-				entity.setCsvCount(String.valueOf(newCnt));
-
-				int result = this.countryLeagueSummaryRepository.update(entity);
-				if (result != 1) {
-					String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
-					this.rootCauseWrapper.throwUnexpectedRowCount(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							messageCd,
-							1, result,
-							String.format("id=%s, country=%s, league=%s", id, country, league));
-				}
-
-				String messageCd = MessageCdConst.MCD00006I_UPDATE_SUCCESS;
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-						BM_NUMBER + " 更新件数: " + result + "件");
-			} else {
-				// 新規: insert
-				entity.setCsvCount(addCnt);
-
-				int result = this.countryLeagueSummaryRepository.insert(entity);
-				if (result != 1) {
-					String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-					this.rootCauseWrapper.throwUnexpectedRowCount(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							messageCd,
-							1, result,
-							null);
-				}
-
-				String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-						BM_NUMBER + " 登録件数: " + result + "件");
+		// 1) キー順に並べ、書き込みの前にシーズンを決める（取得できない国,リーグはスキップ）
+		Map<CountryLeagueKey, String> seasons = new LinkedHashMap<>();
+		Map<String, String> seasonCache = new HashMap<>();
+		int skipCount = 0;
+		for (Map.Entry<CountryLeagueKey, Integer> e : new TreeMap<>(counts).entrySet()) {
+			if (e.getKey() == null || e.getValue() == null || e.getValue() <= 0) {
+				continue;
 			}
-		} catch (DuplicateKeyException dup) {
-			// 競合: 再取得して update
-			List<CountryLeagueSummaryEntity> rows =
-					this.countryLeagueSummaryRepository.findByCountryLeague(country, league);
+			String season = resolveSeason(e.getKey(), seasonCache);
+			if (season == null) {
+				skipCount++;
+				continue;
+			}
+			seasons.put(e.getKey(), season);
+		}
 
-			if (!rows.isEmpty()) {
-				CountryLeagueSummaryEntity cur = rows.get(0);
-				int newCnt = parseOrZero(cur.getCsvCount()) + parseOrZero(addCnt);
+		// 2) 加算保存
+		int insertCount = 0;
+		int addCount = 0;
+		for (Map.Entry<CountryLeagueKey, String> e : seasons.entrySet()) {
+			CountryLeagueKey key = e.getKey();
+			String season = e.getValue();
+			int add = counts.get(key);
 
-				CountryLeagueSummaryEntity updateEntity = new CountryLeagueSummaryEntity();
-				updateEntity.setId(cur.getId());
-				updateEntity.setCountry(country);
-				updateEntity.setLeague(league);
-				updateEntity.setDataCount(cur.getDataCount() == null ? "0" : cur.getDataCount());
-				updateEntity.setCsvCount(String.valueOf(newCnt));
+			String seq = this.countryLeagueSummaryRepository.findSeq(season, key.getCountry(), key.getLeague());
+			boolean isNew = (seq == null);
+			if (isNew) {
+				seq = this.seqNumberingService.nextSeq(TABLE_NAME, season);
+			}
 
-				int result = this.countryLeagueSummaryRepository.update(updateEntity);
-				if (result != 1) {
-					String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
-					this.rootCauseWrapper.throwUnexpectedRowCount(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							messageCd,
-							1, result,
-							String.format("id=%s, country=%s, league=%s", cur.getId(), country, league));
-				}
+			CountryLeagueSummaryEntity entity = new CountryLeagueSummaryEntity();
+			entity.setSeq(seq);
+			entity.setSeason(season);
+			entity.setCountry(key.getCountry());
+			entity.setLeague(key.getLeague());
+			entity.setCsvCount(add);
 
-				String messageCd = MessageCdConst.MCD00009I_REINSERT_DUE_TO_DUPLICATION_OR_COMPETITION;
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-						BM_NUMBER + " 登録件数: " + result + "件");
+			int result = this.countryLeagueSummaryRepository.upsertAdd(entity);
+			if (result != 1) {
+				this.rootCauseWrapper.throwUnexpectedRowCount(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						MessageCdConst.MCD00007E_INSERT_FAILED,
+						1, result,
+						String.format("seq=%s, season=%s, country=%s, league=%s, add=%d",
+								seq, season, key.getCountry(), key.getLeague(), add));
+			}
+			if (isNew) {
+				insertCount++;
 			} else {
-				throw dup;
+				addCount++;
 			}
 		}
+
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00006I_UPDATE_SUCCESS,
+				BM_NUMBER + " 登録件数: " + insertCount + "件, 加算件数: " + addCount + "件, シーズン取得不可: "
+						+ skipCount + "件");
 	}
 
 	/**
-	 * 取得データ
-	 * @param country 国
-	 * @param league リーグ
-	 * @return CountryLeagueSummaryOutputDTO
+	 * 国,リーグのシーズンを取得する（取得できなければ null。ログを出す）。
 	 */
-	private CountryLeagueSummaryOutputDTO getData(String country, String league) {
-		CountryLeagueSummaryOutputDTO dto = new CountryLeagueSummaryOutputDTO();
-		List<CountryLeagueSummaryEntity> datas =
-				this.countryLeagueSummaryRepository.findByCountryLeague(country, league);
+	private String resolveSeason(CountryLeagueKey key, Map<String, String> cache) {
+		final String METHOD_NAME = "resolveSeason";
+		String cacheKey = key.getCountry() + "\u0000" + key.getLeague();
+		if (cache.containsKey(cacheKey)) {
+			return cache.get(cacheKey);
+		}
 
-		if (!datas.isEmpty()) {
-			dto.setUpdFlg(true);
-			dto.setSeq(datas.get(0).getId());
-			dto.setCnt(datas.get(0).getCsvCount());
+		String season = null;
+		if (this.seasonResolver == null) {
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					BM_NUMBER + " SeasonResolverIF の実装がありません（CountryLeagueSeasonResolver が Bean 登録されていない）: "
+							+ key);
 		} else {
-			dto.setUpdFlg(false);
-			dto.setCnt("0");
+			try {
+				String s = this.seasonResolver.resolveSeason(key.getCountry(), key.getLeague());
+				if (s != null && !s.isBlank()) {
+					season = s.trim();
+				}
+			} catch (RuntimeException ex) {
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG, ex,
+						BM_NUMBER + " シーズン取得不可のためスキップ: " + key);
+			}
 		}
-		return dto;
+		cache.put(cacheKey, season);
+		return season;
 	}
 
 	/**
-	 * null/空文字防止
-	 * @param s
-	 * @return
+	 * 集計キー（国, リーグ）。record は使わない。文字列順に並ぶ（国 → リーグ）。
 	 */
-	private static int parseOrZero(String s) {
-		if (s == null || s.isBlank()) {
-			return 0;
+	public static final class CountryLeagueKey implements Comparable<CountryLeagueKey> {
+
+		private final String country;
+		private final String league;
+
+		public CountryLeagueKey(String country, String league) {
+			if (country == null || league == null) {
+				throw new IllegalArgumentException("country/league is null.");
+			}
+			this.country = country;
+			this.league = league;
 		}
-		try {
-			return Integer.parseInt(s.trim());
-		} catch (NumberFormatException e) {
-			return 0;
+
+		public String getCountry() {
+			return this.country;
+		}
+
+		public String getLeague() {
+			return this.league;
+		}
+
+		@Override
+		public int compareTo(CountryLeagueKey o) {
+			int c = this.country.compareTo(o.country);
+			return (c != 0) ? c : this.league.compareTo(o.league);
+		}
+
+		@Override
+		public boolean equals(Object obj) {
+			if (this == obj) {
+				return true;
+			}
+			if (!(obj instanceof CountryLeagueKey)) {
+				return false;
+			}
+			CountryLeagueKey o = (CountryLeagueKey) obj;
+			return this.country.equals(o.country) && this.league.equals(o.league);
+		}
+
+		@Override
+		public int hashCode() {
+			return 31 * this.country.hashCode() + this.league.hashCode();
+		}
+
+		@Override
+		public String toString() {
+			return "country=" + this.country + ", league=" + this.league;
 		}
 	}
 }

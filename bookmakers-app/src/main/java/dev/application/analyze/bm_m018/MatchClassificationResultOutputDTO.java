@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m019_bm_m020;
+package dev.application.analyze.bm_m018;
 
 import java.io.Serializable;
 import java.util.List;

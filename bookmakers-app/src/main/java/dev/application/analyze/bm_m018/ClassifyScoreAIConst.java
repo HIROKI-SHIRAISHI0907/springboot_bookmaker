@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m019_bm_m020;
+package dev.application.analyze.bm_m018;
 
 /**
  * 試合の得点状況に基づく分類モード定数クラス

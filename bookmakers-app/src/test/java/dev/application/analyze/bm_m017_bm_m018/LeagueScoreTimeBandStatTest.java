@@ -8,6 +8,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.context.ActiveProfiles;
 
+import dev.application.analyze.bm_m017.LeagueScoreTimeBandStat;
 import dev.common.entity.BookDataEntity;
 import dev.common.getinfo.GetStatInfo;
 

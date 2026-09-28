@@ -19,11 +19,11 @@ import org.springframework.transaction.CannotCreateTransactionException;
 
 import dev.application.analyze.bm_m002.ConditionResultDataStat;
 import dev.application.analyze.bm_m003.TeamMonthlyScoreSummaryStat;
-import dev.application.analyze.bm_m004.TeamTimeSegmentShootingStat;
+import dev.application.analyze.bm_m004.TeamTimeSegmentStat;
 import dev.application.analyze.bm_m005.NoGoalMatchStat;
 import dev.application.analyze.bm_m006.CountryLeagueSummaryStat;
-import dev.application.analyze.bm_m017_bm_m018.LeagueScoreTimeBandStat;
-import dev.application.analyze.bm_m019_bm_m020.MatchClassificationResultStat;
+import dev.application.analyze.bm_m017.LeagueScoreTimeBandStat;
+import dev.application.analyze.bm_m018.MatchClassificationResultStat;
 import dev.application.analyze.bm_m021.TeamMatchFinalStat;
 import dev.application.analyze.bm_m023.ScoreBasedFeatureStat;
 import dev.application.analyze.bm_m024.CalcCorrelationStat;
@@ -61,7 +61,7 @@ public class CoreStat implements StatIF {
 	@Autowired
 	private TeamMonthlyScoreSummaryStat teamMonthlyScoreSummaryStat;
 	@Autowired
-	private TeamTimeSegmentShootingStat teamTimeSegmentShootingStat;
+	private TeamTimeSegmentStat teamTimeSegmentShootingStat;
 	@Autowired
 	private NoGoalMatchStat noGoalMatchStat;
 	@Autowired

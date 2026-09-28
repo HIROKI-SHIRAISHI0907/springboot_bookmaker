@@ -11,15 +11,15 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.bm_m002.ConditionResultDataEntity;
 import dev.application.analyze.bm_m003.TeamMonthlyScoreSummaryEntity;
-import dev.application.analyze.bm_m004.TeamTimeSegmentShootingStatsEntity;
+import dev.application.analyze.bm_m004.TeamTimeSegmentStatsEntity;
 import dev.application.analyze.bm_m005.NoGoalMatchStatisticsEntity;
 import dev.application.analyze.bm_m006.CountryLeagueSummaryEntity;
 import dev.application.analyze.bm_m007_bm_m016.TimeRangeFeatureAllLeagueEntity;
 import dev.application.analyze.bm_m007_bm_m016.TimeRangeFeatureEntity;
 import dev.application.analyze.bm_m007_bm_m016.TimeRangeFeatureScoredEntity;
-import dev.application.analyze.bm_m017_bm_m018.LeagueScoreTimeBandStatsEntity;
-import dev.application.analyze.bm_m017_bm_m018.LeagueScoreTimeBandStatsSplitScoreEntity;
-import dev.application.analyze.bm_m019_bm_m020.MatchClassificationResultCountEntity;
+import dev.application.analyze.bm_m017.LeagueScoreTimeBandStatsEntity;
+import dev.application.analyze.bm_m017.LeagueScoreTimeBandStatsSplitScoreEntity;
+import dev.application.analyze.bm_m018.MatchClassificationResultCountEntity;
 import dev.application.analyze.bm_m021.TeamMatchFinalStatsEntity;
 import dev.application.analyze.bm_m023.ScoreBasedFeatureStatsEntity;
 import dev.application.analyze.bm_m024.CalcCorrelationEntity;
@@ -159,7 +159,7 @@ class RepositoryTest {
 
 	@Test
 	void test4() {
-		TeamTimeSegmentShootingStatsEntity entity = new TeamTimeSegmentShootingStatsEntity();
+		TeamTimeSegmentStatsEntity entity = new TeamTimeSegmentStatsEntity();
 
 		int saved = teamTimeSegmentShootingStatsRepository.insert(entity);
 		assertEquals(1, saved);
