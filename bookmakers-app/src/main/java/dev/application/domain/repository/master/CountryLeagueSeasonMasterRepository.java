@@ -75,6 +75,17 @@ public interface CountryLeagueSeasonMasterRepository {
 	List<CountryLeagueSeasonMasterEntity> findRoundValidFlg(@Param("validFlg") String validFlg);
 
 	/**
+	 * 【追加・BM_M031 用】全シーズンの総ラウンド数（削除済みを除く）。
+	 * 序盤/中盤/終盤の判定に使う。valid_flg（収集対象かどうか）では絞らない
+	 * （valid_flg = '0' で絞ると、主要リーグが対象外になるため）。
+	 */
+	@Select({
+			"SELECT country, league, season_year, round FROM country_league_season_master ",
+			"WHERE del_flg = '0'"
+	})
+	List<CountryLeagueSeasonMasterEntity> findAllRounds();
+
+	/**
 	 * 今日がシーズン期間内の有効なシーズンを1件返す（なければ null）。
 	 */
 	@Select({

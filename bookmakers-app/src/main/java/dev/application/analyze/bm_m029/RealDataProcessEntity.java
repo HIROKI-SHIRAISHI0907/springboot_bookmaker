@@ -1,27 +1,64 @@
 package dev.application.analyze.bm_m029;
 
+import java.math.BigDecimal;
+import java.sql.Timestamp;
+
 import dev.common.entity.MetaEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
+/**
+ * real_data_process テーブルに対応するエンティティ（BM_M029 リアルタイム差分）。
+ *
+ * <h2>何を表すクラスか</h2>
+ * <p>
+ * 1行 = 1試合（match_id）。最新のデータと1つ前のデータを比べて「どれだけ増えたか」を持つ。
+ * 新しいデータが来るたびに同じ行を上書きする（最新の差分だけを持つ）。
+ * </p>
+ * <ul>
+ *   <li>区間: prevTimes（1つ前）〜 times（最新）。hasPrevious = false の場合は1つ前が無く、増加量は試合開始（0）からの値＝最新の累計値。</li>
+ *   <li>増加量（home* / away* の数値項目）: 最新 − 1つ前。データの訂正などでマイナスになることがある。</li>
+ *   <li>パス・ロングパス・ファイナルサードパス・クロス・タックル: 成功数・試行数の増加と、その区間の成功率
+ *       （成功数の増加 ÷ 試行数の増加 × 100）。「38% (210/300)」の % 同士の引き算はしない。</li>
+ *   <li>現在のスコア・順位・天気などの付帯情報は最新の値。</li>
+ * </ul>
+ * <p>
+ * 数値項目は数値型。読めない値は null。旧 timeSortSeconds は不要のため削除。
+ * 気温は他テーブルに合わせて temperature（DataEntity 側の綴りは temparature）。
+ * </p>
+ *
+ * @author shiraishitoshio
+ */
 @Data
 @EqualsAndHashCode(callSuper = false)
 public class RealDataProcessEntity extends MetaEntity {
 
-	/** 条件分岐結果通番ID */
-	private String conditionResultDataSeqId;
+	/** <シーズン>-<6桁枝番>（seq_counter で採番） */
+	private String seq;
 
-	/** 対戦チームカテゴリ */
+	/** country_league_season_master.season_year */
+	private String season;
+
+	/** 国 */
+	private String country;
+
+	/** リーグ */
+	private String league;
+
+	/** マッチID（1試合1行のキー） */
+	private String matchId;
+
+	/** 対戦チームカテゴリ（国: リーグ - ラウンドN） */
 	private String dataCategory;
 
-	/** 試合時間 */
-	private String times;
+	/** 試合ID */
+	private String gameId;
 
-	/** ホーム順位 */
-	private String homeRank;
+	/** 試合リンク */
+	private String gameLink;
 
-	/** アウェー順位 */
-	private String awayRank;
+	/** 条件分岐結果通番ID（最新側） */
+	private String conditionResultDataSeqId;
 
 	/** ホームチーム */
 	private String homeTeamName;
@@ -29,296 +66,369 @@ public class RealDataProcessEntity extends MetaEntity {
 	/** アウェーチーム */
 	private String awayTeamName;
 
-	/** ホームスコア */
-	private String homeScore;
+	/** ホーム順位（最新） */
+	private String homeRank;
 
-	/** アウェースコア */
-	private String awayScore;
+	/** アウェー順位（最新） */
+	private String awayRank;
 
-	/** ホーム期待値 */
-	private String homeExp;
+	/** 1つ前のデータがあるか（false なら差分は試合開始＝0 からの増加＝最新の累計値） */
+	private Boolean hasPrevious;
 
-	/** アウェー期待値 */
-	private String awayExp;
+	/** 区間の開始: 1つ前のデータの試合時間 */
+	private String prevTimes;
 
-	/** ホーム枠内ゴール期待値 */
-	private String homeInGoalExp;
+	/** 区間の終了: 最新の試合時間 */
+	private String times;
 
-	/** アウェー枠内ゴール期待値 */
-	private String awayInGoalExp;
+	/** 1つ前のデータの記録時間 */
+	private Timestamp prevRecordTime;
 
-	/** ホームポゼッション */
-	private String homeDonation;
+	/** 最新の記録時間 */
+	private Timestamp recordTime;
 
-	/** アウェーポゼッション */
-	private String awayDonation;
+	/** ホーム 現在のスコア（最新） */
+	private Integer homeCurrentScore;
 
-	/** ホームシュート数 */
-	private String homeShootAll;
+	/** アウェー 現在のスコア（最新） */
+	private Integer awayCurrentScore;
 
-	/** アウェーシュート数 */
-	private String awayShootAll;
+	/** ホーム 増加: 得点 */
+	private Integer homeScore;
 
-	/** ホーム枠内シュート */
-	private String homeShootIn;
+	/** ホーム 増加: 期待値（xG） */
+	private BigDecimal homeExp;
 
-	/** アウェー枠内シュート */
-	private String awayShootIn;
+	/** ホーム 増加: 枠内ゴール期待値 */
+	private BigDecimal homeInGoalExp;
 
-	/** ホーム枠外シュート */
-	private String homeShootOut;
+	/** ホーム 増加: ポゼッション（% の増減ポイント） */
+	private BigDecimal homeDonation;
 
-	/** アウェー枠外シュート */
-	private String awayShootOut;
+	/** ホーム 増加: シュート数 */
+	private Integer homeShootAll;
 
-	/** ホームブロックシュート */
-	private String homeBlockShoot;
+	/** ホーム 増加: 枠内シュート */
+	private Integer homeShootIn;
 
-	/** アウェーブロックシュート */
-	private String awayBlockShoot;
+	/** ホーム 増加: 枠外シュート */
+	private Integer homeShootOut;
 
-	/** ホームビックチャンス */
-	private String homeBigChance;
+	/** ホーム 増加: ブロックシュート */
+	private Integer homeBlockShoot;
 
-	/** アウェービックチャンス */
-	private String awayBigChance;
+	/** ホーム 増加: ビッグチャンス */
+	private Integer homeBigChance;
 
-	/** ホームコーナーキック */
-	private String homeCorner;
+	/** ホーム 増加: コーナーキック */
+	private Integer homeCorner;
 
-	/** アウェーコーナーキック */
-	private String awayCorner;
+	/** ホーム 増加: ボックス内シュート */
+	private Integer homeBoxShootIn;
 
-	/** ホームボックス内シュート */
-	private String homeBoxShootIn;
+	/** ホーム 増加: ボックス外シュート */
+	private Integer homeBoxShootOut;
 
-	/** アウェーボックス内シュート */
-	private String awayBoxShootIn;
+	/** ホーム 増加: ゴールポスト */
+	private Integer homeGoalPost;
 
-	/** ホームボックス外シュート */
-	private String homeBoxShootOut;
+	/** ホーム 増加: ヘディングゴール */
+	private Integer homeGoalHead;
 
-	/** アウェーボックス外シュート */
-	private String awayBoxShootOut;
+	/** ホーム 増加: キーパーセーブ */
+	private Integer homeKeeperSave;
 
-	/** ホームゴールポスト */
-	private String homeGoalPost;
+	/** ホーム 増加: フリーキック */
+	private Integer homeFreeKick;
 
-	/** アウェーゴールポスト */
-	private String awayGoalPost;
+	/** ホーム 増加: オフサイド */
+	private Integer homeOffside;
 
-	/** ホームヘディングゴール */
-	private String homeGoalHead;
+	/** ホーム 増加: ファウル */
+	private Integer homeFoul;
 
-	/** アウェーヘディングゴール */
-	private String awayGoalHead;
+	/** ホーム 増加: イエローカード */
+	private Integer homeYellowCard;
 
-	/** ホームキーパーセーブ */
-	private String homeKeeperSave;
+	/** ホーム 増加: レッドカード */
+	private Integer homeRedCard;
 
-	/** アウェーキーパーセーブ */
-	private String awayKeeperSave;
+	/** ホーム 増加: スローイン */
+	private Integer homeSlowIn;
 
-	/** ホームフリーキック */
-	private String homeFreeKick;
+	/** ホーム 増加: ボックスタッチ */
+	private Integer homeBoxTouch;
 
-	/** アウェーフリーキック */
-	private String awayFreeKick;
+	/** ホーム 増加: クリア数 */
+	private Integer homeClearCount;
 
-	/** ホームオフサイド */
-	private String homeOffside;
+	/** ホーム 増加: デュエル数 */
+	private Integer homeDuelCount;
 
-	/** アウェーオフサイド */
-	private String awayOffside;
+	/** ホーム 増加: インターセプト数 */
+	private Integer homeInterceptCount;
 
-	/** ホームファウル */
-	private String homeFoul;
+	/** ホーム 増加: パス 成功数 */
+	private Integer homePassCountSuccess;
 
-	/** アウェーファウル */
-	private String awayFoul;
+	/** ホーム 増加: パス 試行数 */
+	private Integer homePassCountTry;
 
-	/** ホームイエローカード */
-	private String homeYellowCard;
+	/** ホーム 増加: パス 区間の成功率（%。成功数の増加 ÷ 試行数の増加。試行数の増加が 0 以下なら NULL） */
+	private BigDecimal homePassCountRate;
 
-	/** アウェーイエローカード */
-	private String awayYellowCard;
+	/** ホーム 増加: ロングパス 成功数 */
+	private Integer homeLongPassCountSuccess;
 
-	/** ホームレッドカード */
-	private String homeRedCard;
+	/** ホーム 増加: ロングパス 試行数 */
+	private Integer homeLongPassCountTry;
 
-	/** アウェーレッドカード */
-	private String awayRedCard;
+	/** ホーム 増加: ロングパス 区間の成功率（%。成功数の増加 ÷ 試行数の増加。試行数の増加が 0 以下なら NULL） */
+	private BigDecimal homeLongPassCountRate;
 
-	/** ホームスローイン */
-	private String homeSlowIn;
+	/** ホーム 増加: ファイナルサードパス 成功数 */
+	private Integer homeFinalThirdPassCountSuccess;
 
-	/** アウェースローイン */
-	private String awaySlowIn;
+	/** ホーム 増加: ファイナルサードパス 試行数 */
+	private Integer homeFinalThirdPassCountTry;
 
-	/** ホームボックスタッチ */
-	private String homeBoxTouch;
+	/** ホーム 増加: ファイナルサードパス 区間の成功率（%。成功数の増加 ÷ 試行数の増加。試行数の増加が 0 以下なら NULL） */
+	private BigDecimal homeFinalThirdPassCountRate;
 
-	/** アウェーボックスタッチ */
-	private String awayBoxTouch;
+	/** ホーム 増加: クロス 成功数 */
+	private Integer homeCrossCountSuccess;
 
-	/** ホームパス数 */
-	private String homePassCount;
+	/** ホーム 増加: クロス 試行数 */
+	private Integer homeCrossCountTry;
 
-	/** アウェーパス数 */
-	private String awayPassCount;
+	/** ホーム 増加: クロス 区間の成功率（%。成功数の増加 ÷ 試行数の増加。試行数の増加が 0 以下なら NULL） */
+	private BigDecimal homeCrossCountRate;
 
-	/** ホームロングパス数 */
-	private String homeLongPassCount;
+	/** ホーム 増加: タックル 成功数 */
+	private Integer homeTackleCountSuccess;
 
-	/** アウェーロングパス数 */
-	private String awayLongPassCount;
+	/** ホーム 増加: タックル 試行数 */
+	private Integer homeTackleCountTry;
 
-	/** ホームファイナルサードパス数 */
-	private String homeFinalThirdPassCount;
+	/** ホーム 増加: タックル 区間の成功率（%。成功数の増加 ÷ 試行数の増加。試行数の増加が 0 以下なら NULL） */
+	private BigDecimal homeTackleCountRate;
 
-	/** アウェーファイナルサードパス数 */
-	private String awayFinalThirdPassCount;
+	/** アウェー 増加: 得点 */
+	private Integer awayScore;
 
-	/** ホームクロス数 */
-	private String homeCrossCount;
+	/** アウェー 増加: 期待値（xG） */
+	private BigDecimal awayExp;
 
-	/** アウェークロス数 */
-	private String awayCrossCount;
+	/** アウェー 増加: 枠内ゴール期待値 */
+	private BigDecimal awayInGoalExp;
 
-	/** ホームタックル数 */
-	private String homeTackleCount;
+	/** アウェー 増加: ポゼッション（% の増減ポイント） */
+	private BigDecimal awayDonation;
 
-	/** アウェータックル数 */
-	private String awayTackleCount;
+	/** アウェー 増加: シュート数 */
+	private Integer awayShootAll;
 
-	/** ホームクリア数 */
-	private String homeClearCount;
+	/** アウェー 増加: 枠内シュート */
+	private Integer awayShootIn;
 
-	/** アウェークリア数 */
-	private String awayClearCount;
+	/** アウェー 増加: 枠外シュート */
+	private Integer awayShootOut;
 
-	/** ホームデュエル数 */
-	private String homeDuelCount;
+	/** アウェー 増加: ブロックシュート */
+	private Integer awayBlockShoot;
 
-	/** アウェーデュエル数 */
-	private String awayDuelCount;
+	/** アウェー 増加: ビッグチャンス */
+	private Integer awayBigChance;
 
-	/** ホームインターセプト数 */
-	private String homeInterceptCount;
+	/** アウェー 増加: コーナーキック */
+	private Integer awayCorner;
 
-	/** アウェーインターセプト数 */
-	private String awayInterceptCount;
+	/** アウェー 増加: ボックス内シュート */
+	private Integer awayBoxShootIn;
 
-	/** 記録時間 */
-	private String recordTime;
+	/** アウェー 増加: ボックス外シュート */
+	private Integer awayBoxShootOut;
 
-	/** 天気 */
-	private String weather;
+	/** アウェー 増加: ゴールポスト */
+	private Integer awayGoalPost;
 
-	/** 気温 */
-	private String temparature;
+	/** アウェー 増加: ヘディングゴール */
+	private Integer awayGoalHead;
 
-	/** 湿度 */
-	private String humid;
+	/** アウェー 増加: キーパーセーブ */
+	private Integer awayKeeperSave;
 
-	/** 審判 */
-	private String judgeMember;
+	/** アウェー 増加: フリーキック */
+	private Integer awayFreeKick;
 
-	/** ホーム監督 */
-	private String homeManager;
+	/** アウェー 増加: オフサイド */
+	private Integer awayOffside;
 
-	/** アウェー監督 */
-	private String awayManager;
+	/** アウェー 増加: ファウル */
+	private Integer awayFoul;
 
-	/** ホームフォーメーション */
-	private String homeFormation;
+	/** アウェー 増加: イエローカード */
+	private Integer awayYellowCard;
 
-	/** アウェーフォーメーション */
-	private String awayFormation;
+	/** アウェー 増加: レッドカード */
+	private Integer awayRedCard;
 
-	/** スタジアム */
-	private String studium;
+	/** アウェー 増加: スローイン */
+	private Integer awaySlowIn;
 
-	/** 収容人数 */
-	private String capacity;
+	/** アウェー 増加: ボックスタッチ */
+	private Integer awayBoxTouch;
 
-	/** 観客数 */
-	private String audience;
+	/** アウェー 増加: クリア数 */
+	private Integer awayClearCount;
 
-	/** 開催場所 */
-	private String location;
+	/** アウェー 増加: デュエル数 */
+	private Integer awayDuelCount;
 
-	/** ホームチーム最大得点者 */
-	private String homeMaxGettingScorer;
+	/** アウェー 増加: インターセプト数 */
+	private Integer awayInterceptCount;
 
-	/** アウェーチーム最大得点者 */
-	private String awayMaxGettingScorer;
+	/** アウェー 増加: パス 成功数 */
+	private Integer awayPassCountSuccess;
 
-	/** ホームチーム最大得点者出場状況 */
-	private String homeMaxGettingScorerGameSituation;
+	/** アウェー 増加: パス 試行数 */
+	private Integer awayPassCountTry;
 
-	/** アウェーチーム最大得点者出場状況 */
-	private String awayMaxGettingScorerGameSituation;
+	/** アウェー 増加: パス 区間の成功率（%。成功数の増加 ÷ 試行数の増加。試行数の増加が 0 以下なら NULL） */
+	private BigDecimal awayPassCountRate;
 
-	/** ホームチームホーム得点数 */
-	private String homeTeamHomeScore;
+	/** アウェー 増加: ロングパス 成功数 */
+	private Integer awayLongPassCountSuccess;
 
-	/** ホームチームホーム失点数 */
-	private String homeTeamHomeLost;
+	/** アウェー 増加: ロングパス 試行数 */
+	private Integer awayLongPassCountTry;
 
-	/** アウェーチームホーム得点数 */
-	private String awayTeamHomeScore;
+	/** アウェー 増加: ロングパス 区間の成功率（%。成功数の増加 ÷ 試行数の増加。試行数の増加が 0 以下なら NULL） */
+	private BigDecimal awayLongPassCountRate;
 
-	/** アウェーチームホーム失点数 */
-	private String awayTeamHomeLost;
+	/** アウェー 増加: ファイナルサードパス 成功数 */
+	private Integer awayFinalThirdPassCountSuccess;
 
-	/** ホームチームアウェー得点数 */
-	private String homeTeamAwayScore;
+	/** アウェー 増加: ファイナルサードパス 試行数 */
+	private Integer awayFinalThirdPassCountTry;
 
-	/** ホームチームアウェー失点数 */
-	private String homeTeamAwayLost;
+	/** アウェー 増加: ファイナルサードパス 区間の成功率（%。成功数の増加 ÷ 試行数の増加。試行数の増加が 0 以下なら NULL） */
+	private BigDecimal awayFinalThirdPassCountRate;
 
-	/** アウェーチームアウェー得点数 */
-	private String awayTeamAwayScore;
+	/** アウェー 増加: クロス 成功数 */
+	private Integer awayCrossCountSuccess;
 
-	/** アウェーチームアウェー失点数 */
-	private String awayTeamAwayLost;
+	/** アウェー 増加: クロス 試行数 */
+	private Integer awayCrossCountTry;
 
-	/** 通知フラグ */
-	private String noticeFlg;
+	/** アウェー 増加: クロス 区間の成功率（%。成功数の増加 ÷ 試行数の増加。試行数の増加が 0 以下なら NULL） */
+	private BigDecimal awayCrossCountRate;
 
-	/** 試合リンク */
-	private String gameLink;
+	/** アウェー 増加: タックル 成功数 */
+	private Integer awayTackleCountSuccess;
 
-	/** ゴール時間 */
-	private String goalTime;
+	/** アウェー 増加: タックル 試行数 */
+	private Integer awayTackleCountTry;
 
-	/** ゴール選手名 */
-	private String goalTeamMember;
+	/** アウェー 増加: タックル 区間の成功率（%。成功数の増加 ÷ 試行数の増加。試行数の増加が 0 以下なら NULL） */
+	private BigDecimal awayTackleCountRate;
 
-	/** 判定結果 */
-	private String judge;
+	/** 確率の増減（数値が読めた場合） */
+	private BigDecimal probablityDiff;
 
-	/** ホームチームスタイル */
-	private String homeTeamStyle;
-
-	/** アウェーチームスタイル */
-	private String awayTeamStyle;
-
-	/** 確率 */
+	/** 確率（最新） */
 	private String probablity;
 
-	/** スコア予想時間 */
+	/** スコア予想時間（最新） */
 	private String predictionScoreTime;
 
-	/** 試合ID */
-	private String gameId;
+	/** 天気（最新） */
+	private String weather;
 
-	/** マッチID */
-	private String matchId;
+	/** 気温（最新） */
+	private String temperature;
 
-	/** タイムソート */
-	private Integer timeSortSeconds; // 並び用の秒（終了=大きめ）
+	/** 湿度（最新） */
+	private String humid;
 
+	/** 審判（最新） */
+	private String judgeMember;
 
+	/** ホーム監督（最新） */
+	private String homeManager;
+
+	/** アウェー監督（最新） */
+	private String awayManager;
+
+	/** ホームフォーメーション（最新） */
+	private String homeFormation;
+
+	/** アウェーフォーメーション（最新） */
+	private String awayFormation;
+
+	/** スタジアム（最新） */
+	private String studium;
+
+	/** 収容人数（最新） */
+	private String capacity;
+
+	/** 観客数（最新） */
+	private String audience;
+
+	/** 開催場所（最新） */
+	private String location;
+
+	/** ホームチーム最大得点者（最新） */
+	private String homeMaxGettingScorer;
+
+	/** アウェーチーム最大得点者（最新） */
+	private String awayMaxGettingScorer;
+
+	/** ホームチーム最大得点者出場状況（最新） */
+	private String homeMaxGettingScorerGameSituation;
+
+	/** アウェーチーム最大得点者出場状況（最新） */
+	private String awayMaxGettingScorerGameSituation;
+
+	/** ホームチームホーム得点数（最新） */
+	private String homeTeamHomeScore;
+
+	/** ホームチームホーム失点数（最新） */
+	private String homeTeamHomeLost;
+
+	/** アウェーチームホーム得点数（最新） */
+	private String awayTeamHomeScore;
+
+	/** アウェーチームホーム失点数（最新） */
+	private String awayTeamHomeLost;
+
+	/** ホームチームアウェー得点数（最新） */
+	private String homeTeamAwayScore;
+
+	/** ホームチームアウェー失点数（最新） */
+	private String homeTeamAwayLost;
+
+	/** アウェーチームアウェー得点数（最新） */
+	private String awayTeamAwayScore;
+
+	/** アウェーチームアウェー失点数（最新） */
+	private String awayTeamAwayLost;
+
+	/** 通知フラグ（最新） */
+	private String noticeFlg;
+
+	/** ゴール時間（最新） */
+	private String goalTime;
+
+	/** ゴール選手名（最新） */
+	private String goalTeamMember;
+
+	/** 判定結果（最新） */
+	private String judge;
+
+	/** ホームチームスタイル（最新） */
+	private String homeTeamStyle;
+
+	/** アウェーチームスタイル（最新） */
+	private String awayTeamStyle;
 }

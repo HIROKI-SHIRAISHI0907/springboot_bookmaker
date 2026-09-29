@@ -12,25 +12,25 @@ import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 
 @Service
-public class StatEncryptionTxWriter {
+public class StatEncryptionWriter {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = StatEncryptionTxWriter.class
+	private static final String PROJECT_NAME = StatEncryptionWriter.class
 			.getProtectionDomain().getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = StatEncryptionTxWriter.class.getName();
+	private static final String CLASS_NAME = StatEncryptionWriter.class.getName();
 
 	/** BM_STAT_NUMBER */
 	private static final String BM_NUMBER = "BM_M023_BM_M026";
 
-	private static final Logger log = LoggerFactory.getLogger(StatEncryptionTxWriter.class);
+	private static final Logger log = LoggerFactory.getLogger(StatEncryptionWriter.class);
 
 	private final StatEncryptionRepository statEncryptionRepository;
 	private final RootCauseWrapper rootCauseWrapper;
 	private final ManageLoggerComponent manageLoggerComponent;
 
-	public StatEncryptionTxWriter(
+	public StatEncryptionWriter(
 			StatEncryptionRepository statEncryptionRepository,
 			RootCauseWrapper rootCauseWrapper,
 			ManageLoggerComponent manageLoggerComponent) {
