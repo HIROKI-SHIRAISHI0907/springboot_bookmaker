@@ -19,10 +19,11 @@ import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.util.CountryLeagueParser;
 import dev.common.util.ExecuteMainUtil;
 
 /**
- * BM_M019_BM_M020統計分析ロジック（手動データ投入の場合は適用対象外）
+ * BM_M019_BM_M020統計分析ロジック
  *
  * <h2>何を導出するクラスか</h2>
  * <p>
@@ -132,7 +133,7 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 				if (matchMap == null || matchMap.isEmpty()) {
 					continue;
 				}
-				String[] sp = ExecuteMainUtil.splitLeagueInfo(outerEntry.getKey());
+				String[] sp = CountryLeagueParser.parse(outerEntry.getKey());
 				String country = (sp == null || sp.length < 2) ? null : trimOrNull(sp[0]);
 				String league = (sp == null || sp.length < 2) ? null : trimOrNull(sp[1]);
 				if (country == null || league == null) {

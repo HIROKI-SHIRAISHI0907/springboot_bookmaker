@@ -25,7 +25,7 @@ import lombok.EqualsAndHashCode;
  * <h2>懸念点</h2>
  * <ul>
  *   <li><b>値は元データの文字列のまま</b>（"55%"、"80% (40/50)" など）。集計に使うときは変換が必要。</li>
- *   <li><b>項目名の綴り</b>（temparature / studium / probablity など）は BookDataEntity と同じ名前で自動マッピングされる。
+ *   <li><b>項目名の綴り</b>（studium / probablity など）は BookDataEntity と同じ名前で自動マッピングされる。
  *       BookDataEntity 側の綴りが違うと値が入らない（Mapper のビルド警告で確認できる）。</li>
  * </ul>
  *
@@ -264,7 +264,7 @@ public class NoGoalMatchStatisticsEntity extends MetaEntity {
 	private String weather;
 
 	/** 気温 */
-	private String temparature;
+	private String temperature;
 
 	/** 湿度 */
 	private String humid;

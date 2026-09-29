@@ -3,7 +3,7 @@ package dev.application.analyze.bm_m018;
 import java.util.List;
 
 /**
- * 試合の得点状況による分類モード。
+ * 試合の得点状況による分類モード（BM_M019 / BM_M020）。
  *
  * <h2>何を表すクラスか</h2>
  * <p>

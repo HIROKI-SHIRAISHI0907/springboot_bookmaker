@@ -1,24 +1,52 @@
 package dev.application.analyze.bm_m021;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
+
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.application.analyze.common.service.SeqNumberingService;
+import dev.application.analyze.interf.SeasonResolverIF;
 import dev.application.domain.repository.bm.TeamMatchFinalStatsRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
-import lombok.RequiredArgsConstructor;
 
 /**
- * BM_M021 DB更新専用
- * - 1試合(home/away 2件)を同一トランザクションで登録
+ * BM_M021 登録処理（team_match_final_stats）。
  *
- * @author shiraishitoshio
+ * <h2>何をするクラスか</h2>
+ * <p>
+ * {@link TeamMatchFinalStat} が作った1試合分の2行（ホーム視点・アウェー視点）に、シーズン・国・リーグ・seq を設定して UPSERT する。
+ * 一意キー（シーズン・国・リーグ・チーム・対戦チーム・H/A）が既にあれば上書きするため、同じ試合を再処理しても行は増えない。
+ * 以前はただの INSERT で、試合終了後のデータが流れてくるたびに同じ試合の行が増えていた。
+ * </p>
+ *
+ * <h2>シーズン・seq</h2>
+ * <ul>
+ *   <li>シーズンは他の Writer と同じく {@link SeasonResolverIF} から取得する。1回の集計処理の間は国,リーグごとに
+ *       スレッド単位でキャッシュする。呼び出し側は集計の開始時と終了時（finally）に {@link #clearSeasonCache()} を呼ぶこと。</li>
+ *   <li>seq は「&lt;シーズン&gt;-&lt;6桁枝番&gt;」を {@link SeqNumberingService}（seq_counter）で採番する。
+ *       既に行があるときはその seq を使い、採番しない。</li>
+ * </ul>
+ *
+ * <h2>トランザクション</h2>
+ * <p>
+ * 1試合（2行）＝1トランザクション（REQUIRES_NEW）。片方だけ保存された状態は残らない。
+ * </p>
+ *
+ * <h2>懸念点・エラーが起こりそうな箇所</h2>
+ * <ul>
+ *   <li><b>採番の待ち</b>: 同じシーズンの採番は seq_counter の同じ行を更新するため、新規行を含む試合の保存は1試合ずつ順番になる。</li>
+ *   <li><b>同時実行で同じ試合を処理した場合</b>: 後の処理の番号が欠番になる（行の重複は起きない）。</li>
+ *   <li><b>シーズンは処理日基準</b>・<b>同じ組み合わせの試合がシーズン内に2試合ある場合は後の試合で上書き</b>。</li>
+ * </ul>
  */
 @Service
-@RequiredArgsConstructor
 public class TeamMatchFinalWriter {
 
 	/** プロジェクト名 */
@@ -31,97 +59,151 @@ public class TeamMatchFinalWriter {
 	/** BM_STAT_NUMBER */
 	private static final String BM_NUMBER = "BM_M021";
 
-	/** SLF4J Logger */
-	private static final Logger log = LoggerFactory.getLogger(TeamMatchFinalWriter.class);
+	/** 採番単位のテーブル名 */
+	private static final String TABLE_NAME = "team_match_final_stats";
 
-	/** Repository */
-	private final TeamMatchFinalStatsRepository teamMatchFinalStatsRepository;
+	/** シーズン取得不可を表すキャッシュ値 */
+	private static final String NOT_RESOLVED = "";
 
-	/** 例外ラッパー */
-	private final RootCauseWrapper rootCauseWrapper;
+	/** 1回の集計処理中のシーズンキャッシュ（国 + リーグ → シーズン。取得不可は NOT_RESOLVED） */
+	private static final ThreadLocal<Map<String, String>> SEASON_CACHE = ThreadLocal.withInitial(HashMap::new);
 
-	/** ログ管理クラス */
-	private final ManageLoggerComponent manageLoggerComponent;
+	@Autowired
+	private TeamMatchFinalStatsRepository teamMatchFinalStatsRepository;
+
+	/** seq 採番（seq_counter） */
+	@Autowired
+	private SeqNumberingService seqNumberingService;
 
 	/**
-	 * 1試合分(home/away 2件)を同一トランザクションで登録
-	 * @param homeEntity ホーム側登録エンティティ
-	 * @param awayEntity アウェー側登録エンティティ
-	 * @param fillChar 埋め字
-	 * @return 保存件数
+	 * シーズン取得（実装: CountryLeagueSeasonResolver）。
+	 * 実装が無い場合もアプリが起動できるよう required = false。保存時に実装が無ければ例外。
 	 */
-	@Transactional
-	public int writePair(
-			final TeamMatchFinalStatsEntity homeEntity,
-			final TeamMatchFinalStatsEntity awayEntity,
-			final String fillChar) {
+	@Autowired(required = false)
+	private SeasonResolverIF seasonResolver;
 
-		final String METHOD_NAME = "writePair";
+	@Autowired
+	private RootCauseWrapper rootCauseWrapper;
 
-		int total = 0;
+	@Autowired
+	private ManageLoggerComponent manageLoggerComponent;
 
-		log.info("[BM_M021] writePair start. fillChar={}", fillChar);
+	/**
+	 * シーズンのキャッシュを破棄する。集計の開始時と終了時（finally）に呼ぶこと。
+	 */
+	public void clearSeasonCache() {
+		SEASON_CACHE.remove();
+	}
 
-		total += saveOne(homeEntity, fillChar, "HOME");
-		total += saveOne(awayEntity, fillChar, "AWAY");
+	/**
+	 * 1試合分（2行）を1トランザクションで UPSERT する。
+	 *
+	 * @param country 国
+	 * @param league リーグ
+	 * @param rows 1試合分（チーム名・対戦チーム名・H/A を設定済みであること）
+	 * @throws SeasonNotResolvedException シーズンが取得できない場合（何も保存しない）
+	 */
+	@Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+	public void saveMatch(String country, String league, List<TeamMatchFinalStatsEntity> rows) {
+		final String METHOD_NAME = "saveMatch";
+		if (rows == null || rows.isEmpty()) {
+			return;
+		}
+		for (TeamMatchFinalStatsEntity row : rows) {
+			if (row == null || isBlank(row.getTeamName()) || isBlank(row.getVersusTeamName()) || isBlank(row.getHa())) {
+				throw new IllegalArgumentException(BM_NUMBER + " キー項目が空の行があります");
+			}
+		}
 
-		log.info("[BM_M021] writePair done. fillChar={}, total={}", fillChar, total);
+		// DB 書き込みの前にシーズンを決める（取得できなければ何も保存せずに例外）
+		String season = resolveSeason(country, league);
 
-		String messageCd = MessageCdConst.MCD00005I_INSERT_SUCCESS;
+		int numbered = 0;
+		for (TeamMatchFinalStatsEntity row : rows) {
+			row.setSeason(season);
+			row.setCountry(country);
+			row.setLeague(league);
+
+			String seq = this.teamMatchFinalStatsRepository.findSeq(
+					season, country, league, row.getTeamName(), row.getVersusTeamName(), row.getHa());
+			if (seq == null) {
+				seq = this.seqNumberingService.nextSeq(TABLE_NAME, season);
+				numbered++;
+			}
+			row.setSeq(seq);
+
+			int result = this.teamMatchFinalStatsRepository.upsert(row);
+			if (result != 1) {
+				this.rootCauseWrapper.throwUnexpectedRowCount(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						MessageCdConst.MCD00007E_INSERT_FAILED,
+						1, result,
+						"seq=" + seq + ", " + setLoggerFillChar(row));
+			}
+		}
+
 		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
-				BM_NUMBER + " 登録件数: " + total + "件 (" + fillChar + ")");
-
-		return total;
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+				MessageCdConst.MCD00005I_INSERT_SUCCESS,
+				BM_NUMBER + " 登録/更新件数: " + rows.size() + "件（うち新規採番: " + numbered + "件） ("
+						+ setLoggerFillChar(rows.get(0)) + ")");
 	}
 
 	/**
-	 * 1件登録
-	 * @param entity 登録エンティティ
-	 * @param fillChar 埋め字
-	 * @param side HOME / AWAY
-	 * @return 保存件数
+	 * 国,リーグのシーズンを取得する（1回の集計処理の中ではキャッシュを使う）。
+	 *
+	 * @throws SeasonNotResolvedException 取得できない場合
 	 */
-	private int saveOne(
-			final TeamMatchFinalStatsEntity entity,
-			final String fillChar,
-			final String side) {
-
-		final String METHOD_NAME = "saveOne";
-
-		log.info("[BM_M021] before insert. side={}, fillChar={}, entity={}",
-				side, fillChar, summarizeEntity(entity));
-
-		int result = this.teamMatchFinalStatsRepository.insert(entity);
-
-		log.info("[BM_M021] after insert. side={}, fillChar={}, result={}",
-				side, fillChar, result);
-
-		if (result != 1) {
-			String messageCd = MessageCdConst.MCD00007E_INSERT_FAILED;
-			this.rootCauseWrapper.throwUnexpectedRowCount(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					messageCd,
-					1, result,
-					"side=" + side + ", " + fillChar
-			);
+	private String resolveSeason(String country, String league) {
+		final String METHOD_NAME = "resolveSeason";
+		if (this.seasonResolver == null) {
+			throw new SeasonNotResolvedException(
+					"SeasonResolverIF の実装がありません（CountryLeagueSeasonResolver が Bean 登録されていない）: "
+							+ country + ", " + league);
 		}
+		String cacheKey = country + "\u0000" + league;
+		Map<String, String> cache = SEASON_CACHE.get();
+		String season = cache.get(cacheKey);
+		if (season == null) {
+			season = NOT_RESOLVED;
+			try {
+				String s = this.seasonResolver.resolveSeason(country, league);
+				if (!isBlank(s)) {
+					season = s.trim();
+				}
+			} catch (RuntimeException e) {
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG, e,
+						"country=" + country + ", league=" + league);
+			}
+			cache.put(cacheKey, season);
+		}
+		if (NOT_RESOLVED.equals(season)) {
+			throw new SeasonNotResolvedException("シーズンを取得できません: country=" + country + ", league=" + league);
+		}
+		return season;
+	}
 
-		return result;
+	private static boolean isBlank(String s) {
+		return s == null || s.isBlank();
+	}
+
+	private static String setLoggerFillChar(TeamMatchFinalStatsEntity e) {
+		return "シーズン: " + e.getSeason() + ", 国: " + e.getCountry() + ", リーグ: " + e.getLeague()
+				+ ", チーム: " + e.getTeamName() + ", 対戦: " + e.getVersusTeamName() + ", H/A: " + e.getHa()
+				+ ", スコア: " + e.getScore();
 	}
 
 	/**
-	 * insert前ログ用の簡易要約
+	 * シーズンが取得できないことを表す例外。
+	 * DB 書き込みの前に投げるため、この例外で終わった試合は何も保存されていない。
 	 */
-	private String summarizeEntity(TeamMatchFinalStatsEntity entity) {
-		if (entity == null) {
-			return "null";
-		}
-		try {
-			return entity.toString();
-		} catch (Exception e) {
-			return entity.getClass().getSimpleName() + "@"
-					+ Integer.toHexString(System.identityHashCode(entity));
+	public static class SeasonNotResolvedException extends RuntimeException {
+
+		private static final long serialVersionUID = 1L;
+
+		public SeasonNotResolvedException(String message) {
+			super(message);
 		}
 	}
 }

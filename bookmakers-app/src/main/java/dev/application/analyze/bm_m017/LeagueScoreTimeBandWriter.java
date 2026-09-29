@@ -17,7 +17,7 @@ import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
- * BM_M017 登録処理（league_score_goal_event）。
+ * BM_M017 / BM_M018 登録処理（league_score_goal_event）。
  *
  * <h2>何をするクラスか</h2>
  * <p>

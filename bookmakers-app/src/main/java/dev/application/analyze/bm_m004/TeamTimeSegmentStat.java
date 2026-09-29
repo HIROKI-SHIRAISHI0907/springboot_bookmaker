@@ -21,7 +21,7 @@ import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
- * BM_M004統計分析ロジック（手動データ投入の場合は適用対象外）
+ * BM_M004統計分析ロジック
  *
  * <h2>何を導出するクラスか</h2>
  * <p>

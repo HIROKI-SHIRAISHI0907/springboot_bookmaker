@@ -1,51 +1,89 @@
 package dev.application.analyze.bm_m023;
 
-import java.lang.reflect.Field;
-import java.lang.reflect.Modifier;
+import java.math.BigDecimal;
+import java.math.RoundingMode;
+import java.sql.Timestamp;
 import java.util.ArrayList;
 import java.util.Comparator;
-import java.util.LinkedHashSet;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
-import java.util.StringJoiner;
-import java.util.concurrent.ConcurrentHashMap;
-import java.util.function.Function;
-import java.util.stream.Collectors;
+import java.util.Map.Entry;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
-import javax.crypto.spec.IvParameterSpec;
-
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.application.analyze.bm_m030.BmM030StatEncryptionBean;
-import dev.application.analyze.bm_m030.StatEncryptionEntity;
-import dev.application.analyze.bm_m030.StatEncryptionTxWriter;
 import dev.application.analyze.interf.AnalyzeEntityIF;
-import dev.application.domain.repository.bm.ScoreBasedFeatureStatsRepository;
-import dev.application.domain.repository.bm.StatEncryptionRepository;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.util.CountryLeagueParser;
 import dev.common.util.ExecuteMainUtil;
+import dev.common.util.RecordTimeConverter;
 
 /**
- * BM_M023統計分析ロジック（手動データ投入の場合は適用対象外）
+ * BM_M023 / BM_M026 統計分析ロジック（得点状況別の特徴量統計）
  *
- * 【修正履歴】
- * ・歪度と尖度で件数配列を共有していたため、尖度をスキップした項目に歪度の件数が残り
- *   尖度が「-b」(≒-3) になっていた不具合を修正（件数配列を分離）
- * ・既存統計値の「平均」をそのまま合計として扱っていた不具合を修正
- *   （今回分を単独で集計 → 既存値とマージする方式に変更。標準偏差は並列分散公式で合成）
- * ・setInitData直後の initFormat で既存の最小値・最大値が上書きされていた不具合を修正
- * ・前半/後半の判定で通番(seq)を文字列比較していたのを数値比較に修正（"10" < "9" 問題）
+ * <h2>何を導出するクラスか</h2>
+ * <p>
+ * 試合終了した試合ごとに、区分（全体 ALL / 前半 1st / 後半 2nd / スコア別 "1-0" など）× 特徴量（{@link ScoreBasedFeature}）の
+ * 観測値の件数・Σx・Σx²・Σx³・Σx⁴・最小・最大（ホーム・アウェー別）と、値があった時点の試合時間の統計を
+ * score_based_feature_match_stats に保存する。
+ * </p>
+ * <p>
+ * 平均・標準偏差・歪度・尖度・最小・最大は、この明細からビューで計算する（Σ は足し合わせられるので、どの単位でも正確）。
+ * </p>
+ * <ul>
+ *   <li>score_based_feature_stats: リーグ単位（旧 BM_M023）</li>
+ *   <li>each_team_score_based_feature_stats: チーム単位（旧 BM_M026。ha でホーム戦・アウェー戦）</li>
+ *   <li>card_score_based_feature_stats: カード単位（チーム × 対戦相手）</li>
+ * </ul>
+ * <p>
+ * 画面では、これ以外の単位（直近 N 試合、期間指定など）も明細に WHERE を付けて集計できる。
+ * 明細にラウンド番号（キーの「ラウンド N」）と試合終了行の記録時間を持つため、
+ * 「ラウンド N 終了時点」の統計や推移（ビュー *_trend）も出せる。旧 BM_M023H / BM_M026H（履歴コピー）はこれで置き換える。
+ * </p>
+ *
+ * <h3>区分の決め方（旧実装と同じ）</h3>
+ * <ul>
+ *   <li>状況: 試合終了時のスコアが 0-0 なら「得点なし」、それ以外は「得点あり」。</li>
+ *   <li>ALL: 試合の全スナップショット。</li>
+ *   <li>1st / 2nd: 最初のハーフタイム行の通番以前 / より後（ハーフタイム行が無い試合は作らない）。</li>
+ *   <li>スコア別: 「得点あり」の試合だけ。その試合に出てきたスコア（0-0 以外）ごとに、そのスコアだった間のスナップショット。</li>
+ * </ul>
+ *
+ * <h2>修正履歴（旧 BM_M023 / BM_M026 からの変更）</h2>
+ * <ul>
+ *   <li><b>二重集計の解消</b>: 既存統計値に今回分を足し込む方式をやめ、試合ごとの明細を上書き保存する方式にした。
+ *       同じ試合が何度流れてきても値は増えない。</li>
+ *   <li><b>歪度・尖度の集計範囲の不一致を解消</b>: 旧実装はリーグ単位の行に「今のカードの履歴だけ」の歪度・尖度を入れていた。
+ *       今はすべての単位で同じ明細から計算する。stat_encryption の全件復号も不要になった（M023/M026 からは書き込まない）。</li>
+ *   <li><b>時間の統計が 58 項目すべて同じ値だった</b> → その特徴量に値があった行の時間だけで集計。
+ *       読めない試合時間は 0 分扱いにせず除外。</li>
+ *   <li><b>国・リーグをカンマで分けていたため全件スキップになっていた</b> → CountryLeagueParser。</li>
+ *   <li><b>getDeclaredFields の並び順・FEATURE_START = 11 などの位置決め打ちを廃止</b> → {@link ScoreBasedFeature} の getter。</li>
+ *   <li>パス系は成功率・成功数・試行数に分けて集計（旧 M023 は成功数のみ、旧 M026 は対象外で不一致だった）。</li>
+ *   <li>シーズン・seq（seq_counter 採番）に対応。1試合ごとに数十行出していた log.info を件数ログのみに。</li>
+ *   <li>BM_M026（EachTeamScoreBasedFeatureStat）はこのクラスに統合（チーム単位はビュー）。</li>
+ *   <li>BM_M023H / BM_M026H（統計の履歴コピー）を廃止。ラウンド番号・記録時間を明細に持ち、推移はビューで出す。</li>
+ * </ul>
+ *
+ * <h2>懸念点・エラーが起こりそうな箇所</h2>
+ * <ul>
+ *   <li><b>観測はスナップショット単位</b>: 値はその時点までの累計で、データ取得間隔が細かい試合ほど観測数が多く、重みが大きい（旧実装と同じ）。</li>
+ *   <li><b>データ量</b>: 1試合 約200行。30リーグで年 約250万行。ビューが重くなったらリーグ単位をマテリアライズドビューにする。</li>
+ *   <li><b>シーズンは処理日基準</b>・<b>同じ組み合わせの試合がシーズン内に2試合ある場合は上書き</b>（Writer 参照）。</li>
+ * </ul>
+ *
+ * @author shiraishitoshio
  */
 @Component
-public class ScoreBasedFeatureStat extends StatFormatResolver implements AnalyzeEntityIF {
+public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = ScoreBasedFeatureStat.class.getProtectionDomain()
@@ -57,1795 +95,322 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 	/** 実行モード */
 	private static final String EXEC_MODE = "BM_M023_SCORE_BASED_FEATURE";
 
-	private static final Logger log = LoggerFactory.getLogger(ScoreBasedFeatureStat.class);
+	/** BM_STAT_NUMBER */
+	private static final String BM_NUMBER = "BM_M023";
 
-	/** ロック */
-	private final ConcurrentHashMap<String, Object> lockMap = new ConcurrentHashMap<>();
+	/** キーのラウンド番号（"… - ラウンド 5" の 5） */
+	private static final Pattern ROUND_PATTERN = Pattern.compile("ラウンド\\s*(\\d+)");
 
-	/** Beanクラス */
-	private final BmM023M024M026InitBean bmM023M024M026InitBean;
+	@Autowired
+	private ScoreBasedFeatureWriter scoreBasedFeatureWriter;
 
-	/** Beanクラス */
-	private final BmM030StatEncryptionBean bmM030StatEncryptionBean;
-
-	/** ScoreBasedFeatureStatsRepository */
-	private final ScoreBasedFeatureStatsRepository scoreBasedFeatureStatsRepository;
-
-	/** StatEncryptionRepository */
-	private final StatEncryptionRepository statEncryptionRepository;
-
-	/** ログ管理クラス */
-	private final ManageLoggerComponent manageLoggerComponent;
-
-	/** score_based_feature_stats 更新専用 */
-	private final ScoreBasedFeatureStatsTxWriter scoreBasedFeatureStatsTxWriter;
-
-	/** stat_encryption 更新専用 */
-	private final StatEncryptionTxWriter statEncryptionTxWriter;
-
-	/**
-	 * 【追加】統計値の配列一式（既存値 / 今回分 を分けて持つため）
-	 */
-	private static final class StatArrays {
-		String[] min;
-		Integer[] minCnt;
-		String[] max;
-		Integer[] maxCnt;
-		String[] ave;
-		Integer[] aveCnt;
-		String[] sigma;
-		Integer[] sigmaCnt;
-		String[] tMin;
-		Integer[] tMinCnt;
-		String[] tMax;
-		Integer[] tMaxCnt;
-		String[] tAve;
-		Integer[] tAveCnt;
-		String[] tSigma;
-		Integer[] tSigmaCnt;
-	}
-
-	public ScoreBasedFeatureStat(
-			BmM023M024M026InitBean bmM023M024M026InitBean,
-			BmM030StatEncryptionBean bmM030StatEncryptionBean,
-			ScoreBasedFeatureStatsRepository scoreBasedFeatureStatsRepository,
-			StatEncryptionRepository statEncryptionRepository,
-			ManageLoggerComponent manageLoggerComponent,
-			ScoreBasedFeatureStatsTxWriter scoreBasedFeatureStatsTxWriter,
-			StatEncryptionTxWriter statEncryptionTxWriter) {
-		this.bmM023M024M026InitBean = bmM023M024M026InitBean;
-		this.bmM030StatEncryptionBean = bmM030StatEncryptionBean;
-		this.scoreBasedFeatureStatsRepository = scoreBasedFeatureStatsRepository;
-		this.statEncryptionRepository = statEncryptionRepository;
-		this.manageLoggerComponent = manageLoggerComponent;
-		this.scoreBasedFeatureStatsTxWriter = scoreBasedFeatureStatsTxWriter;
-		this.statEncryptionTxWriter = statEncryptionTxWriter;
-	}
+	@Autowired
+	private ManageLoggerComponent manageLoggerComponent;
 
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	@Transactional(propagation = Propagation.NOT_SUPPORTED)
-	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) throws Exception {
+	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) {
 		final String METHOD_NAME = "calcStat";
-
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		long started = System.currentTimeMillis();
+		int matchCount = 0;
+		int savedMatchCount = 0;
+		int notFinishedCount = 0;
+		int invalidCount = 0;
+		int seasonSkipCount = 0;
+		long rowCount = 0;
 
+		// シーズンのキャッシュは Writer 側（スレッド単位）。前回の残りを使わないよう開始時にも破棄する
+		this.scoreBasedFeatureWriter.clearSeasonCache();
 		try {
 			if (entities == null || entities.isEmpty()) {
-				log.info("[BM_M023] entities is empty. nothing to process.");
-				this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+				debugLog(METHOD_NAME, BM_NUMBER + " 入力データなし");
 				return;
 			}
 
-			log.info("[BM_M023] calcStat start. leagueCount={}", entities.size());
-
-			ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map = new ConcurrentHashMap<>();
-
-			int leagueIndex = 0;
-			int processedMatchCount = 0;
-			int statWriteCount = 0;
-
-			for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
-				leagueIndex++;
-
-				String rawLeagueKey = entry.getKey();
-				String[] dataCategory = safeLeague(rawLeagueKey);
-				String country = dataCategory[0];
-				String league = dataCategory[1];
-
-				Map<String, List<BookDataEntity>> entrySub = entry.getValue();
-				int entrySubSize = entrySub == null ? 0 : entrySub.size();
-
-				log.info("[BM_M023] league start. leagueIndex={}/{}, rawLeagueKey={}, country={}, league={}, matchGroupSize={}",
-						leagueIndex, entities.size(), rawLeagueKey, country, league, entrySubSize);
-
-				if (country.isBlank() || league.isBlank()) {
-					log.warn("[BM_M023] skip invalid league key. rawLeagueKey={}", rawLeagueKey);
-					manageLoggerComponent.debugInfoLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-							"skip: invalid league key", null, "key=" + rawLeagueKey);
+			for (Entry<String, Map<String, List<BookDataEntity>>> outerEntry : entities.entrySet()) {
+				Map<String, List<BookDataEntity>> matchMap = outerEntry.getValue();
+				if (matchMap == null || matchMap.isEmpty()) {
 					continue;
 				}
-
-				if (entrySub == null || entrySub.isEmpty()) {
-					log.info("[BM_M023] entrySub empty. country={}, league={}", country, league);
+				// 「国: リーグ - ラウンドN」形式でないキーは無視
+				String[] cl = CountryLeagueParser.parse(outerEntry.getKey());
+				if (cl == null) {
+					invalidCount += matchMap.size();
+					debugLog(METHOD_NAME, BM_NUMBER + " 対象外のキーのためスキップ: " + outerEntry.getKey());
 					continue;
 				}
+				String country = cl[0];
+				String league = cl[1];
+				Integer roundNo = parseRound(outerEntry.getKey());
 
-				int matchIndex = 0;
+				for (Entry<String, List<BookDataEntity>> matchEntry : matchMap.entrySet()) {
+					matchCount++;
+					String matchKey = matchEntry.getKey();
 
-				for (Map.Entry<String, List<BookDataEntity>> sub : entrySub.entrySet()) {
-					matchIndex++;
-
-					String rawMatchKey = sub.getKey();
-					List<BookDataEntity> entityList = sub.getValue();
-
-					int entitySize = entityList == null ? 0 : entityList.size();
-					log.info("[BM_M023] match start. leagueIndex={}/{}, matchIndex={}/{}, rawMatchKey={}, entitySize={}, country={}, league={}",
-							leagueIndex, entities.size(), matchIndex, entrySubSize, rawMatchKey, entitySize, country, league);
-
-					if (entityList == null || entityList.isEmpty()) {
-						log.warn("[BM_M023] skip empty entityList. rawMatchKey={}, country={}, league={}",
-								rawMatchKey, country, league);
+					List<BookDataEntity> sorted = sortUsableRows(matchEntry.getValue());
+					if (sorted.isEmpty()) {
+						invalidCount++;
+						continue;
+					}
+					BookDataEntity fin = findLastFin(sorted);
+					if (fin == null) {
+						// 試合途中: 終了後のデータが届いたときに処理する
+						notFinishedCount++;
+						continue;
+					}
+					String home = trimOrNull(fin.getHomeTeamName());
+					String away = trimOrNull(fin.getAwayTeamName());
+					Integer finHome = parseScore(fin.getHomeScore());
+					Integer finAway = parseScore(fin.getAwayScore());
+					if (home == null || away == null || finHome == null || finAway == null) {
+						invalidCount++;
+						debugLog(METHOD_NAME, BM_NUMBER + " チーム名・最終スコアが取れないためスキップ: matchKey=" + matchKey);
 						continue;
 					}
 
-					List<ScoreBasedFeatureStatsEntity> stats;
+					String situation = (finHome == 0 && finAway == 0)
+							? AverageStatisticsSituationConst.NOSCORE
+							: AverageStatisticsSituationConst.SCORE;
+
+					Timestamp recordTime = RecordTimeConverter.toTimestamp(fin.getRecordTime());
+					List<ScoreBasedFeatureMatchStatsEntity> rows = new ArrayList<>();
+					for (Map.Entry<String, List<BookDataEntity>> seg : buildSegments(sorted, situation).entrySet()) {
+						for (ScoreBasedFeatureMatchStatsEntity e : buildRows(seg.getKey(), seg.getValue(), situation,
+								trimOrNull(fin.getMatchId()))) {
+							e.setRoundNo(roundNo);
+							e.setRecordTime(recordTime);
+							rows.add(e);
+						}
+					}
+
 					try {
-						log.info("[BM_M023] decideBasedMain start. rawMatchKey={}, country={}, league={}",
-								rawMatchKey, country, league);
-
-						stats = decideBasedMain(entityList, country, league, bmM30Map);
-
-						log.info("[BM_M023] decideBasedMain done. rawMatchKey={}, country={}, league={}, statsSize={}",
-								rawMatchKey, country, league, stats == null ? 0 : stats.size());
-					} catch (Exception e) {
-						log.error("[BM_M023] decideBasedMain failed. rawMatchKey={}, country={}, league={}",
-								rawMatchKey, country, league, e);
-						throw e;
+						this.scoreBasedFeatureWriter.saveMatch(country, league, home, away, rows);
+						savedMatchCount++;
+						rowCount += rows.size();
+					} catch (ScoreBasedFeatureWriter.SeasonNotResolvedException e) {
+						// シーズン不明の国,リーグ: 何も保存されていないので、この試合だけスキップ
+						seasonSkipCount++;
+						debugLog(METHOD_NAME, BM_NUMBER + " シーズン取得不可のためスキップ: matchKey=" + matchKey
+								+ " (" + e.getMessage() + ")");
 					}
-
-					if (stats == null || stats.isEmpty()) {
-						log.info("[BM_M023] no stats generated. rawMatchKey={}, country={}, league={}",
-								rawMatchKey, country, league);
-						continue;
-					}
-
-					int statIndex = 0;
-					for (ScoreBasedFeatureStatsEntity stat : stats) {
-						statIndex++;
-
-						if (stat == null) {
-							log.warn("[BM_M023] skip null stat. rawMatchKey={}, statIndex={}", rawMatchKey, statIndex);
-							continue;
-						}
-
-						try {
-							String fillChar = setLoggerFillChar(
-									stat.getSituation(), stat.getScore(), stat.getCountry(), stat.getLeague());
-
-							if (stat.isUpd()) {
-								log.info("[BM_M023] update start. rawMatchKey={}, statIndex={}, {}",
-										rawMatchKey, statIndex, fillChar);
-							} else {
-								log.info("[BM_M023] insert start. rawMatchKey={}, statIndex={}, {}",
-										rawMatchKey, statIndex, fillChar);
-							}
-
-							scoreBasedFeatureStatsTxWriter.write(stat);
-
-							if (stat.isUpd()) {
-								log.info("[BM_M023] update done. rawMatchKey={}, statIndex={}, {}",
-										rawMatchKey, statIndex, fillChar);
-							} else {
-								log.info("[BM_M023] insert done. rawMatchKey={}, statIndex={}, {}",
-										rawMatchKey, statIndex, fillChar);
-							}
-
-							statWriteCount++;
-						} catch (Exception e) {
-							log.error("[BM_M023] stat write failed. rawMatchKey={}, statIndex={}",
-									rawMatchKey, statIndex, e);
-							throw e;
-						}
-					}
-
-					processedMatchCount++;
 				}
-
-				log.info("[BM_M023] league done. leagueIndex={}/{}, country={}, league={}",
-						leagueIndex, entities.size(), country, league);
 			}
-
-			log.info("[BM_M023] BM_M030 save start. mapSize={}", bmM30Map.size());
-			saveStatEncryptionEntities(bmM30Map);
-			log.info("[BM_M023] BM_M030 save done. mapSize={}", bmM30Map.size());
-
-			long elapsed = System.currentTimeMillis() - started;
-			log.info("[BM_M023] calcStat finished. processedMatchCount={}, statWriteCount={}, bmM30MapSize={}, elapsedMs={}",
-					processedMatchCount, statWriteCount, bmM30Map.size(), elapsed);
-
-			this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		} finally {
+			this.scoreBasedFeatureWriter.clearSeasonCache();
+			debugLog(METHOD_NAME, BM_NUMBER + " matchCount=" + matchCount
+					+ ", savedMatchCount=" + savedMatchCount
+					+ ", rowCount=" + rowCount
+					+ ", notFinishedCount=" + notFinishedCount
+					+ ", invalidCount=" + invalidCount
+					+ ", seasonSkipCount=" + seasonSkipCount);
+			this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 			this.manageLoggerComponent.clear();
 		}
 	}
 
+	// ===== 区分 =====
+
 	/**
-	 * 処理メインロジック
+	 * 区分（ALL / 1st / 2nd / スコア別）ごとの行を作る（登場順）。BM_M024 も使う。
 	 */
-	private List<ScoreBasedFeatureStatsEntity> decideBasedMain(
-			List<BookDataEntity> entities,
-			String country,
-			String league,
-			ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map) throws Exception {
+	public static Map<String, List<BookDataEntity>> buildSegments(List<BookDataEntity> sorted, String situation) {
+		Map<String, List<BookDataEntity>> segs = new LinkedHashMap<>();
+		segs.put(AverageStatisticsSituationConst.ALL_DATA, sorted);
 
-		final String METHOD_NAME = "decideBasedMain";
-
-		BookDataEntity returnMaxEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
-
-		this.manageLoggerComponent.debugInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-				MessageCdConst.MCD00099I_LOG,
-				returnMaxEntity == null ? "returnMaxEntity=null" : returnMaxEntity.getFilePath());
-
-		if (returnMaxEntity == null) {
-			log.warn("[BM_M023] returnMaxEntity is null. country={}, league={}, entitySize={}",
-					country, league, entities == null ? 0 : entities.size());
-			return List.of();
+		// 前半・後半（最初のハーフタイム行で分ける）
+		Long htSeq = null;
+		for (BookDataEntity e : sorted) {
+			String t = trimOrNull(e.getTime());
+			if (BookMakersCommonConst.HALF_TIME.equals(t) || BookMakersCommonConst.FIRST_HALF_TIME.equals(t)) {
+				htSeq = seqToLong(e.getSeq());
+				break;
+			}
 		}
-
-		log.info("[BM_M023] decideBasedMain detail start. filePath={}, time={}, country={}, league={}",
-				returnMaxEntity.getFilePath(), returnMaxEntity.getTime(), country, league);
-
-		if (!BookMakersCommonConst.FIN.equals(returnMaxEntity.getTime())) {
-			log.info("[BM_M023] skip non-FIN data. filePath={}, time={}, country={}, league={}",
-					returnMaxEntity.getFilePath(), returnMaxEntity.getTime(), country, league);
-			return List.of();
-		}
-
-		String home = nvl(returnMaxEntity.getHomeTeamName());
-		String away = nvl(returnMaxEntity.getAwayTeamName());
-
-		String situation = ("0".equals(nvl(returnMaxEntity.getHomeScore()))
-				&& "0".equals(nvl(returnMaxEntity.getAwayScore())))
-						? AverageStatisticsSituationConst.NOSCORE
-						: AverageStatisticsSituationConst.SCORE;
-
-		log.info("[BM_M023] situation decided. country={}, league={}, home={}, away={}, situation={}",
-				country, league, home, away, situation);
-
-		List<ScoreBasedFeatureStatsEntity> results = new ArrayList<>();
-
-		List<String> flgs = List.of(
-				AverageStatisticsSituationConst.ALL_DATA,
-				AverageStatisticsSituationConst.FIRST_DATA,
-				AverageStatisticsSituationConst.SECOND_DATA,
-				AverageStatisticsSituationConst.EACH_SCORE);
-
-		List<String> allScores = extractExistingScorePatterns(entities);
-
-		log.info("[BM_M023] flg loop start. country={}, league={}, home={}, away={}, flgCount={}, scorePatternCount={}",
-				country, league, home, away, flgs.size(), allScores.size());
-
-		for (String flg : flgs) {
-			log.info("[BM_M023] flg start. country={}, league={}, home={}, away={}, flg={}",
-					country, league, home, away, flg);
-
-			if (AverageStatisticsSituationConst.EACH_SCORE.equals(flg)) {
-				if (!AverageStatisticsSituationConst.NOSCORE.equals(situation)) {
-					for (String score : allScores) {
-						if ("0-0".equals(score)) {
-							continue;
-						}
-
-						log.info("[BM_M023] basedEntities start. country={}, league={}, home={}, away={}, flg={}, score={}",
-								country, league, home, away, flg, score);
-
-						ScoreBasedFeatureStatsEntity stat = basedEntities(
-								entities, score, situation, flg, country, league, home, away, bmM30Map);
-
-						log.info("[BM_M023] basedEntities done. country={}, league={}, home={}, away={}, flg={}, score={}, statNull={}",
-								country, league, home, away, flg, score, stat == null);
-
-						if (stat != null) {
-							results.add(stat);
-						}
-					}
-				}
-			} else {
-				log.info("[BM_M023] basedEntities start. country={}, league={}, home={}, away={}, flg={}",
-						country, league, home, away, flg);
-
-				ScoreBasedFeatureStatsEntity stat = basedEntities(
-						entities, null, situation, flg, country, league, home, away, bmM30Map);
-
-				log.info("[BM_M023] basedEntities done. country={}, league={}, home={}, away={}, flg={}, statNull={}",
-						country, league, home, away, flg, stat == null);
-
-				if (stat != null) {
-					results.add(stat);
+		if (htSeq != null) {
+			List<BookDataEntity> first = new ArrayList<>();
+			List<BookDataEntity> second = new ArrayList<>();
+			for (BookDataEntity e : sorted) {
+				if (seqToLong(e.getSeq()) <= htSeq) {
+					first.add(e);
+				} else {
+					second.add(e);
 				}
 			}
+			if (!first.isEmpty()) {
+				segs.put(AverageStatisticsSituationConst.FIRST_DATA, first);
+			}
+			if (!second.isEmpty()) {
+				segs.put(AverageStatisticsSituationConst.SECOND_DATA, second);
+			}
 		}
 
-		log.info("[BM_M023] decideBasedMain detail done. country={}, league={}, home={}, away={}, resultSize={}",
-				country, league, home, away, results.size());
-
-		return results;
+		// スコア別（得点ありの試合だけ。0-0 は除く）
+		if (AverageStatisticsSituationConst.SCORE.equals(situation)) {
+			for (BookDataEntity e : sorted) {
+				Integer h = parseScore(e.getHomeScore());
+				Integer a = parseScore(e.getAwayScore());
+				if (h == null || a == null || (h == 0 && a == 0)) {
+					continue;
+				}
+				segs.computeIfAbsent(h + "-" + a, k -> new ArrayList<>()).add(e);
+			}
+		}
+		return segs;
 	}
 
 	/**
-	 * 基準エンティティ指定
+	 * 1区分の明細（特徴量ごとに1行）を作る。ホーム・アウェーとも値が無い特徴量は作らない。
 	 */
-	private ScoreBasedFeatureStatsEntity basedEntities(
-			List<BookDataEntity> entities,
-			String connectScore,
-			String situation,
-			String flg,
-			String country,
-			String league,
-			String home,
-			String away,
-			ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map) throws Exception {
+	static List<ScoreBasedFeatureMatchStatsEntity> buildRows(String chkBody, List<BookDataEntity> rows,
+			String situation, String matchId) {
+		// 行ごとの試合時間（分）は特徴量に関係なく同じなので先に求める
+		BigDecimal[] minutes = new BigDecimal[rows.size()];
+		for (int i = 0; i < rows.size(); i++) {
+			minutes[i] = toMinutes(trimOrNull(rows.get(i).getTime()));
+		}
 
-		final String METHOD_NAME = "basedEntities";
-
-		log.info("[BM_M023] basedEntities entered. country={}, league={}, home={}, away={}, flg={}, connectScore={}, entitySize={}",
-				country, league, home, away, flg, connectScore, entities == null ? 0 : entities.size());
-
-		List<BookDataEntity> filteredList = null;
-
-		if (AverageStatisticsSituationConst.EACH_SCORE.equals(flg)) {
-			filteredList = entities.stream()
-					.filter(entity -> connectScore.equals(entity.getHomeScore() + "-" + entity.getAwayScore()))
-					.collect(Collectors.toList());
-		} else if (AverageStatisticsSituationConst.ALL_DATA.equals(flg)) {
-			filteredList = entities;
-		} else {
-			BookDataEntity half = ExecuteMainUtil.getHalfEntities(entities);
-			if (half == null || half.getSeq() == null) {
-				manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
-						"half not found -> skip FIRST/SECOND. file=" + entities.get(0).getFilePath()
-								+ ", size=" + entities.size()
-								+ ", country=" + country + ", league=" + league
-								+ ", home=" + home + ", away=" + away);
-				log.warn("[BM_M023] half not found. country={}, league={}, home={}, away={}, flg={}",
-						country, league, home, away, flg);
-				return null;
+		List<ScoreBasedFeatureMatchStatsEntity> list = new ArrayList<>();
+		for (ScoreBasedFeature f : ScoreBasedFeature.values()) {
+			Moments home = new Moments();
+			Moments away = new Moments();
+			for (int i = 0; i < rows.size(); i++) {
+				BookDataEntity row = rows.get(i);
+				home.add(f.value(row, true), minutes[i]);
+				away.add(f.value(row, false), minutes[i]);
 			}
-
-			// 【修正】通番は数値で比較（文字列比較だと "10" < "9" になる）
-			final long halfTimeSeq = seqToLong(half.getSeq());
-			if (AverageStatisticsSituationConst.FIRST_DATA.equals(flg)) {
-				filteredList = entities.stream()
-						.filter(entity -> seqToLong(entity.getSeq()) <= halfTimeSeq)
-						.collect(Collectors.toList());
-			} else if (AverageStatisticsSituationConst.SECOND_DATA.equals(flg)) {
-				filteredList = entities.stream()
-						.filter(entity -> seqToLong(entity.getSeq()) > halfTimeSeq)
-						.collect(Collectors.toList());
+			if (home.n == 0 && away.n == 0) {
+				continue;
 			}
-		}
-
-		log.info("[BM_M023] filteredList ready. country={}, league={}, home={}, away={}, flg={}, connectScore={}, filteredSize={}",
-				country, league, home, away, flg, connectScore, filteredList == null ? 0 : filteredList.size());
-
-		if (filteredList == null || filteredList.isEmpty()) {
-			return null;
-		}
-
-		String chkBody;
-		boolean updFlg;
-		String id;
-		List<ScoreBasedFeatureStatsEntity> statList;
-
-		if (AverageStatisticsSituationConst.ALL_DATA.equals(flg)
-				|| AverageStatisticsSituationConst.FIRST_DATA.equals(flg)
-				|| AverageStatisticsSituationConst.SECOND_DATA.equals(flg)) {
-
-			chkBody = flg;
-
-			log.info("[BM_M023] before getData(normal). country={}, league={}, flg={}, situation={}",
-					country, league, flg, situation);
-
-			ScoreBasedFeatureOutputDTO dto = getData(flg, situation, country, league);
-
-			log.info("[BM_M023] after getData(normal). country={}, league={}, flg={}, situation={}, updFlg={}, statListSize={}",
-					country, league, flg, situation, dto.isUpdFlg(), dto.getList() == null ? 0 : dto.getList().size());
-
-			statList = dto.getList();
-			updFlg = dto.isUpdFlg();
-			id = dto.getId();
-		} else {
-			chkBody = connectScore;
-
-			log.info("[BM_M023] before getData(score). country={}, league={}, score={}, situation={}",
-					country, league, connectScore, situation);
-
-			ScoreBasedFeatureOutputDTO dto = getData(connectScore, situation, country, league);
-
-			log.info("[BM_M023] after getData(score). country={}, league={}, score={}, situation={}, updFlg={}, statListSize={}",
-					country, league, connectScore, situation, dto.isUpdFlg(), dto.getList() == null ? 0 : dto.getList().size());
-
-			statList = dto.getList();
-			updFlg = dto.isUpdFlg();
-			id = dto.getId();
-		}
-
-		Map<String, Function<BookDataEntity, String>> fieldMap = this.bmM030StatEncryptionBean.getFieldMap();
-		String key = buildMatchKey(country, league, home, away, chkBody);
-
-		StatEncryptionEntity decidedEntity;
-		synchronized (getLock(key)) {
-			StatEncryptionEntity exist = bmM30Map.get(key);
-
-			if (exist == null) {
-				log.info("[BM_M023] before findAndDecryptExistingStatEncryption. key={}", key);
-				exist = findAndDecryptExistingStatEncryption(country, league, home, away, chkBody);
-				log.info("[BM_M023] after findAndDecryptExistingStatEncryption. key={}, existNull={}", key, exist == null);
-			}
-
-			if (exist != null) {
-				StatEncryptionEntity addPart = buildBmM30Form(
-						filteredList, country, league, home, away, chkBody, fieldMap);
-
-				StatEncryptionEntity merged = mergeStatEncryptionEntity(exist, addPart, fieldMap.keySet());
-				merged.setId(exist.getId());
-				merged.setUpdFlg(true);
-				bmM30Map.put(key, merged);
-			} else {
-				StatEncryptionEntity fresh = buildBmM30Form(
-						filteredList, country, league, home, away, chkBody, fieldMap);
-				fresh.setId(null);
-				fresh.setUpdFlg(false);
-				bmM30Map.put(key, fresh);
-			}
-
-			decidedEntity = bmM30Map.get(key);
-		}
-
-		log.info("[BM_M023] bmM30 decided. key={}, decidedNull={}, bmM30MapSize={}",
-				key, decidedEntity == null, bmM30Map.size());
-
-		if (decidedEntity == null) {
-			return null;
-		}
-
-		// 【修正】既存値(prev)と今回分(cur)を分けて保持する
-		// 既存値: DBから読み込んだ min/max/平均/標準偏差/件数
-		StatArrays prev = newStatArrays();
-		setInitData(prev, statList);
-
-		// 今回分: 初期値から今回の filteredList だけで集計する
-		StatArrays cur = newStatArrays();
-		BookDataEntity returnDataEntity = ExecuteMainUtil.getMaxSeqEntities(entities);
-		initFormat(returnDataEntity, cur.min, "Min");
-		initFormat(returnDataEntity, cur.max, "Max");
-
-		for (BookDataEntity filter : filteredList) {
-			cur.min = setMin(filter, cur.min, cur.minCnt);
-			cur.max = setMax(filter, cur.max, cur.maxCnt);
-			cur.ave = setSumAve(filter, cur.ave, cur.aveCnt);
-			cur.tMin = setTimeMin(filter, cur.tMin, cur.tMinCnt);
-			cur.tMax = setTimeMax(filter, cur.tMax, cur.tMaxCnt);
-			cur.tAve = setTimeSumAve(filter, cur.tAve, cur.tAveCnt);
-		}
-
-		cur.ave = commonDivision(cur.ave, cur.aveCnt, "");
-		cur.tAve = commonDivision(cur.tAve, cur.tAveCnt, "'");
-
-		for (BookDataEntity filter : filteredList) {
-			cur.sigma = setSumSigma(filter, cur.ave, cur.sigma, cur.sigmaCnt);
-			cur.tSigma = setTimeSumSigma(filter, cur.tAve, cur.tSigma, cur.tSigmaCnt);
-		}
-
-		cur.sigma = commonDivision(cur.sigma, cur.sigmaCnt, "");
-		cur.tSigma = commonDivision(cur.tSigma, cur.tSigmaCnt, "'");
-
-		for (int i = 0; i < cur.sigma.length; i++) {
-			double sigma = safeParseDouble(cur.sigma[i], 0.0);
-			double tSigma = safeParseDouble(removeQuote(cur.tSigma[i]), 0.0);
-			cur.sigma[i] = String.format("%.2f", Math.sqrt(sigma));
-			cur.tSigma[i] = String.format("%.2f", Math.sqrt(tSigma));
-		}
-
-		// 【修正】既存値と今回分をマージ
-		mergePrevious(prev, cur);
-
-		// 【修正】歪度と尖度で件数配列を分離する（共有すると尖度側に歪度の件数が残る）
-		String[] aveSkewKurtList = this.bmM023M024M026InitBean.getAvgList().clone();
-		String[] sigmaSkewKurtList = this.bmM023M024M026InitBean.getSigmaList().clone();
-		String[] skewnessList = this.bmM023M024M026InitBean.getSkewnessList().clone();
-		String[] kurtosisList = this.bmM023M024M026InitBean.getKurtosisList().clone();
-		Integer[] skewnessCntList = newZeroCntList(AverageStatisticsSituationConst.COUNTER);
-		Integer[] kurtosisCntList = newZeroCntList(AverageStatisticsSituationConst.COUNTER);
-
-		skewnessList = setSkewness(decidedEntity, skewnessList, aveSkewKurtList, sigmaSkewKurtList, skewnessCntList);
-		kurtosisList = setKurtosis(decidedEntity, kurtosisList, aveSkewKurtList, sigmaSkewKurtList, kurtosisCntList);
-
-		ScoreBasedFeatureStatsEntity entity = new ScoreBasedFeatureStatsEntity();
-		StringBuilder stringBuilder = new StringBuilder();
-
-		for (int i = this.bmM023M024M026InitBean.getStartInsertIdx();
-				i <= this.bmM023M024M026InitBean.getEndInsertIdx();
-				i++) {
-
-			int idx = i - this.bmM023M024M026InitBean.getStartInsertIdx();
-
-			String min = formatDecimal(cur.min[idx]);
-			String max = formatDecimal(cur.max[idx]);
-			String ave = formatDecimal(cur.ave[idx]);
-			String sigma = formatDecimal(cur.sigma[idx]);
-			String tMin = formatDecimal(cur.tMin[idx]);
-			String tMax = formatDecimal(cur.tMax[idx]);
-			String tAve = formatDecimal(cur.tAve[idx]);
-			String tSigma = formatDecimal(cur.tSigma[idx]);
-			String skewness = skewnessList[idx];
-			String kurtosis = kurtosisList[idx];
-
-			stringBuilder.append(min).append(",")
-					.append(cur.minCnt[idx]).append(",")
-					.append(max).append(",")
-					.append(cur.maxCnt[idx]).append(",")
-					.append(ave).append(",")
-					.append(cur.aveCnt[idx]).append(",")
-					.append(sigma).append(",")
-					.append(cur.sigmaCnt[idx]).append(",")
-					.append(tMin).append("'").append(",")
-					.append(cur.tMinCnt[idx]).append(",")
-					.append(tMax).append("'").append(",")
-					.append(cur.tMaxCnt[idx]).append(",")
-					.append(tAve).append("'").append(",")
-					.append(cur.tAveCnt[idx]).append(",")
-					.append(tSigma).append("'").append(",")
-					.append(cur.tSigmaCnt[idx]).append(",")
-					.append(skewness).append(",")
-					.append(kurtosis);
-
-			entity = setStatValuesToEntity(entity, stringBuilder.toString(), i);
-			stringBuilder.setLength(0);
-		}
-
-		if (AverageStatisticsSituationConst.ALL_DATA.equals(flg)
-				|| AverageStatisticsSituationConst.FIRST_DATA.equals(flg)
-				|| AverageStatisticsSituationConst.SECOND_DATA.equals(flg)) {
-			entity = setOtherEntity(flg, situation, country, league, updFlg, id, entity);
-		} else {
-			entity = setOtherEntity(connectScore, situation, country, league, updFlg, id, entity);
-		}
-
-		log.info("[BM_M023] basedEntities return entity. country={}, league={}, home={}, away={}, flg={}, chkBody={}, updFlg={}",
-				country, league, home, away, flg, chkBody, updFlg);
-
-		return entity;
-	}
-
-	/**
-	 * 【追加】Beanの初期値から配列一式を生成
-	 */
-	private StatArrays newStatArrays() {
-		StatArrays s = new StatArrays();
-		s.min = this.bmM023M024M026InitBean.getMinList().clone();
-		s.max = this.bmM023M024M026InitBean.getMaxList().clone();
-		s.ave = this.bmM023M024M026InitBean.getAvgList().clone();
-		s.sigma = this.bmM023M024M026InitBean.getSigmaList().clone();
-		s.minCnt = this.bmM023M024M026InitBean.getCntList().clone();
-		s.maxCnt = this.bmM023M024M026InitBean.getCntList().clone();
-		s.aveCnt = this.bmM023M024M026InitBean.getCntList().clone();
-		s.sigmaCnt = this.bmM023M024M026InitBean.getCntList().clone();
-		s.tMin = this.bmM023M024M026InitBean.getTimeMinList().clone();
-		s.tMax = this.bmM023M024M026InitBean.getTimeMaxList().clone();
-		s.tAve = this.bmM023M024M026InitBean.getTimeAvgList().clone();
-		s.tSigma = this.bmM023M024M026InitBean.getTimeSigmaList().clone();
-		s.tMinCnt = this.bmM023M024M026InitBean.getTimeCntList().clone();
-		s.tMaxCnt = this.bmM023M024M026InitBean.getTimeCntList().clone();
-		s.tAveCnt = this.bmM023M024M026InitBean.getTimeCntList().clone();
-		s.tSigmaCnt = this.bmM023M024M026InitBean.getTimeCntList().clone();
-		return s;
-	}
-
-	/**
-	 * 【追加】0埋めの件数配列
-	 */
-	private Integer[] newZeroCntList(int size) {
-		Integer[] list = new Integer[size];
-		for (int i = 0; i < size; i++) {
-			list[i] = 0;
+			ScoreBasedFeatureMatchStatsEntity e = new ScoreBasedFeatureMatchStatsEntity();
+			e.setMatchId(matchId);
+			e.setSituation(situation);
+			e.setChkBody(chkBody);
+			e.setFeature(f.getFeatureName());
+			e.setFeatureOrder(f.getOrder());
+			e.setHomeN(home.n);
+			e.setHomeS1(home.s1);
+			e.setHomeS2(home.s2);
+			e.setHomeS3(home.s3);
+			e.setHomeS4(home.s4);
+			e.setHomeMin(home.min);
+			e.setHomeMax(home.max);
+			e.setHomeTn(home.tn);
+			e.setHomeTs1(home.ts1);
+			e.setHomeTs2(home.ts2);
+			e.setHomeTmin(home.tmin);
+			e.setHomeTmax(home.tmax);
+			e.setAwayN(away.n);
+			e.setAwayS1(away.s1);
+			e.setAwayS2(away.s2);
+			e.setAwayS3(away.s3);
+			e.setAwayS4(away.s4);
+			e.setAwayMin(away.min);
+			e.setAwayMax(away.max);
+			e.setAwayTn(away.tn);
+			e.setAwayTs1(away.ts1);
+			e.setAwayTs2(away.ts2);
+			e.setAwayTmin(away.tmin);
+			e.setAwayTmax(away.tmax);
+			list.add(e);
 		}
 		return list;
 	}
 
-	/**
-	 * 【追加】既存値(prev)と今回分(cur)をマージして cur に格納する
-	 */
-	private void mergePrevious(StatArrays prev, StatArrays cur) {
-		for (int i = 0; i < cur.min.length; i++) {
-			// 最小・最大（特徴量）
-			cur.min[i] = pickExtreme(prev.min[i], cnt(prev.minCnt[i]), cur.min[i], cnt(cur.minCnt[i]), true);
-			cur.minCnt[i] = cnt(cur.minCnt[i]) + cnt(prev.minCnt[i]);
-			cur.max[i] = pickExtreme(prev.max[i], cnt(prev.maxCnt[i]), cur.max[i], cnt(cur.maxCnt[i]), false);
-			cur.maxCnt[i] = cnt(cur.maxCnt[i]) + cnt(prev.maxCnt[i]);
+	// ===== 共通 =====
 
-			// 最小・最大（時間）
-			cur.tMin[i] = pickTimeExtreme(prev.tMin[i], cnt(prev.tMinCnt[i]), cur.tMin[i], cnt(cur.tMinCnt[i]), true);
-			cur.tMinCnt[i] = cnt(cur.tMinCnt[i]) + cnt(prev.tMinCnt[i]);
-			cur.tMax[i] = pickTimeExtreme(prev.tMax[i], cnt(prev.tMaxCnt[i]), cur.tMax[i], cnt(cur.tMaxCnt[i]), false);
-			cur.tMaxCnt[i] = cnt(cur.tMaxCnt[i]) + cnt(prev.tMaxCnt[i]);
-
-			// 平均・標準偏差
-			mergeMoments(prev.ave, prev.aveCnt, prev.sigma, prev.sigmaCnt,
-					cur.ave, cur.aveCnt, cur.sigma, cur.sigmaCnt, i, "");
-			mergeMoments(prev.tAve, prev.tAveCnt, prev.tSigma, prev.tSigmaCnt,
-					cur.tAve, cur.tAveCnt, cur.tSigma, cur.tSigmaCnt, i, "'");
+	/** キーからラウンド番号を取り出す（無ければ null） */
+	public static Integer parseRound(String key) {
+		if (key == null) {
+			return null;
 		}
-	}
-
-	/**
-	 * 【追加】最小/最大の比較（setMin/setMaxと同じ判定ルール）
-	 */
-	private String pickExtreme(String prevVal, int prevCnt, String curVal, int curCnt, boolean isMin) {
-		if (prevCnt <= 0 || prevVal == null || prevVal.isBlank()) {
-			return curVal;
+		Matcher m = ROUND_PATTERN.matcher(java.text.Normalizer.normalize(key, java.text.Normalizer.Form.NFKC));
+		if (!m.find()) {
+			return null;
 		}
-		if (curCnt <= 0) {
-			return prevVal;
-		}
-		if (!isSameFormat(prevVal, curVal)) {
-			return curVal;
-		}
-		String p = parseStatValue(prevVal);
-		String c = parseStatValue(curVal);
-		if (p == null) {
-			return curVal;
-		}
-		if (c == null) {
-			return prevVal;
-		}
-		double pd = Double.parseDouble(p);
-		double cd = Double.parseDouble(c);
-		if (isMin) {
-			return pd < cd ? prevVal : curVal;
-		}
-		return pd > cd ? prevVal : curVal;
-	}
-
-	/**
-	 * 【追加】時間の最小/最大の比較
-	 */
-	private String pickTimeExtreme(String prevVal, int prevCnt, String curVal, int curCnt, boolean isMin) {
-		if (prevCnt <= 0 || prevVal == null || prevVal.isBlank()) {
-			return curVal;
-		}
-		if (curCnt <= 0) {
-			return prevVal;
-		}
-		double pd = safeParseDouble(prevVal, Double.NaN);
-		double cd = safeParseDouble(curVal, Double.NaN);
-		if (Double.isNaN(pd)) {
-			return curVal;
-		}
-		if (Double.isNaN(cd)) {
-			return prevVal;
-		}
-		if (isMin) {
-			return pd < cd ? prevVal : curVal;
-		}
-		return pd > cd ? prevVal : curVal;
-	}
-
-	/**
-	 * 【追加】平均・標準偏差（母標準偏差）のマージ
-	 * 平均   : (平均a×件数a + 平均b×件数b) / (件数a+件数b)
-	 * 偏差平方和 : M2a + M2b + (平均b-平均a)² × 件数a×件数b / (件数a+件数b)
-	 */
-	private void mergeMoments(
-			String[] prevAve, Integer[] prevAveCnt, String[] prevSigma, Integer[] prevSigmaCnt,
-			String[] curAve, Integer[] curAveCnt, String[] curSigma, Integer[] curSigmaCnt,
-			int i, String suffix) {
-
-		int naAve = cnt(prevAveCnt[i]);
-		int nbAve = cnt(curAveCnt[i]);
-		int naSig = cnt(prevSigmaCnt[i]);
-		int nbSig = cnt(curSigmaCnt[i]);
-
-		if (naAve <= 0) {
-			return; // 既存データなし → 今回分のまま
-		}
-
-		double meanA = safeParseDouble(prevAve[i], 0.0);
-		double meanB = safeParseDouble(curAve[i], 0.0);
-
-		if (nbAve <= 0) {
-			// 今回分なし → 既存値を採用
-			curAve[i] = prevAve[i];
-			curAveCnt[i] = naAve;
-			curSigma[i] = prevSigma[i];
-			curSigmaCnt[i] = naSig;
-			return;
-		}
-
-		// 平均
-		double mean = (meanA * naAve + meanB * nbAve) / (naAve + nbAve);
-		curAve[i] = String.valueOf(mean) + suffix;
-		curAveCnt[i] = naAve + nbAve;
-
-		// 標準偏差
-		int n = naSig + nbSig;
-		if (n <= 0) {
-			return;
-		}
-		double sigmaA = safeParseDouble(prevSigma[i], 0.0);
-		double sigmaB = safeParseDouble(curSigma[i], 0.0);
-		double m2a = sigmaA * sigmaA * naSig;
-		double m2b = sigmaB * sigmaB * nbSig;
-		double delta = meanB - meanA;
-		double m2 = m2a + m2b + delta * delta * ((double) naSig * nbSig) / n;
-		double sigma = Math.sqrt(m2 / n);
-
-		curSigma[i] = Double.isFinite(sigma) ? String.format("%.2f", sigma) : "0.00";
-		curSigmaCnt[i] = n;
-	}
-
-	/**
-	 * 【追加】null安全な件数
-	 */
-	private int cnt(Integer value) {
-		return value == null ? 0 : value;
-	}
-
-	/**
-	 * 既存score_based_feature_stats取得
-	 */
-	private ScoreBasedFeatureOutputDTO getData(String score, String situation, String country, String league) {
-		ScoreBasedFeatureOutputDTO dto = new ScoreBasedFeatureOutputDTO();
-
-		log.info("[BM_M023] before scoreBasedFeatureStatsRepository.findStatData. score={}, situation={}, country={}, league={}",
-				score, situation, country, league);
-
-		List<ScoreBasedFeatureStatsEntity> data =
-				this.scoreBasedFeatureStatsRepository.findStatData(score, situation, country, league);
-
-		log.info("[BM_M023] after scoreBasedFeatureStatsRepository.findStatData. score={}, situation={}, country={}, league={}, size={}",
-				score, situation, country, league, data == null ? 0 : data.size());
-
-		if (data != null && !data.isEmpty()) {
-			dto.setUpdFlg(true);
-			dto.setId(data.get(0).getId());
-			dto.setList(data);
-		} else {
-			dto.setUpdFlg(false);
-			dto.setList(new ArrayList<>());
-		}
-		return dto;
-	}
-
-	/**
-	 * BM_M030保存
-	 */
-	private void saveStatEncryptionEntities(
-			ConcurrentHashMap<String, StatEncryptionEntity> bmM30Map) throws Exception {
-
-		int index = 0;
-		for (StatEncryptionEntity entity : bmM30Map.values()) {
-			index++;
-
-			if (entity == null) {
-				log.warn("[BM_M023] skip null BM_M030 entity. index={}", index);
-				continue;
-			}
-
-			log.info("[BM_M023] BM_M030 entity start. index={}, updFlg={}, country={}, league={}, home={}, away={}, chkBody={}",
-					index, entity.isUpdFlg(), entity.getCountry(), entity.getLeague(),
-					entity.getHome(), entity.getAway(), entity.getChkBody());
-
-			StatEncryptionEntity encrypted = encryptStatEncryptionEntity(entity);
-			this.statEncryptionTxWriter.save(encrypted);
-
-			log.info("[BM_M023] BM_M030 entity done. index={}, updFlg={}, country={}, league={}, home={}, away={}, chkBody={}",
-					index, encrypted.isUpdFlg(), encrypted.getCountry(), encrypted.getLeague(),
-					encrypted.getHome(), encrypted.getAway(), encrypted.getChkBody());
-		}
-	}
-
-	/**
-	 * 初期値設定（既存値の読み込み）
-	 * 【修正】読み込み先を StatArrays(prev) に変更
-	 */
-	private void setInitData(StatArrays prev, List<ScoreBasedFeatureStatsEntity> list) {
-
-		final String METHOD_NAME = "setInitData";
-
-		if (list != null && !list.isEmpty()) {
-			ScoreBasedFeatureStatsEntity statEntity = list.get(0);
-			Field[] fields = ScoreBasedFeatureStatsEntity.class.getDeclaredFields();
-
-			for (int i = this.bmM023M024M026InitBean.getStartInsertIdx();
-					i <= this.bmM023M024M026InitBean.getEndInsertIdx();
-					i++) {
-
-				int idx = i - this.bmM023M024M026InitBean.getStartInsertIdx();
-				Field field = fields[i];
-				field.setAccessible(true);
-
-				try {
-					String statValue = (String) field.get(statEntity);
-					if (statValue == null || statValue.isBlank()) {
-						continue;
-					}
-
-					String[] values = statValue.split(",");
-					if (values.length >= 16) {
-						prev.min[idx] = values[0].trim();
-						prev.minCnt[idx] = Integer.parseInt(values[1].trim());
-						prev.max[idx] = values[2].trim();
-						prev.maxCnt[idx] = Integer.parseInt(values[3].trim());
-						prev.ave[idx] = values[4].trim();
-						prev.aveCnt[idx] = Integer.parseInt(values[5].trim());
-						prev.sigma[idx] = values[6].trim();
-						prev.sigmaCnt[idx] = Integer.parseInt(values[7].trim());
-						prev.tMin[idx] = values[8].trim();
-						prev.tMinCnt[idx] = Integer.parseInt(values[9].trim());
-						prev.tMax[idx] = values[10].trim();
-						prev.tMaxCnt[idx] = Integer.parseInt(values[11].trim());
-						prev.tAve[idx] = values[12].trim();
-						prev.tAveCnt[idx] = Integer.parseInt(values[13].trim());
-						prev.tSigma[idx] = values[14].trim();
-						prev.tSigmaCnt[idx] = Integer.parseInt(values[15].trim());
-					}
-				} catch (Exception e) {
-					String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-					this.manageLoggerComponent.debugErrorLog(
-							PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e,
-							"対象フィールド: " + field.getName());
-				}
-			}
-		}
-	}
-
-	/**
-	 * 最小値比較設定
-	 */
-	private String[] setMin(BookDataEntity filter, String[] minList, Integer[] cntList) {
-		final String METHOD_NAME = "setMin";
-		Field[] allFields = BookDataEntity.class.getDeclaredFields();
-		String fillChar = "";
-
-		for (int i = this.bmM023M024M026InitBean.getStartIdx();
-				i <= this.bmM023M024M026InitBean.getEndIdx();
-				i++) {
-
-			int idx = i - this.bmM023M024M026InitBean.getStartIdx();
-			Field field = allFields[i];
-			field.setAccessible(true);
-
-			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
-			try {
-				String currentValue = (String) field.get(filter);
-				fillChar += " , 値: " + currentValue;
-				if (currentValue == null || currentValue.isBlank()) {
-					continue;
-				}
-
-				String minValue = minList[idx];
-				if (!isSameFormat(minValue, currentValue)) {
-					continue;
-				}
-
-				String currentCompNumeric = parseStatValue(currentValue);
-				String minCompNumeric = parseStatValue(minValue);
-
-				if (currentCompNumeric != null && minCompNumeric != null
-						&& Double.parseDouble(currentCompNumeric) < Double.parseDouble(minCompNumeric)) {
-					minList[idx] = currentValue;
-				}
-				cntList[idx]++;
-			} catch (Exception e) {
-				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-			}
-		}
-		return minList;
-	}
-
-	/**
-	 * 最小値時間比較設定
-	 */
-	private String[] setTimeMin(BookDataEntity filter, String[] minList, Integer[] cntList) {
-		final String METHOD_NAME = "setTimeMin";
-		String fillChar = "";
-
-		for (int i = this.bmM023M024M026InitBean.getStartInsertIdx();
-				i <= this.bmM023M024M026InitBean.getEndInsertIdx();
-				i++) {
-
-			int idx = i - this.bmM023M024M026InitBean.getStartInsertIdx();
-			fillChar = "連番No: " + filter.getSeq();
-
-			try {
-				String minTimeValue = minList[idx];
-				double minTimeTmpsValue = Double.parseDouble(removeQuote(minTimeValue));
-				double currentTimeValue = ExecuteMainUtil.convertToMinutes(filter.getTime());
-
-				if (currentTimeValue < minTimeTmpsValue) {
-					minList[idx] = String.valueOf(currentTimeValue) + "'";
-				}
-				cntList[idx]++;
-			} catch (Exception e) {
-				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-			}
-		}
-		return minList;
-	}
-
-	/**
-	 * 最大値比較設定
-	 */
-	private String[] setMax(BookDataEntity filter, String[] maxList, Integer[] cntList) {
-		final String METHOD_NAME = "setMax";
-		Field[] allFields = BookDataEntity.class.getDeclaredFields();
-		String fillChar = "";
-
-		for (int i = this.bmM023M024M026InitBean.getStartIdx();
-				i <= this.bmM023M024M026InitBean.getEndIdx();
-				i++) {
-
-			int idx = i - this.bmM023M024M026InitBean.getStartIdx();
-			Field field = allFields[i];
-			field.setAccessible(true);
-
-			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
-			try {
-				String currentValue = (String) field.get(filter);
-				fillChar += " , 値: " + currentValue;
-				if (currentValue == null || currentValue.isBlank()) {
-					continue;
-				}
-
-				String maxValue = maxList[idx];
-				if (!isSameFormat(maxValue, currentValue)) {
-					continue;
-				}
-
-				String currentCompNumeric = parseStatValue(currentValue);
-				String maxCompNumeric = parseStatValue(maxValue);
-
-				if (currentCompNumeric != null && maxCompNumeric != null
-						&& Double.parseDouble(currentCompNumeric) > Double.parseDouble(maxCompNumeric)) {
-					maxList[idx] = currentValue;
-				}
-				cntList[idx]++;
-			} catch (Exception e) {
-				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-			}
-		}
-		return maxList;
-	}
-
-	/**
-	 * 最大値時間比較設定
-	 */
-	private String[] setTimeMax(BookDataEntity filter, String[] maxList, Integer[] cntList) {
-		final String METHOD_NAME = "setTimeMax";
-		String fillChar = "";
-
-		for (int i = this.bmM023M024M026InitBean.getStartInsertIdx();
-				i <= this.bmM023M024M026InitBean.getEndInsertIdx();
-				i++) {
-
-			int idx = i - this.bmM023M024M026InitBean.getStartInsertIdx();
-			fillChar = "連番No: " + filter.getSeq();
-
-			try {
-				String maxTimeValue = maxList[idx];
-				double maxTimeTmpsValue = Double.parseDouble(removeQuote(maxTimeValue));
-				double currentTimeValue = ExecuteMainUtil.convertToMinutes(filter.getTime());
-
-				if (currentTimeValue > maxTimeTmpsValue) {
-					maxList[idx] = String.valueOf(currentTimeValue) + "'";
-				}
-				cntList[idx]++;
-			} catch (Exception e) {
-				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-			}
-		}
-		return maxList;
-	}
-
-	/**
-	 * 平均値計算のための加算処理
-	 */
-	private String[] setSumAve(BookDataEntity filter, String[] aveList, Integer[] cntList) {
-		final String METHOD_NAME = "setSumAve";
-		Field[] allFields = BookDataEntity.class.getDeclaredFields();
-		String fillChar = "";
-
-		for (int i = this.bmM023M024M026InitBean.getStartIdx();
-				i <= this.bmM023M024M026InitBean.getEndIdx();
-				i++) {
-
-			int idx = i - this.bmM023M024M026InitBean.getStartIdx();
-			Field field = allFields[i];
-			field.setAccessible(true);
-
-			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
-			try {
-				String currentValue = (String) field.get(filter);
-				fillChar += " , 値: " + currentValue;
-				if (currentValue == null || currentValue.isBlank()) {
-					continue;
-				}
-
-				String numericStr = parseStatValue(currentValue);
-				if (numericStr == null || numericStr.isBlank()) {
-					continue;
-				}
-
-				double numeric = Double.parseDouble(numericStr);
-				double prev = (aveList[idx] != null && !aveList[idx].isBlank())
-						? Double.parseDouble(aveList[idx]) : 0.0;
-
-				aveList[idx] = String.valueOf(prev + numeric);
-				cntList[idx]++;
-			} catch (NumberFormatException e) {
-				String messageCd = MessageCdConst.MCD00015E_NUMBERFORMAT_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-			} catch (Exception e) {
-				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-			}
-		}
-		return aveList;
-	}
-
-	/**
-	 * 平均値時間合計設定
-	 */
-	private String[] setTimeSumAve(BookDataEntity filter, String[] aveList, Integer[] cntList) {
-		final String METHOD_NAME = "setTimeSumAve";
-		String fillChar = "";
-
-		for (int i = this.bmM023M024M026InitBean.getStartInsertIdx();
-				i <= this.bmM023M024M026InitBean.getEndInsertIdx();
-				i++) {
-
-			int idx = i - this.bmM023M024M026InitBean.getStartInsertIdx();
-			fillChar = "連番No: " + filter.getSeq();
-
-			try {
-				double aveTime = Double.parseDouble(removeQuote(aveList[idx]));
-				double currentTimeValue = ExecuteMainUtil.convertToMinutes(filter.getTime());
-				aveList[idx] = String.valueOf(aveTime + currentTimeValue) + "'";
-				cntList[idx]++;
-			} catch (NumberFormatException e) {
-				String messageCd = MessageCdConst.MCD00015E_NUMBERFORMAT_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-			} catch (Exception e) {
-				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-			}
-		}
-		return aveList;
-	}
-
-	/**
-	 * 標準偏差用の差分²加算処理
-	 */
-	private String[] setSumSigma(BookDataEntity filter, String[] avgList, String[] sigmaList, Integer[] cntList) {
-		final String METHOD_NAME = "setSumSigma";
-		Field[] allFields = BookDataEntity.class.getDeclaredFields();
-		String fillChar = "";
-
-		for (int i = this.bmM023M024M026InitBean.getStartIdx();
-				i <= this.bmM023M024M026InitBean.getEndIdx();
-				i++) {
-
-			int idx = i - this.bmM023M024M026InitBean.getStartIdx();
-			Field field = allFields[i];
-			field.setAccessible(true);
-
-			fillChar = "フィールド名: " + field.getName() + ", 連番No: " + filter.getSeq();
-			try {
-				String currentValue = (String) field.get(filter);
-				fillChar += " , 値: " + currentValue;
-				String avgStr = avgList[idx];
-
-				if (currentValue == null || currentValue.isBlank()) {
-					continue;
-				}
-				if (avgStr == null || avgStr.isBlank()) {
-					continue;
-				}
-
-				String currentNumeric = parseStatValue(currentValue);
-				if (currentNumeric == null || currentNumeric.isBlank()) {
-					continue;
-				}
-
-				double value = Double.parseDouble(currentNumeric);
-				double avg = Double.parseDouble(avgStr);
-				double diffSquared = Math.pow(value - avg, 2);
-
-				double prev = (sigmaList[idx] != null && !sigmaList[idx].isBlank())
-						? Double.parseDouble(sigmaList[idx]) : 0.0;
-				sigmaList[idx] = String.valueOf(prev + diffSquared);
-				cntList[idx]++;
-			} catch (NumberFormatException e) {
-				String messageCd = MessageCdConst.MCD00015E_NUMBERFORMAT_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-			} catch (Exception e) {
-				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-			}
-		}
-		return sigmaList;
-	}
-
-	/**
-	 * 時間の標準偏差用の差分²加算処理
-	 */
-	private String[] setTimeSumSigma(BookDataEntity filter, String[] aveList, String[] sigmaList, Integer[] cntList) {
-		final String METHOD_NAME = "setTimeSumSigma";
-		String fillChar = "連番No: " + filter.getSeq();
-
 		try {
-			double currentTimeValue = ExecuteMainUtil.convertToMinutes(filter.getTime());
-
-			for (int i = this.bmM023M024M026InitBean.getStartInsertIdx();
-					i <= this.bmM023M024M026InitBean.getEndInsertIdx();
-					i++) {
-
-				int idx = i - this.bmM023M024M026InitBean.getStartInsertIdx();
-
-				String aveStr = aveList[idx];
-				if (aveStr == null || aveStr.isBlank()) {
-					continue;
-				}
-
-				double averageValue = Double.parseDouble(removeQuote(aveStr));
-				double sigmaValue = (sigmaList[idx] != null && !sigmaList[idx].isBlank())
-						? Double.parseDouble(removeQuote(sigmaList[idx]))
-						: 0.0;
-
-				double diffSquared = Math.pow(currentTimeValue - averageValue, 2);
-				sigmaList[idx] = String.valueOf(sigmaValue + diffSquared) + "'";
-				cntList[idx]++;
-			}
+			return Integer.parseInt(m.group(1));
 		} catch (NumberFormatException e) {
-			String messageCd = MessageCdConst.MCD00015E_NUMBERFORMAT_ERROR;
-			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-		} catch (Exception e) {
-			String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-		}
-		return sigmaList;
-	}
-
-	/**
-	 * 歪度
-	 */
-	private String[] setSkewness(
-			StatEncryptionEntity entity,
-			String[] skewnessList,
-			String[] aveList,
-			String[] sigmaList,
-			Integer[] cntList) {
-
-		final String METHOD_NAME = "setSkewness";
-		Double[] skewness = new Double[AverageStatisticsSituationConst.COUNTER];
-		for (int i = 0; i < skewness.length; i++) {
-			skewness[i] = 0.0;
-		}
-
-		List<String> orderedFieldNames = new ArrayList<>(this.bmM030StatEncryptionBean.getFieldMap().keySet());
-
-		for (int idx = 0; idx < orderedFieldNames.size() && idx < skewness.length; idx++) {
-			String fieldName = orderedFieldNames.get(idx);
-			String fillChar = "フィールド名: " + fieldName;
-
-			try {
-				Field field = StatEncryptionEntity.class.getDeclaredField(fieldName);
-				field.setAccessible(true);
-
-				String currentValue = (String) field.get(entity);
-				fillChar += " , 値: " + currentValue;
-
-				if (currentValue == null || currentValue.isBlank()) {
-					continue;
-				}
-
-				String[] skewList = currentValue.split(",");
-
-				int cnt = 0;
-				ScoreBasedFeatureOutputDTO dto1 = setSkewnessOrKurtosisSumAve(skewList, cnt);
-				String skewSumAve = dto1.getAve();
-				cnt = Integer.parseInt(dto1.getCnt());
-				String skewAve = (cnt == 0) ? "" : String.valueOf(Double.parseDouble(skewSumAve) / cnt);
-
-				cnt = 0;
-				ScoreBasedFeatureOutputDTO dto2 = setSkewnessOrKurtosisSumSigma(skewList, skewAve, cnt);
-				String skewSumSigma = dto2.getSigma();
-				cnt = Integer.parseInt(dto2.getCnt());
-				String skewSigma = (cnt <= 1) ? ""
-						: String.valueOf(Math.sqrt(Double.parseDouble(skewSumSigma) / (cnt - 1)));
-
-				if (skewAve.isBlank() || skewSigma.isBlank()) {
-					continue;
-				}
-
-				double sigma = Double.parseDouble(skewSigma);
-				if (sigma == 0.0 || !Double.isFinite(sigma)) {
-					continue;
-				}
-
-				for (String skew : skewList) {
-					String currentSkewnessNumeric = parseStatValue(skew);
-					if (currentSkewnessNumeric == null || currentSkewnessNumeric.isBlank()) {
-						continue;
-					}
-
-					double z = (Double.parseDouble(currentSkewnessNumeric) - Double.parseDouble(skewAve)) / sigma;
-					skewness[idx] += Math.pow(z, 3);
-				}
-				cntList[idx] = cnt;
-			} catch (Exception e) {
-				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-			}
-		}
-
-		for (int i = 0; i < skewness.length; i++) {
-			int cnt = cnt(cntList[i]);
-			double skew = skewness[i];
-
-			if (cnt < 3 || !Double.isFinite(skew)) {
-				skewnessList[i] = "0.000";
-				continue;
-			}
-
-			double result = (cnt / ((cnt - 1.0) * (cnt - 2.0))) * skew;
-			skewnessList[i] = Double.isFinite(result) ? String.format("%.3f", result) : "0.000";
-		}
-
-		return skewnessList;
-	}
-
-	private ScoreBasedFeatureOutputDTO setSkewnessOrKurtosisSumAve(
-			String[] valueList,
-			int cnt) {
-
-		double sum = 0.0;
-		int count = cnt;
-
-		for (String value : valueList) {
-			if (value == null || value.isBlank()) {
-				continue;
-			}
-
-			String numeric = parseStatValue(value);
-			if (numeric == null || numeric.isBlank()) {
-				continue;
-			}
-
-			sum += Double.parseDouble(numeric);
-			count++;
-		}
-
-		ScoreBasedFeatureOutputDTO dto = new ScoreBasedFeatureOutputDTO();
-		dto.setAve(String.valueOf(sum)); // 実体は合計
-		dto.setCnt(String.valueOf(count));
-		return dto;
-	}
-
-	private ScoreBasedFeatureOutputDTO setSkewnessOrKurtosisSumSigma(
-			String[] valueList,
-			String ave,
-			int cnt) {
-
-		double sumSigma = 0.0;
-		int count = cnt;
-
-		if (ave == null || ave.isBlank()) {
-			ScoreBasedFeatureOutputDTO dto = new ScoreBasedFeatureOutputDTO();
-			dto.setSigma("0");
-			dto.setCnt(String.valueOf(count));
-			return dto;
-		}
-
-		double mean = Double.parseDouble(ave);
-
-		for (String value : valueList) {
-			if (value == null || value.isBlank()) {
-				continue;
-			}
-
-			String numeric = parseStatValue(value);
-			if (numeric == null || numeric.isBlank()) {
-				continue;
-			}
-
-			double d = Double.parseDouble(numeric) - mean;
-			sumSigma += d * d;
-			count++;
-		}
-
-		ScoreBasedFeatureOutputDTO dto = new ScoreBasedFeatureOutputDTO();
-		dto.setSigma(String.valueOf(sumSigma)); // 偏差平方和
-		dto.setCnt(String.valueOf(count));
-		return dto;
-	}
-
-	/**
-	 * 尖度
-	 */
-	private String[] setKurtosis(
-			StatEncryptionEntity entity,
-			String[] kurtosisList,
-			String[] aveList,
-			String[] sigmaList,
-			Integer[] cntList) {
-
-		final String METHOD_NAME = "setKurtosis";
-		Double[] kurtosis = new Double[AverageStatisticsSituationConst.COUNTER];
-		for (int i = 0; i < kurtosis.length; i++) {
-			kurtosis[i] = 0.0;
-		}
-
-		List<String> orderedFieldNames = new ArrayList<>(this.bmM030StatEncryptionBean.getFieldMap().keySet());
-
-		for (int idx = 0; idx < orderedFieldNames.size() && idx < kurtosis.length; idx++) {
-			String fieldName = orderedFieldNames.get(idx);
-			String fillChar = "フィールド名: " + fieldName;
-
-			try {
-				Field field = StatEncryptionEntity.class.getDeclaredField(fieldName);
-				field.setAccessible(true);
-
-				String currentValue = (String) field.get(entity);
-				fillChar += " , 値: " + currentValue;
-
-				if (currentValue == null || currentValue.isBlank() || isPercentAndFractionFormat(currentValue)) {
-					continue;
-				}
-
-				String[] kurtList = currentValue.split(",");
-
-				int cnt = 0;
-				ScoreBasedFeatureOutputDTO dto1 = setSkewnessOrKurtosisSumAve(kurtList, cnt);
-				String kurtSumAve = dto1.getAve();
-				cnt = Integer.parseInt(dto1.getCnt());
-				String kurtAve = (cnt == 0) ? "" : String.valueOf(Double.parseDouble(kurtSumAve) / cnt);
-
-				cnt = 0;
-				ScoreBasedFeatureOutputDTO dto2 = setSkewnessOrKurtosisSumSigma(kurtList, kurtAve, cnt);
-				String kurtSumSigma = dto2.getSigma();
-				cnt = Integer.parseInt(dto2.getCnt());
-				String kurtSigma = (cnt <= 1) ? ""
-						: String.valueOf(Math.sqrt(Double.parseDouble(kurtSumSigma) / (cnt - 1)));
-
-				if ("".equals(kurtAve) || "".equals(kurtSigma)) {
-					continue;
-				}
-
-				// 【修正】標準偏差0の場合は0除算になるためスキップ（歪度と同じ扱い）
-				double sigma = Double.parseDouble(kurtSigma);
-				if (sigma == 0.0 || !Double.isFinite(sigma)) {
-					continue;
-				}
-
-				for (String kurt : kurtList) {
-					String currentKurtosisNumeric = parseStatValue(kurt);
-					if (currentKurtosisNumeric == null) {
-						continue;
-					}
-					kurtosis[idx] += Math.pow(
-							(Double.parseDouble(currentKurtosisNumeric) - Double.parseDouble(kurtAve)) / sigma,
-							4);
-				}
-				cntList[idx] = cnt;
-			} catch (Exception e) {
-				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-			}
-		}
-
-		for (int i = 0; i < kurtosis.length; i++) {
-			int cnt = cnt(cntList[i]);
-			double kurt = kurtosis[i];
-
-			if (cnt < 4 || !Double.isFinite(kurt)) {
-				kurtosisList[i] = "0.000";
-				continue;
-			}
-
-			double a = (cnt * (cnt + 1.0)) / ((cnt - 1.0) * (cnt - 2.0) * (cnt - 3.0));
-			double b = (3.0 * Math.pow(cnt - 1.0, 2.0)) / ((cnt - 2.0) * (cnt - 3.0));
-			double result = a * kurt - b;
-
-			kurtosisList[i] = Double.isFinite(result) ? String.format("%.3f", result) : "0.000";
-		}
-
-		return kurtosisList;
-	}
-
-	/**
-	 * 初期フォーマット
-	 */
-	private void initFormat(BookDataEntity entity, String[] list, String listStr) {
-		final String METHOD_NAME = "initFormat";
-		final int FEATURE_START = 11;
-		String featureName = "";
-
-		try {
-			Field[] allFields = BookDataEntity.class.getDeclaredFields();
-			for (int i = FEATURE_START; i < FEATURE_START + AverageStatisticsSituationConst.COUNTER; i++) {
-				featureName = allFields[i].getName();
-				allFields[i].setAccessible(true);
-				String featureValue = (String) allFields[i].get(entity);
-				String format = getInitialValueByFormat(featureValue);
-
-				if (listStr.contains("Min")) {
-					format = format.replace("0.0", "10000.0");
-					format = format.replace("0/0", "10000/10000");
-				}
-				list[i - FEATURE_START] = format;
-			}
-		} catch (Exception ex) {
-			String messageCd = MessageCdConst.MCD00016E_FORMAT_ERROR;
-			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex, featureName);
-		}
-	}
-
-	/**
-	 * 共通除算
-	 */
-	private String[] commonDivision(String[] list, Integer[] cntList, String suffix) {
-		for (int i = 0; i < list.length; i++) {
-			if (list[i] == null) {
-				list[i] = "0" + suffix;
-				continue;
-			}
-
-			if (isPercentAndFractionFormat(list[i])) {
-				list[i] = "";
-			} else {
-				if (cntList[i] == 0) {
-					list[i] = "0" + suffix;
-				} else {
-					list[i] = String.valueOf(Double.parseDouble(list[i].replace(suffix, "")) / cntList[i]) + suffix;
-				}
-			}
-		}
-		return list;
-	}
-
-	/**
-	 * Entityへ設定
-	 */
-	private ScoreBasedFeatureStatsEntity setStatValuesToEntity(
-			ScoreBasedFeatureStatsEntity entity, String insertStr, int ind) {
-
-		final String METHOD_NAME = "setStatValuesToEntity";
-
-		try {
-			Field[] allFields = ScoreBasedFeatureStatsEntity.class.getDeclaredFields();
-			Field field = allFields[ind];
-			field.setAccessible(true);
-			field.set(entity, insertStr);
-		} catch (Exception e) {
-			String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-			String fillChar = "ScoreBasedFeatureEntity への値設定エラー";
-			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
-			this.manageLoggerComponent.createSystemException(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, null);
-		}
-		return entity;
-	}
-
-	/**
-	 * その他情報格納
-	 */
-	private ScoreBasedFeatureStatsEntity setOtherEntity(
-			String score, String situation, String country, String league,
-			Boolean updFlg, String id, ScoreBasedFeatureStatsEntity entity) {
-
-		entity.setId(id);
-		entity.setUpd(updFlg);
-		entity.setScore(score);
-		entity.setSituation(situation);
-		entity.setCountry(country);
-		entity.setLeague(league);
-		return entity;
-	}
-
-	/**
-	 * ログ用
-	 */
-	private String setLoggerFillChar(String situation, String score, String country, String league) {
-		StringBuilder sb = new StringBuilder();
-		sb.append("状況: ").append(situation).append(", ");
-		sb.append("スコア: ").append(score).append(", ");
-		sb.append("国: ").append(country).append(", ");
-		sb.append("リーグ: ").append(league);
-		return sb.toString();
-	}
-
-	/**
-	 * BM_M030組み立て
-	 */
-	private StatEncryptionEntity buildBmM30Form(
-			final List<BookDataEntity> entities,
-			String country,
-			String league,
-			String home,
-			String away,
-			String chkBody,
-			Map<String, Function<BookDataEntity, String>> fieldMap) {
-
-		final String METHOD_NAME = "buildBmM30Form";
-		StatEncryptionEntity result = new StatEncryptionEntity();
-
-		for (Map.Entry<String, Function<BookDataEntity, String>> entry : fieldMap.entrySet()) {
-			String fieldName = entry.getKey();
-			Function<BookDataEntity, String> getter = entry.getValue();
-
-			StringJoiner joiner = new StringJoiner(",");
-			for (BookDataEntity e : entities) {
-				String v;
-				try {
-					v = getter.apply(e);
-				} catch (Exception ex) {
-					v = "";
-				}
-				joiner.add(v == null ? "" : v);
-			}
-
-			try {
-				Field field = StatEncryptionEntity.class.getDeclaredField(fieldName);
-				field.setAccessible(true);
-				field.set(result, joiner.toString());
-			} catch (NoSuchFieldException | IllegalAccessException ex) {
-				String messageCd = MessageCdConst.MCD00014E_REFLECTION_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, ex, fieldName);
-			}
-		}
-
-		result.setCountry(country);
-		result.setLeague(league);
-		result.setHome(home);
-		result.setAway(away);
-		result.setChkBody(chkBody);
-		result.setUpdFlg(false);
-		return result;
-	}
-
-	/**
-	 * BM_M030マージ
-	 */
-	private StatEncryptionEntity mergeStatEncryptionEntity(
-			StatEncryptionEntity target,
-			StatEncryptionEntity source,
-			Set<String> mergeFieldNames) {
-
-		final String METHOD_NAME = "mergeStatEncryptionEntity";
-
-		for (String fieldName : mergeFieldNames) {
-			try {
-				Field field = StatEncryptionEntity.class.getDeclaredField(fieldName);
-				field.setAccessible(true);
-
-				String targetValue = (String) field.get(target);
-				String sourceValue = (String) field.get(source);
-
-				if (sourceValue == null || sourceValue.isEmpty()) {
-					continue;
-				}
-
-				if (targetValue == null || targetValue.isEmpty()) {
-					field.set(target, sourceValue);
-				} else {
-					StringBuilder sb = new StringBuilder(targetValue.length() + 1 + sourceValue.length());
-					sb.append(targetValue).append(',').append(sourceValue);
-					field.set(target, sb.toString());
-				}
-			} catch (Exception e) {
-				String messageCd = MessageCdConst.MCD00018E_MERGE_ERROR;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fieldName);
-			}
-		}
-
-		return target;
-	}
-
-	/**
-	 * 既存1件取得＋復号
-	 */
-	private StatEncryptionEntity findAndDecryptExistingStatEncryption(
-			String country,
-			String league,
-			String home,
-			String away,
-			String chkBody) {
-
-		final String METHOD_NAME = "findAndDecryptExistingStatEncryption";
-
-		try {
-			List<StatEncryptionEntity> list = this.statEncryptionRepository.findEncDataByCondition(
-					country, league, home, away, null, chkBody);
-
-			if (list == null || list.isEmpty()) {
-				return null;
-			}
-
-			StatEncryptionEntity latest = list.stream()
-					.filter(e -> e != null)
-					.max(Comparator.comparingInt(e -> safeParseInt(e.getId(), Integer.MIN_VALUE)))
-					.orElse(null);
-
-			if (latest == null) {
-				return null;
-			}
-
-			return decryptStatEncryptionEntity(latest);
-		} catch (Exception e) {
-			String messageCd = MessageCdConst.MCD00017E_ENCRYPTION_ERROR;
-			String fillChar = "既存stat_encryption取得/復号に失敗: "
-					+ "country=" + country + ", league=" + league
-					+ ", home=" + home + ", away=" + away + ", chkBody=" + chkBody;
-			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e, fillChar);
 			return null;
 		}
 	}
 
 	/**
-	 * 復号
+	 * 使える行だけを通番の数値順に並べる（null 行・取得エラー行・PK 戦の行は除く）。
 	 */
-	private StatEncryptionEntity decryptStatEncryptionEntity(StatEncryptionEntity entity) throws Exception {
-		StatEncryptionEntity decrypted = shallowCopyStatEncryptionEntity(entity);
-
-		Set<String> dataFieldNames = new LinkedHashSet<>(this.bmM030StatEncryptionBean.getFieldMap().keySet());
-
-		for (String fieldName : dataFieldNames) {
-			Field field = StatEncryptionEntity.class.getDeclaredField(fieldName);
-			field.setAccessible(true);
-
-			String value = (String) field.get(entity);
-			if (value == null || value.isBlank()) {
+	public static List<BookDataEntity> sortUsableRows(List<BookDataEntity> rows) {
+		List<BookDataEntity> sorted = new ArrayList<>();
+		if (rows == null) {
+			return sorted;
+		}
+		for (BookDataEntity e : rows) {
+			if (e == null) {
 				continue;
 			}
-
-			String plain = this.bmM030StatEncryptionBean.decrypto(
-					value,
-					this.bmM030StatEncryptionBean.getSecretKey(),
-					new IvParameterSpec(new byte[16]));
-
-			field.set(decrypted, plain);
-		}
-
-		decrypted.setUpdFlg(true);
-		return decrypted;
-	}
-
-	/**
-	 * 暗号化
-	 */
-	private StatEncryptionEntity encryptStatEncryptionEntity(StatEncryptionEntity entity) throws Exception {
-		StatEncryptionEntity encrypted = shallowCopyStatEncryptionEntity(entity);
-
-		Set<String> dataFieldNames = new LinkedHashSet<>(this.bmM030StatEncryptionBean.getFieldMap().keySet());
-
-		for (String fieldName : dataFieldNames) {
-			Field field = StatEncryptionEntity.class.getDeclaredField(fieldName);
-			field.setAccessible(true);
-
-			String value = (String) field.get(entity);
-			if (value == null || value.isBlank()) {
-				field.set(encrypted, value);
+			if (BookMakersCommonConst.GET_UNEXPECTED_ERROR.equals(e.getGoalTime())
+					|| BookMakersCommonConst.GET_UNEXPECTED_ERROR.equals(e.getGoalTeamMember())) {
 				continue;
 			}
-
-			String cipher = this.bmM030StatEncryptionBean.encrypto(value);
-			field.set(encrypted, cipher);
-		}
-
-		return encrypted;
-	}
-
-	/**
-	 * 浅いコピー
-	 */
-	private StatEncryptionEntity shallowCopyStatEncryptionEntity(StatEncryptionEntity source) throws Exception {
-		StatEncryptionEntity target = new StatEncryptionEntity();
-
-		for (Field field : StatEncryptionEntity.class.getDeclaredFields()) {
-			if (Modifier.isStatic(field.getModifiers())) {
+			String t = e.getTime();
+			if (t != null && t.contains(BookMakersCommonConst.PENALTY)) {
 				continue;
 			}
-			field.setAccessible(true);
-			field.set(target, field.get(source));
+			sorted.add(e);
 		}
+		sorted.sort(Comparator.comparingLong(e -> seqToLong(e.getSeq())));
+		return sorted;
+	}
 
-		return target;
+	/** 最後の試合終了（FIN）行（最後の行が FIN でなければ null＝試合途中） */
+	private static BookDataEntity findLastFin(List<BookDataEntity> sorted) {
+		BookDataEntity last = sorted.get(sorted.size() - 1);
+		return BookMakersCommonConst.FIN.equals(trimOrNull(last.getTime())) ? last : null;
 	}
 
 	/**
-	 * マッチキー生成
+	 * 試合時間を分に変換する（読めなければ null）。
+	 * ExecuteMainUtil.convertToMinutes は読めない形式（"中断"、"'" の無い "23" など）を 0 分にしてしまうため、
+	 * 読める形式（FIN・ハーフタイム・"mm:ss"・"45+2'"・"23'"）だけ渡す。
 	 */
-	private String buildMatchKey(String country, String league, String home, String away, String chkBody) {
-		return new StringBuilder()
-				.append(nvl(country)).append('|')
-				.append(nvl(league)).append('|')
-				.append(nvl(home)).append('|')
-				.append(nvl(away)).append('|')
-				.append(nvl(chkBody))
-				.toString();
-	}
-
-	/**
-	 * ロック取得
-	 */
-	private Object getLock(String key) {
-		return lockMap.computeIfAbsent(key, k -> new Object());
-	}
-
-	/**
-	 * クォート除去
-	 */
-	private String removeQuote(String value) {
-		return value == null ? null : value.replace("'", "").trim();
-	}
-
-	/**
-	 * null回避
-	 */
-	private String nvl(String value) {
-		return value == null ? "" : value;
-	}
-
-	/**
-	 * リーグキー分解
-	 */
-	private String[] safeLeague(String rawLeagueKey) {
-		if (rawLeagueKey == null || rawLeagueKey.isBlank()) {
-			return new String[] { "", "" };
+	static BigDecimal toMinutes(String time) {
+		if (time == null) {
+			return null;
 		}
-
-		String[] split = rawLeagueKey.split(",", 2);
-		if (split.length < 2) {
-			return new String[] { "", "" };
-		}
-
-		return new String[] {
-				nvl(split[0]).trim(),
-				nvl(split[1]).trim()
-		};
-	}
-
-	/**
-	 * double変換
-	 */
-	private double safeParseDouble(String value, double defaultValue) {
-		if (value == null || value.isBlank()) {
-			return defaultValue;
+		boolean readable = BookMakersCommonConst.FIN.equals(time)
+				|| BookMakersCommonConst.HALF_TIME.equals(time) || BookMakersCommonConst.FIRST_HALF_TIME.equals(time)
+				|| time.contains(":") || time.contains("+") || time.endsWith("'");
+		if (!readable) {
+			return null;
 		}
 		try {
-			return Double.parseDouble(removeQuote(value).replace("%", "").trim());
-		} catch (Exception e) {
-			return defaultValue;
+			double d = ExecuteMainUtil.convertToMinutes(time);
+			return Double.isFinite(d) ? BigDecimal.valueOf(d).setScale(2, RoundingMode.HALF_UP) : null;
+		} catch (RuntimeException e) {
+			return null;
 		}
 	}
 
-	/**
-	 * 【追加】通番を数値化（変換不可は末尾扱い）
-	 */
+	/** スコアを整数に変換（空・数値以外・負は null） */
+	public static Integer parseScore(String value) {
+		String s = trimOrNull(value);
+		if (s == null) {
+			return null;
+		}
+		s = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFKC);
+		if (!s.matches("\\d+")) {
+			return null;
+		}
+		try {
+			return Integer.parseInt(s);
+		} catch (NumberFormatException e) {
+			return null;
+		}
+	}
+
 	private static long seqToLong(String seq) {
 		if (seq == null || seq.isBlank()) {
 			return Long.MAX_VALUE;
@@ -1857,18 +422,51 @@ public class ScoreBasedFeatureStat extends StatFormatResolver implements Analyze
 		}
 	}
 
-	/**
-	 * int変換
-	 */
-	private int safeParseInt(String value, int defaultValue) {
-		if (value == null || value.isBlank()) {
-			return defaultValue;
-		}
-		try {
-			return Integer.parseInt(value.trim());
-		} catch (Exception e) {
-			return defaultValue;
-		}
+	private static String trimOrNull(String s) {
+		return (s == null || s.isBlank()) ? null : s.trim();
 	}
 
+	private void debugLog(String methodName, String message) {
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, methodName, MessageCdConst.MCD00099I_LOG, message);
+	}
+
+	/**
+	 * 件数・Σx〜Σx⁴・最小・最大と、時間の件数・Σ・Σ²・最小・最大（BigDecimal で正確に足す）。
+	 */
+	static final class Moments {
+		int n;
+		BigDecimal s1 = BigDecimal.ZERO;
+		BigDecimal s2 = BigDecimal.ZERO;
+		BigDecimal s3 = BigDecimal.ZERO;
+		BigDecimal s4 = BigDecimal.ZERO;
+		BigDecimal min;
+		BigDecimal max;
+		int tn;
+		BigDecimal ts1 = BigDecimal.ZERO;
+		BigDecimal ts2 = BigDecimal.ZERO;
+		BigDecimal tmin;
+		BigDecimal tmax;
+
+		void add(BigDecimal x, BigDecimal minute) {
+			if (x == null) {
+				return;
+			}
+			BigDecimal x2 = x.multiply(x);
+			this.n++;
+			this.s1 = this.s1.add(x);
+			this.s2 = this.s2.add(x2);
+			this.s3 = this.s3.add(x2.multiply(x));
+			this.s4 = this.s4.add(x2.multiply(x2));
+			this.min = (this.min == null || x.compareTo(this.min) < 0) ? x : this.min;
+			this.max = (this.max == null || x.compareTo(this.max) > 0) ? x : this.max;
+			if (minute != null) {
+				this.tn++;
+				this.ts1 = this.ts1.add(minute);
+				this.ts2 = this.ts2.add(minute.multiply(minute));
+				this.tmin = (this.tmin == null || minute.compareTo(this.tmin) < 0) ? minute : this.tmin;
+				this.tmax = (this.tmax == null || minute.compareTo(this.tmax) > 0) ? minute : this.tmax;
+			}
+		}
+	}
 }

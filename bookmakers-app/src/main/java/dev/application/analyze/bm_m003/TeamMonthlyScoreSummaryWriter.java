@@ -58,7 +58,7 @@ import dev.common.logger.ManageLoggerComponent;
  * </p>
  * <ul>
  *   <li>Mapper の insertTeamMonthlyScore に seq 列を追加し、seq 列を文字列型にしておくこと。</li>
- *   <li>SeasonResolverIF の実装が未連携のうちは、新規行の INSERT が例外になる（既存行の UPDATE だけなら動く）。</li>
+ *   <li>SeasonResolverIF の実装（CountryLeagueSeasonResolver）が無い場合、新規行の INSERT が例外になる（既存行の UPDATE だけなら動く）。</li>
  * </ul>
  *
  * <p>推奨 DDL（PostgreSQL）:</p>
@@ -94,8 +94,8 @@ public class TeamMonthlyScoreSummaryWriter {
 	private SeqNumberingService seqNumberingService;
 
 	/**
-	 * 【追加】シーズン取得（country_league_season_master 連携後に実装を用意する）。
-	 * 未実装でもアプリが起動できるよう required = false。INSERT 時に未実装なら例外。
+	 * 【追加】シーズン取得（実装: CountryLeagueSeasonResolver）。
+	 * 実装が無い場合もアプリが起動できるよう required = false。INSERT 時に実装が無ければ例外。
 	 */
 	@Autowired(required = false)
 	private SeasonResolverIF seasonResolver;
@@ -209,12 +209,12 @@ public class TeamMonthlyScoreSummaryWriter {
 
 	/**
 	 * 【追加】国・リーグのシーズンを取得する（1回の保存処理の中ではキャッシュを使う）。
-	 * SeasonResolver の実装が未連携の場合は例外（INSERT を伴う保存は全件ロールバック）。
+	 * SeasonResolverIF の実装が無い場合は例外（INSERT を伴う保存は全件ロールバック）。
 	 */
 	private String resolveSeason(TeamYearKey key) {
 		if (this.seasonResolver == null) {
 			throw new IllegalStateException(
-					"SeasonResolver の実装がありません（country_league_season_master 未連携）: " + key);
+					"SeasonResolverIF の実装がありません（CountryLeagueSeasonResolver が Bean 登録されていない）: " + key);
 		}
 		String cacheKey = key.getCountry() + "," + key.getLeague();
 		Map<String, String> cache = SEASON_CACHE.get();

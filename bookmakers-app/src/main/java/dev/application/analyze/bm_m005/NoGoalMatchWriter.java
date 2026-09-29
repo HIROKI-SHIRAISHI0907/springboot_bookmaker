@@ -17,7 +17,7 @@ import dev.application.domain.repository.bm.NoGoalMatchStatsRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
-import dev.common.util.ExecuteMainUtil;
+import dev.common.util.CountryLeagueParser;
 
 /**
  * BM_M005 登録処理（no_goal_match_stats）。
@@ -32,7 +32,7 @@ import dev.common.util.ExecuteMainUtil;
  * <h2>シーズンの取得</h2>
  * <ul>
  *   <li>他の Writer と同じく {@link SeasonResolverIF}（country_league_season_master.season_year）から取得する。</li>
- *   <li>国・リーグは dataCategory を {@link ExecuteMainUtil#splitLeagueInfo} で分割して求める。</li>
+ *   <li>国・リーグは dataCategory（"国: リーグ - ラウンドN" 形式）を {@link CountryLeagueParser} で分割して求める（形式が違う場合はシーズン取得不可としてスキップ）。</li>
  *   <li>1回の集計処理の間は、国,リーグごとの結果をスレッド単位でキャッシュする（取得不可も含む）。
  *       呼び出し側は集計の開始時と終了時（finally）に {@link #clearSeasonCache()} を呼ぶこと。</li>
  *   <li>取得できない場合は DB 書き込みの前に {@link SeasonNotResolvedException} を投げる（その試合は何も保存されない）。</li>
@@ -233,7 +233,7 @@ public class NoGoalMatchWriter {
 		if (season == null) {
 			season = NOT_RESOLVED;
 			try {
-				String[] split = ExecuteMainUtil.splitLeagueInfo(dataCategory);
+				String[] split = CountryLeagueParser.parse(dataCategory);
 				if (split != null && split.length >= 2) {
 					String s = this.seasonResolver.resolveSeason(split[0].trim(), split[1].trim());
 					if (!isBlank(s)) {

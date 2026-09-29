@@ -15,7 +15,7 @@ import dev.application.domain.repository.bm.TeamTimeSegmentStatsRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
-import dev.common.util.ExecuteMainUtil;
+import dev.common.util.CountryLeagueParser;
 
 /**
  * BM_M004 登録処理（team_time_segment_stats・縦持ち）。
@@ -35,7 +35,7 @@ import dev.common.util.ExecuteMainUtil;
  * Stat 側はシーズンを設定しない（設定済みでも上書きする）。
  * </p>
  * <ul>
- *   <li>国・リーグは行の dataCategory（"国: リーグ" 形式）を {@link ExecuteMainUtil#splitLeagueInfo} で分割して求める。</li>
+ *   <li>国・リーグは行の dataCategory（"国: リーグ - ラウンドN" 形式）を {@link CountryLeagueParser} で分割して求める（形式が違う場合はシーズン取得不可としてスキップ）。</li>
  *   <li>1回の集計処理（{@link #clearSeasonCache()} から次の {@link #clearSeasonCache()} まで）の間は、
  *       国,リーグごとの結果をスレッド単位でキャッシュし、試合ごとにマスタを引かない。
  *       取得できなかった国,リーグも「取得不可」としてキャッシュする。</li>
@@ -248,7 +248,7 @@ public class TeamTimeSegmentWriter {
 		if (season == null) {
 			season = NOT_RESOLVED;
 			try {
-				String[] split = ExecuteMainUtil.splitLeagueInfo(dataCategory);
+				String[] split = CountryLeagueParser.parse(dataCategory);
 				if (split != null && split.length >= 2) {
 					String s = this.seasonResolver.resolveSeason(split[0].trim(), split[1].trim());
 					if (s != null && !s.isBlank()) {

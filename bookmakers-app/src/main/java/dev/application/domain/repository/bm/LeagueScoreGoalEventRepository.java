@@ -12,8 +12,9 @@ import org.apache.ibatis.annotations.Select;
 
 import dev.application.analyze.bm_m017.LeagueScoreGoalEventEntity;
 
+
 /**
- * league_score_goal_event Mapper。
+ * league_score_goal_event Mapper（BM_M017 / BM_M018 共通）。
  *
  * <h2>何をするクラスか</h2>
  * <ul>

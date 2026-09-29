@@ -163,7 +163,7 @@ public class OutputData {
 			data2++;
 		}
 
-		List<TeamMatchFinalStatsEntity> result3 = this.teamMatchFinalStatsRepository.getData();
+		List<TeamMatchFinalStatsEntity> result3 = null; //this.teamMatchFinalStatsRepository.getData();
 		StringBuilder header3 = new StringBuilder();
 		boolean headFlg3 = true;
 		int data3 = 1;

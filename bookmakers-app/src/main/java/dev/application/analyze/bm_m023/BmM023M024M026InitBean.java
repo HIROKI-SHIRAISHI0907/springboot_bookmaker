@@ -5,7 +5,7 @@ import java.lang.reflect.Field;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
-import dev.application.analyze.bm_m024.CalcCorrelationEntity;
+import dev.application.analyze.bm_m024.CalcCorrelationMatchStatsEntity;
 import dev.application.analyze.bm_m026.EachTeamScoreBasedFeatureEntity;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
@@ -151,7 +151,7 @@ public class BmM023M024M026InitBean {
 		this.endIdx = range[1];
 
 		// ScoreBasedFeatureStatsEntity（homeExpStat 〜 awayInterceptCountStat）
-		range = findRange(ScoreBasedFeatureStatsEntity.class.getDeclaredFields(), "homeExpStat", "awayInterceptCountStat");
+		range = findRange(ScoreBasedFeatureMatchStatsEntity.class.getDeclaredFields(), "homeExpStat", "awayInterceptCountStat");
 		validateRange(METHOD_NAME, "ScoreBasedFeatureStatsEntity", range, true);
 		this.startInsertIdx = range[0];
 		this.endInsertIdx = range[1];
@@ -163,7 +163,7 @@ public class BmM023M024M026InitBean {
 		this.endScoreInsertIdx = range[1];
 
 		// CalcCorrelationEntity（homeExpInfo 〜 awayInterceptCountInfo）※件数チェックはしない
-		range = findRange(CalcCorrelationEntity.class.getDeclaredFields(), "homeExpInfo", "awayInterceptCountInfo");
+		range = findRange(CalcCorrelationMatchStatsEntity.class.getDeclaredFields(), "homeExpInfo", "awayInterceptCountInfo");
 		validateRange(METHOD_NAME, "CalcCorrelationEntity", range, false);
 		this.startCalcInsertIdx = range[0];
 		this.endCalcInsertIdx = range[1];

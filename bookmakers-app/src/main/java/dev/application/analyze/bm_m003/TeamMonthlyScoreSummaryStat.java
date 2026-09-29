@@ -17,7 +17,7 @@ import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
-import dev.common.util.ExecuteMainUtil;
+import dev.common.util.CountryLeagueParser;
 
 /**
  * BM_M003統計分析ロジック
@@ -133,7 +133,7 @@ public class TeamMonthlyScoreSummaryStat implements AnalyzeEntityIF {
 					continue;
 				}
 
-				String[] split = ExecuteMainUtil.splitLeagueInfo(countryLeague);
+				String[] split = CountryLeagueParser.parse(countryLeague);
 				if (split == null || split.length < 2 || isBlank(split[0]) || isBlank(split[1])) {
 					debugLog(METHOD_NAME, "skip: invalid countryLeague=" + countryLeague);
 					continue;

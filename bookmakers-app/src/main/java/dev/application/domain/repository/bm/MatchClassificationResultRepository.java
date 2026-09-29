@@ -12,6 +12,7 @@ import org.apache.ibatis.annotations.Select;
 
 import dev.application.analyze.bm_m018.MatchClassificationResultEntity;
 
+
 /**
  * classify_result_data Mapper（BM_M019 分類別の試合スナップショット）。
  *
@@ -87,7 +88,7 @@ public interface MatchClassificationResultRepository {
 			"away_red_card, home_slow_in, away_slow_in, home_box_touch, away_box_touch, home_pass_count, ",
 			"away_pass_count, home_long_pass_count, away_long_pass_count, home_final_third_pass_count, away_final_third_pass_count, home_cross_count, ",
 			"away_cross_count, home_tackle_count, away_tackle_count, home_clear_count, away_clear_count, home_duel_count, ",
-			"away_duel_count, home_intercept_count, away_intercept_count, record_time, weather, temparature, ",
+			"away_duel_count, home_intercept_count, away_intercept_count, record_time, weather, temperature, ",
 			"humid, judge_member, home_manager, away_manager, home_formation, away_formation, ",
 			"studium, capacity, audience, home_max_getting_scorer, away_max_getting_scorer, home_max_getting_scorer_game_situation, ",
 			"away_max_getting_scorer_game_situation, home_team_home_score, home_team_home_lost, away_team_home_score, away_team_home_lost, home_team_away_score, ",
@@ -107,7 +108,7 @@ public interface MatchClassificationResultRepository {
 			"#{awayRedCard}, #{homeSlowIn}, #{awaySlowIn}, #{homeBoxTouch}, #{awayBoxTouch}, #{homePassCount}, ",
 			"#{awayPassCount}, #{homeLongPassCount}, #{awayLongPassCount}, #{homeFinalThirdPassCount}, #{awayFinalThirdPassCount}, #{homeCrossCount}, ",
 			"#{awayCrossCount}, #{homeTackleCount}, #{awayTackleCount}, #{homeClearCount}, #{awayClearCount}, #{homeDuelCount}, ",
-			"#{awayDuelCount}, #{homeInterceptCount}, #{awayInterceptCount}, #{recordTime}, #{weather}, #{temparature}, ",
+			"#{awayDuelCount}, #{homeInterceptCount}, #{awayInterceptCount}, #{recordTime}, #{weather}, #{temperature}, ",
 			"#{humid}, #{judgeMember}, #{homeManager}, #{awayManager}, #{homeFormation}, #{awayFormation}, ",
 			"#{studium}, #{capacity}, #{audience}, #{homeMaxGettingScorer}, #{awayMaxGettingScorer}, #{homeMaxGettingScorerGameSituation}, ",
 			"#{awayMaxGettingScorerGameSituation}, #{homeTeamHomeScore}, #{homeTeamHomeLost}, #{awayTeamHomeScore}, #{awayTeamHomeLost}, #{homeTeamAwayScore}, ",
@@ -186,7 +187,7 @@ public interface MatchClassificationResultRepository {
 			"away_intercept_count = EXCLUDED.away_intercept_count, ",
 			"record_time = EXCLUDED.record_time, ",
 			"weather = EXCLUDED.weather, ",
-			"temparature = EXCLUDED.temparature, ",
+			"temperature = EXCLUDED.temperature, ",
 			"humid = EXCLUDED.humid, ",
 			"judge_member = EXCLUDED.judge_member, ",
 			"home_manager = EXCLUDED.home_manager, ",

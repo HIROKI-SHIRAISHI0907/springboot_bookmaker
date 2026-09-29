@@ -1,5 +1,8 @@
 package dev.application.analyze.common.service;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
@@ -62,5 +65,33 @@ public class SeqNumberingService {
 		String s = season.trim();
 		long no = this.seqCounterRepository.nextNumber(tableName, s);
 		return s + "-" + String.format("%0" + BRANCH_DIGITS + "d", no);
+	}
+
+	/**
+	 * 【追加】seq をまとめて count 個採番する（seq_counter の更新は1回）。
+	 *
+	 * @param tableName 対象テーブル名（採番単位）
+	 * @param season シーズン
+	 * @param count 個数（0 以下なら空リスト）
+	 * @return 採番した seq（番号の昇順）
+	 */
+	@Transactional(propagation = Propagation.MANDATORY)
+	public List<String> nextSeqBlock(String tableName, String season, int count) {
+		List<String> result = new ArrayList<>();
+		if (count <= 0) {
+			return result;
+		}
+		if (tableName == null || tableName.isBlank()) {
+			throw new IllegalArgumentException("tableName is blank.");
+		}
+		if (season == null || season.isBlank()) {
+			throw new IllegalArgumentException("season is blank. table=" + tableName);
+		}
+		String s = season.trim();
+		long last = this.seqCounterRepository.nextNumberBlock(tableName, s, count);
+		for (long no = last - count + 1; no <= last; no++) {
+			result.add(s + "-" + String.format("%0" + BRANCH_DIGITS + "d", no));
+		}
+		return result;
 	}
 }

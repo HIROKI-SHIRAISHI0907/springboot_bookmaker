@@ -62,4 +62,23 @@ public interface SeqCounterRepository {
 	@Options(flushCache = FlushCachePolicy.TRUE, useCache = false)
 	long nextNumber(@Param("tableName") String tableName, @Param("season") String season);
 
+	/**
+	 * 【追加】まとめて count 個採番し、採番後の最終番号を返す（今回の番号は 最終番号-count+1 〜 最終番号）。
+	 * 1試合で数百行を登録する BM（BM_M023 など）で、1行ずつ採番すると seq_counter の更新が数百回になるため。
+	 *
+	 * @param count 採番する個数（1 以上）
+	 * @return 採番後の last_no
+	 */
+	@Select({
+			"INSERT INTO seq_counter (table_name, season, last_no,",
+			"  register_id, register_time, update_id, update_time)",
+			"VALUES (#{tableName}, #{season}, #{count}, 'SYSTEM', NOW(), 'SYSTEM', NOW())",
+			"ON CONFLICT (table_name, season)",
+			"DO UPDATE SET last_no = seq_counter.last_no + #{count},",
+			"  update_id = 'SYSTEM', update_time = NOW()",
+			"RETURNING last_no"
+	})
+	@Options(flushCache = FlushCachePolicy.TRUE, useCache = false)
+	long nextNumberBlock(@Param("tableName") String tableName, @Param("season") String season,
+			@Param("count") int count);
 }

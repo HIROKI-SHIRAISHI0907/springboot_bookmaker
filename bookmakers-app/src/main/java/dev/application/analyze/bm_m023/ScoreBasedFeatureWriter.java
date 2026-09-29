@@ -1,4 +1,4 @@
-package dev.application.analyze.bm_m024;
+package dev.application.analyze.bm_m023;
 
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -13,17 +13,17 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.common.service.SeqNumberingService;
 import dev.application.analyze.interf.SeasonResolverIF;
-import dev.application.domain.repository.bm.CalcCorrelationMatchStatsRepository;
+import dev.application.domain.repository.bm.ScoreBasedFeatureMatchStatsRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
- * BM_M024 登録処理（calc_correlation_match_stats）。
+ * BM_M023 / BM_M026 登録処理（score_based_feature_match_stats）。
  *
  * <h2>何をするクラスか</h2>
  * <p>
- * {@link CalcCorrelationStat} が作った1試合分の明細（区分 × 特徴量、約110行）に、シーズン・国・リーグ・seq を設定し、
+ * {@link ScoreBasedFeatureStat} が作った1試合分の明細（区分 × 特徴量、約200行）に、シーズン・国・リーグ・seq を設定し、
  * 試合単位で「最新の計算結果に置き換える」。
  * </p>
  * <ol>
@@ -34,8 +34,8 @@ import dev.common.logger.ManageLoggerComponent;
  *   <li>今回の計算に無い既存行（スコアの区分が変わった場合など）を削除する。</li>
  * </ol>
  * <p>
- * 相関係数はビューが明細から計算するため、同じ試合を何度処理しても二重にならない
- * （旧実装はただの INSERT で、同じ試合が流れてくるたびに行が増えていた）。
+ * 統計はビューが明細から計算するため、同じ試合を何度処理しても二重にならない
+ * （旧実装は既存値に今回分を足し込んでいたため、同じ試合が流れてくるたびに二重に集計していた）。
  * </p>
  *
  * <h2>トランザクション</h2>
@@ -51,20 +51,20 @@ import dev.common.logger.ManageLoggerComponent;
  * </ul>
  */
 @Service
-public class CalcCorrelationWriter {
+public class ScoreBasedFeatureWriter {
 
 	/** プロジェクト名 */
-	private static final String PROJECT_NAME = CalcCorrelationWriter.class.getProtectionDomain()
+	private static final String PROJECT_NAME = ScoreBasedFeatureWriter.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
 	/** クラス名 */
-	private static final String CLASS_NAME = CalcCorrelationWriter.class.getName();
+	private static final String CLASS_NAME = ScoreBasedFeatureWriter.class.getName();
 
 	/** BM_STAT_NUMBER */
-	private static final String BM_NUMBER = "BM_M024";
+	private static final String BM_NUMBER = "BM_M023";
 
 	/** 採番単位のテーブル名 */
-	private static final String TABLE_NAME = "calc_correlation_match_stats";
+	private static final String TABLE_NAME = "score_based_feature_match_stats";
 
 	/** 1回の UPSERT の行数 */
 	private static final int BATCH_SIZE = 200;
@@ -76,7 +76,7 @@ public class CalcCorrelationWriter {
 	private static final ThreadLocal<Map<String, String>> SEASON_CACHE = ThreadLocal.withInitial(HashMap::new);
 
 	@Autowired
-	private CalcCorrelationMatchStatsRepository calcCorrelationMatchStatsRepository;
+	private ScoreBasedFeatureMatchStatsRepository scoreBasedFeatureMatchStatsRepository;
 
 	/** seq 採番（seq_counter） */
 	@Autowired
@@ -114,16 +114,16 @@ public class CalcCorrelationWriter {
 	 */
 	@Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
 	public void saveMatch(String country, String league, String homeTeamName, String awayTeamName,
-			List<CalcCorrelationMatchStatsEntity> rows) {
+			List<ScoreBasedFeatureMatchStatsEntity> rows) {
 		final String METHOD_NAME = "saveMatch";
 		String season = resolveSeason(country, league);
 		String fillChar = "シーズン: " + season + ", 国: " + country + ", リーグ: " + league
 				+ ", ホーム: " + homeTeamName + ", アウェー: " + awayTeamName;
 
 		// 今回の行（キー重複は後勝ち）
-		Map<String, CalcCorrelationMatchStatsEntity> current = new LinkedHashMap<>();
+		Map<String, ScoreBasedFeatureMatchStatsEntity> current = new LinkedHashMap<>();
 		if (rows != null) {
-			for (CalcCorrelationMatchStatsEntity r : rows) {
+			for (ScoreBasedFeatureMatchStatsEntity r : rows) {
 				if (r == null || r.getChkBody() == null || r.getFeature() == null) {
 					continue;
 				}
@@ -133,10 +133,10 @@ public class CalcCorrelationWriter {
 
 		// 既存行の seq
 		Map<String, String> existingSeq = new HashMap<>();
-		List<CalcCorrelationMatchStatsEntity> existing = this.calcCorrelationMatchStatsRepository
+		List<ScoreBasedFeatureMatchStatsEntity> existing = this.scoreBasedFeatureMatchStatsRepository
 				.findSeqByMatchKey(season, country, league, homeTeamName, awayTeamName);
 		if (existing != null) {
-			for (CalcCorrelationMatchStatsEntity e : existing) {
+			for (ScoreBasedFeatureMatchStatsEntity e : existing) {
 				if (e != null && e.getSeq() != null) {
 					existingSeq.put(key(e.getChkBody(), e.getFeature()), e.getSeq());
 				}
@@ -153,9 +153,9 @@ public class CalcCorrelationWriter {
 		List<String> newSeqs = this.seqNumberingService.nextSeqBlock(TABLE_NAME, season, newCount);
 		int newIdx = 0;
 
-		List<CalcCorrelationMatchStatsEntity> toSave = new ArrayList<>(current.size());
-		for (Map.Entry<String, CalcCorrelationMatchStatsEntity> e : current.entrySet()) {
-			CalcCorrelationMatchStatsEntity r = e.getValue();
+		List<ScoreBasedFeatureMatchStatsEntity> toSave = new ArrayList<>(current.size());
+		for (Map.Entry<String, ScoreBasedFeatureMatchStatsEntity> e : current.entrySet()) {
+			ScoreBasedFeatureMatchStatsEntity r = e.getValue();
 			String seq = existingSeq.get(e.getKey());
 			if (seq == null) {
 				seq = newSeqs.get(newIdx++);
@@ -172,8 +172,8 @@ public class CalcCorrelationWriter {
 		// まとめて UPSERT
 		int saved = 0;
 		for (int from = 0; from < toSave.size(); from += BATCH_SIZE) {
-			List<CalcCorrelationMatchStatsEntity> part = toSave.subList(from, Math.min(from + BATCH_SIZE, toSave.size()));
-			int result = this.calcCorrelationMatchStatsRepository.upsertBatch(part);
+			List<ScoreBasedFeatureMatchStatsEntity> part = toSave.subList(from, Math.min(from + BATCH_SIZE, toSave.size()));
+			int result = this.scoreBasedFeatureMatchStatsRepository.upsertBatch(part);
 			if (result != part.size()) {
 				this.rootCauseWrapper.throwUnexpectedRowCount(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
@@ -192,7 +192,7 @@ public class CalcCorrelationWriter {
 		}
 		int deleted = 0;
 		for (int from = 0; from < stale.size(); from += BATCH_SIZE) {
-			deleted += this.calcCorrelationMatchStatsRepository
+			deleted += this.scoreBasedFeatureMatchStatsRepository
 					.deleteBySeqs(stale.subList(from, Math.min(from + BATCH_SIZE, stale.size())));
 		}
 

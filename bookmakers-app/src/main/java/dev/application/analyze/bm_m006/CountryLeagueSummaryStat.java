@@ -14,10 +14,10 @@ import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
-import dev.common.util.ExecuteMainUtil;
+import dev.common.util.CountryLeagueParser;
 
 /**
- * BM_M006統計分析ロジック（手動データ投入の場合は適用対象外）
+ * BM_M006統計分析ロジック
  *
  * <h2>何を導出するクラスか</h2>
  * <p>
@@ -28,7 +28,7 @@ import dev.common.util.ExecuteMainUtil;
  *
  * <h2>処理の流れ</h2>
  * <ol>
- *   <li>入力の「国,リーグ」キーを {@link ExecuteMainUtil#splitLeagueInfo} で国・リーグに分ける。</li>
+ *   <li>入力のキー（"国: リーグ - ラウンドN"）を {@link CountryLeagueParser} で国・リーグに分ける（形式が違うキーは無視）。</li>
  *   <li>国,リーグごとに試合数（空の試合は除く）を合計する。</li>
  *   <li>{@link CountryLeagueSummaryWriter#addCountsAll} で全リーグ分を1トランザクションで加算保存する
  *       （シーズン・seq は Writer で設定）。</li>
@@ -130,7 +130,7 @@ public class CountryLeagueSummaryStat implements AnalyzeEntityIF {
 		if (countryLeague == null || countryLeague.isBlank()) {
 			return null;
 		}
-		String[] sp = ExecuteMainUtil.splitLeagueInfo(countryLeague);
+		String[] sp = CountryLeagueParser.parse(countryLeague);
 		if (sp == null || sp.length < 2 || sp[0] == null || sp[1] == null) {
 			return null;
 		}
