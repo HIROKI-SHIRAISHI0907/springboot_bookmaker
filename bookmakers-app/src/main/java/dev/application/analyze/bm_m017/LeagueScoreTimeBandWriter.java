@@ -9,8 +9,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.application.analyze.common.error.AnalyzeErrorInfo;
+import dev.application.analyze.common.service.AbstractSeasonResolvingWriter;
 import dev.application.analyze.common.service.SeqNumberingService;
-import dev.application.analyze.interf.SeasonResolverIF;
 import dev.application.domain.repository.bm.LeagueScoreGoalEventRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.exception.wrap.RootCauseWrapper;
@@ -24,7 +25,7 @@ import dev.common.logger.ManageLoggerComponent;
  * {@link LeagueScoreTimeBandStat} が作った1試合分のゴール（0件もあり）を、シーズンと seq を設定して保存する。
  * </p>
  * <ol>
- *   <li>シーズンを決める（取得できなければ何も保存せずに {@link SeasonNotResolvedException}）。</li>
+ *   <li>シーズンを決める（取得できなければ何も保存せずに SeasonNotResolvedException）。</li>
  *   <li>試合の既存行の seq を引き、同じ「何点目」の行はその seq を使い回す。新しいゴールの行だけ採番する。</li>
  *   <li>ゴールを UPSERT する。</li>
  *   <li>今回のゴール数より後ろ（goal_no が大きい）の既存行を削除する（ゴール取り消しで点数が減った場合）。</li>
@@ -36,9 +37,9 @@ import dev.common.logger.ManageLoggerComponent;
  *
  * <h2>シーズン・seq</h2>
  * <ul>
- *   <li>シーズンは他の Writer と同じく {@link SeasonResolverIF}（country_league_season_master.season_year）から取得する。
+ *   <li>シーズンは他の Writer と同じく SeasonResolverIF（country_league_season_master.season_year）から取得する。
  *       1回の集計処理の間は国,リーグごとにスレッド単位でキャッシュする（取得不可も含む）。
- *       呼び出し側は集計の開始時と終了時（finally）に {@link #clearSeasonCache()} を呼ぶこと。</li>
+ *       呼び出し側は集計の開始時と終了時（finally）に clearSeasonCache() を呼ぶこと。</li>
  *   <li>seq は「&lt;シーズン&gt;-&lt;6桁枝番&gt;」を {@link SeqNumberingService}（seq_counter）で採番する。</li>
  * </ul>
  *
@@ -46,6 +47,12 @@ import dev.common.logger.ManageLoggerComponent;
  * <p>
  * 1試合＝1トランザクション（REQUIRES_NEW）。途中で失敗するとその試合の変更と採番はすべてロールバックされる。
  * 1試合のゴールは数行なのでトランザクションは短い。
+ * </p>
+ *
+ * <h2>シーズンが取得できない試合</h2>
+ * <p>
+ * 【変更】シーズンの取得は共通の親クラス AbstractSeasonResolvingWriter で行う。取得できない試合は analyze_error_match に
+ * 記録してから SeasonNotResolvedException を投げる（何も保存しない）。Stat はこの例外を捕まえてその試合だけスキップする。
  * </p>
  *
  * <h2>懸念点・エラーが起こりそうな箇所</h2>
@@ -57,7 +64,7 @@ import dev.common.logger.ManageLoggerComponent;
  * </ul>
  */
 @Service
-public class LeagueScoreTimeBandWriter {
+public class LeagueScoreTimeBandWriter extends AbstractSeasonResolvingWriter {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = LeagueScoreTimeBandWriter.class.getProtectionDomain()
@@ -72,25 +79,12 @@ public class LeagueScoreTimeBandWriter {
 	/** 採番単位のテーブル名 */
 	private static final String TABLE_NAME = "league_score_goal_event";
 
-	/** シーズン取得不可を表すキャッシュ値 */
-	private static final String NOT_RESOLVED = "";
-
-	/** 1回の集計処理中のシーズンキャッシュ（国 + リーグ → シーズン。取得不可は NOT_RESOLVED） */
-	private static final ThreadLocal<Map<String, String>> SEASON_CACHE = ThreadLocal.withInitial(HashMap::new);
-
 	@Autowired
 	private LeagueScoreGoalEventRepository leagueScoreGoalEventRepository;
 
 	/** seq 採番（seq_counter） */
 	@Autowired
 	private SeqNumberingService seqNumberingService;
-
-	/**
-	 * シーズン取得（実装: CountryLeagueSeasonResolver）。
-	 * 実装が無い場合もアプリが起動できるよう required = false。保存時に実装が無ければ例外。
-	 */
-	@Autowired(required = false)
-	private SeasonResolverIF seasonResolver;
 
 	@Autowired
 	private RootCauseWrapper rootCauseWrapper;
@@ -99,10 +93,11 @@ public class LeagueScoreTimeBandWriter {
 	private ManageLoggerComponent manageLoggerComponent;
 
 	/**
-	 * シーズンのキャッシュを破棄する。集計の開始時と終了時（finally）に呼ぶこと。
+	 * {@inheritDoc}
 	 */
-	public void clearSeasonCache() {
-		SEASON_CACHE.remove();
+	@Override
+	protected String getBmNumber() {
+		return BM_NUMBER;
 	}
 
 	/**
@@ -119,7 +114,8 @@ public class LeagueScoreTimeBandWriter {
 			throw new IllegalArgumentException(BM_NUMBER + " match is null.");
 		}
 
-		String season = resolveSeason(match);
+		String season = resolveSeason(match.getCountry(), match.getLeague(),
+				AnalyzeErrorInfo.match(null, match.getHomeTeamName(), match.getAwayTeamName()));
 
 		// 既存行の seq（何点目 → seq）
 		Map<Integer, String> existingSeq = new HashMap<>();
@@ -185,43 +181,6 @@ public class LeagueScoreTimeBandWriter {
 	}
 
 	/**
-	 * 国,リーグのシーズンを取得する（1回の集計処理の中ではキャッシュを使う）。
-	 *
-	 * @throws SeasonNotResolvedException 取得できない場合
-	 */
-	private String resolveSeason(MatchKey match) {
-		final String METHOD_NAME = "resolveSeason";
-		if (this.seasonResolver == null) {
-			throw new SeasonNotResolvedException(
-					"SeasonResolverIF の実装がありません（CountryLeagueSeasonResolver が Bean 登録されていない）: " + match);
-		}
-
-		String cacheKey = match.getCountry() + "\u0000" + match.getLeague();
-		Map<String, String> cache = SEASON_CACHE.get();
-		String season = cache.get(cacheKey);
-		if (season == null) {
-			season = NOT_RESOLVED;
-			try {
-				String s = this.seasonResolver.resolveSeason(match.getCountry(), match.getLeague());
-				if (s != null && !s.isBlank()) {
-					season = s.trim();
-				}
-			} catch (RuntimeException e) {
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG, e,
-						"country=" + match.getCountry() + ", league=" + match.getLeague());
-			}
-			cache.put(cacheKey, season);
-		}
-
-		if (NOT_RESOLVED.equals(season)) {
-			throw new SeasonNotResolvedException(
-					"シーズンを取得できません: country=" + match.getCountry() + ", league=" + match.getLeague());
-		}
-		return season;
-	}
-
-	/**
 	 * 試合キー（国・リーグ・ホーム・アウェー）。record は使わない。
 	 */
 	public static final class MatchKey {
@@ -269,16 +228,4 @@ public class LeagueScoreTimeBandWriter {
 		}
 	}
 
-	/**
-	 * シーズンが取得できないことを表す例外。
-	 * DB 書き込みの前に投げるため、この例外で終わった試合は何も保存されていない。
-	 */
-	public static class SeasonNotResolvedException extends RuntimeException {
-
-		private static final long serialVersionUID = 1L;
-
-		public SeasonNotResolvedException(String message) {
-			super(message);
-		}
-	}
 }

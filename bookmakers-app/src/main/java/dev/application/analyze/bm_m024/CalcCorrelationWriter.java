@@ -11,8 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.application.analyze.common.error.AnalyzeErrorInfo;
+import dev.application.analyze.common.service.AbstractSeasonResolvingWriter;
 import dev.application.analyze.common.service.SeqNumberingService;
-import dev.application.analyze.interf.SeasonResolverIF;
 import dev.application.domain.repository.bm.CalcCorrelationMatchStatsRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.exception.wrap.RootCauseWrapper;
@@ -27,7 +28,7 @@ import dev.common.logger.ManageLoggerComponent;
  * 試合単位で「最新の計算結果に置き換える」。
  * </p>
  * <ol>
- *   <li>シーズンを決める（取得できなければ何も保存せずに {@link SeasonNotResolvedException}）。</li>
+ *   <li>シーズンを決める（取得できなければ何も保存せずに SeasonNotResolvedException）。</li>
  *   <li>試合の既存行の seq を引き、同じ（区分, 特徴量）の行はその seq を使い回す。新しい行の分だけまとめて採番する
  *       （{@link SeqNumberingService#nextSeqBlock}。seq_counter の更新は1回）。</li>
  *   <li>200 行ずつまとめて UPSERT する。</li>
@@ -43,6 +44,12 @@ import dev.common.logger.ManageLoggerComponent;
  * 1試合＝1トランザクション（REQUIRES_NEW）。途中で失敗するとその試合の変更と採番はすべてロールバックされる。
  * </p>
  *
+ * <h2>シーズンが取得できない試合</h2>
+ * <p>
+ * 【変更】シーズンの取得は共通の親クラス AbstractSeasonResolvingWriter で行う。取得できない試合は analyze_error_match に
+ * 記録してから SeasonNotResolvedException を投げる（何も保存しない）。Stat はこの例外を捕まえてその試合だけスキップする。
+ * </p>
+ *
  * <h2>懸念点・エラーが起こりそうな箇所</h2>
  * <ul>
  *   <li><b>採番の待ち</b>: 同じシーズンの採番は seq_counter の同じ行を更新するため、新規行を含む試合の保存は1試合ずつ順番になる。</li>
@@ -51,7 +58,7 @@ import dev.common.logger.ManageLoggerComponent;
  * </ul>
  */
 @Service
-public class CalcCorrelationWriter {
+public class CalcCorrelationWriter extends AbstractSeasonResolvingWriter {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = CalcCorrelationWriter.class.getProtectionDomain()
@@ -69,25 +76,12 @@ public class CalcCorrelationWriter {
 	/** 1回の UPSERT の行数 */
 	private static final int BATCH_SIZE = 200;
 
-	/** シーズン取得不可を表すキャッシュ値 */
-	private static final String NOT_RESOLVED = "";
-
-	/** 1回の集計処理中のシーズンキャッシュ（国 + リーグ → シーズン。取得不可は NOT_RESOLVED） */
-	private static final ThreadLocal<Map<String, String>> SEASON_CACHE = ThreadLocal.withInitial(HashMap::new);
-
 	@Autowired
 	private CalcCorrelationMatchStatsRepository calcCorrelationMatchStatsRepository;
 
 	/** seq 採番（seq_counter） */
 	@Autowired
 	private SeqNumberingService seqNumberingService;
-
-	/**
-	 * シーズン取得（実装: CountryLeagueSeasonResolver）。
-	 * 実装が無い場合もアプリが起動できるよう required = false。保存時に実装が無ければ例外。
-	 */
-	@Autowired(required = false)
-	private SeasonResolverIF seasonResolver;
 
 	@Autowired
 	private RootCauseWrapper rootCauseWrapper;
@@ -96,10 +90,11 @@ public class CalcCorrelationWriter {
 	private ManageLoggerComponent manageLoggerComponent;
 
 	/**
-	 * シーズンのキャッシュを破棄する。集計の開始時と終了時（finally）に呼ぶこと。
+	 * {@inheritDoc}
 	 */
-	public void clearSeasonCache() {
-		SEASON_CACHE.remove();
+	@Override
+	protected String getBmNumber() {
+		return BM_NUMBER;
 	}
 
 	/**
@@ -116,7 +111,8 @@ public class CalcCorrelationWriter {
 	public void saveMatch(String country, String league, String homeTeamName, String awayTeamName,
 			List<CalcCorrelationMatchStatsEntity> rows) {
 		final String METHOD_NAME = "saveMatch";
-		String season = resolveSeason(country, league);
+		String season = resolveSeason(country, league, AnalyzeErrorInfo.match(null, homeTeamName, awayTeamName)
+				.matchId(rows == null || rows.isEmpty() || rows.get(0) == null ? null : rows.get(0).getMatchId()));
 		String fillChar = "シーズン: " + season + ", 国: " + country + ", リーグ: " + league
 				+ ", ホーム: " + homeTeamName + ", アウェー: " + awayTeamName;
 
@@ -207,51 +203,4 @@ public class CalcCorrelationWriter {
 		return chkBody + "\u0000" + feature;
 	}
 
-	/**
-	 * 国,リーグのシーズンを取得する（1回の集計処理の中ではキャッシュを使う）。
-	 *
-	 * @throws SeasonNotResolvedException 取得できない場合
-	 */
-	private String resolveSeason(String country, String league) {
-		final String METHOD_NAME = "resolveSeason";
-		if (this.seasonResolver == null) {
-			throw new SeasonNotResolvedException(
-					"SeasonResolverIF の実装がありません（CountryLeagueSeasonResolver が Bean 登録されていない）: "
-							+ country + ", " + league);
-		}
-		String cacheKey = country + "\u0000" + league;
-		Map<String, String> cache = SEASON_CACHE.get();
-		String season = cache.get(cacheKey);
-		if (season == null) {
-			season = NOT_RESOLVED;
-			try {
-				String s = this.seasonResolver.resolveSeason(country, league);
-				if (s != null && !s.isBlank()) {
-					season = s.trim();
-				}
-			} catch (RuntimeException e) {
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG, e,
-						"country=" + country + ", league=" + league);
-			}
-			cache.put(cacheKey, season);
-		}
-		if (NOT_RESOLVED.equals(season)) {
-			throw new SeasonNotResolvedException("シーズンを取得できません: country=" + country + ", league=" + league);
-		}
-		return season;
-	}
-
-	/**
-	 * シーズンが取得できないことを表す例外。
-	 * DB 書き込みの前に投げるため、この例外で終わった試合は何も保存されていない。
-	 */
-	public static class SeasonNotResolvedException extends RuntimeException {
-
-		private static final long serialVersionUID = 1L;
-
-		public SeasonNotResolvedException(String message) {
-			super(message);
-		}
-	}
 }

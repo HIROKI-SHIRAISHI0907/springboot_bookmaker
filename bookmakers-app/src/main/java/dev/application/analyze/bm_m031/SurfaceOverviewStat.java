@@ -36,6 +36,7 @@ import dev.common.util.RecordTimeConverter;
  *   <li>surface_overview_season: シーズン × チームの最新の状態。</li>
  *   <li>surface_overview_match_state: 試合ごとの、その試合終了時点の状態。</li>
  *   <li>surface_overview_standing: ラウンド N 終了時点の順位（旧 BM_M028 の置き換え候補）。</li>
+ *   <li>surface_overview_process: 直前ラウンドからの差分（旧 BM_M032）。</li>
  * </ul>
  *
  * <h2>欠けデータを後から入れた場合</h2>
@@ -56,6 +57,8 @@ import dev.common.util.RecordTimeConverter;
  *   <li>先制: 0-0 から最初に変わったスコアで判定（最初の行が既に 1-0 でも判定できる）。同時に両方が変わった場合は不明（U）。</li>
  *   <li>リード/ビハインド・1-0/2-0/0-1/0-2 になったか: 各行のスコアから（チーム視点）。試合終了の行しか無い試合は flowKnown = false。</li>
  *   <li>ラウンド番号: キーの「ラウンド N」。年月: 試合終了行の記録時間。</li>
+ *   <li>サイト表示の順位（teamRank）: 試合終了行の順位（旧 BM_M033 順位履歴の元データ）。
+ *       ラウンドごとの順位はビュー surface_overview_standing（site_rank / 計算した rank_no / display_rank）。</li>
  * </ul>
  *
  * <h2>修正履歴（旧実装からの変更）</h2>
@@ -69,7 +72,7 @@ import dev.common.util.RecordTimeConverter;
  *   <li>チーム名は試合データから取る（旧はキー "home-away" を "-" で分割しており、名前に "-" を含むチームで壊れた）。</li>
  *   <li>「国: リーグ - ラウンドN」形式以外のキーは無視。シーズン・seq（seq_counter 採番）に対応（Writer）。</li>
  *   <li>BM_M028（過去順位）・BM_M032（差分 process）の呼び出しをやめた。順位はビュー surface_overview_standing、
- *       1試合ごとの変化は明細そのもの。</li>
+ *       直前ラウンドとの差分はビュー surface_overview_process（旧 BM_M032。1試合の明細がそのまま差分）。</li>
  * </ul>
  *
  * <h2>懸念点・エラーが起こりそうな箇所</h2>
@@ -103,6 +106,9 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 
 	/** キーのラウンド番号（"… - ラウンド 5" の 5） */
 	private static final Pattern ROUND_PATTERN = Pattern.compile("(?:ラウンド|Round)\\s*(\\d+)");
+
+	/** 順位（"1"・"1."・"1位"・"1.0"） */
+	private static final Pattern RANK_PATTERN = Pattern.compile("(\\d+)(?:\\.0*)?\\s*(?:位)?\\.?");
 
 	/** 総ラウンド数（序盤/中盤/終盤） */
 	@Autowired
@@ -177,8 +183,8 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 						continue;
 					}
 					List<SurfaceOverviewMatchEntity> rows = new ArrayList<>(2);
-					rows.add(toEntity(o, true, country, league, roundNo));
-					rows.add(toEntity(o, false, country, league, roundNo));
+					rows.add(toEntity(o, true, country, league, roundNo, outer.getKey()));
+					rows.add(toEntity(o, false, country, league, roundNo, outer.getKey()));
 					try {
 						this.surfaceOverviewWriter.saveMatch(country, league, rows);
 						savedCount++;
@@ -240,6 +246,8 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		o.home = home;
 		o.away = away;
 		o.matchId = trimOrNull(fin.getMatchId());
+		o.homeRank = parseRank(fin.getHomeRank());
+		o.awayRank = parseRank(fin.getAwayRank());
 		o.homeScore = h;
 		o.awayScore = a;
 		o.matchTime = RecordTimeConverter.toTimestamp(fin.getRecordTime());
@@ -250,6 +258,8 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 			Integer ph = parseScore(lastPk.getHomeScore());
 			Integer pa = parseScore(lastPk.getAwayScore());
 			o.pk = true;
+			o.pkHome = ph;
+			o.pkAway = pa;
 			if (ph != null && pa != null && ph.intValue() != pa.intValue()) {
 				o.pkHomeWin = ph > pa;
 				o.pkDecided = true;
@@ -287,6 +297,7 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		}
 		o.states = states;
 		o.flowKnown = regular.size() >= 2;
+		o.snapshotCount = rows.size();
 		return o;
 	}
 
@@ -294,7 +305,7 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	 * チーム視点の明細を作る（season・seq・phase は Writer で設定）。
 	 */
 	SurfaceOverviewMatchEntity toEntity(MatchOutcome o, boolean homeSide, String country, String league,
-			Integer roundNo) {
+			Integer roundNo, String dataCategory) {
 		SurfaceOverviewMatchEntity e = new SurfaceOverviewMatchEntity();
 		int gf = homeSide ? o.homeScore : o.awayScore;
 		int ga = homeSide ? o.awayScore : o.homeScore;
@@ -303,7 +314,14 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		e.setOpponent(homeSide ? o.away : o.home);
 		e.setHa(homeSide ? "H" : "A");
 		e.setMatchId(o.matchId);
+		e.setTeamRank(homeSide ? o.homeRank : o.awayRank);
 		e.setRoundNo(roundNo);
+		e.setDataCategory(dataCategory);
+		e.setSnapshotCount(o.snapshotCount);
+		if (o.pk) {
+			e.setPkGoalsFor(homeSide ? o.pkHome : o.pkAway);
+			e.setPkGoalsAgainst(homeSide ? o.pkAway : o.pkHome);
+		}
 		e.setMatchTime(o.matchTime);
 		if (o.matchTime != null) {
 			LocalDateTime ldt = o.matchTime.toLocalDateTime();
@@ -440,6 +458,25 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		}
 	}
 
+	/** 順位を整数に変換（"1"・"1."・"1位"・"1.0" など。読めない・0 以下は null） */
+	static Integer parseRank(String value) {
+		String s = trimOrNull(value);
+		if (s == null) {
+			return null;
+		}
+		s = java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFKC);
+		Matcher m = RANK_PATTERN.matcher(s);
+		if (!m.matches()) {
+			return null;
+		}
+		try {
+			int v = Integer.parseInt(m.group(1));
+			return v > 0 ? v : null;
+		} catch (NumberFormatException e) {
+			return null;
+		}
+	}
+
 	/** スコアを整数に変換（空・数値以外・負は null） */
 	static Integer parseScore(String value) {
 		String s = trimOrNull(value);
@@ -491,6 +528,11 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 		boolean pk;
 		boolean pkDecided;
 		boolean pkHomeWin;
+		Integer pkHome;
+		Integer pkAway;
+		int snapshotCount;
+		Integer homeRank;
+		Integer awayRank;
 		Integer htHome;
 		Integer htAway;
 		List<int[]> states = new ArrayList<>();

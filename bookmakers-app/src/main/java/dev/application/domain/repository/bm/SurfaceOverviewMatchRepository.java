@@ -60,7 +60,7 @@ public interface SurfaceOverviewMatchRepository {
 			"pk_flg, points, goals_for, goals_against, goals_for_1st, ",
 			"goals_for_2nd, goals_against_1st, goals_against_2nd, first_goal, flow_known, ",
 			"ever_led, ever_trailed, led_1_0, led_2_0, trailed_0_1, ",
-			"trailed_0_2, ",
+			"trailed_0_2, data_category, snapshot_count, pk_goals_for, pk_goals_against, team_rank, ",
 			"register_id, register_time, update_id, update_time",
 			") VALUES (",
 			"#{seq}, #{season}, #{country}, #{league}, #{team}, ",
@@ -69,7 +69,7 @@ public interface SurfaceOverviewMatchRepository {
 			"#{pkFlg}, #{points}, #{goalsFor}, #{goalsAgainst}, #{goalsFor1st}, ",
 			"#{goalsFor2nd}, #{goalsAgainst1st}, #{goalsAgainst2nd}, #{firstGoal}, #{flowKnown}, ",
 			"#{everLed}, #{everTrailed}, #{led10}, #{led20}, #{trailed01}, ",
-			"#{trailed02}, ",
+			"#{trailed02}, #{dataCategory}, #{snapshotCount}, #{pkGoalsFor}, #{pkGoalsAgainst}, #{teamRank}, ",
 			"COALESCE(#{registerId}, 'SYSTEM'), COALESCE(CAST(#{registerTime} AS timestamptz), NOW()), ",
 			"COALESCE(#{updateId}, 'SYSTEM'), COALESCE(CAST(#{updateTime} AS timestamptz), NOW())",
 			") ON CONFLICT (season, country, league, team, opponent, ha) DO UPDATE SET ",
@@ -82,6 +82,8 @@ public interface SurfaceOverviewMatchRepository {
 			"goals_against_2nd = EXCLUDED.goals_against_2nd, first_goal = EXCLUDED.first_goal, flow_known = EXCLUDED.flow_known, ",
 			"ever_led = EXCLUDED.ever_led, ever_trailed = EXCLUDED.ever_trailed, led_1_0 = EXCLUDED.led_1_0, ",
 			"led_2_0 = EXCLUDED.led_2_0, trailed_0_1 = EXCLUDED.trailed_0_1, trailed_0_2 = EXCLUDED.trailed_0_2, ",
+			"data_category = EXCLUDED.data_category, snapshot_count = EXCLUDED.snapshot_count, ",
+			"pk_goals_for = EXCLUDED.pk_goals_for, pk_goals_against = EXCLUDED.pk_goals_against, team_rank = EXCLUDED.team_rank, ",
 			"update_id = EXCLUDED.update_id, update_time = EXCLUDED.update_time"
 	})
 	int upsert(SurfaceOverviewMatchEntity entity);

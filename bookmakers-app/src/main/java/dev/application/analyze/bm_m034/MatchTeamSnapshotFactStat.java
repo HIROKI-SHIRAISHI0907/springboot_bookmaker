@@ -1,539 +1,489 @@
 package dev.application.analyze.bm_m034;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
-import java.time.OffsetDateTime;
-import java.time.format.DateTimeFormatter;
+import java.math.RoundingMode;
+import java.sql.Timestamp;
 import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.List;
 import java.util.Map;
+import java.util.function.BiConsumer;
+import java.util.function.Function;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
+import org.springframework.transaction.annotation.Propagation;
+import org.springframework.transaction.annotation.Transactional;
 
-import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
+import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
+import dev.common.util.CountryLeagueParser;
 import dev.common.util.ExecuteMainUtil;
+import dev.common.util.RecordTimeConverter;
 
 /**
- * <p>BM_M034 試合中スナップショットFact作成ロジックです。</p>
+ * BM_M034 試合中スナップショット（match_team_snapshot_fact）作成ロジック。
  *
- * <ul>
- *   <li>入力: 国×リーグ×カード単位の {@link BookDataEntity} 群</li>
- *   <li>処理: 各時系列行をホーム側・アウェー側の2レコードへ展開し、
- *       {@link MatchTeamSnapshotFactEntity} を生成</li>
- *   <li>出力: {@link MatchTeamSnapshotFactWriter} を介して登録</li>
- * </ul>
- *
- * <h3>設計方針</h3>
+ * <h2>何を導出するクラスか</h2>
  * <p>
- * 1つの {@link BookDataEntity} は「1試合・1時点」の両チーム累積情報を持っています。
- * 本ロジックではこれを、
+ * 試合の各時点のデータ（{@link BookDataEntity} 1行 = 1試合・1時点の両チーム累計）を、
+ * ホーム視点・アウェー視点の2行（{@link MatchTeamSnapshotFactEntity}）に分けて保存する。
+ * リアルタイム予測・モメンタム分析・得点確率分析の元データ。
  * </p>
  * <ul>
- *   <li>ホームチーム視点のスナップショット</li>
- *   <li>アウェーチーム視点のスナップショット</li>
+ *   <li>試合中のデータも届いた時点ですぐ保存する（試合終了を待たない）。</li>
+ *   <li>(data_seq, ha) で UPSERT するので、試合中に毎回全時点が届いても重複しない（既存の時点は上書き、新しい時点だけ追加）。</li>
+ *   <li>直前の時点との差分はビュー match_team_snapshot_diff、試合ごとの最新の差分は match_team_snapshot_latest（旧 BM_M029）。</li>
  * </ul>
- * <p>
- * に分解して保存します。
- * </p>
  *
- * <h3>補足</h3>
- * <p>
- * 現時点では team master 未連携のため、{@code teamId} には暫定的にチーム名を設定します。
- * 将来的にチームマスタが整備されたら、ID解決処理へ差し替えてください。
- * </p>
+ * <h2>1行の作り方</h2>
+ * <ul>
+ *   <li>対象外の行: 取得エラー行（GET_UNEXPECTED_ERROR）・PK 戦の行・通番が数値でない行。</li>
+ *   <li>時点の並び順: 元データの通番（dataSeq）。</li>
+ *   <li>試合時間（分）: 読める表記（FIN・ハーフタイム・"mm:ss"・"45+2'"・"23'"）だけ変換。読めなければ null（旧実装は 0 秒にしていた）。</li>
+ *   <li>前半/後半: 最初のハーフタイム行の通番以前が前半、より後が後半。ハーフタイム行がまだ無ければ null
+ *       （試合中に再送されたときに、ハーフタイム行が届いていれば上書きで埋まる）。</li>
+ *   <li>パス・ロングパス・ファイナルサードパス・クロス・タックル（"38% (210/300)"）: 成功数・試行数・成功率に分ける。</li>
+ *   <li>ポゼッション・成功率は %（0〜100。他テーブルと同じ単位）。</li>
+ * </ul>
+ *
+ * <h2>修正履歴（旧実装からの変更）</h2>
+ * <ul>
+ *   <li>INSERT のみ（再送のたびに全時点が重複）→ (data_seq, ha) で UPSERT。1行ごとのトランザクション → 1試合1トランザクション＋まとめて UPSERT。</li>
+ *   <li>パス系が "38% (210/300)" を整数に変換できず全部 null だった → 成功数・試行数・成功率。</li>
+ *   <li>期待値（xG）・枠内ゴール期待値・ボックス内外シュート・ポスト・ヘディング・セーブ・FK・オフサイド・ファウル・スローインを追加。</li>
+ *   <li>シーズン = 記録時間の年 → SeasonResolverIF（Writer）。seq_counter で採番。</li>
+ *   <li>timeSortSeconds（不要）と、それで決めていた dataQualityFlag を削除。note（filePath 等の文字列）も削除。</li>
+ *   <li>記録時間を固定フォーマットで読んでいた → RecordTimeConverter（UNIX 時刻・小数秒・オフセット付きも可。タイムゾーンを保持）。</li>
+ *   <li>「国: リーグ - ラウンドN」形式以外のキーは無視。teamId / leagueId（名前と同じ値）を削除。</li>
+ *   <li>BookMakersCommonConst の import を dev.common.constant に修正。</li>
+ * </ul>
+ *
+ * <h2>懸念点・エラーが起こりそうな箇所</h2>
+ * <ul>
+ *   <li><b>チーム名が試合途中で変わる</b>（表記ゆれ）と、同じ試合が別の試合として扱われる（差分ビューの区切りが変わる）。</li>
+ *   <li><b>元データの通番が振り直される</b>と、同じ時点が別の行として追加される。</li>
+ *   <li><b>データ量</b>が多い（Writer 参照）。</li>
+ * </ul>
  *
  * @author shiraishitoshio
- * @since 1.0
  */
 @Component
 public class MatchTeamSnapshotFactStat implements AnalyzeEntityIF {
 
-    /** プロジェクト名（ログ用） */
-    private static final String PROJECT_NAME = MatchTeamSnapshotFactStat.class
-            .getProtectionDomain().getCodeSource().getLocation().getPath();
+	/** プロジェクト名 */
+	private static final String PROJECT_NAME = MatchTeamSnapshotFactStat.class.getProtectionDomain()
+			.getCodeSource().getLocation().getPath();
 
-    /** クラス名（ログ用） */
-    private static final String CLASS_NAME = MatchTeamSnapshotFactStat.class.getName();
+	/** クラス名 */
+	private static final String CLASS_NAME = MatchTeamSnapshotFactStat.class.getName();
 
-    /** 実行モード（ログ用） */
-    private static final String EXEC_MODE = "BM_M034_MATCH_TEAM_SNAPSHOT_FACT";
+	/** 実行モード */
+	private static final String EXEC_MODE = "BM_M034_MATCH_TEAM_SNAPSHOT_FACT";
 
-    /** 記録時間の日時フォーマットです。例: 2026-02-28 05:08:51+00 */
-    private static final DateTimeFormatter RECORD_TIME_FORMATTER =
-            DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ssX");
+	/** BM_STAT_NUMBER */
+	private static final String BM_NUMBER = "BM_M034";
 
-    /** スナップショットFact永続化サービス */
-    @Autowired
-    private MatchTeamSnapshotFactWriter matchTeamSnapshotFactWriter;
+	/** キーのラウンド番号（"… - ラウンド 5" の 5） */
+	private static final Pattern ROUND_PATTERN = Pattern.compile("(?:ラウンド|Round)\\s*(\\d+)");
 
-    /** ログ管理コンポーネント */
-    @Autowired
-    private ManageLoggerComponent manageLoggerComponent;
+	/** 数値（最初に出てくるもの） */
+	private static final Pattern NUMBER_PATTERN = Pattern.compile("[-+]?\\d+(?:\\.\\d+)?");
 
-    /**
-     * {@inheritDoc}
-     *
-     * <p>
-     * 全ての国・リーグ・カードを走査し、
-     * {@link BookDataEntity} から {@link MatchTeamSnapshotFactEntity} を生成して登録します。
-     * </p>
-     *
-     * @param entities 国×リーグ単位にまとめられた試合データ
-     */
-    @Override
-    public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) {
-        final String METHOD_NAME = "calcStat";
-        manageLoggerComponent.init(EXEC_MODE, null);
-        manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	/** 成功数/試行数（"38% (210/300)" の 210/300、"210/300"） */
+	private static final Pattern FRACTION_PATTERN = Pattern.compile("(\\d+)\\s*/\\s*(\\d+)");
 
-        try {
-            for (Map.Entry<String, Map<String, List<BookDataEntity>>> entry : entities.entrySet()) {
-                String[] dataCategory = ExecuteMainUtil.splitLeagueInfo(entry.getKey());
-                String country = dataCategory != null && dataCategory.length > 0 ? dataCategory[0] : null;
-                String league  = dataCategory != null && dataCategory.length > 1 ? dataCategory[1] : null;
+	/** 成功率（"38% (210/300)" の 38） */
+	private static final Pattern PERCENT_PATTERN = Pattern.compile("(\\d+(?:\\.\\d+)?)\\s*%");
 
-                Map<String, List<BookDataEntity>> entrySub = entry.getValue();
-                for (List<BookDataEntity> entityList : entrySub.values()) {
-                    if (entityList == null || entityList.isEmpty()) {
-                        continue;
-                    }
+	/** 整数の累計項目 */
+	private static final List<Item<Integer>> INT_ITEMS = new ArrayList<>();
 
-                    decideBasedMain(entityList, country, league);
-                }
-            }
-        } finally {
-            manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-            manageLoggerComponent.clear();
-        }
-    }
+	/** 小数の項目（ポゼッション・期待値） */
+	private static final List<Item<BigDecimal>> DEC_ITEMS = new ArrayList<>();
 
-    /**
-     * 1カード分の時系列データを処理し、スナップショットFactを生成・登録します。
-     *
-     * @param entities 1試合分の時系列データ
-     * @param country 国
-     * @param league リーグ
-     */
-    private void decideBasedMain(List<BookDataEntity> entities, String country, String league) {
-        final String METHOD_NAME = "decideBasedMain";
+	/** 成功数/試行数の項目 */
+	private static final List<FractionItem> FRACTION_ITEMS = new ArrayList<>();
 
-        try {
-            if (entities == null || entities.isEmpty()) {
-                return;
-            }
+	static {
+		dec(BookDataEntity::getHomeBallPossesion, BookDataEntity::getAwayBallPossesion, MatchTeamSnapshotFactEntity::setPossession);
+		dec(BookDataEntity::getHomeExp, BookDataEntity::getAwayExp, MatchTeamSnapshotFactEntity::setExp);
+		dec(BookDataEntity::getHomeInGoalExp, BookDataEntity::getAwayInGoalExp, MatchTeamSnapshotFactEntity::setInGoalExp);
 
-            manageLoggerComponent.debugInfoLog(
-                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, entities.get(0).getFilePath());
+		cnt(BookDataEntity::getHomeShootAll, BookDataEntity::getAwayShootAll, MatchTeamSnapshotFactEntity::setShootAll);
+		cnt(BookDataEntity::getHomeShootIn, BookDataEntity::getAwayShootIn, MatchTeamSnapshotFactEntity::setShootIn);
+		cnt(BookDataEntity::getHomeShootOut, BookDataEntity::getAwayShootOut, MatchTeamSnapshotFactEntity::setShootOut);
+		cnt(BookDataEntity::getHomeShootBlocked, BookDataEntity::getAwayShootBlocked, MatchTeamSnapshotFactEntity::setBlockShoot);
+		cnt(BookDataEntity::getHomeBigChance, BookDataEntity::getAwayBigChance, MatchTeamSnapshotFactEntity::setBigChance);
+		cnt(BookDataEntity::getHomeCornerKick, BookDataEntity::getAwayCornerKick, MatchTeamSnapshotFactEntity::setCorner);
+		cnt(BookDataEntity::getHomeBoxShootIn, BookDataEntity::getAwayBoxShootIn, MatchTeamSnapshotFactEntity::setBoxShootIn);
+		cnt(BookDataEntity::getHomeBoxShootOut, BookDataEntity::getAwayBoxShootOut, MatchTeamSnapshotFactEntity::setBoxShootOut);
+		cnt(BookDataEntity::getHomeGoalPost, BookDataEntity::getAwayGoalPost, MatchTeamSnapshotFactEntity::setGoalPost);
+		cnt(BookDataEntity::getHomeGoalHead, BookDataEntity::getAwayGoalHead, MatchTeamSnapshotFactEntity::setGoalHead);
+		cnt(BookDataEntity::getHomeKeeperSave, BookDataEntity::getAwayKeeperSave, MatchTeamSnapshotFactEntity::setKeeperSave);
+		cnt(BookDataEntity::getHomeFreeKick, BookDataEntity::getAwayFreeKick, MatchTeamSnapshotFactEntity::setFreeKick);
+		cnt(BookDataEntity::getHomeOffSide, BookDataEntity::getAwayOffSide, MatchTeamSnapshotFactEntity::setOffside);
+		cnt(BookDataEntity::getHomeFoul, BookDataEntity::getAwayFoul, MatchTeamSnapshotFactEntity::setFoul);
+		cnt(BookDataEntity::getHomeYellowCard, BookDataEntity::getAwayYellowCard, MatchTeamSnapshotFactEntity::setYellowCard);
+		cnt(BookDataEntity::getHomeRedCard, BookDataEntity::getAwayRedCard, MatchTeamSnapshotFactEntity::setRedCard);
+		cnt(BookDataEntity::getHomeSlowIn, BookDataEntity::getAwaySlowIn, MatchTeamSnapshotFactEntity::setSlowIn);
+		cnt(BookDataEntity::getHomeBoxTouch, BookDataEntity::getAwayBoxTouch, MatchTeamSnapshotFactEntity::setBoxTouch);
+		cnt(BookDataEntity::getHomeClearCount, BookDataEntity::getAwayClearCount, MatchTeamSnapshotFactEntity::setClearCount);
+		cnt(BookDataEntity::getHomeDuelCount, BookDataEntity::getAwayDuelCount, MatchTeamSnapshotFactEntity::setDuelCount);
+		cnt(BookDataEntity::getHomeInterceptCount, BookDataEntity::getAwayInterceptCount, MatchTeamSnapshotFactEntity::setInterceptCount);
 
-            List<MatchTeamSnapshotFactEntity> insertList = new ArrayList<>();
-            basedEntities(insertList, entities, country, league);
+		FRACTION_ITEMS.add(new FractionItem(BookDataEntity::getHomePassCount, BookDataEntity::getAwayPassCount,
+				MatchTeamSnapshotFactEntity::setPassCountSuccess, MatchTeamSnapshotFactEntity::setPassCountTry,
+				MatchTeamSnapshotFactEntity::setPassCountRate));
+		FRACTION_ITEMS.add(new FractionItem(BookDataEntity::getHomeLongPassCount, BookDataEntity::getAwayLongPassCount,
+				MatchTeamSnapshotFactEntity::setLongPassCountSuccess, MatchTeamSnapshotFactEntity::setLongPassCountTry,
+				MatchTeamSnapshotFactEntity::setLongPassCountRate));
+		FRACTION_ITEMS.add(new FractionItem(BookDataEntity::getHomeFinalThirdPassCount, BookDataEntity::getAwayFinalThirdPassCount,
+				MatchTeamSnapshotFactEntity::setFinalThirdPassCountSuccess, MatchTeamSnapshotFactEntity::setFinalThirdPassCountTry,
+				MatchTeamSnapshotFactEntity::setFinalThirdPassCountRate));
+		FRACTION_ITEMS.add(new FractionItem(BookDataEntity::getHomeCrossCount, BookDataEntity::getAwayCrossCount,
+				MatchTeamSnapshotFactEntity::setCrossCountSuccess, MatchTeamSnapshotFactEntity::setCrossCountTry,
+				MatchTeamSnapshotFactEntity::setCrossCountRate));
+		FRACTION_ITEMS.add(new FractionItem(BookDataEntity::getHomeTackleCount, BookDataEntity::getAwayTackleCount,
+				MatchTeamSnapshotFactEntity::setTackleCountSuccess, MatchTeamSnapshotFactEntity::setTackleCountTry,
+				MatchTeamSnapshotFactEntity::setTackleCountRate));
+	}
 
-            for (MatchTeamSnapshotFactEntity entity : insertList) {
-                matchTeamSnapshotFactWriter.insert(entity);
-            }
-        } catch (Exception e) {
-            String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
-            manageLoggerComponent.debugErrorLog(
-                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e,
-                    "スナップショットFact作成中に例外が発生しました。");
-        }
-    }
+	/** 登録 */
+	@Autowired
+	private MatchTeamSnapshotFactWriter matchTeamSnapshotFactWriter;
 
-    /**
-     * 時系列エンティティ群からホーム側・アウェー側のスナップショットFactを生成し、
-     * 出力リストへ格納します。
-     *
-     * @param insertList 出力先リスト
-     * @param entities 時系列エンティティ一覧
-     * @param country 国
-     * @param league リーグ
-     */
-    private void basedEntities(List<MatchTeamSnapshotFactEntity> insertList,
-                               List<BookDataEntity> entities,
-                               String country,
-                               String league) {
-        final String METHOD_NAME = "basedEntities";
+	/** ログ管理 */
+	@Autowired
+	private ManageLoggerComponent manageLoggerComponent;
 
-        for (BookDataEntity book : entities) {
-            try {
-                MatchTeamSnapshotFactEntity homeEntity = createHomeEntity(book, country, league);
-                MatchTeamSnapshotFactEntity awayEntity = createAwayEntity(book, country, league);
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	@Transactional(propagation = Propagation.NOT_SUPPORTED)
+	public void calcStat(Map<String, Map<String, List<BookDataEntity>>> entities) {
+		final String METHOD_NAME = "calcStat";
+		this.manageLoggerComponent.init(EXEC_MODE, null);
+		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-                insertList.add(homeEntity);
-                insertList.add(awayEntity);
+		int matchCount = 0;
+		int savedMatchCount = 0;
+		long rowCount = 0;
+		int invalidCount = 0;
+		int seasonSkipCount = 0;
+		int errorCount = 0;
 
-            } catch (Exception e) {
-                String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
-                manageLoggerComponent.debugErrorLog(
-                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd, e,
-                        "スナップショット変換失敗. matchId=" + safe(book.getMatchId())
-                                + ", filePath=" + safe(book.getFilePath()));
-            }
-        }
-    }
+		// シーズンのキャッシュは Writer 側（スレッド単位）。前回の残りを使わないよう開始時にも破棄する
+		this.matchTeamSnapshotFactWriter.clearSeasonCache();
+		try {
+			if (entities == null || entities.isEmpty()) {
+				debugLog(METHOD_NAME, BM_NUMBER + " 入力データなし");
+				return;
+			}
+			for (Map.Entry<String, Map<String, List<BookDataEntity>>> outer : entities.entrySet()) {
+				Map<String, List<BookDataEntity>> matchMap = outer.getValue();
+				if (matchMap == null || matchMap.isEmpty()) {
+					continue;
+				}
+				// 「国: リーグ - ラウンドN」形式でないキーは無視
+				String[] cl = CountryLeagueParser.parse(outer.getKey());
+				if (cl == null) {
+					invalidCount += matchMap.size();
+					debugLog(METHOD_NAME, BM_NUMBER + " 対象外のキーのためスキップ: " + outer.getKey());
+					continue;
+				}
+				Integer roundNo = parseRound(outer.getKey());
 
-    /**
-     * ホームチーム視点のスナップショットFactを生成します。
-     *
-     * @param book 元データ
-     * @param country 国
-     * @param league リーグ
-     * @return ホームチーム視点のFact
-     */
-    private MatchTeamSnapshotFactEntity createHomeEntity(BookDataEntity book, String country, String league) {
-        MatchTeamSnapshotFactEntity entity = new MatchTeamSnapshotFactEntity();
+				for (Map.Entry<String, List<BookDataEntity>> match : matchMap.entrySet()) {
+					matchCount++;
+					List<MatchTeamSnapshotFactEntity> rows = buildRows(match.getValue(), roundNo);
+					if (rows.isEmpty()) {
+						invalidCount++;
+						continue;
+					}
+					try {
+						rowCount += this.matchTeamSnapshotFactWriter.saveMatch(cl[0], cl[1], rows);
+						savedMatchCount++;
+					} catch (MatchTeamSnapshotFactWriter.SeasonNotResolvedException e) {
+						// シーズン不明の国,リーグ: 何も保存されていないので、この試合だけスキップ
+						seasonSkipCount++;
+						debugLog(METHOD_NAME, BM_NUMBER + " シーズン取得不可のためスキップ: matchKey=" + match.getKey()
+								+ " (" + e.getMessage() + ")");
+					} catch (RuntimeException e) {
+						// 1試合の失敗で他の試合を止めない（この試合の変更はロールバック済み）
+						errorCount++;
+						this.manageLoggerComponent.debugErrorLog(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+								BM_NUMBER + " matchKey=" + match.getKey());
+					}
+				}
+			}
+		} finally {
+			this.matchTeamSnapshotFactWriter.clearSeasonCache();
+			debugLog(METHOD_NAME, BM_NUMBER + " matchCount=" + matchCount + ", savedMatchCount=" + savedMatchCount
+					+ ", rowCount=" + rowCount + ", invalidCount=" + invalidCount
+					+ ", seasonSkipCount=" + seasonSkipCount + ", errorCount=" + errorCount);
+			this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+			this.manageLoggerComponent.clear();
+		}
+	}
 
-        entity.setMatchId(trimToNull(book.getMatchId()));
-        entity.setSeason(resolveSeason(book));
-        entity.setCountry(trimToNull(country));
-        entity.setLeagueId(trimToNull(league));
-        entity.setLeagueName(trimToNull(league));
-        entity.setTeamId(resolveTeamId(book.getHomeTeamName()));
-        entity.setTeamName(trimToNull(book.getHomeTeamName()));
-        entity.setOpponentTeamId(null);
-        entity.setOpponentTeamName(trimToNull(book.getAwayTeamName()));
-        entity.setHomeFlg(Boolean.TRUE);
-        entity.setAsOfSeconds(resolveAsOfSeconds(book));
-        entity.setMatchTimeLabel(trimToNull(book.getTime()));
+	/**
+	 * 1試合分のデータから、時点 × 2行（ホーム視点・アウェー視点）を作る。
+	 */
+	static List<MatchTeamSnapshotFactEntity> buildRows(List<BookDataEntity> raw, Integer roundNo) {
+		List<MatchTeamSnapshotFactEntity> out = new ArrayList<>();
+		List<BookDataEntity> rows = sortUsableRows(raw);
+		if (rows.isEmpty()) {
+			return out;
+		}
 
-        entity.setTeamScore(parseInteger(book.getHomeScore()));
-        entity.setOpponentScore(parseInteger(book.getAwayScore()));
-        entity.setScoreDiff(calculateScoreDiff(book.getHomeScore(), book.getAwayScore()));
+		// 最初のハーフタイム行
+		Long htSeq = null;
+		for (BookDataEntity e : rows) {
+			String t = trimOrNull(e.getTime());
+			if (BookMakersCommonConst.HALF_TIME.equals(t) || BookMakersCommonConst.FIRST_HALF_TIME.equals(t)) {
+				htSeq = seqToLong(e.getSeq());
+				break;
+			}
+		}
 
-        entity.setPossessionRate(parseRate(book.getHomeBallPossesion()));
-        entity.setShotsCount(parseInteger(book.getHomeShootAll()));
-        entity.setShotsOnTargetCount(parseInteger(book.getHomeShootIn()));
-        entity.setShotsOffTargetCount(parseInteger(book.getHomeShootOut()));
-        entity.setBlockedShotsCount(parseInteger(book.getHomeShootBlocked()));
-        entity.setBigChancesCount(parseInteger(book.getHomeBigChance()));
-        entity.setCornersCount(parseInteger(book.getHomeCornerKick()));
-        entity.setBoxTouchesCount(parseInteger(book.getHomeBoxTouch()));
-        entity.setPassesCount(parseInteger(book.getHomePassCount()));
-        entity.setLongPassesCount(parseInteger(book.getHomeLongPassCount()));
-        entity.setFinalThirdPassesCount(parseInteger(book.getHomeFinalThirdPassCount()));
-        entity.setCrossesCount(parseInteger(book.getHomeCrossCount()));
-        entity.setTacklesCount(parseInteger(book.getHomeTackleCount()));
-        entity.setClearancesCount(parseInteger(book.getHomeClearCount()));
-        entity.setDuelsWonCount(parseInteger(book.getHomeDuelCount()));
-        entity.setInterceptionsCount(parseInteger(book.getHomeInterceptCount()));
-        entity.setYellowCardsCount(parseInteger(book.getHomeYellowCard()));
-        entity.setRedCardsCount(parseInteger(book.getHomeRedCard()));
+		for (BookDataEntity b : rows) {
+			String home = trimOrNull(b.getHomeTeamName());
+			String away = trimOrNull(b.getAwayTeamName());
+			if (home == null || away == null) {
+				continue;
+			}
+			long dataSeq = seqToLong(b.getSeq());
+			Integer half = htSeq == null ? null : (dataSeq <= htSeq ? 1 : 2);
+			out.add(toEntity(b, true, home, away, dataSeq, half, roundNo));
+			out.add(toEntity(b, false, away, home, dataSeq, half, roundNo));
+		}
+		return out;
+	}
 
-        entity.setSnapshotRecordedAt(parseLocalDateTime(book.getRecordTime()));
-        entity.setSourceCount(book.getFileCount());
-        entity.setDataQualityFlag(resolveDataQualityFlag(book));
-        entity.setNote(buildNote(book));
+	/**
+	 * 1時点・1チーム視点の行を作る（season・seq・country・league は Writer で設定）。
+	 */
+	static MatchTeamSnapshotFactEntity toEntity(BookDataEntity b, boolean homeSide, String team, String opponent,
+			long dataSeq, Integer half, Integer roundNo) {
+		MatchTeamSnapshotFactEntity e = new MatchTeamSnapshotFactEntity();
+		e.setMatchId(trimOrNull(b.getMatchId()));
+		e.setTeam(team);
+		e.setOpponent(opponent);
+		e.setHa(homeSide ? "H" : "A");
+		e.setDataSeq(dataSeq);
+		e.setRoundNo(roundNo);
+		e.setHalf(half);
+		String time = trimOrNull(b.getTime());
+		e.setMatchTimeLabel(time);
+		e.setMatchMinute(toMinutes(time));
+		e.setFinFlg(BookMakersCommonConst.FIN.equals(time));
+		Timestamp rt = RecordTimeConverter.toTimestamp(b.getRecordTime());
+		e.setRecordTime(rt);
 
-        return entity;
-    }
+		Integer hs = toInteger(parseNumber(b.getHomeScore()));
+		Integer as = toInteger(parseNumber(b.getAwayScore()));
+		Integer self = homeSide ? hs : as;
+		Integer opp = homeSide ? as : hs;
+		e.setTeamScore(self);
+		e.setOpponentScore(opp);
+		e.setScoreDiff(self == null || opp == null ? null : self - opp);
 
-    /**
-     * アウェーチーム視点のスナップショットFactを生成します。
-     *
-     * @param book 元データ
-     * @param country 国
-     * @param league リーグ
-     * @return アウェーチーム視点のFact
-     */
-    private MatchTeamSnapshotFactEntity createAwayEntity(BookDataEntity book, String country, String league) {
-        MatchTeamSnapshotFactEntity entity = new MatchTeamSnapshotFactEntity();
+		for (Item<BigDecimal> it : DEC_ITEMS) {
+			it.setter.accept(e, parseNumber((homeSide ? it.home : it.away).apply(b)));
+		}
+		for (Item<Integer> it : INT_ITEMS) {
+			it.setter.accept(e, toInteger(parseNumber((homeSide ? it.home : it.away).apply(b))));
+		}
+		for (FractionItem it : FRACTION_ITEMS) {
+			String v = (homeSide ? it.home : it.away).apply(b);
+			Integer[] f = parseFraction(v);
+			it.setSuccess.accept(e, f == null ? null : f[0]);
+			it.setTry.accept(e, f == null ? null : f[1]);
+			it.setRate.accept(e, parseRate(v, f));
+		}
+		return e;
+	}
 
-        entity.setMatchId(trimToNull(book.getMatchId()));
-        entity.setSeason(resolveSeason(book));
-        entity.setCountry(trimToNull(country));
-        entity.setLeagueId(trimToNull(league));
-        entity.setLeagueName(trimToNull(league));
-        entity.setTeamId(resolveTeamId(book.getAwayTeamName()));
-        entity.setTeamName(trimToNull(book.getAwayTeamName()));
-        entity.setOpponentTeamId(null);
-        entity.setOpponentTeamName(trimToNull(book.getHomeTeamName()));
-        entity.setHomeFlg(Boolean.FALSE);
-        entity.setAsOfSeconds(resolveAsOfSeconds(book));
-        entity.setMatchTimeLabel(trimToNull(book.getTime()));
+	/**
+	 * 使える行だけを通番の数値順に並べる（null 行・取得エラー行・PK 戦の行・通番が数値でない行は除く）。
+	 */
+	static List<BookDataEntity> sortUsableRows(List<BookDataEntity> rows) {
+		List<BookDataEntity> sorted = new ArrayList<>();
+		if (rows == null) {
+			return sorted;
+		}
+		for (BookDataEntity e : rows) {
+			if (e == null || seqToLong(e.getSeq()) == Long.MAX_VALUE) {
+				continue;
+			}
+			if (BookMakersCommonConst.GET_UNEXPECTED_ERROR.equals(e.getGoalTime())
+					|| BookMakersCommonConst.GET_UNEXPECTED_ERROR.equals(e.getGoalTeamMember())) {
+				continue;
+			}
+			String t = e.getTime();
+			if (t != null && t.contains(BookMakersCommonConst.PENALTY)) {
+				continue;
+			}
+			sorted.add(e);
+		}
+		sorted.sort(Comparator.comparingLong(e -> seqToLong(e.getSeq())));
+		return sorted;
+	}
 
-        entity.setTeamScore(parseInteger(book.getAwayScore()));
-        entity.setOpponentScore(parseInteger(book.getHomeScore()));
-        entity.setScoreDiff(calculateScoreDiff(book.getAwayScore(), book.getHomeScore()));
+	/**
+	 * 試合時間を分に変換する（読めなければ null）。
+	 * ExecuteMainUtil.convertToMinutes は読めない形式を 0 分にしてしまうため、読める形式だけ渡す。
+	 */
+	static BigDecimal toMinutes(String time) {
+		if (time == null) {
+			return null;
+		}
+		boolean readable = BookMakersCommonConst.FIN.equals(time)
+				|| BookMakersCommonConst.HALF_TIME.equals(time) || BookMakersCommonConst.FIRST_HALF_TIME.equals(time)
+				|| time.contains(":") || time.contains("+") || time.endsWith("'");
+		if (!readable) {
+			return null;
+		}
+		try {
+			double d = ExecuteMainUtil.convertToMinutes(time);
+			return Double.isFinite(d) ? BigDecimal.valueOf(d).setScale(2, RoundingMode.HALF_UP) : null;
+		} catch (RuntimeException e) {
+			return null;
+		}
+	}
 
-        entity.setPossessionRate(parseRate(book.getAwayBallPossesion()));
-        entity.setShotsCount(parseInteger(book.getAwayShootAll()));
-        entity.setShotsOnTargetCount(parseInteger(book.getAwayShootIn()));
-        entity.setShotsOffTargetCount(parseInteger(book.getAwayShootOut()));
-        entity.setBlockedShotsCount(parseInteger(book.getAwayShootBlocked()));
-        entity.setBigChancesCount(parseInteger(book.getAwayBigChance()));
-        entity.setCornersCount(parseInteger(book.getAwayCornerKick()));
-        entity.setBoxTouchesCount(parseInteger(book.getAwayBoxTouch()));
-        entity.setPassesCount(parseInteger(book.getAwayPassCount()));
-        entity.setLongPassesCount(parseInteger(book.getAwayLongPassCount()));
-        entity.setFinalThirdPassesCount(parseInteger(book.getAwayFinalThirdPassCount()));
-        entity.setCrossesCount(parseInteger(book.getAwayCrossCount()));
-        entity.setTacklesCount(parseInteger(book.getAwayTackleCount()));
-        entity.setClearancesCount(parseInteger(book.getAwayClearCount()));
-        entity.setDuelsWonCount(parseInteger(book.getAwayDuelCount()));
-        entity.setInterceptionsCount(parseInteger(book.getAwayInterceptCount()));
-        entity.setYellowCardsCount(parseInteger(book.getAwayYellowCard()));
-        entity.setRedCardsCount(parseInteger(book.getAwayRedCard()));
+	/** 最初に出てくる数値（"55%" → 55、"1,234" → 1234）。読めなければ null */
+	static BigDecimal parseNumber(String text) {
+		String s = trimOrNull(text);
+		if (s == null) {
+			return null;
+		}
+		Matcher m = NUMBER_PATTERN.matcher(s.replace(",", ""));
+		return m.find() ? new BigDecimal(m.group()) : null;
+	}
 
-        entity.setSnapshotRecordedAt(parseLocalDateTime(book.getRecordTime()));
-        entity.setSourceCount(book.getFileCount());
-        entity.setDataQualityFlag(resolveDataQualityFlag(book));
-        entity.setNote(buildNote(book));
+	/** 成功数/試行数（{成功数, 試行数}）。読めなければ null */
+	static Integer[] parseFraction(String text) {
+		String s = trimOrNull(text);
+		if (s == null) {
+			return null;
+		}
+		Matcher m = FRACTION_PATTERN.matcher(s.replace(",", ""));
+		if (!m.find()) {
+			return null;
+		}
+		try {
+			return new Integer[] { Integer.valueOf(m.group(1)), Integer.valueOf(m.group(2)) };
+		} catch (NumberFormatException e) {
+			return null;
+		}
+	}
 
-        return entity;
-    }
+	/** 成功率（%）。"38%" があればそれ、無ければ 成功数 ÷ 試行数 × 100（試行数 0 は null） */
+	static BigDecimal parseRate(String text, Integer[] fraction) {
+		String s = trimOrNull(text);
+		if (s != null) {
+			Matcher m = PERCENT_PATTERN.matcher(s);
+			if (m.find()) {
+				return new BigDecimal(m.group(1)).setScale(1, RoundingMode.HALF_UP);
+			}
+		}
+		if (fraction != null && fraction[1] > 0) {
+			return BigDecimal.valueOf(fraction[0] * 100L).divide(BigDecimal.valueOf(fraction[1]), 1, RoundingMode.HALF_UP);
+		}
+		return null;
+	}
 
-    /**
-     * シーズン文字列を解決します。
-     *
-     * <p>
-     * 現時点では記録時間の年を暫定的にシーズンとして使用します。
-     * シーズンマスタが整備されたら差し替えてください。TODO
-     * </p>
-     *
-     * @param book 元データ
-     * @return シーズン
-     */
-    private String resolveSeason(BookDataEntity book) {
-        LocalDateTime record = parseLocalDateTime(book.getRecordTime());
-        if (record != null) {
-            return String.valueOf(record.getYear());
-        }
-        return null;
-    }
+	/** キーのラウンド番号（無ければ null） */
+	static Integer parseRound(String key) {
+		if (key == null) {
+			return null;
+		}
+		Matcher m = ROUND_PATTERN.matcher(java.text.Normalizer.normalize(key, java.text.Normalizer.Form.NFKC));
+		if (!m.find()) {
+			return null;
+		}
+		try {
+			int v = Integer.parseInt(m.group(1));
+			return v > 0 ? v : null;
+		} catch (NumberFormatException e) {
+			return null;
+		}
+	}
 
-    /**
-     * 暫定チームIDを解決します。
-     *
-     * <p>
-     * 現時点ではチーム名をそのままIDとして利用します。
-     * 将来的に team master 連携へ差し替えてください。
-     * </p>
-     *
-     * @param teamName チーム名
-     * @return 暫定チームID
-     */
-    private String resolveTeamId(String teamName) {
-        return trimToNull(teamName);
-    }
+	private static Integer toInteger(BigDecimal v) {
+		return v == null ? null : v.setScale(0, RoundingMode.HALF_UP).intValue();
+	}
 
-    /**
-     * 試合経過秒を解決します。
-     *
-     * <p>
-     * {@code timeSortSeconds} が存在する場合はそれを優先し、
-     * なければ {@code time} の表記から補完します。
-     * </p>
-     *
-     * @param book 元データ
-     * @return 試合経過秒
-     */
-    private Integer resolveAsOfSeconds(BookDataEntity book) {
-        Integer timeSortSeconds = parseInteger(book.getTimeSortSeconds());
-        if (timeSortSeconds != null) {
-            return timeSortSeconds;
-        }
-        return parseMatchTimeToSeconds(book.getTime());
-    }
+	private static long seqToLong(String seq) {
+		if (seq == null || seq.isBlank()) {
+			return Long.MAX_VALUE;
+		}
+		try {
+			return Long.parseLong(seq.trim());
+		} catch (NumberFormatException e) {
+			return Long.MAX_VALUE;
+		}
+	}
 
-    /**
-     * データ品質フラグを解決します。
-     *
-     * @param book 元データ
-     * @return データ品質フラグ
-     */
-    private String resolveDataQualityFlag(BookDataEntity book) {
-        if (trimToNull(book.getTimeSortSeconds()) == null) {
-            return "TIME_FALLBACK";
-        }
-        return "NORMAL";
-    }
+	private static String trimOrNull(String s) {
+		return (s == null || s.isBlank()) ? null : s.trim();
+	}
 
-    /**
-     * 備考文字列を生成します。
-     *
-     * @param book 元データ
-     * @return 備考
-     */
-    private String buildNote(BookDataEntity book) {
-        StringBuilder sb = new StringBuilder();
+	private void debugLog(String methodName, String message) {
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, methodName, MessageCdConst.MCD00099I_LOG, message);
+	}
 
-        if (trimToNull(book.getFilePath()) != null) {
-            sb.append("filePath=").append(book.getFilePath());
-        }
-        if (trimToNull(book.getGameLink()) != null) {
-            if (sb.length() > 0) {
-                sb.append(", ");
-            }
-            sb.append("gameLink=").append(book.getGameLink());
-        }
-        if (trimToNull(book.getGameId()) != null) {
-            if (sb.length() > 0) {
-                sb.append(", ");
-            }
-            sb.append("gameId=").append(book.getGameId());
-        }
+	private static void cnt(Function<BookDataEntity, String> home, Function<BookDataEntity, String> away,
+			BiConsumer<MatchTeamSnapshotFactEntity, Integer> setter) {
+		INT_ITEMS.add(new Item<>(home, away, setter));
+	}
 
-        return sb.length() == 0 ? null : sb.toString();
-    }
+	private static void dec(Function<BookDataEntity, String> home, Function<BookDataEntity, String> away,
+			BiConsumer<MatchTeamSnapshotFactEntity, BigDecimal> setter) {
+		DEC_ITEMS.add(new Item<>(home, away, setter));
+	}
 
-    /**
-     * スコア差を計算します。
-     *
-     * @param score 自チーム得点
-     * @param opponentScore 相手チーム得点
-     * @return スコア差
-     */
-    private Integer calculateScoreDiff(String score, String opponentScore) {
-        Integer self = parseInteger(score);
-        Integer opp = parseInteger(opponentScore);
-        if (self == null || opp == null) {
-            return null;
-        }
-        return self - opp;
-    }
+	/** 数値項目（ホーム・アウェーの取り出し方と、チーム視点の設定先） */
+	private static final class Item<T> {
+		private final Function<BookDataEntity, String> home;
+		private final Function<BookDataEntity, String> away;
+		private final BiConsumer<MatchTeamSnapshotFactEntity, T> setter;
 
-    /**
-     * パーセント文字列を 0.0～1.0 の比率へ変換します。
-     *
-     * @param value パーセント文字列
-     * @return 比率
-     */
-    private BigDecimal parseRate(String value) {
-        String normalized = trimToNull(value);
-        if (normalized == null) {
-            return null;
-        }
+		private Item(Function<BookDataEntity, String> home, Function<BookDataEntity, String> away,
+				BiConsumer<MatchTeamSnapshotFactEntity, T> setter) {
+			this.home = home;
+			this.away = away;
+			this.setter = setter;
+		}
+	}
 
-        try {
-            if (normalized.contains("%")) {
-                String num = normalized.replace("%", "").trim();
-                return new BigDecimal(num).divide(new BigDecimal("100"));
-            }
-            return new BigDecimal(normalized);
-        } catch (Exception e) {
-            return null;
-        }
-    }
+	/** 成功数/試行数の項目 */
+	private static final class FractionItem {
+		private final Function<BookDataEntity, String> home;
+		private final Function<BookDataEntity, String> away;
+		private final BiConsumer<MatchTeamSnapshotFactEntity, Integer> setSuccess;
+		private final BiConsumer<MatchTeamSnapshotFactEntity, Integer> setTry;
+		private final BiConsumer<MatchTeamSnapshotFactEntity, BigDecimal> setRate;
 
-    /**
-     * 文字列を整数へ変換します。
-     *
-     * @param value 対象文字列
-     * @return 変換結果。変換不能時は null
-     */
-    private Integer parseInteger(String value) {
-        String normalized = trimToNull(value);
-        if (normalized == null) {
-            return null;
-        }
-
-        try {
-            return Integer.parseInt(normalized.replace(",", ""));
-        } catch (NumberFormatException e) {
-            return null;
-        }
-    }
-
-    /**
-     * 記録時間文字列を {@link LocalDateTime} へ変換します。
-     *
-     * @param value 記録時間文字列
-     * @return 変換結果。変換不能時は null
-     */
-    private LocalDateTime parseLocalDateTime(String value) {
-        String normalized = trimToNull(value);
-        if (normalized == null) {
-            return null;
-        }
-
-        try {
-            return OffsetDateTime.parse(normalized, RECORD_TIME_FORMATTER).toLocalDateTime();
-        } catch (Exception e) {
-            return null;
-        }
-    }
-
-    /**
-     * 試合時間表記を秒へ変換します。
-     *
-     * <p>
-     * 例:
-     * </p>
-     * <ul>
-     *   <li>7:50 → 470</li>
-     *   <li>45+2:10 → 2830</li>
-     *   <li>ハーフタイム → 2700</li>
-     *   <li>終了済 → 5400</li>
-     * </ul>
-     *
-     * @param time 試合時間表記
-     * @return 秒
-     */
-    private Integer parseMatchTimeToSeconds(String time) {
-        String normalized = trimToNull(time);
-        if (normalized == null) {
-            return 0;
-        }
-
-        if (BookMakersCommonConst.HALF_TIME.equals(normalized)) {
-            return 45 * 60;
-        }
-        if (BookMakersCommonConst.FIN.equals(normalized)) {
-            return 90 * 60;
-        }
-
-        try {
-            if (normalized.contains(":")) {
-                String[] parts = normalized.split(":");
-                String minutePart = parts[0].trim();
-                int seconds = Integer.parseInt(parts[1].trim());
-
-                int minutes;
-                if (minutePart.contains("+")) {
-                    String[] minParts = minutePart.split("\\+");
-                    minutes = 0;
-                    for (String p : minParts) {
-                        minutes += Integer.parseInt(p.trim());
-                    }
-                } else {
-                    minutes = Integer.parseInt(minutePart);
-                }
-
-                return minutes * 60 + seconds;
-            }
-
-            return Integer.parseInt(normalized);
-        } catch (Exception e) {
-            return 0;
-        }
-    }
-
-    /**
-     * 文字列をtrimし、空文字の場合はnullを返します。
-     *
-     * @param value 対象文字列
-     * @return trim後文字列。空文字の場合は null
-     */
-    private String trimToNull(String value) {
-        if (value == null) {
-            return null;
-        }
-        String trimmed = value.trim();
-        return trimmed.isEmpty() ? null : trimmed;
-    }
-
-    /**
-     * null安全な文字列化を行います。
-     *
-     * @param value 対象値
-     * @return 文字列
-     */
-    private String safe(String value) {
-        return value == null ? "" : value;
-    }
+		private FractionItem(Function<BookDataEntity, String> home, Function<BookDataEntity, String> away,
+				BiConsumer<MatchTeamSnapshotFactEntity, Integer> setSuccess,
+				BiConsumer<MatchTeamSnapshotFactEntity, Integer> setTry,
+				BiConsumer<MatchTeamSnapshotFactEntity, BigDecimal> setRate) {
+			this.home = home;
+			this.away = away;
+			this.setSuccess = setSuccess;
+			this.setTry = setTry;
+			this.setRate = setRate;
+		}
+	}
 }

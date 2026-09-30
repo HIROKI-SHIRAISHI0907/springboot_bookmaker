@@ -9,8 +9,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.application.analyze.common.error.AnalyzeErrorInfo;
+import dev.application.analyze.common.service.AbstractSeasonResolvingWriter;
 import dev.application.analyze.common.service.SeqNumberingService;
-import dev.application.analyze.interf.SeasonResolverIF;
 import dev.application.domain.repository.bm.TeamTimeSegmentStatsRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.exception.wrap.RootCauseWrapper;
@@ -30,16 +31,16 @@ import dev.common.util.CountryLeagueParser;
  *
  * <h2>シーズンの取得</h2>
  * <p>
- * 他の Writer（BM_M003 など）と同じく、シーズンは Writer 内で {@link SeasonResolverIF}
+ * 他の Writer（BM_M003 など）と同じく、シーズンは Writer 内で SeasonResolverIF
  * （実装: CountryLeagueSeasonResolver / country_league_season_master.season_year）から取得する。
  * Stat 側はシーズンを設定しない（設定済みでも上書きする）。
  * </p>
  * <ul>
  *   <li>国・リーグは行の dataCategory（"国: リーグ - ラウンドN" 形式）を {@link CountryLeagueParser} で分割して求める（形式が違う場合はシーズン取得不可としてスキップ）。</li>
- *   <li>1回の集計処理（{@link #clearSeasonCache()} から次の {@link #clearSeasonCache()} まで）の間は、
+ *   <li>1回の集計処理（clearSeasonCache() から次の clearSeasonCache() まで）の間は、
  *       国,リーグごとの結果をスレッド単位でキャッシュし、試合ごとにマスタを引かない。
  *       取得できなかった国,リーグも「取得不可」としてキャッシュする。</li>
- *   <li>取得できない場合は {@link SeasonNotResolvedException} を投げる。DB 書き込みの前に判定するため、
+ *   <li>取得できない場合は SeasonNotResolvedException を投げる。DB 書き込みの前に判定するため、
  *       その試合は何も保存されない。呼び出し側（Stat）はこの例外だけを捕まえて、その試合をスキップする。</li>
  * </ul>
  *
@@ -63,6 +64,12 @@ import dev.common.util.CountryLeagueParser;
  * 1トランザクションは22行の UPSERT のみで短く、データが次々流れ込んでもロック時間は短い。
  * </p>
  *
+ * <h2>シーズンが取得できない試合</h2>
+ * <p>
+ * 【変更】シーズンの取得は共通の親クラス AbstractSeasonResolvingWriter で行う。取得できない試合は analyze_error_match に
+ * 記録してから SeasonNotResolvedException を投げる（何も保存しない）。Stat はこの例外を捕まえてその試合だけスキップする。
+ * </p>
+ *
  * <h2>懸念点・エラーが起こりそうな箇所</h2>
  * <ul>
  *   <li><b>採番の待ち</b>: 同じシーズンの採番は seq_counter の同じ行を更新するため、
@@ -72,15 +79,15 @@ import dev.common.util.CountryLeagueParser;
  *       後の処理の番号は欠番になる（行の重複は起きない）。</li>
  *   <li><b>シーズンは処理日基準</b>: シーズン切替直後に前シーズンの試合を処理すると、新シーズンとして保存される。</li>
  *   <li><b>キャッシュのクリア忘れ</b>: スレッドプールのスレッドにキャッシュが残ると、シーズン切替後も古いシーズンを使い続ける。
- *       呼び出し側は集計の開始時と終了時（finally）に {@link #clearSeasonCache()} を呼ぶこと。</li>
- *   <li><b>SeasonResolverIF の Bean がない</b>: アプリは起動するが、全試合が {@link SeasonNotResolvedException} でスキップされる。</li>
+ *       呼び出し側は集計の開始時と終了時（finally）に clearSeasonCache() を呼ぶこと。</li>
+ *   <li><b>SeasonResolverIF の Bean がない</b>: アプリは起動するが、全試合が SeasonNotResolvedException でスキップされる。</li>
  *   <li><b>同じ組み合わせ（対象・相手・H/A）の試合がシーズン内に複数ある場合</b>: 後から処理した試合で上書きされる。</li>
  *   <li><b>1試合分に別の国,リーグの行が混ざっている場合</b>: 不正データとして例外（IllegalArgumentException）。
  *       Stat の作り方では起きない。</li>
  * </ul>
  */
 @Service
-public class TeamTimeSegmentWriter {
+public class TeamTimeSegmentWriter extends AbstractSeasonResolvingWriter {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = TeamTimeSegmentWriter.class.getProtectionDomain()
@@ -95,25 +102,12 @@ public class TeamTimeSegmentWriter {
 	/** 採番単位のテーブル名 */
 	private static final String TABLE_NAME = "team_time_segment_stats";
 
-	/** シーズン取得不可を表すキャッシュ値 */
-	private static final String NOT_RESOLVED = "";
-
-	/** 1回の集計処理中のシーズンキャッシュ（国,リーグ → シーズン。取得不可は NOT_RESOLVED） */
-	private static final ThreadLocal<Map<String, String>> SEASON_CACHE = ThreadLocal.withInitial(HashMap::new);
-
 	@Autowired
 	private TeamTimeSegmentStatsRepository teamTimeSegmentStatsRepository;
 
 	/** seq 採番（seq_counter） */
 	@Autowired
 	private SeqNumberingService seqNumberingService;
-
-	/**
-	 * シーズン取得（実装: CountryLeagueSeasonResolver）。
-	 * 実装が無い場合もアプリが起動できるよう required = false。登録時に実装が無ければ例外。
-	 */
-	@Autowired(required = false)
-	private SeasonResolverIF seasonResolver;
 
 	@Autowired
 	private RootCauseWrapper rootCauseWrapper;
@@ -122,10 +116,11 @@ public class TeamTimeSegmentWriter {
 	private ManageLoggerComponent manageLoggerComponent;
 
 	/**
-	 * シーズンのキャッシュを破棄する。集計の開始時と終了時（finally）に呼ぶこと。
+	 * {@inheritDoc}
 	 */
-	public void clearSeasonCache() {
-		SEASON_CACHE.remove();
+	@Override
+	protected String getBmNumber() {
+		return BM_NUMBER;
 	}
 
 	/**
@@ -143,7 +138,12 @@ public class TeamTimeSegmentWriter {
 
 		// DB 書き込みの前にシーズンを決める（取得できなければ何も保存せずに例外）
 		String dataCategory = requireSingleDataCategory(entities);
-		String season = resolveSeason(dataCategory);
+		TeamTimeSegmentStatsEntity firstRow = firstNonNull(entities);
+		boolean home = "H".equals(firstRow.getHa());
+		String season = resolveSeasonByCategory(dataCategory, AnalyzeErrorInfo.match(dataCategory,
+				home ? firstRow.getTeamName() : firstRow.getOpponentTeamName(),
+				home ? firstRow.getOpponentTeamName() : firstRow.getTeamName())
+				.matchId(firstRow.getMatchId()));
 
 		int count = 0;
 		int numbered = 0;
@@ -230,43 +230,14 @@ public class TeamTimeSegmentWriter {
 		return dataCategory;
 	}
 
-	/**
-	 * 国,リーグのシーズンを取得する（1回の集計処理の中ではキャッシュを使う）。
-	 *
-	 * @throws SeasonNotResolvedException 取得できない場合
-	 */
-	private String resolveSeason(String dataCategory) {
-		final String METHOD_NAME = "resolveSeason";
-		if (this.seasonResolver == null) {
-			throw new SeasonNotResolvedException(
-					"SeasonResolverIF の実装がありません（CountryLeagueSeasonResolver が Bean 登録されていない）: "
-							+ dataCategory);
-		}
-
-		Map<String, String> cache = SEASON_CACHE.get();
-		String season = cache.get(dataCategory);
-		if (season == null) {
-			season = NOT_RESOLVED;
-			try {
-				String[] split = CountryLeagueParser.parse(dataCategory);
-				if (split != null && split.length >= 2) {
-					String s = this.seasonResolver.resolveSeason(split[0].trim(), split[1].trim());
-					if (s != null && !s.isBlank()) {
-						season = s.trim();
-					}
-				}
-			} catch (RuntimeException e) {
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG, e,
-						"countryLeague=" + dataCategory);
+	/** 最初の null でない行（requireSingleDataCategory で1件以上あることを確認済み） */
+	private static TeamTimeSegmentStatsEntity firstNonNull(List<TeamTimeSegmentStatsEntity> entities) {
+		for (TeamTimeSegmentStatsEntity e : entities) {
+			if (e != null) {
+				return e;
 			}
-			cache.put(dataCategory, season);
 		}
-
-		if (NOT_RESOLVED.equals(season)) {
-			throw new SeasonNotResolvedException("シーズンを取得できません: " + dataCategory);
-		}
-		return season;
+		throw new IllegalArgumentException(BM_NUMBER + " 有効な行がありません");
 	}
 
 	/**
@@ -283,16 +254,4 @@ public class TeamTimeSegmentWriter {
 		return sb.toString();
 	}
 
-	/**
-	 * シーズンが取得できないことを表す例外。
-	 * DB 書き込みの前に投げるため、この例外で終わった試合は何も保存されていない。
-	 */
-	public static class SeasonNotResolvedException extends RuntimeException {
-
-		private static final long serialVersionUID = 1L;
-
-		public SeasonNotResolvedException(String message) {
-			super(message);
-		}
-	}
 }

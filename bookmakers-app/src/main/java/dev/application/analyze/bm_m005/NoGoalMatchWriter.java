@@ -11,8 +11,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.application.analyze.common.error.AnalyzeErrorInfo;
+import dev.application.analyze.common.service.AbstractSeasonResolvingWriter;
 import dev.application.analyze.common.service.SeqNumberingService;
-import dev.application.analyze.interf.SeasonResolverIF;
 import dev.application.domain.repository.bm.NoGoalMatchStatsRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.exception.wrap.RootCauseWrapper;
@@ -31,11 +32,11 @@ import dev.common.util.CountryLeagueParser;
  *
  * <h2>シーズンの取得</h2>
  * <ul>
- *   <li>他の Writer と同じく {@link SeasonResolverIF}（country_league_season_master.season_year）から取得する。</li>
+ *   <li>他の Writer と同じく SeasonResolverIF（country_league_season_master.season_year）から取得する。</li>
  *   <li>国・リーグは dataCategory（"国: リーグ - ラウンドN" 形式）を {@link CountryLeagueParser} で分割して求める（形式が違う場合はシーズン取得不可としてスキップ）。</li>
  *   <li>1回の集計処理の間は、国,リーグごとの結果をスレッド単位でキャッシュする（取得不可も含む）。
- *       呼び出し側は集計の開始時と終了時（finally）に {@link #clearSeasonCache()} を呼ぶこと。</li>
- *   <li>取得できない場合は DB 書き込みの前に {@link SeasonNotResolvedException} を投げる（その試合は何も保存されない）。</li>
+ *       呼び出し側は集計の開始時と終了時（finally）に clearSeasonCache() を呼ぶこと。</li>
+ *   <li>取得できない場合は DB 書き込みの前に SeasonNotResolvedException を投げる（その試合は何も保存されない）。</li>
  * </ul>
  *
  * <h2>seq（主キー）の採番</h2>
@@ -52,6 +53,12 @@ import dev.common.util.CountryLeagueParser;
  * 以前は1行ずつのトランザクションで、途中で失敗すると START だけ保存された試合が残っていた。
  * </p>
  *
+ * <h2>シーズンが取得できない試合</h2>
+ * <p>
+ * 【変更】シーズンの取得は共通の親クラス AbstractSeasonResolvingWriter で行う。取得できない試合は analyze_error_match に
+ * 記録してから SeasonNotResolvedException を投げる（何も保存しない）。Stat はこの例外を捕まえてその試合だけスキップする。
+ * </p>
+ *
  * <h2>懸念点・エラーが起こりそうな箇所</h2>
  * <ul>
  *   <li><b>採番の待ち</b>: 同じシーズンの採番は seq_counter の同じ行を更新するため、新規行を含む試合の保存は1試合ずつ順番になる。</li>
@@ -62,7 +69,7 @@ import dev.common.util.CountryLeagueParser;
  * </ul>
  */
 @Service
-public class NoGoalMatchWriter {
+public class NoGoalMatchWriter extends AbstractSeasonResolvingWriter {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = NoGoalMatchWriter.class.getProtectionDomain()
@@ -77,12 +84,6 @@ public class NoGoalMatchWriter {
 	/** 採番単位のテーブル名 */
 	private static final String TABLE_NAME = "no_goal_match_stats";
 
-	/** シーズン取得不可を表すキャッシュ値 */
-	private static final String NOT_RESOLVED = "";
-
-	/** 1回の集計処理中のシーズンキャッシュ（国,リーグ → シーズン。取得不可は NOT_RESOLVED） */
-	private static final ThreadLocal<Map<String, String>> SEASON_CACHE = ThreadLocal.withInitial(HashMap::new);
-
 	/** NoGoalMatchStatsRepository レポジトリクラス */
 	@Autowired
 	private NoGoalMatchStatsRepository noGoalMatchStatsRepository;
@@ -90,13 +91,6 @@ public class NoGoalMatchWriter {
 	/** seq 採番（seq_counter） */
 	@Autowired
 	private SeqNumberingService seqNumberingService;
-
-	/**
-	 * シーズン取得（実装: CountryLeagueSeasonResolver）。
-	 * 実装が無い場合もアプリが起動できるよう required = false。登録時に実装が無ければ例外。
-	 */
-	@Autowired(required = false)
-	private SeasonResolverIF seasonResolver;
 
 	/** ログ管理ラッパー */
 	@Autowired
@@ -107,10 +101,11 @@ public class NoGoalMatchWriter {
 	private ManageLoggerComponent manageLoggerComponent;
 
 	/**
-	 * シーズンのキャッシュを破棄する。集計の開始時と終了時（finally）に呼ぶこと。
+	 * {@inheritDoc}
 	 */
-	public void clearSeasonCache() {
-		SEASON_CACHE.remove();
+	@Override
+	protected String getBmNumber() {
+		return BM_NUMBER;
 	}
 
 	/**
@@ -128,7 +123,9 @@ public class NoGoalMatchWriter {
 
 		// DB 書き込みの前にシーズンを決める（取得できなければ何も保存せずに例外）
 		NoGoalMatchStatisticsEntity first = requireSingleMatch(entities);
-		String season = resolveSeason(first.getDataCategory());
+		String season = resolveSeasonByCategory(first.getDataCategory(),
+				AnalyzeErrorInfo.match(first.getDataCategory(), first.getHomeTeamName(), first.getAwayTeamName())
+						.matchId(first.getMatchId()));
 
 		// 既存行の seq（時点 → seq）
 		Map<String, String> existingSeq = findExistingSeq(season, first);
@@ -215,45 +212,6 @@ public class NoGoalMatchWriter {
 		return map;
 	}
 
-	/**
-	 * 国,リーグのシーズンを取得する（1回の集計処理の中ではキャッシュを使う）。
-	 *
-	 * @throws SeasonNotResolvedException 取得できない場合
-	 */
-	private String resolveSeason(String dataCategory) {
-		final String METHOD_NAME = "resolveSeason";
-		if (this.seasonResolver == null) {
-			throw new SeasonNotResolvedException(
-					"SeasonResolverIF の実装がありません（CountryLeagueSeasonResolver が Bean 登録されていない）: "
-							+ dataCategory);
-		}
-
-		Map<String, String> cache = SEASON_CACHE.get();
-		String season = cache.get(dataCategory);
-		if (season == null) {
-			season = NOT_RESOLVED;
-			try {
-				String[] split = CountryLeagueParser.parse(dataCategory);
-				if (split != null && split.length >= 2) {
-					String s = this.seasonResolver.resolveSeason(split[0].trim(), split[1].trim());
-					if (!isBlank(s)) {
-						season = s.trim();
-					}
-				}
-			} catch (RuntimeException e) {
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG, e,
-						"countryLeague=" + dataCategory);
-			}
-			cache.put(dataCategory, season);
-		}
-
-		if (NOT_RESOLVED.equals(season)) {
-			throw new SeasonNotResolvedException("シーズンを取得できません: " + dataCategory);
-		}
-		return season;
-	}
-
 	private static boolean isBlank(String s) {
 		return s == null || s.isBlank();
 	}
@@ -272,16 +230,4 @@ public class NoGoalMatchWriter {
 		return sb.toString();
 	}
 
-	/**
-	 * シーズンが取得できないことを表す例外。
-	 * DB 書き込みの前に投げるため、この例外で終わった試合は何も保存されていない。
-	 */
-	public static class SeasonNotResolvedException extends RuntimeException {
-
-		private static final long serialVersionUID = 1L;
-
-		public SeasonNotResolvedException(String message) {
-			super(message);
-		}
-	}
 }

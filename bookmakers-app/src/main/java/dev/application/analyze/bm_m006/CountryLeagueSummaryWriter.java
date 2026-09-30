@@ -1,6 +1,5 @@
 package dev.application.analyze.bm_m006;
 
-import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import java.util.TreeMap;
@@ -10,8 +9,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.application.analyze.common.error.AnalyzeErrorInfo;
+import dev.application.analyze.common.service.AbstractSeasonResolvingWriter;
 import dev.application.analyze.common.service.SeqNumberingService;
-import dev.application.analyze.interf.SeasonResolverIF;
 import dev.application.domain.repository.bm.CountryLeagueSummaryRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.exception.wrap.RootCauseWrapper;
@@ -28,7 +28,7 @@ import dev.common.logger.ManageLoggerComponent;
  *
  * <h2>シーズン・seq</h2>
  * <ul>
- *   <li>シーズンは他の Writer と同じく {@link SeasonResolverIF}（country_league_season_master.season_year）から取得する。
+ *   <li>シーズンは他の Writer と同じく SeasonResolverIF（country_league_season_master.season_year）から取得する。
  *       1回の保存処理の中では国,リーグごとにキャッシュする。</li>
  *   <li>seq は「&lt;シーズン&gt;-&lt;6桁枝番&gt;」を {@link SeqNumberingService}（seq_counter）で採番する。
  *       既に行があるときは採番しない（番号を消費しない）。</li>
@@ -47,6 +47,12 @@ import dev.common.logger.ManageLoggerComponent;
  *       動かなかった。ON CONFLICT で重複自体が起きないようにしたので廃止した。</li>
  * </ul>
  *
+ * <h2>シーズンが取得できない試合</h2>
+ * <p>
+ * 【変更】シーズンの取得は共通の親クラス AbstractSeasonResolvingWriter で行う。取得できない試合は analyze_error_match に
+ * 記録してから SeasonNotResolvedException を投げる（何も保存しない）。Stat はこの例外を捕まえてその試合だけスキップする。
+ * </p>
+ *
  * <h2>懸念点・エラーが起こりそうな箇所</h2>
  * <ul>
  *   <li><b>csv_count は処理した回数の合計</b>: 同じ試合でも流れてくるたびに数える（仕様）。試合数としては使えない。</li>
@@ -56,7 +62,7 @@ import dev.common.logger.ManageLoggerComponent;
  * </ul>
  */
 @Service
-public class CountryLeagueSummaryWriter {
+public class CountryLeagueSummaryWriter extends AbstractSeasonResolvingWriter {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = CountryLeagueSummaryWriter.class.getProtectionDomain()
@@ -79,13 +85,6 @@ public class CountryLeagueSummaryWriter {
 	@Autowired
 	private SeqNumberingService seqNumberingService;
 
-	/**
-	 * シーズン取得（実装: CountryLeagueSeasonResolver）。
-	 * 実装が無い場合もアプリが起動できるよう required = false。実装が無ければ全リーグをスキップする。
-	 */
-	@Autowired(required = false)
-	private SeasonResolverIF seasonResolver;
-
 	/** ログ管理ラッパー */
 	@Autowired
 	private RootCauseWrapper rootCauseWrapper;
@@ -93,6 +92,14 @@ public class CountryLeagueSummaryWriter {
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	protected String getBmNumber() {
+		return BM_NUMBER;
+	}
 
 	/**
 	 * 集計結果（全リーグ分）を1トランザクションで加算保存する。
@@ -108,13 +115,14 @@ public class CountryLeagueSummaryWriter {
 
 		// 1) キー順に並べ、書き込みの前にシーズンを決める（取得できない国,リーグはスキップ）
 		Map<CountryLeagueKey, String> seasons = new LinkedHashMap<>();
-		Map<String, String> seasonCache = new HashMap<>();
 		int skipCount = 0;
+		clearSeasonCache();
 		for (Map.Entry<CountryLeagueKey, Integer> e : new TreeMap<>(counts).entrySet()) {
 			if (e.getKey() == null || e.getValue() == null || e.getValue() <= 0) {
 				continue;
 			}
-			String season = resolveSeason(e.getKey(), seasonCache);
+			// 取得できなければ analyze_error_match に記録して null（このリーグだけスキップ）
+			String season = resolveSeasonOrNull(e.getKey().getCountry(), e.getKey().getLeague(), AnalyzeErrorInfo.empty());
 			if (season == null) {
 				skipCount++;
 				continue;
@@ -163,38 +171,6 @@ public class CountryLeagueSummaryWriter {
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00006I_UPDATE_SUCCESS,
 				BM_NUMBER + " 登録件数: " + insertCount + "件, 加算件数: " + addCount + "件, シーズン取得不可: "
 						+ skipCount + "件");
-	}
-
-	/**
-	 * 国,リーグのシーズンを取得する（取得できなければ null。ログを出す）。
-	 */
-	private String resolveSeason(CountryLeagueKey key, Map<String, String> cache) {
-		final String METHOD_NAME = "resolveSeason";
-		String cacheKey = key.getCountry() + "\u0000" + key.getLeague();
-		if (cache.containsKey(cacheKey)) {
-			return cache.get(cacheKey);
-		}
-
-		String season = null;
-		if (this.seasonResolver == null) {
-			this.manageLoggerComponent.debugInfoLog(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-					BM_NUMBER + " SeasonResolverIF の実装がありません（CountryLeagueSeasonResolver が Bean 登録されていない）: "
-							+ key);
-		} else {
-			try {
-				String s = this.seasonResolver.resolveSeason(key.getCountry(), key.getLeague());
-				if (s != null && !s.isBlank()) {
-					season = s.trim();
-				}
-			} catch (RuntimeException ex) {
-				this.manageLoggerComponent.debugErrorLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG, ex,
-						BM_NUMBER + " シーズン取得不可のためスキップ: " + key);
-			}
-		}
-		cache.put(cacheKey, season);
-		return season;
 	}
 
 	/**

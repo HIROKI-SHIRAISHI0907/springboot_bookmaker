@@ -119,4 +119,19 @@ public class SurfaceOverviewMatchEntity extends MetaEntity {
 
 	/** 0-2 になった */
 	private Boolean trailed02;
+
+	/** 元のキー（「国: リーグ - ラウンドN」。参照・調査用） */
+	private String dataCategory;
+
+	/** その試合の使えたスナップショット数（取得エラー行を除く。少ない試合は前後半・推移の精度が低い） */
+	private Integer snapshotCount;
+
+	/** PK 戦の得点（PK 決着でなければ null） */
+	private Integer pkGoalsFor;
+
+	/** PK 戦の失点 */
+	private Integer pkGoalsAgainst;
+
+	/** サイト表示の順位（試合終了行の順位。旧 BM_M033 の元データ。取れなければ null） */
+	private Integer teamRank;
 }

@@ -1,165 +1,178 @@
 package dev.application.analyze.bm_m034;
 
 import java.math.BigDecimal;
-import java.time.LocalDateTime;
+import java.sql.Timestamp;
 
 import dev.application.analyze.common.entity.AbstractMatchTeamContextEntity;
 import lombok.Data;
 import lombok.EqualsAndHashCode;
 
 /**
- * 試合中のチーム時点スナップショットFactを表すEntityです。
+ * match_team_snapshot_fact テーブルに対応するエンティティ（BM_M034 試合中スナップショット）。
  *
- * <p>1行が「1試合・1チーム・1時点」の累積状態を表します。
- * リアルタイム予測、モメンタム分析、得点確率分析の元データになります。</p>
+ * <h2>何を表すクラスか</h2>
+ * <p>
+ * 1行 = 1試合 × 1チーム視点 × 1時点（元データ1行 → ホーム視点・アウェー視点の2行）。その時点の累計値を持つ。
+ * リアルタイム予測・モメンタム分析・得点確率分析の元データ。
+ * </p>
+ * <ul>
+ *   <li>(data_seq, ha) で一意。同じ時点が再送されても上書きされるだけで重複しない。</li>
+ *   <li>時点の並び順は dataSeq（元データの通番）。matchMinute は読めない表記だと null なので並び順には使わない。</li>
+ *   <li>パス・ロングパス・ファイナルサードパス・クロス・タックルは「38% (210/300)」を成功数・試行数・成功率に分けて持つ。</li>
+ *   <li>直前の時点との差分はビュー match_team_snapshot_diff、各試合の最新の差分は match_team_snapshot_latest（旧 BM_M029）。</li>
+ * </ul>
+ * <p>数値項目は読めなければ null。% の項目は 0〜100（他テーブルと同じ単位）。</p>
+ *
+ * @author shiraishitoshio
  */
 @Data
-@EqualsAndHashCode(callSuper = false)
+@EqualsAndHashCode(callSuper = true)
 public class MatchTeamSnapshotFactEntity extends AbstractMatchTeamContextEntity {
 
-    /**
-     * 主キーです。
-     */
-    private Integer id;
+	/** 元データ（data テーブル）の通番。時点の並び順と一意キーに使う */
+	private Long dataSeq;
 
-    /**
-     * ホームチームかどうかです。
-     */
-    private Boolean homeFlg;
+	/** ラウンド番号（キーの「ラウンド N」） */
+	private Integer roundNo;
 
-    /**
-     * 試合経過秒です。
-     */
-    private Integer asOfSeconds;
+	/** 1: 前半 / 2: 後半（ハーフタイム行の前後で判定。ハーフタイム行がまだ無ければ null） */
+	private Integer half;
 
-    /**
-     * 表示上の試合時間です。
-     */
-    private String matchTimeLabel;
+	/** 表示上の試合時間（例: 23'、45+2'、ハーフタイム、終了済） */
+	private String matchTimeLabel;
 
-    /**
-     * 現時点の自チーム得点です。
-     */
-    private Integer teamScore;
+	/** 試合時間（分）。読めない表記は null（0 分にはしない） */
+	private BigDecimal matchMinute;
 
-    /**
-     * 現時点の相手チーム得点です。
-     */
-    private Integer opponentScore;
+	/** 試合終了（FIN）の行か */
+	private Boolean finFlg;
 
-    /**
-     * スコア差です。
-     */
-    private Integer scoreDiff;
+	/** 記録時間 */
+	private Timestamp recordTime;
 
-    /**
-     * ポゼッション率です。
-     */
-    private BigDecimal possessionRate;
+	/** この時点の自チーム得点 */
+	private Integer teamScore;
 
-    /**
-     * 累積シュート数です。
-     */
-    private Integer shotsCount;
+	/** この時点の相手得点 */
+	private Integer opponentScore;
 
-    /**
-     * 累積枠内シュート数です。
-     */
-    private Integer shotsOnTargetCount;
+	/** スコア差（自 − 相手） */
+	private Integer scoreDiff;
 
-    /**
-     * 累積枠外シュート数です。
-     */
-    private Integer shotsOffTargetCount;
+	/** ポゼッション（%） */
+	private BigDecimal possession;
 
-    /**
-     * 累積ブロックシュート数です。
-     */
-    private Integer blockedShotsCount;
+	/** 期待値（xG）（累計） */
+	private BigDecimal exp;
 
-    /**
-     * 累積ビッグチャンス数です。
-     */
-    private Integer bigChancesCount;
+	/** 枠内ゴール期待値（累計） */
+	private BigDecimal inGoalExp;
 
-    /**
-     * 累積コーナーキック数です。
-     */
-    private Integer cornersCount;
+	/** シュート数（累計） */
+	private Integer shootAll;
 
-    /**
-     * 累積ボックスタッチ数です。
-     */
-    private Integer boxTouchesCount;
+	/** 枠内シュート（累計） */
+	private Integer shootIn;
 
-    /**
-     * 累積パス数です。
-     */
-    private Integer passesCount;
+	/** 枠外シュート（累計） */
+	private Integer shootOut;
 
-    /**
-     * 累積ロングパス数です。
-     */
-    private Integer longPassesCount;
+	/** ブロックシュート（累計） */
+	private Integer blockShoot;
 
-    /**
-     * 累積ファイナルサードパス数です。
-     */
-    private Integer finalThirdPassesCount;
+	/** ビッグチャンス（累計） */
+	private Integer bigChance;
 
-    /**
-     * 累積クロス数です。
-     */
-    private Integer crossesCount;
+	/** コーナーキック（累計） */
+	private Integer corner;
 
-    /**
-     * 累積タックル数です。
-     */
-    private Integer tacklesCount;
+	/** ボックス内シュート（累計） */
+	private Integer boxShootIn;
 
-    /**
-     * 累積クリア数です。
-     */
-    private Integer clearancesCount;
+	/** ボックス外シュート（累計） */
+	private Integer boxShootOut;
 
-    /**
-     * 累積デュエル勝利数です。
-     */
-    private Integer duelsWonCount;
+	/** ゴールポスト（累計） */
+	private Integer goalPost;
 
-    /**
-     * 累積インターセプト数です。
-     */
-    private Integer interceptionsCount;
+	/** ヘディングゴール（累計） */
+	private Integer goalHead;
 
-    /**
-     * 累積イエローカード数です。
-     */
-    private Integer yellowCardsCount;
+	/** キーパーセーブ（累計） */
+	private Integer keeperSave;
 
-    /**
-     * 累積レッドカード数です。
-     */
-    private Integer redCardsCount;
+	/** フリーキック（累計） */
+	private Integer freeKick;
 
-    /**
-     * スナップショット記録日時です。
-     */
-    private LocalDateTime snapshotRecordedAt;
+	/** オフサイド（累計） */
+	private Integer offside;
 
-    /**
-     * 元データ件数です。
-     */
-    private Integer sourceCount;
+	/** ファウル（累計） */
+	private Integer foul;
 
-    /**
-     * データ品質フラグです。
-     */
-    private String dataQualityFlag;
+	/** イエローカード（累計） */
+	private Integer yellowCard;
 
-    /**
-     * 備考です。
-     */
-    private String note;
+	/** レッドカード（累計） */
+	private Integer redCard;
 
+	/** スローイン（累計） */
+	private Integer slowIn;
+
+	/** ボックスタッチ（累計） */
+	private Integer boxTouch;
+
+	/** クリア数（累計） */
+	private Integer clearCount;
+
+	/** デュエル勝利数（累計） */
+	private Integer duelCount;
+
+	/** インターセプト数（累計） */
+	private Integer interceptCount;
+
+	/** パス 成功数（累計） */
+	private Integer passCountSuccess;
+
+	/** パス 試行数（累計） */
+	private Integer passCountTry;
+
+	/** パス 成功率（%。累計） */
+	private BigDecimal passCountRate;
+
+	/** ロングパス 成功数（累計） */
+	private Integer longPassCountSuccess;
+
+	/** ロングパス 試行数（累計） */
+	private Integer longPassCountTry;
+
+	/** ロングパス 成功率（%。累計） */
+	private BigDecimal longPassCountRate;
+
+	/** ファイナルサードパス 成功数（累計） */
+	private Integer finalThirdPassCountSuccess;
+
+	/** ファイナルサードパス 試行数（累計） */
+	private Integer finalThirdPassCountTry;
+
+	/** ファイナルサードパス 成功率（%。累計） */
+	private BigDecimal finalThirdPassCountRate;
+
+	/** クロス 成功数（累計） */
+	private Integer crossCountSuccess;
+
+	/** クロス 試行数（累計） */
+	private Integer crossCountTry;
+
+	/** クロス 成功率（%。累計） */
+	private BigDecimal crossCountRate;
+
+	/** タックル 成功数（累計） */
+	private Integer tackleCountSuccess;
+
+	/** タックル 試行数（累計） */
+	private Integer tackleCountTry;
+
+	/** タックル 成功率（%。累計） */
+	private BigDecimal tackleCountRate;
 }

@@ -1,6 +1,5 @@
 package dev.application.analyze.bm_m003;
 
-import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
@@ -10,8 +9,9 @@ import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.bm_m003.TeamMonthlyScoreSummaryStat.TeamYearKey;
+import dev.application.analyze.common.error.AnalyzeErrorInfo;
+import dev.application.analyze.common.service.AbstractSeasonResolvingWriter;
 import dev.application.analyze.common.service.SeqNumberingService;
-import dev.application.analyze.interf.SeasonResolverIF;
 import dev.application.domain.repository.bm.TeamMonthlyScoreSummaryRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.exception.wrap.RootCauseWrapper;
@@ -37,6 +37,12 @@ import dev.common.logger.ManageLoggerComponent;
  *       12か月分をまとめて1回の UPDATE にしたため、DB アクセスは最大 1/12 になった。</li>
  * </ul>
  *
+ * <h2>シーズンが取得できない試合</h2>
+ * <p>
+ * 【変更】シーズンの取得は共通の親クラス AbstractSeasonResolvingWriter で行う。取得できない試合は analyze_error_match に
+ * 記録してから SeasonNotResolvedException を投げる（何も保存しない）。Stat はこの例外を捕まえてその試合だけスキップする。
+ * </p>
+ *
  * <h2>懸念点・エラーが起こりそうな箇所</h2>
  * <ul>
  *   <li><b>同時実行での加算漏れ（lost update）</b>: findByCount → UPDATE の読み取り・書き込みの間に
@@ -52,13 +58,14 @@ import dev.common.logger.ManageLoggerComponent;
  * <h2>seq（主キー）の採番</h2>
  * <p>
  * 【変更】INSERT 時に「&lt;シーズン&gt;-&lt;6桁枝番&gt;」（例: 2025-2026-000001）を
- * {@link SeqNumberingService} で採番して設定する。シーズンは {@link SeasonResolverIF}
+ * {@link SeqNumberingService} で採番して設定する。シーズンは SeasonResolverIF
  * （country_league_season_master.season）から取得する。枝番はテーブル×シーズンで 1 から振る。
  * 既存行の UPDATE では seq を変えない。
  * </p>
  * <ul>
  *   <li>Mapper の insertTeamMonthlyScore に seq 列を追加し、seq 列を文字列型にしておくこと。</li>
- *   <li>SeasonResolverIF の実装（CountryLeagueSeasonResolver）が無い場合、新規行の INSERT が例外になる（既存行の UPDATE だけなら動く）。</li>
+ *   <li>【変更】シーズンが取得できない新規行（SeasonResolverIF の実装が無い場合を含む）は、analyze_error_match に記録して
+ *       その行だけスキップする（以前は例外で1回分の保存が全件ロールバックされていた）。既存行の UPDATE はシーズン不要なので続く。</li>
  * </ul>
  *
  * <p>推奨 DDL（PostgreSQL）:</p>
@@ -68,7 +75,7 @@ import dev.common.logger.ManageLoggerComponent;
  * </pre>
  */
 @Service
-public class TeamMonthlyScoreSummaryWriter {
+public class TeamMonthlyScoreSummaryWriter extends AbstractSeasonResolvingWriter {
 
 	/** プロジェクト名 */
 	private static final String PROJECT_NAME = TeamMonthlyScoreSummaryWriter.class.getProtectionDomain()
@@ -83,9 +90,6 @@ public class TeamMonthlyScoreSummaryWriter {
 	/** 採番単位のテーブル名 */
 	private static final String TABLE_NAME = "team_monthly_score_summary";
 
-	/** 1回の保存処理中のシーズンキャッシュ（国,リーグ → シーズン） */
-	private static final ThreadLocal<Map<String, String>> SEASON_CACHE = ThreadLocal.withInitial(HashMap::new);
-
 	@Autowired
 	private TeamMonthlyScoreSummaryRepository teamMonthlyScoreSummaryRepository;
 
@@ -93,18 +97,19 @@ public class TeamMonthlyScoreSummaryWriter {
 	@Autowired
 	private SeqNumberingService seqNumberingService;
 
-	/**
-	 * 【追加】シーズン取得（実装: CountryLeagueSeasonResolver）。
-	 * 実装が無い場合もアプリが起動できるよう required = false。INSERT 時に実装が無ければ例外。
-	 */
-	@Autowired(required = false)
-	private SeasonResolverIF seasonResolver;
-
 	@Autowired
 	private RootCauseWrapper rootCauseWrapper;
 
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
+
+	/**
+	 * {@inheritDoc}
+	 */
+	@Override
+	protected String getBmNumber() {
+		return BM_NUMBER;
+	}
 
 	/**
 	 * 集計結果（全行）を1トランザクションで加算保存する。
@@ -120,23 +125,30 @@ public class TeamMonthlyScoreSummaryWriter {
 
 		int insertCount = 0;
 		int updateCount = 0;
-		SEASON_CACHE.set(new HashMap<>());
+		int skipCount = 0;
+		clearSeasonCache();
 		try {
 			for (Map.Entry<TeamYearKey, int[]> entry : aggregate.entrySet()) {
-				boolean inserted = addMonthlyGoals(entry.getKey(), entry.getValue());
-				if (inserted) {
-					insertCount++;
-				} else {
-					updateCount++;
+				try {
+					boolean inserted = addMonthlyGoals(entry.getKey(), entry.getValue());
+					if (inserted) {
+						insertCount++;
+					} else {
+						updateCount++;
+					}
+				} catch (SeasonNotResolvedException e) {
+					// 新規行のシーズンが取れない: DB 書き込みの前なので、この行だけスキップして続ける（analyze_error_match に記録済み）
+					skipCount++;
 				}
 			}
 		} finally {
-			SEASON_CACHE.remove();
+			clearSeasonCache();
 		}
 
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00006I_UPDATE_SUCCESS,
-				BM_NUMBER + " 登録件数: " + insertCount + "件, 更新件数: " + updateCount + "件");
+				BM_NUMBER + " 登録件数: " + insertCount + "件, 更新件数: " + updateCount + "件, シーズン取得不可: "
+						+ skipCount + "件");
 	}
 
 	/**
@@ -174,7 +186,10 @@ public class TeamMonthlyScoreSummaryWriter {
 		TeamMonthlyScoreSummaryEntity saveEntity = baseEntity(key);
 		saveEntity.applyMonths(deltas);
 		// 【追加】seq を「<シーズン>-<枝番>」で採番（同じトランザクション内。INSERT 失敗時は採番もロールバック）
-		saveEntity.setSeq(this.seqNumberingService.nextSeq(TABLE_NAME, resolveSeason(key)));
+		// シーズンが取れなければ analyze_error_match に記録して SeasonNotResolvedException（まだ何も書き込んでいない）
+		String season = resolveSeason(key.getCountry(), key.getLeague(),
+				AnalyzeErrorInfo.empty().team(key.getTeam()).detail("ha=" + key.getHa() + ", year=" + key.getYear()));
+		saveEntity.setSeq(this.seqNumberingService.nextSeq(TABLE_NAME, season));
 
 		int result = this.teamMonthlyScoreSummaryRepository.insertTeamMonthlyScore(saveEntity);
 		if (result != 1) {
@@ -205,25 +220,6 @@ public class TeamMonthlyScoreSummaryWriter {
 					1, result,
 					String.format("seq=%s, %s", current.getSeq(), key));
 		}
-	}
-
-	/**
-	 * 【追加】国・リーグのシーズンを取得する（1回の保存処理の中ではキャッシュを使う）。
-	 * SeasonResolverIF の実装が無い場合は例外（INSERT を伴う保存は全件ロールバック）。
-	 */
-	private String resolveSeason(TeamYearKey key) {
-		if (this.seasonResolver == null) {
-			throw new IllegalStateException(
-					"SeasonResolverIF の実装がありません（CountryLeagueSeasonResolver が Bean 登録されていない）: " + key);
-		}
-		String cacheKey = key.getCountry() + "," + key.getLeague();
-		Map<String, String> cache = SEASON_CACHE.get();
-		String season = cache.get(cacheKey);
-		if (season == null) {
-			season = this.seasonResolver.resolveSeason(key.getCountry(), key.getLeague());
-			cache.put(cacheKey, season);
-		}
-		return season;
 	}
 
 	private TeamMonthlyScoreSummaryEntity baseEntity(TeamYearKey key) {
