@@ -11,7 +11,7 @@ import lombok.EqualsAndHashCode;
  *
  * <h2>何を表すクラスか</h2>
  * <p>
- * 1行 = 1つの BM × エラー種別 × 試合（または国・リーグ、チーム）。
+ * 1行 = 1つの BM × エラー種別 × 試合（または国・リーグ、チーム）× 原因の項目（error_field）。
  * シーズンが取得できない等の理由で統計テーブルに登録できなかった試合を記録し、画面で「何が・なぜ登録できなかったか」を確認する。
  * </p>
  * <ul>
@@ -33,7 +33,7 @@ public class AnalyzeErrorMatchEntity extends MetaEntity {
 	/** BM 番号（例: BM_M004） */
 	private String bmNumber;
 
-	/** エラー種別（{@link dev.application.analyze.common.service.AnalyzeErrorType} の名前） */
+	/** エラー種別（{@link AnalyzeErrorType} の名前） */
 	private String errorType;
 
 	/** エラー内容 */
@@ -59,6 +59,12 @@ public class AnalyzeErrorMatchEntity extends MetaEntity {
 
 	/** シーズン（取得できていれば） */
 	private String season;
+
+	/** 【追加】エラーの原因になった項目名（カンマ区切り。例: homeScore / country,league。無ければ空文字。一意キーの一部） */
+	private String errorField;
+
+	/** 【追加】原因の項目のそのときの値（「項目名=値」を "; " 区切り） */
+	private String errorValue;
 
 	/** 補足（H/A・年など、キー以外の情報） */
 	private String detail;

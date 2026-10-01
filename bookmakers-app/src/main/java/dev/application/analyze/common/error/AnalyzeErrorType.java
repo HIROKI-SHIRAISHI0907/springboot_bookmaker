@@ -19,6 +19,12 @@ public enum AnalyzeErrorType {
 	/** キー（「国: リーグ - ラウンドN」）から国・リーグが取れない */
 	INVALID_CATEGORY("国・リーグを取得できません"),
 
+	/** 【追加】必須の項目が空（チーム名・スコアなど。どの項目かは error_field） */
+	MISSING_VALUE("必須項目が空です"),
+
+	/** 【追加】項目の値が読めない（スコアが数字でないなど。どの項目かは error_field、値は error_value） */
+	INVALID_VALUE("値を読み取れません"),
+
 	/** 上記以外の予期しないエラー */
 	UNEXPECTED("予期しないエラー");
 

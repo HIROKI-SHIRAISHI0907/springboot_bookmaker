@@ -22,7 +22,8 @@ import dev.common.logger.ManageLoggerComponent;
  * <ul>
  *   <li><b>業務処理を止めない</b>: 記録に失敗しても例外は投げず、ログに出すだけ。</li>
  *   <li><b>別トランザクション</b>: 呼び出し元の保存がロールバックされても記録は残る（{@link AnalyzeErrorWriter}）。</li>
- *   <li><b>同じエラーは1行にまとめる</b>: 同じ BM・種別・試合なら発生回数を +1 する（ストリーミングで何度流れても行が増えない）。</li>
+ *   <li><b>同じエラーは1行にまとめる</b>: 同じ BM・種別・試合・原因の項目なら発生回数を +1 する（ストリーミングで何度流れても行が増えない）。</li>
+ *   <li>【追加】<b>どの項目が原因か</b>を error_field / error_value に記録する（{@link AnalyzeErrorInfo#field}）。</li>
  *   <li><b>解決したら自動で対応済み</b>: 問題が直って同じ試合が正常に登録できたら、{@link #resolve} で対応済み（resolved_by = 'AUTO'）にする。
  *       行は消さない（何が起きていたかの履歴として残す）。</li>
  * </ul>
@@ -79,6 +80,8 @@ public class AnalyzeErrorRecorder {
 			e.setAwayTeamName(i.getAwayTeamName());
 			e.setMatchId(i.getMatchId());
 			e.setDetail(i.getDetail());
+			e.setErrorField(i.getErrorField());
+			e.setErrorValue(i.getErrorValue());
 			e.setSeason(season);
 			if (cause != null) {
 				e.setExceptionClass(cause.getClass().getName());
@@ -91,6 +94,20 @@ public class AnalyzeErrorRecorder {
 					"analyze_error_match への記録に失敗（処理は続行）: bm=" + bmNumber + ", type=" + type
 							+ ", message=" + message + ", " + info);
 		}
+	}
+
+	/**
+	 * 項目の値が原因で登録できなかった試合を記録する（失敗しても例外は投げない）。
+	 * どの項目かは info に {@link AnalyzeErrorInfo#field} で設定しておくこと。
+	 *
+	 * @param bmNumber BM 番号
+	 * @param type {@link AnalyzeErrorType#MISSING_VALUE} / {@link AnalyzeErrorType#INVALID_VALUE} など
+	 * @param info 試合の情報（原因の項目つき）
+	 */
+	public void recordField(String bmNumber, AnalyzeErrorType type, AnalyzeErrorInfo info) {
+		String label = (type == null ? AnalyzeErrorType.UNEXPECTED : type).getLabel();
+		String message = label + (info == null || !info.hasField() ? "" : ": " + info.getErrorValue());
+		record(bmNumber, type, message, info, null, null);
 	}
 
 	/**

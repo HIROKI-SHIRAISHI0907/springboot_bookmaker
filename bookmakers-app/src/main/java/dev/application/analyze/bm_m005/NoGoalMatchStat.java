@@ -11,6 +11,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.application.analyze.common.error.AnalyzeFieldChecker;
 import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.common.constant.MessageCdConst;
@@ -64,7 +65,7 @@ import dev.common.logger.ManageLoggerComponent;
  *   <li><b>START が試合開始直後とは限らない</b>: データ取得が途中から始まった試合では、最初に取れた時点になる。</li>
  *   <li><b>FIN 行のスコアが空・数値以外</b>: 0-0 と判断できないため対象外（ログに件数を出す）。</li>
  *   <li><b>延長戦・PK戦</b>: FIN 行のスコアで判定するため、データの持ち方によっては延長の得点を含む/含まない。</li>
- *   <li><b>シーズンは処理日基準</b>・<b>同じ組み合わせの試合がシーズン内に2試合ある場合は上書き</b>（Writer 参照）。</li>
+ *   <li><b>シーズンは処理日基準</b>。同じ組み合わせの試合がシーズン内に複数回ある場合も、ラウンド番号で別の試合として保存する（Writer 参照）。</li>
  * </ul>
  *
  * @author shiraishitoshio
@@ -94,6 +95,10 @@ public class NoGoalMatchStat implements AnalyzeEntityIF {
 	private NoGoalMatchWriter noGoalMatchWriter;
 
 	/** ログ管理クラス */
+	/** 使えない項目の記録（どの項目でスキップしたか） */
+	@Autowired
+	private AnalyzeFieldChecker analyzeFieldChecker;
+
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
 
@@ -155,6 +160,8 @@ public class NoGoalMatchStat implements AnalyzeEntityIF {
 						invalidCount++;
 						debugLog(METHOD_NAME, BM_NUMBER + " 最終スコアが判定できないためスキップ: matchKey=" + matchKey
 								+ ", " + setLoggerFillChar(end));
+						// どの項目が原因かを analyze_error_match に記録（画面で確認できるように）
+						this.analyzeFieldChecker.checkTeamsAndScore(BM_NUMBER, outerEntry.getKey(), end);
 						continue;
 					}
 					if (homeScore != 0 || awayScore != 0) {
@@ -165,6 +172,8 @@ public class NoGoalMatchStat implements AnalyzeEntityIF {
 							|| trimOrNull(end.getGameTeamCategory()) == null) {
 						invalidCount++;
 						debugLog(METHOD_NAME, BM_NUMBER + " 国リーグ・チーム名なし: matchKey=" + matchKey);
+						// どの項目が原因かを analyze_error_match に記録（画面で確認できるように）
+						this.analyzeFieldChecker.checkTeamsAndScore(BM_NUMBER, outerEntry.getKey(), end);
 						continue;
 					}
 

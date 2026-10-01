@@ -12,13 +12,14 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.application.analyze.common.error.AnalyzeFieldChecker;
+import dev.common.util.CountryLeagueParser;
 import dev.application.analyze.bm_m017.LeagueScoreTimeBandWriter.MatchKey;
 import dev.application.analyze.common.util.BookMakersCommonConst;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
-import dev.common.util.CountryLeagueParser;
 import dev.common.util.ExecuteMainUtil;
 
 /**
@@ -81,7 +82,7 @@ import dev.common.util.ExecuteMainUtil;
  *   <li><b>時間帯の一覧</b>（{@link #TIME_BANDS}）は classifyMatchTime の区切りと合わせてある。
  *       classifyMatchTime を変えたらここも変えること。</li>
  *   <li><b>延長戦</b>: 延長の得点は "90〜" に入る。PK 戦の行は使わない（PK で終わった試合は最後の行が FIN でなければ対象外）。</li>
- *   <li><b>シーズンは処理日基準</b>・<b>同じ組み合わせの試合がシーズン内に2試合ある場合は上書き</b>（Writer 参照）。</li>
+ *   <li><b>シーズンは処理日基準</b>。同じ組み合わせの試合がシーズン内に複数回ある場合も、ラウンド番号で別の試合として保存する（Writer 参照）。</li>
  * </ul>
  *
  * @author shiraishitoshio
@@ -115,6 +116,10 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 	private LeagueScoreTimeBandWriter leagueScoreTimeBandWriter;
 
 	/** ログ管理クラス */
+	/** 使えない項目の記録（どの項目でスキップしたか） */
+	@Autowired
+	private AnalyzeFieldChecker analyzeFieldChecker;
+
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
 
@@ -180,6 +185,8 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 							|| parseScore(end.getHomeScore()) == null || parseScore(end.getAwayScore()) == null) {
 						invalidCount++;
 						debugLog(METHOD_NAME, BM_NUMBER + " チーム名・最終スコアが取れないためスキップ: matchKey=" + matchKey);
+						// どの項目が原因かを analyze_error_match に記録（画面で確認できるように）
+						this.analyzeFieldChecker.checkTeamsAndScore(BM_NUMBER, outerEntry.getKey(), end);
 						continue;
 					}
 

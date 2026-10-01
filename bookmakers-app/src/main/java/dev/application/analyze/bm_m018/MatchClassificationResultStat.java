@@ -12,6 +12,8 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.application.analyze.common.error.AnalyzeFieldChecker;
+import dev.common.util.CountryLeagueParser;
 import dev.application.analyze.bm_m018.ClassifyMode.FirstGoalBand;
 import dev.application.analyze.bm_m018.ClassifyMode.NextGoal;
 import dev.application.analyze.interf.AnalyzeEntityIF;
@@ -19,7 +21,6 @@ import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
-import dev.common.util.CountryLeagueParser;
 import dev.common.util.ExecuteMainUtil;
 
 /**
@@ -67,7 +68,7 @@ import dev.common.util.ExecuteMainUtil;
  *       前半アディショナルタイムのゴールは後半扱いになる。</li>
  *   <li><b>同じ行でホーム・アウェー両方が増えた場合</b>はホーム → アウェーの順とみなす（最初のゴールの側が変わりうる）。</li>
  *   <li><b>PK 戦の行は使わない</b>。PK で終わった試合は、最後の行が FIN でなければ対象外。</li>
- *   <li><b>シーズンは処理日基準</b>・<b>同じ組み合わせの試合がシーズン内に2試合ある場合は上書き</b>（Writer 参照）。</li>
+ *   <li><b>シーズンは処理日基準</b>。同じ組み合わせの試合がシーズン内に複数回ある場合も、ラウンド番号で別の試合として保存する（Writer 参照）。</li>
  * </ul>
  *
  * @author shiraishitoshio
@@ -99,6 +100,10 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 
 	@Autowired
 	private MatchClassificationResultWriter matchClassificationResultWriter;
+
+	/** 使えない項目の記録（どの項目でスキップしたか） */
+	@Autowired
+	private AnalyzeFieldChecker analyzeFieldChecker;
 
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
@@ -164,6 +169,8 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 							|| parseScore(end.getHomeScore()) == null || parseScore(end.getAwayScore()) == null) {
 						invalidCount++;
 						debugLog(METHOD_NAME, BM_NUMBER + " チーム名・最終スコアが取れないためスキップ: matchKey=" + matchKey);
+						// どの項目が原因かを analyze_error_match に記録（画面で確認できるように）
+						this.analyzeFieldChecker.checkTeamsAndScore(BM_NUMBER, outerEntry.getKey(), end);
 						continue;
 					}
 

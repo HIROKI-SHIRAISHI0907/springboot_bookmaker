@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.application.analyze.bm_m023.AverageStatisticsSituationConst;
 import dev.application.analyze.bm_m023.ScoreBasedFeature;
 import dev.application.analyze.bm_m023.ScoreBasedFeatureStat;
+import dev.application.analyze.common.error.AnalyzeFieldChecker;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
@@ -61,7 +62,7 @@ import dev.common.util.RecordTimeConverter;
  *       （「得点したから増えた」関係も含む）。予測に使うなら区間の始まりの値にする必要がある。</li>
  *   <li><b>値は累計</b>: 時間が経つほど大きくなるため、「試合の後半ほど値が大きい」ことも相関に含まれる。</li>
  *   <li><b>後半（2nd）の最初の区間</b>: ハーフタイム行と後半最初の行の間の区間は、どの区分にも入らない（旧実装と同じ）。</li>
- *   <li><b>シーズンは処理日基準</b>・<b>同じ組み合わせの試合がシーズン内に2試合ある場合は上書き</b>（Writer 参照）。</li>
+ *   <li><b>シーズンは処理日基準</b>。同じ組み合わせの試合がシーズン内に複数回ある場合も、ラウンド番号で別の試合として保存する（Writer 参照）。</li>
  * </ul>
  *
  * @author shiraishitoshio
@@ -90,6 +91,10 @@ public class CalcCorrelationStat implements AnalyzeEntityIF {
 
 	@Autowired
 	private CalcCorrelationWriter calcCorrelationWriter;
+
+	/** 使えない項目の記録（どの項目でスキップしたか） */
+	@Autowired
+	private AnalyzeFieldChecker analyzeFieldChecker;
 
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
@@ -157,6 +162,8 @@ public class CalcCorrelationStat implements AnalyzeEntityIF {
 					if (home == null || away == null || finHome == null || finAway == null) {
 						invalidCount++;
 						debugLog(METHOD_NAME, BM_NUMBER + " チーム名・最終スコアが取れないためスキップ: matchKey=" + matchKey);
+						// どの項目が原因かを analyze_error_match に記録（画面で確認できるように）
+						this.analyzeFieldChecker.checkTeamsAndScore(BM_NUMBER, outerEntry.getKey(), fin);
 						continue;
 					}
 					String situation = (finHome == 0 && finAway == 0)

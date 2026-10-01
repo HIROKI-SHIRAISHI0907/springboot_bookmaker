@@ -29,7 +29,7 @@ import dev.application.analyze.common.error.AnalyzeErrorMatchEntity;
  * <ul>
  *   <li><b>PostgreSQL 専用構文</b>（ON CONFLICT）。</li>
  *   <li><b>キー項目に NULL を渡さないこと</b>（一意制約は NULL 同士を別物と見なすため、行が増え続ける）。
- *       {@link dev.application.analyze.common.service.AnalyzeErrorWriter} で空文字にしている。</li>
+ *       {@link dev.application.analyze.common.error.AnalyzeErrorWriter} で空文字にしている。</li>
  * </ul>
  */
 @Mapper
@@ -42,7 +42,7 @@ public interface AnalyzeErrorMatchRepository {
 			"SELECT seq FROM analyze_error_match ",
 			"WHERE bm_number = #{bmNumber} AND error_type = #{errorType} ",
 			"AND country = #{country} AND league = #{league} AND data_category = #{dataCategory} ",
-			"AND home_team_name = #{homeTeamName} AND away_team_name = #{awayTeamName}"
+			"AND home_team_name = #{homeTeamName} AND away_team_name = #{awayTeamName} AND error_field = #{errorField}"
 	})
 	String findSeq(
 			@Param("bmNumber") String bmNumber,
@@ -51,7 +51,8 @@ public interface AnalyzeErrorMatchRepository {
 			@Param("league") String league,
 			@Param("dataCategory") String dataCategory,
 			@Param("homeTeamName") String homeTeamName,
-			@Param("awayTeamName") String awayTeamName);
+			@Param("awayTeamName") String awayTeamName,
+			@Param("errorField") String errorField);
 
 	/**
 	 * 記録する（既にあれば発生回数を +1 して更新、未対応に戻す）。
@@ -62,18 +63,18 @@ public interface AnalyzeErrorMatchRepository {
 	@Insert({
 			"INSERT INTO analyze_error_match AS t (",
 			"seq, bm_number, error_type, error_message, country, league, data_category, ",
-			"home_team_name, away_team_name, match_id, season, detail, exception_class, stack_trace, ",
+			"home_team_name, away_team_name, error_field, error_value, match_id, season, detail, exception_class, stack_trace, ",
 			"occurred_count, first_occurred_at, last_occurred_at, resolved_flg, ",
 			"register_id, register_time, update_id, update_time",
 			") VALUES (",
 			"#{seq}, #{bmNumber}, #{errorType}, #{errorMessage}, #{country}, #{league}, #{dataCategory}, ",
-			"#{homeTeamName}, #{awayTeamName}, #{matchId}, #{season}, #{detail}, #{exceptionClass}, #{stackTrace}, ",
+			"#{homeTeamName}, #{awayTeamName}, #{errorField}, #{errorValue}, #{matchId}, #{season}, #{detail}, #{exceptionClass}, #{stackTrace}, ",
 			"1, NOW(), NOW(), FALSE, ",
 			"COALESCE(#{registerId}, 'SYSTEM'), NOW(), COALESCE(#{updateId}, 'SYSTEM'), NOW()",
-			") ON CONFLICT (bm_number, error_type, country, league, data_category, home_team_name, away_team_name) ",
+			") ON CONFLICT (bm_number, error_type, country, league, data_category, home_team_name, away_team_name, error_field) ",
 			"DO UPDATE SET ",
 			// seq・キー・first_occurred_at・register_*・resolved_at/by・note は変えない
-			"error_message = EXCLUDED.error_message, ",
+			"error_message = EXCLUDED.error_message, error_value = EXCLUDED.error_value, ",
 			"match_id = COALESCE(EXCLUDED.match_id, t.match_id), ",
 			"season = COALESCE(EXCLUDED.season, t.season), ",
 			"detail = COALESCE(EXCLUDED.detail, t.detail), ",

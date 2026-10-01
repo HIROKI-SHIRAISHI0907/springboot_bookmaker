@@ -14,6 +14,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.application.analyze.common.error.AnalyzeFieldChecker;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
@@ -123,6 +124,10 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 	private SurfaceOverviewWriter surfaceOverviewWriter;
 
 	/** ロガー */
+	/** 使えない項目の記録（どの項目でスキップしたか） */
+	@Autowired
+	private AnalyzeFieldChecker analyzeFieldChecker;
+
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
 
@@ -175,6 +180,8 @@ public class SurfaceOverviewStat implements AnalyzeEntityIF {
 					if (o == null) {
 						invalidCount++;
 						debugLog(METHOD_NAME, BM_NUMBER + " スコア・チーム名が取れないためスキップ: matchKey=" + matchKey);
+						// どの項目が原因かを analyze_error_match に記録（画面で確認できるように）
+						this.analyzeFieldChecker.checkTeamsAndScore(BM_NUMBER, outer.getKey(), match.getValue());
 						continue;
 					}
 					if (!o.finished) {

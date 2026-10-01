@@ -59,11 +59,13 @@ public class AnalyzeErrorWriter {
 		entity.setDataCategory(nvl(entity.getDataCategory()));
 		entity.setHomeTeamName(nvl(entity.getHomeTeamName()));
 		entity.setAwayTeamName(nvl(entity.getAwayTeamName()));
+		entity.setErrorField(nvl(entity.getErrorField()));
+		entity.setErrorValue(cut(entity.getErrorValue(), MAX_MESSAGE));
 		entity.setErrorMessage(cut(entity.getErrorMessage(), MAX_MESSAGE));
 
 		String seq = this.analyzeErrorMatchRepository.findSeq(
 				entity.getBmNumber(), entity.getErrorType(), entity.getCountry(), entity.getLeague(),
-				entity.getDataCategory(), entity.getHomeTeamName(), entity.getAwayTeamName());
+				entity.getDataCategory(), entity.getHomeTeamName(), entity.getAwayTeamName(), entity.getErrorField());
 		if (seq == null) {
 			seq = this.seqNumberingService.nextSeq(TABLE_NAME, String.valueOf(LocalDate.now().getYear()));
 		}

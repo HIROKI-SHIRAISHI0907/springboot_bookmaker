@@ -17,6 +17,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.application.analyze.common.error.AnalyzeFieldChecker;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
@@ -77,7 +78,7 @@ import dev.common.util.RecordTimeConverter;
  * <ul>
  *   <li><b>観測はスナップショット単位</b>: 値はその時点までの累計で、データ取得間隔が細かい試合ほど観測数が多く、重みが大きい（旧実装と同じ）。</li>
  *   <li><b>データ量</b>: 1試合 約200行。30リーグで年 約250万行。ビューが重くなったらリーグ単位をマテリアライズドビューにする。</li>
- *   <li><b>シーズンは処理日基準</b>・<b>同じ組み合わせの試合がシーズン内に2試合ある場合は上書き</b>（Writer 参照）。</li>
+ *   <li><b>シーズンは処理日基準</b>。同じ組み合わせの試合がシーズン内に複数回ある場合も、ラウンド番号で別の試合として保存する（Writer 参照）。</li>
  * </ul>
  *
  * @author shiraishitoshio
@@ -103,6 +104,10 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 
 	@Autowired
 	private ScoreBasedFeatureWriter scoreBasedFeatureWriter;
+
+	/** 使えない項目の記録（どの項目でスキップしたか） */
+	@Autowired
+	private AnalyzeFieldChecker analyzeFieldChecker;
 
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
@@ -170,6 +175,8 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 					if (home == null || away == null || finHome == null || finAway == null) {
 						invalidCount++;
 						debugLog(METHOD_NAME, BM_NUMBER + " チーム名・最終スコアが取れないためスキップ: matchKey=" + matchKey);
+						// どの項目が原因かを analyze_error_match に記録（画面で確認できるように）
+						this.analyzeFieldChecker.checkTeamsAndScore(BM_NUMBER, outerEntry.getKey(), fin);
 						continue;
 					}
 

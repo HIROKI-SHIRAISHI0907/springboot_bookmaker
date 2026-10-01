@@ -14,12 +14,13 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.application.analyze.common.error.AnalyzeFieldChecker;
+import dev.common.util.CountryLeagueParser;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
 import dev.common.logger.ManageLoggerComponent;
-import dev.common.util.CountryLeagueParser;
 
 /**
  * BM_M021統計分析ロジック（チーム視点の試合最終成績）
@@ -64,7 +65,7 @@ import dev.common.util.CountryLeagueParser;
  *   <li><b>PK 戦のスコア</b>: FIN 行のスコアをそのまま使う（PK の得点を含むかは元データ次第）。</li>
  *   <li><b>順位</b>: 数字だけ取り出す（"3位" → 3）。数字が無ければ null。</li>
  *   <li><b>BookDataEntity の getter 名</b>（getHomeOffSide / getTemperature など）に依存する。名前が変わるとコンパイルエラーで分かる。</li>
- *   <li><b>シーズンは処理日基準</b>・<b>同じ組み合わせの試合がシーズン内に2試合ある場合は上書き</b>（Writer 参照）。</li>
+ *   <li><b>シーズンは処理日基準</b>。同じ組み合わせの試合がシーズン内に複数回ある場合も、ラウンド番号で別の試合として保存する（Writer 参照）。</li>
  * </ul>
  *
  * @author shiraishitoshio
@@ -97,6 +98,10 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 
 	@Autowired
 	private TeamMatchFinalWriter teamMatchFinalWriter;
+
+	/** 使えない項目の記録（どの項目でスキップしたか） */
+	@Autowired
+	private AnalyzeFieldChecker analyzeFieldChecker;
 
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
@@ -159,6 +164,8 @@ public class TeamMatchFinalStat implements AnalyzeEntityIF {
 						debugLog(METHOD_NAME, BM_NUMBER + " チーム名・最終スコアが取れないためスキップ: matchKey=" + matchKey
 								+ ", home=" + home + ", away=" + away
 								+ ", score=" + fin.getHomeScore() + "-" + fin.getAwayScore());
+						// どの項目が原因かを analyze_error_match に記録（画面で確認できるように）
+						this.analyzeFieldChecker.checkTeamsAndScore(BM_NUMBER, outerEntry.getKey(), fin);
 						continue;
 					}
 

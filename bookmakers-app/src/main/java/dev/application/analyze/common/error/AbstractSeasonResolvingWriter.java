@@ -25,6 +25,8 @@ import dev.common.util.CountryLeagueParser;
  *   <li><b>取得できなかった場合は、その試合を analyze_error_match に記録してから</b>
  *       {@link SeasonNotResolvedException} を投げる。DB 書き込みの前に判定するので、その試合は何も保存されない。
  *       呼び出し側（Stat）はこの例外を捕まえてその試合だけスキップし、次の試合へ進む。</li>
+ *   <li>【追加】<b>どの項目が原因か</b>も記録する（キーが読めない → dataCategory、マスタに無い → country,league、
+ *       国・リーグが空 → 空の方）。シーズン以外の項目の問題は {@link #recordFieldError} で記録する。</li>
  *   <li><b>解決したら自動で対応済みにする</b>: シーズンが取得できた試合に未対応のエラーがあれば、
  *       その Writer のトランザクションが<b>コミットされた後</b>に、エラーを対応済み（resolved_by = 'AUTO'）にする。
  *       保存が失敗（ロールバック）した場合は対応済みにしない。行は消さない（履歴として残す）。</li>
@@ -124,6 +126,7 @@ public abstract class AbstractSeasonResolvingWriter {
 			resolveAfterCommit(i);
 			return r.season;
 		}
+		addCauseFields(i, r.type, country, league);
 		this.analyzeErrorRecorder.record(getBmNumber(), r.type, r.message, i, null, r.cause);
 		unresolvedKeys().add(key(i));
 		throw new SeasonNotResolvedException(r.message + " (" + i + ")");
@@ -142,6 +145,7 @@ public abstract class AbstractSeasonResolvingWriter {
 		String[] cl = CountryLeagueParser.parse(dataCategory);
 		if (cl == null || cl.length < 2) {
 			String message = "キーから国・リーグを取得できません: " + dataCategory;
+			i.field("dataCategory", dataCategory);
 			this.analyzeErrorRecorder.record(getBmNumber(), AnalyzeErrorType.INVALID_CATEGORY, message, i, null, null);
 			throw new SeasonNotResolvedException(message);
 		}
@@ -176,6 +180,38 @@ public abstract class AbstractSeasonResolvingWriter {
 	protected void recordError(AnalyzeErrorType type, String message, AnalyzeErrorInfo info, String season,
 			Throwable cause) {
 		this.analyzeErrorRecorder.record(getBmNumber(), type, message, info, season, cause);
+	}
+
+	/**
+	 * 項目の値が原因で登録できなかった試合を記録する（例外は投げない）。
+	 * 例: {@code recordFieldError(AnalyzeErrorType.MISSING_VALUE, AnalyzeErrorInfo.match(cat, home, away).field("homeScore", v))}
+	 *
+	 * @param type エラー種別（MISSING_VALUE / INVALID_VALUE など）
+	 * @param info 試合の情報（{@link AnalyzeErrorInfo#field} で原因の項目を設定しておく）
+	 */
+	protected void recordFieldError(AnalyzeErrorType type, AnalyzeErrorInfo info) {
+		this.analyzeErrorRecorder.recordField(getBmNumber(), type, info);
+	}
+
+	/**
+	 * シーズンが取れなかった原因の項目を設定する。
+	 * <ul>
+	 *   <li>国・リーグが空: 空の方（country / league）</li>
+	 *   <li>マスタに無い・取得でエラー: country と league（この組み合わせが原因）</li>
+	 *   <li>SeasonResolverIF の実装が無い: 項目は無し（設定の問題）</li>
+	 * </ul>
+	 */
+	private static void addCauseFields(AnalyzeErrorInfo i, AnalyzeErrorType type, String country, String league) {
+		if (type == AnalyzeErrorType.INVALID_CATEGORY) {
+			if (isBlank(country)) {
+				i.field("country", country);
+			}
+			if (isBlank(league)) {
+				i.field("league", league);
+			}
+		} else if (type == AnalyzeErrorType.SEASON_NOT_FOUND || type == AnalyzeErrorType.SEASON_RESOLVE_FAILED) {
+			i.field("country", country).field("league", league);
+		}
 	}
 
 	/**
