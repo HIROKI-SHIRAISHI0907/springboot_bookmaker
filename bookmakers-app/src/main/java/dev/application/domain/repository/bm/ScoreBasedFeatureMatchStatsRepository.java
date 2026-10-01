@@ -43,7 +43,7 @@ public interface ScoreBasedFeatureMatchStatsRepository {
 	 */
 	@Select({
 			"SELECT chk_body, feature, seq FROM score_based_feature_match_stats ",
-			"WHERE season = #{season} AND country = #{country} AND league = #{league} ",
+			"WHERE season = #{season} AND country = #{country} AND league = #{league} AND round_no = #{roundNo} ",
 			"AND home_team_name = #{homeTeamName} AND away_team_name = #{awayTeamName}"
 	})
 	@Results(id = "sbfmsSeq", value = {
@@ -55,6 +55,7 @@ public interface ScoreBasedFeatureMatchStatsRepository {
 			@Param("season") String season,
 			@Param("country") String country,
 			@Param("league") String league,
+			@Param("roundNo") Integer roundNo,
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
 
@@ -102,7 +103,7 @@ public interface ScoreBasedFeatureMatchStatsRepository {
 			"COALESCE(#{r.updateId}, 'SYSTEM'), COALESCE(CAST(#{r.updateTime} AS timestamptz), NOW())",
 			")",
 			"</foreach>",
-			" ON CONFLICT (season, country, league, home_team_name, away_team_name, chk_body, feature) DO UPDATE SET ",
+			" ON CONFLICT (season, country, league, round_no, home_team_name, away_team_name, chk_body, feature) DO UPDATE SET ",
 			// seq・一意キー・register_* は変えない
 			"match_id = EXCLUDED.match_id, ",
 			"round_no = EXCLUDED.round_no, ",

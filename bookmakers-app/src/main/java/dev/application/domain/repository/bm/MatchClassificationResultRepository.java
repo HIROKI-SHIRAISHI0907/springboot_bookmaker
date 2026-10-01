@@ -12,14 +12,13 @@ import org.apache.ibatis.annotations.Select;
 
 import dev.application.analyze.bm_m018.MatchClassificationResultEntity;
 
-
 /**
  * classify_result_data Mapper（BM_M019 分類別の試合スナップショット）。
  *
  * <h2>何をするクラスか</h2>
  * <ul>
  *   <li>{@link #upsert}: 1行（1試合の1時点）を UPSERT する。一意キー
- *       (season, country, league, home_team_name, away_team_name, snapshot_type, goal_no) が既にあれば上書き。</li>
+ *       (season, country, league, round_no, home_team_name, away_team_name, snapshot_type, goal_no) が既にあれば上書き。</li>
  *   <li>{@link #findSeqByMatchKey}: 試合の既存行の時点と seq を取得する（再処理で番号を消費しないため）。</li>
  *   <li>{@link #deleteBySeq}: 今回の計算で無くなった時点の行を消す（ゴール取り消しなど）。</li>
  * </ul>
@@ -45,7 +44,7 @@ public interface MatchClassificationResultRepository {
 	 */
 	@Select({
 			"SELECT snapshot_type, goal_no, seq FROM classify_result_data ",
-			"WHERE season = #{season} AND country = #{country} AND league = #{league} ",
+			"WHERE season = #{season} AND country = #{country} AND league = #{league} AND round_no = #{roundNo} ",
 			"AND home_team_name = #{homeTeamName} AND away_team_name = #{awayTeamName}"
 	})
 	@Results(id = "classifySnapshotSeq", value = {
@@ -57,6 +56,7 @@ public interface MatchClassificationResultRepository {
 			@Param("season") String season,
 			@Param("country") String country,
 			@Param("league") String league,
+			@Param("roundNo") Integer roundNo,
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
 
@@ -76,7 +76,7 @@ public interface MatchClassificationResultRepository {
 	 */
 	@Insert({
 			"INSERT INTO classify_result_data (",
-			"seq, season, country, league, classify_mode, snapshot_type, ",
+			"seq, season, country, league, round_no, classify_mode, snapshot_type, ",
 			"goal_no, data_seq, match_id, data_category, times, home_rank, ",
 			"home_team_name, home_score, away_rank, away_team_name, away_score, home_exp, ",
 			"away_exp, home_in_goal_exp, away_in_goal_exp, home_donation, away_donation, home_shoot_all, ",
@@ -96,7 +96,7 @@ public interface MatchClassificationResultRepository {
 			"judge, home_team_style, away_team_style, probablity, prediction_score_time, ",
 			"register_id, register_time, update_id, update_time",
 			") VALUES (",
-			"#{seq}, #{season}, #{country}, #{league}, #{classifyMode}, #{snapshotType}, ",
+			"#{seq}, #{season}, #{country}, #{league}, #{roundNo}, #{classifyMode}, #{snapshotType}, ",
 			"#{goalNo}, #{dataSeq}, #{matchId}, #{dataCategory}, #{times}, #{homeRank}, ",
 			"#{homeTeamName}, #{homeScore}, #{awayRank}, #{awayTeamName}, #{awayScore}, #{homeExp}, ",
 			"#{awayExp}, #{homeInGoalExp}, #{awayInGoalExp}, #{homeDonation}, #{awayDonation}, #{homeShootAll}, ",
@@ -116,7 +116,7 @@ public interface MatchClassificationResultRepository {
 			"#{judge}, #{homeTeamStyle}, #{awayTeamStyle}, #{probablity}, #{predictionScoreTime}, ",
 			"COALESCE(#{registerId}, 'SYSTEM'), COALESCE(CAST(#{registerTime} AS timestamptz), NOW()), ",
 			"COALESCE(#{updateId}, 'SYSTEM'), COALESCE(CAST(#{updateTime} AS timestamptz), NOW())",
-			") ON CONFLICT (season, country, league, home_team_name, away_team_name, snapshot_type, goal_no) DO UPDATE SET ",
+			") ON CONFLICT (season, country, league, round_no, home_team_name, away_team_name, snapshot_type, goal_no) DO UPDATE SET ",
 			// seq・一意キー・register_* は変えない
 			"classify_mode = EXCLUDED.classify_mode, ",
 			"data_seq = EXCLUDED.data_seq, ",

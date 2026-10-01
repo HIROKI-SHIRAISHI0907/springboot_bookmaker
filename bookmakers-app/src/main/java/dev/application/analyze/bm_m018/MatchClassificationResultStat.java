@@ -136,7 +136,8 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 				String[] sp = CountryLeagueParser.parse(outerEntry.getKey());
 				String country = (sp == null || sp.length < 2) ? null : trimOrNull(sp[0]);
 				String league = (sp == null || sp.length < 2) ? null : trimOrNull(sp[1]);
-				if (country == null || league == null) {
+				Integer roundNo = CountryLeagueParser.parseRoundNo(outerEntry.getKey());
+				if (country == null || league == null || roundNo == null) {
 					invalidCount += matchMap.size();
 					debugLog(METHOD_NAME, BM_NUMBER + " 国,リーグを分割できないためスキップ: " + outerEntry.getKey());
 					continue;
@@ -174,7 +175,7 @@ public class MatchClassificationResultStat implements AnalyzeEntityIF {
 
 					List<MatchClassificationResultEntity> rows = buildRows(timeline, end, home, away, mode);
 					try {
-						this.matchClassificationResultWriter.saveMatch(country, league, rows);
+						this.matchClassificationResultWriter.saveMatch(country, league, roundNo, rows);
 						savedMatchCount++;
 					} catch (MatchClassificationResultWriter.SeasonNotResolvedException e) {
 						// シーズン不明の国,リーグ: 何も保存されていないので、この試合だけスキップ

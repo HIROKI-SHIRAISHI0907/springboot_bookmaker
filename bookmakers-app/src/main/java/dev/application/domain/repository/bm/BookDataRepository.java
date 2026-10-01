@@ -7,7 +7,6 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
-import dev.application.analyze.bm_m033.TeamPoints;
 import dev.application.main.service.DataCategoryDTO;
 import dev.application.main.service.SeqKeyDTO;
 import dev.common.entity.DataEntity;
@@ -256,116 +255,6 @@ public interface BookDataRepository {
 			FROM static_data
 			""")
 	List<DataEntity> getData();
-	@Select("""
-			WITH team_list AS (
-			    SELECT home_team_name AS team
-			    FROM static_data
-			    WHERE times = '終了済'
-			      AND data_category LIKE CONCAT(#{country}, '%')
-			      AND data_category LIKE CONCAT('%', #{league}, '%')
-			      AND (
-			            #{match} IS NULL
-			         OR #{match} = ''
-			         -- ★ ラウンド番号 <= match までを対象にする
-			         OR substring(data_category from 'ラウンド ([0-9]+)')::integer
-			            <= CAST(#{match} AS integer)
-			      )
-			    UNION
-			    SELECT away_team_name AS team
-			    FROM static_data
-			    WHERE times = '終了済'
-			      AND data_category LIKE CONCAT(#{country}, '%')
-			      AND data_category LIKE CONCAT('%', #{league}, '%')
-			      AND (
-			            #{match} IS NULL
-			         OR #{match} = ''
-			         OR substring(data_category from 'ラウンド ([0-9]+)')::integer
-			            <= CAST(#{match} AS integer)
-			      )
-			),
-			team_stats AS (
-			    SELECT
-			        t.team,
-			        SUM(
-			            CASE
-			                WHEN d.home_team_name = t.team THEN
-			                    CASE
-			                        WHEN COALESCE(NULLIF(d.home_score, '')::integer, 0)
-			                             > COALESCE(NULLIF(d.away_score, '')::integer, 0)
-			                             THEN 3
-			                        WHEN COALESCE(NULLIF(d.home_score, '')::integer, 0)
-			                             = COALESCE(NULLIF(d.away_score, '')::integer, 0)
-			                             THEN 1
-			                        ELSE 0
-			                    END
-			                WHEN d.away_team_name = t.team THEN
-			                    CASE
-			                        WHEN COALESCE(NULLIF(d.away_score, '')::integer, 0)
-			                             > COALESCE(NULLIF(d.home_score, '')::integer, 0)
-			                             THEN 3
-			                        WHEN COALESCE(NULLIF(d.away_score, '')::integer, 0)
-			                             = COALESCE(NULLIF(d.home_score, '')::integer, 0)
-			                             THEN 1
-			                        ELSE 0
-			                    END
-			                ELSE 0
-			            END
-			        ) AS points,
-			        SUM(
-			            CASE
-			                WHEN d.home_team_name = t.team
-			                    THEN COALESCE(NULLIF(d.home_score, '')::integer, 0)
-			                WHEN d.away_team_name = t.team
-			                    THEN COALESCE(NULLIF(d.away_score, '')::integer, 0)
-			                ELSE 0
-			            END
-			        ) AS gf,
-			        SUM(
-			            CASE
-			                WHEN d.home_team_name = t.team
-			                    THEN COALESCE(NULLIF(d.away_score, '')::integer, 0)
-			                WHEN d.away_team_name = t.team
-			                    THEN COALESCE(NULLIF(d.home_score, '')::integer, 0)
-			                ELSE 0
-			            END
-			        ) AS ga,
-			        SUM(
-			            CASE
-			                WHEN d.home_team_name = t.team OR d.away_team_name = t.team THEN 1
-			                ELSE 0
-			            END
-			        ) AS played
-			    FROM team_list t
-			    LEFT JOIN static_data d
-			      ON (d.home_team_name = t.team OR d.away_team_name = t.team)
-			     AND d.times = '終了済'
-			     AND d.data_category LIKE CONCAT(#{country}, '%')
-			     AND d.data_category LIKE CONCAT('%', #{league}, '%')
-			     AND (
-			            #{match} IS NULL
-			         OR #{match} = ''
-			         -- ★ JOIN 側も同じく「match まで」の条件にする
-			         OR substring(d.data_category from 'ラウンド ([0-9]+)')::integer
-			            <= CAST(#{match} AS integer)
-			        )
-			    GROUP BY t.team
-			)
-			SELECT
-			    team,
-			    points,
-			    gf,
-			    ga,
-			    played
-			FROM team_stats
-			ORDER BY
-			    points DESC,
-			    (gf - ga) DESC,
-			    gf DESC
-			""")
-	List<TeamPoints> selectTeamPoints(
-			@Param("country") String country,
-			@Param("league") String league,
-			@Param("match") String match);
 	@Select("""
 			SELECT
 			    seq_key AS seqKey,

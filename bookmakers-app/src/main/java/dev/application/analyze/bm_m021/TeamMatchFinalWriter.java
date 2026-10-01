@@ -93,14 +93,18 @@ public class TeamMatchFinalWriter extends AbstractSeasonResolvingWriter {
 	 *
 	 * @param country 国
 	 * @param league リーグ
+	 * @param roundNo ラウンド番号（キーの「ラウンド N」）
 	 * @param rows 1試合分（チーム名・対戦チーム名・H/A を設定済みであること）
 	 * @throws SeasonNotResolvedException シーズンが取得できない場合（何も保存しない）
 	 */
 	@Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-	public void saveMatch(String country, String league, List<TeamMatchFinalStatsEntity> rows) {
+	public void saveMatch(String country, String league, Integer roundNo, List<TeamMatchFinalStatsEntity> rows) {
 		final String METHOD_NAME = "saveMatch";
 		if (rows == null || rows.isEmpty()) {
 			return;
+		}
+		if (roundNo == null) {
+			throw new IllegalArgumentException(BM_NUMBER + " roundNo is null.");
 		}
 		for (TeamMatchFinalStatsEntity row : rows) {
 			if (row == null || isBlank(row.getTeamName()) || isBlank(row.getVersusTeamName()) || isBlank(row.getHa())) {
@@ -121,9 +125,10 @@ public class TeamMatchFinalWriter extends AbstractSeasonResolvingWriter {
 			row.setSeason(season);
 			row.setCountry(country);
 			row.setLeague(league);
+			row.setRoundNo(roundNo);
 
 			String seq = this.teamMatchFinalStatsRepository.findSeq(
-					season, country, league, row.getTeamName(), row.getVersusTeamName(), row.getHa());
+					season, country, league, roundNo, row.getTeamName(), row.getVersusTeamName(), row.getHa());
 			if (seq == null) {
 				seq = this.seqNumberingService.nextSeq(TABLE_NAME, season);
 				numbered++;

@@ -35,13 +35,14 @@ public interface SurfaceOverviewMatchRepository {
 	 */
 	@Select({
 			"SELECT seq FROM surface_overview_match ",
-			"WHERE season = #{season} AND country = #{country} AND league = #{league} ",
+			"WHERE season = #{season} AND country = #{country} AND league = #{league} AND round_no = #{roundNo} ",
 			"AND team = #{team} AND opponent = #{opponent} AND ha = #{ha}"
 	})
 	String findSeq(
 			@Param("season") String season,
 			@Param("country") String country,
 			@Param("league") String league,
+			@Param("roundNo") Integer roundNo,
 			@Param("team") String team,
 			@Param("opponent") String opponent,
 			@Param("ha") String ha);
@@ -72,7 +73,7 @@ public interface SurfaceOverviewMatchRepository {
 			"#{trailed02}, #{dataCategory}, #{snapshotCount}, #{pkGoalsFor}, #{pkGoalsAgainst}, #{teamRank}, ",
 			"COALESCE(#{registerId}, 'SYSTEM'), COALESCE(CAST(#{registerTime} AS timestamptz), NOW()), ",
 			"COALESCE(#{updateId}, 'SYSTEM'), COALESCE(CAST(#{updateTime} AS timestamptz), NOW())",
-			") ON CONFLICT (season, country, league, team, opponent, ha) DO UPDATE SET ",
+			") ON CONFLICT (season, country, league, round_no, team, opponent, ha) DO UPDATE SET ",
 			// seq・一意キー・register_* は変えない
 			"match_id = EXCLUDED.match_id, round_no = EXCLUDED.round_no, total_rounds = EXCLUDED.total_rounds, ",
 			"phase = EXCLUDED.phase, match_time = EXCLUDED.match_time, game_year = EXCLUDED.game_year, ",

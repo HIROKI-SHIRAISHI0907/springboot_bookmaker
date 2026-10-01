@@ -68,6 +68,9 @@ public class MatchClassificationResultEntity extends MetaEntity {
 	/** リーグ【追加】 */
 	private String league;
 
+	/** ラウンド番号（キーの「ラウンド N」。同じ対戦が複数回あるリーグで試合を区別するため一意キーに含む） */
+	private Integer roundNo;
+
 	/** 分類モード（ClassifyMode の番号。試合単位で同じ値）【変更】String → Integer */
 	private Integer classifyMode;
 

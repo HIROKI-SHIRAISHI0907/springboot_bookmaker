@@ -120,7 +120,8 @@ public class LeagueScoreTimeBandWriter extends AbstractSeasonResolvingWriter {
 		// 既存行の seq（何点目 → seq）
 		Map<Integer, String> existingSeq = new HashMap<>();
 		List<LeagueScoreGoalEventEntity> rows = this.leagueScoreGoalEventRepository.findSeqByMatchKey(
-				season, match.getCountry(), match.getLeague(), match.getHomeTeamName(), match.getAwayTeamName());
+				season, match.getCountry(), match.getLeague(), match.getRoundNo(),
+				match.getHomeTeamName(), match.getAwayTeamName());
 		if (rows != null) {
 			for (LeagueScoreGoalEventEntity r : rows) {
 				if (r != null && r.getGoalNo() != null && r.getSeq() != null) {
@@ -140,6 +141,7 @@ public class LeagueScoreTimeBandWriter extends AbstractSeasonResolvingWriter {
 				goal.setSeason(season);
 				goal.setCountry(match.getCountry());
 				goal.setLeague(match.getLeague());
+				goal.setRoundNo(match.getRoundNo());
 				goal.setHomeTeamName(match.getHomeTeamName());
 				goal.setAwayTeamName(match.getAwayTeamName());
 
@@ -167,7 +169,8 @@ public class LeagueScoreTimeBandWriter extends AbstractSeasonResolvingWriter {
 		int deleted = 0;
 		if (!existingSeq.isEmpty()) {
 			deleted = this.leagueScoreGoalEventRepository.deleteGoalsAfter(
-					season, match.getCountry(), match.getLeague(), match.getHomeTeamName(), match.getAwayTeamName(),
+					season, match.getCountry(), match.getLeague(), match.getRoundNo(),
+					match.getHomeTeamName(), match.getAwayTeamName(),
 					maxGoalNo);
 		}
 
@@ -187,16 +190,18 @@ public class LeagueScoreTimeBandWriter extends AbstractSeasonResolvingWriter {
 
 		private final String country;
 		private final String league;
+		private final Integer roundNo;
 		private final String homeTeamName;
 		private final String awayTeamName;
 
-		public MatchKey(String country, String league, String homeTeamName, String awayTeamName) {
-			if (isBlank(country) || isBlank(league) || isBlank(homeTeamName) || isBlank(awayTeamName)) {
-				throw new IllegalArgumentException("country/league/team is blank: " + country + ", " + league
-						+ ", " + homeTeamName + ", " + awayTeamName);
+		public MatchKey(String country, String league, Integer roundNo, String homeTeamName, String awayTeamName) {
+			if (isBlank(country) || isBlank(league) || roundNo == null || isBlank(homeTeamName) || isBlank(awayTeamName)) {
+				throw new IllegalArgumentException("country/league/round/team is blank: " + country + ", " + league
+						+ ", " + roundNo + ", " + homeTeamName + ", " + awayTeamName);
 			}
 			this.country = country;
 			this.league = league;
+			this.roundNo = roundNo;
 			this.homeTeamName = homeTeamName;
 			this.awayTeamName = awayTeamName;
 		}
@@ -207,6 +212,10 @@ public class LeagueScoreTimeBandWriter extends AbstractSeasonResolvingWriter {
 
 		public String getLeague() {
 			return this.league;
+		}
+
+		public Integer getRoundNo() {
+			return this.roundNo;
 		}
 
 		public String getHomeTeamName() {
@@ -223,7 +232,7 @@ public class LeagueScoreTimeBandWriter extends AbstractSeasonResolvingWriter {
 
 		@Override
 		public String toString() {
-			return "国: " + this.country + ", リーグ: " + this.league
+			return "国: " + this.country + ", リーグ: " + this.league + ", ラウンド: " + this.roundNo
 					+ ", ホーム: " + this.homeTeamName + ", アウェー: " + this.awayTeamName;
 		}
 	}

@@ -10,7 +10,8 @@ import lombok.EqualsAndHashCode;
  * <h2>何を表すクラスか</h2>
  * <p>
  * 1行 = 試合終了（FIN）した1試合の1ゴール。「その試合の何点目か・どちらが取ったか・得点後のスコア・時間帯」を持つ。
- * (season, country, league, homeTeamName, awayTeamName, goalNo) で一意。
+ * (season, country, league, roundNo, homeTeamName, awayTeamName, goalNo) で一意。
+ * 【変更】同じ対戦がシーズン中に複数回あるリーグ（スイス・スコットランドなど）で試合を区別するため、ラウンド番号を一意キーに追加。
  * </p>
  * <p>
  * 件数・割合はテーブルに持たず、ビューで出す。
@@ -55,6 +56,9 @@ public class LeagueScoreGoalEventEntity extends MetaEntity {
 
 	/** アウェーチーム */
 	private String awayTeamName;
+
+	/** ラウンド番号（キーの「ラウンド N」の N） */
+	private Integer roundNo;
 
 	/** マッチID（参照用） */
 	private String matchId;

@@ -152,7 +152,8 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 				String[] sp = CountryLeagueParser.parse(outerEntry.getKey());
 				String country = (sp == null || sp.length < 2) ? null : trimOrNull(sp[0]);
 				String league = (sp == null || sp.length < 2) ? null : trimOrNull(sp[1]);
-				if (country == null || league == null) {
+				Integer roundNo = CountryLeagueParser.parseRoundNo(outerEntry.getKey());
+				if (country == null || league == null || roundNo == null) {
 					invalidCount += matchMap.size();
 					debugLog(METHOD_NAME, BM_NUMBER + " 国,リーグを分割できないためスキップ: " + outerEntry.getKey());
 					continue;
@@ -210,7 +211,7 @@ public class LeagueScoreTimeBandStat implements AnalyzeEntityIF {
 					}
 
 					try {
-						this.leagueScoreTimeBandWriter.saveMatch(new MatchKey(country, league, home, away), rows);
+						this.leagueScoreTimeBandWriter.saveMatch(new MatchKey(country, league, roundNo, home, away), rows);
 						savedMatchCount++;
 						goalCount += rows.size();
 					} catch (LeagueScoreTimeBandWriter.SeasonNotResolvedException e) {

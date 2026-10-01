@@ -146,7 +146,7 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 				}
 				String country = cl[0];
 				String league = cl[1];
-				Integer roundNo = parseRound(outerEntry.getKey());
+				Integer roundNo = CountryLeagueParser.parseRoundNo(outerEntry.getKey());
 
 				for (Entry<String, List<BookDataEntity>> matchEntry : matchMap.entrySet()) {
 					matchCount++;
@@ -189,7 +189,7 @@ public class ScoreBasedFeatureStat implements AnalyzeEntityIF {
 					}
 
 					try {
-						this.scoreBasedFeatureWriter.saveMatch(country, league, home, away, rows);
+						this.scoreBasedFeatureWriter.saveMatch(country, league, roundNo, home, away, rows);
 						savedMatchCount++;
 						rowCount += rows.size();
 					} catch (ScoreBasedFeatureWriter.SeasonNotResolvedException e) {

@@ -13,7 +13,7 @@ import dev.application.analyze.bm_m021.TeamMatchFinalStatsEntity;
  * <h2>何をするクラスか</h2>
  * <ul>
  *   <li>{@link #upsert}: 1行（1試合 × 1チーム視点）を UPSERT する。一意キー
- *       (season, country, league, team_name, versus_team_name, ha) が既にあれば上書き。</li>
+ *       (season, country, league, round_no, team_name, versus_team_name, ha) が既にあれば上書き。</li>
  *   <li>{@link #findSeq}: 既存行の seq を取得する（再処理で番号を消費しないため）。</li>
  * </ul>
  *
@@ -32,13 +32,14 @@ public interface TeamMatchFinalStatsRepository {
 	 */
 	@Select({
 			"SELECT seq FROM team_match_final_stats ",
-			"WHERE season = #{season} AND country = #{country} AND league = #{league} ",
+			"WHERE season = #{season} AND country = #{country} AND league = #{league} AND round_no = #{roundNo} ",
 			"AND team_name = #{teamName} AND versus_team_name = #{versusTeamName} AND ha = #{ha}"
 	})
 	String findSeq(
 			@Param("season") String season,
 			@Param("country") String country,
 			@Param("league") String league,
+			@Param("roundNo") Integer roundNo,
 			@Param("teamName") String teamName,
 			@Param("versusTeamName") String versusTeamName,
 			@Param("ha") String ha);
@@ -51,7 +52,7 @@ public interface TeamMatchFinalStatsRepository {
 	 */
 	@Insert({
 			"INSERT INTO team_match_final_stats (",
-			"seq, season, country, league, team_name, ",
+			"seq, season, country, league, round_no, team_name, ",
 			"versus_team_name, ha, match_id, goals_for, goals_against, ",
 			"score, result, game_fin_rank, opposite_game_fin_rank, exp, ",
 			"opposite_exp, in_goal_exp, opposite_in_goal_exp, donation, opposite_donation, ",
@@ -72,7 +73,7 @@ public interface TeamMatchFinalStatsRepository {
 			"intercept_count, opposite_intercept_count, weather, temperature, humid, ",
 			"register_id, register_time, update_id, update_time",
 			") VALUES (",
-			"#{seq}, #{season}, #{country}, #{league}, #{teamName}, ",
+			"#{seq}, #{season}, #{country}, #{league}, #{roundNo}, #{teamName}, ",
 			"#{versusTeamName}, #{ha}, #{matchId}, #{goalsFor}, #{goalsAgainst}, ",
 			"#{score}, #{result}, #{gameFinRank}, #{oppositeGameFinRank}, #{exp}, ",
 			"#{oppositeExp}, #{inGoalExp}, #{oppositeInGoalExp}, #{donation}, #{oppositeDonation}, ",
@@ -93,7 +94,7 @@ public interface TeamMatchFinalStatsRepository {
 			"#{interceptCount}, #{oppositeInterceptCount}, #{weather}, #{temperature}, #{humid}, ",
 			"COALESCE(#{registerId}, 'SYSTEM'), COALESCE(CAST(#{registerTime} AS timestamptz), NOW()), ",
 			"COALESCE(#{updateId}, 'SYSTEM'), COALESCE(CAST(#{updateTime} AS timestamptz), NOW())",
-			") ON CONFLICT (season, country, league, team_name, versus_team_name, ha) DO UPDATE SET ",
+			") ON CONFLICT (season, country, league, round_no, team_name, versus_team_name, ha) DO UPDATE SET ",
 			// seq・一意キー・register_* は変えない
 			"match_id = EXCLUDED.match_id, ",
 			"goals_for = EXCLUDED.goals_for, ",

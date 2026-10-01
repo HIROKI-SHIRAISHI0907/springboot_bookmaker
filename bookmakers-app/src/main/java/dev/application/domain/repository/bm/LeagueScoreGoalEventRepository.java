@@ -12,7 +12,6 @@ import org.apache.ibatis.annotations.Select;
 
 import dev.application.analyze.bm_m017.LeagueScoreGoalEventEntity;
 
-
 /**
  * league_score_goal_event Mapper（BM_M017 / BM_M018 共通）。
  *
@@ -44,7 +43,7 @@ public interface LeagueScoreGoalEventRepository {
 	 */
 	@Select({
 			"SELECT goal_no, seq FROM league_score_goal_event ",
-			"WHERE season = #{season} AND country = #{country} AND league = #{league} ",
+			"WHERE season = #{season} AND country = #{country} AND league = #{league} AND round_no = #{roundNo} ",
 			"AND home_team_name = #{homeTeamName} AND away_team_name = #{awayTeamName}"
 	})
 	@Results(id = "goalNoSeq", value = {
@@ -55,6 +54,7 @@ public interface LeagueScoreGoalEventRepository {
 			@Param("season") String season,
 			@Param("country") String country,
 			@Param("league") String league,
+			@Param("roundNo") Integer roundNo,
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
 
@@ -66,7 +66,7 @@ public interface LeagueScoreGoalEventRepository {
 	 */
 	@Delete({
 			"DELETE FROM league_score_goal_event ",
-			"WHERE season = #{season} AND country = #{country} AND league = #{league} ",
+			"WHERE season = #{season} AND country = #{country} AND league = #{league} AND round_no = #{roundNo} ",
 			"AND home_team_name = #{homeTeamName} AND away_team_name = #{awayTeamName} ",
 			"AND goal_no > #{maxGoalNo}"
 	})
@@ -74,6 +74,7 @@ public interface LeagueScoreGoalEventRepository {
 			@Param("season") String season,
 			@Param("country") String country,
 			@Param("league") String league,
+			@Param("roundNo") Integer roundNo,
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName,
 			@Param("maxGoalNo") int maxGoalNo);
@@ -86,17 +87,17 @@ public interface LeagueScoreGoalEventRepository {
 	 */
 	@Insert({
 			"INSERT INTO league_score_goal_event (",
-			"seq, season, country, league, home_team_name, away_team_name, match_id, ",
+			"seq, season, country, league, round_no, home_team_name, away_team_name, match_id, ",
 			"goal_no, scored_side, home_score_value, away_score_value, ",
 			"time_range_area, time_band_order, goal_times, ",
 			"register_id, register_time, update_id, update_time",
 			") VALUES (",
-			"#{seq}, #{season}, #{country}, #{league}, #{homeTeamName}, #{awayTeamName}, #{matchId}, ",
+			"#{seq}, #{season}, #{country}, #{league}, #{roundNo}, #{homeTeamName}, #{awayTeamName}, #{matchId}, ",
 			"#{goalNo}, #{scoredSide}, #{homeScoreValue}, #{awayScoreValue}, ",
 			"#{timeRangeArea}, #{timeBandOrder}, #{goalTimes}, ",
 			"COALESCE(#{registerId}, 'SYSTEM'), COALESCE(CAST(#{registerTime} AS timestamptz), NOW()), ",
 			"COALESCE(#{updateId}, 'SYSTEM'), COALESCE(CAST(#{updateTime} AS timestamptz), NOW())",
-			") ON CONFLICT (season, country, league, home_team_name, away_team_name, goal_no) DO UPDATE SET ",
+			") ON CONFLICT (season, country, league, round_no, home_team_name, away_team_name, goal_no) DO UPDATE SET ",
 			// seq・一意キー・register_* は変えない
 			"match_id = EXCLUDED.match_id, ",
 			"scored_side = EXCLUDED.scored_side, ",

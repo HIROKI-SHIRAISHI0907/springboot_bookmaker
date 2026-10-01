@@ -102,19 +102,23 @@ public class ScoreBasedFeatureWriter extends AbstractSeasonResolvingWriter {
 	 *
 	 * @param country 国
 	 * @param league リーグ
+	 * @param roundNo ラウンド番号（キーの「ラウンド N」。各行にも設定する）
 	 * @param homeTeamName ホームチーム
 	 * @param awayTeamName アウェーチーム
 	 * @param rows 1試合分（chkBody・feature 設定済み。同じ（chkBody, feature）は含めないこと）
 	 * @throws SeasonNotResolvedException シーズンが取得できない場合（何も保存しない）
 	 */
 	@Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-	public void saveMatch(String country, String league, String homeTeamName, String awayTeamName,
+	public void saveMatch(String country, String league, Integer roundNo, String homeTeamName, String awayTeamName,
 			List<ScoreBasedFeatureMatchStatsEntity> rows) {
 		final String METHOD_NAME = "saveMatch";
+		if (roundNo == null) {
+			throw new IllegalArgumentException(BM_NUMBER + " roundNo is null.");
+		}
 		String season = resolveSeason(country, league, AnalyzeErrorInfo.match(null, homeTeamName, awayTeamName)
 				.matchId(rows == null || rows.isEmpty() || rows.get(0) == null ? null : rows.get(0).getMatchId()));
 		String fillChar = "シーズン: " + season + ", 国: " + country + ", リーグ: " + league
-				+ ", ホーム: " + homeTeamName + ", アウェー: " + awayTeamName;
+				+ ", ラウンド: " + roundNo + ", ホーム: " + homeTeamName + ", アウェー: " + awayTeamName;
 
 		// 今回の行（キー重複は後勝ち）
 		Map<String, ScoreBasedFeatureMatchStatsEntity> current = new LinkedHashMap<>();
@@ -130,7 +134,7 @@ public class ScoreBasedFeatureWriter extends AbstractSeasonResolvingWriter {
 		// 既存行の seq
 		Map<String, String> existingSeq = new HashMap<>();
 		List<ScoreBasedFeatureMatchStatsEntity> existing = this.scoreBasedFeatureMatchStatsRepository
-				.findSeqByMatchKey(season, country, league, homeTeamName, awayTeamName);
+				.findSeqByMatchKey(season, country, league, roundNo, homeTeamName, awayTeamName);
 		if (existing != null) {
 			for (ScoreBasedFeatureMatchStatsEntity e : existing) {
 				if (e != null && e.getSeq() != null) {
@@ -158,6 +162,7 @@ public class ScoreBasedFeatureWriter extends AbstractSeasonResolvingWriter {
 			}
 			r.setSeq(seq);
 			r.setSeason(season);
+			r.setRoundNo(roundNo);
 			r.setCountry(country);
 			r.setLeague(league);
 			r.setHomeTeamName(homeTeamName);

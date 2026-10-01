@@ -22,7 +22,7 @@ import dev.common.logger.ManageLoggerComponent;
  * <p>
  * {@link SurfaceOverviewStat} が作った1試合分の2行（ホーム視点・アウェー視点）に、シーズン・国・リーグ・seq・
  * 総ラウンド数・序盤/中盤/終盤を設定して UPSERT する。
- * 一意キー（シーズン・国・リーグ・チーム・対戦相手・H/A）が既にあれば上書きするため、同じ試合を再処理しても行は増えない。
+ * 一意キー（シーズン・国・リーグ・ラウンド・チーム・対戦相手・H/A）が既にあれば上書きするため、同じ試合を再処理しても行は増えない。
  * 欠けていた試合を後から入れた場合も、この1試合分の行が増えるだけで、連続記録・順位はビューが計算し直す。
  * </p>
  *
@@ -50,7 +50,8 @@ import dev.common.logger.ManageLoggerComponent;
  *   <li><b>同時実行で同じ試合を処理した場合</b>: 後の処理の番号が欠番になる（行の重複は起きない）。</li>
  *   <li><b>シーズンは処理日基準</b>（SeasonResolverIF の実装による）。過去シーズンの欠け試合を今のシーズン中に入れると、
  *       今のシーズンとして保存される。過去シーズンを入れ直す場合はシーズンの決め方を確認すること。</li>
- *   <li><b>同じ組み合わせ（同じ H/A）の試合がシーズン内に2試合ある場合は後の試合で上書き</b>。</li>
+ *   <li>【変更】一意キーにラウンド番号を追加した。同じ組み合わせ（同じ H/A）の試合がシーズン内に複数回あるリーグ
+ *       （スイス・スコットランドなど）でも、ラウンドが違えば別の行になる（以前は後の試合で上書きされていた）。</li>
  * </ul>
  */
 @Service
@@ -110,7 +111,7 @@ public class SurfaceOverviewWriter extends AbstractSeasonResolvingWriter {
 		}
 		for (SurfaceOverviewMatchEntity row : rows) {
 			if (row == null || isBlank(row.getTeam()) || isBlank(row.getOpponent()) || isBlank(row.getHa())
-					|| isBlank(row.getResult())) {
+					|| isBlank(row.getResult()) || row.getRoundNo() == null) {
 				throw new IllegalArgumentException(BM_NUMBER + " キー項目が空の行があります");
 			}
 		}
@@ -140,7 +141,7 @@ public class SurfaceOverviewWriter extends AbstractSeasonResolvingWriter {
 			}
 
 			String seq = this.surfaceOverviewMatchRepository.findSeq(
-					season, country, league, row.getTeam(), row.getOpponent(), row.getHa());
+					season, country, league, row.getRoundNo(), row.getTeam(), row.getOpponent(), row.getHa());
 			if (seq == null) {
 				seq = this.seqNumberingService.nextSeq(TABLE_NAME, season);
 				numbered++;

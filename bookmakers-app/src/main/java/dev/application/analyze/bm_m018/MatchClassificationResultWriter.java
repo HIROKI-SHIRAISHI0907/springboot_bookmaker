@@ -106,14 +106,18 @@ public class MatchClassificationResultWriter extends AbstractSeasonResolvingWrit
 	 *
 	 * @param country 国
 	 * @param league リーグ
+	 * @param roundNo ラウンド番号（キーの「ラウンド N」）
 	 * @param rows 1試合分（ホーム・アウェーのチーム名、snapshotType、goalNo、classifyMode を設定済みであること）
 	 * @throws SeasonNotResolvedException シーズンが取得できない場合（何も保存しない）
 	 */
 	@Transactional(propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
-	public void saveMatch(String country, String league, List<MatchClassificationResultEntity> rows) {
+	public void saveMatch(String country, String league, Integer roundNo, List<MatchClassificationResultEntity> rows) {
 		final String METHOD_NAME = "saveMatch";
 		if (rows == null || rows.isEmpty()) {
 			return;
+		}
+		if (roundNo == null) {
+			throw new IllegalArgumentException(BM_NUMBER + " roundNo is null.");
 		}
 		MatchClassificationResultEntity first = requireSingleMatch(rows);
 		String season = resolveSeason(country, league,
@@ -123,7 +127,7 @@ public class MatchClassificationResultWriter extends AbstractSeasonResolvingWrit
 		// 既存行の seq（時点キー → seq）
 		Map<String, String> existingSeq = new HashMap<>();
 		List<MatchClassificationResultEntity> existing = this.matchClassificationResultRepository.findSeqByMatchKey(
-				season, country, league, first.getHomeTeamName(), first.getAwayTeamName());
+				season, country, league, roundNo, first.getHomeTeamName(), first.getAwayTeamName());
 		if (existing != null) {
 			for (MatchClassificationResultEntity r : existing) {
 				if (r != null && r.getSeq() != null) {
@@ -142,6 +146,7 @@ public class MatchClassificationResultWriter extends AbstractSeasonResolvingWrit
 			row.setSeason(season);
 			row.setCountry(country);
 			row.setLeague(league);
+			row.setRoundNo(roundNo);
 
 			String key = snapshotKey(row);
 			String seq = existingSeq.get(key);

@@ -45,6 +45,9 @@ public class TeamMatchFinalStatsEntity extends MetaEntity {
 	/** リーグ */
 	private String league;
 
+	/** ラウンド番号（キーの「ラウンド N」。同じ対戦が複数回あるリーグで試合を区別するため一意キーに含む） */
+	private Integer roundNo;
+
 	/** チーム（この行の視点） */
 	private String teamName;
 
