@@ -7,7 +7,6 @@ import org.springframework.stereotype.Component;
 
 import dev.application.analyze.bm_m001.OriginService;
 import dev.application.analyze.bm_m097.AnalyzeManualStat;
-import dev.application.main.service.CoreHistoryStat;
 import dev.application.main.service.MainStat;
 import lombok.extern.slf4j.Slf4j;
 
@@ -17,9 +16,6 @@ public class BmJobRunner implements ApplicationRunner {
 
 	@Autowired
 	private MainStat mainStat;
-
-	@Autowired
-	private CoreHistoryStat coreHistoryStat;
 
 	@Autowired
 	private OriginService originService;
@@ -58,10 +54,6 @@ public class BmJobRunner implements ApplicationRunner {
 			case "B014" -> {
 				log.info("Execute B014 -> MainStat. country={}, league={}", country, league);
 				exit = mainStat.execute();
-			}
-			case "B007" -> {
-				log.info("Execute B007 -> CoreHistoryStat");
-				exit = coreHistoryStat.execute();
 			}
 			case "B008" -> {
 				log.info("Execute B008 -> OriginService");
