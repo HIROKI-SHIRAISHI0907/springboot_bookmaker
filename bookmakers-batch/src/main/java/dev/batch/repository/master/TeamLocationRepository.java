@@ -189,4 +189,24 @@ public interface TeamLocationRepository {
 			    id = #{id}
 			""")
 	int updateById(TeamLocationEntity entity);
+
+	/**
+	 * 緯度経度がまだ無い行（B014 が登録し、B015 の結果がまだ反映されていない行）。
+	 * b015_geografic_input.json の元データ。
+	 */
+	@Select("""
+			SELECT
+			    id           AS id,
+			    country      AS country,
+			    team_name    AS teamName,
+			    home_city    AS homeCity,
+			    stadium_name AS stadiumName
+			FROM team_location_master
+			WHERE geocode_source = 'B014_batch'
+			  AND latitude IS NULL
+			  AND place_id IS NULL
+			ORDER BY id
+			""")
+	List<TeamLocationEntity> selectPendingGeocode();
+
 }

@@ -331,7 +331,7 @@ public interface BookDataRepository {
 			  AND home_team_name <> ''
 			  AND studium IS NOT NULL
 			  AND studium <> ''
-			ORDER BY home_team_name, studium
+			ORDER BY home_team_name, studium, data_category, location
 			LIMIT #{limit} OFFSET #{offset}
 			""")
 	List<DataEntity> findStadium(@Param("limit") int limit, @Param("offset") int offset);
