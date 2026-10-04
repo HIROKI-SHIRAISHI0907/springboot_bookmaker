@@ -54,9 +54,9 @@ import software.amazon.awssdk.services.costexplorer.model.ResultByTime;
  * 必要な IAM 権限: ce:GetCostAndUsage（Resource "*"）
  */
 @Service
-public class AwsCostService {
+public class AwsCostRateService {
 
-	private static final Logger log = LoggerFactory.getLogger(AwsCostService.class);
+	private static final Logger log = LoggerFactory.getLogger(AwsCostRateService.class);
 
 	private static final String METRIC = "UnblendedCost";
 	private static final int TREND_MONTHS = 6;
@@ -71,7 +71,7 @@ public class AwsCostService {
 	private final boolean enabled;
 	private final Map<String, Cached> cache = new ConcurrentHashMap<String, Cached>();
 
-	public AwsCostService(CostExplorerClient ce, ExchangeRateService fx, AwsDashboardPropertiesConfig props,
+	public AwsCostRateService(CostExplorerClient ce, ExchangeRateService fx, AwsDashboardPropertiesConfig props,
 			@Value("${aws.dashboard.cost-enabled:true}") boolean enabled) {
 		this.ce = ce;
 		this.fx = fx;
