@@ -31,7 +31,7 @@ public class AnalyzeErrorMatchWebRepository {
 	private final NamedParameterJdbcTemplate bmJdbcTemplate;
 
 	public AnalyzeErrorMatchWebRepository(
-			@Qualifier("webBmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate) {
+			@Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate) {
 		this.bmJdbcTemplate = bmJdbcTemplate;
 	}
 
