@@ -129,7 +129,7 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 		if (readyFlg)
 			return;
 
-		insertPath.add("b015_team_location.csv");
+		insertPath.add("output/b015_team_location.csv");
 		insertPath.add(GEOGRAFIC_INPUT_KEY);
 
 		String bucket = config.getS3Geografic();
