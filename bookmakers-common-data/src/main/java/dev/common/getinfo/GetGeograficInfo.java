@@ -60,7 +60,7 @@ public class GetGeograficInfo {
 		final String METHOD_NAME = "getData";
 
         String bucket = config.getS3Geografic();
-        String key = "b015_team_location.csv";    // outputsフォルダ
+        String key = "output/b015_team_location.csv";    // outputsフォルダ
         log.info("[B015] S3 bucket={} prefix={} ",
 	    		  bucket, key
 	    		);
