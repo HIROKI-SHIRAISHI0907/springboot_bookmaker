@@ -88,8 +88,6 @@ public class GetSeasonInfo {
         } catch (Exception e) {
         	String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
 	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e, "S3 season_data.csv ダウンロードエラー");
-	        this.manageLoggerComponent.createBusinessException(
-		            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e.getCause(), e);
             return null;
 
         }

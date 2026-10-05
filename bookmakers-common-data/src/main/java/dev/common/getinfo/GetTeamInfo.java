@@ -87,9 +87,7 @@ public class GetTeamInfo {
 
 	    for (String key : keys) {
 	        try (InputStream is = s3Operator.download(bucket, key)) {
-
 	            ReadFileOutputDTO dto = this.readTeam.getFileBodyFromStream(is, key);
-
 	            if (!BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
 	            	String msgCd = MessageCdConst.MCD00003E_EXECUTION_SKIP;
 	                this.manageLoggerComponent.debugErrorLog(
@@ -102,8 +100,7 @@ public class GetTeamInfo {
 	        } catch (Exception e) {
 	        	String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
 		        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e, "S3 teamData 読み込み失敗 key=" + key);
-		        this.manageLoggerComponent.createBusinessException(
-		            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e.getCause(), e);
+		        return null;
 	        }
 	    }
 	    return entityMap;

@@ -126,9 +126,7 @@ public class GetOriginFinInfo {
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN,
 					e, "S3 Origin読み込みエラー");
-			manageLoggerComponent.createBusinessException(
-					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN, e.getCause(), e);
+			return null;
 		} finally {
 			executor.shutdownNow();
 		}

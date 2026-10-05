@@ -153,9 +153,7 @@ public class GetFutureInfo {
 	    } catch (Exception e) {
 	    	String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
 	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e, "S3 Future読み込みエラー");
-	        this.manageLoggerComponent.createBusinessException(
-	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e.getCause(), e);
-
+	        return null;
 	    } finally {
 	        executor.shutdown();
 	        try {

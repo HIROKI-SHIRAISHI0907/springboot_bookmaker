@@ -78,9 +78,7 @@ public class GetAllLeagueInfo {
 
         for (String key : keys) {
             try (InputStream is = s3Operator.download(bucket, key)) {
-
                 ReadFileOutputDTO dto = this.readAllLeague.getFileBodyFromStream(is, key);
-
                 if (!BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
                     // ファイル単位でスキップ（他のキーは処理継続）
                     String msgCd = MessageCdConst.MCD00003E_EXECUTION_SKIP;
@@ -107,8 +105,6 @@ public class GetAllLeagueInfo {
                 this.manageLoggerComponent.debugErrorLog(
                         PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e,
                         "S3 all_league_master.csv ダウンロード/読込失敗 key=" + key);
-                this.manageLoggerComponent.createBusinessException(
-                        PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e.getCause(), e);
                 return null; // createBusinessExceptionがthrowしない設計の保険
             }
         }
