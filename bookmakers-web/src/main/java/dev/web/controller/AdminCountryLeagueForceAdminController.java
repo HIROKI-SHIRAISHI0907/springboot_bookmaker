@@ -19,7 +19,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/admin/force")
 @RequiredArgsConstructor
-public class CountryLeagueForceAdminController {
+public class AdminCountryLeagueForceAdminController {
 
 	private final ForceAdminAPIService service;
 

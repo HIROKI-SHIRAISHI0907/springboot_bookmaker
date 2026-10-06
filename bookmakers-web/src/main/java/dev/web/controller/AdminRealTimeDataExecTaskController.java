@@ -14,17 +14,22 @@ import dev.web.api.bm_w013.StatResponseResource;
 import dev.web.batch.EcsBatchTaskRunner;
 import lombok.RequiredArgsConstructor;
 
+/**
+ * RealTimeDataタスク実行用
+ * @author shiraishitoshio
+ *
+ */
 @RestController
 @RequestMapping("/api/admin/exec/task")
 @RequiredArgsConstructor
-public class AnalyzeManualExecTaskController {
+public class AdminRealTimeDataExecTaskController {
 
-	private final EcsBatchTaskRunner runner;
+    private final EcsBatchTaskRunner runner;
 
-	/**
-     * /analyze-manual を叩いたら B012 のFargateタスクを起動する
+    /**
+     * /bm-data-exec-task を叩いたら B008 のFargateタスクを起動する
      */
-    @PostMapping("/analyze-manual")
+    @PostMapping("/bm-data")
     public ResponseEntity<StatResponseResource> execute(@RequestBody StatRequestResource req) {
 
         // 必要ならリクエスト内容を env で渡す（nullは入れない）
@@ -32,7 +37,7 @@ public class AnalyzeManualExecTaskController {
         // 例: env.put("COUNTRY", req.getCountry());
         // 例: env.put("LEAGUE", req.getLeague());
 
-        String taskArn = runner.runBatch("B012", env);
+        String taskArn = runner.runBatch("B008", env);
 
         StatResponseResource res = new StatResponseResource();
         // あなたのDTO設計に合わせて詰めてOK

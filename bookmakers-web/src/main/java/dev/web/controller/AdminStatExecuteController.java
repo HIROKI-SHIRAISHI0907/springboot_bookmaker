@@ -16,7 +16,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-public class StatExecuteController {
+public class AdminStatExecuteController {
 
 	private final EcsScrapeTaskRunner runService;
 

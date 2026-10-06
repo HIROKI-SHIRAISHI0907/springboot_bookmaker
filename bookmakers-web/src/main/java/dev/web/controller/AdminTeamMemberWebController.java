@@ -28,7 +28,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api")
-public class TeamMemberWebController {
+public class AdminTeamMemberWebController {
 
     private final TeamMemberService service;
 

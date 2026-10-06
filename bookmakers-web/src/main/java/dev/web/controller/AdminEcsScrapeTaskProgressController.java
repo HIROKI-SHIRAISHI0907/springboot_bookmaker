@@ -20,7 +20,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/admin/scrape")
 @RequiredArgsConstructor
-public class EcsScrapeTaskProgressController {
+public class AdminEcsScrapeTaskProgressController {
 
 	private final EcsScrapeTaskProgressService service;
 	private final EcsScrapeTaskRunner runService;

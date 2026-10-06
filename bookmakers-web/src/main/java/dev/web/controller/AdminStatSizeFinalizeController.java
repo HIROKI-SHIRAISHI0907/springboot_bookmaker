@@ -21,7 +21,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/admin")
 @RequiredArgsConstructor
-public class StatSizeFinalizeController {
+public class AdminStatSizeFinalizeController {
 
 	private final StatSizeFinalizeService statSizeFinalizeService;
 

@@ -29,13 +29,13 @@ import dev.web.config.AwsDashboardPropertiesConfig;
  */
 @RestController
 @RequestMapping("/api/aws")
-public class AwsReportController {
+public class AdminAwsReportController {
 
 	private final AwsMonthlyReportService reportService;
 	private final AwsDailyStatsCollector collector;
 	private final ZoneId zone;
 
-	public AwsReportController(AwsMonthlyReportService reportService, AwsDailyStatsCollector collector,
+	public AdminAwsReportController(AwsMonthlyReportService reportService, AwsDailyStatsCollector collector,
 			AwsDashboardPropertiesConfig props) {
 		this.reportService = reportService;
 		this.collector = collector;

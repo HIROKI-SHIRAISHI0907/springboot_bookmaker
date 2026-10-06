@@ -15,21 +15,21 @@ import dev.web.batch.EcsBatchTaskRunner;
 import lombok.RequiredArgsConstructor;
 
 /**
- * RealTimeDataタスク実行用
+ * DeleteSeasonDataタスク実行用
  * @author shiraishitoshio
  *
  */
 @RestController
 @RequestMapping("/api/admin/exec/task")
 @RequiredArgsConstructor
-public class RealTimeDataExecTaskController {
+public class AdminDeleteSeasonDataExecTaskController {
 
     private final EcsBatchTaskRunner runner;
 
     /**
-     * /bm-data-exec-task を叩いたら B008 のFargateタスクを起動する
+     * /delete-season-data-exec-task を叩いたら B013 のFargateタスクを起動する
      */
-    @PostMapping("/bm-data")
+    @PostMapping("/delete-season-data")
     public ResponseEntity<StatResponseResource> execute(@RequestBody StatRequestResource req) {
 
         // 必要ならリクエスト内容を env で渡す（nullは入れない）
@@ -37,7 +37,7 @@ public class RealTimeDataExecTaskController {
         // 例: env.put("COUNTRY", req.getCountry());
         // 例: env.put("LEAGUE", req.getLeague());
 
-        String taskArn = runner.runBatch("B008", env);
+        String taskArn = runner.runBatch("B013", env);
 
         StatResponseResource res = new StatResponseResource();
         // あなたのDTO設計に合わせて詰めてOK

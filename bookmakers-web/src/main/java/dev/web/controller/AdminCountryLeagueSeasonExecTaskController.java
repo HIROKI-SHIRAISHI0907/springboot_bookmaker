@@ -15,21 +15,21 @@ import dev.web.batch.EcsBatchTaskRunner;
 import lombok.RequiredArgsConstructor;
 
 /**
- * AllLeagueJsonタスク実行用
+ * countryLeagueSeasonタスク実行用
  * @author shiraishitoshio
  *
  */
 @RestController
 @RequestMapping("/api/admin/exec/task")
 @RequiredArgsConstructor
-public class AllLeagueExecTaskJsonController {
+public class AdminCountryLeagueSeasonExecTaskController {
 
     private final EcsBatchTaskRunner runner;
 
     /**
-     * /all-league-scrape-master-json を叩いたら B009 のFargateタスクを起動する
+     * /country-league-season-exec-task を叩いたら B003 のFargateタスクを起動する
      */
-    @PostMapping("/all-league-scrape-master-json")
+    @PostMapping("/country-league-season")
     public ResponseEntity<StatResponseResource> execute(@RequestBody StatRequestResource req) {
 
         // 必要ならリクエスト内容を env で渡す（nullは入れない）
@@ -37,7 +37,7 @@ public class AllLeagueExecTaskJsonController {
         // 例: env.put("COUNTRY", req.getCountry());
         // 例: env.put("LEAGUE", req.getLeague());
 
-        String taskArn = runner.runBatch("B009", env);
+        String taskArn = runner.runBatch("B003", env);
 
         StatResponseResource res = new StatResponseResource();
         // あなたのDTO設計に合わせて詰めてOK

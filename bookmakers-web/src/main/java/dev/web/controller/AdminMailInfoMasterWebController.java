@@ -26,7 +26,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/admin")
-public class MailInfoMasterWebController {
+public class AdminMailInfoMasterWebController {
 
 	private final MailSendService service;
 

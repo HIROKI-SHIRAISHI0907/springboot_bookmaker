@@ -15,29 +15,36 @@ import dev.web.batch.EcsBatchTaskRunner;
 import lombok.RequiredArgsConstructor;
 
 /**
- * countryLeagueタスク実行用
+ * Futureタスク実行用
  * @author shiraishitoshio
  *
  */
 @RestController
 @RequestMapping("/api/admin/exec/task")
 @RequiredArgsConstructor
-public class CountryLeagueExecTaskController {
+public class AdminFutureExecTaskController {
 
-    private final EcsBatchTaskRunner runner;
+	private static final String BATCH_CODE = "B005";
 
-    /**
-     * /country-league-exec-task を叩いたら B004 のFargateタスクを起動する
-     */
-    @PostMapping("/country-league")
-    public ResponseEntity<StatResponseResource> execute(@RequestBody StatRequestResource req) {
+	private final EcsBatchTaskRunner runner;
 
-        // 必要ならリクエスト内容を env で渡す（nullは入れない）
+	/**
+	 * /future を叩いたら B005 のFargateタスクを起動する。
+	 *
+	 * runMode:
+	 *   WEEK（省略時）  : 従来通り、今日から1週間分を取得
+	 *   NEXT_DAY_ONLY  : 翌日の1日分だけを取得
+	 *   SPECIFIC_DATE  : targetDate(YYYY-MM-DD) で指定した1日だけを取得（過去日・未来日どちらも可）
+	 */
+	@PostMapping("/future")
+	public ResponseEntity<StatResponseResource> execute(@RequestBody(required = false) StatRequestResource req) {
+
+		// 必要ならリクエスト内容を env で渡す（nullは入れない）
         Map<String, String> env = new HashMap<>();
         // 例: env.put("COUNTRY", req.getCountry());
         // 例: env.put("LEAGUE", req.getLeague());
 
-        String taskArn = runner.runBatch("B004", env);
+        String taskArn = runner.runBatch(BATCH_CODE, env);
 
         StatResponseResource res = new StatResponseResource();
         // あなたのDTO設計に合わせて詰めてOK
@@ -46,5 +53,5 @@ public class CountryLeagueExecTaskController {
         res.setTaskArn(taskArn);
 
         return ResponseEntity.ok(res);
-    }
+	}
 }

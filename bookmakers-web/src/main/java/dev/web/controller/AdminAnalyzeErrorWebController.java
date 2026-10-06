@@ -44,7 +44,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequiredArgsConstructor
 @RequestMapping("/api/analyze-error")
-public class AnalyzeErrorWebController {
+public class AdminAnalyzeErrorWebController {
 
 	private final AnalyzeErrorService service;
 

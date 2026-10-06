@@ -15,33 +15,31 @@ import dev.web.batch.EcsBatchTaskRunner;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Json作成タスク実行用
+ * Geograficタスク実行用
  * @author shiraishitoshio
  *
  */
 @RestController
 @RequestMapping("/api/admin/exec/task")
 @RequiredArgsConstructor
-public class FinGettingExecTaskController {
+public class AdminGeograficExecTaskController {
 
-	private static final String BATCH_CODE = "B010";
-
-	private final EcsBatchTaskRunner runner;
+    private final EcsBatchTaskRunner runner;
 
     /**
-     * /fin-getting-json を叩いたら B010 のFargateタスクを起動する
-     * @throws Exception
+     * /geografic を叩いたら B014 のFargateタスクを起動する
      */
-    @PostMapping("/fin-getting-json")
-    public ResponseEntity<StatResponseResource> execute(
-    		@RequestBody StatRequestResource req) throws Exception {
+    @PostMapping("/geografic")
+    public ResponseEntity<StatResponseResource> execute(@RequestBody StatRequestResource req) {
 
-    	// 必要ならリクエスト内容を env で渡す（nullは入れない）
+        // 必要ならリクエスト内容を env で渡す（nullは入れない）
         Map<String, String> env = new HashMap<>();
-        // 例: env.put("COUNTRY", req.getCountry());
+        if (req.getReadyFlg() != null) {
+            env.put("BM_READY_FLG", String.valueOf(req.getReadyFlg()));
+        }
         // 例: env.put("LEAGUE", req.getLeague());
 
-        String taskArn = runner.runBatch(BATCH_CODE, env);
+        String taskArn = runner.runBatch("B014", env);
 
         StatResponseResource res = new StatResponseResource();
         // あなたのDTO設計に合わせて詰めてOK
@@ -50,7 +48,5 @@ public class FinGettingExecTaskController {
         res.setTaskArn(taskArn);
 
         return ResponseEntity.ok(res);
-
     }
-
 }

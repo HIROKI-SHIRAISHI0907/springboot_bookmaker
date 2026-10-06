@@ -17,14 +17,14 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api/admin/exec/task")
 @RequiredArgsConstructor
-public class ExportCsvExecTaskController {
+public class AdminAnalyzeManualExecTaskController {
 
 	private final EcsBatchTaskRunner runner;
 
 	/**
-     * /stat-csv を叩いたら B011 のFargateタスクを起動する
+     * /analyze-manual を叩いたら B012 のFargateタスクを起動する
      */
-    @PostMapping("/stat-csv")
+    @PostMapping("/analyze-manual")
     public ResponseEntity<StatResponseResource> execute(@RequestBody StatRequestResource req) {
 
         // 必要ならリクエスト内容を env で渡す（nullは入れない）
@@ -32,7 +32,7 @@ public class ExportCsvExecTaskController {
         // 例: env.put("COUNTRY", req.getCountry());
         // 例: env.put("LEAGUE", req.getLeague());
 
-        String taskArn = runner.runBatch("B011", env);
+        String taskArn = runner.runBatch("B012", env);
 
         StatResponseResource res = new StatResponseResource();
         // あなたのDTO設計に合わせて詰めてOK

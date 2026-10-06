@@ -18,7 +18,7 @@ import lombok.RequiredArgsConstructor;
 @RestController
 @RequestMapping("/api")
 @RequiredArgsConstructor
-public class IngestedDataReferenceController {
+public class AdminIngestedDataReferenceController {
 
 	private final IngestedDataService service;
 

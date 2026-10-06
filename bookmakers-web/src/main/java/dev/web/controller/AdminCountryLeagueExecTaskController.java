@@ -15,31 +15,29 @@ import dev.web.batch.EcsBatchTaskRunner;
 import lombok.RequiredArgsConstructor;
 
 /**
- * Geograficタスク実行用
+ * countryLeagueタスク実行用
  * @author shiraishitoshio
  *
  */
 @RestController
 @RequestMapping("/api/admin/exec/task")
 @RequiredArgsConstructor
-public class GeograficExecTaskController {
+public class AdminCountryLeagueExecTaskController {
 
     private final EcsBatchTaskRunner runner;
 
     /**
-     * /geografic を叩いたら B014 のFargateタスクを起動する
+     * /country-league-exec-task を叩いたら B004 のFargateタスクを起動する
      */
-    @PostMapping("/geografic")
+    @PostMapping("/country-league")
     public ResponseEntity<StatResponseResource> execute(@RequestBody StatRequestResource req) {
 
         // 必要ならリクエスト内容を env で渡す（nullは入れない）
         Map<String, String> env = new HashMap<>();
-        if (req.getReadyFlg() != null) {
-            env.put("BM_READY_FLG", String.valueOf(req.getReadyFlg()));
-        }
+        // 例: env.put("COUNTRY", req.getCountry());
         // 例: env.put("LEAGUE", req.getLeague());
 
-        String taskArn = runner.runBatch("B014", env);
+        String taskArn = runner.runBatch("B004", env);
 
         StatResponseResource res = new StatResponseResource();
         // あなたのDTO設計に合わせて詰めてOK
