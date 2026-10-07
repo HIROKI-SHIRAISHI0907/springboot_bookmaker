@@ -21,7 +21,7 @@ import lombok.RequiredArgsConstructor;
  */
 @RestController
 @RequiredArgsConstructor
-@RequestMapping("/v1/api/dashboard")
+@RequestMapping("/api/dashboard")
 public class DashboardFavoriteController {
 
 	private final DashboardFavoriteService service;
