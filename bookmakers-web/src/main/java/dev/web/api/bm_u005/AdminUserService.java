@@ -124,11 +124,13 @@ public class AdminUserService {
 		default:
 			throw new IllegalArgumentException("Unexpected value: " + newAuthFlg);
 		}
-        int result = userRepository.updateAuthFlg(req.getUserId(), newAuthFlg, op);
-        if (result != 1) {
+
+        try {
+        	userRepository.updateAuthFlg(req.getUserId(), newAuthFlg, op);
+        } catch (org.springframework.dao.DataIntegrityViolationException e) {
             return AdminUserActionResponse.builder()
-                    .responseCode("404")
-                    .message("対象ユーザーが見つかりません。")
+                    .responseCode("409")
+                    .message("この権限には変更できません（DBの制約）。")
                     .build();
         }
         return AdminUserActionResponse.builder()

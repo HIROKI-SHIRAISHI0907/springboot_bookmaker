@@ -12,8 +12,8 @@ import lombok.Data;
 @Data
 public class DashboardLiveMatchDTO {
 
-	/** data テーブルの seq（試合詳細へ遷移するときに使う） */
-	private Long seq;
+	/** static_data の seq_key（最新の行。例: "0drkxQrA-12"） */
+	private String seqKey;
 
 	/** マッチID */
 	private String matchId;

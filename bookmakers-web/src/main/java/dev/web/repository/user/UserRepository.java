@@ -91,7 +91,6 @@ public class UserRepository {
      * @param authFlg
      * @return
      */
-    @SuppressWarnings("unchecked")
 	public List<UserRow> findUserIdsByAuthFlg(Integer authFlg) {
         String sql = """
             SELECT
@@ -103,13 +102,12 @@ public class UserRepository {
         """;
         var params = new MapSqlParameterSource()
             .addValue("authFlg", authFlg);
-        var list = jdbc.query(sql, params, (rs, rowNum) -> {
+        return jdbc.query(sql, params, (rs, rowNum) -> {
             UserRow u = new UserRow();
             u.userId = rs.getLong("user_id");
             u.email = rs.getString("email");
             return u;
         });
-        return (List<UserRow>) list.stream();
     }
     /**
      * user_idの集合から、画面表示用の名称（nameが未設定ならemail）をまとめて取得する。

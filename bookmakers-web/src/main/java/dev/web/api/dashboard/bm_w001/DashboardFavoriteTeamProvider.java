@@ -2,6 +2,8 @@ package dev.web.api.dashboard.bm_w001;
 
 import java.util.List;
 
+import dev.web.api.dashboard.auth.DashboardAuthResolver;
+
 /**
  * お気に入りチームの取得（favorites テーブルとの接続口）。
  * <p>

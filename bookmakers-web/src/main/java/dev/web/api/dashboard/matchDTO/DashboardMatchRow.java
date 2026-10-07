@@ -3,13 +3,14 @@ package dev.web.api.dashboard.matchDTO;
 import lombok.Data;
 
 /**
- * data テーブルの試合ごとの最新行（ライブ・今日終了した試合）
+ * static_data の試合ごとの最新行（ライブ・今日終了した試合）
  * @author shiraishitoshio
  *
  */
 @Data
 public class DashboardMatchRow {
-	private Long seq;
+	/** 例: "0drkxQrA-12" */
+	private String seqKey;
 	private String matchId;
 	private String dataCategory;
 	private String times;

@@ -21,7 +21,7 @@ import lombok.RequiredArgsConstructor;
  * トップ画面のライブ（試合一覧・注目の試合）
  *
  * <ul>
- *   <li>data テーブルの試合ごとの最新行のうち、直近 {@value #LIVE_WINDOW_HOURS} 時間以内に記録があり、
+ *   <li>static_data の試合ごとの最新行のうち、直近 {@value #LIVE_WINDOW_HOURS} 時間以内に記録があり、
  *       終了・延期・中止でない試合をライブとする。</li>
  *   <li>注目の試合: ゴール数の見込みが一番多い試合（点差 1 以内の試合を優先）。</li>
  *   <li>今日（JST）終了した試合も集計（数字カード）用に返す（{@link #snapshot()}）。</li>
@@ -136,7 +136,7 @@ public class DashboardLiveService {
 	public DashboardLiveMatchDTO toDTO(LiveItem i, boolean loggedIn) {
 		DashboardMatchRow r = i.row;
 		DashboardLiveMatchDTO dto = new DashboardLiveMatchDTO();
-		dto.setSeq(r.getSeq());
+		dto.setSeqKey(r.getSeqKey());
 		dto.setMatchId(r.getMatchId());
 		dto.setCountry(i.country);
 		dto.setLeague(i.league);

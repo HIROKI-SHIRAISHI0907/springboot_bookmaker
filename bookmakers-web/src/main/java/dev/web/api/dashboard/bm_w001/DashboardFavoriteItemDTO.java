@@ -41,6 +41,6 @@ public class DashboardFavoriteItemDTO {
 	/** 勝つ確率（%） */
 	private Integer winProb;
 
-	/** LIVE: 試合詳細への遷移用 */
-	private Long seq;
+	/** LIVE: 試合詳細への遷移用（static_data の seq_key） */
+	private String seqKey;
 }

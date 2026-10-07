@@ -106,7 +106,7 @@ public class DashboardFavoriteService {
 			d.setTeamScore(home ? i.homeScore : i.awayScore);
 			d.setOpponentScore(home ? i.awayScore : i.homeScore);
 			d.setWinProb((int) Math.round((home ? i.result.home : i.result.away) * 100));
-			d.setSeq(i.row.getSeq());
+			d.setSeqKey(i.row.getSeqKey());
 			return d;
 		}
 		return null;

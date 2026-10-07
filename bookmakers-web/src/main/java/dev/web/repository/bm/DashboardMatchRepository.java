@@ -14,14 +14,14 @@ import dev.web.api.dashboard.teamDTO.DashboardTeamRateRow;
 
 
 /**
- * トップ画面（Dashboard）用 Repository（soccer_bm: data テーブル・ビュー dashboard_team_rate）
+ * トップ画面（Dashboard）用 Repository（soccer_bm: static_data・ビュー dashboard_team_rate）
  *
  * <ul>
  *   <li>{@link #findLatestSince}: 指定時刻以降に記録がある試合の、試合ごとの最新行（ライブ・今日終了した試合の元データ）。
  *       試合は match_id（空ならホーム・アウェー）で区別する。前半のスコアはハーフタイムの行から取る。</li>
  *   <li>{@link #findTeamRates}: 今季のチーム × H/A の平均得点・失点とリーグ平均。</li>
  * </ul>
- * ※ data.record_time は JST の日時（timestamp）または同じ形式の文字列の前提（CAST で比較する）。
+ * ※ static_data.record_time は JST の日時（timestamp）。試合内の並びは seq_key 末尾の数字（"0drkxQrA-12" → 12）の数値順。
  *
  * @author shiraishitoshio
  */
@@ -43,19 +43,27 @@ public class DashboardMatchRepository {
 		String sql = """
 				WITH recent AS (
 				  SELECT d.*,
-				         COALESCE(NULLIF(BTRIM(d.match_id), ''), d.home_team_name || '|' || d.away_team_name) AS match_key
-				  FROM data d
-				  WHERE CAST(d.record_time AS timestamp) >= :since
+				         COALESCE(NULLIF(BTRIM(d.match_id), ''), d.home_team_name || '|' || d.away_team_name) AS match_key,
+				         NULLIF(SUBSTRING(d.seq_key FROM '([0-9]+)$'), '')::BIGINT AS seq_no
+				  FROM static_data d
+				  WHERE d.record_time >= :since
 				    AND d.home_team_name IS NOT NULL AND d.away_team_name IS NOT NULL
 				),
 				latest AS (
 				  SELECT DISTINCT ON (match_key) *
 				  FROM recent
-				  ORDER BY match_key, seq DESC
+				  ORDER BY match_key, seq_no DESC NULLS LAST, record_time DESC
+				),
+				halftime AS (
+				  -- 前半終了時のスコア（ハーフタイムの行。試合ごとに最新の1行）
+				  SELECT DISTINCT ON (match_key) match_key, home_score, away_score
+				  FROM recent
+				  WHERE BTRIM(times) = 'ハーフタイム'
+				  ORDER BY match_key, seq_no DESC NULLS LAST
 				)
 				SELECT
-				  l.seq,
-				  l.match_id        AS match_id,
+				  l.seq_key,
+				  l.match_id,
 				  l.data_category,
 				  BTRIM(l.times)    AS times,
 				  l.home_team_name,
@@ -74,23 +82,13 @@ public class DashboardMatchRepository {
 				  CAST(ht.home_score AS text)   AS ht_home_score,
 				  CAST(ht.away_score AS text)   AS ht_away_score
 				FROM latest l
-				LEFT JOIN LATERAL (
-				  SELECT h.home_score, h.away_score
-				  FROM data h
-				  WHERE h.home_team_name = l.home_team_name
-				    AND h.away_team_name = l.away_team_name
-				    AND COALESCE(h.match_id, '') = COALESCE(l.match_id, '')
-				    AND BTRIM(h.times) = 'ハーフタイム'
-				    AND h.seq <= l.seq
-				  ORDER BY h.seq DESC
-				  LIMIT 1
-				) ht ON TRUE
-				ORDER BY l.data_category, l.seq
+				LEFT JOIN halftime ht ON ht.match_key = l.match_key
+				ORDER BY l.data_category, l.seq_key
 				""";
 		MapSqlParameterSource params = new MapSqlParameterSource().addValue("since", Timestamp.valueOf(since));
 		return bmJdbcTemplate.query(sql, params, (rs, n) -> {
 			DashboardMatchRow r = new DashboardMatchRow();
-			r.setSeq(rs.getLong("seq"));
+			r.setSeqKey(rs.getString("seq_key"));
 			r.setMatchId(rs.getString("match_id"));
 			r.setDataCategory(rs.getString("data_category"));
 			r.setTimes(rs.getString("times"));
