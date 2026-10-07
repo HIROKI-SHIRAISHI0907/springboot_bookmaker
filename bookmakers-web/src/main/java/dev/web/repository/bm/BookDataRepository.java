@@ -18,7 +18,6 @@ import org.springframework.stereotype.Repository;
 import dev.common.entity.DataEntity;
 import dev.common.util.RecordTimeConvertUtil;
 import dev.web.api.bm_a025.RealTimeDataDTO;
-import dev.web.api.bm_w014.EachScoreLostDataResponseDTO;
 import lombok.EqualsAndHashCode;
 
 /**
@@ -870,81 +869,6 @@ public class BookDataRepository {
 		public String gameId;
 		public String gameLink;
 		public String matchId;
-	}
-
-	public Optional<EachScoreLostDataResponseDTO> findEachScoreLoseMatchFinishedByRoundAndTeams(
-			String country,
-			String league,
-			String homeTeamName,
-			String awayTeamName,
-			int roundNo) {
-
-		String likeCond = country + ": " + league + "%";
-
-		String sql = """
-				SELECT DISTINCT ON (d.game_link)
-				  d.seq_key,
-				  d.data_category,
-				  d.home_team_name,
-				  d.away_team_name,
-				  d.home_score,
-				  d.away_score,
-				  NULLIF(TRIM(d.game_link), '') AS link,
-				  d.record_time,
-				  CASE
-				    WHEN regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
-				    ELSE CAST((regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
-				  END AS round_no
-				FROM public.static_data d
-				WHERE
-				  (
-				    REPLACE(BTRIM(d.times), ' ', '') = '終了済'
-				    OR REPLACE(BTRIM(d.times), ' ', '') LIKE '%ペナルティ%'
-				  )
-				  AND d.data_category LIKE :likeCond
-				  AND d.home_team_name = :homeTeam
-				  AND d.away_team_name = :awayTeam
-				  AND (
-				    CASE
-				      WHEN regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)') IS NULL THEN NULL
-				      ELSE CAST((regexp_match(d.data_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT)
-				    END
-				  ) = :roundNo
-				  AND d.game_link IS NOT NULL
-				ORDER BY d.game_link, d.record_time DESC
-				LIMIT 1
-				""";
-
-		var params = new MapSqlParameterSource()
-				.addValue("likeCond", likeCond)
-				.addValue("homeTeam", homeTeamName)
-				.addValue("awayTeam", awayTeamName)
-				.addValue("roundNo", roundNo);
-
-		List<EachScoreLostDataResponseDTO> list = bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
-			var dto = new EachScoreLostDataResponseDTO();
-			dto.setSeq(rs.getLong("seq_key"));
-			dto.setDataCategory(rs.getString("data_category"));
-
-			int r = rs.getInt("round_no");
-			dto.setRoundNo(rs.wasNull() ? null : String.valueOf(r));
-
-			dto.setRecordTime(RecordTimeConvertUtil.readAsApiUtcString(rs, "record_time"));
-
-			dto.setHomeTeamName(rs.getString("home_team_name"));
-			dto.setAwayTeamName(rs.getString("away_team_name"));
-
-			String hs = rs.getString("home_score");
-			String as = rs.getString("away_score");
-			dto.setHomeScore(hs == null || hs.isBlank() ? null : Integer.valueOf(hs.trim()));
-			dto.setAwayScore(as == null || as.isBlank() ? null : Integer.valueOf(as.trim()));
-
-			dto.setLink(rs.getString("link"));
-			dto.setStatus("FINISHED");
-			return dto;
-		});
-
-		return list.stream().findFirst();
 	}
 
 	/** dataを全件 DataEntity で取得（重いので注意） */

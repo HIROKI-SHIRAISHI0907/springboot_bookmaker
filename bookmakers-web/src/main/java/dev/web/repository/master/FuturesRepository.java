@@ -1,9 +1,6 @@
 package dev.web.repository.master;
 
 import java.sql.ResultSet;
-import java.sql.Timestamp;
-import java.time.LocalDate;
-import java.time.LocalDateTime;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -15,9 +12,7 @@ import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
 import dev.common.util.DateOffsetDecisionUtil;
-import dev.web.api.bm_w001.FuturesResponseDTO;
 import lombok.Data;
-import lombok.extern.slf4j.Slf4j;
 
 /**
  * FuturesRepositoryクラス
@@ -26,7 +21,6 @@ import lombok.extern.slf4j.Slf4j;
  *
  */
 @Repository
-@Slf4j
 public class FuturesRepository {
 
 	private final NamedParameterJdbcTemplate masterJdbcTemplate;
@@ -62,66 +56,6 @@ public class FuturesRepository {
 		return results.isEmpty() ? teamSlug : results.get(0);
 	}
 
-	// --------------------------------------------------------
-	// 取得: GET /api/future/{teamEnglish}/{teamHash}
-	// --------------------------------------------------------
-	public List<FuturesResponseDTO> findFutureMatches(String country, String league, String teamJa) {
-		String likeCond = country + ": " + league + "%";
-
-		String sql = """
-				SELECT
-				  f.seq,
-				  f.game_team_category,
-				  f.future_time,
-				  f.home_team_name AS home_team,
-				  f.away_team_name AS away_team,
-				  NULLIF(TRIM(f.game_link), '') AS link,
-				  CASE
-				    WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\\\\s*([0-9]+)') IS NULL THEN NULL
-				    ELSE CAST((regexp_match(f.game_team_category, '(ラウンド|Round)\\\\s*([0-9]+)'))[2] AS INT)
-				  END AS round_no
-				FROM future_master f
-				WHERE f.start_flg = '1'
-				  AND f.future_time IS NOT NULL
-				  AND f.future_time > (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Tokyo')
-				  AND (f.home_team_name = :teamJa OR f.away_team_name = :teamJa)
-				  AND f.game_team_category LIKE :likeCond
-				ORDER BY
-				  f.future_time ASC,
-				  CASE
-				    WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\\\\s*([0-9]+)') IS NULL THEN 2147483647
-				    ELSE CAST((regexp_match(f.game_team_category, '(ラウンド|Round)\\\\s*([0-9]+)'))[2] AS INT)
-				  END ASC,
-				  f.seq ASC
-				LIMIT 1
-				""";
-
-		MapSqlParameterSource params = new MapSqlParameterSource()
-				.addValue("teamJa", teamJa)
-				.addValue("likeCond", likeCond);
-
-		RowMapper<FuturesResponseDTO> rowMapper = (ResultSet rs, int rowNum) -> {
-			FuturesResponseDTO m = new FuturesResponseDTO();
-
-			m.setSeq(rs.getLong("seq"));
-			m.setGameTeamCategory(rs.getString("game_team_category"));
-
-			OffsetDateTime ft = DateOffsetDecisionUtil.getOffsetDateTime(rs, "future_time");
-			m.setFutureTime(DateOffsetDecisionUtil.toIsoJstString(ft));
-
-			m.setHomeTeam(rs.getString("home_team"));
-			m.setAwayTeam(rs.getString("away_team"));
-			m.setLink(rs.getString("link"));
-
-			int roundNo = rs.getInt("round_no");
-			m.setRoundNo(rs.wasNull() ? null : roundNo);
-
-			m.setStatus("SCHEDULED");
-			return m;
-		};
-
-		return masterJdbcTemplate.query(sql, params, rowMapper);
-	}
 
 	public List<FutureMatchRow> findByIds(List<Long> ids) {
 		if (ids == null || ids.isEmpty()) {
@@ -151,72 +85,6 @@ public class FuturesRepository {
 		});
 	}
 
-	/**
-	 * 管理画面向け：次の日以降（JST基準）の試合候補を返す
-	 * - country/league は任意（nullなら全件）
-	 * - limit 件だけ返す
-	 */
-	public List<FuturesResponseDTO> findFutureMatchesFromNextDay(String country, String league, int limit) {
-		LocalDateTime tomorrowStartJst = LocalDate.now(DateOffsetDecisionUtil.getZoneId())
-				.plusDays(1)
-				.atStartOfDay();
-
-		Timestamp from = Timestamp.valueOf(tomorrowStartJst);
-
-		String likeCond = null;
-		if (country != null && !country.isBlank() && league != null && !league.isBlank()) {
-			likeCond = country + ": " + league + "%";
-		} else if (country != null && !country.isBlank()) {
-			likeCond = country + ":%";
-		}
-
-		String sql = """
-				SELECT
-				  f.seq,
-				  f.game_team_category,
-				  f.future_time,
-				  f.home_team_name AS home_team,
-				  f.away_team_name AS away_team,
-				  NULLIF(TRIM(f.game_link), '') AS link,
-				  CASE
-				    WHEN regexp_match(f.game_team_category, '(ラウンド|Round)\\\\s*([0-9]+)') IS NULL THEN NULL
-				    ELSE CAST((regexp_match(f.game_team_category, '(ラウンド|Round)\\\\s*([0-9]+)'))[2] AS INT)
-				  END AS round_no
-				FROM future_master f
-				WHERE f.start_flg = '1'
-				  AND f.future_time >= :from
-				  AND (:likeCond IS NULL OR f.game_team_category LIKE :likeCond)
-				ORDER BY f.future_time ASC
-				LIMIT :limit
-				""";
-
-		MapSqlParameterSource params = new MapSqlParameterSource()
-				.addValue("from", from)
-				.addValue("likeCond", likeCond)
-				.addValue("limit", limit);
-
-		RowMapper<FuturesResponseDTO> rowMapper = (ResultSet rs, int rowNum) -> {
-			FuturesResponseDTO m = new FuturesResponseDTO();
-
-			m.setSeq(rs.getLong("seq"));
-			m.setGameTeamCategory(rs.getString("game_team_category"));
-
-			OffsetDateTime ft = DateOffsetDecisionUtil.getOffsetDateTime(rs, "future_time");
-			m.setFutureTime(DateOffsetDecisionUtil.toIsoJstString(ft));
-
-			m.setHomeTeam(rs.getString("home_team"));
-			m.setAwayTeam(rs.getString("away_team"));
-			m.setLink(rs.getString("link"));
-
-			int roundNo = rs.getInt("round_no");
-			m.setRoundNo(rs.wasNull() ? null : roundNo);
-
-			m.setStatus("SCHEDULED");
-			return m;
-		};
-
-		return masterJdbcTemplate.query(sql, params, rowMapper);
-	}
 
 	// ========= future_master =========
 	public List<FutureMasterIngestRow> findFutureMasterByRegisterTime(String country, String team) {
@@ -282,61 +150,6 @@ public class FuturesRepository {
 	public List<FutureMasterIngestRow> findFutureMasterByRegisterTime(String country, String keyword,
 			String team) {
 		return findFutureMasterByRegisterTime(country, team);
-	}
-
-	/**
-	 * 指定日の試合予定を JST基準で 10件ずつ OFFSET 取得
-	 */
-	public List<FuturesResponseDTO> findFutureMasterByDate(String date, int offset) {
-		String sql = """
-				SELECT
-					seq,
-					game_team_category,
-					future_time,
-					home_team_name AS home_team,
-					away_team_name AS away_team,
-					game_link AS link,
-					start_flg
-				FROM future_master
-				WHERE future_time >= :dateStart
-				  AND future_time < :dateEnd
-				ORDER BY future_time ASC, seq ASC
-				OFFSET :offset
-				LIMIT 10
-				""";
-
-		if (date == null || date.isBlank()) {
-			throw new IllegalArgumentException("date must not be blank");
-		}
-		if (offset < 0) {
-			throw new IllegalArgumentException("offset must be greater than or equal to 0");
-		}
-
-		OffsetDateTime dateStart = DateOffsetDecisionUtil.toStartOfDayJstOffsetDateTime(date);
-	    OffsetDateTime dateEnd = DateOffsetDecisionUtil.toNextStartOfDayJstOffsetDateTime(date);
-
-	    log.info("dateStart-dateEnd-offset: {} - {} - {}" ,dateStart, dateEnd, offset);
-
-		MapSqlParameterSource params = new MapSqlParameterSource()
-				.addValue("dateStart", dateStart)
-				.addValue("dateEnd", dateEnd)
-				.addValue("offset", offset);
-
-		return masterJdbcTemplate.query(sql, params, (rs, rowNum) -> {
-			FuturesResponseDTO m = new FuturesResponseDTO();
-
-			m.setSeq(rs.getLong("seq"));
-			m.setGameTeamCategory(rs.getString("game_team_category"));
-
-			OffsetDateTime ft = DateOffsetDecisionUtil.getOffsetDateTime(rs, "future_time");
-			m.setFutureTime(DateOffsetDecisionUtil.toIsoJstString(ft));
-
-			m.setHomeTeam(rs.getString("home_team"));
-			m.setAwayTeam(rs.getString("away_team"));
-			m.setLink(rs.getString("link"));
-
-			return m;
-		});
 	}
 
 	// row classes
