@@ -14,7 +14,9 @@ import lombok.RequiredArgsConstructor;
 /**
  * Dashboard.tsx（トップ画面）: これからの試合
  * <ul>
- *   <li>GET /v1/api/dashboard/upcoming?limit=20  未ログインでも可（数値は null）</li>
+ *   <li>GET /v1/api/dashboard/upcoming?perLeague=3&amp;maxLeagues=5  未ログインでも可（数値は null）
+ *       リーグごとに直近 perLeague 試合、最初の試合が早いリーグから maxLeagues リーグ（0 なら全リーグ）。
+ *       全部は UpcomingMatchesController（全試合画面）。</li>
  * </ul>
  * @author shiraishitoshio
  *
@@ -30,7 +32,8 @@ public class DashboardUpcomingController {
 
 	@GetMapping("/upcoming")
 	public ResponseEntity<DashboardUpcomingResponse> upcoming(
-			@RequestParam(name = "limit", required = false) Integer limit) {
-		return ResponseEntity.ok(service.getUpcoming(limit, authResolver.isLoggedIn()));
+			@RequestParam(name = "perLeague", required = false) Integer perLeague,
+			@RequestParam(name = "maxLeagues", required = false) Integer maxLeagues) {
+		return ResponseEntity.ok(service.getTop(perLeague, maxLeagues, authResolver.isLoggedIn()));
 	}
 }

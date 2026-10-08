@@ -17,6 +17,8 @@ import dev.web.api.dashboard.futureDTO.DashboardFutureRow;
  *   <li>{@link #findUpcoming}: これからの試合（今〜hours 時間後）。同じ対戦・同じ時刻の重複行は1行にする。</li>
  *   <li>{@link #findUpcomingByTeams}: お気に入りチームの次の試合を探す用（チーム名は NFKC 正規化して比較）。</li>
  * </ul>
+ * future_master.game_team_category は試合前だと「リーグ - ラウンド N」のように国が無いことがあるため、
+ * country_league_master（未削除）からホーム・アウェーのチームの国を country_hint として一緒に返す。
  *
  * @author shiraishitoshio
  */
@@ -24,12 +26,18 @@ import dev.web.api.dashboard.futureDTO.DashboardFutureRow;
 public class DashboardFutureRepository {
 
 	private static final String COLUMNS = """
-			  game_team_category,
-			  future_time,
-			  CAST(home_rank AS text) AS home_rank,
-			  CAST(away_rank AS text) AS away_rank,
-			  home_team_name,
-			  away_team_name
+			  f.game_team_category,
+			  f.future_time,
+			  CAST(f.home_rank AS text) AS home_rank,
+			  CAST(f.away_rank AS text) AS away_rank,
+			  f.home_team_name,
+			  f.away_team_name,
+			  (SELECT c.country
+			     FROM country_league_master c
+			    WHERE c.del_flg = '0'
+			      AND normalize(c.team, NFKC) IN (normalize(f.home_team_name, NFKC), normalize(f.away_team_name, NFKC))
+			    ORDER BY CASE WHEN normalize(c.team, NFKC) = normalize(f.home_team_name, NFKC) THEN 0 ELSE 1 END, c.id DESC
+			    LIMIT 1) AS country_hint
 			""";
 
 	private final NamedParameterJdbcTemplate masterJdbcTemplate;
@@ -46,11 +54,11 @@ public class DashboardFutureRepository {
 	 * @param limit 最大件数
 	 */
 	public List<DashboardFutureRow> findUpcoming(int hours, int limit) {
-		String sql = "SELECT * FROM (SELECT DISTINCT ON (home_team_name, away_team_name, future_time)" + COLUMNS
-				+ " FROM future_master"
-				+ " WHERE future_time > CURRENT_TIMESTAMP"
-				+ "   AND future_time <= CURRENT_TIMESTAMP + make_interval(hours => :hours)"
-				+ " ORDER BY home_team_name, away_team_name, future_time, seq DESC) t"
+		String sql = "SELECT * FROM (SELECT DISTINCT ON (f.home_team_name, f.away_team_name, f.future_time)" + COLUMNS
+				+ " FROM future_master f"
+				+ " WHERE f.future_time > CURRENT_TIMESTAMP"
+				+ "   AND f.future_time <= CURRENT_TIMESTAMP + make_interval(hours => :hours)"
+				+ " ORDER BY f.home_team_name, f.away_team_name, f.future_time, f.seq DESC) t"
 				+ " ORDER BY future_time, home_team_name"
 				+ " LIMIT :limit";
 		MapSqlParameterSource params = new MapSqlParameterSource()
@@ -70,11 +78,11 @@ public class DashboardFutureRepository {
 			return List.of();
 		}
 		String sql = "SELECT" + COLUMNS
-				+ " FROM future_master"
-				+ " WHERE future_time > CURRENT_TIMESTAMP"
-				+ "   AND future_time <= CURRENT_TIMESTAMP + make_interval(hours => :hours)"
-				+ "   AND (normalize(home_team_name, NFKC) IN (:teams) OR normalize(away_team_name, NFKC) IN (:teams))"
-				+ " ORDER BY future_time";
+				+ " FROM future_master f"
+				+ " WHERE f.future_time > CURRENT_TIMESTAMP"
+				+ "   AND f.future_time <= CURRENT_TIMESTAMP + make_interval(hours => :hours)"
+				+ "   AND (normalize(f.home_team_name, NFKC) IN (:teams) OR normalize(f.away_team_name, NFKC) IN (:teams))"
+				+ " ORDER BY f.future_time";
 		MapSqlParameterSource params = new MapSqlParameterSource()
 				.addValue("teams", teams)
 				.addValue("hours", hours);
@@ -90,6 +98,7 @@ public class DashboardFutureRepository {
 		r.setAwayRank(rs.getString("away_rank"));
 		r.setHomeTeamName(rs.getString("home_team_name"));
 		r.setAwayTeamName(rs.getString("away_team_name"));
+		r.setCountryHint(rs.getString("country_hint"));
 		return r;
 	}
 }

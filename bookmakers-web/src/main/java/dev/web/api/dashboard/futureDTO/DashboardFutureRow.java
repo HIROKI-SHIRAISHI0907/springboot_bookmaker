@@ -16,4 +16,7 @@ public class DashboardFutureRow {
 	private String awayRank;
 	private String homeTeamName;
 	private String awayTeamName;
+	/** country_league_master から引いたチームの国（カテゴリに国が無いとき用。無ければ null） */
+	private String countryHint;
+
 }

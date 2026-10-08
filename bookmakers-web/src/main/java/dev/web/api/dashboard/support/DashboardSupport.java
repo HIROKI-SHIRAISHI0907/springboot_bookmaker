@@ -160,6 +160,97 @@ public final class DashboardSupport {
 		return new MatchClock("LIVE", t.isEmpty() ? "-" : t, 50, 0.5);
 	}
 
+	/**
+	 * スクレイピングで取れなかったときの仮の値（国 "XXX"・リーグ "YYY" など）。大文字小文字は区別しない。
+	 * 新しい仮の値が見つかったらここに足す。
+	 */
+	private static final java.util.Set<String> PLACEHOLDERS = java.util.Set.of(
+			"XXX", "YYY", "ZZZ", "-", "--", "?", "NULL", "NONE", "N/A", "UNKNOWN", "不明");
+
+	/** 仮の値・空か */
+	public static boolean isPlaceholder(String s) {
+		String t = norm(s);
+		return t.isEmpty() || PLACEHOLDERS.contains(t.toUpperCase(java.util.Locale.ROOT));
+	}
+
+	/**
+	 * トップ画面に出してよい試合か。
+	 * <ul>
+	 *   <li>カテゴリが「国: リーグ …」の形で、国・リーグが仮の値（XXX / YYY など）でない</li>
+	 *   <li>ホーム・アウェーのチーム名が空・仮の値でなく、同じ名前でもない</li>
+	 * </ul>
+	 * 取得に失敗した行（カテゴリ「XXX: YYY」・チーム名が空）を出さないため。
+	 */
+	public static boolean isDisplayable(String dataCategory, String homeTeam, String awayTeam) {
+		String[] cl = splitCategory(dataCategory);
+		if (cl == null || isPlaceholder(cl[0]) || isPlaceholder(cl[1])) {
+			return false;
+		}
+		if (isPlaceholder(homeTeam) || isPlaceholder(awayTeam)) {
+			return false;
+		}
+		return !norm(homeTeam).equals(norm(awayTeam));
+	}
+
+	// ===== DashboardSupport に追加（isDisplayable の下あたり）=====
+
+	/**
+	 * これからの試合（future_master）に出してよいか。
+	 * 試合前のカテゴリは「リーグ - ラウンド N」のように国が無いことがあるので、国は必須にしない。
+	 * カテゴリが空・仮の値（XXX / YYY）、チーム名が空・仮の値・同じ名前なら出さない。
+	 */
+	public static boolean isDisplayableUpcoming(String category, String homeTeam, String awayTeam) {
+		String s = norm(category);
+		if (s.isEmpty()) {
+			return false;
+		}
+		int colon = s.indexOf(':');
+		if (colon >= 0) {
+			String country = s.substring(0, colon).trim();
+			String rest = s.substring(colon + 1).trim();
+			int dash = rest.indexOf(" - ");
+			String league = (dash >= 0 ? rest.substring(0, dash) : rest).trim();
+			if (isPlaceholder(country) || isPlaceholder(league)) {
+				return false;
+			}
+		} else {
+			int dash = s.indexOf(" - ");
+			String league = (dash >= 0 ? s.substring(0, dash) : s).trim();
+			if (isPlaceholder(league)) {
+				return false;
+			}
+		}
+		if (isPlaceholder(homeTeam) || isPlaceholder(awayTeam)) {
+			return false;
+		}
+		return !norm(homeTeam).equals(norm(awayTeam));
+	}
+
+	/**
+	 * カテゴリを {国, リーグ, ラウンド番号(無ければ null)} に分ける。
+	 * 「国: リーグ - ラウンド N」はそのまま、国が無い「リーグ - ラウンド N」は countryHint（無ければ「その他」）を国にする。
+	 * 空なら null。
+	 */
+	public static String[] splitCategory(String dataCategory, String countryHint) {
+		String[] cl = splitCategory(dataCategory);
+		if (cl != null) {
+			return cl;
+		}
+		String s = norm(dataCategory);
+		if (s.isEmpty()) {
+			return null;
+		}
+		int dash = s.indexOf(" - ");
+		String league = (dash >= 0 ? s.substring(0, dash) : s).trim();
+		if (league.isEmpty()) {
+			return null;
+		}
+		Matcher m = ROUND.matcher(s);
+		String round = m.find() ? m.group(1) : null;
+		String country = norm(countryHint).isEmpty() ? "その他" : norm(countryHint);
+		return new String[] { country, league, round };
+	}
+
 	/** ライブではない（終了・延期・中止など） */
 	public static boolean isNotLive(String times) {
 		String t = norm(times);
