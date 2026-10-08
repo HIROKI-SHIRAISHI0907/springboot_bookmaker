@@ -85,6 +85,20 @@ public interface FutureMasterRepository {
 			SET	game_team_category = #{dataCategory}
 			WHERE
 				normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+				AND future_time BETWEEN now() - INTERVAL '1 day' AND now() + INTERVAL '1 day'
+				AND game_team_category IS DISTINCT FROM #{dataCategory}
+		""")
+	int updateGameTeamCategoryByTeamsNearNow(
+			@Param("dataCategory") String dataCategory,
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
+
+	@Update("""
+			UPDATE future_master
+			SET	game_team_category = #{dataCategory}
+			WHERE
+				normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
 				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC);
 		""")
 	int updateGameTeamCategoryByTeams(

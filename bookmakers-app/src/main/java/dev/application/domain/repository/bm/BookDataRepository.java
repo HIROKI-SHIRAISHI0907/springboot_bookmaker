@@ -528,9 +528,12 @@ public interface BookDataRepository {
 	        FROM static_data
 	            WHERE home_team_name = #{homeTeamName}
 	            AND away_team_name = #{awayTeamName}
+	            AND BTRIM(home_team_name) <> ''
+	            AND BTRIM(away_team_name) <> ''
 	            AND (times IS NULL OR (times <> '終了済' AND times NOT LIKE 'ペナルティ%'))
 	            AND register_time >= CURRENT_TIMESTAMP - INTERVAL '6 hours'
-	        ORDER BY register_time DESC;
+	        ORDER BY register_time DESC,
+	                 NULLIF(SUBSTRING(seq_key FROM '([0-9]+)$'), '')::BIGINT DESC NULLS LAST
 	        """)
 	List<SeqKeyDTO> findMatchId(
 	        @Param("homeTeamName") String homeTeamName,
@@ -542,10 +545,28 @@ public interface BookDataRepository {
 			    match_id AS matchId
 			FROM static_data
 			WHERE match_id = #{matchId}
-			ORDER BY CAST(SPLIT_PART(seq_key, '-', 2) AS INTEGER) DESC
+			   OR seq_key LIKE CONCAT(#{matchId}, '-%')
+			ORDER BY NULLIF(SUBSTRING(seq_key FROM '([0-9]+)$'), '')::BIGINT DESC NULLS LAST
 			LIMIT 1
 			""")
 	SeqKeyDTO findSeqKeyByMatchId(
+			@Param("matchId") String matchId);
+	@Select("""
+			SELECT
+				data_category AS dataCategory,
+				times
+			FROM static_data
+			WHERE home_team_name = #{homeTeamName}
+			  AND away_team_name = #{awayTeamName}
+			  AND (match_id = #{matchId,jdbcType=VARCHAR}
+			       OR register_time >= CURRENT_TIMESTAMP - INTERVAL '6 hours')
+			  AND data_category IS NOT NULL
+			  AND data_category !~* '^\\s*XXX\\s*:'
+			ORDER BY register_time DESC
+			""")
+	List<DataCategoryDTO> findDataCategoryForMatch(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName,
 			@Param("matchId") String matchId);
 	// ★新規追加：乱数base（match_idなしの初回キー）の重複チェック用
 	@Select("""
@@ -577,6 +598,21 @@ public interface BookDataRepository {
 	List<DataCategoryDTO> findDataCategory(
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
+
+	@Update("""
+			UPDATE static_data
+			SET data_category = #{dataCategory}
+			WHERE home_team_name = #{homeTeamName}
+			  AND away_team_name = #{awayTeamName}
+			  AND (match_id = #{matchId,jdbcType=VARCHAR}
+			       OR register_time >= CURRENT_TIMESTAMP - INTERVAL '6 hours')
+			  AND data_category IS DISTINCT FROM #{dataCategory}
+			""")
+	int updateDataCategoryForMatch(
+			@Param("dataCategory") String dataCategory,
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName,
+			@Param("matchId") String matchId);
 
 	@Update("""
 			UPDATE static_data
