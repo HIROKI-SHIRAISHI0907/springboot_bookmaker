@@ -14,6 +14,18 @@ import dev.batch.bm_b010.SeqKeyDTO;
 import dev.batch.bm_b012.TeamPair;
 import dev.common.entity.DataEntity;
 
+/**
+ * static_data の Repository（batch）
+ *
+ * <p>2026-10 追加（B010 の seq_key・data_category を「同じ試合」の範囲だけで決めるため）</p>
+ * <ul>
+ *   <li>findSeqKeyByMatchIdOrPrefix / findProvisionalSeqKeys / findLatestSeqKeyForCard（SeqKeyBatchService）</li>
+ *   <li>findDataCategoryForMatch / updateDataCategoryForMatch（DataCategoryBatchService）</li>
+ * </ul>
+ * 「同じ試合」= 同じ match_id、または同じカード（NFKC 正規化）で record_time が基準時刻（baseTime。空なら現在時刻 JST）の前後 6 時間以内。
+ * 既存のメソッドは変更していない（findDataCategory / updateByDataCategory / findMatchId / findSeqKeysForRenumber は
+ * 全期間の同じカードが対象のため、B010 では使わない）。
+ */
 @Mapper
 public interface BookDataRepository {
 
@@ -148,14 +160,14 @@ public interface BookDataRepository {
 			    prediction_score_time,
 			    game_id,
 			    match_id,
-			 	time_sort_seconds,
-			 	add_manual_flg,
+			    time_sort_seconds,
+			    add_manual_flg,
 			    register_id,
 			    register_time,
 			    update_id,
 			    update_time
 			) VALUES (
-				#{seqKey},
+			    #{seqKey},
 			    #{conditionResultDataSeqId},
 			    #{dataCategory},
 			    #{times},
@@ -259,8 +271,8 @@ public interface BookDataRepository {
 			    #{predictionScoreTime},
 			    #{gameId},
 			    #{matchId},
-			 	#{timeSortSeconds},
-			 	#{addManualFlg},
+			    #{timeSortSeconds},
+			    #{addManualFlg},
 			    'SYSTEM',
 			    CURRENT_TIMESTAMP,
 			    'SYSTEM',
@@ -469,6 +481,7 @@ public interface BookDataRepository {
 	 * seq_key 振り直し対象を取得する。
 	 * 対象: 同一対戦カード(home/away)の行 ＋ すでに matchId- で始まる seq_key の行
 	 * 並び順: 登録が古い順 → 連番の小さい順（振り直し後の連番の順番になる）
+	 * ※ 全期間の同じカードが対象のため B010 では使わない（findProvisionalSeqKeys を使う）
 	 */
 	@Select("""
 			SELECT
@@ -508,5 +521,121 @@ public interface BookDataRepository {
 	int moveSeqKeysToTemp(
 			@Param("tempPrefix") String tempPrefix,
 			@Param("seqKeys") List<String> seqKeys);
+
+	// ===================== 2026-10 追加 =====================
+
+	/**
+	 * この match_id の最大の連番の行（match_id が一致する行、または seq_key が "matchId-N" の行）。
+	 * 無ければ null。
+	 */
+	@Select("""
+			SELECT
+			    seq_key AS seqKey,
+			    match_id AS matchId
+			FROM static_data
+			WHERE match_id = #{matchId}
+			   OR seq_key LIKE CONCAT(#{matchId}, '-%')
+			ORDER BY NULLIF(SUBSTRING(seq_key FROM '-([0-9]+)$'), '')::BIGINT DESC NULLS LAST
+			LIMIT 1
+			""")
+	SeqKeyDTO findSeqKeyByMatchIdOrPrefix(
+			@Param("matchId") String matchId);
+
+	/**
+	 * 同じ試合で match_id がまだ無い（乱数で採番した）行。振り直しの対象。
+	 * 同じカード（NFKC）・チーム名が空でない・record_time が基準時刻の前後 6 時間以内。
+	 * 並び順: 登録が古い順 → 連番の小さい順（振り直し後の連番の順番）
+	 */
+	@Select("""
+			SELECT
+			    seq_key AS seqKey,
+			    match_id AS matchId,
+			    times
+			FROM static_data
+			WHERE normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+			  AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+			  AND BTRIM(home_team_name) <> ''
+			  AND BTRIM(away_team_name) <> ''
+			  AND NULLIF(BTRIM(match_id), '') IS NULL
+			  AND seq_key NOT LIKE '~%'
+			  AND record_time BETWEEN COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) - INTERVAL '6 hours' AND COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) + INTERVAL '6 hours'
+			ORDER BY
+			    register_time ASC,
+			    NULLIF(SUBSTRING(seq_key FROM '-([0-9]+)$'), '')::BIGINT ASC NULLS LAST,
+			    seq_key ASC
+			""")
+	List<SeqKeyDTO> findProvisionalSeqKeys(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName,
+			@Param("baseTime") String baseTime);
+
+	/**
+	 * 同じ試合（同じカード・record_time が基準時刻の前後 6 時間以内）の最新の行。無ければ null。
+	 * register_time は同じトランザクションで同じ値になるため、同じ登録日時の中は連番の大きい順。
+	 */
+	@Select("""
+			SELECT
+			    seq_key AS seqKey,
+			    match_id AS matchId,
+			    times
+			FROM static_data
+			WHERE normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+			  AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+			  AND BTRIM(home_team_name) <> ''
+			  AND BTRIM(away_team_name) <> ''
+			  AND seq_key NOT LIKE '~%'
+			  AND record_time BETWEEN COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) - INTERVAL '6 hours' AND COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) + INTERVAL '6 hours'
+			ORDER BY
+			    register_time DESC,
+			    NULLIF(SUBSTRING(seq_key FROM '-([0-9]+)$'), '')::BIGINT DESC NULLS LAST
+			LIMIT 1
+			""")
+	SeqKeyDTO findLatestSeqKeyForCard(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName,
+			@Param("baseTime") String baseTime);
+
+	/**
+	 * 同じ試合（同じ match_id、または同じカードで record_time が基準時刻の前後 6 時間以内）の data_category。新しい順。
+	 * 仮の値「XXX: YYY …」は除く。
+	 */
+	@Select("""
+			SELECT
+				data_category AS dataCategory,
+				times
+			FROM static_data
+			WHERE normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+			  AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+			  AND (match_id = #{matchId,jdbcType=VARCHAR}
+			       OR record_time BETWEEN COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) - INTERVAL '6 hours' AND COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) + INTERVAL '6 hours')
+			  AND data_category IS NOT NULL
+			  AND data_category !~* '^\\s*XXX\\s*:'
+			ORDER BY register_time DESC
+			""")
+	List<DataCategoryDTO> findDataCategoryForMatch(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName,
+			@Param("matchId") String matchId,
+			@Param("baseTime") String baseTime);
+
+	/**
+	 * 同じ試合（同じ match_id、または同じカードで record_time が基準時刻の前後 6 時間以内）の data_category を更新する。
+	 * 過去・未来のシーズンの同じカードは書き換えない。
+	 */
+	@Update("""
+			UPDATE static_data
+			SET data_category = #{dataCategory}
+			WHERE normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+			  AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+			  AND (match_id = #{matchId,jdbcType=VARCHAR}
+			       OR record_time BETWEEN COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) - INTERVAL '6 hours' AND COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) + INTERVAL '6 hours')
+			  AND data_category IS DISTINCT FROM #{dataCategory}
+			""")
+	int updateDataCategoryForMatch(
+			@Param("dataCategory") String dataCategory,
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName,
+			@Param("matchId") String matchId,
+			@Param("baseTime") String baseTime);
 
 }

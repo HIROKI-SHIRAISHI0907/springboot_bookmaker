@@ -11,6 +11,17 @@ import org.apache.ibatis.annotations.Update;
 
 import dev.common.entity.FutureEntity;
 
+/**
+ * future_master の Repository（batch）
+ *
+ * <p>2026-10 追加</p>
+ * <ul>
+ *   <li>findGameTeamCategoryNearTime / updateGameTeamCategoryNearTime:
+ *       基準時刻（試合の記録時刻。空なら現在時刻 JST）の前後1日の同じカードの予定だけを見る・書き換える。
+ *       DataCategoryBatchService で使う（去年・来年の同じカードの予定を混ぜない）。</li>
+ * </ul>
+ * 既存のメソッドは変更していない。
+ */
 @Mapper
 public interface FutureMasterRepository {
 
@@ -257,5 +268,49 @@ public interface FutureMasterRepository {
 	        @Param("dataCategory") String dataCategory,
 	        @Param("homeTeamName") String homeTeamName,
 	        @Param("awayTeamName") String awayTeamName);
+
+	// ===================== 2026-10 追加 =====================
+
+	/**
+	 * 基準時刻の前後1日の同じカードの予定の game_team_category（試合開始時刻が基準時刻に一番近いもの）。
+	 * 仮の値「XXX: YYY …」は除く。無ければ null。
+	 */
+	@Select("""
+			SELECT
+				game_team_category
+			FROM
+				future_master
+			WHERE
+				normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+				AND game_team_category IS NOT NULL
+				AND BTRIM(game_team_category) <> ''
+				AND game_team_category !~* '^\\s*XXX\\s*:'
+				AND future_time BETWEEN (COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) AT TIME ZONE 'Asia/Tokyo') - INTERVAL '1 day' AND (COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) AT TIME ZONE 'Asia/Tokyo') + INTERVAL '1 day'
+			ORDER BY ABS(EXTRACT(EPOCH FROM (future_time - (COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) AT TIME ZONE 'Asia/Tokyo'))))
+			LIMIT 1
+		""")
+	String findGameTeamCategoryNearTime(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName,
+			@Param("baseTime") String baseTime);
+
+	/**
+	 * 基準時刻の前後1日の同じカードの予定の game_team_category を更新する（それ以外の時期の同じカードは触らない）。
+	 */
+	@Update("""
+			UPDATE future_master
+			SET	game_team_category = #{dataCategory}
+			WHERE
+				normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+				AND future_time BETWEEN (COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) AT TIME ZONE 'Asia/Tokyo') - INTERVAL '1 day' AND (COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) AT TIME ZONE 'Asia/Tokyo') + INTERVAL '1 day'
+				AND game_team_category IS DISTINCT FROM #{dataCategory}
+		""")
+	int updateGameTeamCategoryNearTime(
+			@Param("dataCategory") String dataCategory,
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName,
+			@Param("baseTime") String baseTime);
 
 }
