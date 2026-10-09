@@ -32,36 +32,59 @@ public class FavoriteRepository {
         this.userJdbcTemplate = userJdbcTemplate;
     }
 
-    // -----------------------------
-    // 登録（1本化）
-    // level: 1=country, 2=league, 3=team
-    // league/team は NULL ではなく "" を入れる（Prisma/制約に合わせる）
-    // -----------------------------
-    public int insert(Long userId, int level, String country, String league, String team, String operatorId) {
+	/**
+	 * チームのお気に入りを、親（国 level 1・リーグ level 2）と一緒に登録する（1文・既にあれば何もしない）
+	 * favorites_parent_check トリガーが親の存在を確認するため、国 → リーグ → チームの順に入れる。
+	 * @return チーム（level 3）を新しく登録した件数（既にあれば 0）
+	 */
+	public int insertTeamWithParents(Long userId, String country, String league, String team, String operatorId) {
+		String sql = """
+			INSERT INTO favorites (
+			  user_id, "level", country, league, team,
+			  register_id, register_time, update_id, update_time
+			)
+			VALUES
+			  (:userId, CAST(1 AS smallint), :country, '',      '',    :operatorId, CURRENT_TIMESTAMP, :operatorId, CURRENT_TIMESTAMP),
+			  (:userId, CAST(2 AS smallint), :country, :league, '',    :operatorId, CURRENT_TIMESTAMP, :operatorId, CURRENT_TIMESTAMP),
+			  (:userId, CAST(3 AS smallint), :country, :league, :team, :operatorId, CURRENT_TIMESTAMP, :operatorId, CURRENT_TIMESTAMP)
+			ON CONFLICT (user_id, "level", country, league, team) DO NOTHING
+			RETURNING "level"
+			""";
+		MapSqlParameterSource p = new MapSqlParameterSource()
+				.addValue("userId", userId)
+				.addValue("country", country)
+				.addValue("league", league)
+				.addValue("team", team)
+				.addValue("operatorId", operatorId);
+		List<Integer> inserted = userJdbcTemplate.queryForList(sql, p, Integer.class);
+		return (int) inserted.stream().filter(l -> l != null && l == 3).count();
+	}
 
-        String sql = """
-            INSERT INTO favorites(
-              user_id, "level", country, league, team,
-              register_id, register_time, update_id, update_time
-            )
-            VALUES (
-              :userId, :level, :country, :league, :team,
-              :operatorId, CURRENT_TIMESTAMP, :operatorId, CURRENT_TIMESTAMP
-            )
-            ON CONFLICT (user_id, "level", country, league, team) DO NOTHING
-            """;
-
-        Map<String, Object> params = Map.of(
-                "userId", userId,
-                "level", String.valueOf(level),
-                "country", country,
-                "league", league,
-                "team", team,
-                "operatorId", operatorId
-        );
-
-        return userJdbcTemplate.update(sql, params);
-    }
+	/**
+	 * お気に入りを登録（同じものがあれば何もしない）
+	 * @return 登録件数（既にあれば 0）
+	 */
+	public int insert(Long userId, int level, String country, String league, String team, String operatorId) {
+		String sql = """
+			INSERT INTO favorites (
+			  user_id, "level", country, league, team,
+			  register_id, register_time, update_id, update_time
+			)
+			VALUES (
+			  :userId, CAST(:level AS smallint), :country, :league, :team,
+			  :operatorId, CURRENT_TIMESTAMP, :operatorId, CURRENT_TIMESTAMP
+			)
+			ON CONFLICT (user_id, "level", country, league, team) DO NOTHING
+			""";
+		MapSqlParameterSource p = new MapSqlParameterSource()
+				.addValue("userId", userId)
+				.addValue("level", level)
+				.addValue("country", country == null ? "" : country)
+				.addValue("league", league == null ? "" : league)
+				.addValue("team", team == null ? "" : team)
+				.addValue("operatorId", operatorId);
+		return userJdbcTemplate.update(sql, p);
+	}
 
     // -----------------------------
     // 削除（親削除→子削除はDBトリガで実現想定）

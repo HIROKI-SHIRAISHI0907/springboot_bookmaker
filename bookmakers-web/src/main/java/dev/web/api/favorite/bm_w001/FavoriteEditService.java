@@ -71,7 +71,7 @@ public class FavoriteEditService {
 			return new FavoriteEditResponse(this.favoriteRepository.findTeams(userId), MAX_TEAMS,
 					"お気に入りは " + MAX_TEAMS + " チームまでです");
 		}
-		int n = this.favoriteRepository.insert(userId, 3, country, league, team, String.valueOf(userId));
+		int n = this.favoriteRepository.insertTeamWithParents(userId, country, league, team, String.valueOf(userId));
 		return new FavoriteEditResponse(this.favoriteRepository.findTeams(userId), MAX_TEAMS,
 				n > 0 ? team + " を追加しました" : "登録済みです");
 	}
