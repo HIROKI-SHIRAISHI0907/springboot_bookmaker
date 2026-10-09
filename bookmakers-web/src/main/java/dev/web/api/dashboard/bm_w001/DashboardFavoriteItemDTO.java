@@ -1,5 +1,7 @@
 package dev.web.api.dashboard.bm_w001;
 
+import java.util.List;
+
 import lombok.Data;
 
 /**
@@ -43,4 +45,7 @@ public class DashboardFavoriteItemDTO {
 
 	/** LIVE: 試合詳細への遷移用（static_data の seq_key） */
 	private String seqKey;
+
+	/** 直近5ラウンドの結果（新しい順。W / D / L、分からないラウンドは null） */
+	private List<String> recentForm;
 }

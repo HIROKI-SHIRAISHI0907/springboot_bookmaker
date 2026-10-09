@@ -65,8 +65,7 @@ spring:
       url: ${USER_DB_URL:jdbc:postgresql://localhost:54320/soccer_bm_user}
       username: ${USER_DB_USER:postgres}
       password: ${USER_DB_PASSWORD:sonic3717}
-
-
+      
 mybatis:
   type-handlers-package: dev.application.mybatis
   configuration:
@@ -284,8 +283,8 @@ aws:
     cache-ttl-seconds: 300
       
 logging:
-  level:
-    root: INFO
+    level:
+       org.springframework.security: DEBUG
 
     # アプリのパッケージ（使っているもの全部まとめる）
     dev.web: INFO

@@ -14,6 +14,7 @@ import org.springframework.stereotype.Repository;
 
 import dev.web.api.bm_u003.FavoriteItem;
 import dev.web.api.bm_u003.FavoriteScope;
+import dev.web.api.favorite.bm_w001.FavoriteTeamDTO;
 
 /**
  * FavoriteRepository
@@ -204,5 +205,33 @@ public class FavoriteRepository {
                 .addValue("userId", userId)
         );
     }
+
+    /**
+	 * チームのお気に入り（level = 3）を id 付きで取得（お気に入り編集画面・トップ画面用）
+	 */
+	public List<FavoriteTeamDTO> findTeams(Long userId) {
+		String sql = """
+			SELECT id, country, league, team
+			FROM favorites
+			WHERE user_id = :userId
+			  AND "level" = '3'
+			ORDER BY country, league, team
+			""";
+		return userJdbcTemplate.query(sql, new MapSqlParameterSource().addValue("userId", userId), (rs, n) -> {
+			FavoriteTeamDTO d = new FavoriteTeamDTO();
+			d.setId(rs.getLong("id"));
+			d.setCountry(rs.getString("country"));
+			d.setLeague(rs.getString("league"));
+			d.setTeam(rs.getString("team"));
+			return d;
+		});
+	}
+
+	/** チームのお気に入りの件数 */
+	public int countTeams(Long userId) {
+		String sql = "SELECT COUNT(*) FROM favorites WHERE user_id = :userId AND \"level\" = '3'";
+		Integer c = userJdbcTemplate.queryForObject(sql, Map.of("userId", userId), Integer.class);
+		return c == null ? 0 : c;
+	}
 
 }

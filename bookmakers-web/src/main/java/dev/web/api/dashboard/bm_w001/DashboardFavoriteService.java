@@ -12,6 +12,7 @@ import dev.web.api.dashboard.bm_w003.DashboardLiveService;
 import dev.web.api.dashboard.bm_w005.DashboardUpcomingService;
 import dev.web.api.dashboard.futureDTO.DashboardFutureRow;
 import dev.web.api.dashboard.support.DashboardSupport;
+import dev.web.api.team.bm_w001.TeamResultsService;
 import dev.web.repository.master.DashboardFutureRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -31,6 +32,8 @@ public class DashboardFavoriteService {
 
 	/** 次の試合を探す日数 */
 	static final int NEXT_WINDOW_DAYS = 14;
+
+	private final TeamResultsService teamResultsService;
 
 	private final DashboardFavoriteTeamProvider favoriteTeamProvider;
 
@@ -71,6 +74,12 @@ public class DashboardFavoriteService {
 				item.setLeague(t.getLeague());
 				item.setStatus("NONE");
 			}
+			String c = t.getCountry() != null && !t.getCountry().isBlank() ? t.getCountry() : item.getCountry();
+			String l = t.getLeague() != null && !t.getLeague().isBlank() ? t.getLeague() : item.getLeague();
+			item.setRecentForm(this.teamResultsService.recentForm(c, l, t.getTeamName(), 5));
+			// 画面のリンク用に国・リーグは登録の値を優先
+			if (item.getCountry() == null) item.setCountry(c);
+			if (item.getLeague() == null) item.setLeague(l);
 			items.add(item);
 		}
 		// ライブ → 次の試合（キックオフ順） → 予定なし
