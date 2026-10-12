@@ -17,6 +17,14 @@ import java.util.regex.Pattern;
  * タイムゾーンに依存する処理は全てこのクラスに集約する。
  * 対象タイムゾーンを変更する場合は下記の ZONE 定数だけを直せばよい。
  *
+ * <p>2026-10 修正</p>
+ * <ul>
+ *   <li>getOffsetDateTime(rs, columnLabel): 列名の代わりに値（例: "2026-01-02 00:00:00+00"）が渡された場合は
+ *       その値をパースして返す（以前は値を列名として探し「The column name ... was not found」で失敗していた）。
+ *       呼び出し側は列名を渡すのが正しい。</li>
+ *   <li>parseDbTimestamp(String) を追加（timestamptz の文字列表現 → OffsetDateTime）。</li>
+ * </ul>
+ *
  * @author shiraishitoshio
  */
 public final class DateOffsetDecisionUtil {
@@ -39,9 +47,49 @@ public final class DateOffsetDecisionUtil {
 		return ZONE;
 	}
 
-	// getLocalDateTime を置き換え
+	/**
+	 * ResultSet の timestamptz 列を OffsetDateTime で取得する。
+	 * columnLabel には列名（例: "start_season_date"）を渡すこと。
+	 * 誤って値（例: rs.getString("start_season_date") の結果）が渡された場合は、その値をパースして返す。
+	 */
 	public static OffsetDateTime getOffsetDateTime(ResultSet rs, String columnLabel) throws SQLException {
+		if (columnLabel == null || columnLabel.isBlank()) {
+			// 列の値が null のまま渡されたケース
+			return null;
+		}
+		if (DB_TIMESTAMP_PATTERN.matcher(columnLabel.trim()).matches()) {
+			return parseDbTimestamp(columnLabel);
+		}
 		return rs.getObject(columnLabel, OffsetDateTime.class);
+	}
+
+	/**
+	 * timestamptz の文字列表現（"2026-01-02 00:00:00+00"、"2026-01-02T00:00:00Z" など）を OffsetDateTime にする。
+	 * オフセット表記が無い場合は UTC とみなす。パースできなければ null。
+	 */
+	public static OffsetDateTime parseDbTimestamp(String text) {
+		if (text == null || text.isBlank()) {
+			return null;
+		}
+		Matcher m = DB_TIMESTAMP_PATTERN.matcher(text.trim());
+		if (!m.matches()) {
+			return null;
+		}
+		LocalDateTime ldt = LocalDateTime.parse(m.group(1) + "T" + m.group(2));
+		String offsetPart = m.group(3);
+
+		ZoneOffset offset;
+		if (offsetPart == null || offsetPart.isEmpty() || "Z".equals(offsetPart)) {
+			offset = ZoneOffset.UTC;
+		} else {
+			String normalized = offsetPart.length() == 3 ? offsetPart + ":00" : offsetPart; // "+00" -> "+00:00"
+			if (normalized.length() == 5) {
+				// "+0900" -> "+09:00"
+				normalized = normalized.substring(0, 3) + ":" + normalized.substring(3);
+			}
+			offset = ZoneOffset.of(normalized);
+		}
+		return ldt.atOffset(offset);
 	}
 
 	// toIsoJstString を置き換え
@@ -125,7 +173,6 @@ public final class DateOffsetDecisionUtil {
 		return new String[] { rangeStart, rangeEnd };
 	}
 
-
 	/**
 	 * 直近の「まる1週間(00:00:00〜23:59:59)」を対象タイムゾーン基準で求め、UTCのISO8601文字列で返す。
 	 * バッチが1週間後(例: 00:10)に実行される想定で、
@@ -154,27 +201,8 @@ public final class DateOffsetDecisionUtil {
 	 * パース不能な場合は null を返す。
 	 */
 	public static LocalDate toTargetZoneDate(String utcTimeText) {
-		if (utcTimeText == null || utcTimeText.isBlank()) {
-			return null;
-		}
-		Matcher m = DB_TIMESTAMP_PATTERN.matcher(utcTimeText.trim());
-		if (!m.matches()) {
-			return null; // 想定外フォーマットは変換不可
-		}
-
-		LocalDateTime ldt = LocalDateTime.parse(m.group(1) + "T" + m.group(2));
-		String offsetPart = m.group(3);
-
-		ZoneOffset offset;
-		if (offsetPart == null || offsetPart.isEmpty() || "Z".equals(offsetPart)) {
-			offset = ZoneOffset.UTC; // オフセット表記が無ければUTC前提
-		} else {
-			String normalized = offsetPart.length() == 3 ? offsetPart + ":00" : offsetPart; // "+00" -> "+00:00"
-			offset = ZoneOffset.of(normalized);
-		}
-
-		OffsetDateTime odtUtc = ldt.atOffset(offset);
-		return toOffsetDateTimeJst(odtUtc).toLocalDate();
+		OffsetDateTime odt = parseDbTimestamp(utcTimeText);
+		return odt == null ? null : toOffsetDateTimeJst(odt).toLocalDate();
 	}
 
 	// ========================================================
