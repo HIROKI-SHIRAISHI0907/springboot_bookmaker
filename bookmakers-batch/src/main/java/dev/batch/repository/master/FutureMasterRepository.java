@@ -19,8 +19,12 @@ import dev.common.entity.FutureEntity;
  *   <li>findGameTeamCategoryNearTime / updateGameTeamCategoryNearTime:
  *       基準時刻（試合の記録時刻。空なら現在時刻 JST）の前後1日の同じカードの予定だけを見る・書き換える。
  *       DataCategoryBatchService で使う（去年・来年の同じカードの予定を混ぜない）。</li>
+ *   <li>findGameLinkForMatch（B012）: mid が matchId と一致する game_link を優先、無ければ試合時刻が一番近いもの。</li>
  * </ul>
- * 既存のメソッドは変更していない。
+ * <p>2026-10 修正（B012）</p>
+ * <ul>
+ *   <li>findTodayFinData: 始まりを含む（&gt;=）ようにした（0:00 ちょうどの試合が漏れていた）。</li>
+ * </ul>
  */
 @Mapper
 public interface FutureMasterRepository {
@@ -193,6 +197,10 @@ public interface FutureMasterRepository {
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
 
+	/**
+	 * 同じカードの game_link（並び順の指定なしの LIMIT 1）。
+	 * ※ 別の試合の URL が返ることがあるため B012 では使わない（{@link #findGameLinkForMatch} を使う）。
+	 */
 	@Select("""
 			SELECT
  				game_link
@@ -207,6 +215,38 @@ public interface FutureMasterRepository {
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
 
+	/**
+	 * B012: この試合の game_link。
+	 * <ol>
+	 *   <li>URL の mid が matchId と一致するもの</li>
+	 *   <li>無ければ、試合開始時刻が recordTime（日本時間 "yyyy-MM-dd HH:mm:ss"）に一番近いもの</li>
+	 * </ol>
+	 * 呼び出し側で mid と matchId が一致するか確認すること（一致しなければ使わない）。無ければ null。
+	 */
+	@Select("""
+			SELECT
+				game_link
+			FROM
+				future_master
+			WHERE
+				normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+				AND NULLIF(BTRIM(game_link), '') IS NOT NULL
+			ORDER BY
+				(substring(game_link from 'mid=([^&]+)') = #{matchId}) DESC NULLS LAST,
+				ABS(EXTRACT(EPOCH FROM (future_time - (COALESCE(CAST(NULLIF(BTRIM(#{recordTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) AT TIME ZONE 'Asia/Tokyo')))) ASC NULLS LAST,
+				seq DESC
+			LIMIT 1
+		""")
+	String findGameLinkForMatch(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName,
+			@Param("matchId") String matchId,
+			@Param("recordTime") String recordTime);
+
+	/**
+	 * 期間内（todayStart 以上・todayEnd 以下）に開始した試合（start_flg = '1'）。
+	 */
 	@Select("""
 			SELECT
  				home_team_name AS homeTeamName,
@@ -215,7 +255,7 @@ public interface FutureMasterRepository {
  			FROM
  				future_master
 			WHERE
-				(future_time > #{todayStart}::timestamptz
+				(future_time >= #{todayStart}::timestamptz
 				AND future_time <= #{todayEnd}::timestamptz)
 				AND start_flg = '1'
 		""")

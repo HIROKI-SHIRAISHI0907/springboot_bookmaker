@@ -23,8 +23,11 @@ import dev.common.entity.DataEntity;
  *   <li>findDataCategoryForMatch / updateDataCategoryForMatch（DataCategoryBatchService）</li>
  * </ul>
  * 「同じ試合」= 同じ match_id、または同じカード（NFKC 正規化）で record_time が基準時刻（baseTime。空なら現在時刻 JST）の前後 6 時間以内。
- * 既存のメソッドは変更していない（findDataCategory / updateByDataCategory / findMatchId / findSeqKeysForRenumber は
- * 全期間の同じカードが対象のため、B010 では使わない）。
+ *
+ * <p>2026-10 修正（B012）</p>
+ * <ul>
+ *   <li>findMatchIdsWithoutFinishedCategoryByTeams: 「終了済」を times 列で判定・前日の範囲に絞る・match_id ごとに1件。</li>
+ * </ul>
  */
 @Mapper
 public interface BookDataRepository {
@@ -417,16 +420,30 @@ public interface BookDataRepository {
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
 
+	/**
+	 * B012: 前日に記録があり、「終了済」の行が無い試合（match_id ごとに1件）。
+	 * <ul>
+	 *   <li>「終了済」は times 列（試合時間）で判定する。data_category には「国: リーグ - ラウンド N」が入っている。</li>
+	 *   <li>record_time（timestamp・日本時間）が前日の範囲。日付をまたぐ試合のため終わりは +6 時間。</li>
+	 *   <li>終了済の判定は日付で絞らず、同じ match_id の全ての行で見る。</li>
+	 *   <li>recordTime はその試合の最初の record_time（オフセット無しの日本時間 "yyyy-MM-dd HH:mm:ss"）。</li>
+	 * </ul>
+	 * @param dayStart 前日 0:00（日本時間）の UTC ISO 文字列（例: 2026-10-10T15:00:00Z）
+	 * @param dayEnd   前日の終わり（日本時間）の UTC ISO 文字列
+	 */
 	@Select("""
 			<script>
-			SELECT DISTINCT
-			  d.match_id AS matchId,
-			  d.record_time AS recordTime,
-			  d.home_team_name AS homeTeamName,
-			  d.away_team_name AS awayTeamName
+			SELECT
+			  d.match_id                                        AS matchId,
+			  to_char(MIN(d.record_time), 'YYYY-MM-DD HH24:MI:SS') AS recordTime,
+			  MIN(d.home_team_name)                             AS homeTeamName,
+			  MIN(d.away_team_name)                             AS awayTeamName
 			FROM static_data d
-			WHERE d.match_id IS NOT NULL
-			  AND TRIM(d.match_id) &lt;&gt; ''
+			WHERE NULLIF(BTRIM(d.match_id), '') IS NOT NULL
+			  AND d.record_time &gt;= (CAST(#{dayStart} AS timestamptz) AT TIME ZONE 'Asia/Tokyo')
+			  AND d.record_time &lt;  (CAST(#{dayEnd} AS timestamptz) AT TIME ZONE 'Asia/Tokyo') + INTERVAL '6 hours'
+			  AND BTRIM(COALESCE(d.home_team_name, '')) &lt;&gt; ''
+			  AND BTRIM(COALESCE(d.away_team_name, '')) &lt;&gt; ''
 			  <if test="teamPairs != null and teamPairs.size() > 0">
 			  AND (normalize(d.home_team_name, NFKC), normalize(d.away_team_name, NFKC)) IN (
 			    VALUES
@@ -438,14 +455,17 @@ public interface BookDataRepository {
 			  AND NOT EXISTS (
 			        SELECT 1
 			        FROM static_data d2
-			        WHERE normalize(d2.home_team_name, NFKC) = normalize(d.home_team_name, NFKC)
-			          AND normalize(d2.away_team_name, NFKC) = normalize(d.away_team_name, NFKC)
-			          AND REPLACE(TRIM(normalize(d2.data_category, NFKC)), ' ', '') = '終了済'
+			        WHERE d2.match_id = d.match_id
+			          AND REPLACE(BTRIM(normalize(COALESCE(d2.times, ''), NFKC)), ' ', '') = '終了済'
 			  )
+			GROUP BY d.match_id
+			ORDER BY MIN(d.record_time)
 			</script>
 			""")
 	List<SeqKeyDTO> findMatchIdsWithoutFinishedCategoryByTeams(
-			@Param("teamPairs") List<TeamPair> teamPairs);
+			@Param("teamPairs") List<TeamPair> teamPairs,
+			@Param("dayStart") String dayStart,
+			@Param("dayEnd") String dayEnd);
 
 	@Select("""
 				SELECT

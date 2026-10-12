@@ -37,8 +37,21 @@ import dev.common.util.DateOffsetDecisionUtil;
 
 /**
  * RealFinDataConvertJsonStatロジック
- * @author shiraishitoshio
  *
+ * <p>前日（日本時間 0:00〜23:59）に行われた試合のうち、static_data に「終了済」（times 列）の行が無い試合を
+ * { "yyyy-MM-dd": [ {matchKey, matchUrl?}, ... ] } の JSON にして S3（fin/b008_fin_getting_data_N.json）へ出力する。</p>
+ *
+ * <p>2026-10 修正</p>
+ * <ul>
+ *   <li>「終了済」は data_category ではなく times 列で判定する（Repository 側）。</li>
+ *   <li>static_data を前日の範囲（日付をまたぐ試合のため終わりは +6 時間）に絞り、match_id 単位で1件にする
+ *       （過去シーズンの同じカードを拾わない）。</li>
+ *   <li>record_time（timestamp・タイムゾーンなし＝日本時間）を UTC とみなして +9 時間していたのを修正。</li>
+ *   <li>matchUrl は mid が matchKey と一致するものを優先して取り、一致しない URL は付けない
+ *       （別の試合のページを読んで matchKey の試合として保存するのを防ぐ）。</li>
+ *   <li>出力する日付は前日（日本時間）のものだけ。</li>
+ * </ul>
+ * @author shiraishitoshio
  */
 @Component
 public class RealFinDataConvertJsonStat {
@@ -63,6 +76,9 @@ public class RealFinDataConvertJsonStat {
 	private static final Pattern RECORD_TIME_PATTERN = Pattern.compile(
 			"^(\\d{4}-\\d{2}-\\d{2})[ T](\\d{2}:\\d{2}:\\d{2})(?:\\.\\d+)?\\s*([+-]\\d{2}(?::?\\d{2})?|Z)?$");
 
+	/** URL の mid= */
+	private static final Pattern MID_PATTERN = Pattern.compile("[?&]mid=([^&#]+)");
+
 	@Autowired
 	private BookDataRepository bookDataRepository;
 	@Autowired
@@ -77,77 +93,93 @@ public class RealFinDataConvertJsonStat {
 	private ManageLoggerComponent manageLoggerComponent;
 
 	/**
-	 * FinGettingRequest(matches) を
-	 * { "yyyy-MM-dd": [ {matchKey, matchUrl?}, ... ] } に変換し、
-	 * 連番付きファイル名で JSON 出力 → S3へアップロードする。
-	 * 既に fin/b008_fin_getting_*.json に出力済みの matchKey は対象から除外する。
-	 *
-	 * 出力する日付キーは昇順（yyyy-MM-dd の文字列比較＝時系列順）に揃え、
-	 * 同一matchIdが複数の日付に紐づいた場合は、より古いmatchDateのものを1件だけ残す。
-	 *
-	 * 既存matchKeyの読み取り〜アップロードまでは、FinGettingService(API側)と
-	 * 同じロックキー(B008OutputLockKeys.B008_FIN_GETTING_JSON)で排他制御する。
+	 * 前日分の「終了済が無い試合」を JSON にして S3 へアップロードする。
+	 * 既に fin/b008_fin_getting_data_*.json に出力済みの matchKey は除外する。
+	 * 同じ matchId は1件だけ（record_time が一番古い行の日付）。
 	 */
 	public void execute() throws Exception {
 		final String METHOD_NAME = "execute";
 		this.manageLoggerComponent.init(EXEC_MODE, null);
-		this.manageLoggerComponent.debugStartInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		try {
+			run(METHOD_NAME);
+		} finally {
+			this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+			this.manageLoggerComponent.clear();
+		}
+	}
 
+	private void run(String METHOD_NAME) throws Exception {
 		final String outputBucket = pathConfig.getS3BucketsOutputsFin();
 
-		// バッチは日付変更直後(00:10想定)に実行し、「前日1日分」をUTC時間の検索範囲として使う
+		// バッチは日付変更直後(00:10想定)に実行し、「前日1日分」(日本時間)を UTC の ISO 文字列で受け取る
 		String[] previousDayRange = DateOffsetDecisionUtil.previousDayRangeAsUtcIsoStrings();
-		String todayStart = previousDayRange[0];
-		String todayEnd = previousDayRange[1];
-		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-				"システム時間検索期間: " + todayStart + "~" + todayEnd +
-						"(日本時間換算: " + DateOffsetDecisionUtil.toIsoJstRangeString(previousDayRange) + ")");
+		String dayStart = previousDayRange[0];
+		String dayEnd = previousDayRange[1];
+		String jstRange = DateOffsetDecisionUtil.toIsoJstRangeString(previousDayRange);
+		info(METHOD_NAME, "システム時間検索期間: " + dayStart + "~" + dayEnd + "(日本時間換算: " + jstRange + ")");
 
-		List<FutureEntity> todayFutureList = futureMasterRepository.findTodayFinData(todayStart, todayEnd);
+		// 出力してよい日付（前日・日本時間）
+		LocalDate targetDate = toJstMatchDate(dayStart);
+		if (targetDate == null) {
+			throw new IllegalStateException("前日の日付を求められません: " + dayStart);
+		}
 
-		// 1) 「その日の」bookdatarepositoryから「終了済」がないデータのみ取得しjsonにmappingするためのdtoに入れ替え
-		List<TeamPair> teamPairs = todayFutureList.stream()
+		// 0) 前日に予定されていた試合（future_master）
+		List<FutureEntity> futureList = futureMasterRepository.findTodayFinData(dayStart, dayEnd);
+		info(METHOD_NAME, "前日の予定試合件数: " + futureList.size());
+		if (futureList.isEmpty()) {
+			info(METHOD_NAME, "前日の予定試合が0件のためスキップします");
+			return;
+		}
+		List<TeamPair> teamPairs = futureList.stream()
 				.map(f -> new TeamPair(f.getHomeTeamName(), f.getAwayTeamName()))
 				.collect(Collectors.toList());
+
+		// 1) static_data のうち、前日の範囲に記録があり、その match_id に「終了済」(times) が無い試合（match_id ごとに1件）
 		List<SeqKeyDTO> withoutFinList = bookDataRepository.findMatchIdsWithoutFinishedCategoryByTeams(
-				teamPairs);
+				teamPairs, dayStart, dayEnd);
+		info(METHOD_NAME, "終了済が無い試合件数: " + withoutFinList.size());
 
-		// 既存matchKeyの読み取り〜アップロードまでを排他制御する。
-		// existingMatchKeysの読み取りをロック内に含めることで、API側とのタイミングずれによる
-		// 重複出力・連番衝突による上書き消失の両方を防ぐ。
+		// 既に出力済みの matchKey
 		Set<String> existingMatchKeys = loadExistingMatchKeys(outputBucket);
-		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-				"既存matchKey件数: " + existingMatchKeys.size());
+		info(METHOD_NAME, "既存matchKey件数: " + existingMatchKeys.size());
 
-		// matchIdをキーにして重複を1件へ集約する。
-		// 同一matchIdが複数のmatchDateに紐づいて出てきた場合は、より古いmatchDateを採用する。
 		Map<String, FinGettingDTO.Item> itemsByMatchId = new LinkedHashMap<>();
-		int skippedCount = 0;
+		int skippedExisting = 0;
+		int skippedOtherDate = 0;
+		int urlMismatch = 0;
 		for (SeqKeyDTO dto : withoutFinList) {
-			// 既存jsonに同じmatchKey(=matchId)が既にあればスキップ
-			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME,
-					METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-					"既存matchKey比較前: " + dto);
-			if (dto.getMatchId() != null && existingMatchKeys.contains(dto.getMatchId().trim())) {
-				skippedCount++;
+			String matchId = dto.getMatchId() == null ? "" : dto.getMatchId().trim();
+			if (matchId.isEmpty()) {
 				continue;
 			}
-			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME,
-					METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-					"既存matchKey比較後: " + dto);
-			String gameLink = futureMasterRepository.findGameLinkWithoutFinishedCategoryByTeamsWithTeam(
-					dto.getHomeTeamName(), dto.getAwayTeamName());
-			LocalDate time = toJstMatchDate(dto.getRecordTime());
-			if (time == null) {
+			if (existingMatchKeys.contains(matchId)) {
+				skippedExisting++;
 				continue;
 			}
-			String matchId = dto.getMatchId();
-			if (matchId == null || matchId.isBlank()) {
+			LocalDate matchDate = toJstMatchDate(dto.getRecordTime());
+			if (matchDate == null) {
 				continue;
 			}
+			// 前日（日本時間）以外の日付は出さない（念のため）
+			if (!targetDate.equals(matchDate)) {
+				skippedOtherDate++;
+				continue;
+			}
+
+			// mid が matchId と一致する URL を優先して取る。一致しなければ URL を付けない（unresolved 扱い）
+			String gameLink = futureMasterRepository.findGameLinkForMatch(
+					dto.getHomeTeamName(), dto.getAwayTeamName(), matchId, dto.getRecordTime());
+			if (gameLink != null && !matchId.equals(extractMid(gameLink))) {
+				urlMismatch++;
+				info(METHOD_NAME, "URL の mid が matchKey と一致しないため URL を付けません matchKey=" + matchId
+						+ " url=" + gameLink);
+				gameLink = null;
+			}
+
 			FinGettingDTO.Item item = new FinGettingDTO.Item();
-			item.setMatchDate(time);
+			item.setMatchDate(matchDate);
 			item.setMatchId(matchId);
 			item.setMatchUrl(gameLink);
 
@@ -156,45 +188,40 @@ public class RealFinDataConvertJsonStat {
 				itemsByMatchId.put(matchId, item);
 			}
 		}
-		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-				"既存matchKeyによりスキップした件数: " + skippedCount);
+		info(METHOD_NAME, "既存matchKeyでスキップ: " + skippedExisting
+				+ " / 前日以外でスキップ: " + skippedOtherDate
+				+ " / URL不一致: " + urlMismatch
+				+ " / 出力対象: " + itemsByMatchId.size());
 
 		if (itemsByMatchId.isEmpty()) {
-			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-					"出力対象が0件のためファイル出力・アップロードをスキップします");
+			info(METHOD_NAME, "出力対象が0件のためファイル出力・アップロードをスキップします");
 			return;
 		}
 
-		// 2) Map化（日付キー昇順、matchId重複は上で1件に集約済み）
+		// 2) 出力用 Map（日付キー昇順）
 		Map<String, List<Map<String, Object>>> out = toOutputMap(itemsByMatchId.values());
 
-		// 3) 次の連番をS3から決定
-		final int nextSeq = s3Operator.findNextSequenceNumber(
-				outputBucket,
-				S3_PREFIX + FILE_PREFIX,
-				FILE_PATTERN);
+		// 3) 次の連番を S3 から決定
+		final int nextSeq = s3Operator.findNextSequenceNumber(outputBucket, S3_PREFIX + FILE_PREFIX, FILE_PATTERN);
 		final String fileName = FILE_PREFIX + nextSeq + ".json";
 
-		// 4) ローカルへJSON出力
-		final String jsonFolder = pathConfig.getB008JsonFolder(); // 例: /tmp/json/
-		final Path jsonFilePath = Paths.get(jsonFolder, fileName);
+		// 4) ローカルへ JSON 出力
+		final Path jsonFilePath = Paths.get(pathConfig.getB008JsonFolder(), fileName);
 		Files.createDirectories(jsonFilePath.getParent());
 		objectMapper.writerWithDefaultPrettyPrinter().writeValue(jsonFilePath.toFile(), out);
 
-		// 5) S3へアップロード
+		// 5) S3 へアップロード
 		final String s3Key = S3_PREFIX + fileName;
 		s3Operator.uploadFile(outputBucket, s3Key, jsonFilePath);
+		info(METHOD_NAME, "アップロード完了: s3://" + outputBucket + "/" + s3Key + " 件数=" + itemsByMatchId.size());
+	}
 
-		// endLog
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		this.manageLoggerComponent.clear();
+	private void info(String method, String message) {
+		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, method, MessageCdConst.MCD00099I_LOG, message);
 	}
 
 	/**
-	 * S3上の fin/b008_fin_getting_*.json を全て読み取り、
-	 * 各ファイル内の "matchKey" 値を集めた集合を返す。
-	 * ファイルが1件も無い場合は空集合を返す。
+	 * S3 上の fin/b008_fin_getting_data_*.json を全て読み、"matchKey" の集合を返す。
 	 */
 	private Set<String> loadExistingMatchKeys(String bucket) {
 		final String METHOD_NAME = "loadExistingMatchKeys";
@@ -205,8 +232,7 @@ public class RealFinDataConvertJsonStat {
 					.filter(key -> FILE_PATTERN.matcher(key).matches())
 					.collect(Collectors.toList());
 		} catch (Exception e) {
-			this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-					"既存jsonファイル一覧の取得に失敗したため既存matchKeyチェックをスキップします: " + e.getMessage());
+			info(METHOD_NAME, "既存jsonファイル一覧の取得に失敗したため既存matchKeyチェックをスキップします: " + e.getMessage());
 			return existingMatchKeys;
 		}
 		for (String key : existingKeys) {
@@ -215,8 +241,7 @@ public class RealFinDataConvertJsonStat {
 				if (content == null || content.isBlank()) {
 					continue;
 				}
-				Map<String, List<Map<String, Object>>> existingMap = objectMapper.readValue(
-						content,
+				Map<String, List<Map<String, Object>>> existingMap = objectMapper.readValue(content,
 						new TypeReference<LinkedHashMap<String, List<Map<String, Object>>>>() {
 						});
 				for (List<Map<String, Object>> rows : existingMap.values()) {
@@ -231,68 +256,69 @@ public class RealFinDataConvertJsonStat {
 					}
 				}
 			} catch (Exception e) {
-				this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-						MessageCdConst.MCD00099I_LOG, "既存jsonファイルの読み取りに失敗しました key=" + key + " error=" + e.getMessage());
+				info(METHOD_NAME, "既存jsonファイルの読み取りに失敗しました key=" + key + " error=" + e.getMessage());
 			}
 		}
 		return existingMatchKeys;
 	}
 
 	/**
-	 * FinGettingDTO.Itemの集まりを、日付キー（昇順）→ [{matchKey, matchUrl?}, ...] の
-	 * 出力用Mapへ変換する。
-	 *
-	 * 日付キーは"yyyy-MM-dd"形式（時系列順＝文字列の辞書順と一致）なので、
-	 * TreeMapを使うだけで日付の昇順が保証される。
-	 * 各行はmatchKeyが先・matchUrlが後という出力順序を保証するためLinkedHashMapを使用する。
-	 *
-	 * @param items 出力対象のItem（matchIdの重複は呼び出し元で解消済みであること）
-	 * @return 日付キー昇順のMap
+	 * Item の集まりを、日付キー（昇順）→ [{matchKey, matchUrl?}, ...] の Map にする。
 	 */
 	private Map<String, List<Map<String, Object>>> toOutputMap(Collection<FinGettingDTO.Item> items) {
 		Map<String, List<Map<String, Object>>> out = new TreeMap<>();
 		int i = 0;
 		for (FinGettingDTO.Item it : items) {
-			LocalDate matchDate = it.getMatchDate();
-			String matchId = it.getMatchId();
-			String matchUrl = it.getMatchUrl();
-			if (matchDate == null) {
+			if (it.getMatchDate() == null) {
 				throw new IllegalArgumentException("matchDate がありません: index=" + i);
 			}
-			if (matchId == null || matchId.isBlank()) {
+			if (it.getMatchId() == null || it.getMatchId().isBlank()) {
 				throw new IllegalArgumentException("matchId がありません: index=" + i);
 			}
-			String dateKey = matchDate.toString();
 			Map<String, Object> row = new LinkedHashMap<>();
-			row.put("matchKey", matchId.trim());
-			if (matchUrl != null && !matchUrl.isBlank()) {
-				row.put("matchUrl", matchUrl.trim());
+			row.put("matchKey", it.getMatchId().trim());
+			if (it.getMatchUrl() != null && !it.getMatchUrl().isBlank()) {
+				row.put("matchUrl", it.getMatchUrl().trim());
 			}
-			out.computeIfAbsent(dateKey, k -> new ArrayList<>()).add(row);
+			out.computeIfAbsent(it.getMatchDate().toString(), k -> new ArrayList<>()).add(row);
 			i++;
 		}
 		return out;
 	}
 
-	private static LocalDate toJstMatchDate(String recordTime) {
-		if (recordTime == null || recordTime.isBlank()) {
+	/** URL の mid=（無ければ null） */
+	static String extractMid(String url) {
+		if (url == null) {
 			return null;
 		}
-		Matcher m = RECORD_TIME_PATTERN.matcher(recordTime.trim());
+		Matcher m = MID_PATTERN.matcher(url);
+		return m.find() ? m.group(1).trim() : null;
+	}
+
+	/**
+	 * 日時文字列 → 日本時間の日付。
+	 * <ul>
+	 *   <li>オフセット無し（static_data.record_time の timestamp）: すでに日本時間なのでそのままの日付</li>
+	 *   <li>Z / +09:00 などのオフセット付き: 日本時間に直した日付</li>
+	 * </ul>
+	 */
+	static LocalDate toJstMatchDate(String time) {
+		if (time == null || time.isBlank()) {
+			return null;
+		}
+		Matcher m = RECORD_TIME_PATTERN.matcher(time.trim());
 		if (!m.matches()) {
 			return null;
 		}
 		LocalDateTime ldt = LocalDateTime.parse(m.group(1) + "T" + m.group(2));
 		String offsetPart = m.group(3);
-		ZoneOffset offset;
-		if (offsetPart == null || offsetPart.isEmpty() || "Z".equals(offsetPart)) {
-			offset = ZoneOffset.UTC;
-		} else {
-			String normalized = offsetPart.length() == 3 ? offsetPart + ":00" : offsetPart;
-			offset = ZoneOffset.of(normalized);
+		if (offsetPart == null || offsetPart.isEmpty()) {
+			return ldt.toLocalDate();
 		}
-		OffsetDateTime odtUtc = ldt.atOffset(offset);
-		OffsetDateTime odtJst = DateOffsetDecisionUtil.toOffsetDateTimeJst(odtUtc);
+		ZoneOffset offset = "Z".equals(offsetPart)
+				? ZoneOffset.UTC
+				: ZoneOffset.of(offsetPart.length() == 3 ? offsetPart + ":00" : offsetPart);
+		OffsetDateTime odtJst = DateOffsetDecisionUtil.toOffsetDateTimeJst(ldt.atOffset(offset));
 		return odtJst.toLocalDate();
 	}
 }
