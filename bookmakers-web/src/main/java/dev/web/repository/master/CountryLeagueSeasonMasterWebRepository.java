@@ -15,6 +15,14 @@ import dev.web.api.bm_a002.CountryLeagueSeasonSearchCondition;
 
 /**
  * CountryLeagueSeasonMasterRepository
+ *
+ * <p>2026-10 修正</p>
+ * <ul>
+ *   <li>search: getOffsetDateTime に列の値ではなく列名を渡す
+ *       （値を列名として探して「The column name 2026-01-02 00:00:00+00 was not found」→ bad SQL grammar になっていた）。</li>
+ *   <li>updateRow: start_season_date / end_season_date（timestamptz）に文字列をそのまま入れていたため、
+ *       CAST(NULLIF(:x, '') AS timestamptz) に変更（空文字は NULL）。</li>
+ * </ul>
  * @author shiraishitoshio
  */
 @Repository
@@ -114,9 +122,10 @@ public class CountryLeagueSeasonMasterWebRepository {
 			dto.setId(rs.getString("id"));
 			dto.setCountry(rs.getString("country"));
 			dto.setLeague(rs.getString("league"));
-			OffsetDateTime fts = DateOffsetDecisionUtil.getOffsetDateTime(rs, rs.getString("start_season_date"));
+			// 列名を渡す（値ではない）
+			OffsetDateTime fts = DateOffsetDecisionUtil.getOffsetDateTime(rs, "start_season_date");
 			dto.setStartSeasonDate(DateOffsetDecisionUtil.toIsoJstString(fts));
-			OffsetDateTime fte = DateOffsetDecisionUtil.getOffsetDateTime(rs, rs.getString("end_season_date"));
+			OffsetDateTime fte = DateOffsetDecisionUtil.getOffsetDateTime(rs, "end_season_date");
 			dto.setEndSeasonDate(DateOffsetDecisionUtil.toIsoJstString(fte));
 			dto.setSeasonYear(rs.getString("season_year"));
 			dto.setRound(rs.getString("round"));
@@ -175,20 +184,7 @@ public class CountryLeagueSeasonMasterWebRepository {
 	}
 
 	/**
-	 * del_flgを1に更新する。
-	 *
-	 * <pre>
-	 * 更新対象が存在しない場合、更新件数は 0 を返却する。
-	 * </pre>
-	 *
-	 * @param country 国名（例: 日本）
-	 * @param league  リーグ名（例: J1 リーグ）
-	 * @param del_flg 削除フラグ
-	 * @return 更新件数
-	 *         <ul>
-	 *           <li>1 : 更新成功</li>
-	 *           <li>0 : 対象データなし（該当レコードが存在しない）</li>
-	 *         </ul>
+	 * del_flgを更新する。更新対象が存在しない場合は 0 を返却する。
 	 */
 	public int updateDelFlg(String country, String league, String del_flg) {
 		String sql = """
@@ -218,7 +214,7 @@ public class CountryLeagueSeasonMasterWebRepository {
 				      season_year = :seasonYear,
 				      path = :path,
 				      del_flg = :delFlg
-				    WHERE id = :id
+				    WHERE id = CAST(:id AS integer)
 				""";
 
 		return masterJdbcTemplate.update(sql,
@@ -233,10 +229,6 @@ public class CountryLeagueSeasonMasterWebRepository {
 
 	/**
 	 * country_league_season_masterとpoint_setting_masterとのdel_flg同期用
-	 * @param country
-	 * @param league
-	 * @param delFlg
-	 * @return
 	 */
 	public int updateDelFlgByCountryAndLeague(String country, String league, String delFlg) {
 
@@ -270,14 +262,17 @@ public class CountryLeagueSeasonMasterWebRepository {
 				""";
 
 		MapSqlParameterSource params = new MapSqlParameterSource()
-	            .addValue("country", country)
-	            .addValue("league", league);
+				.addValue("country", country)
+				.addValue("league", league);
 
 		List<String> list = masterJdbcTemplate.queryForList(sql, params, String.class);
-	    return list.isEmpty() ? null : list.get(0);
+		return list.isEmpty() ? null : list.get(0);
 	}
 
-	/** 更新 */
+	/**
+	 * 更新（初回読み込み確認モーダル）。
+	 * 日付は "2026-01-02T09:00+09:00" / "2026-01-02 00:00:00+00" など timestamptz に変換できる文字列。空文字は NULL。
+	 */
 	public int updateRow(Integer id, String country, String league,
 			String seasonYear, String startSeasonDate, String endSeasonDate,
 			String round) {
@@ -287,9 +282,11 @@ public class CountryLeagueSeasonMasterWebRepository {
 				      country = :country,
 				      league = :league,
 				      season_year = :seasonYear,
-				      start_season_date = :startSeasonDate,
-				      end_season_date = :endSeasonDate,
-				      round = :round
+				      start_season_date = CAST(NULLIF(BTRIM(CAST(:startSeasonDate AS text)), '') AS timestamptz),
+				      end_season_date   = CAST(NULLIF(BTRIM(CAST(:endSeasonDate AS text)), '') AS timestamptz),
+				      round = NULLIF(BTRIM(CAST(:round AS text)), ''),
+				      update_id   = 'SYSTEM',
+				      update_time = NOW()
 				    WHERE id = :id
 				""";
 
