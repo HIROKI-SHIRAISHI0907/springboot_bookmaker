@@ -21,6 +21,10 @@ import dev.common.entity.FutureEntity;
  *       DataCategoryBatchService で使う（去年・来年の同じカードの予定を混ぜない）。</li>
  *   <li>findGameLinkForMatch（B012）: mid が matchId と一致する game_link を優先、無ければ試合時刻が一番近いもの。</li>
  * </ul>
+ * <p>2026-10 追加2（B010）</p>
+ * <ul>
+ *   <li>findGameTeamCategoryByMid: mid が一致する予定のカテゴリ（DataCategoryBatchService のラウンド取得）。</li>
+ * </ul>
  * <p>2026-10 修正（B012）</p>
  * <ul>
  *   <li>findTodayFinData: 始まりを含む（&gt;=）ようにした（0:00 ちょうどの試合が漏れていた）。</li>
@@ -352,5 +356,29 @@ public interface FutureMasterRepository {
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName,
 			@Param("baseTime") String baseTime);
+
+	// ===================== 2026-10 追加2 =====================
+
+	/**
+	 * B010: game_link の mid が matchId と一致する予定の game_team_category（仮の値 XXX は除く）。
+	 * 時刻がずれていても同じ試合の予定を拾える。ラウンドを含むものを優先。無ければ null。
+	 */
+	@Select("""
+			SELECT
+				game_team_category
+			FROM
+				future_master
+			WHERE
+				NULLIF(BTRIM(game_link), '') IS NOT NULL
+				AND substring(game_link from 'mid=([^&]+)') = #{matchId}
+				AND game_team_category IS NOT NULL
+				AND BTRIM(game_team_category) <> ''
+				AND game_team_category !~* '^\\s*XXX\\s*:'
+			ORDER BY
+				(game_team_category LIKE '%ラウンド%') DESC,
+				seq DESC
+			LIMIT 1
+		""")
+	String findGameTeamCategoryByMid(@Param("matchId") String matchId);
 
 }

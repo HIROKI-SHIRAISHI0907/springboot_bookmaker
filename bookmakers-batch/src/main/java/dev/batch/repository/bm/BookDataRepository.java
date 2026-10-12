@@ -28,24 +28,21 @@ import dev.common.entity.DataEntity;
  * <ul>
  *   <li>findMatchIdsWithoutFinishedCategoryByTeams: 「終了済」を times 列で判定・前日の範囲に絞る・match_id ごとに1件。</li>
  * </ul>
+ *
+ * <p>2026-10 追加2（B010 の data_category 修正）</p>
+ * <ul>
+ *   <li>findFinCountForMatch: 終了済の登録済みチェックを同じ試合（match_id）単位で行う。</li>
+ *   <li>findMainCountryLeagueByTeam: チームの「国: リーグ」を static_data から求める（前後180日で試合数が一番多いもの）。</li>
+ * </ul>
  */
 @Mapper
 public interface BookDataRepository {
 
 	/**
 	 * 対戦カード（home/away）単位でPostgreSQLのトランザクションスコープ・アドバイザリロックを取得する。
-	 * SeqKeyBatchService#create() の先頭（findMatchIdで既存行を読む直前）で呼び出すことで、
-	 * 「既存seq_keyを読む → 次の連番を計算する → INSERTする」という一連の処理を
-	 * 同一対戦カードに対しては複数プロセス（複数ECSタスク）間でも直列化できる。
-	 * ロックは呼び出し元のトランザクションがCOMMIT/ROLLBACKされた時点で自動的に解放されるため、
-	 * 明示的なunlockは不要（ただし、create()〜insert()が同一トランザクション内で
-	 * 実行されていることが前提）。
-	 * ロックキーはfindMatchId等と同じくnormalize(..., NFKC)したhome/awayチーム名から算出しており、
-	 * 同一対戦カードは常に同じロックキーになる。
-	 *
-	 * 戻り値は常に false（pg_advisory_xact_lockの戻り値はvoidなのでIS NULL判定は必ずfalse）。
-	 * MyBatisがvoid型を直接マッピングできないため、Boolean型に変換して受け取っているだけで、
-	 * 呼び出し側で戻り値を使う必要はない。
+	 * SeqKeyBatchService#create() の先頭で呼び出し、同一対戦カードの採番を複数プロセス間で直列化する。
+	 * ロックは呼び出し元のトランザクションがCOMMIT/ROLLBACKされた時点で自動的に解放される。
+	 * 戻り値は常に false（呼び出し側で使う必要はない）。
 	 */
 	@Select("""
 			SELECT pg_advisory_xact_lock(
@@ -295,6 +292,10 @@ public interface BookDataRepository {
 			""")
 	int findDataCount(DataEntity entity);
 
+	/**
+	 * 同じカードの終了済の件数（全期間）。
+	 * ※ 翌シーズン以降の同じカードも数えてしまうため B010 では使わない（{@link #findFinCountForMatch} を使う）。
+	 */
 	@Select("""
 			SELECT COUNT(*)
 			FROM static_data
@@ -500,7 +501,6 @@ public interface BookDataRepository {
 	/**
 	 * seq_key 振り直し対象を取得する。
 	 * 対象: 同一対戦カード(home/away)の行 ＋ すでに matchId- で始まる seq_key の行
-	 * 並び順: 登録が古い順 → 連番の小さい順（振り直し後の連番の順番になる）
 	 * ※ 全期間の同じカードが対象のため B010 では使わない（findProvisionalSeqKeys を使う）
 	 */
 	@Select("""
@@ -526,7 +526,6 @@ public interface BookDataRepository {
 
 	/**
 	 * seq_key を一時キー（tempPrefix + 元のseq_key）に退避する。
-	 * 振り直し時の主キー重複を避けるための1段階目。
 	 */
 	@Update("""
 			<script>
@@ -545,8 +544,7 @@ public interface BookDataRepository {
 	// ===================== 2026-10 追加 =====================
 
 	/**
-	 * この match_id の最大の連番の行（match_id が一致する行、または seq_key が "matchId-N" の行）。
-	 * 無ければ null。
+	 * この match_id の最大の連番の行（match_id が一致する行、または seq_key が "matchId-N" の行）。無ければ null。
 	 */
 	@Select("""
 			SELECT
@@ -563,8 +561,6 @@ public interface BookDataRepository {
 
 	/**
 	 * 同じ試合で match_id がまだ無い（乱数で採番した）行。振り直しの対象。
-	 * 同じカード（NFKC）・チーム名が空でない・record_time が基準時刻の前後 6 時間以内。
-	 * 並び順: 登録が古い順 → 連番の小さい順（振り直し後の連番の順番）
 	 */
 	@Select("""
 			SELECT
@@ -591,7 +587,6 @@ public interface BookDataRepository {
 
 	/**
 	 * 同じ試合（同じカード・record_time が基準時刻の前後 6 時間以内）の最新の行。無ければ null。
-	 * register_time は同じトランザクションで同じ値になるため、同じ登録日時の中は連番の大きい順。
 	 */
 	@Select("""
 			SELECT
@@ -640,7 +635,6 @@ public interface BookDataRepository {
 
 	/**
 	 * 同じ試合（同じ match_id、または同じカードで record_time が基準時刻の前後 6 時間以内）の data_category を更新する。
-	 * 過去・未来のシーズンの同じカードは書き換えない。
 	 */
 	@Update("""
 			UPDATE static_data
@@ -656,6 +650,58 @@ public interface BookDataRepository {
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName,
 			@Param("matchId") String matchId,
+			@Param("baseTime") String baseTime);
+
+	// ===================== 2026-10 追加2 =====================
+
+	/**
+	 * 同じ試合の終了済の件数。
+	 * <ul>
+	 *   <li>match_id があれば同じ match_id の行だけを数える。</li>
+	 *   <li>match_id が無ければ同じカード（NFKC）で record_time が記録時刻の前後 1 日以内の行を数える。</li>
+	 * </ul>
+	 */
+	@Select("""
+			SELECT COUNT(*)
+			FROM static_data
+			WHERE times = #{times}
+			  AND data_category IS NOT NULL
+			  AND (
+			        (NULLIF(BTRIM(#{matchId,jdbcType=VARCHAR}), '') IS NOT NULL
+			         AND match_id = #{matchId,jdbcType=VARCHAR})
+			     OR (NULLIF(BTRIM(#{matchId,jdbcType=VARCHAR}), '') IS NULL
+			         AND normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+			         AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+			         AND record_time BETWEEN COALESCE(CAST(NULLIF(BTRIM(#{recordTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) - INTERVAL '1 day' AND COALESCE(CAST(NULLIF(BTRIM(#{recordTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) + INTERVAL '1 day')
+			  )
+			""")
+	int findFinCountForMatch(DataEntity entity);
+
+	/**
+	 * チームの「国: リーグ」を static_data から求める。
+	 * <ul>
+	 *   <li>ホームまたはアウェーがそのチーム（NFKC）で、data_category が「国: リーグ …」の形（XXX は除く）。</li>
+	 *   <li>record_time が基準時刻の前後 180 日（昇格・降格前のシーズンを混ぜにくくする）。</li>
+	 *   <li>「 - 」より前を「国: リーグ」とし、試合数（match_id、無ければ seq_key）が一番多いもの
+	 *       （カップ戦より通常リーグが優先される）。同数なら新しいもの。</li>
+	 * </ul>
+	 * 無ければ null。
+	 */
+	@Select("""
+			SELECT BTRIM(split_part(data_category, ' - ', 1)) AS base
+			FROM static_data
+			WHERE (normalize(home_team_name, NFKC) = normalize(#{team}, NFKC)
+			    OR normalize(away_team_name, NFKC) = normalize(#{team}, NFKC))
+			  AND data_category ~ '^\\s*[^:：]+[:：]\\s*\\S'
+			  AND data_category !~* '^\\s*XXX\\s*:'
+			  AND record_time BETWEEN COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) - INTERVAL '180 days' AND COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) + INTERVAL '180 days'
+			GROUP BY 1
+			ORDER BY COUNT(DISTINCT COALESCE(NULLIF(BTRIM(match_id), ''), seq_key)) DESC,
+			         MAX(record_time) DESC
+			LIMIT 1
+			""")
+	String findMainCountryLeagueByTeam(
+			@Param("team") String team,
 			@Param("baseTime") String baseTime);
 
 }

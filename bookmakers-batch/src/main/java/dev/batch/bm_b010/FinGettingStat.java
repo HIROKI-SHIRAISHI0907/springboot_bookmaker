@@ -36,6 +36,15 @@ import dev.common.util.FileDeleteUtil;
 /**
  * FinGettingStat登録ロジック
  *
+ * <p>2026-10 修正</p>
+ * <ul>
+ *   <li>data_category の決定に match_id・記録時刻を渡す（5 引数版）。
+ *       以前は 3 引数版で「現在時刻の前後 6 時間」の行しか見ておらず、前日のライブ行（ラウンド付き）を拾えなかった。
+ *       その結果「日本: J3 リーグ」（ラウンドなし）や CSV そのままの「J3 リーグ」が登録されていた。</li>
+ *   <li>「終了済が登録済みか」の判定を同じ試合（match_id）単位に変更（findFinCountForMatch）。
+ *       以前は同じカードの全期間で見ていたため、翌シーズン以降の同じカードの終了済が登録されなかった。</li>
+ * </ul>
+ *
  * @author shiraishitoshio
  *
  */
@@ -141,12 +150,11 @@ public class FinGettingStat implements FinGettingEntityIF {
 				}
 
 				/*
-				 * 終了済かつ、同一home/awayチーム名の組み合わせで
-				 * 既に終了済データが登録済みの場合は、
-				 * 同じ試合(match_id)の重複スナップショットとみなしてスキップする。
+				 * 終了済かつ、同じ試合（match_id。無ければ同じカードで記録時刻の前後1日）で
+				 * 既に終了済データが登録済みの場合は、重複とみなしてスキップする。
 				 */
 				if (BookMakersCommonConst.FIN.equals(ent.getTimes())
-						&& bookDataRepository.findFinCount(ent) > 0) {
+						&& bookDataRepository.findFinCountForMatch(ent) > 0) {
 
 					manageLoggerComponent.debugInfoLog(
 							PROJECT_NAME,
@@ -162,9 +170,6 @@ public class FinGettingStat implements FinGettingEntityIF {
 					/*
 					 * DB登録・バックアップは行わず、
 					 * DBコミット後に直接S3から削除する。
-					 *
-					 * Setなので、同じCSVに複数のDataEntityが存在しても
-					 * filePathは1件だけ保持される。
 					 */
 					directDeletePath.add(filePath);
 
@@ -173,11 +178,6 @@ public class FinGettingStat implements FinGettingEntityIF {
 
 				/*
 				 * DB登録対象となったCSVを保持する。
-				 *
-				 * 同じCSVに複数のDataEntityが存在する場合は
-				 * 重複して登録される可能性があるが、
-				 * 後続のバックアップ処理側で扱えるため
-				 * ここではListのままとする。
 				 */
 				insertPath.add(filePath);
 
@@ -192,13 +192,26 @@ public class FinGettingStat implements FinGettingEntityIF {
 
 				/*
 				 * データカテゴリの再設定
+				 * match_id と記録時刻を渡し、同じ試合のライブ行（ラウンド付き）を優先して使う。
 				 */
+				String csvCategory = ent.getDataCategory();
 				String dataCategory = dataCategoryBatchService.create(
 						ent.getHomeTeamName(),
 						ent.getAwayTeamName(),
-						ent.getDataCategory());
+						csvCategory,
+						ent.getMatchId(),
+						ent.getRecordTime());
 
 				ent.setDataCategory(dataCategory);
+
+				manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME,
+						CLASS_NAME,
+						METHOD_NAME,
+						null,
+						"data_category 決定: matchId=" + ent.getMatchId()
+								+ ", csv=[" + csvCategory + "]"
+								+ " -> [" + dataCategory + "]");
 
 				/*
 				 * 手動フラグを設定
@@ -324,8 +337,6 @@ public class FinGettingStat implements FinGettingEntityIF {
 						/*
 						 * 3-3) 終了済みデータが既に登録済みで
 						 *      DB登録をスキップしたCSVを直接削除する。
-						 *
-						 *      このCSVはバックアップしない。
 						 */
 						if (!directDeletePath.isEmpty()) {
 
@@ -358,24 +369,7 @@ public class FinGettingStat implements FinGettingEntityIF {
 	}
 
 	/**
-	 * 指定のパスへ
-	 * {@code b010_fin_getting_data_list.json} を作成する。
-	 *
-	 * <p>
-	 * 出力形式はpretty printとし、
-	 * Python側が読みやすい形式で保存する。
-	 * </p>
-	 *
-	 * @param jsonPath
-	 *            作成先JSONパス（ファイルパス）
-	 * @param countryLeagueMap
-	 *            国をキー、リーグ集合を値とするマップ
-	 * @throws StreamWriteException
-	 *             JSON書き込みに失敗した場合
-	 * @throws DatabindException
-	 *             変換に失敗した場合
-	 * @throws IOException
-	 *             ファイルI/Oで失敗した場合
+	 * 指定のパスへ {@code b010_fin_getting_data_list.json} を作成する。
 	 */
 	private void makeJson(
 			String jsonPath,
@@ -432,21 +426,8 @@ public class FinGettingStat implements FinGettingEntityIF {
 	}
 
 	/**
-	 * S3上に既存のjsonがあれば読み込み、
-	 * 今回分のmapとマージ（追記）する。
-	 *
-	 * 同じキー（dataCategory）が既に存在する場合は、
-	 * 今回分の値で上書きする。
-	 *
-	 * @param bucket
-	 *            バケット名
-	 * @param key
-	 *            S3キー
-	 *            （例: list/b010_fin_getting_data_list.json）
-	 * @param newMap
-	 *            今回分のマップ
-	 * @return マージ後のマップ
-	 *         （既存が無ければnewMapをそのまま返す）
+	 * S3上に既存のjsonがあれば読み込み、今回分のmapとマージ（追記）する。
+	 * 同じキー（dataCategory）が既に存在する場合は、今回分の値で上書きする。
 	 */
 	private Map<String, String> mergeWithExisting(
 			String bucket,
@@ -461,10 +442,6 @@ public class FinGettingStat implements FinGettingEntityIF {
 
 		if (existingKeys == null
 				|| !existingKeys.contains(key)) {
-
-			/*
-			 * 既存が無ければ今回分のみ
-			 */
 			return newMap;
 		}
 
@@ -483,10 +460,6 @@ public class FinGettingStat implements FinGettingEntityIF {
 									String.class,
 									String.class));
 
-			/*
-			 * 既存データに今回分を追記。
-			 * 同じキーは今回分で上書きする。
-			 */
 			existingMap.putAll(newMap);
 
 			return existingMap;
@@ -502,10 +475,6 @@ public class FinGettingStat implements FinGettingEntityIF {
 					"bucket: " + bucket
 							+ ", key: " + key);
 
-			/*
-			 * 既存分の読み込みに失敗した場合は
-			 * 今回分のみで続行する。
-			 */
 			return newMap;
 		}
 	}

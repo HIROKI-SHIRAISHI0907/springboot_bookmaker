@@ -17,13 +17,20 @@ import dev.common.entity.CountryLeagueMasterEntity;
  *
  * <p>2026-10 修正（Web 側 BM_M001 の DataCategoryService と同じ考え方）</p>
  * <ul>
- *   <li>見る範囲・書き換える範囲を「同じ試合」（同じ match_id、または同じカードで記録時刻が前後 6 時間以内）に限定。
- *       以前は同じホーム・アウェーの全期間の行を見て・全期間の行と future_master を書き換えていた。</li>
+ *   <li>見る範囲・書き換える範囲を「同じ試合」（同じ match_id、または同じカードで記録時刻が前後 6 時間以内）に限定。</li>
  *   <li>future_master も記録時刻の前後 1 日の予定だけを見る・書き換える。</li>
- *   <li>「XXX: YYY - ラウンド 0」を完成したカテゴリと見なさない（以前は「ラウンド」を含むので完成扱いになり、ずっと XXX のままだった）。</li>
- *   <li>マスタでチームが見つからないときは CSV のカテゴリ（「国: リーグ …」の形なら）を使う。
- *       どちらも無いときだけ「XXX: YYY - ラウンド 0」を返し、その場合は他の行・future_master を書き換えない。</li>
+ *   <li>「XXX: YYY - ラウンド 0」を完成したカテゴリと見なさない。</li>
  *   <li>チーム名が空なら例外（呼び出し元で StaticDataRowValidator により事前に除く）。</li>
+ * </ul>
+ *
+ * <p>2026-10 修正2（B010 の終了済データで「J3 リーグ」「日本: J3 リーグ」になる問題）</p>
+ * <ul>
+ *   <li>FinGettingStat が match_id・記録時刻を渡していなかったため、同じ試合のライブ行（ラウンド付き）を
+ *       「現在時刻の前後 6 時間」で探して見つけられていなかった。呼び出し側を 5 引数版に変更。</li>
+ *   <li>国・リーグの候補に「static_data の同じチームの行」を追加（マスタ・CSV で分からないとき）。
+ *       記録時刻の前後 180 日で、そのチームの試合数が一番多い「国: リーグ」を使う（カップ戦より通常リーグが優先される）。</li>
+ *   <li>CSV が「J3 リーグ」のように国なしのときは、上の候補のうち末尾がそのリーグ名と一致するものだけ採用する。</li>
+ *   <li>ラウンドの候補に「future_master の同じ mid の予定」を追加（時刻がずれていても拾える）。</li>
  * </ul>
  * @author shiraishitoshio
  *
@@ -79,7 +86,7 @@ public class DataCategoryBatchService {
 					+ "], away=[" + away + "]");
 		}
 
-		// 1) 同じ試合に、ラウンドを含む完成したカテゴリがあればそれを使う
+		// 1) 同じ試合（同じ match_id / 同じカードで記録時刻の前後6時間）に、ラウンドを含む完成したカテゴリがあればそれを使う
 		List<DataCategoryDTO> existDto = bookDataRepository.findDataCategoryForMatch(home, away, matchId, baseTime);
 		String complete = searchCompleteDataCategoryChk(existDto);
 		if (complete != null) {
@@ -87,29 +94,25 @@ public class DataCategoryBatchService {
 			return complete;
 		}
 
-		// 2) 国・リーグ: マスタ（ホーム → アウェー）、無ければ CSV のカテゴリ
-		String base = null;
-		CountryLeagueMasterEntity entity = countryLeagueMasterBatchRepository.findCountryLeagueByTeam(home);
-		if (entity == null) {
-			entity = countryLeagueMasterBatchRepository.findCountryLeagueByTeam(away);
-		}
-		if (entity != null && !isBlank(entity.getCountry()) && !isBlank(entity.getLeague())) {
-			base = entity.getCountry() + ": " + entity.getLeague();
-		} else if (isUsable(dataCategory)) {
-			int dash = dataCategory.indexOf(" - ");
-			base = (dash >= 0 ? dataCategory.substring(0, dash) : dataCategory).trim();
-		}
+		// 2) 国・リーグ
+		String base = resolveBase(home, away, dataCategory, baseTime);
 		if (base == null) {
 			// 国・リーグが分からない。仮の値を返すが、他の行・future_master は書き換えない
 			return PLACEHOLDER;
 		}
 
-		// 3) ラウンド: future_master（記録時刻の前後1日の予定）→ CSV のカテゴリ
-		String round = findRound(futureMasterRepository.findGameTeamCategoryNearTime(home, away, baseTime));
+		// 3) ラウンド: future_master（同じ mid → 記録時刻の前後1日の予定）→ CSV のカテゴリ
+		String round = null;
+		if (!isBlank(matchId)) {
+			round = findRound(futureMasterRepository.findGameTeamCategoryByMid(matchId));
+		}
+		if (round == null) {
+			round = findRound(futureMasterRepository.findGameTeamCategoryNearTime(home, away, baseTime));
+		}
 		if (round == null && isUsable(dataCategory)) {
 			round = findRound(dataCategory);
 		}
-		if (round == null) {
+		if (round == null || "0".equals(round)) {
 			// ラウンドが分からない。国・リーグだけ返し、他の行は書き換えない
 			return base;
 		}
@@ -117,6 +120,47 @@ public class DataCategoryBatchService {
 		String category = base + " - " + ROUND + " " + round;
 		update(home, away, matchId, baseTime, category);
 		return category;
+	}
+
+	/**
+	 * 「国: リーグ」を決める。
+	 * <ol>
+	 *   <li>country_league_master（ホーム → アウェー）</li>
+	 *   <li>CSV のカテゴリが「国: リーグ …」の形ならその「国: リーグ」</li>
+	 *   <li>static_data の同じチームの行（ホーム → アウェー）。
+	 *       CSV が「J3 リーグ」のように国なしなら、末尾がそのリーグ名と一致するものだけ</li>
+	 * </ol>
+	 * @return 「国: リーグ」。分からなければ null
+	 */
+	private String resolveBase(String home, String away, String dataCategory, String baseTime) {
+		// 2-1) マスタ
+		CountryLeagueMasterEntity entity = countryLeagueMasterBatchRepository.findCountryLeagueByTeam(home);
+		if (entity == null) {
+			entity = countryLeagueMasterBatchRepository.findCountryLeagueByTeam(away);
+		}
+		if (entity != null && !isBlank(entity.getCountry()) && !isBlank(entity.getLeague())) {
+			return entity.getCountry().trim() + ": " + entity.getLeague().trim();
+		}
+
+		// 2-2) CSV（国: リーグ …）
+		if (isUsable(dataCategory)) {
+			return stripRound(dataCategory);
+		}
+
+		// 2-3) static_data の同じチームの行
+		String leagueOnly = isBlank(dataCategory) ? null : stripRound(dataCategory);
+		for (String team : new String[] { home, away }) {
+			String b = bookDataRepository.findMainCountryLeagueByTeam(team, baseTime);
+			if (b == null || !isUsable(b)) {
+				continue;
+			}
+			if (leagueOnly != null && !leagueOnly.isEmpty() && !sameLeague(b, leagueOnly)) {
+				// CSV に国なしのリーグ名がある（例: J3 リーグ）。違うリーグなら採用しない
+				continue;
+			}
+			return b.trim();
+		}
+		return null;
 	}
 
 	/**
@@ -146,6 +190,34 @@ public class DataCategoryBatchService {
 			}
 		}
 		return null;
+	}
+
+	/** 「国: リーグ - ラウンド N」→「国: リーグ」 */
+	private static String stripRound(String category) {
+		int dash = category.indexOf(" - ");
+		return (dash >= 0 ? category.substring(0, dash) : category).trim();
+	}
+
+	/** 「日本: J3 リーグ」のリーグ部分が leagueOnly（例: 「J3 リーグ」）と一致するか（空白・全半角を無視） */
+	private static boolean sameLeague(String base, String leagueOnly) {
+		int i = base.indexOf(':');
+		if (i < 0) {
+			i = base.indexOf('：');
+		}
+		String league = i >= 0 ? base.substring(i + 1) : base;
+		String target = leagueOnly;
+		int j = target.indexOf(':');
+		if (j < 0) {
+			j = target.indexOf('：');
+		}
+		if (j >= 0) {
+			target = target.substring(j + 1);
+		}
+		return squash(league).equals(squash(target));
+	}
+
+	private static String squash(String s) {
+		return java.text.Normalizer.normalize(s, java.text.Normalizer.Form.NFKC).replaceAll("\\s+", "");
 	}
 
 	/** 「国: リーグ …」の形で、仮の値でない */
