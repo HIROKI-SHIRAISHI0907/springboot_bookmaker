@@ -21,11 +21,10 @@ import dev.common.logger.ManageLoggerComponent;
  *
  * <p>登録前の確認（取得に失敗した行を static_data に入れない）</p>
  * <ul>
- *   <li>ホーム・アウェーのチーム名が空の行は登録しない。
- *       （空のまま登録すると、data_category が「XXX: YYY - ラウンド 0」になり、
- *       さらに seq_key 採番で「チーム名が空の行」同士が同じ試合として扱われ、別の試合の行の match_id が書き換わっていた）</li>
+ *   <li>ホーム・アウェーのチーム名が空の行は登録しない。</li>
  *   <li>match_id は game_link の mid= を正とする（空なら補い、違っていれば mid= に合わせる）。</li>
  * </ul>
+ * <p>2026-10 修正: data_category の決定に記録時刻（record_time）を渡す（DataCategoryService の5引数版）。</p>
  * @author shiraishitoshio
  *
  */
@@ -110,9 +109,10 @@ public class OriginDBService {
 				// 通番を発番
 				entity.setSeqKey(seqKeyService.create(entity.getHomeTeamName(),
 						entity.getAwayTeamName(), entity.getMatchId()));
-				// データカテゴリの再設定（同じ試合の範囲だけを見る）
+				// データカテゴリの再設定（同じ試合の範囲だけを見る。基準はこの行の記録時刻）
 				entity.setDataCategory(dataCategoryService.create(entity.getHomeTeamName(),
-						entity.getAwayTeamName(), entity.getDataCategory(), entity.getMatchId()));
+						entity.getAwayTeamName(), entity.getDataCategory(), entity.getMatchId(),
+						entity.getRecordTime()));
 				try {
 					int result = this.bookDataRepository.insert(entity);
 					if (result != 1) {
@@ -139,7 +139,6 @@ public class OriginDBService {
 		String messageCd = "BM_M001 登録件数: " + inserted + " / " + insertEntities.size();
 		this.manageLoggerComponent.debugInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd);
-		// 登録できた件数を返す（OriginStat の「登録0件」ログが正しく出るように。以前は常に 0 を返していた）
 		return inserted;
 	}
 

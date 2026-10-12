@@ -1,4 +1,5 @@
 package dev.application.domain.repository.bm;
+
 import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
@@ -10,9 +11,23 @@ import org.apache.ibatis.annotations.Update;
 import dev.application.main.service.DataCategoryDTO;
 import dev.application.main.service.SeqKeyDTO;
 import dev.common.entity.DataEntity;
+
+/**
+ * static_data の Repository（BM_M001 ほか）
+ *
+ * <p>2026-10 修正（data_category を「同じ試合」の範囲だけで決める。batch の B010 と同じ考え方）</p>
+ * <ul>
+ *   <li>findDataCategoryForMatch / updateDataCategoryForMatch: 基準時刻（baseTime = その行の record_time。
+ *       空なら現在時刻 JST）を引数に追加。「同じ試合」= 同じ match_id、または同じカード（NFKC）で
+ *       record_time が基準時刻の前後 6 時間以内。以前は register_time が「今から 6 時間以内」で、
+ *       CSV の取り込みが遅れると同じ試合の行を見つけられなかった。</li>
+ *   <li>findMainCountryLeagueByTeam（追加）: チームの「国: リーグ」を static_data から求める。</li>
+ * </ul>
+ */
 @Mapper
 public interface BookDataRepository {
-	// ★static_data向けに変更。seq_keyはアプリ側で採番済みのためRETURNING seq / useGeneratedKeysは不要
+
+	// ★static_data向け。seq_keyはアプリ側で採番済みのためRETURNING seq / useGeneratedKeysは不要
 	@Insert("""
 			INSERT INTO static_data (
 			    seq_key,
@@ -119,8 +134,8 @@ public interface BookDataRepository {
 			    prediction_score_time,
 			    game_id,
 			    match_id,
-			 	time_sort_seconds,
-			 	add_manual_flg,
+			    time_sort_seconds,
+			    add_manual_flg,
 			    register_id,
 			    register_time,
 			    update_id,
@@ -230,8 +245,8 @@ public interface BookDataRepository {
 			    #{predictionScoreTime},
 			    #{gameId},
 			    #{matchId},
-			 	#{timeSortSeconds},
-			 	#{addManualFlg},
+			    #{timeSortSeconds},
+			    #{addManualFlg},
 			    'SYSTEM',
 			    CURRENT_TIMESTAMP,
 			    'SYSTEM',
@@ -239,7 +254,7 @@ public interface BookDataRepository {
 			)
 			""")
 	int insert(DataEntity entity);
-	// ★static_data向けに変更
+
 	@Select("""
 			SELECT COUNT(*)
 			FROM static_data
@@ -250,11 +265,13 @@ public interface BookDataRepository {
 			  AND match_id        = #{matchId}
 			""")
 	int findDataCount(DataEntity entity);
+
 	@Select("""
 			SELECT *
 			FROM static_data
 			""")
 	List<DataEntity> getData();
+
 	@Select("""
 			SELECT
 			    seq_key AS seqKey,
@@ -375,6 +392,7 @@ public interface BookDataRepository {
 			  ) = 1
 			""")
 	List<DataEntity> getFinData();
+
 	@Select("""
 			SELECT
 				COUNT(*)
@@ -393,13 +411,13 @@ public interface BookDataRepository {
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName,
 			@Param("matchId") String matchId);
+
 	/**
-	 * data_category + home_team_name + away_team_name で
-	 * seq降順の最新2件を取得
+	 * data_category + home_team_name + away_team_name で seq降順の最新2件を取得
 	 */
 	@Select("""
 			SELECT
-				seq_key AS seqKey,
+			    seq_key AS seqKey,
 			    condition_result_data_seq_id AS conditionResultDataSeqId,
 			    data_category AS dataCategory,
 			    times AS times,
@@ -516,10 +534,9 @@ public interface BookDataRepository {
 			@Param("dataCategory") String dataCategory,
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
-	// ★static_data向けに変更。カンマ抜け修正 + 連番部分を数値としてORDER BY（"9"が"10"より新しいと誤判定するのを防止）
-	// 変更後：終了済み(times='終了済' / 'ペナルティ%')の過去カードと、
-	// 念のため直近6時間より前の古いレコードを対象から除外し、
-	// 「現在進行中の対戦」だけを見るようにする
+
+	// 終了済み(times='終了済' / 'ペナルティ%')の過去カードと直近6時間より前の古いレコードを除外し、
+	// 「現在進行中の対戦」だけを見る
 	@Select("""
 	        SELECT
 	            seq_key AS seqKey,
@@ -538,7 +555,8 @@ public interface BookDataRepository {
 	List<SeqKeyDTO> findMatchId(
 	        @Param("homeTeamName") String homeTeamName,
 	        @Param("awayTeamName") String awayTeamName);
-	// ★static_data向けに変更。カンマ抜け修正 + 連番部分を数値としてORDER BY
+
+	// 連番部分を数値としてORDER BY
 	@Select("""
 			SELECT
 			    seq_key AS seqKey,
@@ -551,15 +569,20 @@ public interface BookDataRepository {
 			""")
 	SeqKeyDTO findSeqKeyByMatchId(
 			@Param("matchId") String matchId);
+
+	/**
+	 * 同じ試合（同じ match_id、または同じカード（NFKC）で record_time が基準時刻の前後 6 時間以内）の data_category。新しい順。
+	 * 仮の値「XXX: YYY …」は除く。
+	 */
 	@Select("""
 			SELECT
 				data_category AS dataCategory,
 				times
 			FROM static_data
-			WHERE home_team_name = #{homeTeamName}
-			  AND away_team_name = #{awayTeamName}
+			WHERE normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+			  AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
 			  AND (match_id = #{matchId,jdbcType=VARCHAR}
-			       OR register_time >= CURRENT_TIMESTAMP - INTERVAL '6 hours')
+			       OR record_time BETWEEN COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) - INTERVAL '6 hours' AND COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) + INTERVAL '6 hours')
 			  AND data_category IS NOT NULL
 			  AND data_category !~* '^\\s*XXX\\s*:'
 			ORDER BY register_time DESC
@@ -567,8 +590,10 @@ public interface BookDataRepository {
 	List<DataCategoryDTO> findDataCategoryForMatch(
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName,
-			@Param("matchId") String matchId);
-	// ★新規追加：乱数base（match_idなしの初回キー）の重複チェック用
+			@Param("matchId") String matchId,
+			@Param("baseTime") String baseTime);
+
+	// 乱数base（match_idなしの初回キー）の重複チェック用
 	@Select("""
 			SELECT COUNT(*)
 			FROM static_data
@@ -599,21 +624,29 @@ public interface BookDataRepository {
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
 
+	/**
+	 * 同じ試合（同じ match_id、または同じカードで record_time が基準時刻の前後 6 時間以内）の data_category を更新する。
+	 */
 	@Update("""
 			UPDATE static_data
 			SET data_category = #{dataCategory}
-			WHERE home_team_name = #{homeTeamName}
-			  AND away_team_name = #{awayTeamName}
+			WHERE normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+			  AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
 			  AND (match_id = #{matchId,jdbcType=VARCHAR}
-			       OR register_time >= CURRENT_TIMESTAMP - INTERVAL '6 hours')
+			       OR record_time BETWEEN COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) - INTERVAL '6 hours' AND COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) + INTERVAL '6 hours')
 			  AND data_category IS DISTINCT FROM #{dataCategory}
 			""")
 	int updateDataCategoryForMatch(
 			@Param("dataCategory") String dataCategory,
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName,
-			@Param("matchId") String matchId);
+			@Param("matchId") String matchId,
+			@Param("baseTime") String baseTime);
 
+	/**
+	 * 同じカードの全期間の行を書き換える。
+	 * ※ 過去・未来のシーズンも書き換わるため data_category の決定には使わない（updateDataCategoryForMatch を使う）。
+	 */
 	@Update("""
 			UPDATE static_data
 			SET data_category = #{dataCategory}
@@ -624,4 +657,26 @@ public interface BookDataRepository {
 			@Param("dataCategory") String dataCategory,
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
+
+	/**
+	 * チームの「国: リーグ」を static_data から求める（2026-10 追加）。
+	 * ホームまたはアウェーがそのチーム（NFKC）で、record_time が基準時刻の前後 180 日の行のうち、
+	 * 「 - 」より前の「国: リーグ」で試合数が一番多いもの（カップ戦より通常リーグが優先）。無ければ null。
+	 */
+	@Select("""
+			SELECT BTRIM(split_part(data_category, ' - ', 1)) AS base
+			FROM static_data
+			WHERE (normalize(home_team_name, NFKC) = normalize(#{team}, NFKC)
+			    OR normalize(away_team_name, NFKC) = normalize(#{team}, NFKC))
+			  AND data_category ~ '^\\s*[^:：]+[:：]\\s*\\S'
+			  AND data_category !~* '^\\s*XXX\\s*:'
+			  AND record_time BETWEEN COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) - INTERVAL '180 days' AND COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) + INTERVAL '180 days'
+			GROUP BY 1
+			ORDER BY COUNT(DISTINCT COALESCE(NULLIF(BTRIM(match_id), ''), seq_key)) DESC,
+			         MAX(record_time) DESC
+			LIMIT 1
+			""")
+	String findMainCountryLeagueByTeam(
+			@Param("team") String team,
+			@Param("baseTime") String baseTime);
 }
