@@ -27,6 +27,7 @@ import dev.common.entity.CountryLeagueMasterEntity;
  * <ul>
  *   <li>FinGettingStat が match_id・記録時刻を渡していなかったため、同じ試合のライブ行（ラウンド付き）を
  *       「現在時刻の前後 6 時間」で探して見つけられていなかった。呼び出し側を 5 引数版に変更。</li>
+ *   <li>国・リーグは CSV（国: リーグ）を最優先 → マスタ（両チーム共通 → 片方）→ static_data の同じチーム（同名チーム対策）。</li>
  *   <li>国・リーグの候補に「static_data の同じチームの行」を追加（マスタ・CSV で分からないとき）。
  *       記録時刻の前後 180 日で、そのチームの試合数が一番多い「国: リーグ」を使う（カップ戦より通常リーグが優先される）。</li>
  *   <li>CSV が「J3 リーグ」のように国なしのときは、上の候補のうち末尾がそのリーグ名と一致するものだけ採用する。</li>
@@ -125,37 +126,49 @@ public class DataCategoryBatchService {
 	/**
 	 * 「国: リーグ」を決める。
 	 * <ol>
+	 *   <li>CSV のカテゴリが「国: リーグ …」の形ならその「国: リーグ」（試合ページの表記が一番確か）</li>
+	 *   <li>country_league_master で両チームが同じ国・リーグに属するもの</li>
 	 *   <li>country_league_master（ホーム → アウェー）</li>
-	 *   <li>CSV のカテゴリが「国: リーグ …」の形ならその「国: リーグ」</li>
 	 *   <li>static_data の同じチームの行（ホーム → アウェー）。
 	 *       CSV が「J3 リーグ」のように国なしなら、末尾がそのリーグ名と一致するものだけ</li>
 	 * </ol>
+	 * 2026-10 修正: 以前はマスタを CSV より先に見ていたため、同名チーム（例: チリの「エヴァートン」）で
+	 * 別の国のリーグ（イングランド: プレミアリーグ）になっていた。
 	 * @return 「国: リーグ」。分からなければ null
 	 */
 	private String resolveBase(String home, String away, String dataCategory, String baseTime) {
-		// 2-1) マスタ
-		CountryLeagueMasterEntity entity = countryLeagueMasterBatchRepository.findCountryLeagueByTeam(home);
-		if (entity == null) {
-			entity = countryLeagueMasterBatchRepository.findCountryLeagueByTeam(away);
-		}
-		if (entity != null && !isBlank(entity.getCountry()) && !isBlank(entity.getLeague())) {
-			return entity.getCountry().trim() + ": " + entity.getLeague().trim();
-		}
-
-		// 2-2) CSV（国: リーグ …）
+		// 2-1) CSV（国: リーグ …）
 		if (isUsable(dataCategory)) {
 			return stripRound(dataCategory);
 		}
 
-		// 2-3) static_data の同じチームの行
+		// 2-2) マスタ: 両チームが同じ国・リーグ
+		CountryLeagueMasterEntity common = countryLeagueMasterBatchRepository.findCommonCountryLeagueByTeams(home, away);
+		if (common != null && !isBlank(common.getCountry()) && !isBlank(common.getLeague())) {
+			return common.getCountry().trim() + ": " + common.getLeague().trim();
+		}
+
+		// 2-3) マスタ: ホーム → アウェー
+		CountryLeagueMasterEntity entity = countryLeagueMasterBatchRepository.findCountryLeagueByTeam(home);
+		if (entity == null) {
+			entity = countryLeagueMasterBatchRepository.findCountryLeagueByTeam(away);
+		}
 		String leagueOnly = isBlank(dataCategory) ? null : stripRound(dataCategory);
+		if (entity != null && !isBlank(entity.getCountry()) && !isBlank(entity.getLeague())) {
+			String b = entity.getCountry().trim() + ": " + entity.getLeague().trim();
+			// CSV に国なしのリーグ名があるなら、それと一致するときだけ
+			if (leagueOnly == null || leagueOnly.isEmpty() || sameLeague(b, leagueOnly)) {
+				return b;
+			}
+		}
+
+		// 2-4) static_data の同じチームの行
 		for (String team : new String[] { home, away }) {
 			String b = bookDataRepository.findMainCountryLeagueByTeam(team, baseTime);
 			if (b == null || !isUsable(b)) {
 				continue;
 			}
 			if (leagueOnly != null && !leagueOnly.isEmpty() && !sameLeague(b, leagueOnly)) {
-				// CSV に国なしのリーグ名がある（例: J3 リーグ）。違うリーグなら採用しない
 				continue;
 			}
 			return b.trim();
