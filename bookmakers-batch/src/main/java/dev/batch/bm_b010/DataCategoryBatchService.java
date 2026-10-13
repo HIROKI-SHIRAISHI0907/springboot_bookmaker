@@ -13,28 +13,29 @@ import dev.batch.repository.master.FutureMasterRepository;
 import dev.common.entity.CountryLeagueMasterEntity;
 
 /**
- * data_category発番処理
+ * data_category発番処理（batch: B010 ほか）
  *
- * <p>2026-10 修正（Web 側 BM_M001 の DataCategoryService と同じ考え方）</p>
+ * <p>決め方（2026-10 見直し後）</p>
+ * <ol>
+ *   <li>同じ試合（同じ match_id / 同じカードで record_time が基準時刻の前後6時間）の static_data に、
+ *       ラウンドまで入った完成したカテゴリがあればそれを使う。</li>
+ *   <li>同じ試合の future_master の予定（mid 一致 → 同じカードで基準時刻の前後1日）の game_team_category を取る。
+ *       試合予定スクレイピングが試合ページのパンくずから「国: リーグ - ラウンド N」で登録するので、これが一番確か。</li>
+ *   <li>国・リーグ: CSV（国: リーグ …）→ future_master（国: リーグ …）→ マスタ（両チーム共通 → 片方）→ static_data の同じチーム。</li>
+ *   <li>ラウンド: future_master → CSV の順。ただし<b>決めた国・リーグと同じ大会のものだけ</b>使う
+ *       （例: 国・リーグが「日本: J3 リーグ」なのに予定が「日本: 天皇杯 - ラウンド 3」なら使わない）。
+ *       future_master が古い形式（「プレミアリーグ - ラウンド 7」のように国なし）でもリーグ名が一致すれば使う。</li>
+ *   <li>ラウンドまで決まったら、同じ試合の static_data と future_master を更新する。
+ *       future_master は国なし・ラウンドなし・仮の値の行だけ直す（パンくず由来の値は上書きしない）。</li>
+ *   <li>国・リーグが分からなければ「XXX: YYY - ラウンド 0」、ラウンドが分からなければ「国: リーグ」を返し、他の行は書き換えない。</li>
+ * </ol>
+ * 以前の修正の経緯:
  * <ul>
- *   <li>見る範囲・書き換える範囲を「同じ試合」（同じ match_id、または同じカードで記録時刻が前後 6 時間以内）に限定。</li>
- *   <li>future_master も記録時刻の前後 1 日の予定だけを見る・書き換える。</li>
+ *   <li>見る範囲・書き換える範囲を「同じ試合」に限定（以前は同じカードの全期間で、去年のラウンドが混ざった）。</li>
  *   <li>「XXX: YYY - ラウンド 0」を完成したカテゴリと見なさない。</li>
- *   <li>チーム名が空なら例外（呼び出し元で StaticDataRowValidator により事前に除く）。</li>
- * </ul>
- *
- * <p>2026-10 修正2（B010 の終了済データで「J3 リーグ」「日本: J3 リーグ」になる問題）</p>
- * <ul>
- *   <li>FinGettingStat が match_id・記録時刻を渡していなかったため、同じ試合のライブ行（ラウンド付き）を
- *       「現在時刻の前後 6 時間」で探して見つけられていなかった。呼び出し側を 5 引数版に変更。</li>
- *   <li>国・リーグは CSV（国: リーグ）を最優先 → マスタ（両チーム共通 → 片方）→ static_data の同じチーム（同名チーム対策）。</li>
- *   <li>国・リーグの候補に「static_data の同じチームの行」を追加（マスタ・CSV で分からないとき）。
- *       記録時刻の前後 180 日で、そのチームの試合数が一番多い「国: リーグ」を使う（カップ戦より通常リーグが優先される）。</li>
- *   <li>CSV が「J3 リーグ」のように国なしのときは、上の候補のうち末尾がそのリーグ名と一致するものだけ採用する。</li>
- *   <li>ラウンドの候補に「future_master の同じ mid の予定」を追加（時刻がずれていても拾える）。</li>
+ *   <li>マスタより CSV を優先（同名チーム「エヴァートン」でチリの試合がイングランドになっていた）。</li>
  * </ul>
  * @author shiraishitoshio
- *
  */
 @Component
 public class DataCategoryBatchService {
@@ -87,7 +88,7 @@ public class DataCategoryBatchService {
 					+ "], away=[" + away + "]");
 		}
 
-		// 1) 同じ試合（同じ match_id / 同じカードで記録時刻の前後6時間）に、ラウンドを含む完成したカテゴリがあればそれを使う
+		// 1) 同じ試合の static_data に完成したカテゴリがあればそれを使う
 		List<DataCategoryDTO> existDto = bookDataRepository.findDataCategoryForMatch(home, away, matchId, baseTime);
 		String complete = searchCompleteDataCategoryChk(existDto);
 		if (complete != null) {
@@ -95,25 +96,28 @@ public class DataCategoryBatchService {
 			return complete;
 		}
 
-		// 2) 国・リーグ
-		String base = resolveBase(home, away, dataCategory, baseTime);
+		// 2) 同じ試合の future_master の予定（mid 一致 → 同じカードで前後1日）
+		String futureCategory = findFutureCategory(home, away, matchId, baseTime);
+
+		// 3) 国・リーグ
+		String base = resolveBase(home, away, dataCategory, futureCategory, baseTime);
 		if (base == null) {
 			// 国・リーグが分からない。仮の値を返すが、他の行・future_master は書き換えない
 			return PLACEHOLDER;
 		}
 
-		// 3) ラウンド: future_master（同じ mid → 記録時刻の前後1日の予定）→ CSV のカテゴリ
+		// 4) ラウンド: future_master → CSV（決めた国・リーグと同じ大会のものだけ）
 		String round = null;
-		if (!isBlank(matchId)) {
-			round = findRound(futureMasterRepository.findGameTeamCategoryByMid(matchId));
+		for (String candidate : new String[] { futureCategory, dataCategory }) {
+			if (isCompatible(base, candidate)) {
+				String r = findRound(candidate);
+				if (r != null && !"0".equals(r)) {
+					round = r;
+					break;
+				}
+			}
 		}
 		if (round == null) {
-			round = findRound(futureMasterRepository.findGameTeamCategoryNearTime(home, away, baseTime));
-		}
-		if (round == null && isUsable(dataCategory)) {
-			round = findRound(dataCategory);
-		}
-		if (round == null || "0".equals(round)) {
 			// ラウンドが分からない。国・リーグだけ返し、他の行は書き換えない
 			return base;
 		}
@@ -123,52 +127,70 @@ public class DataCategoryBatchService {
 		return category;
 	}
 
+	/** future_master の同じ試合の game_team_category（mid 一致 → 同じカードで基準時刻の前後1日）。無ければ null */
+	private String findFutureCategory(String home, String away, String matchId, String baseTime) {
+		String c = null;
+		if (!isBlank(matchId)) {
+			c = futureMasterRepository.findGameTeamCategoryByMid(matchId);
+		}
+		if (isBlank(c)) {
+			c = futureMasterRepository.findGameTeamCategoryNearTime(home, away, baseTime);
+		}
+		if (isBlank(c) || PLACEHOLDER_PATTERN.matcher(c).find()) {
+			return null;
+		}
+		return c.trim();
+	}
+
 	/**
 	 * 「国: リーグ」を決める。
 	 * <ol>
-	 *   <li>CSV のカテゴリが「国: リーグ …」の形ならその「国: リーグ」（試合ページの表記が一番確か）</li>
+	 *   <li>CSV のカテゴリが「国: リーグ …」の形ならその「国: リーグ」（試合ページの表記）</li>
+	 *   <li>future_master が「国: リーグ …」の形ならその「国: リーグ」（試合予定ページのパンくず）</li>
 	 *   <li>country_league_master で両チームが同じ国・リーグに属するもの</li>
 	 *   <li>country_league_master（ホーム → アウェー）</li>
-	 *   <li>static_data の同じチームの行（ホーム → アウェー）。
-	 *       CSV が「J3 リーグ」のように国なしなら、末尾がそのリーグ名と一致するものだけ</li>
+	 *   <li>static_data の同じチームの行（ホーム → アウェー）</li>
 	 * </ol>
-	 * 2026-10 修正: 以前はマスタを CSV より先に見ていたため、同名チーム（例: チリの「エヴァートン」）で
-	 * 別の国のリーグ（イングランド: プレミアリーグ）になっていた。
+	 * 3〜5 は、CSV / future_master に国なしのリーグ名（例: 「J3 リーグ」）があれば、それと一致するものだけ使う。
 	 * @return 「国: リーグ」。分からなければ null
 	 */
-	private String resolveBase(String home, String away, String dataCategory, String baseTime) {
-		// 2-1) CSV（国: リーグ …）
+	private String resolveBase(String home, String away, String dataCategory, String futureCategory, String baseTime) {
 		if (isUsable(dataCategory)) {
 			return stripRound(dataCategory);
 		}
+		if (isUsable(futureCategory)) {
+			return stripRound(futureCategory);
+		}
 
-		// 2-2) マスタ: 両チームが同じ国・リーグ
+		// 国なしのリーグ名（照合用）
+		String leagueOnly = !isBlank(dataCategory) ? stripRound(dataCategory)
+				: (!isBlank(futureCategory) ? stripRound(futureCategory) : null);
+
 		CountryLeagueMasterEntity common = countryLeagueMasterBatchRepository.findCommonCountryLeagueByTeams(home, away);
 		if (common != null && !isBlank(common.getCountry()) && !isBlank(common.getLeague())) {
-			return common.getCountry().trim() + ": " + common.getLeague().trim();
-		}
-
-		// 2-3) マスタ: ホーム → アウェー
-		CountryLeagueMasterEntity entity = countryLeagueMasterBatchRepository.findCountryLeagueByTeam(home);
-		if (entity == null) {
-			entity = countryLeagueMasterBatchRepository.findCountryLeagueByTeam(away);
-		}
-		String leagueOnly = isBlank(dataCategory) ? null : stripRound(dataCategory);
-		if (entity != null && !isBlank(entity.getCountry()) && !isBlank(entity.getLeague())) {
-			String b = entity.getCountry().trim() + ": " + entity.getLeague().trim();
-			// CSV に国なしのリーグ名があるなら、それと一致するときだけ
-			if (leagueOnly == null || leagueOnly.isEmpty() || sameLeague(b, leagueOnly)) {
+			String b = common.getCountry().trim() + ": " + common.getLeague().trim();
+			if (isBlank(leagueOnly) || sameLeague(b, leagueOnly)) {
 				return b;
 			}
 		}
 
-		// 2-4) static_data の同じチームの行
+		CountryLeagueMasterEntity entity = countryLeagueMasterBatchRepository.findCountryLeagueByTeam(home);
+		if (entity == null) {
+			entity = countryLeagueMasterBatchRepository.findCountryLeagueByTeam(away);
+		}
+		if (entity != null && !isBlank(entity.getCountry()) && !isBlank(entity.getLeague())) {
+			String b = entity.getCountry().trim() + ": " + entity.getLeague().trim();
+			if (isBlank(leagueOnly) || sameLeague(b, leagueOnly)) {
+				return b;
+			}
+		}
+
 		for (String team : new String[] { home, away }) {
 			String b = bookDataRepository.findMainCountryLeagueByTeam(team, baseTime);
 			if (b == null || !isUsable(b)) {
 				continue;
 			}
-			if (leagueOnly != null && !leagueOnly.isEmpty() && !sameLeague(b, leagueOnly)) {
+			if (!isBlank(leagueOnly) && !sameLeague(b, leagueOnly)) {
 				continue;
 			}
 			return b.trim();
@@ -177,13 +199,28 @@ public class DataCategoryBatchService {
 	}
 
 	/**
+	 * candidate（「国: リーグ - ラウンド N」または国なしの「リーグ - ラウンド N」）が base（「国: リーグ」）と同じ大会か
+	 */
+	private static boolean isCompatible(String base, String candidate) {
+		if (isBlank(base) || isBlank(candidate) || PLACEHOLDER_PATTERN.matcher(candidate).find()) {
+			return false;
+		}
+		String cBase = stripRound(candidate);
+		if (COUNTRY_LEAGUE.matcher(cBase).matches()) {
+			return squash(cBase).equals(squash(base));
+		}
+		return sameLeague(base, cBase);
+	}
+
+	/**
 	 * 同じ試合の static_data と future_master を完成したカテゴリに更新する
+	 * （future_master は国なし・ラウンドなし・仮の値の行だけ）
 	 */
 	private void update(String home, String away, String matchId, String baseTime, String category)
 			throws IllegalAccessException {
 		try {
 			bookDataRepository.updateDataCategoryForMatch(category, home, away, matchId, baseTime);
-			futureMasterRepository.updateGameTeamCategoryNearTime(category, home, away, baseTime);
+			futureMasterRepository.updateGameTeamCategoryForMatch(category, home, away, matchId, baseTime);
 		} catch (Exception e) {
 			throw new IllegalAccessException("システムエラー: " + e.getMessage());
 		}
@@ -207,26 +244,23 @@ public class DataCategoryBatchService {
 
 	/** 「国: リーグ - ラウンド N」→「国: リーグ」 */
 	private static String stripRound(String category) {
-		int dash = category.indexOf(" - ");
-		return (dash >= 0 ? category.substring(0, dash) : category).trim();
+		String c = category.trim();
+		int dash = c.indexOf(" - ");
+		return (dash >= 0 ? c.substring(0, dash) : c).trim();
 	}
 
 	/** 「日本: J3 リーグ」のリーグ部分が leagueOnly（例: 「J3 リーグ」）と一致するか（空白・全半角を無視） */
 	private static boolean sameLeague(String base, String leagueOnly) {
-		int i = base.indexOf(':');
+		return squash(leaguePart(base)).equals(squash(leaguePart(leagueOnly)));
+	}
+
+	/** 「国: リーグ」→「リーグ」（国なしならそのまま） */
+	private static String leaguePart(String s) {
+		int i = s.indexOf(':');
 		if (i < 0) {
-			i = base.indexOf('：');
+			i = s.indexOf('：');
 		}
-		String league = i >= 0 ? base.substring(i + 1) : base;
-		String target = leagueOnly;
-		int j = target.indexOf(':');
-		if (j < 0) {
-			j = target.indexOf('：');
-		}
-		if (j >= 0) {
-			target = target.substring(j + 1);
-		}
-		return squash(league).equals(squash(target));
+		return i >= 0 ? s.substring(i + 1) : s;
 	}
 
 	private static String squash(String s) {

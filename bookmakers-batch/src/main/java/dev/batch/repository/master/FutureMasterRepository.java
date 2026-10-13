@@ -381,4 +381,39 @@ public interface FutureMasterRepository {
 		""")
 	String findGameTeamCategoryByMid(@Param("matchId") String matchId);
 
+	// ===================== 2026-10 追加3 =====================
+
+	/**
+	 * 同じ試合の予定（game_link の mid が一致、または同じカードで基準時刻の前後1日）の game_team_category を更新する。
+	 * 既に「国: リーグ - ラウンド N」（試合ページのパンくず由来）が入っている行は書き換えない
+	 * （国なし・ラウンドなし・仮の値 XXX の行だけ直す）。
+	 */
+	@Update("""
+			UPDATE future_master
+			SET	game_team_category = #{dataCategory}
+			WHERE
+				(
+					(NULLIF(BTRIM(#{matchId,jdbcType=VARCHAR}), '') IS NOT NULL
+					 AND substring(game_link from 'mid=([^&]+)') = #{matchId,jdbcType=VARCHAR})
+				 OR (
+					normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+					AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+					AND future_time BETWEEN (COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) AT TIME ZONE 'Asia/Tokyo') - INTERVAL '1 day' AND (COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) AT TIME ZONE 'Asia/Tokyo') + INTERVAL '1 day'
+				 )
+				)
+				AND (
+					game_team_category IS NULL
+				 OR game_team_category !~ '^\\s*[^:：]+[:：]\\s*\\S'
+				 OR game_team_category ~* '^\\s*XXX\\s*:'
+				 OR game_team_category !~ 'ラウンド\\s*[1-9]'
+				)
+				AND game_team_category IS DISTINCT FROM #{dataCategory}
+		""")
+	int updateGameTeamCategoryForMatch(
+			@Param("dataCategory") String dataCategory,
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName,
+			@Param("matchId") String matchId,
+			@Param("baseTime") String baseTime);
+
 }
