@@ -12,6 +12,7 @@ import org.springframework.stereotype.Service;
 import dev.web.api.dashboard.bm_w002.DashboardForecastService;
 import dev.web.api.dashboard.bm_w003.DashboardLiveService;
 import dev.web.api.dashboard.support.DashboardSupport;
+import dev.web.api.matchDetail.bm_w002.MatchVenueService;
 import dev.web.api.matchDetail.matchDetailDTO.MatchGoalDTO;
 import dev.web.api.matchDetail.matchDetailDTO.MatchInfoDTO;
 import dev.web.api.matchDetail.matchDetailDTO.MatchRankChangeDTO;
@@ -27,6 +28,7 @@ import lombok.RequiredArgsConstructor;
  *   <li>スコア・スタッツ・試合情報: 最新の行（試合情報は空でない一番新しい値）。</li>
  *   <li>試合の流れ: 試合時間ごとに1点（同じ時間は最後の行）。ゴールはスコアが増えたところ。</li>
  *   <li>順位の変動表: どちらかの順位が変わったところ（最初の行は試合開始時点）。</li>
+ *   <li>スタジアムの地理情報: team_location_master（MatchVenueService）。</li>
  *   <li>勝敗確率（このままなら）: ライブ中の試合だけ。トップ画面のライブと同じ計算（未ログインは数値 null）。</li>
  * </ul>
  * @author shiraishitoshio
@@ -60,6 +62,9 @@ public class MatchDetailService {
 	private final MatchDetailRepository repository;
 
 	private final DashboardLiveService liveService;
+
+	/** スタジアムの地理情報（team_location_master） */
+	private final MatchVenueService venueService;
 
 	public MatchDetailResponse getDetail(String seqKey, boolean loggedIn) {
 		MatchDetailResponse res = new MatchDetailResponse();
@@ -218,6 +223,9 @@ public class MatchDetailService {
 		info.setAwayFormation(latestNonBlank(rows, "away_formation"));
 		info.setGoalTime(latestNonBlank(rows, "goal_time"));
 		info.setGoalMember(latestNonBlank(rows, "goal_team_member"));
+
+		// ===== スタジアムの地理情報（スタジアム名 → 無ければホームチームのホームスタジアム） =====
+		res.setVenue(this.venueService.find(info.getStadium(), info.getLocation(), res.getHomeTeam(), res.getCountry()));
 		return res;
 	}
 

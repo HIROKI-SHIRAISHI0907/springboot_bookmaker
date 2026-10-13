@@ -9,6 +9,7 @@ import dev.web.api.matchDetail.matchDetailDTO.MatchInfoDTO;
 import dev.web.api.matchDetail.matchDetailDTO.MatchRankChangeDTO;
 import dev.web.api.matchDetail.matchDetailDTO.MatchStatDTO;
 import dev.web.api.matchDetail.matchDetailDTO.MatchTimelinePointDTO;
+import dev.web.api.matchDetail.matchVenueDTO.MatchVenueDTO;
 import lombok.Data;
 
 /**
@@ -68,4 +69,7 @@ public class MatchDetailResponse {
 	private List<MatchRankChangeDTO> rankChanges = new ArrayList<>();
 
 	private MatchInfoDTO info = new MatchInfoDTO();
+
+	/** スタジアムの地理情報（team_location_master に無ければ null） */
+	private MatchVenueDTO venue;
 }
