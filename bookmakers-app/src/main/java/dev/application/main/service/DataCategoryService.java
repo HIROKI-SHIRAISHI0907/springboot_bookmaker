@@ -1,6 +1,9 @@
 package dev.application.main.service;
 
+import java.util.ArrayList;
+import java.util.LinkedHashSet;
 import java.util.List;
+import java.util.Set;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -15,7 +18,7 @@ import dev.common.entity.CountryLeagueMasterEntity;
 /**
  * data_category発番処理（BM_M001。batch の DataCategoryBatchService と同じロジック）
  *
- * <p>決め方（2026-10 見直し後）</p>
+ * <p>決め方（2026-10 見直し後・同名チーム対策済み）</p>
  * <ol>
  *   <li>同じ試合（同じ match_id / 同じカードで record_time が基準時刻の前後6時間）の static_data に、
  *       ラウンドまで入った完成したカテゴリがあればそれを使う。</li>
@@ -34,6 +37,8 @@ import dev.common.entity.CountryLeagueMasterEntity;
  *   <li>見る範囲・書き換える範囲を「同じ試合」に限定（以前は同じカードの全期間で、去年のラウンドが混ざった）。</li>
  *   <li>「XXX: YYY - ラウンド 0」を完成したカテゴリと見なさない。</li>
  *   <li>マスタより CSV を優先（同名チーム「エヴァートン」でチリの試合がイングランドになっていた）。</li>
+ *   <li>マスタは両チームの候補の共通部分で決め、同名チームで候補が複数あるときは当て推量で選ばない
+ *       （「LDU キト vs ｳﾆﾍﾞﾙｼﾀﾞ･ｶﾄﾘｶ」がチリになっていた。ホームがマスタに無く、アウェーの同名チームのチリが選ばれた）。</li>
  * </ul>
  * @author shiraishitoshio
  */
@@ -148,9 +153,8 @@ public class DataCategoryService {
 	 * <ol>
 	 *   <li>CSV のカテゴリが「国: リーグ …」の形ならその「国: リーグ」（試合ページの表記）</li>
 	 *   <li>future_master が「国: リーグ …」の形ならその「国: リーグ」（試合予定ページのパンくず）</li>
-	 *   <li>country_league_master で両チームが同じ国・リーグに属するもの</li>
-	 *   <li>country_league_master（ホーム → アウェー）</li>
-	 *   <li>static_data の同じチームの行（ホーム → アウェー）</li>
+	 *   <li>country_league_master: 両チームの候補の共通部分（1つに決まるときだけ。同名チームで複数に当たるときは決めない）</li>
+	 *   <li>static_data の同じチームの行（両チームが同じ値、または片方だけ取れてそのチーム名が一意のときだけ）</li>
 	 * </ol>
 	 * 3〜5 は、CSV / future_master に国なしのリーグ名（例: 「J3 リーグ」）があれば、それと一致するものだけ使う。
 	 * @return 「国: リーグ」。分からなければ null
@@ -167,36 +171,95 @@ public class DataCategoryService {
 		String leagueOnly = !isBlank(dataCategory) ? stripRound(dataCategory)
 				: (!isBlank(futureCategory) ? stripRound(futureCategory) : null);
 
-		CountryLeagueMasterEntity common = countryLeagueMasterRepository.findCommonCountryLeagueByTeams(home, away);
-		if (common != null && !isBlank(common.getCountry()) && !isBlank(common.getLeague())) {
-			String b = common.getCountry().trim() + ": " + common.getLeague().trim();
-			if (isBlank(leagueOnly) || sameLeague(b, leagueOnly)) {
-				return b;
-			}
+		// country_league_master（両チームの候補の共通部分 → 片方だけ分かる場合はその候補が1つのときだけ）
+		List<String> masterCandidates = masterCandidates(home, away, leagueOnly);
+		if (masterCandidates.size() == 1) {
+			return masterCandidates.get(0);
+		}
+		if (masterCandidates.size() > 1) {
+			// 同名チームが複数の国・リーグにいて決められない（例: ｳﾆﾍﾞﾙｼﾀﾞ･ｶﾄﾘｶ = チリ / エクアドル）。
+			// 当て推量で片方を選ぶと別の国になるため、ここでは決めない。
+			return null;
 		}
 
-		CountryLeagueMasterEntity entity = countryLeagueMasterRepository.findCountryLeagueByTeam(home);
-		if (entity == null) {
-			entity = countryLeagueMasterRepository.findCountryLeagueByTeam(away);
+		// static_data の同じチームの行（両チームが同じ値のとき、または片方しか取れずそのチーム名が一意のときだけ）
+		String homeMain = mainCountryLeague(home, baseTime, leagueOnly);
+		String awayMain = mainCountryLeague(away, baseTime, leagueOnly);
+		if (homeMain != null && awayMain != null) {
+			return squash(homeMain).equals(squash(awayMain)) ? homeMain : null;
 		}
-		if (entity != null && !isBlank(entity.getCountry()) && !isBlank(entity.getLeague())) {
-			String b = entity.getCountry().trim() + ": " + entity.getLeague().trim();
-			if (isBlank(leagueOnly) || sameLeague(b, leagueOnly)) {
-				return b;
-			}
-		}
-
-		for (String team : new String[] { home, away }) {
-			String b = bookDataRepository.findMainCountryLeagueByTeam(team, baseTime);
-			if (b == null || !isUsable(b)) {
-				continue;
-			}
-			if (!isBlank(leagueOnly) && !sameLeague(b, leagueOnly)) {
-				continue;
-			}
-			return b.trim();
+		String one = homeMain != null ? homeMain : awayMain;
+		String oneTeam = homeMain != null ? home : away;
+		if (one != null && teamCountryLeagues(oneTeam, null).size() <= 1) {
+			return one;
 		}
 		return null;
+	}
+
+	/**
+	 * country_league_master から「国: リーグ」の候補を求める。
+	 * <ul>
+	 *   <li>両チームの候補の共通部分があればそれ（同名チームがいても、相手チームと同じリーグに絞れる）</li>
+	 *   <li>片方のチームしかマスタに無ければ、そのチームの候補</li>
+	 *   <li>両チームとも候補があるのに共通部分が無ければ、両方の候補（＝決められない）</li>
+	 * </ul>
+	 * 候補は有効行（del_flg = '0'）を優先し、無ければ削除済みの行も使う（チームの所属国の手がかりとしては有効なため）。
+	 */
+	private List<String> masterCandidates(String home, String away, String leagueOnly) {
+		Set<String> h = teamCountryLeagues(home, leagueOnly);
+		Set<String> a = teamCountryLeagues(away, leagueOnly);
+		if (h.isEmpty() && a.isEmpty()) {
+			return List.of();
+		}
+		if (h.isEmpty()) {
+			return new ArrayList<>(a);
+		}
+		if (a.isEmpty()) {
+			return new ArrayList<>(h);
+		}
+		Set<String> common = new LinkedHashSet<>(h);
+		common.retainAll(a);
+		if (!common.isEmpty()) {
+			return new ArrayList<>(common);
+		}
+		Set<String> union = new LinkedHashSet<>(h);
+		union.addAll(a);
+		return new ArrayList<>(union);
+	}
+
+	/** チームの「国: リーグ」の一覧（有効行優先。leagueOnly があればリーグ名が一致するものだけ） */
+	private Set<String> teamCountryLeagues(String team, String leagueOnly) {
+		Set<String> active = new LinkedHashSet<>();
+		Set<String> all = new LinkedHashSet<>();
+		List<CountryLeagueMasterEntity> rows = countryLeagueMasterRepository.findCountryLeaguesByTeam(team);
+		if (rows != null) {
+			for (CountryLeagueMasterEntity e : rows) {
+				if (e == null || isBlank(e.getCountry()) || isBlank(e.getLeague())) {
+					continue;
+				}
+				String b = e.getCountry().trim() + ": " + e.getLeague().trim();
+				if (!isBlank(leagueOnly) && !sameLeague(b, leagueOnly)) {
+					continue;
+				}
+				all.add(b);
+				if ("0".equals(e.getDelFlg())) {
+					active.add(b);
+				}
+			}
+		}
+		return active.isEmpty() ? all : active;
+	}
+
+	/** static_data からチームの主な「国: リーグ」（leagueOnly があれば一致するものだけ）。無ければ null */
+	private String mainCountryLeague(String team, String baseTime, String leagueOnly) {
+		String b = bookDataRepository.findMainCountryLeagueByTeam(team, baseTime);
+		if (b == null || !isUsable(b)) {
+			return null;
+		}
+		if (!isBlank(leagueOnly) && !sameLeague(b, leagueOnly)) {
+			return null;
+		}
+		return b.trim();
 	}
 
 	/**
