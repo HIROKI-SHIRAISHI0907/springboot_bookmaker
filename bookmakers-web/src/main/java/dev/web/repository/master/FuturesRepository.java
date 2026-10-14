@@ -1,6 +1,7 @@
 package dev.web.repository.master;
 
 import java.sql.ResultSet;
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -17,6 +18,8 @@ import lombok.Data;
 /**
  * FuturesRepositoryクラス
  * ※ future_time を timestamp without time zone（JST壁時計）として扱う前提
+ *
+ * <p>2026-10 追加: findByFutureDate / countByFutureDate（指定日の試合予定一覧: bm_a030）</p>
  * @author shiraishitoshio
  *
  */
@@ -152,6 +155,81 @@ public class FuturesRepository {
 		return findFutureMasterByRegisterTime(country, team);
 	}
 
+	// ========= 指定日の試合予定一覧（bm_a030） =========
+
+	/** 指定日（日本時間 0:00〜翌 0:00）の条件 */
+	private static final String FUTURE_DATE_WHERE = """
+			WHERE f.future_time >= CAST(:date AS date)
+			  AND f.future_time <  CAST(:date AS date) + INTERVAL '1 day'
+			""";
+
+	/**
+	 * 指定日の試合予定を、試合開始日時順に1ページ分取得する。
+	 *
+	 * @param date 対象日（日本時間）
+	 * @param offset 取得開始位置
+	 * @param limit 取得件数
+	 */
+	public List<FutureMatchDateRow> findByFutureDate(LocalDate date, int offset, int limit) {
+		String sql = """
+				SELECT
+				  f.seq,
+				  f.game_team_category,
+				  f.future_time,
+				  to_char(f.future_time, 'YYYY-MM-DD HH24:MI:SS') AS future_time_local,
+				  f.home_team_name,
+				  f.away_team_name,
+				  NULLIF(BTRIM(f.game_link), '') AS game_link,
+				  (regexp_match(f.game_link, 'mid=([A-Za-z0-9]+)'))[1] AS mid,
+				  CAST((regexp_match(f.game_team_category, '(ラウンド|Round)\\s*([0-9]+)'))[2] AS INT) AS round_no,
+				  f.start_flg
+				FROM future_master f
+				%s
+				ORDER BY f.future_time ASC, f.seq ASC
+				OFFSET :offset
+				LIMIT :limit
+				""".formatted(FUTURE_DATE_WHERE);
+
+		MapSqlParameterSource params = new MapSqlParameterSource()
+				.addValue("date", date.toString())
+				.addValue("offset", offset)
+				.addValue("limit", limit);
+
+		return masterJdbcTemplate.query(sql, params, (rs, rowNum) -> {
+			FutureMatchDateRow r = new FutureMatchDateRow();
+			r.setSeq(rs.getLong("seq"));
+			r.setGameTeamCategory(rs.getString("game_team_category"));
+
+			OffsetDateTime ft = DateOffsetDecisionUtil.getOffsetDateTime(rs, "future_time");
+			r.setFutureTime(DateOffsetDecisionUtil.toIsoJstString(ft));
+			r.setFutureTimeLocal(rs.getString("future_time_local"));
+
+			r.setHomeTeamName(rs.getString("home_team_name"));
+			r.setAwayTeamName(rs.getString("away_team_name"));
+			r.setGameLink(rs.getString("game_link"));
+			r.setMid(rs.getString("mid"));
+
+			int roundNo = rs.getInt("round_no");
+			r.setRoundNo(rs.wasNull() ? null : roundNo);
+
+			r.setStartFlg(rs.getString("start_flg"));
+			return r;
+		});
+	}
+
+	/** 指定日の試合予定の件数 */
+	public long countByFutureDate(LocalDate date) {
+		String sql = """
+				SELECT COUNT(*)
+				FROM future_master f
+				%s
+				""".formatted(FUTURE_DATE_WHERE);
+
+		Long cnt = masterJdbcTemplate.queryForObject(sql,
+				new MapSqlParameterSource().addValue("date", date.toString()), Long.class);
+		return cnt == null ? 0L : cnt;
+	}
+
 	// row classes
 	public static class FutureMasterIngestRow {
 		public Long seq;
@@ -168,6 +246,24 @@ public class FuturesRepository {
 		public String homeTeamName;
 		public String awayTeamName;
 		public OffsetDateTime matchStartTime;
+	}
+
+	/** 指定日の試合予定1行（bm_a030） */
+	@Data
+	public static class FutureMatchDateRow {
+		private Long seq;
+		private String gameTeamCategory;
+		/** 試合開始日時（ISO・+09:00） */
+		private String futureTime;
+		/** 試合開始日時（"yyyy-MM-dd HH:mm:ss"・日本時間。static_data との突き合わせ用） */
+		private String futureTimeLocal;
+		private String homeTeamName;
+		private String awayTeamName;
+		private String gameLink;
+		/** game_link の mid（無ければ null） */
+		private String mid;
+		private Integer roundNo;
+		private String startFlg;
 	}
 
 	// ========= 各得点失点存在確認用 =========
@@ -359,32 +455,32 @@ public class FuturesRepository {
 		return out;
 	}
 
-	 /**
-     * 更新: 指定した home/away チーム名(NFKC正規化して比較)に紐づく future_master の
-     * dataCategory を、同一 home/away の組み合わせを持つ行すべてに対して新しい値で上書きする。
-     *
-     * @param homeTeamName 更新対象を絞り込むホームチーム名
-     * @param awayTeamName 更新対象を絞り込むアウェーチーム名
-     * @param newDataCategory 上書き後の dataCategory
-     * @return 更新された行数(同一 home/away の組み合わせを持つ行が複数あれば2件以上になり得る)
-     */
-    public int updateNewDataCategory(String homeTeamName, String awayTeamName, String newDataCategory) {
+	/**
+	 * 更新: 指定した home/away チーム名(NFKC正規化して比較)に紐づく future_master の
+	 * dataCategory を、同一 home/away の組み合わせを持つ行すべてに対して新しい値で上書きする。
+	 *
+	 * @param homeTeamName 更新対象を絞り込むホームチーム名
+	 * @param awayTeamName 更新対象を絞り込むアウェーチーム名
+	 * @param newDataCategory 上書き後の dataCategory
+	 * @return 更新された行数(同一 home/away の組み合わせを持つ行が複数あれば2件以上になり得る)
+	 */
+	public int updateNewDataCategory(String homeTeamName, String awayTeamName, String newDataCategory) {
 
-        String sql = """
-                UPDATE future_master
-                SET
-                	game_team_category = :newDataCategory,
-                	update_time = CURRENT_TIMESTAMP
-                WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
-                  AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
-                """;
+		String sql = """
+				UPDATE future_master
+				SET
+					game_team_category = :newDataCategory,
+					update_time = CURRENT_TIMESTAMP
+				WHERE normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)
+				  AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)
+				""";
 
-        MapSqlParameterSource params = new MapSqlParameterSource();
-        params.addValue("homeTeamName", homeTeamName);
-        params.addValue("awayTeamName", awayTeamName);
-        params.addValue("newDataCategory", newDataCategory);
+		MapSqlParameterSource params = new MapSqlParameterSource();
+		params.addValue("homeTeamName", homeTeamName);
+		params.addValue("awayTeamName", awayTeamName);
+		params.addValue("newDataCategory", newDataCategory);
 
-        return masterJdbcTemplate.update(sql, params);
-    }
+		return masterJdbcTemplate.update(sql, params);
+	}
 
 }

@@ -1,0 +1,116 @@
+package dev.web.repository.bm;
+
+import java.util.List;
+
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
+import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
+import org.springframework.stereotype.Repository;
+
+import dev.web.api.bm_a025.RealTimeDataDTO;
+
+/**
+ * リアルタイムデータ管理画面（dataCategory 確認・上書き）用の static_data 取得
+ * <p>BookDataRepository#findAllGrouping と同じ集計を、home/away の絞り込み付きでも使えるようにしたもの。
+ * （以前の search は1件しか返さず、形式の判定も付いていなかった）</p>
+ * @author shiraishitoshio
+ *
+ */
+@Repository
+public class RealTimeDataCategoryRepository {
+
+	private final NamedParameterJdbcTemplate bmJdbcTemplate;
+
+	public RealTimeDataCategoryRepository(
+			@Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate) {
+		this.bmJdbcTemplate = bmJdbcTemplate;
+	}
+
+	/** データ形式判定の正規表現を CASE 式として埋め込むための共通 SQL 断片 */
+	private static final String CATEGORY_FORMAT_CASE = """
+			CASE
+			    WHEN data_category ~ '^[^:]+:\\s.+\\s-\\s*ラウンド\\s+\\d+$' THEN 'COUNTRY_LEAGUE_ROUND'
+			    WHEN data_category ~ '^[^:]+\\s-\\s*ラウンド\\s+\\d+$'      THEN 'LEAGUE_ROUND'
+			    WHEN data_category ~ '^[^:]+:\\s[^:]+$'                    THEN 'COUNTRY_LEAGUE'
+			    ELSE NULL
+			END
+			""";
+
+	/**
+	 * dataCategory × home × away でグルーピングした件数と、home/away 単位の形式判定を取得する。
+	 *
+	 * @param homeTeamName 絞り込むホームチーム名（null・空なら絞り込まない。NFKC 正規化して比較）
+	 * @param awayTeamName 絞り込むアウェーチーム名（同上）
+	 */
+	public List<RealTimeDataDTO> findGrouping(String homeTeamName, String awayTeamName) {
+		boolean filterHome = homeTeamName != null && !homeTeamName.isBlank();
+		boolean filterAway = awayTeamName != null && !awayTeamName.isBlank();
+
+		StringBuilder where = new StringBuilder();
+		MapSqlParameterSource params = new MapSqlParameterSource();
+		if (filterHome) {
+			where.append(" AND normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)");
+			params.addValue("homeTeamName", homeTeamName.trim());
+		}
+		if (filterAway) {
+			where.append(" AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)");
+			params.addValue("awayTeamName", awayTeamName.trim());
+		}
+
+		String sql = """
+				WITH classified AS (
+				    SELECT
+				        data_category,
+				        home_team_name,
+				        away_team_name,
+				        %s AS category_format
+				    FROM static_data
+				    WHERE 1 = 1 %s
+				),
+				grouped AS (
+				    SELECT
+				        data_category,
+				        home_team_name,
+				        away_team_name,
+				        category_format,
+				        COUNT(*) AS cnt
+				    FROM classified
+				    GROUP BY data_category, home_team_name, away_team_name, category_format
+				),
+				format_consistency AS (
+				    SELECT
+				        home_team_name,
+				        away_team_name,
+				        CASE
+				            WHEN COUNT(DISTINCT COALESCE(category_format, '__NONE__')) = 1
+				            THEN '同一カテゴリ名'
+				            ELSE '混在'
+				        END AS category_format_icon
+				    FROM classified
+				    GROUP BY home_team_name, away_team_name
+				)
+				SELECT
+				    g.data_category,
+				    CASE WHEN g.category_format IS NOT NULL THEN g.data_category ELSE NULL END AS formatted_data_category,
+				    g.home_team_name,
+				    g.away_team_name,
+				    g.cnt,
+				    fc.category_format_icon
+				FROM grouped g
+				JOIN format_consistency fc
+				    ON g.home_team_name = fc.home_team_name
+				   AND g.away_team_name = fc.away_team_name
+				""".formatted(CATEGORY_FORMAT_CASE, where);
+
+		return bmJdbcTemplate.query(sql, params, (rs, rowNum) -> {
+			RealTimeDataDTO dto = new RealTimeDataDTO();
+			dto.setDataCategory(rs.getString("data_category"));
+			dto.setFormattedDataCategory(rs.getString("formatted_data_category"));
+			dto.setHomeTeamName(rs.getString("home_team_name"));
+			dto.setAwayTeamName(rs.getString("away_team_name"));
+			dto.setCnt(rs.getLong("cnt"));
+			dto.setCategoryFormatIcon(rs.getString("category_format_icon"));
+			return dto;
+		});
+	}
+}
