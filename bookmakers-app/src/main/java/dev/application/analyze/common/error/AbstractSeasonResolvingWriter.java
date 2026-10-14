@@ -11,6 +11,8 @@ import org.springframework.transaction.support.TransactionSynchronizationManager
 
 import dev.application.analyze.interf.SeasonResolverIF;
 import dev.common.constant.MessageCdConst;
+import dev.common.error.AnalyzeErrorInfo;
+import dev.common.error.AnalyzeErrorType;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.CountryLeagueParser;
 

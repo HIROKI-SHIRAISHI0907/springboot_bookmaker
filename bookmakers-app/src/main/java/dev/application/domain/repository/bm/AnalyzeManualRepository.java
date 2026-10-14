@@ -57,7 +57,7 @@ public interface AnalyzeManualRepository {
 	 */
 	@Select("""
 			SELECT d.*
-			FROM data d
+			FROM static_data d
 			WHERE d.add_manual_flg = '1'
 			  AND d.times = '終了済'
 			  AND NOT EXISTS (

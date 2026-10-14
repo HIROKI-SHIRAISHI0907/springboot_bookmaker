@@ -12,6 +12,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.analyze.common.service.SeqNumberingService;
 import dev.application.domain.repository.bm.AnalyzeErrorMatchRepository;
+import dev.common.error.AnalyzeErrorMatchEntity;
 
 /**
  * analyze_error_match への書き込み（{@link AnalyzeErrorRecorder} から呼ぶ）。

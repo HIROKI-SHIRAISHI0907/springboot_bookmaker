@@ -7,6 +7,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.common.entity.BookDataEntity;
+import dev.common.error.AnalyzeErrorInfo;
+import dev.common.error.AnalyzeErrorType;
 import dev.common.util.CountryLeagueParser;
 
 /**

@@ -5,11 +5,11 @@ import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Autowired;
 
-import dev.application.analyze.common.error.AnalyzeErrorInfo;
 import dev.application.analyze.common.error.AnalyzeErrorRecorder;
-import dev.application.analyze.common.error.AnalyzeErrorType;
 import dev.application.analyze.interf.SeasonResolverIF;
 import dev.common.constant.MessageCdConst;
+import dev.common.error.AnalyzeErrorInfo;
+import dev.common.error.AnalyzeErrorType;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.CountryLeagueParser;
 

@@ -9,11 +9,11 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Propagation;
 import org.springframework.transaction.annotation.Transactional;
 
-import dev.application.analyze.common.error.AnalyzeErrorInfo;
 import dev.application.analyze.common.service.AbstractSeasonResolvingWriter;
 import dev.application.analyze.common.service.SeqNumberingService;
 import dev.application.domain.repository.bm.TeamTimeSegmentStatsRepository;
 import dev.common.constant.MessageCdConst;
+import dev.common.error.AnalyzeErrorInfo;
 import dev.common.exception.wrap.RootCauseWrapper;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.util.CountryLeagueParser;

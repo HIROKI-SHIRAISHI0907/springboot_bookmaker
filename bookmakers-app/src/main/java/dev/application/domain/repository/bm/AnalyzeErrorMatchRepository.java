@@ -10,7 +10,7 @@ import org.apache.ibatis.annotations.Results;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
-import dev.application.analyze.common.error.AnalyzeErrorMatchEntity;
+import dev.common.error.AnalyzeErrorMatchEntity;
 
 /**
  * analyze_error_match Mapper（統計処理で登録できなかった試合の記録）。
