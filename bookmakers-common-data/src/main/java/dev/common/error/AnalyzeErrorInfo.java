@@ -1,7 +1,8 @@
-package dev.application.analyze.common.error;
+package dev.common.error;
 
 import java.util.ArrayList;
 import java.util.List;
+
 
 /**
  * 登録できなかった試合の情報（{@link AnalyzeErrorRecorder} に渡す）。record は使わない。

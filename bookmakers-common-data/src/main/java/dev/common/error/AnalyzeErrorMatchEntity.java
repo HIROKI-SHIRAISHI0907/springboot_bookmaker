@@ -1,4 +1,4 @@
-package dev.application.analyze.common.error;
+package dev.common.error;
 
 import java.sql.Timestamp;
 
