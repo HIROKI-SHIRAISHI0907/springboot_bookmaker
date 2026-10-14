@@ -167,7 +167,7 @@ public class MatchDataRepository {
                     match_id,
                     TRIM(times) AS times,
                     CAST(SUBSTRING(TRIM(times) FROM '^([0-9]+)') AS INTEGER) AS minute
-                FROM data
+                FROM static_data
                 WHERE match_id IN (:matchIds)
                   AND times IS NOT NULL
                   AND TRIM(times) <> ''
