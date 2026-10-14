@@ -286,4 +286,33 @@ public interface CountryLeagueMasterBatchRepository {
 			""")
 	CountryLeagueMasterEntity findCountryLeagueByTeam(@Param("team") String team);
 
+	/**
+	 * チームが属する「国・リーグ」をすべて取得する（同名チーム対策・2026-10 追加）。
+	 * <p>チーム名は NFKC 正規化し、空白を無視して比較する（「LDU キト」と「LDUキト」を同じとみなす）。
+	 * 国・リーグごとに1行。del_flg はその国・リーグに有効行が1件でもあれば '0'。</p>
+	 */
+	@Select("""
+			    SELECT
+			    	MAX(id) AS id,
+			    	country,
+			    	league,
+			    	MAX(sub_league) AS subLeague,
+			    	MAX(team) AS team,
+			    	MIN(del_flg) AS delFlg
+			    FROM
+			    	country_league_master
+			    WHERE
+			    	regexp_replace(normalize(team, NFKC), '\\s+', '', 'g')
+			    		= regexp_replace(normalize(#{team}, NFKC), '\\s+', '', 'g')
+			    	AND country IS NOT NULL AND BTRIM(country) <> ''
+			    	AND league IS NOT NULL AND BTRIM(league) <> ''
+			    GROUP BY
+			    	country,
+			    	league
+			    ORDER BY
+			    	MIN(del_flg),
+			    	MAX(id) DESC
+			""")
+	List<CountryLeagueMasterEntity> findCountryLeaguesByTeam(@Param("team") String team);
+
 }
