@@ -43,6 +43,9 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 
 /**
  * S3オペレーター
+ *
+ * <p>2026-10 追加: {@link #listObjectsByPrefixSortedByLastModifiedAsc(String, String, Pattern)}
+ * （prefix で絞って一覧を取り、メタデータ付きで最終更新日時の昇順に返す）</p>
  * @author shiraishitoshio
  */
 @Component
@@ -113,6 +116,52 @@ public class S3Operator {
 			token = res.nextContinuationToken();
 		} while (token != null);
 		return keys;
+	}
+
+	/**
+	 * prefix で絞って一覧を取り、pattern に一致するオブジェクトを
+	 * メタデータ（size・lastModified等）付きで最終更新日時の昇順に返す。
+	 *
+	 * <p>{@link #listAllDateCsvObjectsSortedByLastModifiedAsc(String, Pattern)} はバケット全体を走査するため、
+	 * 対象のキーの先頭が決まっている場合はこちらを使う（S3 側で prefix 絞り込みされるので速い）。</p>
+	 *
+	 * <p>例: バケット直下の delay_postpone_2026-10-14.json / delay_postpone_2026-10-14_2.json だけを取る</p>
+	 * <pre>
+	 * listObjectsByPrefixSortedByLastModifiedAsc(bucket, "delay_postpone_2026-10-14",
+	 *         Pattern.compile("^delay_postpone_2026-10-14(_\\d+)?\\.json$"));
+	 * </pre>
+	 *
+	 * @param bucket  バケット名
+	 * @param prefix  キーの先頭（null・空ならバケット全体）
+	 * @param pattern キー全体に一致させる正規表現（null なら prefix に一致したもの全て）
+	 * @return 一致した S3Object 一覧（最終更新日時の昇順。同時刻はキーの昇順。最終更新日時が無いものは末尾）
+	 */
+	public List<S3Object> listObjectsByPrefixSortedByLastModifiedAsc(String bucket, String prefix, Pattern pattern) {
+		List<S3Object> objects = new ArrayList<>();
+		String token = null;
+		do {
+			ListObjectsV2Request.Builder builder = ListObjectsV2Request.builder()
+					.bucket(bucket)
+					.continuationToken(token);
+			if (prefix != null && !prefix.isEmpty()) {
+				builder.prefix(prefix);
+			}
+			ListObjectsV2Response res = s3.listObjectsV2(builder.build());
+			for (S3Object obj : res.contents()) {
+				String key = obj.key();
+				if (key == null) {
+					continue;
+				}
+				if (pattern == null || pattern.matcher(key).matches()) {
+					objects.add(obj);
+				}
+			}
+			token = res.nextContinuationToken();
+		} while (token != null);
+		objects.sort(Comparator
+				.comparing((S3Object o) -> o.lastModified() == null ? Instant.MAX : o.lastModified())
+				.thenComparing(S3Object::key));
+		return objects;
 	}
 
 	/**
