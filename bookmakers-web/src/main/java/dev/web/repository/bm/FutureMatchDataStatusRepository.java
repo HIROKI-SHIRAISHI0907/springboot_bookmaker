@@ -20,6 +20,8 @@ import lombok.Data;
  *   <li>同じカード（NFKC 正規化）で record_time が試合開始日時の 1時間前〜6時間後</li>
  * </ul>
  * record_time / future_time はどちらも timestamp（日本時間の壁時計）として扱う。
+ * 試合時間（times）が「中断」「中断中」「延期」「中止」の行は件数・最後の記録に含めない
+ * （中断を検知した直後に「更新あり」にならないように）。
  * @author shiraishitoshio
  *
  */
@@ -81,14 +83,18 @@ public class FutureMatchDataStatusRepository {
 				    s.record_time,
 				    REPLACE(BTRIM(normalize(COALESCE(s.times, ''), NFKC)), ' ', '') = '終了済' AS fin
 				  FROM static_data s
-				  WHERE (m.mid IS NOT NULL AND s.match_id = m.mid)
-				     OR (
-				          normalize(s.home_team_name, NFKC) = normalize(m.home, NFKC)
-				      AND normalize(s.away_team_name, NFKC) = normalize(m.away, NFKC)
-				      AND m.ft IS NOT NULL
-				      AND s.record_time >= m.ft - INTERVAL '1 hour'
-				      AND s.record_time <  m.ft + INTERVAL '6 hours'
-				     )
+				  WHERE (
+				          (m.mid IS NOT NULL AND s.match_id = m.mid)
+				       OR (
+				            normalize(s.home_team_name, NFKC) = normalize(m.home, NFKC)
+				        AND normalize(s.away_team_name, NFKC) = normalize(m.away, NFKC)
+				        AND m.ft IS NOT NULL
+				        AND s.record_time >= m.ft - INTERVAL '1 hour'
+				        AND s.record_time <  m.ft + INTERVAL '6 hours'
+				       )
+				    )
+				    -- 中断・延期・中止の行は試合データとして数えない（最後の記録にも含めない）
+				    AND normalize(COALESCE(s.times, ''), NFKC) !~ '(中断|延期|中止)'
 				) d ON TRUE
 				GROUP BY m.seq
 				""".formatted(values);

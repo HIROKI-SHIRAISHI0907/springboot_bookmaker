@@ -1,7 +1,12 @@
 package dev.web.api.bm_a030;
 
 import java.text.Normalizer;
+import java.time.Instant;
 import java.time.LocalDate;
+import java.time.OffsetDateTime;
+import java.time.format.DateTimeParseException;
+import java.util.ArrayList;
+import java.util.Comparator;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -27,8 +32,10 @@ import software.amazon.awssdk.services.s3.model.S3Object;
  *   <li>S3 へのアクセスは共通の {@link S3Operator} を使う（S3Client は DI されたもの）。
  *       一覧は {@link S3Operator#listObjectsByPrefixSortedByLastModifiedAsc} で「delay_postpone_＜日付＞」に絞って取る。</li>
  *   <li>バケット直下だけを見る（json/ フォルダの中は対象外）。</li>
- *   <li>指定日のファイルは全部読む。同じ試合が複数ファイルにあれば、最終更新日時が新しいファイルの値を使う。
- *       （連番の大小と更新順は一致しない。例: _2 が 06:02、番号なしが 12:01）</li>
+ *   <li>指定日と前日のファイルは全部読む（深夜の試合は前日のファイルにしか無いことがある）。同じ試合が複数ファイルにあれば、
+ *       ファイルの generated_at（作成日時）が新しいものの値を使う（読めなければ S3 の最終更新日時）。
+ *       （連番の大小と作成順は一致しない。例: _2 が 06:02、番号なしが 12:01。
+ *       また試合が再開するとバッチが中断・延期の試合をファイルから削除して書き直すので、最終更新日時は作成順にならない）</li>
  *   <li>試合は mid（URL の ?mid=）で突き合わせる。mid で見つからなければ home / away（NFKC・空白除去）で突き合わせる。</li>
  *   <li>読み込みに失敗しても画面は止めない（ログを出して「延期情報なし」として扱う）。</li>
  * </ul>
@@ -59,26 +66,35 @@ public class DelayPostponeS3Reader {
 	public DelayPostponeIndex load(LocalDate date) {
 		DelayPostponeIndex index = new DelayPostponeIndex();
 		String bucket = config.getS3BucketsOutputsDelayPostpone();
-		String prefix = "delay_postpone_" + date;
-		// バケット直下の delay_postpone_yyyy-MM-dd.json / delay_postpone_yyyy-MM-dd_N.json
-		Pattern keyPattern = Pattern.compile("^" + Pattern.quote(prefix) + "(_\\d+)?\\.json$");
 
-		List<S3Object> targets;
-		try {
-			// prefix で S3 側で絞り、最終更新日時の昇順（古い順に読み、新しいファイルで上書きする）
-			targets = s3Operator.listObjectsByPrefixSortedByLastModifiedAsc(bucket, prefix, keyPattern);
-		} catch (Exception e) {
-			log.warn("延期・遅延情報の一覧取得に失敗しました（s3://{}/{}*）", bucket, prefix, e);
-			return index;
+		// 前日分＋当日分を読む。スクレイピングは前日の実行で翌朝 5:00 までの試合も拾う（ecs_slots の計算範囲）ため、
+		// 深夜の試合は前日のファイルにしか無いことがある。
+		List<S3Object> targets = new ArrayList<>();
+		for (LocalDate d : List.of(date.minusDays(1), date)) {
+			String prefix = "delay_postpone_" + d;
+			// バケット直下の delay_postpone_yyyy-MM-dd.json / delay_postpone_yyyy-MM-dd_N.json
+			Pattern keyPattern = Pattern.compile("^" + Pattern.quote(prefix) + "(_\\d+)?\\.json$");
+			try {
+				targets.addAll(s3Operator.listObjectsByPrefixSortedByLastModifiedAsc(bucket, prefix, keyPattern));
+			} catch (Exception e) {
+				log.warn("延期・遅延情報の一覧取得に失敗しました（s3://{}/{}*）", bucket, prefix, e);
+			}
 		}
-
+		// 中身を先に読んでから、新しい順の判定をする。
+		// 試合が再開するとバッチがファイルから中断・延期の試合を削除して書き直す（S3 の最終更新日時が変わる）ため、
+		// ファイルの中の generated_at（作成日時）の昇順で読む。generated_at が読めなければ最終更新日時を使う。
+		List<LoadedFile> loaded = new ArrayList<>();
 		for (S3Object o : targets) {
 			try {
-				String json = s3Operator.downloadTextUtf8(bucket, o.key());
-				readJson(json, o.key(), index);
+				JsonNode root = objectMapper.readTree(s3Operator.downloadTextUtf8(bucket, o.key()));
+				loaded.add(new LoadedFile(o.key(), root, generatedAt(root, o)));
 			} catch (Exception e) {
 				log.warn("延期・遅延情報の読み込みに失敗しました（s3://{}/{}）", bucket, o.key(), e);
 			}
+		}
+		loaded.sort(Comparator.comparing((LoadedFile f) -> f.generatedAt).thenComparing(f -> f.key));
+		for (LoadedFile f : loaded) {
+			readJson(f.root, f.key, index);
 		}
 		// 反映されないときの切り分け用（読んだファイルと拾えた試合の数）
 		log.info("延期・遅延情報: bucket={}, date={}, files={}, matches={}",
@@ -88,7 +104,11 @@ public class DelayPostponeS3Reader {
 
 	/** 1ファイル分を index に入れる（同じ試合は後から読んだものが勝つ） */
 	void readJson(String json, String sourceKey, DelayPostponeIndex index) throws Exception {
-		JsonNode root = objectMapper.readTree(json);
+		readJson(objectMapper.readTree(json), sourceKey, index);
+	}
+
+	/** 1ファイル分を index に入れる（同じ試合は後から読んだものが勝つ） */
+	void readJson(JsonNode root, String sourceKey, DelayPostponeIndex index) {
 		for (String arrayName : MATCH_ARRAYS) {
 			JsonNode arr = root.path(arrayName);
 			if (!arr.isArray()) {
@@ -109,6 +129,32 @@ public class DelayPostponeS3Reader {
 				info.setSourceKey(sourceKey);
 				index.put(info);
 			}
+		}
+	}
+
+	/** ファイルの作成日時（generated_at）。読めなければ S3 の最終更新日時、それも無ければ最後扱い */
+	static Instant generatedAt(JsonNode root, S3Object o) {
+		String g = text(root, "generated_at");
+		if (g != null) {
+			try {
+				return OffsetDateTime.parse(g).toInstant();
+			} catch (DateTimeParseException e) {
+				// 最終更新日時を使う
+			}
+		}
+		return o.lastModified() == null ? Instant.MAX : o.lastModified();
+	}
+
+	/** 読み込んだ1ファイル */
+	private static final class LoadedFile {
+		final String key;
+		final JsonNode root;
+		final Instant generatedAt;
+
+		LoadedFile(String key, JsonNode root, Instant generatedAt) {
+			this.key = key;
+			this.root = root;
+			this.generatedAt = generatedAt;
 		}
 	}
 
