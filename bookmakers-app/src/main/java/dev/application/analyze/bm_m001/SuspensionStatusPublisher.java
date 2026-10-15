@@ -25,15 +25,17 @@ import software.amazon.awssdk.services.s3.model.S3Object;
 
 /**
  * リアルタイムデータ（CSV）の試合時間から「中断」「延期」「中止」「再開」を検知し、
- * delay_postpone_＜日付＞(_N).json を S3 に出力する（BM_M001。OriginService から呼ぶ）。
+ * delay_postpone_＜日付＞(_N).json を S3 に出力する／再開した試合を削除する（BM_M001。OriginService から呼ぶ）。
  *
  * <h2>何を出力するか</h2>
  * <table border="1">
- *   <tr><th>今回の CSV の最新の試合時間</th><th>前回までに出力した最後の状態</th><th>出力する status_type</th></tr>
+ *   <tr><th>今回の CSV の最新の試合時間</th><th>前回までに出力した最後の状態</th><th>やること</th></tr>
  *   <tr><td>中断・中断中</td><td>中断 以外</td><td>中断</td></tr>
  *   <tr><td>延期</td><td>延期 以外</td><td>延期（FutureStartFlgService が start_flg を 0 に戻す）</td></tr>
  *   <tr><td>中止</td><td>中止 以外</td><td>中止</td></tr>
- *   <tr><td>通常の試合時間（23' / ハーフタイム / 終了済 など）</td><td>中断・延期・中止</td><td>再開</td></tr>
+ *   <tr><td>通常の試合時間（23' / ハーフタイム / 終了済 など）</td><td>中断・延期・中止</td>
+ *       <td>前日分＋当日分の delay_postpone からその試合の 中断・延期・中止 を削除する（{@link DelayPostponeEntryRemover}）。
+ *       画面は通常の判定（更新あり／ライブ）に戻る</td></tr>
  * </table>
  * <p>
  * 状態が変わったときだけ出力する（リアルタイムデータは20分ごとに来るので、同じ「中断」を毎回出さない）。
@@ -90,13 +92,16 @@ public class SuspensionStatusPublisher {
 	private PostponedMatchReader postponedMatchReader;
 
 	@Autowired
+	private DelayPostponeEntryRemover delayPostponeEntryRemover;
+
+	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
 
 	/**
 	 * 今回の CSV から状態の変化を検知して出力する。
 	 *
 	 * @param csvMap 今回登録された CSV（key = CSV、value = その試合の行）
-	 * @return 出力した試合の数
+	 * @return 出力・削除した試合の数
 	 */
 	public int publish(Map<String, List<DataEntity>> csvMap) {
 		final String METHOD_NAME = "publish";
@@ -107,6 +112,7 @@ public class SuspensionStatusPublisher {
 		Map<String, PostponedMatchReader.PostponedMatch> previous = this.postponedMatchReader.loadLatestStatuses(today);
 
 		List<ObjectNode> items = new ArrayList<>();
+		List<DelayPostponeEntryRemover.Target> resumed = new ArrayList<>();
 		for (List<DataEntity> rows : csvMap.values()) {
 			DataEntity latest = CsvMatchStatus.latestRow(rows);
 			if (latest == null) {
@@ -127,15 +133,32 @@ public class SuspensionStatusPublisher {
 			if (out == null) {
 				continue;
 			}
-			items.add(item(latest, out));
+			if (CsvMatchStatus.RESUMED.equals(out)) {
+				// 再開: 出力せず、delay_postpone から中断・延期・中止を削除する
+				resumed.add(new DelayPostponeEntryRemover.Target(
+						latest.getMatchId(), latest.getHomeTeamName(), latest.getAwayTeamName()));
+			} else {
+				items.add(item(latest, out));
+			}
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 					"状態の変化を検知: " + prevStatus + " → " + out + " (times=" + latest.getTimes()
 							+ ", home=" + latest.getHomeTeamName() + ", away=" + latest.getAwayTeamName()
 							+ ", matchId=" + latest.getMatchId() + ")");
 		}
+		int count = 0;
+		if (!resumed.isEmpty()) {
+			try {
+				this.delayPostponeEntryRemover.remove(today, resumed);
+				count += resumed.size();
+			} catch (RuntimeException e) {
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+						"delay_postpone の削除に失敗（処理は続行）");
+			}
+		}
 		if (items.isEmpty()) {
-			return 0;
+			return count;
 		}
 
 		try {
@@ -143,24 +166,24 @@ public class SuspensionStatusPublisher {
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 					"delay_postpone を出力しました: " + key + " (" + items.size() + "試合)");
-			return items.size();
+			return count + items.size();
 		} catch (RuntimeException e) {
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
 					"delay_postpone の出力に失敗（処理は続行）");
-			return 0;
+			return count;
 		}
 	}
 
 	/**
-	 * 出力する status_type（出力しない場合は null）。
+	 * やること（出力する status_type。{@link CsvMatchStatus#RESUMED} は削除。何もしない場合は null）。
 	 *
 	 * @param now 今回の状態（中断 / 延期 / 中止 / 通常）
 	 * @param prev 前回までに出力した最後の状態（無ければ null）
 	 */
 	static String decide(String now, String prev) {
 		if (CsvMatchStatus.NORMAL.equals(now)) {
-			// 中断・延期・中止のあとに通常の試合時間 → 再開
+			// 中断・延期・中止のあとに通常の試合時間 → 再開（delay_postpone から削除）
 			if (CsvMatchStatus.SUSPENDED.equals(prev) || CsvMatchStatus.POSTPONED.equals(prev)
 					|| CsvMatchStatus.CANCELLED.equals(prev)) {
 				return CsvMatchStatus.RESUMED;
@@ -199,7 +222,7 @@ public class SuspensionStatusPublisher {
 		source.put("realtime_batch", "BM_M001");
 		ObjectNode filters = p.putObject("filters");
 		ArrayNode kw = filters.putArray("status_keywords");
-		kw.add(CsvMatchStatus.SUSPENDED).add(CsvMatchStatus.POSTPONED).add(CsvMatchStatus.CANCELLED).add(CsvMatchStatus.RESUMED);
+		kw.add(CsvMatchStatus.SUSPENDED).add(CsvMatchStatus.POSTPONED).add(CsvMatchStatus.CANCELLED);
 
 		ArrayNode scraped = p.putArray("scraped_flagged_matches");
 		ArrayNode matched = p.putArray("matched_delay_postpone_games");

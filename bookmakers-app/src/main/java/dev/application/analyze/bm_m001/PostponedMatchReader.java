@@ -30,9 +30,10 @@ import software.amazon.awssdk.services.s3.model.S3Object;
  * （FutureStartFlgService: 今、延期になっている試合 / SuspensionStatusPublisher: 前回出力した状態）。
  *
  * <ul>
- *   <li>前日分＋当日分のファイルを最終更新日時の古い順に読み、試合ごとに<b>一番新しい状態</b>を採用する
- *       （中断 → 延期 → 再開 のように変わった場合は最後の状態）。</li>
- *   <li>最後の状態が「延期」の試合だけを返す。</li>
+ *   <li>前日分＋当日分のファイルを作成日時（JSON の generated_at。無ければ S3 の最終更新日時）の古い順に読み、
+ *       試合ごとに<b>一番新しい状態</b>を採用する（中断 → 延期 のように変わった場合は最後の状態）。
+ *       再開した試合は {@link DelayPostponeEntryRemover} がファイルから削除する。</li>
+ *   <li>{@link #loadPostponed} は最後の状態が「延期」の試合だけを返す。</li>
  *   <li>試合は mid（URL の ?mid=）で、無ければ ホーム・アウェー（NFKC・空白除去）で同一判定する。</li>
  *   <li>読み込みに失敗しても例外は投げない（空の一覧を返し、ログを出す）。</li>
  * </ul>
@@ -52,7 +53,7 @@ public class PostponedMatchReader {
 	private static final String POSTPONED = "延期";
 
 	/** JSON の中で試合が入っている配列（後ろのものほど優先） */
-	private static final String[] MATCH_ARRAYS = {
+	static final String[] MATCH_ARRAYS = {
 			"scraped_flagged_matches",
 			"unresolved_unmatched_scraped_matches",
 			"carry_over_postponed_games",
@@ -135,33 +136,39 @@ public class PostponedMatchReader {
 				log(METHOD_NAME, "延期情報の一覧取得に失敗（s3://" + bucket + "/" + prefix + "*）: " + e.getMessage());
 			}
 		}
-		targets.sort(Comparator.comparing((S3Object o) -> o.lastModified() == null ? Instant.MAX : o.lastModified())
-				.thenComparing(S3Object::key));
+		// 中身を先に読み、ファイルの generated_at（作成日時）の古い順に並べる
+		// （再開時に DelayPostponeEntryRemover がファイルを書き直すと S3 の最終更新日時が変わるため）
+		List<LoadedFile> loaded = new ArrayList<>();
+		for (S3Object o : targets) {
+			try {
+				JsonNode root = MAPPER.readTree(s3Operator.downloadTextUtf8(bucket, o.key()));
+				loaded.add(new LoadedFile(o.key(), root, generatedAt(root, o.lastModified())));
+			} catch (Exception e) {
+				log(METHOD_NAME, "延期情報の読み込みに失敗（s3://" + bucket + "/" + o.key() + "）: " + e.getMessage());
+			}
+		}
+		loaded.sort(Comparator.comparing((LoadedFile f) -> f.generatedAt).thenComparing(f -> f.key));
 
 		// 試合キー → 最後の状態
 		Map<String, JsonNode> latest = new LinkedHashMap<>();
 		Map<String, String> latestStatus = new LinkedHashMap<>();
-		for (S3Object o : targets) {
-			try {
-				JsonNode root = MAPPER.readTree(s3Operator.downloadTextUtf8(bucket, o.key()));
-				for (String arrayName : MATCH_ARRAYS) {
-					JsonNode arr = root.path(arrayName);
-					if (!arr.isArray()) {
+		for (LoadedFile f : loaded) {
+			JsonNode root = f.root;
+			for (String arrayName : MATCH_ARRAYS) {
+				JsonNode arr = root.path(arrayName);
+				if (!arr.isArray()) {
+					continue;
+				}
+				for (JsonNode n : arr) {
+					String status = text(n, "status_type");
+					String key = matchKey(n);
+					if (status == null || key == null) {
 						continue;
 					}
-					for (JsonNode n : arr) {
-						String status = text(n, "status_type");
-						String key = matchKey(n);
-						if (status == null || key == null) {
-							continue;
-						}
-						// 同じファイル内で matched（ECS の開始時刻あり）を優先するため、後ろの配列で上書き
-						latest.put(key, n);
-						latestStatus.put(key, status);
-					}
+					// 同じファイル内で matched（ECS の開始時刻あり）を優先するため、後ろの配列で上書き
+					latest.put(key, n);
+					latestStatus.put(key, status);
 				}
-			} catch (Exception e) {
-				log(METHOD_NAME, "延期情報の読み込みに失敗（s3://" + bucket + "/" + o.key() + "）: " + e.getMessage());
 			}
 		}
 
@@ -177,6 +184,34 @@ public class PostponedMatchReader {
 		}
 		log(METHOD_NAME, "延期・中断などの情報: " + out.size() + "試合（読んだファイル: " + targets.size() + "件）");
 		return out;
+	}
+
+	/**
+	 * delay_postpone ファイルの作成日時（generated_at）。読めなければ S3 の最終更新日時、それも無ければ最後扱い。
+	 */
+	static Instant generatedAt(JsonNode root, Instant lastModified) {
+		String g = text(root, "generated_at");
+		if (g != null) {
+			try {
+				return OffsetDateTime.parse(g).toInstant();
+			} catch (RuntimeException e) {
+				// 最終更新日時を使う
+			}
+		}
+		return lastModified == null ? Instant.MAX : lastModified;
+	}
+
+	/** 読み込んだ1ファイル */
+	private static final class LoadedFile {
+		final String key;
+		final JsonNode root;
+		final Instant generatedAt;
+
+		LoadedFile(String key, JsonNode root, Instant generatedAt) {
+			this.key = key;
+			this.root = root;
+			this.generatedAt = generatedAt;
+		}
 	}
 
 	private static String matchKey(JsonNode n) {
@@ -196,7 +231,7 @@ public class PostponedMatchReader {
 		return "team:" + squash(home) + "\u0000" + squash(away);
 	}
 
-	private static String squash(String s) {
+	static String squash(String s) {
 		return Normalizer.normalize(s, Normalizer.Form.NFKC).replaceAll("\\s+", "");
 	}
 
@@ -212,7 +247,7 @@ public class PostponedMatchReader {
 		}
 	}
 
-	private static String text(JsonNode n, String field) {
+	static String text(JsonNode n, String field) {
 		if (n == null) {
 			return null;
 		}
