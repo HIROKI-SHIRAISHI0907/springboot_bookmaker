@@ -15,6 +15,10 @@ import dev.common.logger.ManageLoggerComponent;
 
 /**
  * BM_M001統計分析ロジック
+ *
+ * <p>2026-10 追加: リアルタイムデータの試合時間から「中断」「延期」「中止」「再開」を検知して
+ * delay_postpone_＜日付＞.json を出力する（{@link SuspensionStatusPublisher}）。
+ * 延期の出力を同じ実行の start_flg の戻し（{@link FutureStartFlgService}）に反映するため、未来データフラグ更新の前に行う。</p>
  * @author shiraishitoshio
  *
  */
@@ -45,6 +49,12 @@ public class OriginService implements OriginIF {
 	 */
 	@Autowired
 	private RealDataProcessStat realDataProcessStat;
+
+	/**
+	 * 中断・延期などの検知（delay_postpone 出力）
+	 */
+	@Autowired
+	private SuspensionStatusPublisher suspensionStatusPublisher;
 
 	/**
 	 * 未来データフラグサービス
@@ -88,6 +98,20 @@ public class OriginService implements OriginIF {
 		// BM_M029登録・更新(Transactional)
 		try {
 			this.realDataProcessStat.calcStat(getStatMap);
+		} catch (Exception e) {
+			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+			this.loggerComponent.createSystemException(
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					messageCd,
+					null,
+					e);
+		}
+
+		// 中断・延期・中止・再開の検知（delay_postpone 出力。失敗しても例外は投げない）
+		try {
+			this.suspensionStatusPublisher.publish(getStatMap);
 		} catch (Exception e) {
 			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			this.loggerComponent.createSystemException(
