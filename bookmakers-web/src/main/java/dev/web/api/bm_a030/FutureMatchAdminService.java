@@ -27,7 +27,7 @@ import lombok.RequiredArgsConstructor;
  *   <li>その試合の static_data（bmJdbcTemplate）の登録状況をまとめて取得
  *       （DB が別なので JOIN せず、2回に分けて Java 側で突き合わせる）</li>
  *   <li>S3 の延期・遅延情報（delay_postpone_＜日付＞*.json）を mid / チーム名で突き合わせる</li>
- *   <li>リアルタイムデータの状態を {@link RealtimeStatusResolver} で決める</li>
+ *   <li>システムデータ・リアルタイム情報の状態を {@link MatchStatusResolver} で決める</li>
  * </ol>
  * @author shiraishitoshio
  *
@@ -95,18 +95,26 @@ public class FutureMatchAdminService {
 			}
 
 			DelayPostponeInfo delay = delays.find(r.getMid(), r.getHomeTeamName(), r.getAwayTeamName());
-			if (delay != null) {
+			// 日付が合わない情報（別の日に変わった延期の試合の古い延期など）は使わない
+			if (delay != null && DelayPostponeS3Reader.appliesTo(delay, r.getFutureTimeLocal())) {
 				dto.getRealtimeData().setDelayStatusType(delay.getStatusType());
 				dto.getRealtimeData().setDelayStatusText(delay.getStatusText());
 			}
 
-			RealtimeStatusResolver.Result rs = RealtimeStatusResolver.resolve(
-					r.getFutureTimeLocal(),
-					dto.getRealtimeData().getLastUpdatedAt(),
-					dto.getRealtimeData().getDelayStatusType(),
-					now);
-			dto.getRealtimeData().setStatus(rs.status);
-			dto.getRealtimeData().setStatusReason(rs.reason);
+			// システムデータ・リアルタイム情報の状態（試合予定データ画面.xlsx の仕様）
+			MatchStatusResolver.Input in = new MatchStatusResolver.Input();
+			in.futureTimeLocal = r.getFutureTimeLocal();
+			in.startFlg = r.getStartFlg();
+			in.finishedCount = dto.getSystemData().getFinishedCount() == null ? 0 : dto.getSystemData().getFinishedCount();
+			in.liveCount = dto.getSystemData().getLiveCount() == null ? 0 : dto.getSystemData().getLiveCount();
+			in.lastUpdatedAt = dto.getRealtimeData().getLastUpdatedAt();
+			in.delayStatusType = dto.getRealtimeData().getDelayStatusType();
+			MatchStatusResolver.Result rs = MatchStatusResolver.resolve(in, now);
+			dto.getSystemData().setLastUpdatedAt(in.lastUpdatedAt);
+			dto.getSystemData().setStatus(rs.system.status);
+			dto.getSystemData().setStatusReason(rs.system.reason);
+			dto.getRealtimeData().setStatus(rs.realtime.status);
+			dto.getRealtimeData().setStatusReason(rs.realtime.reason);
 			matches.add(dto);
 		}
 

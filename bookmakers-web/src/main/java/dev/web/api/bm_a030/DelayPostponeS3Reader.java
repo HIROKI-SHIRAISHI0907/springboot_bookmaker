@@ -2,7 +2,11 @@ package dev.web.api.bm_a030;
 
 import java.text.Normalizer;
 import java.time.Instant;
+import java.time.Duration;
 import java.time.LocalDate;
+import java.time.LocalDateTime;
+import java.time.ZoneId;
+import java.time.format.DateTimeFormatter;
 import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
@@ -11,7 +15,6 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
-import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
@@ -94,21 +97,21 @@ public class DelayPostponeS3Reader {
 		}
 		loaded.sort(Comparator.comparing((LoadedFile f) -> f.generatedAt).thenComparing(f -> f.key));
 		for (LoadedFile f : loaded) {
-			readJson(f.root, f.key, index);
+			readJson(f.root, f.key, f.generatedAt, index);
 		}
 		// 反映されないときの切り分け用（読んだファイルと拾えた試合の数）
 		log.info("延期・遅延情報: bucket={}, date={}, files={}, matches={}",
-				bucket, date, targets.stream().map(S3Object::key).collect(Collectors.toList()), index.size());
+				bucket, date, targets.stream().map(S3Object::key).toList(), index.size());
 		return index;
 	}
 
 	/** 1ファイル分を index に入れる（同じ試合は後から読んだものが勝つ） */
 	void readJson(String json, String sourceKey, DelayPostponeIndex index) throws Exception {
-		readJson(objectMapper.readTree(json), sourceKey, index);
+		readJson(objectMapper.readTree(json), sourceKey, null, index);
 	}
 
 	/** 1ファイル分を index に入れる（同じ試合は後から読んだものが勝つ） */
-	void readJson(JsonNode root, String sourceKey, DelayPostponeIndex index) {
+	void readJson(JsonNode root, String sourceKey, Instant fileTime, DelayPostponeIndex index) {
 		for (String arrayName : MATCH_ARRAYS) {
 			JsonNode arr = root.path(arrayName);
 			if (!arr.isArray()) {
@@ -127,6 +130,16 @@ public class DelayPostponeS3Reader {
 				info.setHome(text(n, "home"));
 				info.setAway(text(n, "away"));
 				info.setSourceKey(sourceKey);
+				info.setStart(toLocal(text(n, "start")));
+				String detected = toLocal(text(n, "scraped_at"));
+				JsonNode scraped = n.get("scraped");
+				if (detected == null && scraped != null) {
+					detected = toLocal(text(scraped, "scraped_at"));
+				}
+				if (detected == null && fileTime != null && !Instant.MAX.equals(fileTime)) {
+					detected = fileTime.atZone(JST).toLocalDateTime().format(LOCAL_FMT);
+				}
+				info.setDetectedAt(detected);
 				index.put(info);
 			}
 		}
@@ -167,6 +180,48 @@ public class DelayPostponeS3Reader {
 		return s.isEmpty() ? null : s;
 	}
 
+	private static final ZoneId JST = ZoneId.of("Asia/Tokyo");
+
+	private static final DateTimeFormatter LOCAL_FMT = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
+
+	/** 予定の試合開始日時と延期等の情報の基準時刻がこれ以上離れていたら、その予定の情報として使わない */
+	static final Duration MAX_GAP = Duration.ofDays(1);
+
+	/** ISO（+09:00）→ "yyyy-MM-dd HH:mm:ss"（日本時間）。読めなければ null */
+	static String toLocal(String iso) {
+		if (iso == null) {
+			return null;
+		}
+		try {
+			return OffsetDateTime.parse(iso).atZoneSameInstant(JST).toLocalDateTime().format(LOCAL_FMT);
+		} catch (DateTimeParseException e) {
+			return null;
+		}
+	}
+
+	/**
+	 * 延期等の情報がこの予定（試合開始日時）のものとして使えるか。
+	 * 基準時刻（元の試合開始日時、無ければ検知した日時）と試合開始日時が1日を超えて離れていれば使わない
+	 * （延期の試合が別の日に変わり、delay_postpone に古い延期が残っている場合に、新しい日の予定を延期と表示しないため）。
+	 * どちらかが分からなければ使う。
+	 */
+	static boolean appliesTo(DelayPostponeInfo info, String futureTimeLocal) {
+		if (info == null) {
+			return false;
+		}
+		String base = info.getStart() != null ? info.getStart() : info.getDetectedAt();
+		if (base == null || futureTimeLocal == null) {
+			return true;
+		}
+		try {
+			LocalDateTime b = LocalDateTime.parse(base, LOCAL_FMT);
+			LocalDateTime f = LocalDateTime.parse(futureTimeLocal.trim(), LOCAL_FMT);
+			return Duration.between(b, f).abs().compareTo(MAX_GAP) <= 0;
+		} catch (DateTimeParseException e) {
+			return true;
+		}
+	}
+
 	static String teamKey(String home, String away) {
 		return squash(home) + "\u0000" + squash(away);
 	}
@@ -187,6 +242,10 @@ public class DelayPostponeS3Reader {
 		private String away;
 		/** 読み込んだ S3 キー */
 		private String sourceKey;
+		/** 元の試合開始日時（"yyyy-MM-dd HH:mm:ss"・日本時間。無ければ null） */
+		private String start;
+		/** 検知した日時（"yyyy-MM-dd HH:mm:ss"・日本時間。無ければ null） */
+		private String detectedAt;
 	}
 
 	/** mid / home・away で引ける索引 */
