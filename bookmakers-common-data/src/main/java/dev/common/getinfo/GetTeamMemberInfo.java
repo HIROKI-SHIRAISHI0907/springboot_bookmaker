@@ -1,11 +1,13 @@
 package dev.common.getinfo;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.util.ArrayList;
-import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Callable;
+import java.util.concurrent.ExecutionException;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 import java.util.concurrent.Future;
@@ -25,9 +27,22 @@ import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.ReadTeamMember;
 import dev.common.readfile.dto.ReadFileOutputDTO;
 import dev.common.s3.S3Operator;
+import dev.common.util.CsvContentUtil;
 
 /**
  * 選手情報取得管理クラス
+ *
+ * <p>2026-10 修正（ヘッダしかない CSV が S3 に残り続ける問題）</p>
+ * <ul>
+ *   <li>以前はデータ行が 0 件のファイル（ヘッダのみ）を結果に入れていなかったため、全ファイルがヘッダのみだと
+ *       結果が空になり、バッチが「データなし」で終わって S3 のファイルが削除されなかった（毎回同じファイルを読み続ける）。</li>
+ *   <li>→ 読めたがデータ行が 0 件のファイルも、key = S3 キー、value = 空のリスト で結果に入れる。
+ *       ヘッダのみかは読み込みクラスに渡す前に判定する（{@link CsvContentUtil#isHeaderOnly}。ReadTeamMember の返し方に左右されない）。
+ *       呼び出し側（B002）はこのキーも削除対象にする。</li>
+ *   <li>読み込みに失敗したファイル（タイムアウト・例外・結果なし）は結果に入れない（削除せず、次回もう一度読む）。
+ *       以前は 1 ファイルの例外で全体が null（何も登録しない）になっていたが、そのファイルだけ飛ばして他は続ける。</li>
+ * </ul>
+ * <p>戻り値: key = ファイル（S3 キー）、value = その選手データ（ヘッダのみなら空のリスト）。S3 の一覧取得・スレッドの失敗時は null。</p>
  * @author shiraishitoshio
  *
  */
@@ -47,6 +62,9 @@ public class GetTeamMemberInfo {
 	/** 取得バケット正規表現：teamMemberData_X.csv */
 	private static final Pattern TEAM_MEMBER_SEQ =
 	        Pattern.compile("^teamMemberData_(\\d+)\\.csv$");
+
+	/** ヘッダのみのファイルを表す読み込み結果 */
+	private static final Object HEADER_ONLY = new Object();
 
 	/** S3オペレーター */
 	@Autowired
@@ -81,7 +99,8 @@ public class GetTeamMemberInfo {
 	    		  (keys==null ? null : keys.stream().limit(5).collect(Collectors.toList()))
 	    		);
 
-        Map<String, List<TeamMemberMasterEntity>> resultMap = new HashMap<>();
+        // 連番順を保つ
+        Map<String, List<TeamMemberMasterEntity>> resultMap = new LinkedHashMap<>();
 
         if (keys == null || keys.isEmpty()) {
         	String msgCd = MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP;
@@ -93,33 +112,87 @@ public class GetTeamMemberInfo {
         int poolSize = Math.min(8, keys.size());
         ExecutorService executor = Executors.newFixedThreadPool(poolSize);
 
+        int emptyFiles = 0;
+        int failedFiles = 0;
         try {
-            List<Callable<ReadFileOutputDTO>> tasks = new ArrayList<>(keys.size());
+            List<Callable<Object>> tasks = new ArrayList<>(keys.size());
             for (String key : keys) {
                 tasks.add(() -> {
+                    byte[] bytes;
                     try (InputStream is = s3Operator.download(bucket, key)) {
+                        bytes = is.readAllBytes();
+                    }
+                    // ヘッダのみは読み込みクラスに渡さない
+                    if (CsvContentUtil.isHeaderOnly(bytes)) {
+                        return HEADER_ONLY;
+                    }
+                    try (InputStream is = new ByteArrayInputStream(bytes)) {
                         return readTeamMember.getFileBodyFromStream(is, key);
                     }
                 });
             }
 
-            List<Future<ReadFileOutputDTO>> futures = executor.invokeAll(tasks, 60, TimeUnit.SECONDS);
+            // invokeAll の結果は tasks と同じ順番（i 番目 = keys の i 番目）
+            List<Future<Object>> futures = executor.invokeAll(tasks, 60, TimeUnit.SECONDS);
 
-            for (Future<ReadFileOutputDTO> f : futures) {
+            for (int i = 0; i < futures.size(); i++) {
+                String s3Key = keys.get(i);
+                Future<Object> f = futures.get(i);
+
                 if (f.isCancelled()) {
+                    failedFiles++;
                     this.manageLoggerComponent.debugErrorLog(
-                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ReadTeamMemberS3 timeout/cancel", null);
+                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ReadTeamMemberS3 timeout/cancel", null,
+                            "key=" + s3Key + "（削除せず次回もう一度読む）");
                     continue;
                 }
 
-                ReadFileOutputDTO dto = f.get();
-                if (dto == null) continue;
+                Object res;
+                try {
+                    res = f.get();
+                } catch (ExecutionException e) {
+                    // このファイルだけ飛ばす（削除せず次回もう一度読む）
+                    failedFiles++;
+                    this.manageLoggerComponent.debugErrorLog(
+                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ReadTeamMemberS3 read failed", e,
+                            "key=" + s3Key + "（削除せず次回もう一度読む）");
+                    continue;
+                }
 
-                // 異常系コードでも「読めた分は返したい」なら continue にする（今の方針に合わせて）
-                if (dto.getMemberList() == null || dto.getMemberList().isEmpty()) continue;
+                if (res == HEADER_ONLY) {
+                    emptyFiles++;
+                    resultMap.putIfAbsent(s3Key, new ArrayList<>());
+                    this.manageLoggerComponent.debugInfoLog(
+                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+                            "データ行なし（ヘッダのみ）のため登録せず削除対象にします: key=" + s3Key);
+                    continue;
+                }
 
-                String key = dto.getMemberList().get(0).getFile();
-                resultMap.computeIfAbsent(key, k -> new ArrayList<>()).addAll(dto.getMemberList());
+                ReadFileOutputDTO dto = (ReadFileOutputDTO) res;
+                if (dto == null) {
+                    failedFiles++;
+                    this.manageLoggerComponent.debugErrorLog(
+                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ReadTeamMemberS3 no result", null,
+                            "key=" + s3Key + "（削除せず次回もう一度読む）");
+                    continue;
+                }
+
+                List<TeamMemberMasterEntity> members = dto.getMemberList();
+                if (members == null || members.isEmpty()) {
+                    // 読み込みクラスが 0 件と判定した場合もヘッダのみ扱い: 空のリストで返し、呼び出し側で削除対象にする
+                    emptyFiles++;
+                    resultMap.putIfAbsent(s3Key, new ArrayList<>());
+                    this.manageLoggerComponent.debugInfoLog(
+                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+                            "データ行なし（ヘッダのみ）のため登録せず削除対象にします: key=" + s3Key);
+                    continue;
+                }
+
+                String fileKey = members.get(0).getFile();
+                if (fileKey == null || fileKey.isBlank()) {
+                    fileKey = s3Key;
+                }
+                resultMap.computeIfAbsent(fileKey, k -> new ArrayList<>()).addAll(members);
             }
 
         } catch (Exception e) {
@@ -137,6 +210,9 @@ public class GetTeamMemberInfo {
                 Thread.currentThread().interrupt();
             }
         }
+
+        log.info("[B002] 読み込み結果: files={} (データあり={}, ヘッダのみ={}, 読み込み失敗={})",
+                keys.size(), resultMap.size() - emptyFiles, emptyFiles, failedFiles);
         return resultMap;
     }
 }

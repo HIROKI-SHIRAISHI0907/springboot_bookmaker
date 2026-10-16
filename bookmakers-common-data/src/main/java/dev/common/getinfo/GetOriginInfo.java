@@ -1,5 +1,6 @@
 package dev.common.getinfo;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.lang.reflect.Method;
 import java.nio.file.Files;
@@ -36,8 +37,22 @@ import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.ReadOrigin;
 import dev.common.readfile.dto.ReadFileOutputDTO;
 import dev.common.s3.S3Operator;
+import dev.common.util.CsvContentUtil;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * 起源データ取得管理クラス
+ *
+ * <p>2026-10 修正（ヘッダしかない CSV が S3 に残り続ける問題）</p>
+ * <ul>
+ *   <li>ヘッダのみ（データ行 0 件）のファイルは、読み込みクラスに渡す前に判定し（{@link CsvContentUtil#isHeaderOnly}）、
+ *       key = S3 キー、value = 空のリスト で返す。
+ *       （以前は ReadOrigin の判定次第で「読み込み失敗」扱いになり、結果に入らず削除されずに毎回読み続けることがあった）</li>
+ *   <li>読み込みクラスが 0 件と判定した場合も、空のリスト（変更可能な ArrayList）で返す。</li>
+ *   <li>読み込みに失敗したファイルは今までどおり結果に入れない（削除せず次回もう一度読む）。</li>
+ *   <li>読み込み結果の件数ログ（データあり / ヘッダのみ / 読み込み失敗）を追加。</li>
+ * </ul>
+ */
 @Slf4j
 @Component
 public class GetOriginInfo {
@@ -60,12 +75,16 @@ public class GetOriginInfo {
 	 */
 	private static final Pattern KEY_PATTERN = Pattern
 			.compile("^(\\d{4}-\\d{2}-\\d{2})/mid=([^/]+)/seq=([^_/]+)_(.+)\\.csv$");
+
 	@Autowired
 	private PathConfig config;
+
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
+
 	@Autowired
 	private S3Operator s3Operator;
+
 	@Autowired
 	private ReadOrigin readOrigin;
 
@@ -73,18 +92,20 @@ public class GetOriginInfo {
 	 * S3上の対象CSVを読み込み、S3 key -> DataEntity一覧 で返す。
 	 * 戻り値のMapのキーは「ローカルファイルパス」ではなく「S3 key」であることに注意。
 	 * ダウンロード先のローカル実ファイルパスが必要な場合は {@link #resolveLocalPath(String)} を使うこと。
+	 * ヘッダのみのファイルは value = 空のリスト で返す（呼び出し側で登録せずに削除する）。
 	 */
 	public LinkedHashMap<String, List<DataEntity>> getData(List<?> items) {
 		final String METHOD_NAME = "getData";
 		String bucket = config.getS3BucketsOutputs();
 		String outputFolder = safeOutputFolder();
+
 		// 1) 全走査して matcher に合うkeyだけ抽出
 		List<String> matchedKeys = listAllMatchedKeys(bucket, OUTPUTS_CSV_KEY, items);
 		log.info("[B001] S3 bucket={} prefix={} keys.size={} keys(sample)={}",
 				bucket, OUTPUTS_CSV_KEY,
 				(matchedKeys == null ? -1 : matchedKeys.size()),
 				(matchedKeys == null ? null : matchedKeys.stream().limit(5).collect(Collectors.toList())));
-		if (matchedKeys.isEmpty()) {
+		if (matchedKeys == null || matchedKeys.isEmpty()) {
 			manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP, "データなし(S3)");
@@ -104,6 +125,9 @@ public class GetOriginInfo {
 		}
 
 		LinkedHashMap<String, List<DataEntity>> result = new LinkedHashMap<>();
+		int emptyFiles = 0;
+		int failedFiles = 0;
+
 		ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
 		try {
 			List<Callable<ReadOneResult>> tasks = new ArrayList<>();
@@ -112,10 +136,12 @@ public class GetOriginInfo {
 			}
 			List<Future<ReadOneResult>> futures = executor.invokeAll(tasks, INVOKE_ALL_TIMEOUT_MINUTES,
 					TimeUnit.MINUTES);
+
 			for (int i = 0; i < futures.size(); i++) {
 				Future<ReadOneResult> f = futures.get(i);
 				String targetKey = orderedKeys.get(i);
 				if (f.isCancelled()) {
+					failedFiles++;
 					manageLoggerComponent.debugErrorLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 							MessageCdConst.MCD00003E_EXECUTION_SKIP,
@@ -126,6 +152,7 @@ public class GetOriginInfo {
 				try {
 					ReadOneResult r = f.get();
 					if (r == null) {
+						failedFiles++;
 						manageLoggerComponent.debugErrorLog(
 								PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 								MessageCdConst.MCD00003E_EXECUTION_SKIP,
@@ -134,6 +161,7 @@ public class GetOriginInfo {
 						continue;
 					}
 					if (!r.ok) {
+						failedFiles++;
 						log.error("[THROWABLE ERROR] ReadOriginS3 detail error: {}", r.thrown);
 						manageLoggerComponent.debugErrorLog(
 								PROJECT_NAME, CLASS_NAME, METHOD_NAME,
@@ -145,8 +173,21 @@ public class GetOriginInfo {
 										+ ", localPath=" + nvl(r.localPath));
 						continue;
 					}
-					result.put(r.s3Key, r.entities == null ? Collections.emptyList() : r.entities);
+
+					// ヘッダのみ（読み込みクラスが 0 件と判定した場合も含む）: 空のリストで返し、削除対象にする
+					if (r.entities == null || r.entities.isEmpty()) {
+						emptyFiles++;
+						result.put(r.s3Key, new ArrayList<>());
+						manageLoggerComponent.debugInfoLog(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+								MessageCdConst.MCD00099I_LOG,
+								"データ行なし（ヘッダのみ）のため登録せず削除対象にします: s3Key=" + r.s3Key);
+						continue;
+					}
+
+					result.put(r.s3Key, r.entities);
 				} catch (Exception e) {
+					failedFiles++;
 					manageLoggerComponent.debugErrorLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 							MessageCdConst.MCD00003E_EXECUTION_SKIP,
@@ -172,6 +213,9 @@ public class GetOriginInfo {
 		} finally {
 			shutdownExecutor(executor);
 		}
+
+		log.info("[B001] 読み込み結果: files={} (データあり={}, ヘッダのみ={}, 読み込み失敗={})",
+				orderedKeys.size(), result.size() - emptyFiles, emptyFiles, failedFiles);
 		return result;
 	}
 
@@ -186,7 +230,7 @@ public class GetOriginInfo {
 	}
 
 	/**
-	 * S3の1CSVをローカル保存し、readOriginで解析する。
+	 * S3の1CSVをローカル保存し、ヘッダのみか判定してから readOrigin で解析する。
 	 */
 	private ReadOneResult readOne(String bucket, String s3Key, String outputFolder) {
 		final String METHOD_NAME = "readOne";
@@ -213,7 +257,24 @@ public class GetOriginInfo {
 					null);
 		}
 
-		try (InputStream is = Files.newInputStream(local)) {
+		byte[] bytes;
+		try {
+			bytes = Files.readAllBytes(local);
+		} catch (Exception e) {
+			return ReadOneResult.fail(
+					s3Key,
+					local.toString(),
+					e,
+					ReadPhase.OPEN_STREAM_OR_PARSE.name(),
+					null);
+		}
+
+		// ヘッダのみは読み込みクラスに渡さない（ReadOrigin の返し方に左右されない。空のリスト = 削除対象）
+		if (CsvContentUtil.isHeaderOnly(bytes)) {
+			return ReadOneResult.ok(s3Key, local.toString(), new ArrayList<>());
+		}
+
+		try (InputStream is = new ByteArrayInputStream(bytes)) {
 			ReadFileOutputDTO dto = readOrigin.getFileBodyFromStream(is, s3Key);
 			if (dto == null) {
 				return ReadOneResult.fail(
@@ -235,7 +296,7 @@ public class GetOriginInfo {
 
 			List<DataEntity> list = dto.getDataList();
 			if (list == null) {
-				list = Collections.emptyList();
+				list = new ArrayList<>();
 			}
 
 			for (DataEntity entity : list) {

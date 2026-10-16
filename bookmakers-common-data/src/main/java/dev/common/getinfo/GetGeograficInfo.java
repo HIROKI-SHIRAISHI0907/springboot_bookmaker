@@ -1,6 +1,8 @@
 package dev.common.getinfo;
 
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.slf4j.Logger;
@@ -16,9 +18,22 @@ import dev.common.logger.ManageLoggerComponent;
 import dev.common.readfile.ReadGeografic;
 import dev.common.readfile.dto.ReadFileOutputDTO;
 import dev.common.s3.S3Operator;
+import dev.common.util.CsvContentUtil;
 
 /**
  * 地理情報取得管理クラス
+ *
+ * <p>2026-10 修正（ヘッダしかない CSV が S3 に残り続ける問題）</p>
+ * <ul>
+ *   <li>ファイルが無い場合は「データなし」で null を返す（B015 がまだ動いていない通常のケース。エラーログにしない）。</li>
+ *   <li>ヘッダのみ（データ行 0 件）のファイルは、読み込みクラスに渡す前に判定し（{@link CsvContentUtil#isHeaderOnly}）、
+ *       空のリストを返す。B014 は登録せずに、結果 CSV と入力 JSON を削除する。
+ *       （以前は null を返していたため、削除されずに毎回同じファイルを読み続けていた）</li>
+ *   <li>読み込みクラスが 0 件と判定した場合も同じく空のリストを返す。</li>
+ *   <li>ダウンロード失敗・読み込み失敗は null（削除せず次回もう一度読む）。</li>
+ *   <li>ログのラベルを [B015] から [B014] に修正。</li>
+ * </ul>
+ * <p>戻り値: null = ファイルなし・読み込み失敗（何もしない）、空のリスト = ヘッダのみ（削除だけ行う）、それ以外 = 登録対象。</p>
  * @author shiraishitoshio
  *
  */
@@ -34,6 +49,9 @@ public class GetGeograficInfo {
 
 	/** LoggerFactory */
 	private static final Logger log = LoggerFactory.getLogger(GetGeograficInfo.class);
+
+	/** 取得対象ファイル（B015 の結果 CSV） */
+	public static final String GEOGRAFIC_RESULT_KEY = "output/b015_team_location.csv";
 
 	/** S3オペレーター */
 	@Autowired
@@ -59,35 +77,70 @@ public class GetGeograficInfo {
 	public List<TeamLocationEntity> getData() {
 		final String METHOD_NAME = "getData";
 
-        String bucket = config.getS3Geografic();
-        String key = "output/b015_team_location.csv";    // outputsフォルダ
-        log.info("[B015] S3 bucket={} prefix={} ",
-	    		  bucket, key
-	    		);
+		String bucket = config.getS3Geografic();
+		String key = GEOGRAFIC_RESULT_KEY; // outputsフォルダ
 
-        try (InputStream is = s3Operator.download(bucket, key)) {
-            ReadFileOutputDTO dto = readGeografic.getFileBodyFromStream(is, key);
-            if (!BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
-            	String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
-    	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME,
-    	        		METHOD_NAME, msgCd, null, "S3 b015_team_location.csv 読み込みエラー");
-            	this.manageLoggerComponent.createBusinessException(
-        	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, null);
-            }
+		log.info("[B014] S3 bucket={} key={}", bucket, key);
 
-            List<TeamLocationEntity> entity = dto.getTeamLocationList();
-            if (entity == null || entity.isEmpty()) {
-            	String msgCd = MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP;
-    	        this.manageLoggerComponent.debugInfoLog(
-    	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, "データなし(S3)");
-                return null;
-            }
-            return entity;
+		// ファイルが無い場合は「データなし」（エラーにしない）
+		try {
+			if (!s3Operator.existsOnS3(bucket, key)) {
+				String msgCd = MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP;
+				this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, "データなし(S3: ファイルなし)");
+				return null;
+			}
+		} catch (Exception e) {
+			// 存在確認に失敗した場合は、従来どおりダウンロードを試みる
+			log.warn("[B014] S3 存在確認に失敗（ダウンロードを試みます）: {}", e.toString());
+		}
 
-        } catch (Exception e) {
-        	String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
-	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e, "S3 b015_team_location.csv ダウンロードエラー");
-            return null;
-        }
+		byte[] bytes;
+		try (InputStream is = s3Operator.download(bucket, key)) {
+			bytes = is.readAllBytes();
+		} catch (Exception e) {
+			String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
+			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e,
+					"S3 b015_team_location.csv ダウンロードエラー（削除せず次回もう一度読む）");
+			return null;
+		}
+
+		// ヘッダのみ: 読み込みクラスに渡さず、空のリストを返す（B014 でファイルを削除する）
+		if (CsvContentUtil.isHeaderOnly(bytes)) {
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					"データ行なし（ヘッダのみ）のため登録せず削除対象にします: key=" + key);
+			return new ArrayList<>();
+		}
+
+		try (InputStream is = new ByteArrayInputStream(bytes)) {
+			ReadFileOutputDTO dto = readGeografic.getFileBodyFromStream(is, key);
+
+			if (dto == null || !BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
+				String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
+				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null,
+						"S3 b015_team_location.csv 読み込みエラー（削除せず次回もう一度読む）"
+								+ (dto == null ? " 読み込み結果なし" : ""));
+				return null;
+			}
+
+			List<TeamLocationEntity> entity = dto.getTeamLocationList();
+			if (entity == null || entity.isEmpty()) {
+				// 読み込みクラスが 0 件と判定した場合もヘッダのみ扱い（削除対象）
+				String msgCd = MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP;
+				this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd,
+						"データなし（登録せず削除対象にします） key=" + key);
+				return new ArrayList<>();
+			}
+
+			return entity;
+
+		} catch (Exception e) {
+			String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
+			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e,
+					"S3 b015_team_location.csv 読み込みエラー（削除せず次回もう一度読む）");
+			return null;
+		}
 	}
 }
