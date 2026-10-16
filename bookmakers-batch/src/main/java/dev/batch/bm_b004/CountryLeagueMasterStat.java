@@ -22,6 +22,12 @@ import dev.common.util.FileDeleteUtil;
  * - 既存データは必要時 update
  * - 新規/更新どちらも initial_reading_master_csv に反映
  *
+ * <p>2026-10 修正（ヘッダしかない CSV が S3 に残り続ける問題）</p>
+ * <ul>
+ *   <li>{@link #deleteProcessedFile(String)} を追加: 登録対象が 0 件（ヘッダのみ）のファイルを、B004 から削除だけ行う。</li>
+ *   <li>masterStat の削除処理も同じメソッドを使う。</li>
+ * </ul>
+ *
  * @author shiraishitoshio
  */
 @Component
@@ -64,8 +70,6 @@ public class CountryLeagueMasterStat implements MasterEntityIF {
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		List<String> insertPath = new ArrayList<>();
-
 		try {
 			CountryLeagueDBService.MasterUpsertPlan plan = this.countryLeagueDBService.selectInBatch(entities);
 
@@ -93,6 +97,29 @@ public class CountryLeagueMasterStat implements MasterEntityIF {
 			throw new Exception(messageCd, e);
 		}
 
+		// 途中で例外が起きなければファイルを削除する
+		deleteProcessedFile(file, METHOD_NAME);
+
+		this.manageLoggerComponent.debugEndInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+		this.manageLoggerComponent.clear();
+	}
+
+	/**
+	 * 処理済みのファイルを S3 から削除する（2026-10 追加）。
+	 * 登録対象が 0 件（ヘッダのみ）のファイルは、B004 からこれだけを呼ぶ。
+	 *
+	 * @param file 削除するファイル（S3 キー）
+	 */
+	public void deleteProcessedFile(String file) {
+		deleteProcessedFile(file, "deleteProcessedFile");
+	}
+
+	private void deleteProcessedFile(String file, String methodName) {
+		if (file == null || file.isBlank()) {
+			return;
+		}
+		List<String> insertPath = new ArrayList<>();
 		insertPath.add(file);
 
 		String bucket = config.getS3BucketsTeamData();
@@ -103,11 +130,7 @@ public class CountryLeagueMasterStat implements MasterEntityIF {
 				manageLoggerComponent,
 				PROJECT_NAME,
 				CLASS_NAME,
-				METHOD_NAME,
+				methodName,
 				"TEAM_MASTER");
-
-		this.manageLoggerComponent.debugEndInfoLog(
-				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-		this.manageLoggerComponent.clear();
 	}
 }

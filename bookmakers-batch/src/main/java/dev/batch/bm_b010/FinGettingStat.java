@@ -45,6 +45,14 @@ import dev.common.util.FileDeleteUtil;
  *       以前は同じカードの全期間で見ていたため、翌シーズン以降の同じカードの終了済が登録されなかった。</li>
  * </ul>
  *
+ * <p>2026-10 修正（ヘッダしかない CSV が S3 に残り続ける問題）</p>
+ * <ul>
+ *   <li>GetOriginFinInfo はヘッダのみのファイルを「キー → 空のリスト」で返す。
+ *       そのファイルは登録・バックアップせず、DBコミット後に S3 から直接削除する（directDeletePath）。</li>
+ *   <li>JSON に出すデータが 0 件のとき（全ファイルがヘッダのみ・登録済みスキップのみ）は、JSON の作成・アップロードを行わない。</li>
+ *   <li>DB登録したファイルが 0 件のときは、バックアップを呼ばない。</li>
+ * </ul>
+ *
  * @author shiraishitoshio
  *
  */
@@ -123,6 +131,11 @@ public class FinGettingStat implements FinGettingEntityIF {
 		Map<String, String> mapList = new HashMap<>();
 
 		/*
+		 * ヘッダのみ（登録対象 0 件）のファイル数
+		 */
+		int emptyFiles = 0;
+
+		/*
 		 * 1) bm/master両方のDB処理
 		 *
 		 * この処理はトランザクション内で実施する。
@@ -131,6 +144,27 @@ public class FinGettingStat implements FinGettingEntityIF {
 
 			String filePath = map.getKey();
 			List<DataEntity> entList = map.getValue();
+
+			/*
+			 * ヘッダのみ（GetOriginFinInfo が空のリストで返す）:
+			 * 登録・バックアップはせず、DBコミット後に直接S3から削除する。
+			 */
+			if (entList == null || entList.isEmpty()) {
+
+				emptyFiles++;
+
+				directDeletePath.add(filePath);
+
+				manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME,
+						CLASS_NAME,
+						METHOD_NAME,
+						null,
+						"登録対象0件（ヘッダのみ）のため、登録せず削除対象にします。"
+								+ " filePath=" + filePath);
+
+				continue;
+			}
 
 			for (DataEntity ent : entList) {
 
@@ -227,45 +261,60 @@ public class FinGettingStat implements FinGettingEntityIF {
 			}
 		}
 
+		if (emptyFiles > 0) {
+
+			manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG,
+					"登録対象0件（ヘッダのみ）のファイル: " + emptyFiles + "件（登録せず削除します）");
+		}
+
 		/*
 		 * 2) 取得済み終了データ保存
+		 *
+		 * 今回分が 0 件（全ファイルがヘッダのみ等）のときは、JSON の更新は不要なので行わない。
 		 */
-		String outputBucket = config.getS3BucketsOutputsFin();
+		if (!mapList.isEmpty()) {
 
-		final String jsonFolder = config.getB008JsonFolder();
+			String outputBucket = config.getS3BucketsOutputsFin();
 
-		final String jsonPath = jsonFolder + "b010_fin_getting_data_list.json";
+			final String jsonFolder = config.getB008JsonFolder();
 
-		final Path jsonFilePath = Paths.get(jsonPath);
+			final String jsonPath = jsonFolder + "b010_fin_getting_data_list.json";
 
-		final String s3Key = "list/" + jsonFilePath.getFileName().toString();
+			final Path jsonFilePath = Paths.get(jsonPath);
 
-		/*
-		 * 既存のS3上のJSONがあれば読み込んで
-		 * 今回分とマージする。
-		 */
-		Map<String, String> mergedMap = mergeWithExisting(
-				outputBucket,
-				s3Key,
-				mapList);
+			final String s3Key = "list/" + jsonFilePath.getFileName().toString();
 
-		/*
-		 * JSONファイル作成
-		 */
-		Files.createDirectories(
-				jsonFilePath.getParent());
+			/*
+			 * 既存のS3上のJSONがあれば読み込んで
+			 * 今回分とマージする。
+			 */
+			Map<String, String> mergedMap = mergeWithExisting(
+					outputBucket,
+					s3Key,
+					mapList);
 
-		makeJson(
-				jsonPath,
-				mergedMap);
+			/*
+			 * JSONファイル作成
+			 */
+			Files.createDirectories(
+					jsonFilePath.getParent());
 
-		/*
-		 * JSONをS3へアップロード
-		 */
-		upload(
-				outputBucket,
-				s3Key,
-				jsonFilePath);
+			makeJson(
+					jsonPath,
+					mergedMap);
+
+			/*
+			 * JSONをS3へアップロード
+			 */
+			upload(
+					outputBucket,
+					s3Key,
+					jsonFilePath);
+		}
 
 		/*
 		 * 3) DBコミット後の処理
@@ -281,62 +330,69 @@ public class FinGettingStat implements FinGettingEntityIF {
 					public void afterCommit() {
 
 						/*
-						 * 3-1) DB登録したCSVをバックアップする。
+						 * 3-1) / 3-2) はDB登録したCSVがある場合のみ
+						 *      （ヘッダのみ・登録済みスキップだけの場合はバックアップ対象なし）
 						 */
-						PutOriginBackUpInfo.BackupResult backupResult = putOriginBackUpInfo.backup(
-								entities,
-								insertPath);
+						if (!insertPath.isEmpty()) {
 
-						/*
-						 * バックアップに失敗したCSVがある場合は、
-						 * バックアップ対象についてはS3削除を行わない。
-						 */
-						if (!backupResult.getFailedLocalPaths().isEmpty()) {
+							/*
+							 * 3-1) DB登録したCSVをバックアップする。
+							 */
+							PutOriginBackUpInfo.BackupResult backupResult = putOriginBackUpInfo.backup(
+									entities,
+									insertPath);
 
-							manageLoggerComponent.debugErrorLog(
-									PROJECT_NAME,
-									CLASS_NAME,
-									METHOD_NAME,
-									MessageCdConst.MCD00003E_EXECUTION_SKIP,
-									null,
-									String.format(
-											"バックアップ格納に失敗したCSVがあるため、"
-													+ "バックアップ対象CSVのS3削除を中止します。"
-													+ " backupSucceeded=%d,"
-													+ " backupFailed=%d,"
-													+ " backupFailedPaths=%s",
-											backupResult
-													.getSucceededLocalPaths()
-													.size(),
-											backupResult
-													.getFailedLocalPaths()
-													.size(),
-											backupResult
-													.getFailedLocalPaths()));
+							/*
+							 * バックアップに失敗したCSVがある場合は、
+							 * バックアップ対象についてはS3削除を行わない。
+							 */
+							if (!backupResult.getFailedLocalPaths().isEmpty()) {
+
+								manageLoggerComponent.debugErrorLog(
+										PROJECT_NAME,
+										CLASS_NAME,
+										METHOD_NAME,
+										MessageCdConst.MCD00003E_EXECUTION_SKIP,
+										null,
+										String.format(
+												"バックアップ格納に失敗したCSVがあるため、"
+														+ "バックアップ対象CSVのS3削除を中止します。"
+														+ " backupSucceeded=%d,"
+														+ " backupFailed=%d,"
+														+ " backupFailedPaths=%s",
+												backupResult
+														.getSucceededLocalPaths()
+														.size(),
+												backupResult
+														.getFailedLocalPaths()
+														.size(),
+												backupResult
+														.getFailedLocalPaths()));
+							}
+
+							/*
+							 * 3-2) バックアップ成功したCSVのみ削除する。
+							 */
+							if (!backupResult
+									.getSucceededLocalPaths()
+									.isEmpty()) {
+
+								FileDeleteUtil.deleteS3Files(
+										backupResult
+												.getSucceededLocalPaths(),
+										bucket,
+										s3Operator,
+										manageLoggerComponent,
+										PROJECT_NAME,
+										CLASS_NAME,
+										METHOD_NAME,
+										"OUTPUTS_FIN_STATS");
+							}
 						}
 
 						/*
-						 * 3-2) バックアップ成功したCSVのみ削除する。
-						 */
-						if (!backupResult
-								.getSucceededLocalPaths()
-								.isEmpty()) {
-
-							FileDeleteUtil.deleteS3Files(
-									backupResult
-											.getSucceededLocalPaths(),
-									bucket,
-									s3Operator,
-									manageLoggerComponent,
-									PROJECT_NAME,
-									CLASS_NAME,
-									METHOD_NAME,
-									"OUTPUTS_FIN_STATS");
-						}
-
-						/*
-						 * 3-3) 終了済みデータが既に登録済みで
-						 *      DB登録をスキップしたCSVを直接削除する。
+						 * 3-3) 終了済みデータが既に登録済みでDB登録をスキップしたCSV、
+						 *      およびヘッダのみ（登録対象 0 件）のCSVを直接削除する。
 						 */
 						if (!directDeletePath.isEmpty()) {
 
@@ -345,7 +401,7 @@ public class FinGettingStat implements FinGettingEntityIF {
 									CLASS_NAME,
 									METHOD_NAME,
 									null,
-									"終了済みデータが既に登録済みのため、"
+									"終了済みデータが登録済み、またはヘッダのみのため、"
 											+ "バックアップせずS3から直接削除します。"
 											+ " filePaths=" + directDeletePath);
 

@@ -9,6 +9,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import dev.batch.common.AbstractJobBatchTemplate;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.getinfo.GetTeamMemberInfo;
 
@@ -16,6 +17,13 @@ import dev.common.getinfo.GetTeamMemberInfo;
  * 選手登録バッチ実行クラス。
  *
  * 選手CSVデータを取得し、登録ロジックを実行する。
+ *
+ * <p>2026-10 修正（ヘッダしかない CSV が S3 に残り続ける問題）</p>
+ * <ul>
+ *   <li>GetTeamMemberInfo はヘッダのみのファイルも「キー → 空のリスト」で返す。</li>
+ *   <li>全ファイルがヘッダのみ（登録する選手が 0 人）の場合は、登録処理はせずにファイルの削除だけ行う。</li>
+ *   <li>選手がいる場合は、読めた全ファイル（ヘッダのみを含む）を削除対象として登録処理に渡す。</li>
+ * </ul>
  *
  * @author shiraishitoshio
  */
@@ -79,6 +87,7 @@ public class TeamMemberMasterBatch extends AbstractJobBatchTemplate {
 	 */
 	@Override
 	protected void doExecute(JobContext ctx) throws Exception {
+		final String METHOD_NAME = "doExecute";
 
 		Map<String, List<TeamMemberMasterEntity>> getMemberMap = this.getMemberInfo.getData();
 		if (getMemberMap == null || getMemberMap.isEmpty()) {
@@ -86,9 +95,21 @@ public class TeamMemberMasterBatch extends AbstractJobBatchTemplate {
 			return;
 		}
 
+		// 読めた全ファイル（ヘッダのみを含む）
+		List<String> fileKeys = new ArrayList<>(getMemberMap.keySet());
 		List<TeamMemberMasterEntity> allMembers = flattenMemberMap(getMemberMap);
 
-		this.teamMemberMasterStat.execute(allMembers, FULL_SNAPSHOT);
+		if (allMembers.isEmpty()) {
+			// 全ファイルがヘッダのみ: 登録はせず、ファイルの削除だけ行う（残すと毎回同じファイルを読み続ける）
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					"登録対象の選手が0人（全ファイルがヘッダのみ）のため、ファイルの削除のみ行います: " + fileKeys);
+			this.teamMemberMasterStat.deleteProcessedFiles(fileKeys);
+			endLog();
+			return;
+		}
+
+		this.teamMemberMasterStat.execute(allMembers, FULL_SNAPSHOT, fileKeys);
 
 		endLog();
 	}

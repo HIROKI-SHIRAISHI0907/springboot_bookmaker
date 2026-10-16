@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import dev.batch.common.AbstractJobBatchTemplate;
+import dev.common.constant.MessageCdConst;
 import dev.common.entity.AllLeagueMasterEntity;
 import dev.common.getinfo.GetAllLeagueInfo;
 
@@ -14,6 +15,12 @@ import dev.common.getinfo.GetAllLeagueInfo;
  * 全容リーグデータ登録バッチ実行クラス。
  *
  * 国・リーグの全容マスタデータを取得し、登録ロジックを実行する。
+ *
+ * <p>2026-10 修正（ヘッダしかない CSV が S3 に残り続ける問題）</p>
+ * <ul>
+ *   <li>GetAllLeagueInfo はヘッダのみのファイルを「キー → 空のリスト」で返す。
+ *       そのファイルは登録せず、ファイルの削除だけ行う。</li>
+ * </ul>
  *
  * @author shiraishitoshio
  */
@@ -78,7 +85,16 @@ public class AllLeagueMasterBatch extends AbstractJobBatchTemplate {
 		// 登録
 		for (Map.Entry<String, List<AllLeagueMasterEntity>> entry : listMap.entrySet()) {
 			try {
-				this.allLeagueMasterStat.allLeagueStat(entry.getKey(), entry.getValue());
+				List<AllLeagueMasterEntity> list = entry.getValue();
+				if (list == null || list.isEmpty()) {
+					// ヘッダのみ: 登録はせず、ファイルの削除だけ行う（残すと毎回同じファイルを読み続ける）
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+							"登録対象が0件（ヘッダのみ）のため、ファイルの削除のみ行います: " + entry.getKey());
+					this.allLeagueMasterStat.deleteProcessedFile(entry.getKey());
+					continue;
+				}
+				this.allLeagueMasterStat.allLeagueStat(entry.getKey(), list);
 			} catch (Exception e) {
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE, e);

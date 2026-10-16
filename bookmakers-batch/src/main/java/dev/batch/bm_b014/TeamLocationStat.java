@@ -22,6 +22,7 @@ import dev.common.config.PathConfig;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
 import dev.common.entity.TeamLocationEntity;
+import dev.common.getinfo.GetGeograficInfo;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
 import dev.common.util.DateUtil;
@@ -50,6 +51,10 @@ import dev.common.util.FileDeleteUtil;
  *       B015 が処理する前に次の B014 が JSON を上書きしたりすると、その回に登録したスタジアムが二度と JSON に載らなかった。</li>
  *   <li>JSON のアップロードをページごと（200 件ごと）から最後の1回にした。</li>
  *   <li>同じチーム・スタジアムが何度出てきても（ラウンドごとにカテゴリが違うため）1回だけ判定する。</li>
+ *   <li>2026-10: 結果 CSV がヘッダのみ（空のリスト）のときは、DB を見に行かずに結果 CSV と入力 JSON の削除だけ行う
+ *       （以前は B014 まで届かず、ファイルが S3 に残り続けていた）。
+ *       入力 JSON は次の事前準備（readyFlg = true）で、緯度経度がまだ無い行から作り直される。</li>
+ *   <li>2026-10: readyFlg = true のときに終了ログが出ていなかったのを修正。</li>
  * </ul>
  *
  * <h2>懸念点</h2>
@@ -118,7 +123,7 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 			if (readyFlg)
 				readyFlgTrue();
 
-			// 取得できた情報に更新
+			// 取得できた情報に更新（空のリスト = ヘッダのみ のときは何もしない）
 			if (!readyFlg)
 				readyFlgFalse(map);
 		} catch (Exception e) {
@@ -126,10 +131,13 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 			throw new Exception(messageCd, e);
 		}
 
-		if (readyFlg)
+		if (readyFlg) {
+			manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 			return;
+		}
 
-		insertPath.add("output/b015_team_location.csv");
+		// 登録した場合も、ヘッダのみ（登録対象 0 件）の場合も、結果 CSV と入力 JSON を削除する
+		insertPath.add(GetGeograficInfo.GEOGRAFIC_RESULT_KEY);
 		insertPath.add(GEOGRAFIC_INPUT_KEY);
 
 		String bucket = config.getS3Geografic();
@@ -222,6 +230,16 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 	 * Google geografic APIから取得した位置情報を保存しているCSVを用いて情報更新する
 	 */
 	private void readyFlgFalse(List<TeamLocationEntity> list) {
+		final String METHOD_NAME = "readyFlgFalse";
+
+		// ヘッダのみ（登録対象 0 件）: DB は見に行かない（ファイルの削除は呼び出し元で行う）
+		if (list == null || list.isEmpty()) {
+			manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG,
+					"登録対象0件（ヘッダのみ）のため、team_location_master の更新・登録は行いません。");
+			return;
+		}
+
 		Map<String, TeamLocationEntity> afterMap = new HashMap<>();
 		for (TeamLocationEntity aft : list) {
 			afterMap.put(buildNaturalKey(aft), aft);

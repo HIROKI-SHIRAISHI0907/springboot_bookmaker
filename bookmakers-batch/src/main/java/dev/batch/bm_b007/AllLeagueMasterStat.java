@@ -16,6 +16,14 @@ import dev.common.util.FileDeleteUtil;
 
 /**
  * all_league_masterロジック
+ *
+ * <p>2026-10 修正</p>
+ * <ul>
+ *   <li>削除するバケットを、読み込み元（GetAllLeagueInfo）と同じ {@code getS3BucketsAllLeagueData()} にした。
+ *       以前は {@code getS3BucketsTeamSeasonDateData()}（シーズン用のバケット）から削除しようとしていたため、
+ *       バケットが別だと all_league_master.csv が削除されずに残っていた。</li>
+ *   <li>{@link #deleteProcessedFile(String)} を追加: 登録対象が 0 件（ヘッダのみ）のファイルを、B007 から削除だけ行う。</li>
+ * </ul>
  * @author shiraishitoshio
  *
  */
@@ -62,8 +70,7 @@ public class AllLeagueMasterStat {
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		List<String> insertPath = new ArrayList<>();
-
+		boolean succeeded = false;
 		try {
 			List<AllLeagueMasterEntity> insertTargets =
 					this.allLeagueDBService.selectInBatch(entities);
@@ -82,32 +89,54 @@ public class AllLeagueMasterStat {
 				throw new Exception(messageCd);
 			}
 
-			if (hasMeaningfulValue(fileName)) {
-				insertPath.add(fileName);
-			}
+			succeeded = true;
 
 		} catch (Exception e) {
 			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			throw new Exception(messageCd, e);
 		} finally {
 			try {
-				String bucket = config.getS3BucketsTeamSeasonDateData();
-
-				FileDeleteUtil.deleteS3Files(
-						insertPath,
-						bucket,
-						s3Operator,
-						manageLoggerComponent,
-						PROJECT_NAME,
-						CLASS_NAME,
-						METHOD_NAME,
-						"ALL_LEAGUE_MASTER");
+				// 成功した場合だけ削除する（失敗したファイルは次回もう一度読む）
+				if (succeeded) {
+					deleteProcessedFile(fileName, METHOD_NAME);
+				}
 			} finally {
 				this.manageLoggerComponent.debugEndInfoLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 				this.manageLoggerComponent.clear();
 			}
 		}
+	}
+
+	/**
+	 * 処理済みのファイルを S3 から削除する（2026-10 追加）。
+	 * 登録対象が 0 件（ヘッダのみ）のファイルは、B007 からこれだけを呼ぶ。
+	 *
+	 * @param fileName 削除するファイル（S3 キー）
+	 */
+	public void deleteProcessedFile(String fileName) {
+		deleteProcessedFile(fileName, "deleteProcessedFile");
+	}
+
+	private void deleteProcessedFile(String fileName, String methodName) {
+		if (!hasMeaningfulValue(fileName)) {
+			return;
+		}
+		List<String> insertPath = new ArrayList<>();
+		insertPath.add(fileName);
+
+		// 読み込み元（GetAllLeagueInfo）と同じバケット
+		String bucket = config.getS3BucketsAllLeagueData();
+
+		FileDeleteUtil.deleteS3Files(
+				insertPath,
+				bucket,
+				s3Operator,
+				manageLoggerComponent,
+				PROJECT_NAME,
+				CLASS_NAME,
+				methodName,
+				"ALL_LEAGUE_MASTER");
 	}
 
 	private boolean hasMeaningfulValue(String value) {

@@ -4,6 +4,7 @@ import java.time.LocalDate;
 import java.time.format.DateTimeFormatter;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.Collection;
 import java.util.HashSet;
 import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
@@ -27,6 +28,17 @@ import dev.common.util.FileDeleteUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
+/**
+ * 選手登録・更新ロジック（B002）
+ *
+ * <p>2026-10 修正（ヘッダしかない CSV が S3 に残り続ける問題）</p>
+ * <ul>
+ *   <li>削除対象のファイルを、呼び出し側から渡された全ファイル（ヘッダのみを含む）＋入力の全行のファイルにした。
+ *       以前は「同一入力内の重複をまとめた後に残った行」のファイルだけを削除していたため、
+ *       ヘッダのみのファイルや、行がすべて他のファイルの行にまとめられたファイルが削除されずに残っていた。</li>
+ *   <li>{@link #deleteProcessedFiles(Collection)}: 登録する選手がいない場合（全ファイルがヘッダのみ）に、削除だけ行う。</li>
+ * </ul>
+ */
 @Slf4j
 @Service
 @RequiredArgsConstructor
@@ -61,7 +73,7 @@ public class TeamMemberMasterStat {
 	private ManageLoggerComponent manageLoggerComponent;
 
 	/**
-	 * メインエントリ
+	 * メインエントリ（互換用。削除対象は入力の各行のファイル）
 	 *
 	 * @param scrapedRows  今回スクレイピングした選手データ一覧
 	 * @param fullSnapshot true: 対象全件を取り切れている → 引退判定を行う
@@ -69,9 +81,36 @@ public class TeamMemberMasterStat {
 	 */
 	@Transactional
 	public void execute(List<TeamMemberMasterEntity> scrapedRows, boolean fullSnapshot) {
-		final String METHOD_NAME = "execute";
+		execute(scrapedRows, fullSnapshot, null);
+	}
 
-		List<String> insertPath = new ArrayList<>();
+	/**
+	 * メインエントリ
+	 *
+	 * @param scrapedRows  今回スクレイピングした選手データ一覧
+	 * @param fullSnapshot true: 対象全件を取り切れている → 引退判定を行う
+	 *                     false: 部分取得 → 引退判定しない
+	 * @param fileKeys     今回読めた全ファイル（ヘッダのみのファイルを含む。null 可）。処理が最後まで終わったら削除する
+	 */
+	@Transactional
+	public void execute(List<TeamMemberMasterEntity> scrapedRows, boolean fullSnapshot, Collection<String> fileKeys) {
+		// 削除対象: 渡された全ファイル ＋ 入力の全行のファイル（重複をまとめる前に集める）
+		Set<String> deleteTargets = new LinkedHashSet<>();
+		if (fileKeys != null) {
+			for (String k : fileKeys) {
+				if (!isBlank(k)) {
+					deleteTargets.add(k);
+				}
+			}
+		}
+		if (scrapedRows != null) {
+			for (TeamMemberMasterEntity row : scrapedRows) {
+				if (row != null && !isBlank(row.getFile())) {
+					deleteTargets.add(row.getFile());
+				}
+			}
+		}
+
 		String runDate = LocalDate.now(DateOffsetDecisionUtil.getZoneId()).format(DATE_FMT);
 
 		// 既存データ全件取得
@@ -85,7 +124,6 @@ public class TeamMemberMasterStat {
 		List<TeamMemberMasterEntity> incomingList = dedupIncoming(scrapedRows, runDate);
 
 		for (TeamMemberMasterEntity incoming : incomingList) {
-			insertPath.add(incoming.getFile());
 			normalizeEntity(incoming, runDate);
 
 			// ─── Step1: 同一チーム・同一人物の完全一致 ──────────────────────
@@ -187,10 +225,34 @@ public class TeamMemberMasterStat {
 			log.info("fullSnapshot=false のため引退判定はスキップします");
 		}
 
-		// 途中で例外が起きなければ全てのファイルを削除する
+		// 途中で例外が起きなければ全てのファイル（ヘッダのみのファイルを含む）を削除する
+		deleteProcessedFiles(deleteTargets);
+	}
+
+	/**
+	 * 処理済みのファイルを S3 から削除する（2026-10 追加）。
+	 * 登録する選手がいない場合（全ファイルがヘッダのみ）は、B002 からこれだけを呼ぶ。
+	 *
+	 * @param fileKeys 削除するファイル（S3 キー）
+	 */
+	public void deleteProcessedFiles(Collection<String> fileKeys) {
+		final String METHOD_NAME = "deleteProcessedFiles";
+		List<String> targets = new ArrayList<>();
+		if (fileKeys != null) {
+			for (String k : fileKeys) {
+				if (!isBlank(k) && !targets.contains(k)) {
+					targets.add(k);
+				}
+			}
+		}
+		if (targets.isEmpty()) {
+			log.info("削除対象のファイルがありません");
+			return;
+		}
+		log.info("処理済みファイルを削除します: {}件 {}", targets.size(), targets);
 		String bucket = config.getS3BucketsTeamMemberData();
 		FileDeleteUtil.deleteS3Files(
-				insertPath,
+				targets,
 				bucket,
 				s3Operator,
 				manageLoggerComponent,
@@ -500,7 +562,7 @@ public class TeamMemberMasterStat {
 		if (s == null) {
 			return null;
 		}
-		return s.replace('\u3000', ' ').trim().replaceAll("\\s+", " ");
+		return s.replace('　', ' ').trim().replaceAll("\\s+", " ");
 	}
 
 	private String cleanCsv(String s) {
