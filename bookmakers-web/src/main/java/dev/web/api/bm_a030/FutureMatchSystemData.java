@@ -15,4 +15,14 @@ public class FutureMatchSystemData {
 
 	/** times が「終了済」以外（試合中に記録された）の行数 */
 	private Integer liveCount = 0;
+
+	/** start_flg */
+	private String status;
+
+	/** 理由 */
+	private String statusReason;
+
+	/** 記録日時 */
+	public String lastUpdatedAt;
+
 }

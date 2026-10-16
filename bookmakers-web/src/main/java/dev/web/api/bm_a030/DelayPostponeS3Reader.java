@@ -1,13 +1,13 @@
 package dev.web.api.bm_a030;
 
 import java.text.Normalizer;
-import java.time.Instant;
 import java.time.Duration;
+import java.time.Instant;
 import java.time.LocalDate;
 import java.time.LocalDateTime;
+import java.time.OffsetDateTime;
 import java.time.ZoneId;
 import java.time.format.DateTimeFormatter;
-import java.time.OffsetDateTime;
 import java.time.format.DateTimeParseException;
 import java.util.ArrayList;
 import java.util.Comparator;
@@ -15,6 +15,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.regex.Pattern;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Component;
 
@@ -101,7 +102,7 @@ public class DelayPostponeS3Reader {
 		}
 		// 反映されないときの切り分け用（読んだファイルと拾えた試合の数）
 		log.info("延期・遅延情報: bucket={}, date={}, files={}, matches={}",
-				bucket, date, targets.stream().map(S3Object::key).toList(), index.size());
+				bucket, date, targets.stream().map(S3Object::key).collect(Collectors.toList()), index.size());
 		return index;
 	}
 
