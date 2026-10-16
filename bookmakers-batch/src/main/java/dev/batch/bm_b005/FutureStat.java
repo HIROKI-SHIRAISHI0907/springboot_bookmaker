@@ -17,6 +17,14 @@ import dev.common.util.FileDeleteUtil;
 
 /**
  * BM_M022未来データ登録ロジック
+ *
+ * <p>2026-10 追加: 延期の試合の日程変更</p>
+ * <ul>
+ *   <li>最初に delay_postpone から延期中の試合を読み（{@link PostponedRescheduleService#loadPostponed()}）、
+ *       各ファイルの登録チェックで日時が変わった延期の試合は future_master を上書きする（{@link FutureDBService}）。</li>
+ *   <li>全てのファイルの登録が終わったら、日程を変えた試合の延期を delay_postpone から削除する
+ *       （途中で例外になった場合は削除しない）。</li>
+ * </ul>
  * @author shiraishitoshio
  *
  */
@@ -33,6 +41,10 @@ public class FutureStat implements FutureEntityIF {
 	/** FutureDBService部品 */
 	@Autowired
 	private FutureDBService futureDBService;
+
+	/** 延期の試合の日程変更 */
+	@Autowired
+	private PostponedRescheduleService postponedRescheduleService;
 
 	/** Config */
 	@Autowired
@@ -58,13 +70,18 @@ public class FutureStat implements FutureEntityIF {
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
+		// 延期中の試合（読めなければ空 = 日程変更しない）
+		List<PostponedRescheduleService.PostponedEntry> postponed = this.postponedRescheduleService.loadPostponed();
+		List<PostponedRescheduleService.Rescheduled> rescheduled = new ArrayList<>();
+
 		List<String> insertPath = new ArrayList<String>();
 		// 今後の対戦カードを登録する
 		for (Map.Entry<String, List<FutureEntity>> map : entities.entrySet()) {
 			String filePath = map.getKey();
 			String fillChar = "ファイル名: " + filePath;
 			try {
-				List<FutureEntity> insertEntities = this.futureDBService.selectInBatch(map.getValue(), fillChar);
+				List<FutureEntity> insertEntities = this.futureDBService.selectInBatch(
+						map.getValue(), fillChar, postponed, rescheduled);
 				this.futureDBService.insertInBatchOrThrow(insertEntities);
 				insertPath.add(filePath);
 			} catch (Exception e) {
@@ -72,6 +89,9 @@ public class FutureStat implements FutureEntityIF {
 				throw new Exception(messageCd, e);
 			}
 		}
+
+		// 日程を変えた試合の延期を delay_postpone から削除する（失敗してもログのみ）
+		this.postponedRescheduleService.removeFromDelayPostpone(rescheduled);
 
 		// 途中で例外が起きなければ全てのファイルを削除する
 		String bucket = config.getS3BucketsFuture(); // バケット名取得
