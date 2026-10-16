@@ -22,6 +22,7 @@ import dev.common.readfile.ReadAllLeague;
 import dev.common.readfile.dto.ReadFileOutputDTO;
 import dev.common.s3.S3Operator;
 import dev.common.util.CsvContentUtil;
+import dev.common.util.S3QuarantineUtil;
 
 /**
  * 全容マスタ情報取得管理クラス
@@ -31,12 +32,19 @@ import dev.common.util.CsvContentUtil;
  *   <li>ヘッダのみ（データ行 0 件）のファイルは、読み込みクラスに渡す前に判定し（{@link CsvContentUtil#isHeaderOnly}）、
  *       key = S3 キー、value = 空のリスト で返す。B007 はこのファイルを登録せずに削除する。
  *       （以前は空のファイルを結果に入れず、結果が空なら null を返していたため、削除されずに毎回読み続けていた）</li>
- *   <li>読み込みクラスが 0 件と判定した場合も同じく空のリストで返す。</li>
- *   <li>読み込みに失敗したファイル（例外・異常コード・結果なし）は結果に入れない（削除せず次回もう一度読む）。
- *       以前は 1 ファイルの例外で全体が null（何も登録しない）になっていたが、そのファイルだけ飛ばして他は続ける。</li>
+ *   <li>読み込みに失敗したファイルは結果に入れない。以前は 1 ファイルの例外で全体が null（何も登録しない）になっていたが、
+ *       そのファイルだけ飛ばして他は続ける。</li>
  * </ul>
  * <p>戻り値: key = S3 キー、value = 全容マスタ（ヘッダのみなら空のリスト）。対象ファイルが無い・1件も読めなければ null。</p>
  * @author shiraishitoshio
+ *
+ * <p>2026-10 修正（読み込めない CSV が S3 に残り続ける問題）</p>
+ * <ul>
+ *   <li>読み込めないファイル（読み込みクラスがエラーを返した、またはデータ行はあるのに正しい行が 1 件も無い）は、
+ *       {@link S3QuarantineUtil} で error/＜元のキー＞.error に退避する。残すと Lambda が「.csv あり」と判定して
+ *       ECS を起動し続け、毎回同じファイルで失敗するため。中身は退避先に残るので後から調べられる。</li>
+ *   <li>ダウンロード失敗・タイムアウトは一時的なエラーとみなし、退避せず次回もう一度読む。</li>
+ * </ul>
  */
 @Component
 public class GetAllLeagueInfo {
@@ -91,6 +99,7 @@ public class GetAllLeagueInfo {
         Map<String, List<AllLeagueMasterEntity>> entityMap = new LinkedHashMap<>();
         int emptyFiles = 0;
         int failedFiles = 0;
+        int quarantined = 0;
 
         for (String key : keys) {
             byte[] bytes;
@@ -119,24 +128,31 @@ public class GetAllLeagueInfo {
             try (InputStream is = new ByteArrayInputStream(bytes)) {
                 ReadFileOutputDTO dto = this.readAllLeague.getFileBodyFromStream(is, key);
                 if (dto == null || !BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
-                    // ファイル単位でスキップ（他のキーは処理継続。削除せず次回もう一度読む）
+                    // 読み込みエラー: 退避する（他のキーは処理継続。残すと Lambda が ECS を起動し続けるため）
                     failedFiles++;
                     String msgCd = MessageCdConst.MCD00003E_EXECUTION_SKIP;
                     this.manageLoggerComponent.debugErrorLog(
                             PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null,
-                            "CSV解析エラー key=" + key + " msg=" + (dto == null ? "読み込み結果なし" : dto.getErrMessage()));
+                            "CSV解析エラー key=" + key + " msg=" + (dto == null ? "読み込み結果なし" : dto.getErrMessage())
+                                    + "（error/ に退避します）" + dto.getThrowAble());
+                    if (S3QuarantineUtil.quarantine(bucket, key, "読み込みエラー（ReadAllLeague）",
+                            s3Operator, manageLoggerComponent, PROJECT_NAME, CLASS_NAME, METHOD_NAME)) {
+                        quarantined++;
+                    }
                     continue;
                 }
 
                 List<AllLeagueMasterEntity> list = dto.getAllLeagueMasterList();
                 if (list == null || list.isEmpty()) {
-                    // 読み込みクラスが 0 件と判定した場合もヘッダのみ扱い（削除対象）
-                    emptyFiles++;
-                    entityMap.put(key, new ArrayList<>());
-                    String msgCd = MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP;
-                    this.manageLoggerComponent.debugInfoLog(
-                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd,
-                            "データなし（登録せず削除対象にします） key=" + key);
+                    // データ行はあるのに正しい行が 1 件も無い（ヘッダのみは上で判定済み）: 壊れたファイルとして退避する
+                    failedFiles++;
+                    this.manageLoggerComponent.debugErrorLog(
+                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00003E_EXECUTION_SKIP, null,
+                            "正しいデータ行が0件: key=" + key + "（error/ に退避します）");
+                    if (S3QuarantineUtil.quarantine(bucket, key, "正しいデータ行が0件（ReadAllLeague）",
+                            s3Operator, manageLoggerComponent, PROJECT_NAME, CLASS_NAME, METHOD_NAME)) {
+                        quarantined++;
+                    }
                     continue;
                 }
 
@@ -151,8 +167,8 @@ public class GetAllLeagueInfo {
             }
         }
 
-        log.info("[B007] 読み込み結果: files={} (データあり={}, ヘッダのみ={}, 読み込み失敗={})",
-                keys.size(), entityMap.size() - emptyFiles, emptyFiles, failedFiles);
+        log.info("[B007] 読み込み結果: files={} (データあり={}, ヘッダのみ={}, 読み込み失敗={}, うち退避={})",
+                keys.size(), entityMap.size() - emptyFiles, emptyFiles, failedFiles, quarantined);
         return entityMap.isEmpty() ? null : entityMap;
     }
 }

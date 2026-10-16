@@ -19,6 +19,7 @@ import dev.common.readfile.ReadGeografic;
 import dev.common.readfile.dto.ReadFileOutputDTO;
 import dev.common.s3.S3Operator;
 import dev.common.util.CsvContentUtil;
+import dev.common.util.S3QuarantineUtil;
 
 /**
  * 地理情報取得管理クラス
@@ -29,13 +30,21 @@ import dev.common.util.CsvContentUtil;
  *   <li>ヘッダのみ（データ行 0 件）のファイルは、読み込みクラスに渡す前に判定し（{@link CsvContentUtil#isHeaderOnly}）、
  *       空のリストを返す。B014 は登録せずに、結果 CSV と入力 JSON を削除する。
  *       （以前は null を返していたため、削除されずに毎回同じファイルを読み続けていた）</li>
- *   <li>読み込みクラスが 0 件と判定した場合も同じく空のリストを返す。</li>
- *   <li>ダウンロード失敗・読み込み失敗は null（削除せず次回もう一度読む）。</li>
+ *   <li>ダウンロード失敗は null（削除せず次回もう一度読む）。</li>
  *   <li>ログのラベルを [B015] から [B014] に修正。</li>
  * </ul>
- * <p>戻り値: null = ファイルなし・読み込み失敗（何もしない）、空のリスト = ヘッダのみ（削除だけ行う）、それ以外 = 登録対象。</p>
+ * <p>戻り値: null = ファイルなし・ダウンロード失敗・読み込みエラー（退避済み）（何もしない）、空のリスト = ヘッダのみ（削除だけ行う）、それ以外 = 登録対象。</p>
  * @author shiraishitoshio
  *
+ *
+ * <p>2026-10 修正（読み込めない CSV が S3 に残り続ける問題）</p>
+ * <ul>
+ *   <li>読み込めないファイル（読み込みクラスがエラーを返した、またはデータ行はあるのに正しい行が 1 件も無い）は、
+ *       {@link S3QuarantineUtil} で error/＜元のキー＞.error に退避する。残すと Lambda が「.csv あり」と判定して
+ *       ECS を起動し続け、毎回同じファイルで失敗するため。中身は退避先に残るので後から調べられる。</li>
+ *   <li>ダウンロード失敗・タイムアウトは一時的なエラーとみなし、退避せず次回もう一度読む。</li>
+ *   <li>ReadGeografic は id・緯度経度が数値でないとファイル全体が読み込みエラーになるため、退避の対象になりやすい。</li>
+ * </ul>
  */
 @Component
 public class GetGeograficInfo {
@@ -117,26 +126,32 @@ public class GetGeograficInfo {
 			ReadFileOutputDTO dto = readGeografic.getFileBodyFromStream(is, key);
 
 			if (dto == null || !BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
+				// 読み込みエラー（id・緯度経度が数値でない等）: 退避する（残すと Lambda が ECS を起動し続けるため）
 				String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
-				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null,
-						"S3 b015_team_location.csv 読み込みエラー（削除せず次回もう一度読む）"
+				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd,
+						null,
+						"S3 b015_team_location.csv 読み込みエラー（error/ に退避します）" + dto.getThrowAble()
 								+ (dto == null ? " 読み込み結果なし" : ""));
+				S3QuarantineUtil.quarantine(bucket, key, "読み込みエラー（ReadGeografic）",
+						s3Operator, manageLoggerComponent, PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 				return null;
 			}
 
 			List<TeamLocationEntity> entity = dto.getTeamLocationList();
 			if (entity == null || entity.isEmpty()) {
-				// 読み込みクラスが 0 件と判定した場合もヘッダのみ扱い（削除対象）
-				String msgCd = MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP;
-				this.manageLoggerComponent.debugInfoLog(
-						PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd,
-						"データなし（登録せず削除対象にします） key=" + key);
-				return new ArrayList<>();
+				// データ行はあるのに正しい行が 1 件も無い（ヘッダのみは上で判定済み）: 壊れたファイルとして退避する
+				this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						MessageCdConst.MCD00003E_EXECUTION_SKIP, null,
+						"S3 b015_team_location.csv 正しいデータ行が0件（error/ に退避します）");
+				S3QuarantineUtil.quarantine(bucket, key, "正しいデータ行が0件（ReadGeografic）",
+						s3Operator, manageLoggerComponent, PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+				return null;
 			}
 
 			return entity;
 
 		} catch (Exception e) {
+			// 読み込みクラスの外で起きた想定外のエラー（一時的なものとみなし、退避せず次回もう一度読む）
 			String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
 			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, e,
 					"S3 b015_team_location.csv 読み込みエラー（削除せず次回もう一度読む）");

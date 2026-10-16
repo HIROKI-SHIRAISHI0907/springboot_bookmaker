@@ -29,6 +29,7 @@ import dev.common.readfile.ReadFuture;
 import dev.common.readfile.dto.ReadFileOutputDTO;
 import dev.common.s3.S3Operator;
 import dev.common.util.CsvContentUtil;
+import dev.common.util.S3QuarantineUtil;
 
 /**
  * 未来情報取得管理クラス
@@ -39,9 +40,14 @@ import dev.common.util.CsvContentUtil;
  *       key = S3 キー、value = 空のリスト で返す。B005（FutureStat）はこのファイルを登録せずに削除する。
  *       （以前は結果に入れていなかったため、全ファイルがヘッダのみだと B005 が「データなし」で終わり、削除されずに毎回読み続けていた）</li>
  *   <li>読み込みクラスが 0 件と判定した場合も同じく空のリストで返す。</li>
- *   <li>読み込みに失敗したファイル（タイムアウト・例外・異常コード・結果なし）は結果に入れない（削除せず次回もう一度読む）。
- *       以前は 1 ファイルの例外で全体が null（何も登録しない）になっていたが、そのファイルだけ飛ばして他は続ける。</li>
+ *   <li>読み込みに失敗したファイルは結果に入れない。以前は 1 ファイルの例外で全体が null（何も登録しない）になっていたが、
+ *       そのファイルだけ飛ばして他は続ける。</li>
+ *   <li>読み込みクラスがエラーを返したファイル（中身が壊れている等。何度読んでも失敗する）は
+ *       {@link S3QuarantineUtil} で error/ に退避する（残すと Lambda が ECS を起動し続けるため）。
+ *       ダウンロード失敗・タイムアウトは一時的なエラーとみなし、退避せず次回もう一度読む。</li>
  * </ul>
+ * <p>BOM について: ReadFuture は BOM を取り除かないが、1 行目（ヘッダ）は読み飛ばし、列は位置で読むため、
+ * BOM が付いていてもデータ行の読み込みには影響しない。</p>
  * <p>戻り値: key = ファイル（S3 キー）、value = その試合予定（ヘッダのみなら空のリスト）。読めた順（最終更新日時の昇順）。</p>
  * @author shiraishitoshio
  *
@@ -121,6 +127,8 @@ public class GetFutureInfo {
 
 	    int emptyFiles = 0;
 	    int failedFiles = 0;
+	    // 中身が原因で読めないファイル（退避する）
+	    List<String> brokenKeys = new ArrayList<>();
 	    try {
 	        List<Callable<Object>> tasks = new ArrayList<>(fileStatList.size());
 
@@ -182,18 +190,20 @@ public class GetFutureInfo {
 	            ReadFileOutputDTO dto = (ReadFileOutputDTO) res;
 	            if (dto == null) {
 	                failedFiles++;
+	                brokenKeys.add(s3Key);
 	            	String msgCd = MessageCdConst.MCD00003E_EXECUTION_SKIP;
 	                this.manageLoggerComponent.debugErrorLog(
 	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null,
-	                    "ReadFutureS3 no result key=" + s3Key + "（削除せず次回もう一度読む）");
+	                    "ReadFutureS3 no result key=" + s3Key + "（error/ に退避します）");
 	                continue;
 	            }
 	            if (!BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
 	                failedFiles++;
+	                brokenKeys.add(s3Key);
 	            	String msgCd = MessageCdConst.MCD00003E_EXECUTION_SKIP;
 	                this.manageLoggerComponent.debugErrorLog(
 	                    PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null,
-	                    "ReadFutureS3 failed key=" + s3Key + " [" + dto.getThrowAble() + "]（削除せず次回もう一度読む）");
+	                    "ReadFutureS3 failed key=" + s3Key + "（error/ に退避します）" + dto.getThrowAble());
 	                continue;
 	            }
 	            List<FutureEntity> entity = dto.getFutureList();
@@ -237,8 +247,17 @@ public class GetFutureInfo {
 	        }
 	    }
 
-	    log.info("[B005] 読み込み結果: files={} (データあり={}, ヘッダのみ={}, 読み込み失敗={})",
-	            fileStatList.size(), resultMap.size() - emptyFiles, emptyFiles, failedFiles);
+	    // 中身が原因で読めないファイルを退避する（残すと Lambda が ECS を起動し続けるため）
+	    int quarantined = 0;
+	    for (String brokenKey : brokenKeys) {
+	        if (S3QuarantineUtil.quarantine(bucket, brokenKey, "読み込みエラー（ReadFuture）",
+	                s3Operator, manageLoggerComponent, PROJECT_NAME, CLASS_NAME, METHOD_NAME)) {
+	            quarantined++;
+	        }
+	    }
+
+	    log.info("[B005] 読み込み結果: files={} (データあり={}, ヘッダのみ={}, 読み込み失敗={}, うち退避={})",
+	            fileStatList.size(), resultMap.size() - emptyFiles, emptyFiles, failedFiles, quarantined);
 	    return resultMap;
 	}
 

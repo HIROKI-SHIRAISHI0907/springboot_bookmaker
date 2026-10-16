@@ -35,6 +35,7 @@ import dev.common.readfile.dto.MatchKeyItem;
 import dev.common.readfile.dto.ReadFileOutputDTO;
 import dev.common.s3.S3Operator;
 import dev.common.util.CsvContentUtil;
+import dev.common.util.S3QuarantineUtil;
 import software.amazon.awssdk.services.s3.model.S3Object;
 
 /**
@@ -54,9 +55,17 @@ import software.amazon.awssdk.services.s3.model.S3Object;
  *   <li>ヘッダのみ（データ行 0 件）のファイルは、読み込みクラスに渡す前に判定し（{@link CsvContentUtil#isHeaderOnly}）、
  *       key = S3 キー、value = 空のリスト で返す。FinGettingStat はこのファイルを登録せずに削除する。
  *       （以前は空のリストを結果に入れず飛ばしていたため、削除されずに毎回読み続けていた）</li>
- *   <li>読み込みクラスが 0 件と判定した場合も同じく空のリストで返す。</li>
- *   <li>読み込みに失敗したファイル（タイムアウト・例外・異常コード・結果なし）は結果に入れない（削除せず次回もう一度読む）。</li>
+ *   <li>読み込みに失敗したファイルは結果に入れない。</li>
  *   <li>ログのラベルを [B001] から [B010] に修正。読み込み結果の件数ログを追加。</li>
+ * </ul>
+ *
+ * <p>2026-10 修正（読み込めない CSV が S3 に残り続ける問題）</p>
+ * <ul>
+ *   <li>読み込めないファイル（読み込みクラスがエラーを返した、またはデータ行はあるのに正しい行が 1 件も無い）は、
+ *       {@link S3QuarantineUtil} で error/＜元のキー＞.error に退避する。残すと Lambda が「.csv あり」と判定して
+ *       ECS を起動し続け、毎回同じファイルで失敗するため。中身は退避先に残るので後から調べられる。</li>
+ *   <li>ダウンロード失敗・タイムアウトは一時的なエラーとみなし、退避せず次回もう一度読む。</li>
+ *   <li>ReadOrigin は引用符の閉じ忘れなど CSV として壊れているとファイル全体が読み込みエラーになる。104 列未満の行は読み飛ばすだけなので、全行が列数不足だと「正しいデータ行が 0 件」になる。</li>
  * </ul>
  */
 @Component
@@ -133,6 +142,9 @@ public class GetOriginFinInfo {
 		int emptyFiles = 0;
 		int failedFiles = 0;
 
+		// 中身が原因で読めないファイル（退避する）
+		List<String> brokenKeys = new ArrayList<>();
+
 		int poolSize = Math.min(8, orderedKeys.size());
 		ExecutorService executor = Executors.newFixedThreadPool(poolSize);
 
@@ -170,19 +182,26 @@ public class GetOriginFinInfo {
 					continue;
 				}
 
-				// 読み込み失敗: 削除せず次回もう一度読む
+				// 読み込み失敗
 				if (r == null || !r.ok) {
 					failedFiles++;
+
+					// 中身が原因（読み込みクラスのエラー・正しい行が0件）なら退避、それ以外（ダウンロード失敗等）は次回もう一度読む
+					boolean broken = (r != null && r.broken);
+					if (broken) {
+						brokenKeys.add(s3Key);
+					}
+
 					manageLoggerComponent.debugErrorLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 							MessageCdConst.MCD00003E_EXECUTION_SKIP,
 							null,
-							"ReadOriginS3 failed key=" + s3Key + "（削除せず次回もう一度読む）");
+							"ReadOriginS3 failed key=" + s3Key
+									+ (broken ? "（error/ に退避します）" : "（削除せず次回もう一度読む）" + r.thrown));
 					continue;
 				}
 
-				// ヘッダのみ（読み込みクラスが 0 件と判定した場合も含む）:
-				// 空のリストで返し、FinGettingStat で登録せずに削除する
+				// ヘッダのみ: 空のリストで返し、FinGettingStat で登録せずに削除する
 				if (r.entities == null || r.entities.isEmpty()) {
 					emptyFiles++;
 					resultMap.put(r.s3Key, new ArrayList<>());
@@ -214,8 +233,17 @@ public class GetOriginFinInfo {
 			executor.shutdownNow();
 		}
 
-		log.info("[B010] 読み込み結果: files={} (データあり={}, ヘッダのみ={}, 読み込み失敗={})",
-				orderedKeys.size(), resultMap.size() - emptyFiles, emptyFiles, failedFiles);
+		// 中身が原因で読めないファイルを退避する（残すと Lambda が ECS を起動し続けるため）
+		int quarantined = 0;
+		for (String brokenKey : brokenKeys) {
+			if (S3QuarantineUtil.quarantine(bucket, brokenKey, "読み込みエラー（ReadOrigin）",
+					s3Operator, manageLoggerComponent, PROJECT_NAME, CLASS_NAME, METHOD_NAME)) {
+				quarantined++;
+			}
+		}
+
+		log.info("[B010] 読み込み結果: files={} (データあり={}, ヘッダのみ={}, 読み込み失敗={}, うち退避={})",
+				orderedKeys.size(), resultMap.size() - emptyFiles, emptyFiles, failedFiles, quarantined);
 
 		return resultMap;
 	}
@@ -374,14 +402,19 @@ public class GetOriginFinInfo {
 				ReadFileOutputDTO dto = readOrigin.getFileBodyFromStream(is, s3Key);
 
 				if (dto == null) {
-					return ReadOneResult.fail(s3Key, local.toString(), null);
+					return ReadOneResult.broken(s3Key, local.toString(), null);
 				}
 
 				if (!BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
-					return ReadOneResult.fail(s3Key, local.toString(), dto.getThrowAble());
+					return ReadOneResult.broken(s3Key, local.toString(), dto.getThrowAble());
 				}
 
 				List<DataEntity> list = dto.getDataList();
+
+				// データ行はあるのに正しい行が 1 件も無い（全行が 104 列未満など。ヘッダのみは上で判定済み）
+				if (list == null || list.isEmpty()) {
+					return ReadOneResult.broken(s3Key, local.toString(), null);
+				}
 
 				// 追跡用にS3 keyを入れる
 				if (list != null) {
@@ -415,18 +448,33 @@ public class GetOriginFinInfo {
 		/** 読み込んだデータ（ヘッダのみなら空のリスト） */
 		final List<DataEntity> entities;
 
-		private ReadOneResult(boolean ok, String s3Key, String localPath, List<DataEntity> entities, Throwable thrown) {
+		/** 失敗時の例外 */
+		final Throwable thrown;
+
+		/** 中身が原因の失敗か（true なら退避する） */
+		final boolean broken;
+
+		private ReadOneResult(boolean ok, String s3Key, String localPath, List<DataEntity> entities,
+				Throwable thrown, boolean broken) {
 			this.ok = ok;
 			this.s3Key = s3Key;
 			this.entities = entities;
+			this.thrown = thrown;
+			this.broken = broken;
 		}
 
 		static ReadOneResult ok(String s3Key, String localPath, List<DataEntity> entities) {
-			return new ReadOneResult(true, s3Key, localPath, entities, null);
+			return new ReadOneResult(true, s3Key, localPath, entities, null, false);
 		}
 
+		/** ダウンロード失敗など（一時的なエラー。次回もう一度読む） */
 		static ReadOneResult fail(String s3Key, String localPath, Throwable e) {
-			return new ReadOneResult(false, s3Key, localPath, null, e);
+			return new ReadOneResult(false, s3Key, localPath, null, e, false);
+		}
+
+		/** 中身が原因で読めない（退避する） */
+		static ReadOneResult broken(String s3Key, String localPath, Throwable e) {
+			return new ReadOneResult(false, s3Key, localPath, null, e, true);
 		}
 	}
 }

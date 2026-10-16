@@ -38,6 +38,7 @@ import dev.common.readfile.ReadOrigin;
 import dev.common.readfile.dto.ReadFileOutputDTO;
 import dev.common.s3.S3Operator;
 import dev.common.util.CsvContentUtil;
+import dev.common.util.S3QuarantineUtil;
 import lombok.extern.slf4j.Slf4j;
 
 /**
@@ -48,9 +49,17 @@ import lombok.extern.slf4j.Slf4j;
  *   <li>ヘッダのみ（データ行 0 件）のファイルは、読み込みクラスに渡す前に判定し（{@link CsvContentUtil#isHeaderOnly}）、
  *       key = S3 キー、value = 空のリスト で返す。
  *       （以前は ReadOrigin の判定次第で「読み込み失敗」扱いになり、結果に入らず削除されずに毎回読み続けることがあった）</li>
- *   <li>読み込みクラスが 0 件と判定した場合も、空のリスト（変更可能な ArrayList）で返す。</li>
- *   <li>読み込みに失敗したファイルは今までどおり結果に入れない（削除せず次回もう一度読む）。</li>
+ *   <li>読み込みに失敗したファイルは今までどおり結果に入れない。</li>
  *   <li>読み込み結果の件数ログ（データあり / ヘッダのみ / 読み込み失敗）を追加。</li>
+ * </ul>
+ *
+ * <p>2026-10 修正（読み込めない CSV が S3 に残り続ける問題）</p>
+ * <ul>
+ *   <li>読み込めないファイル（読み込みクラスがエラーを返した、またはデータ行はあるのに正しい行が 1 件も無い）は、
+ *       {@link S3QuarantineUtil} で error/＜元のキー＞.error に退避する。残すと Lambda が「.csv あり」と判定して
+ *       ECS を起動し続け、毎回同じファイルで失敗するため。中身は退避先に残るので後から調べられる。</li>
+ *   <li>ダウンロード失敗・タイムアウトは一時的なエラーとみなし、退避せず次回もう一度読む。</li>
+ *   <li>退避するのは ReadOrigin がエラーを返した場合（引用符の閉じ忘れなど）と、正しい行が 0 件の場合（全行が 104 列未満など）。ダウンロード・ローカル保存の失敗は退避しない。</li>
  * </ul>
  */
 @Slf4j
@@ -127,6 +136,8 @@ public class GetOriginInfo {
 		LinkedHashMap<String, List<DataEntity>> result = new LinkedHashMap<>();
 		int emptyFiles = 0;
 		int failedFiles = 0;
+		// 中身が原因で読めないファイル（退避する）
+		List<String> brokenKeys = new ArrayList<>();
 
 		ExecutorService executor = Executors.newFixedThreadPool(THREAD_COUNT);
 		try {
@@ -162,6 +173,10 @@ public class GetOriginInfo {
 					}
 					if (!r.ok) {
 						failedFiles++;
+						// 中身が原因（読み込みクラスのエラー・正しい行が0件）なら退避する
+						if (ReadPhase.PARSE.name().equals(r.phase) || ReadPhase.NO_VALID_ROWS.name().equals(r.phase)) {
+							brokenKeys.add(r.s3Key);
+						}
 						log.error("[THROWABLE ERROR] ReadOriginS3 detail error: {}", r.thrown);
 						manageLoggerComponent.debugErrorLog(
 								PROJECT_NAME, CLASS_NAME, METHOD_NAME,
@@ -174,7 +189,7 @@ public class GetOriginInfo {
 						continue;
 					}
 
-					// ヘッダのみ（読み込みクラスが 0 件と判定した場合も含む）: 空のリストで返し、削除対象にする
+					// ヘッダのみ: 空のリストで返し、削除対象にする
 					if (r.entities == null || r.entities.isEmpty()) {
 						emptyFiles++;
 						result.put(r.s3Key, new ArrayList<>());
@@ -214,8 +229,17 @@ public class GetOriginInfo {
 			shutdownExecutor(executor);
 		}
 
-		log.info("[B001] 読み込み結果: files={} (データあり={}, ヘッダのみ={}, 読み込み失敗={})",
-				orderedKeys.size(), result.size() - emptyFiles, emptyFiles, failedFiles);
+		// 中身が原因で読めないファイルを退避する（残すと Lambda が ECS を起動し続けるため）
+		int quarantined = 0;
+		for (String brokenKey : brokenKeys) {
+			if (S3QuarantineUtil.quarantine(bucket, brokenKey, "読み込みエラー（ReadOrigin）",
+					s3Operator, manageLoggerComponent, PROJECT_NAME, CLASS_NAME, METHOD_NAME)) {
+				quarantined++;
+			}
+		}
+
+		log.info("[B001] 読み込み結果: files={} (データあり={}, ヘッダのみ={}, 読み込み失敗={}, うち退避={})",
+				orderedKeys.size(), result.size() - emptyFiles, emptyFiles, failedFiles, quarantined);
 		return result;
 	}
 
@@ -295,8 +319,15 @@ public class GetOriginInfo {
 			}
 
 			List<DataEntity> list = dto.getDataList();
-			if (list == null) {
-				list = new ArrayList<>();
+
+			// データ行はあるのに正しい行が 1 件も無い（全行が 104 列未満など。ヘッダのみは上で判定済み）
+			if (list == null || list.isEmpty()) {
+				return ReadOneResult.fail(
+						s3Key,
+						local.toString(),
+						null,
+						ReadPhase.NO_VALID_ROWS.name(),
+						dto.getResultCd());
 			}
 
 			for (DataEntity entity : list) {
@@ -542,7 +573,7 @@ public class GetOriginInfo {
 	}
 
 	private enum ReadPhase {
-		PREPARE_LOCAL_DIR, DOWNLOAD, PARSE, OPEN_STREAM_OR_PARSE
+		PREPARE_LOCAL_DIR, DOWNLOAD, PARSE, OPEN_STREAM_OR_PARSE, NO_VALID_ROWS
 	}
 
 	private static class KeyParts {

@@ -21,6 +21,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import dev.common.config.PathConfig;
+import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.TeamMemberMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
@@ -28,6 +29,7 @@ import dev.common.readfile.ReadTeamMember;
 import dev.common.readfile.dto.ReadFileOutputDTO;
 import dev.common.s3.S3Operator;
 import dev.common.util.CsvContentUtil;
+import dev.common.util.S3QuarantineUtil;
 
 /**
  * 選手情報取得管理クラス
@@ -45,6 +47,17 @@ import dev.common.util.CsvContentUtil;
  * <p>戻り値: key = ファイル（S3 キー）、value = その選手データ（ヘッダのみなら空のリスト）。S3 の一覧取得・スレッドの失敗時は null。</p>
  * @author shiraishitoshio
  *
+ *
+ * <p>2026-10 修正（読み込めない CSV が S3 に残り続ける問題）</p>
+ * <ul>
+ *   <li>読み込めないファイル（読み込みクラスがエラーを返した、またはデータ行はあるのに正しい行が 1 件も無い）は、
+ *       {@link S3QuarantineUtil} で error/＜元のキー＞.error に退避する。残すと Lambda が「.csv あり」と判定して
+ *       ECS を起動し続け、毎回同じファイルで失敗するため。中身は退避先に残るので後から調べられる。</li>
+ *   <li>ダウンロード失敗・タイムアウトは一時的なエラーとみなし、退避せず次回もう一度読む。</li>
+ *   <li>ReadTeamMember が「データ異常」（列数不足の行・日付の変換エラー）を返した場合は、今までどおり読めた行を登録する
+ *       （異常な行はエラーログを出して読み飛ばし／日付を空にして登録）。ファイルの読み込み自体が失敗した場合だけ退避する。
+ *       以前は読み込み失敗でも結果が空のリストになり、ヘッダのみと同じく削除されていた。</li>
+ * </ul>
  */
 @Component
 public class GetTeamMemberInfo {
@@ -114,6 +127,8 @@ public class GetTeamMemberInfo {
 
         int emptyFiles = 0;
         int failedFiles = 0;
+        // 中身が原因で読めないファイル（退避する）
+        List<String> brokenKeys = new ArrayList<>();
         try {
             List<Callable<Object>> tasks = new ArrayList<>(keys.size());
             for (String key : keys) {
@@ -171,20 +186,37 @@ public class GetTeamMemberInfo {
                 ReadFileOutputDTO dto = (ReadFileOutputDTO) res;
                 if (dto == null) {
                     failedFiles++;
+                    brokenKeys.add(s3Key);
                     this.manageLoggerComponent.debugErrorLog(
                             PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ReadTeamMemberS3 no result", null,
-                            "key=" + s3Key + "（削除せず次回もう一度読む）");
+                            "key=" + s3Key + "（error/ に退避します）");
                     continue;
+                }
+
+                // ファイルの読み込み自体が失敗した: 退避する
+                if (BookMakersCommonConst.ERR_CD_ERR_FILE_READS.equals(dto.getResultCd())) {
+                    failedFiles++;
+                    brokenKeys.add(s3Key);
+                    this.manageLoggerComponent.debugErrorLog(
+                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, "ReadTeamMemberS3 read failed", null,
+                            "key=" + s3Key + "（error/ に退避します）" + dto.getThrowAble());
+                    continue;
+                }
+
+                // データ異常（一部の行の列数不足・日付の変換エラー）: 読めた行は登録する（今までどおり）
+                if (!BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
+                    log.warn("[B002] 一部の行にデータ異常あり（読めた行は登録します） key={} resultCd={} detail={}",
+                            s3Key, dto.getResultCd(), dto.getErrMessage());
                 }
 
                 List<TeamMemberMasterEntity> members = dto.getMemberList();
                 if (members == null || members.isEmpty()) {
-                    // 読み込みクラスが 0 件と判定した場合もヘッダのみ扱い: 空のリストで返し、呼び出し側で削除対象にする
-                    emptyFiles++;
-                    resultMap.putIfAbsent(s3Key, new ArrayList<>());
-                    this.manageLoggerComponent.debugInfoLog(
-                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
-                            "データ行なし（ヘッダのみ）のため登録せず削除対象にします: key=" + s3Key);
+                    // データ行はあるのに正しい行が 1 件も無い（ヘッダのみは上で判定済み）: 壊れたファイルとして退避する
+                    failedFiles++;
+                    brokenKeys.add(s3Key);
+                    this.manageLoggerComponent.debugErrorLog(
+                            PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00003E_EXECUTION_SKIP, null,
+                            "正しいデータ行が0件（全行が列数不足など）: key=" + s3Key + "（error/ に退避します）");
                     continue;
                 }
 
@@ -211,8 +243,17 @@ public class GetTeamMemberInfo {
             }
         }
 
-        log.info("[B002] 読み込み結果: files={} (データあり={}, ヘッダのみ={}, 読み込み失敗={})",
-                keys.size(), resultMap.size() - emptyFiles, emptyFiles, failedFiles);
+        // 中身が原因で読めないファイルを退避する（残すと Lambda が ECS を起動し続けるため）
+        int quarantined = 0;
+        for (String brokenKey : brokenKeys) {
+            if (S3QuarantineUtil.quarantine(bucket, brokenKey, "読み込みエラー（ReadTeamMember）",
+                    s3Operator, manageLoggerComponent, PROJECT_NAME, CLASS_NAME, METHOD_NAME)) {
+                quarantined++;
+            }
+        }
+
+        log.info("[B002] 読み込み結果: files={} (データあり={}, ヘッダのみ={}, 読み込み失敗={}, うち退避={})",
+                keys.size(), resultMap.size() - emptyFiles, emptyFiles, failedFiles, quarantined);
         return resultMap;
     }
 }

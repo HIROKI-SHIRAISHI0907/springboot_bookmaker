@@ -19,6 +19,7 @@ import dev.common.readfile.ReadSeason;
 import dev.common.readfile.dto.ReadFileOutputDTO;
 import dev.common.s3.S3Operator;
 import dev.common.util.CsvContentUtil;
+import dev.common.util.S3QuarantineUtil;
 
 /**
  * シーズン情報取得管理クラス
@@ -38,6 +39,14 @@ import dev.common.util.CsvContentUtil;
  * </ul>
  * @author shiraishitoshio
  *
+ *
+ * <p>2026-10 修正（読み込めない CSV が S3 に残り続ける問題）</p>
+ * <ul>
+ *   <li>読み込めないファイル（読み込みクラスがエラーを返した、またはデータ行はあるのに正しい行が 1 件も無い）は、
+ *       {@link S3QuarantineUtil} で error/＜元のキー＞.error に退避する。残すと Lambda が「.csv あり」と判定して
+ *       ECS を起動し続け、毎回同じファイルで失敗するため。中身は退避先に残るので後から調べられる。</li>
+ *   <li>ダウンロード失敗・タイムアウトは一時的なエラーとみなし、退避せず次回もう一度読む。</li>
+ * </ul>
  */
 @Component
 public class GetSeasonInfo {
@@ -76,7 +85,7 @@ public class GetSeasonInfo {
 	/**
 	 * 取得メソッド
 	 *
-	 * @return null = ファイルなし・読み込みエラー / 空のリスト = ヘッダのみ（削除対象） / 1件以上 = 登録対象
+	 * @return null = ファイルなし・読み込みエラー（退避済み） / 空のリスト = ヘッダのみ（削除対象） / 1件以上 = 登録対象
 	 */
 	public List<CountryLeagueSeasonMasterEntity> getData() {
 		final String METHOD_NAME = "getData";
@@ -121,28 +130,26 @@ public class GetSeasonInfo {
 
         try (InputStream is = new ByteArrayInputStream(bytes)) {
             ReadFileOutputDTO dto = readSeason.getFileBodyFromStream(is, key);
-            if (dto == null) {
+            if (dto == null || !BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
+            	// 読み込みエラー: 退避する（残すと Lambda が ECS を起動し続けるため）
             	String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
     	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME,
-    	        		METHOD_NAME, msgCd, null, "S3 season_data.csv 読み込み結果なし（削除せず次回もう一度読む）");
+    	        		METHOD_NAME, msgCd, null,
+    	        		"S3 season_data.csv 読み込みエラー" + (dto == null ? "（読み込み結果なし）" : "") + "（error/ に退避します）" + dto.getThrowAble());
+    	        S3QuarantineUtil.quarantine(bucket, key, "読み込みエラー（ReadSeason）",
+    	        		s3Operator, manageLoggerComponent, PROJECT_NAME, CLASS_NAME, METHOD_NAME);
                 return null;
-            }
-            if (!BookMakersCommonConst.NORMAL_CD.equals(dto.getResultCd())) {
-            	String msgCd = MessageCdConst.MCD00005E_OTHER_EXECUTION_GREEN_FIN;
-    	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME,
-    	        		METHOD_NAME, msgCd, null, "S3 season_data.csv 読み込みエラー");
-            	this.manageLoggerComponent.createBusinessException(
-        	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd, null, null);
             }
 
             List<CountryLeagueSeasonMasterEntity> entity = dto.getCountryLeagueSeasonList();
             if (entity == null || entity.isEmpty()) {
-            	// 読み込みクラスが 0 件と判定した場合もヘッダのみ扱い: 空のリストを返し、B003 でファイルを削除する
-            	String msgCd = MessageCdConst.MCD00002I_BATCH_EXECUTION_SKIP;
-    	        this.manageLoggerComponent.debugInfoLog(
-    	            PROJECT_NAME, CLASS_NAME, METHOD_NAME, msgCd,
-    	            "データ行なし（ヘッダのみ）のため登録せず削除対象にします: " + key);
-                return new ArrayList<>();
+            	// データ行はあるのに正しい行が 1 件も無い（ヘッダのみは上で判定済み）: 壊れたファイルとして退避する
+    	        this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME,
+    	        		METHOD_NAME, MessageCdConst.MCD00003E_EXECUTION_SKIP, null,
+    	        		"S3 season_data.csv 正しいデータ行が0件（error/ に退避します）");
+    	        S3QuarantineUtil.quarantine(bucket, key, "正しいデータ行が0件（ReadSeason）",
+    	        		s3Operator, manageLoggerComponent, PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+                return null;
             }
             return entity;
 
