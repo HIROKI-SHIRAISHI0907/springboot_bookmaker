@@ -14,6 +14,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.application.domain.repository.master.FutureMasterRepository;
+import dev.application.domain.repository.master.FuturePostponeRepository;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.DataEntity;
 import dev.common.entity.FutureEntity;
@@ -43,6 +44,9 @@ import dev.common.logger.ManageLoggerComponent;
  *       その予定を start_flg = 0 に戻す。また「試合開始日時を過ぎたら 1」の更新から外す
  *       （外さないと、戻しても次の実行で 1 になってしまう）。
  *       今回の CSV に入っている試合（＝実際に試合中）は延期扱いにしない。</li>
+ *   <li>延期の試合の途中までのデータ（中断 → 延期）を退避してから削除する（{@link PostponedDataPurger}。static_data・real_data_process）。</li>
+ *   <li>延期の予定は、元の試合開始日時（無ければ延期を検知した日時）の前後1日のものだけ探す。
+ *       別の日に変わった予定（B005 が future_time を上書き）は延期扱いにしない。</li>
  *   <li>CSV の最新の試合時間が「延期」「中止」の試合は、CSV があっても start_flg = 1 にしない
  *       （延期は SuspensionStatusPublisher が delay_postpone に出力し、上の処理で 0 に戻す）。</li>
  * </ul>
@@ -73,6 +77,14 @@ public class FutureStartFlgService {
 	@Autowired
 	private PostponedMatchReader postponedMatchReader;
 
+	/** 延期の試合の予定（日付の範囲つき） */
+	@Autowired
+	private FuturePostponeRepository futurePostponeRepository;
+
+	/** 延期の試合のデータの退避・削除 */
+	@Autowired
+	private PostponedDataPurger postponedDataPurger;
+
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
@@ -85,6 +97,10 @@ public class FutureStartFlgService {
 	 */
 	public int execute(Map<String, List<DataEntity>> csvMap) throws Exception {
 		final String METHOD_NAME = "execute";
+
+		// 時間計測開始
+		long startTime = System.nanoTime();
+
 		// ログ出力
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
@@ -152,6 +168,12 @@ public class FutureStartFlgService {
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+
+		// 時間計測終了
+		long endTime = System.nanoTime();
+		long durationMs = (endTime - startTime) / 1_000_000;
+
+		System.out.println("時間: " + durationMs);
 
 		return 0;
 	}
@@ -280,7 +302,14 @@ public class FutureStartFlgService {
 	}
 
 	/**
-	 * 延期中の試合の予定を start_flg = 0 に戻す。
+	 * 延期中の試合の予定を start_flg = 0 に戻し、途中までのデータ（中断 → 延期）を退避して削除する。
+	 *
+	 * <ul>
+	 *   <li>予定は mid、無ければ同じカードで探す。どちらも基準時刻（元の試合開始日時、無ければ延期を検知した日時）の
+	 *       前後1日の予定だけ（別の日に変わった予定を延期扱いにしない。{@link FuturePostponeRepository}）。</li>
+	 *   <li>データの退避・削除は {@link PostponedDataPurger}（1試合1トランザクション）。失敗してもログだけ出して続ける
+	 *       （次の実行でもう一度試みる）。</li>
+	 * </ul>
 	 *
 	 * @param playingMatchIds 今回の CSV に入っている試合の match_id（延期扱いにしない）
 	 * @return 延期中の試合の seq（「試合開始日時を過ぎたら 1」の更新から外す）
@@ -288,6 +317,7 @@ public class FutureStartFlgService {
 	private List<String> resetPostponed(Set<String> playingMatchIds) {
 		final String METHOD_NAME = "resetPostponed";
 		Set<String> seqs = new LinkedHashSet<>();
+		List<FuturePostponeRepository.Row> purgeTargets = new ArrayList<>();
 		for (PostponedMatchReader.PostponedMatch m : this.postponedMatchReader.loadPostponed(LocalDate.now(ZoneId.of("Asia/Tokyo")))) {
 			if (m.mid != null && playingMatchIds.contains(m.mid)) {
 				continue;
@@ -295,9 +325,14 @@ public class FutureStartFlgService {
 			if (m.mid == null && (m.home == null || m.away == null)) {
 				continue;
 			}
-			List<String> found = this.futureMasterRepository.findPostponeTargets(m.home, m.away, m.mid, m.start);
-			if (found != null) {
-				seqs.addAll(found);
+			List<FuturePostponeRepository.Row> found = this.futurePostponeRepository.findPostponeTargetRows(m.home, m.away, m.mid, m.baseTime());
+			if (found == null) {
+				continue;
+			}
+			for (FuturePostponeRepository.Row f : found) {
+				if (seqs.add(f.getSeq())) {
+					purgeTargets.add(f);
+				}
 			}
 		}
 		List<String> list = new ArrayList<>(seqs);
@@ -306,6 +341,18 @@ public class FutureStartFlgService {
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
 					"延期中の試合: " + list.size() + "件, start_flg を 0 に戻した件数: " + n + "件 (seq=" + list + ")");
+		}
+
+		// 途中までのデータを退避して削除する（中断 → 延期。データが無ければ何もしない）
+		for (FuturePostponeRepository.Row f : purgeTargets) {
+			try {
+				this.postponedDataPurger.purge(OriginDBService.extractMid(f.getGameLink()),
+						f.getHomeTeamName(), f.getAwayTeamName(), f.getFutureTime());
+			} catch (RuntimeException e) {
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+						"延期の試合のデータ削除に失敗（処理は続行）: seq=" + f.getSeq());
+			}
 		}
 		return list;
 	}

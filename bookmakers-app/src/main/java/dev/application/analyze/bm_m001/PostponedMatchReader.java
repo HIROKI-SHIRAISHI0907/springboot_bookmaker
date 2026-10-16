@@ -84,10 +84,20 @@ public class PostponedMatchReader {
 		public String away;
 		/** 元の試合開始日時（"yyyy-MM-dd HH:mm:ss"・日本時間。分からなければ null） */
 		public String start;
+		/** その状態を検知した日時（scraped_at、無ければファイルの generated_at。"yyyy-MM-dd HH:mm:ss"・日本時間） */
+		public String detectedAt;
+
+		/**
+		 * 予定を探すときの基準時刻（元の試合開始日時。無ければ検知した日時）。
+		 */
+		public String baseTime() {
+			return start != null ? start : detectedAt;
+		}
 
 		@Override
 		public String toString() {
-			return "status=" + status + ", mid=" + mid + ", home=" + home + ", away=" + away + ", start=" + start;
+			return "status=" + status + ", mid=" + mid + ", home=" + home + ", away=" + away + ", start=" + start
+					+ ", detectedAt=" + detectedAt;
 		}
 	}
 
@@ -152,6 +162,7 @@ public class PostponedMatchReader {
 		// 試合キー → 最後の状態
 		Map<String, JsonNode> latest = new LinkedHashMap<>();
 		Map<String, String> latestStatus = new LinkedHashMap<>();
+		Map<String, Instant> latestFileTime = new LinkedHashMap<>();
 		for (LoadedFile f : loaded) {
 			JsonNode root = f.root;
 			for (String arrayName : MATCH_ARRAYS) {
@@ -168,6 +179,7 @@ public class PostponedMatchReader {
 					// 同じファイル内で matched（ECS の開始時刻あり）を優先するため、後ろの配列で上書き
 					latest.put(key, n);
 					latestStatus.put(key, status);
+					latestFileTime.put(key, f.generatedAt);
 				}
 			}
 		}
@@ -180,6 +192,7 @@ public class PostponedMatchReader {
 			m.home = text(n, "home");
 			m.away = text(n, "away");
 			m.start = toLocal(text(n, "start"));
+			m.detectedAt = detectedAt(n, latestFileTime.get(e.getKey()));
 			out.put(e.getKey(), m);
 		}
 		log(METHOD_NAME, "延期・中断などの情報: " + out.size() + "試合（読んだファイル: " + targets.size() + "件）");
@@ -199,6 +212,20 @@ public class PostponedMatchReader {
 			}
 		}
 		return lastModified == null ? Instant.MAX : lastModified;
+	}
+
+	/**
+	 * 検知した日時: scraped_at（スクレイピングの matched は scraped.scraped_at）、無ければファイルの generated_at。
+	 */
+	static String detectedAt(JsonNode n, Instant fileTime) {
+		String s = toLocal(text(n, "scraped_at"));
+		if (s == null && n != null) {
+			s = toLocal(text(n.path("scraped"), "scraped_at"));
+		}
+		if (s == null && fileTime != null && !Instant.MAX.equals(fileTime)) {
+			s = fileTime.atZone(JST).toLocalDateTime().format(LOCAL_FMT);
+		}
+		return s;
 	}
 
 	/** 読み込んだ1ファイル */
