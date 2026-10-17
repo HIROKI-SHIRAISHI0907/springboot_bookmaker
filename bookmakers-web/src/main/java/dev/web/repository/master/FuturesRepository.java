@@ -157,10 +157,10 @@ public class FuturesRepository {
 
 	// ========= 指定日の試合予定一覧（bm_a030） =========
 
-	/** 指定日（日本時間 0:00〜翌 0:00）の条件 */
+	/** 指定日（日本時間 0:00〜翌 0:00）の条件。future_time は timestamptz なので、日本時間の 0:00 を timestamptz に直して比べる（接続のタイムゾーンに左右されない） */
 	private static final String FUTURE_DATE_WHERE = """
-			WHERE f.future_time >= CAST(:date AS date)
-			  AND f.future_time <  CAST(:date AS date) + INTERVAL '1 day'
+			WHERE f.future_time >= (CAST(:date AS timestamp) AT TIME ZONE 'Asia/Tokyo')
+			  AND f.future_time <  ((CAST(:date AS timestamp) + INTERVAL '1 day') AT TIME ZONE 'Asia/Tokyo')
 			""";
 
 	/**
@@ -176,7 +176,7 @@ public class FuturesRepository {
 				  f.seq,
 				  f.game_team_category,
 				  f.future_time,
-				  to_char(f.future_time, 'YYYY-MM-DD HH24:MI:SS') AS future_time_local,
+				  to_char(f.future_time AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD HH24:MI:SS') AS future_time_local,
 				  f.home_team_name,
 				  f.away_team_name,
 				  NULLIF(BTRIM(f.game_link), '') AS game_link,
