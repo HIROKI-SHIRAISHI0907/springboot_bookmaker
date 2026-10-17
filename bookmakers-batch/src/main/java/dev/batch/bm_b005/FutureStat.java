@@ -15,6 +15,7 @@ import dev.common.entity.FutureEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
 import dev.common.util.FileDeleteUtil;
+import dev.common.util.S3QuarantineUtil;
 
 /**
  * BM_M022未来データ登録ロジック
@@ -30,6 +31,10 @@ import dev.common.util.FileDeleteUtil;
  * <ul>
  *   <li>GetFutureInfo はヘッダのみのファイルを「キー → 空のリスト」で返す。そのファイルは登録せず、削除対象にだけ入れる
  *       （他のファイルの登録が最後まで終わったら、まとめて削除される）。</li>
+ *   <li>データが原因の DB エラー（日時の変換エラー・桁あふれ・NOT NULL 違反など）になったファイルは
+ *       error/ に退避してから例外にする（{@link S3QuarantineUtil}）。残すと次回も同じファイルで失敗し、
+ *       Lambda が ECS を起動し続けるため。他のファイルはロールバックされて残り、次回登録し直される。
+ *       接続断など一時的なエラーは退避しない（次回もう一度読む）。</li>
  * </ul>
  * @author shiraishitoshio
  *
@@ -98,8 +103,14 @@ public class FutureStat implements FutureEntityIF {
 				this.futureDBService.insertInBatchOrThrow(insertEntities);
 				insertPath.add(filePath);
 			} catch (Exception e) {
+				// データが原因のエラーは、このファイルを退避してから止める（他のファイルは次回登録し直す）
+				if (S3QuarantineUtil.isDataError(e)) {
+					S3QuarantineUtil.quarantine(config.getS3BucketsFuture(), filePath,
+							"DB登録エラー（データ不正）: " + e.getClass().getSimpleName(),
+							s3Operator, manageLoggerComponent, PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+				}
 				String messageCd = "システムエラー";
-				throw new Exception(messageCd, e);
+				throw new Exception(messageCd + " " + fillChar, e);
 			}
 		}
 

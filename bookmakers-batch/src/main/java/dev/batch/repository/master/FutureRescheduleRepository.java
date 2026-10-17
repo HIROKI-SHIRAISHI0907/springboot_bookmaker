@@ -26,11 +26,11 @@ public interface FutureRescheduleRepository {
 	 */
 	@Select("""
 			WITH b AS (
-				SELECT CAST(#{baseTime} AS timestamp) AS base_time
+				SELECT (CAST(#{baseTime} AS timestamp) AT TIME ZONE 'Asia/Tokyo') AS base_time
 			)
 			SELECT
 				CAST(f.seq AS VARCHAR) AS seq,
-				to_char(f.future_time, 'YYYY-MM-DD HH24:MI:SS') AS futureTime,
+				to_char(f.future_time AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD HH24:MI:SS') AS futureTime,
 				f.home_team_name AS homeTeamName,
 				f.away_team_name AS awayTeamName,
 				f.game_link AS gameLink
@@ -93,6 +93,66 @@ public interface FutureRescheduleRepository {
 			@Param("seq") String seq,
 			@Param("futureTime") Object futureTime,
 			@Param("gameLink") String gameLink);
+
+	/**
+	 * 同じ mid の既存の予定を、取り込んだ予定の内容で直す（2026-10 追加: 日付ずれの修正）。
+	 * <p>future_master のスクレイピングが試合日を1日ずらして登録していた（翌日の試合を前日の日付で登録）ため、
+	 * 同じ mid の予定が来たら、正しい日時・カテゴリで上書きする。</p>
+	 * <ul>
+	 *   <li>試合開始日時: 違っていて、新しい日時がまだ来ていない（現在より後）、かつ今の日時から60日以内なら上書きし、
+	 *       start_flg を 0 に戻す（ずれた日時を過ぎて 1 になっていた予定も戻す。新しい日時が未来なので試合はまだ始まっていない）。</li>
+	 *   <li>カテゴリ: 今のカテゴリにラウンドが無く、新しいカテゴリにラウンドがあれば上書き。</li>
+	 *   <li>どちらにも当てはまらなければ更新しない（0 件）。</li>
+	 * </ul>
+	 *
+	 * @param mid game_link の mid
+	 * @param futureTime 新しい試合開始日時（"yyyy-MM-dd HH:mm:ss"・日本時間。FutureMasterRepository#insert と同じ式で変換）
+	 * @param gameTeamCategory 新しいカテゴリ
+	 * @return 更新件数
+	 */
+	@Update("""
+			WITH n AS (
+				SELECT
+					(CAST(NULLIF(BTRIM(CAST(#{futureTime} AS text)), '') AS timestamp) AT TIME ZONE 'Asia/Tokyo') AS new_time,
+					NULLIF(BTRIM(CAST(#{gameTeamCategory,jdbcType=VARCHAR} AS text)), '') AS new_cat
+			)
+			UPDATE future_master f
+			SET
+				future_time = CASE
+					WHEN n.new_time IS NOT NULL
+					 AND f.future_time IS DISTINCT FROM n.new_time
+					 AND n.new_time > CURRENT_TIMESTAMP
+					 AND n.new_time BETWEEN f.future_time - INTERVAL '60 days' AND f.future_time + INTERVAL '60 days'
+					THEN n.new_time ELSE f.future_time END,
+				start_flg = CASE
+					WHEN n.new_time IS NOT NULL
+					 AND f.future_time IS DISTINCT FROM n.new_time
+					 AND n.new_time > CURRENT_TIMESTAMP
+					 AND n.new_time BETWEEN f.future_time - INTERVAL '60 days' AND f.future_time + INTERVAL '60 days'
+					THEN '0' ELSE f.start_flg END,
+				game_team_category = CASE
+					WHEN n.new_cat ~ 'ラウンド\\s*[0-9]'
+					 AND (f.game_team_category IS NULL OR f.game_team_category !~ 'ラウンド\\s*[0-9]')
+					THEN n.new_cat ELSE f.game_team_category END,
+				update_id = 'SYSTEM',
+				update_time = CURRENT_TIMESTAMP
+			FROM n
+			WHERE
+				NULLIF(BTRIM(#{mid}), '') IS NOT NULL
+				AND substring(f.game_link from 'mid=([^&]+)') = BTRIM(#{mid})
+				AND (
+					(n.new_time IS NOT NULL
+					 AND f.future_time IS DISTINCT FROM n.new_time
+					 AND n.new_time > CURRENT_TIMESTAMP
+					 AND n.new_time BETWEEN f.future_time - INTERVAL '60 days' AND f.future_time + INTERVAL '60 days')
+				 OR (n.new_cat ~ 'ラウンド\\s*[0-9]'
+					 AND (f.game_team_category IS NULL OR f.game_team_category !~ 'ラウンド\\s*[0-9]'))
+				)
+			""")
+	int correctByMid(
+			@Param("mid") String mid,
+			@Param("futureTime") Object futureTime,
+			@Param("gameTeamCategory") String gameTeamCategory);
 
 	/** 延期の試合の予定1件 */
 	class Row {
