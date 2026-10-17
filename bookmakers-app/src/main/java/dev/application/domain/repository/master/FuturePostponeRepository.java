@@ -16,7 +16,8 @@ import org.apache.ibatis.annotations.Select;
  *       新しい日の予定を延期扱いにしない（start_flg を戻さない・データを消さない）。</li>
  *   <li>データの退避・削除に使うため、seq だけでなく試合開始日時・チーム名・game_link も返す。</li>
  * </ul>
- * <p>future_time は日本時間の壁時計の timestamp。基準時刻も日本時間の timestamp にして比べる。</p>
+ * <p>future_time は timestamptz。基準時刻（日本時間の文字列）は日本時間として timestamptz に直して比べ、
+ * 返す試合開始日時は日本時間の文字列にする（2026-10-17 修正。以前は接続のタイムゾーンで9時間ずれていた）。</p>
  * @author shiraishitoshio
  */
 @Mapper
@@ -34,13 +35,13 @@ public interface FuturePostponeRepository {
 	@Select("""
 			WITH b AS (
 				SELECT COALESCE(
-					CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp),
-					CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)
+					(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp) AT TIME ZONE 'Asia/Tokyo'),
+					now()
 				) AS base_time
 			)
 			SELECT
 				CAST(f.seq AS VARCHAR) AS seq,
-				to_char(f.future_time, 'YYYY-MM-DD HH24:MI:SS') AS futureTime,
+				to_char(f.future_time AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD HH24:MI:SS') AS futureTime,
 				f.home_team_name AS homeTeamName,
 				f.away_team_name AS awayTeamName,
 				f.game_link AS gameLink

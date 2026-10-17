@@ -12,9 +12,15 @@ import dev.common.entity.FutureEntity;
 /**
  * future_master の Repository（BM_M001 ほか）
  *
- * <p>future_time は timestamp（日本時間の壁時計）。DB は UTC のため、現在時刻と比べるときは
- * {@code now() AT TIME ZONE 'Asia/Tokyo'}（日本時間の timestamp）を使う。
- * {@code future_time < now()} のように timestamptz と比べると、future_time が UTC とみなされて9時間ずれる。</p>
+ * <p>future_time は timestamptz（時刻そのもの。psql など UTC の接続では「+00」付きで表示される）。
+ * 現在時刻とは {@code now()} とそのまま比べる。日本時間の文字列（record_time 等）は
+ * {@code CAST(x AS timestamp) AT TIME ZONE 'Asia/Tokyo'} で timestamptz にしてから比べる。</p>
+ *
+ * <p>2026-10-17 緊急修正: 以前の版は future_time を timestamp（日本時間の壁時計）と誤認し、
+ * {@code future_time < CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)} で比べていた。
+ * timestamptz と timestamp の比較は、timestamp 側を接続のタイムゾーン（ECS は UTC）で解釈するため、
+ * 試合開始の9時間前に start_flg = 1 になっていた（管理画面で開始前の試合が「ライブ」になった）。
+ * 基準時刻（日本時間の文字列）も同じ理由で、明示的に日本時間として timestamptz に直す。</p>
  *
  * <p>2026-10 追加（DataCategoryService のラウンド取得。batch の B010 と同じ考え方）</p>
  * <ul>
@@ -27,9 +33,8 @@ import dev.common.entity.FutureEntity;
  * <ul>
  *   <li>findStartFlgTarget を追加: start_flg を 1 にする「同じ試合の予定」を mid 優先・試合開始日時が一番近い1件に絞る
  *       （findOnlyTeam はチーム名の完全一致だけで、別の日の同じカードを返すことがあった）。</li>
- *   <li>updateFutureTimeFlg: 日本時間で比較（以前は9時間遅れていた）。start_flg = '0' の行だけ更新。</li>
- *   <li>基準時刻の前後1日の条件（NearTime / ForMatch）: 日本時間の timestamp どうしで比べるようにした
- *       （以前は基準時刻を timestamptz にしてから future_time と比べていたため、範囲が9時間ずれていた）。</li>
+ *   <li>updateFutureTimeFlg: start_flg = '0' の行だけ更新。比較は future_time &lt; now()（2026-10-17 修正）。</li>
+ *   <li>基準時刻の前後1日の条件（NearTime / ForMatch）: 基準時刻（日本時間の文字列）を日本時間として timestamptz に直して比べる。</li>
  *   <li>延期: findPostponeTargets / resetStartFlg を追加。updateFutureTimeFlg に延期中の試合の除外（excludeSeqs）を追加。</li>
  * </ul>
  */
@@ -76,8 +81,8 @@ public interface FutureMasterRepository {
 	@Select("""
 			WITH b AS (
 				SELECT COALESCE(
-					CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp),
-					CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)
+					(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp) AT TIME ZONE 'Asia/Tokyo'),
+					now()
 				) AS base_time
 			)
 			SELECT
@@ -111,7 +116,7 @@ public interface FutureMasterRepository {
 
 	/**
 	 * 試合開始日時を過ぎた未開始の予定を start_flg = #{startFlg} にする。
-	 * future_time は日本時間の壁時計なので、現在時刻も日本時間の timestamp にして比べる（DB は UTC）。
+	 * future_time は timestamptz なので now() とそのまま比べる（接続のタイムゾーンに左右されない）。
 	 * 延期中の試合（excludeSeqs）は対象外（延期の試合は開始するまで start_flg = 0 のまま）。
 	 *
 	 * @param startFlg 試合開始フラグ
@@ -122,7 +127,7 @@ public interface FutureMasterRepository {
 			UPDATE future_master
 			SET start_flg = #{startFlg}
 			WHERE start_flg = '0'
-			  AND future_time &lt; CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)
+			  AND future_time &lt; now()
 			  <if test="excludeSeqs != null and excludeSeqs.size() > 0">
 			  AND seq NOT IN
 			    <foreach collection="excludeSeqs" item="s" open="(" separator="," close=")">CAST(#{s} AS INTEGER)</foreach>
@@ -144,8 +149,8 @@ public interface FutureMasterRepository {
 	@Select("""
 			WITH b AS (
 				SELECT COALESCE(
-					CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp),
-					CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)
+					(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp) AT TIME ZONE 'Asia/Tokyo'),
+					now()
 				) AS base_time
 			)
 			SELECT
@@ -239,8 +244,8 @@ public interface FutureMasterRepository {
 			WHERE
 				normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
 				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
-				AND future_time BETWEEN CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp) - INTERVAL '1 day'
-				                    AND CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp) + INTERVAL '1 day'
+				AND future_time BETWEEN now() - INTERVAL '1 day'
+				                    AND now() + INTERVAL '1 day'
 				AND game_team_category IS DISTINCT FROM #{dataCategory}
 		""")
 	int updateGameTeamCategoryByTeamsNearNow(
@@ -291,8 +296,8 @@ public interface FutureMasterRepository {
 	@Select("""
 			WITH b AS (
 				SELECT COALESCE(
-					CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp),
-					CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)
+					(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp) AT TIME ZONE 'Asia/Tokyo'),
+					now()
 				) AS base_time
 			)
 			SELECT
@@ -323,8 +328,8 @@ public interface FutureMasterRepository {
 			WHERE
 				normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
 				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
-				AND future_time BETWEEN COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) - INTERVAL '1 day'
-				                    AND COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) + INTERVAL '1 day'
+				AND future_time BETWEEN COALESCE((CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp) AT TIME ZONE 'Asia/Tokyo'), now()) - INTERVAL '1 day'
+				                    AND COALESCE((CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp) AT TIME ZONE 'Asia/Tokyo'), now()) + INTERVAL '1 day'
 				AND game_team_category IS DISTINCT FROM #{dataCategory}
 		""")
 	int updateGameTeamCategoryNearTime(
@@ -350,8 +355,8 @@ public interface FutureMasterRepository {
 				 OR (
 					normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
 					AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
-					AND future_time BETWEEN COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) - INTERVAL '1 day'
-					                    AND COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) + INTERVAL '1 day'
+					AND future_time BETWEEN COALESCE((CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp) AT TIME ZONE 'Asia/Tokyo'), now()) - INTERVAL '1 day'
+					                    AND COALESCE((CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp) AT TIME ZONE 'Asia/Tokyo'), now()) + INTERVAL '1 day'
 				 )
 				)
 				AND (
