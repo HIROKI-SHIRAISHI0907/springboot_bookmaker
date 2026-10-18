@@ -129,6 +129,13 @@
 			<scope>test</scope>
 		</dependency>
 
+		<!-- CSV → Bean 変換（CsvUtil で使用） -->
+		<dependency>
+			<groupId>com.opencsv</groupId>
+			<artifactId>opencsv</artifactId>
+			<version>5.9</version>
+		</dependency>
+
 		<!-- ===== AWS SDK for Java v2（バージョンは親 pom で一括管理。ここに <version> は書かない） ===== -->
 		<dependency>
 			<groupId>software.amazon.awssdk</groupId>
