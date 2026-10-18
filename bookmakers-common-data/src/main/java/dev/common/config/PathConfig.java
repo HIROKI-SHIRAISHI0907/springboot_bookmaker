@@ -156,6 +156,12 @@ public class PathConfig {
 	private String s3BucketsMail;
 
 	/**
+	 * S3バケット（outputs）
+	 */
+	@Value("${process.s3.buckets.uploadCheck}")
+	private String s3BucketsUploadCheck;
+
+	/**
 	 * JSONフォルダ作成パスを返す
 	 * @return
 	 */
@@ -366,6 +372,15 @@ public class PathConfig {
 	 */
 	public String getS3BucketsMail() {
 	    return s3BucketsMail;
+	}
+
+	/**
+	 * UploadCheck(Json)（汎用出力）用のS3バケット名を取得する。
+	 *
+	 * @return UploadCheck用S3バケット名
+	 */
+	public String getS3BucketsUploadCheck() {
+	    return s3BucketsUploadCheck;
 	}
 
 }
