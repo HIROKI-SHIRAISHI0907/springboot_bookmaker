@@ -17,14 +17,18 @@ process:
       teamData: ${S3_TEAM_DATA:aws-s3-team-csv}
       teamMemberData: ${S3_TEAM_MEMBER_DATA:aws-s3-team-member-csv}
       outputs: ${S3_OUTPUTS:aws-s3-outputs-csv}
+      outputsBk: ${S3_OUTPUTS_BK:aws-s3-outputs-csv-bk}
       future: ${S3_FUTURE:aws-s3-future-csv}
       stats: ${S3_STATS:aws-s3-stat-csv}
       allLeague: ${S3_ALL_LEAGUE:aws-s3-all-league-csv}
       noEcs: ${S3_NO_ECS:aws-s3-no-ecs-task-time-csv}
+      geografic: ${S3_GEOGRAFIC:aws-s3-geografic-csv}
       record: ${S3_RECORD:aws-s3-record-csv}
       outputsFin: ${S3_OUTPUTS_FIN:aws-s3-outputs-fin-csv}
       delayPostpone: ${S3_DELAYPOSTPONE:aws-s3-delay-postpone-csv}
       nextSeason: ${S3_NEXT_SEASON:aws-s3-next-season-info-csv}
+      mail: ${S3_MAIL:aws-s3-mail}
+      uploadCheck: ${S3_UPLOAD_CHECK:aws-s3-upload-check-csv}
       
 mail:
   accounts: 

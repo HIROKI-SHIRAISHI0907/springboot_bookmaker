@@ -29,6 +29,7 @@ process:
       delayPostpone: ${S3_DELAYPOSTPONE:aws-s3-delay-postpone-csv}
       nextSeason: ${S3_NEXT_SEASON:aws-s3-next-season-info-csv}
       mail: ${S3_MAIL:aws-s3-mail}
+      uploadCheck: ${S3_UPLOAD_CHECK:aws-s3-upload-check-csv}
       
 mail:
   accounts: 
