@@ -2,6 +2,7 @@ package dev.web.controller;
 
 import java.io.IOException;
 import java.util.Map;
+import java.util.Objects;
 
 import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
@@ -11,6 +12,7 @@ import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.RequestHeader;
 import org.springframework.web.bind.annotation.RequestMapping;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
@@ -18,6 +20,7 @@ import org.springframework.web.multipart.MultipartFile;
 
 import dev.web.api.bm_a031.CsvDataUploadService;
 import dev.web.api.bm_a031.CsvUploadResponse;
+import dev.web.api.bm_a031.CsvUploadStatus;
 import dev.web.api.bm_a031.UnauthorizedUploadException;
 import dev.web.util.CsvUtil;
 import lombok.RequiredArgsConstructor;
@@ -27,13 +30,15 @@ import lombok.RequiredArgsConstructor;
  *
  * <h3>アップロード</h3>
  * <p>POST /v1/api/admin/csv/upload/{season|team|future|realtime}（multipart/form-data、項目名 file）</p>
+ * <p>Authorization: Bearer {JWT} を付けて送る（ログインユーザーは JWT から決める）。</p>
  * <ul>
- *   <li>zip だけ受け付ける。zip の名前は season_ / team_ / future_ / realtime_ で始め、中の CSV は zip と同じ名前にする。</li>
+ *   <li>zip だけ受け付ける。zip の名前は season_ / team_ / future_ / realtime_ で始め、中の CSV は zip と同じ名前にする
+ *       （Mac の「圧縮」で付く 〇〇.csv.zip も可）。</li>
  *   <li>realtime（リアルタイムデータ）は非表示・再表示だけ。</li>
- *   <li>200: 反映した（件数を返す）</li>
+ *   <li>200: 受け付けた（判定前。DB への反映はバッチサービス）</li>
  *   <li>400: ファイル名が決まりに合わない・CSV が読めない・データが無い・行エラーがある（どの行も反映しない）</li>
- *   <li>500: DB エラー（すべて元に戻した）</li>
- *   <li>401: 未ログイン（Authorization: Bearer の JWT が無い・不正）。受け付けず、状況管理にも記録しない</li>
+ *   <li>500: ファイルの保管（S3）に失敗した</li>
+ *   <li>401: 未ログイン（Authorization: Bearer の JWT が無い・不正・ユーザーなし）。受け付けず、状況管理にも記録しない</li>
  * </ul>
  *
  * <h3>フォーマットのダウンロード</h3>
@@ -54,26 +59,34 @@ public class AdminCsvDataUploadController {
 
 	/** シーズンデータ（country_league_season_master） */
 	@PostMapping(value = "/season", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public ResponseEntity<CsvUploadResponse> uploadSeason(@RequestParam("file") MultipartFile file) {
-		return toResponse(csvDataUploadService.uploadSeason(file));
+	public ResponseEntity<CsvUploadResponse> uploadSeason(
+			@RequestParam("file") MultipartFile file,
+			@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
+		return toResponse(csvDataUploadService.uploadSeason(file, authorization));
 	}
 
 	/** チームデータ（country_league_master） */
 	@PostMapping(value = "/team", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public ResponseEntity<CsvUploadResponse> uploadTeam(@RequestParam("file") MultipartFile file) {
-		return toResponse(csvDataUploadService.uploadTeam(file));
+	public ResponseEntity<CsvUploadResponse> uploadTeam(
+			@RequestParam("file") MultipartFile file,
+			@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
+		return toResponse(csvDataUploadService.uploadTeam(file, authorization));
 	}
 
 	/** 試合予定データ（future_master） */
 	@PostMapping(value = "/future", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public ResponseEntity<CsvUploadResponse> uploadFuture(@RequestParam("file") MultipartFile file) {
-		return toResponse(csvDataUploadService.uploadFuture(file));
+	public ResponseEntity<CsvUploadResponse> uploadFuture(
+			@RequestParam("file") MultipartFile file,
+			@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
+		return toResponse(csvDataUploadService.uploadFuture(file, authorization));
 	}
 
 	/** リアルタイムデータ（static_data。非表示・再表示のみ） */
 	@PostMapping(value = "/realtime", consumes = MediaType.MULTIPART_FORM_DATA_VALUE)
-	public ResponseEntity<CsvUploadResponse> uploadRealtime(@RequestParam("file") MultipartFile file) {
-		return toResponse(csvDataUploadService.uploadRealtime(file));
+	public ResponseEntity<CsvUploadResponse> uploadRealtime(
+			@RequestParam("file") MultipartFile file,
+			@RequestHeader(value = HttpHeaders.AUTHORIZATION, required = false) String authorization) {
+		return toResponse(csvDataUploadService.uploadRealtime(file, authorization));
 	}
 
 	/**
@@ -100,11 +113,19 @@ public class AdminCsvDataUploadController {
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED).body(Map.of("message", e.getMessage()));
 	}
 
+	/**
+	 * 受付結果 → HTTP ステータス
+	 * <ul>
+	 *   <li>PENDING（受け付けた）→ 200</li>
+	 *   <li>ERROR かつ phase=STORE（S3 保管失敗）→ 500</li>
+	 *   <li>それ以外（バリデーションエラー）→ 400</li>
+	 * </ul>
+	 */
 	private static ResponseEntity<CsvUploadResponse> toResponse(CsvUploadResponse res) {
-		if ("処理成功しました。".equals(res.getMessage())) {
+		if (Objects.equals(res.getStatus(), CsvUploadStatus.PENDING)) {
 			return ResponseEntity.ok(res);
 		}
-		if (res.getMessage() != null && res.getMessage().startsWith("処理失敗しました。")) {
+		if (Objects.equals(res.getErrorPhase(), CsvUploadStatus.PHASE_STORE)) {
 			return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(res);
 		}
 		return ResponseEntity.badRequest().body(res);

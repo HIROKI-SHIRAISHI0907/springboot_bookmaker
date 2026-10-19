@@ -37,7 +37,7 @@ public class BmRealtimeCsvDataUploadRepository {
 	private final TransactionTemplate transactionTemplate;
 
 	public BmRealtimeCsvDataUploadRepository(
-			@Qualifier("webBmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate) {
+			@Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate) {
 		this.bmJdbcTemplate = bmJdbcTemplate;
 		this.transactionTemplate = new TransactionTemplate(
 				new DataSourceTransactionManager(bmJdbcTemplate.getJdbcTemplate().getDataSource()));

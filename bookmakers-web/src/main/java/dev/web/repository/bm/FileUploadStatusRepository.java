@@ -9,7 +9,8 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
-import dev.web.api.bm_a031.CsvUploadStatus;
+import dev.common.constant.CsvUploadConst.Limit;
+import dev.common.constant.CsvUploadConst.Status;
 import dev.web.api.bm_a032.FileUploadStatusDTO;
 import dev.web.api.bm_a032.FileUploadStatusSearchCondition;
 import dev.web.api.bm_a032.FileUploadStatusSummaryDTO;
@@ -18,9 +19,10 @@ import dev.web.api.bm_a032.FileUploadStatusSummaryDTO;
  * ファイルアップロード状況管理（file_upload_status_manage・bm DB）
  *
  * <ul>
- *   <li>web: 受付（insertPending → 判定前）→ バリデーション OK（markUploaded・判定前のまま uploaded/ の場所を記録）
- *       または NG（markError・異常終了）。</li>
- *   <li>バッチサービス: 判定前を取り出して DB チェック・反映 → 正常終了 / 異常終了（バッチサービス側で更新する）。</li>
+ *   <li>web: 受付（insertReceived → 受付 RECEIVED）→ バリデーション OK・S3 保管 OK（markUploaded → 判定前 PENDING。
+ *       uploaded/ の場所を記録）または NG（markError → 異常終了 ERROR）。</li>
+ *   <li>バッチサービス: 判定前（PENDING）だけを取り出して DB チェック・反映 → 正常終了 / 異常終了（バッチサービス側で更新する）。
+ *       受付（RECEIVED）のまま残っているものは web の処理途中で止まったもので、バッチサービスは拾わない。</li>
  *   <li>それぞれ 1 文ずつすぐ確定する（マスタへの反映のトランザクションとは別）。</li>
  *   <li>一覧ではエラー行（error_detail）を返さない。詳細（findById）だけで返す。</li>
  *   <li>日時は日本時間の文字列（yyyy-MM-dd HH:mm:ss）で返す。検索条件は入力があるものだけ WHERE に足す。</li>
@@ -35,7 +37,7 @@ public class FileUploadStatusRepository {
 	private final NamedParameterJdbcTemplate bmJdbcTemplate;
 
 	public FileUploadStatusRepository(
-			@Qualifier("webBmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate) {
+			@Qualifier("bmJdbcTemplate") NamedParameterJdbcTemplate bmJdbcTemplate) {
 		this.bmJdbcTemplate = bmJdbcTemplate;
 	}
 
@@ -64,27 +66,27 @@ public class FileUploadStatusRepository {
 			""";
 
 	/**
-	 * 受付（status = PENDING 判定前）
+	 * 受付（status = RECEIVED。バリデーション・S3 保管の前。メッセージはまだ入れない）
 	 * @param loginUser ログインユーザー（メールアドレス）。register_id / update_id にも入れる
 	 * @return 採番した ID
 	 */
-	public long insertPending(String masterName, String fileName, String csvFileName, long fileSize, String loginUser) {
+	public long insertReceived(String masterName, String fileName, String csvFileName, long fileSize, String loginUser) {
 		String sql = """
 				INSERT INTO file_upload_status_manage (
-				    master_name, file_name, csv_file_name, file_size, status, message, login_user, started_at,
+				    master_name, file_name, csv_file_name, file_size, status, login_user, started_at,
 				    register_id, register_time, update_id, update_time
 				) VALUES (
-				    :masterName, :fileName, NULLIF(:csvFileName, ''), :fileSize, :status, '受付中です。', :loginUser, CURRENT_TIMESTAMP,
+				    :masterName, :fileName, NULLIF(:csvFileName, ''), :fileSize, :status, :loginUser, CURRENT_TIMESTAMP,
 				    :loginUser, CURRENT_TIMESTAMP, :loginUser, CURRENT_TIMESTAMP
 				)
 				RETURNING id
 				""";
 		Long id = bmJdbcTemplate.queryForObject(sql, new MapSqlParameterSource()
 				.addValue("masterName", masterName)
-				.addValue("fileName", cut(fileName, 255))
-				.addValue("csvFileName", cut(csvFileName, 255))
+				.addValue("fileName", cut(fileName, Limit.FILE_NAME_LENGTH))
+				.addValue("csvFileName", cut(csvFileName, Limit.FILE_NAME_LENGTH))
 				.addValue("fileSize", fileSize)
-				.addValue("status", CsvUploadStatus.PENDING)
+				.addValue("status", Status.RECEIVED)
 				.addValue("loginUser", loginUser), Long.class);
 		if (id == null) {
 			throw new IllegalStateException("file_upload_status_manage の ID を採番できませんでした。");
@@ -92,7 +94,7 @@ public class FileUploadStatusRepository {
 		return id;
 	}
 
-	/** バリデーション OK（判定前のまま、uploaded/ の場所を記録） */
+	/** バリデーション OK・S3 保管 OK（判定前 PENDING にして、uploaded/ の場所を記録） */
 	public int markUploaded(long id, String message, int totalCount, String s3Bucket, String s3Key, String loginUser) {
 		String sql = """
 				UPDATE file_upload_status_manage
@@ -108,7 +110,7 @@ public class FileUploadStatusRepository {
 				 WHERE id = :id
 				""";
 		return bmJdbcTemplate.update(sql, new MapSqlParameterSource()
-				.addValue("status", CsvUploadStatus.PENDING)
+				.addValue("status", Status.PENDING)
 				.addValue("message", message)
 				.addValue("totalCount", totalCount)
 				.addValue("s3Bucket", s3Bucket)
@@ -136,7 +138,7 @@ public class FileUploadStatusRepository {
 				 WHERE id = :id
 				""";
 		return bmJdbcTemplate.update(sql, new MapSqlParameterSource()
-				.addValue("status", CsvUploadStatus.ERROR)
+				.addValue("status", Status.ERROR)
 				.addValue("errorPhase", errorPhase)
 				.addValue("message", message)
 				.addValue("totalCount", totalCount)
@@ -203,13 +205,16 @@ public class FileUploadStatusRepository {
 		MapSqlParameterSource p = new MapSqlParameterSource();
 		String sql = "SELECT status, COUNT(*) AS cnt FROM file_upload_status_manage" + where(noStatus, p)
 				+ " GROUP BY status ORDER BY status";
-		return bmJdbcTemplate.query(sql, p, (rs, i) -> new FileUploadStatusSummaryDTO(rs.getString("status"), rs.getInt("cnt")));
+		return bmJdbcTemplate.query(sql, p,
+				(rs, i) -> new FileUploadStatusSummaryDTO(rs.getString("status"), rs.getInt("cnt")));
 	}
 
 	/** 詳細（エラー行を含む） */
 	public FileUploadStatusDTO findById(long id) {
-		String sql = "SELECT " + LIST_COLUMNS + ", error_detail::text AS error_detail FROM file_upload_status_manage WHERE id = :id";
-		List<FileUploadStatusDTO> list = bmJdbcTemplate.query(sql, new MapSqlParameterSource("id", id), (rs, i) -> map(rs, true));
+		String sql = "SELECT " + LIST_COLUMNS
+				+ ", error_detail::text AS error_detail FROM file_upload_status_manage WHERE id = :id";
+		List<FileUploadStatusDTO> list = bmJdbcTemplate.query(sql, new MapSqlParameterSource("id", id),
+				(rs, i) -> map(rs, true));
 		return list.isEmpty() ? null : list.get(0);
 	}
 

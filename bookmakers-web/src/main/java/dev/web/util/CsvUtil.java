@@ -347,6 +347,18 @@ public class CsvUtil {
 	// 部品
 	// =========================================================
 
+	/**
+	 * zip 名から拡張子を除いた名前（Mac の「圧縮」で付く 〇〇.csv.zip の .csv も除く）
+	 * 例: season_20261019084900.zip / season_20261019084900.csv.zip → season_20261019084900
+	 * @return zip 以外なら null
+	 */
+	public static String stemOfZip(String zipName) {
+		if (zipName == null || !zipName.toLowerCase().endsWith(".zip")) {
+			return null;
+		}
+		return zipName.replaceFirst("(?i)\\.zip$", "").replaceFirst("(?i)\\.csv$", "");
+	}
+
 	private static void appendLine(StringBuilder sb, String[] values) {
 		for (int i = 0; i < values.length; i++) {
 			if (i > 0) {
