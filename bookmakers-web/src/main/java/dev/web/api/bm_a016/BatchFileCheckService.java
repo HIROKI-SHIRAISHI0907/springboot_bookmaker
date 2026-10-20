@@ -29,6 +29,7 @@ public class BatchFileCheckService {
 	private static final String BUCKET_ALL_LEAGUE = "aws-s3-all-league-csv";
 	private static final String BUCKET_GEOGRAFIC = "aws-s3-geografic-csv";
 	private static final String BUCKET_OUTPUTS_FIN = "aws-s3-outputs-fin-csv";
+	private static final String BUCKET_UPLOAD_CHECK = "aws-s3-upload-check-csv";
 
 	/** 共通キー */
 	private static final String JSON_B001_COUNTRY_LEAGUE = "json/b001_country_league.json";
@@ -66,6 +67,7 @@ public class BatchFileCheckService {
 		tasks.add(buildB011());
 		tasks.add(buildB014ReadyFlgTrue());
 		tasks.add(buildB014ReadyFlgFalse());
+		tasks.add(buildB015());
 
 		return BatchFileCheckResponseWrapper.builder()
 				.tasks(tasks)
@@ -257,6 +259,19 @@ public class BatchFileCheckService {
 				: "必須不足（b015_team_location.csv が見つかりません）";
 
 		return task("B014F", geograficDataExists, summary, items);
+	}
+
+	/**
+	 * B015
+	 * uploaded/ 配下の zip ファイルが1件以上あれば実行可能
+	 */
+	private BatchFileCheckTaskWrapper buildB015() {
+		String bucket = BUCKET_UPLOAD_CHECK;
+		long uploadedZipCount = countDirectFoldersExcluding(bucket, Set.of("success", "error"));
+		boolean ready = uploadedZipCount >= 1;
+		List<BatchFileCheckItemWrapper> items = new ArrayList<>();
+		items.add(countItem("finフォルダ内のjsonファイル数", bucket, uploadedZipCount, true, ready));
+		return task("B015", ready, ready ? "準備OK" : "件数取得失敗", items);
 	}
 
 	// =========================================================
