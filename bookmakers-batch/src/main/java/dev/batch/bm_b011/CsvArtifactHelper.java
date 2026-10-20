@@ -17,6 +17,7 @@ import dev.common.entity.StatSizeFinalizeEntity;
 import dev.common.util.ExecuteMainUtil;
 /**
  * 特定の条件に応じたCSVを追加作成判断するためのヘルパークラス
+ * <p>2026-10-20: 使われていない statCondition（と ConditionData・StatConditionDTO）を削除した。</p>
  * @author shiraishitoshio
  *
  */
@@ -24,8 +25,6 @@ import dev.common.util.ExecuteMainUtil;
 public class CsvArtifactHelper {
 	/** フラグ: 0 */
 	private static final String STAT_SIZE_FINALIZE_FLG_0 = "0";
-	/** フラグデータ */
-	private List<StatSizeFinalizeEntity> flgData;
 	/** StatSizeFinalizeMasterRepositoryレポジトリクラス */
 	@Autowired
 	private StatSizeFinalizeMasterRepository statSizeFinalizeMasterRepository;
@@ -34,15 +33,7 @@ public class CsvArtifactHelper {
 	 * @return
 	 */
 	public List<StatSizeFinalizeEntity> getMaster() {
-		List<StatSizeFinalizeEntity> flgData = null;
-		try {
-			flgData = this.statSizeFinalizeMasterRepository
-					.findFlgData(STAT_SIZE_FINALIZE_FLG_0);
-			this.flgData = flgData;
-		} catch (Exception e) {
-			throw e;
-		}
-		return flgData;
+		return this.statSizeFinalizeMasterRepository.findFlgData(STAT_SIZE_FINALIZE_FLG_0);
 	}
 	/**
 	 * 条件データを設定するメインクラス
@@ -149,56 +140,6 @@ public class CsvArtifactHelper {
 			return true;
 		}
 		return false;
-	}
-	/**
-	 * 統計データ用の条件ラッパーメソッド
-	 * @param StatConditionDTO
-	 * @return
-	 */
-	public List<ConditionData> statCondition(StatConditionDTO dto) {
-		// フラグ0
-		if (this.flgData == null) {
-			List<StatSizeFinalizeEntity> flgData = getMaster();
-			this.flgData = flgData;
-		}
-		// 選択肢2(国リーグに関する制限付きINPUTを精査)
-		CsvArtifactResource csvArtifactResource = setOption2ndNum(flgData, new CsvArtifactResource());
-		// 返却値
-		List<ConditionData> list = new ArrayList<ConditionData>();
-		if (dto == null) {
-			// 統計データ設定
-			List<String> countryList = csvArtifactResource.getCountry();
-			List<String> leagueList = csvArtifactResource.getLeague();
-			List<DataEntity> result = new ArrayList<DataEntity>();
-			for (int i = 0; i < countryList.size(); i++) {
-				DataEntity dataEntity = new DataEntity();
-				dataEntity.setDataCategory(countryList.get(i) + ": " +
-						leagueList.get(i) + " - ラウンド X");
-				result.add(dataEntity);
-				// 条件を満たす
-				if (restrict2nd(result, csvArtifactResource)) {
-					ConditionData conditionData = new ConditionData();
-					conditionData.setCountry(countryList.get(i));
-					conditionData.setLeague(leagueList.get(i));
-					list.add(conditionData);
-				}
-			}
-			return list;
-		}
-		// 条件データ
-		List<ConditionData> conditions = dto.getMain();
-		for (ConditionData dtos : conditions) {
-			// 統計データ設定
-			List<DataEntity> result = new ArrayList<DataEntity>();
-			DataEntity dataEntity = new DataEntity();
-			dataEntity.setDataCategory(dtos.getCountry() + ": " +
-					dtos.getLeague() + " - ラウンド X");
-			result.add(dataEntity);
-			if (restrict2nd(result, csvArtifactResource)) {
-				list.add(dtos);
-			}
-		}
-		return list;
 	}
 	/**
 	 * スコアに関する制限付きINPUTを精査
