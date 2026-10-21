@@ -262,4 +262,18 @@ public interface CsvUploadMasterBatchRepository {
 			 WHERE seq = CAST(#{seq} AS BIGINT)
 			""")
 	int updateFutureDelFlg(@Param("seq") long seq, @Param("delFlg") String delFlg, @Param("user") String user);
+
+	/**
+	 * データカテゴリ統一（2026-10-21 追加）: 同じホーム・アウェーで、カテゴリが「現在のデータカテゴリ」と同じ試合予定の
+	 * カテゴリを書き換える（0 件でもよい。試合予定に無い試合もあるため）。
+	 */
+	@Update("""
+			UPDATE future_master
+			   SET game_team_category = #{next}, update_id = #{user}, update_time = CURRENT_TIMESTAMP
+			 WHERE normalize(BTRIM(home_team_name), NFKC) = normalize(BTRIM(#{home}), NFKC)
+			   AND normalize(BTRIM(away_team_name), NFKC) = normalize(BTRIM(#{away}), NFKC)
+			   AND normalize(BTRIM(COALESCE(game_team_category, '')), NFKC) = normalize(BTRIM(#{current}), NFKC)
+			""")
+	int updateFutureCategoryByKey(@Param("home") String home, @Param("away") String away,
+			@Param("current") String current, @Param("next") String next, @Param("user") String user);
 }

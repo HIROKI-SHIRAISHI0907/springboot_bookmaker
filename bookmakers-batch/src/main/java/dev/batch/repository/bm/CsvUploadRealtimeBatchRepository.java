@@ -11,6 +11,8 @@ import org.apache.ibatis.annotations.Update;
  * <ul>
  *   <li>キー: ホームチーム + アウェーチーム + データカテゴリ。該当する行（その試合のデータすべて）が対象。</li>
  *   <li>全角・半角の揺れと前後の空白は無視して比べる。del_flg: '0' = 表示 / '1' = 非表示。</li>
+ *   <li>データカテゴリ統一（2026-10-21 追加）: {@link #countByCategoryKey} / {@link #updateCategoryByKey}。
+ *       キーは ホーム + アウェー + 現在のデータカテゴリ（空はカテゴリが入っていない行）。del_flg は問わない。</li>
  * </ul>
  * @author shiraishitoshio
  */
@@ -37,4 +39,25 @@ public interface CsvUploadRealtimeBatchRepository {
 			""")
 	int updateDelFlgByKey(@Param("home") String home, @Param("away") String away, @Param("category") String category,
 			@Param("delFlg") String delFlg, @Param("user") String user);
+
+	/** データカテゴリ統一: キー（ホーム + アウェー + 現在のデータカテゴリ。空はカテゴリなし）に該当する行数 */
+	@Select("""
+			SELECT COUNT(*)
+			  FROM static_data
+			 WHERE normalize(BTRIM(home_team_name), NFKC) = normalize(BTRIM(#{home}), NFKC)
+			   AND normalize(BTRIM(away_team_name), NFKC) = normalize(BTRIM(#{away}), NFKC)
+			   AND normalize(BTRIM(COALESCE(data_category, '')), NFKC) = normalize(BTRIM(#{current}), NFKC)
+			""")
+	int countByCategoryKey(@Param("home") String home, @Param("away") String away, @Param("current") String current);
+
+	/** データカテゴリ統一: キーに該当する行のカテゴリをまとめて書き換える */
+	@Update("""
+			UPDATE static_data
+			   SET data_category = #{next}, update_id = #{user}, update_time = CURRENT_TIMESTAMP
+			 WHERE normalize(BTRIM(home_team_name), NFKC) = normalize(BTRIM(#{home}), NFKC)
+			   AND normalize(BTRIM(away_team_name), NFKC) = normalize(BTRIM(#{away}), NFKC)
+			   AND normalize(BTRIM(COALESCE(data_category, '')), NFKC) = normalize(BTRIM(#{current}), NFKC)
+			""")
+	int updateCategoryByKey(@Param("home") String home, @Param("away") String away, @Param("current") String current,
+			@Param("next") String next, @Param("user") String user);
 }

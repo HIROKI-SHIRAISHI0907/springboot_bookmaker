@@ -43,10 +43,15 @@ import dev.batch.repository.master.CsvUploadMasterBatchRepository;
  *       ID 指定でキーを書き換えるとき、変更後のキーが他の行と重なればエラー。</li>
  *   <li>削除・非表示・再表示: キーだけで 1 件に決める（0 件・2 件以上はエラー）。</li>
  *   <li>リアルタイム（static_data）: 非表示・再表示だけ。キーに該当する行すべてが対象（0 件はエラー）。</li>
+ *   <li>データカテゴリ統一（2026-10-21 追加）: 処理区分 2 の行だけ。キー（ホーム + アウェー + 現在のデータカテゴリ）に
+ *       該当する static_data の行すべて（0 件はエラー）と、同じホーム・アウェー・同じカテゴリの future_master の行
+ *       （0 件でもよい）のカテゴリを「新しいデータカテゴリ」にする。処理区分が空欄の行は何もしない。</li>
  *   <li>同じ対象（同じ ID・同じキー）がファイル内に 2 回出てきたらエラー（順番で結果が変わるのを防ぐ）。</li>
  * </ul>
  *
  * <p>トランザクション: シーズン・チーム・試合予定は master DB（masterTxManager）、リアルタイムは bm DB（bmTxManager）。
+ *    データカテゴリ統一は両方（master の中に bm を入れ子にする。途中で失敗したら両方元に戻す。
+ *    bm のコミット後に master のコミットだけ失敗したときは揃わないので、エラーにして画面に出す）。
  *    状況管理（file_upload_status_manage）の更新はこのトランザクションに含めない。</p>
  * @author shiraishitoshio
  */
@@ -57,6 +62,10 @@ public class FileUploadReflectService {
 	private static final DateTimeFormatter OUT_TS = DateTimeFormatter.ofPattern("uuuu-MM-dd'T'HH:mm:ss'+09:00'");
 	private static final Pattern NUMBER_PAT = Pattern.compile("^-?\\d+(\\.\\d+)?$");
 	private static final Pattern DIGITS_PAT = Pattern.compile("^\\d+$");
+
+	/** 処理区分が空欄で何もしない行（データカテゴリ統一） */
+	private static final Plan SKIP = new Plan(-1, null, () -> {
+	});
 
 	/** 試合国及びカテゴリの形（web の CsvRowValidator.CATEGORY_PAT と同じ） */
 	private static final Pattern CATEGORY_PAT = Pattern.compile(
@@ -271,7 +280,10 @@ public class FileUploadReflectService {
 		for (int i = 0; i < table.getRows().size(); i++) {
 			Row row = new Row(table, i);
 			try {
-				plans.add(plan(masterName, row, seen));
+				Plan p = plan(masterName, row, seen);
+				if (p != SKIP) {
+					plans.add(p);
+				}
 			} catch (RowException e) {
 				res.addRowError(i, row.get(FileUploadBatchConst.COL_OPERATION), e.key, e.getMessage());
 			}
@@ -279,21 +291,22 @@ public class FileUploadReflectService {
 		if (!res.getErrors().isEmpty()) {
 			return res;
 		}
+		if (plans.isEmpty()) {
+			// データカテゴリ統一で処理区分 2 の行が無い（web でも見ているが、念のため）
+			res.addFileError("反映する行がありません。（処理区分を 2 にした行だけ反映します）");
+			return res;
+		}
 
-		// 2. 反映（1 トランザクション）
-		TransactionTemplate tx = new TransactionTemplate(
-				FileUploadBatchConst.MASTER_REALTIME.equals(masterName) ? bmTxManager : masterTxManager);
+		// 2. 反映（1 トランザクション。データカテゴリ統一は master の中に bm を入れ子）
 		try {
-			tx.executeWithoutResult(status -> {
-				for (Plan p : plans) {
-					try {
-						p.action.run();
-					} catch (RuntimeException e) {
-						throw new ApplyException(p.index, e);
-					}
-					res.count(p.op);
-				}
-			});
+			if (FileUploadBatchConst.MASTER_DATA_CATEGORY.equals(masterName)) {
+				new TransactionTemplate(masterTxManager).executeWithoutResult(outer -> new TransactionTemplate(bmTxManager)
+						.executeWithoutResult(inner -> applyAll(plans, res)));
+			} else {
+				new TransactionTemplate(
+						FileUploadBatchConst.MASTER_REALTIME.equals(masterName) ? bmTxManager : masterTxManager)
+						.executeWithoutResult(status -> applyAll(plans, res));
+			}
 		} catch (ApplyException e) {
 			res.resetCounts();
 			res.applyFailed = true;
@@ -312,6 +325,18 @@ public class FileUploadReflectService {
 		return res;
 	}
 
+	/** 決めた「すること」を CSV の順に実行する（失敗したら ApplyException） */
+	private static void applyAll(List<Plan> plans, Result res) {
+		for (Plan p : plans) {
+			try {
+				p.action.run();
+			} catch (RuntimeException e) {
+				throw new ApplyException(p.index, e);
+			}
+			res.count(p.op);
+		}
+	}
+
 	private Plan plan(String masterName, Row row, Set<String> seen) {
 		if (FileUploadBatchConst.MASTER_SEASON.equals(masterName)) {
 			return planSeason(row, seen);
@@ -324,6 +349,9 @@ public class FileUploadReflectService {
 		}
 		if (FileUploadBatchConst.MASTER_REALTIME.equals(masterName)) {
 			return planRealtime(row, seen);
+		}
+		if (FileUploadBatchConst.MASTER_DATA_CATEGORY.equals(masterName)) {
+			return planDataCategory(row, seen);
 		}
 		throw new RowException("", String.format(FileUploadBatchConst.MSG_UNKNOWN_MASTER, masterName));
 	}
@@ -340,6 +368,9 @@ public class FileUploadReflectService {
 		if (FileUploadBatchConst.MASTER_FUTURE.equals(masterName)) {
 			return r.get(FileUploadBatchConst.COL_HOME_TEAM) + " vs " + r.get(FileUploadBatchConst.COL_AWAY_TEAM) + " / "
 					+ r.get(FileUploadBatchConst.COL_GAME_TEAM_CATEGORY);
+		}
+		if (FileUploadBatchConst.MASTER_DATA_CATEGORY.equals(masterName)) {
+			return dataCategoryKey(r);
 		}
 		return r.get(FileUploadBatchConst.COL_HOME_TEAM) + " vs " + r.get(FileUploadBatchConst.COL_AWAY_TEAM) + " / "
 				+ r.get(FileUploadBatchConst.COL_DATA_CATEGORY);
@@ -716,6 +747,79 @@ public class FileUploadReflectService {
 				throw new IllegalStateException("対象のデータがありませんでした。");
 			}
 		});
+	}
+
+	// =========================================================
+	// データカテゴリ統一（static_data・future_master のカテゴリ書き換え。2026-10-21 追加）
+	// =========================================================
+
+	private static String dataCategoryKey(Row r) {
+		String current = r.get(FileUploadBatchConst.COL_CURRENT_DATA_CATEGORY);
+		return r.get(FileUploadBatchConst.COL_HOME_TEAM) + " vs " + r.get(FileUploadBatchConst.COL_AWAY_TEAM) + " / "
+				+ (current.isEmpty() ? "（カテゴリなし）" : current);
+	}
+
+	/**
+	 * データカテゴリ統一の 1 行
+	 * <ul>
+	 *   <li>処理区分が空欄 → 何もしない（{@link #SKIP}）</li>
+	 *   <li>処理区分は 2（更新）だけ。ホーム・アウェー・新しいデータカテゴリは必須</li>
+	 *   <li>新しいデータカテゴリは「国: リーグ - ラウンド N」。仮の値（XXX / YYY）・現在と同じ値は不可</li>
+	 *   <li>キーに該当する static_data が 0 件ならエラー（future_master は 0 件でもよい）</li>
+	 * </ul>
+	 */
+	private Plan planDataCategory(Row r, Set<String> seen) {
+		String op0 = r.get(FileUploadBatchConst.COL_OPERATION);
+		if (op0.isEmpty()) {
+			return SKIP;
+		}
+		String home = r.get(FileUploadBatchConst.COL_HOME_TEAM);
+		String away = r.get(FileUploadBatchConst.COL_AWAY_TEAM);
+		String current = r.get(FileUploadBatchConst.COL_CURRENT_DATA_CATEGORY);
+		String next = r.get(FileUploadBatchConst.COL_NEW_DATA_CATEGORY);
+		String key = dataCategoryKey(r);
+		UploadOperation op = requireOperation(op0, key);
+		if (op != UploadOperation.UPDATE) {
+			throw new RowException(key, "データカテゴリ統一は 2:更新 だけ指定できます。（反映しない行は処理区分を空欄にしてください）");
+		}
+		requireNotEmpty(home, "ホームチーム", key);
+		requireNotEmpty(away, "アウェーチーム", key);
+		requireNotEmpty(next, "新しいデータカテゴリ", key);
+		if (!CATEGORY_PAT.matcher(next).matches()) {
+			throw new RowException(key, "新しいデータカテゴリは「国: リーグ - ラウンド N」の形で入力してください。"
+					+ "（「:」「-」・スペース・数字はすべて半角。「: 」と「 - 」のスペースは 1 つ。例: 日本: J1リーグ - ラウンド 30）");
+		}
+		if (isPlaceholderCategory(next)) {
+			throw new RowException(key, "新しいデータカテゴリに仮の値（XXX: YYY）は使えません。");
+		}
+		if (norm(next).equals(norm(current))) {
+			throw new RowException(key, "新しいデータカテゴリが現在と同じです。（変えない行は処理区分を空欄にしてください）");
+		}
+		markSeen(seen, "k:" + norm(home + "|" + away + "|" + current), key);
+		if (realtimeRepository.countByCategoryKey(home, away, current) == 0) {
+			throw new RowException(key, "対象のデータがありません。（ホームチーム + アウェーチーム + 現在のデータカテゴリ に該当する行がありません）");
+		}
+		return new Plan(r.index, op, () -> {
+			if (realtimeRepository.updateCategoryByKey(home, away, current, next, USER) == 0) {
+				throw new IllegalStateException("対象のデータがありませんでした。");
+			}
+			// 試合予定は無い試合もあるので 0 件でもよい
+			masterRepository.updateFutureCategoryByKey(home, away, current, next, USER);
+		});
+	}
+
+	/** 仮の値（国が XXX またはリーグが YYY） */
+	private static boolean isPlaceholderCategory(String category) {
+		String n = norm(category);
+		int colon = n.indexOf(':');
+		if (colon < 0) {
+			return false;
+		}
+		String country = n.substring(0, colon).strip();
+		String rest = n.substring(colon + 1).strip();
+		int dash = rest.indexOf(" - ");
+		String league = (dash >= 0 ? rest.substring(0, dash) : rest).strip();
+		return "XXX".equalsIgnoreCase(country) || "YYY".equalsIgnoreCase(league);
 	}
 
 	// =========================================================

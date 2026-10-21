@@ -45,6 +45,8 @@ public final class FileUploadBatchConst {
 	public static final String MASTER_TEAM = "team";
 	public static final String MASTER_FUTURE = "future";
 	public static final String MASTER_REALTIME = "realtime";
+	/** データカテゴリ統一（static_data・future_master のカテゴリ書き換え。2026-10-21 追加） */
+	public static final String MASTER_DATA_CATEGORY = "dataCategory";
 
 	// =========================================================
 	// S3（aws-s3-upload-check-csv）
@@ -119,6 +121,8 @@ public final class FileUploadBatchConst {
 	public static final String COL_GAME_LINK = "試合リンク文字列";
 	public static final String COL_DATA_TIME = "データ取得時間";
 	public static final String COL_DATA_CATEGORY = "データカテゴリ";
+	public static final String COL_CURRENT_DATA_CATEGORY = "現在のデータカテゴリ";
+	public static final String COL_NEW_DATA_CATEGORY = "新しいデータカテゴリ";
 
 	/** 種類ごとの列（この列が見出しに無ければファイルのエラー） */
 	public static List<String> columnsOf(String masterName) {
@@ -138,6 +142,11 @@ public final class FileUploadBatchConst {
 		}
 		if (MASTER_REALTIME.equals(masterName)) {
 			return Arrays.asList(COL_OPERATION, COL_HOME_TEAM, COL_AWAY_TEAM, COL_DATA_CATEGORY);
+		}
+		if (MASTER_DATA_CATEGORY.equals(masterName)) {
+			// 後ろの参考の列（件数・国リーグ判定など）は読まない
+			return Arrays.asList(COL_OPERATION, COL_HOME_TEAM, COL_AWAY_TEAM, COL_CURRENT_DATA_CATEGORY,
+					COL_NEW_DATA_CATEGORY);
 		}
 		return Collections.emptyList();
 	}
