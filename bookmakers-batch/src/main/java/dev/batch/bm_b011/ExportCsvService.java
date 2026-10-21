@@ -70,6 +70,11 @@ public class ExportCsvService {
 			.getCodeSource().getLocation().getPath();
 	/** クラス名 */
 	private static final String CLASS_NAME = ExportCsvService.class.getName();
+	/**
+	 * この処理の版（起動ログに出す。ECS で動いているイメージが最新か確認する用）。
+	 * 2026-10-21: 仮のカテゴリ（XXX: YYY）のフォルダの CSV は「作成済み」に数えない・作らない（二重のガード）。
+	 */
+	private static final String LOGIC_VERSION = "2026-10-21 placeholder-guard";
 	/** 新規CSVグループの一時キーに付与するプレフィックス */
 	private static final String CSV_NEW_PREFIX = "mk";
 	/** seqList.txt（JSON形式）の読み書き用ObjectMapper */
@@ -152,7 +157,8 @@ public class ExportCsvService {
 	public void execute() throws IOException {
 		final String METHOD_NAME = "execute";
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, "start");
-		logInfo(METHOD_NAME, "execute 開始 localOnly=" + localOnly
+		logInfo(METHOD_NAME, "execute 開始 version=" + LOGIC_VERSION
+				+ ", localOnly=" + localOnly
 				+ ", finalPrefix=" + finalPrefix
 				+ ", workChunkSize=" + workChunkSize
 				+ ", groupPageSize=" + GROUP_PAGE_SIZE);
@@ -472,6 +478,12 @@ public class ExportCsvService {
 	    for (Map.Entry<String, List<NewTargetGroup>> e : newTargetsByFolder.entrySet()) {
 	        String folderName = canonicalizeFolderSegment(e.getKey());
 	        List<NewTargetGroup> groups = e.getValue();
+	        if (isPlaceholderFolder(folderName)) {
+	            // resolveNewTargetsByFolder で除外済みのはず。念のため最後にもう一度止める
+	            logWarn(METHOD_NAME, "仮のカテゴリのフォルダのため CSV を作らない folder=" + folderName
+	                    + ", 試合数=" + groups.size());
+	            continue;
+	        }
 	        groups.sort(Comparator.comparingInt(g -> minSeqOfIds(g.seqIds)));
 	        for (NewTargetGroup group : groups) {
 	            String relativeKey = buildUniqueCsvRelativeKey(
@@ -1553,8 +1565,19 @@ public class ExportCsvService {
 			Map<String, List<String>> csvInfoRow) {
 		final String METHOD_NAME = "findNewTargets";
 		Set<String> createdSeqs = new LinkedHashSet<>();
-		for (List<String> ids : canonicalizeCsvInfoMap(csvInfoRow).values()) {
-			createdSeqs.addAll(ids);
+		List<String> placeholderCsvs = new ArrayList<>();
+		for (Map.Entry<String, List<String>> e : canonicalizeCsvInfoMap(csvInfoRow).entrySet()) {
+			// 仮のカテゴリ（XXX-YYY-ラウンド0 等）のフォルダの CSV は作成済みに数えない
+			// （カテゴリが直ったら正しいフォルダに作れるように。残っている CSV は手で消す）
+			if (isPlaceholderCsvKey(e.getKey())) {
+				placeholderCsvs.add(e.getKey());
+				continue;
+			}
+			createdSeqs.addAll(e.getValue());
+		}
+		if (!placeholderCsvs.isEmpty()) {
+			logWarn(METHOD_NAME, "仮のカテゴリのフォルダに CSV があります（作成済みに数えない。削除してください） 件数="
+					+ placeholderCsvs.size() + ", 例=" + placeholderCsvs.subList(0, Math.min(5, placeholderCsvs.size())));
 		}
 		Map<String, List<String>> newTargets = new LinkedHashMap<>();
 		int created = 0;
@@ -2161,6 +2184,34 @@ public class ExportCsvService {
 	        }
 	    }
 	}
+	/**
+	 * CSV の相対キー（「国-リーグ-ラウンドN/ホーム-アウェー.csv」）が仮のカテゴリのフォルダか。
+	 *
+	 * @param csvKey CSV の相対キー
+	 * @return 仮のカテゴリ（XXX / YYY）のフォルダなら true
+	 */
+	private boolean isPlaceholderCsvKey(String csvKey) {
+		String folder = parentPath(canonicalizeCsvId(csvKey));
+		int slash = folder.lastIndexOf('/');
+		return isPlaceholderFolder(slash >= 0 ? folder.substring(slash + 1) : folder);
+	}
+
+	/**
+	 * フォルダ名（正規化済み「国-リーグ-ラウンドN」）が仮のカテゴリ（国が XXX またはリーグが YYY）か。
+	 *
+	 * @param folder フォルダ名
+	 * @return 仮のカテゴリなら true
+	 */
+	static boolean isPlaceholderFolder(String folder) {
+		if (folder == null || folder.isBlank()) {
+			return false;
+		}
+		String[] parts = Normalizer.normalize(folder, Normalizer.Form.NFKC).trim().split("-");
+		String country = parts.length > 0 ? parts[0].trim() : "";
+		String league = parts.length > 1 ? parts[1].trim() : "";
+		return PLACEHOLDER_COUNTRY.equalsIgnoreCase(country) || PLACEHOLDER_LEAGUE.equalsIgnoreCase(league);
+	}
+
 	/**
 	 * 統計CSVを作れる dataCategory か（2026-10-20 追加）。
 	 * <ul>
