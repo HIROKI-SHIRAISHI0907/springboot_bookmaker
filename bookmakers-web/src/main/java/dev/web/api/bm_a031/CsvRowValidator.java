@@ -24,6 +24,8 @@ import java.util.regex.Pattern;
  *   <li>試合予定: 処理区分・試合国及びカテゴリ（「国: リーグ - ラウンド N」。区切りは半角のみ）・試合予定時間・
  *       ホームチーム・アウェーチーム・試合リンク文字列（データ取得時間は空欄ならバッチで現在日時）</li>
  *   <li>リアルタイム: 処理区分（4・5 のみ）・ホームチーム・アウェーチーム・データカテゴリ</li>
+ *   <li>データカテゴリ統一: 処理区分が 2 の行だけ。ホームチーム・アウェーチーム・新しいデータカテゴリ
+ *       （「国: リーグ - ラウンド N」。仮の値 XXX / YYY は不可）。処理区分が空欄の行はチェックしない（反映しない）。</li>
  * </ul>
  * <p>削除・非表示・再表示はキーだけで対象を決める（ID は空欄）。更新は ID かキーで決める。</p>
  *
@@ -262,6 +264,75 @@ public final class CsvRowValidator {
 		required(category, "データカテゴリ", r);
 		duplicate(seen, op, null, r);
 		return r;
+	}
+
+	// =========================================================
+	// データカテゴリ統一（2026-10-21 追加）
+	// =========================================================
+
+	/**
+	 * データカテゴリ統一の 1 行
+	 * <ul>
+	 *   <li>処理区分が空欄 → 何もしない行（チェックもしない）</li>
+	 *   <li>処理区分は 2（更新）だけ</li>
+	 *   <li>ホームチーム・アウェーチーム・新しいデータカテゴリは必須（現在のデータカテゴリは空欄可＝カテゴリが無い行）</li>
+	 *   <li>新しいデータカテゴリは「国: リーグ - ラウンド N」の形。仮の値（XXX: YYY）は不可。現在と同じ値は不可</li>
+	 *   <li>同じ ホーム + アウェー + 現在のデータカテゴリ がファイル内で 2 回出たらエラー</li>
+	 * </ul>
+	 */
+	public static Result dataCategory(DataCategoryCsvRow row, Set<String> seen) {
+		String home = strip(row.getHomeTeamName());
+		String away = strip(row.getAwayTeamName());
+		String current = strip(row.getCurrentDataCategory());
+		String next = strip(row.getNewDataCategory());
+		Result r = new Result(home + " vs " + away + " / " + (current.isEmpty() ? "（カテゴリなし）" : current));
+		if (isSkippedDataCategoryRow(row)) {
+			return r;
+		}
+		CsvOperation op = operation(row.getOperation(), r);
+		if (op == null) {
+			return r;
+		}
+		if (op != CsvOperation.UPDATE) {
+			r.add("データカテゴリ統一は 2:更新 だけ指定できます。（反映しない行は処理区分を空欄にしてください）");
+		}
+		required(home, "ホームチーム", r);
+		required(away, "アウェーチーム", r);
+		required(next, "新しいデータカテゴリ", r);
+		if (!next.isEmpty()) {
+			if (!CATEGORY_PAT.matcher(next).matches()) {
+				r.add("新しいデータカテゴリは「国: リーグ - ラウンド N」の形で入力してください。"
+						+ "（「:」「-」・スペース・数字はすべて半角。「: 」と「 - 」のスペースは 1 つ。例: 日本: J1リーグ - ラウンド 30）");
+			} else if (isPlaceholderCategory(next)) {
+				r.add("新しいデータカテゴリに仮の値（XXX: YYY）は使えません。");
+			}
+			if (norm(next).equals(norm(current))) {
+				r.add("新しいデータカテゴリが現在と同じです。（変えない行は処理区分を空欄にしてください）");
+			}
+		}
+		if (!seen.add("k:" + norm(home + "|" + away + "|" + current))) {
+			r.add("同じ対象（ホームチーム + アウェーチーム + 現在のデータカテゴリ）がファイル内で重複しています。");
+		}
+		return r;
+	}
+
+	/** 処理区分が空欄の行（反映しない行） */
+	public static boolean isSkippedDataCategoryRow(DataCategoryCsvRow row) {
+		return strip(row.getOperation()).isEmpty();
+	}
+
+	/** 仮の値（国が XXX またはリーグが YYY） */
+	private static boolean isPlaceholderCategory(String category) {
+		String n = norm(category);
+		int colon = n.indexOf(':');
+		if (colon < 0) {
+			return false;
+		}
+		String country = n.substring(0, colon).strip();
+		String rest = n.substring(colon + 1).strip();
+		int dash = rest.indexOf(" - ");
+		String league = (dash >= 0 ? rest.substring(0, dash) : rest).strip();
+		return "XXX".equalsIgnoreCase(country) || "YYY".equalsIgnoreCase(league);
 	}
 
 	// =========================================================

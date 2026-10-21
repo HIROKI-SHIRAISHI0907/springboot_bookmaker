@@ -102,6 +102,22 @@ public class CsvDataUploadService {
 	}
 
 	/**
+	 * データカテゴリ統一（static_data.data_category・future_master.game_team_category。2026-10-21 追加）
+	 * <p>処理区分 2 の行だけ反映する。2 の行が 1 つも無ければファイルのエラー。</p>
+	 */
+	public CsvUploadResponse uploadDataCategory(MultipartFile file, String authorization) {
+		return run(Master.DATA_CATEGORY, Prefix.DATA_CATEGORY, file, authorization, DataCategoryCsvRow.class,
+				CsvRowValidator::dataCategory, rows -> {
+					for (DataCategoryCsvRow r : rows) {
+						if (!CsvRowValidator.isSkippedDataCategoryRow(r)) {
+							return null;
+						}
+					}
+					return "反映する行がありません。（処理区分を 2 にした行だけ反映します）";
+				});
+	}
+
+	/**
 	 * アップロード用フォーマット（ヘッダー行だけの CSV を zip にしたもの）
 	 * <p>名前は「接頭辞 + 日時（日本時間）」。例: season_20261018203000.zip の中に season_20261018203000.csv</p>
 	 * @param masterName season / team / future / realtime
@@ -121,7 +137,53 @@ public class CsvDataUploadService {
 		if (Master.REALTIME.equals(masterName)) {
 			return CsvUtil.createFormatZip(Prefix.REALTIME + ts, RealtimeCsvRow.class);
 		}
+		if (Master.DATA_CATEGORY.equals(masterName)) {
+			return createDataCategoryFormat(new DataCategoryFormatRequest());
+		}
 		return null;
+	}
+
+	/** データカテゴリ統一のフォーマットに付ける参考の列（アップロードでは読まない） */
+	private static final List<String> DATA_CATEGORY_REFERENCE_COLUMNS = List.of(
+			"件数（参考）", "国リーグ判定（参考）", "国リーグ候補（参考）", "形式（参考）");
+
+	/**
+	 * データカテゴリ統一のフォーマット（画面に表示中のデータを入れたもの。2026-10-21 追加）
+	 * <p>名前は「dataCategory_ + 日時（日本時間）」。例: dataCategory_20261021203000.zip の中に dataCategory_20261021203000.csv</p>
+	 * <p>列: 処理区分・ホームチーム・アウェーチーム・現在のデータカテゴリ・新しいデータカテゴリ ＋ 参考の列。
+	 *    画面で新しい値を入れていた行は処理区分 2・新しい値入り、それ以外は空欄。</p>
+	 *
+	 * @param req 表示中の行（空ならヘッダーだけ）
+	 */
+	public CsvUtil.CsvFile createDataCategoryFormat(DataCategoryFormatRequest req) throws IOException {
+		String baseName = Prefix.DATA_CATEGORY + LocalDateTime.now(JST).format(FILE_TS);
+		List<String> header = new ArrayList<>(CsvUtil.headerOf(DataCategoryCsvRow.class));
+		header.addAll(DATA_CATEGORY_REFERENCE_COLUMNS);
+		List<String[]> lines = new ArrayList<>();
+		if (req != null && req.getRows() != null) {
+			for (DataCategoryFormatRequest.Row r : req.getRows()) {
+				if (r == null) {
+					continue;
+				}
+				String current = nvl(r.getCurrentDataCategory()).strip();
+				String next = nvl(r.getNewDataCategory()).strip();
+				// 新しい値が入っていて今と違う行だけ処理区分 2（画面の指定があればそれを使う）
+				String op = r.getOperation() != null ? r.getOperation().strip()
+						: (!next.isEmpty() && !next.equals(current) ? CsvOperation.UPDATE.getCode() : "");
+				lines.add(new String[] {
+						op,
+						nvl(r.getHomeTeamName()).strip(),
+						nvl(r.getAwayTeamName()).strip(),
+						current,
+						next,
+						r.getCount() == null ? "" : String.valueOf(r.getCount()),
+						nvl(r.getLeagueCheck()),
+						r.getLeagueCandidates() == null ? "" : String.join(" / ", r.getLeagueCandidates()),
+						nvl(r.getFormat()) });
+			}
+		}
+		return new CsvUtil.CsvFile(baseName + FileName.ZIP_EXT,
+				CsvUtil.zipSingle(baseName + FileName.CSV_EXT, CsvUtil.writeCsv(header, lines)));
 	}
 
 	// =========================================================
@@ -142,11 +204,23 @@ public class CsvDataUploadService {
 		if (row instanceof RealtimeCsvRow) {
 			return ((RealtimeCsvRow) row).getOperation();
 		}
+		if (row instanceof DataCategoryCsvRow) {
+			return ((DataCategoryCsvRow) row).getOperation();
+		}
 		return "";
 	}
 
 	private <R> CsvUploadResponse run(String masterName, String prefix, MultipartFile file, String authorization,
 			Class<R> type, BiFunction<R, Set<String>, CsvRowValidator.Result> validator) {
+		return run(masterName, prefix, file, authorization, type, validator, null);
+	}
+
+	/**
+	 * @param fileCheck 行全体を見たファイルのチェック（エラーならメッセージ、OK なら null。不要なら null）
+	 */
+	private <R> CsvUploadResponse run(String masterName, String prefix, MultipartFile file, String authorization,
+			Class<R> type, BiFunction<R, Set<String>, CsvRowValidator.Result> validator,
+			java.util.function.Function<List<R>, String> fileCheck) {
 
 		// 1. 誰がアップロードしたかを残すため、ログインしていなければ受け付けない（NG は例外 → Controller で 401）
 		String loginUser = currentLoginUser(authorization);
@@ -180,6 +254,11 @@ public class CsvDataUploadService {
 			res.setTotalCount(rows.size());
 			if (rows.isEmpty()) {
 				fileErrors.add(Message.NO_DATA);
+			} else if (fileCheck != null) {
+				String m = fileCheck.apply(rows);
+				if (m != null) {
+					fileErrors.add(m);
+				}
 			}
 			Set<String> seen = new HashSet<>();
 			for (int i = 0; i < rows.size(); i++) {

@@ -14,8 +14,8 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import dev.common.s3.S3Operator;
 import dev.web.api.bm_a031.CsvUploadRowError;
 import dev.web.api.bm_a031.CsvUploadStatus;
-import dev.web.util.CsvUtil;
 import dev.web.repository.bm.FileUploadStatusRepository;
+import dev.web.util.CsvUtil;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
@@ -32,7 +32,7 @@ public class FileUploadStatusService {
 	public static final int DEFAULT_SIZE = 50;
 	public static final int MAX_SIZE = 200;
 
-	private static final Set<String> MASTER_NAMES = Set.of("season", "team", "future", "realtime");
+	private static final Set<String> MASTER_NAMES = Set.of("season", "team", "future", "realtime", "dataCategory");
 	private static final Set<String> STATUSES = Set.of(CsvUploadStatus.PENDING, CsvUploadStatus.PROCESSING,
 			CsvUploadStatus.SUCCESS, CsvUploadStatus.ERROR);
 
