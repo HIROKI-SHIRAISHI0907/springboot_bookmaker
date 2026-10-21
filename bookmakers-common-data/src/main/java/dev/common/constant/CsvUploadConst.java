@@ -123,6 +123,8 @@ public final class CsvUploadConst {
 		public static final String FUTURE = "future";
 		/** リアルタイムデータ（非表示・再表示のみ） */
 		public static final String REALTIME = "realtime";
+		/** データカテゴリ統一（static_data.data_category・future_master.game_team_category の書き換え。2026-10-21 追加） */
+		public static final String DATA_CATEGORY = "dataCategory";
 
 		/** 種類 → 表示名 */
 		public static final Map<String, String> LABELS;
@@ -132,6 +134,7 @@ public final class CsvUploadConst {
 			m.put(TEAM, "チームデータ");
 			m.put(FUTURE, "試合予定データ");
 			m.put(REALTIME, "リアルタイムデータ");
+			m.put(DATA_CATEGORY, "データカテゴリ統一");
 			LABELS = Collections.unmodifiableMap(m);
 		}
 
@@ -159,6 +162,8 @@ public final class CsvUploadConst {
 		public static final String TEAM = Master.TEAM + "_";
 		public static final String FUTURE = Master.FUTURE + "_";
 		public static final String REALTIME = Master.REALTIME + "_";
+		/** データカテゴリ統一（dataCategory_〇〇.zip） */
+		public static final String DATA_CATEGORY = Master.DATA_CATEGORY + "_";
 
 		/** 種類 → 接頭辞（未知の種類は null） */
 		public static String of(String masterName) {
@@ -183,6 +188,8 @@ public final class CsvUploadConst {
 		public static final String FUTURE = "future_master";
 		/** リアルタイムデータ（soccer_bm） */
 		public static final String REALTIME = "static_data";
+		/** データカテゴリ統一（soccer_bm の static_data と soccer_bm_master の future_master） */
+		public static final String DATA_CATEGORY = "static_data / future_master";
 		/** 状況管理（soccer_bm） */
 		public static final String STATUS_MANAGE = "file_upload_status_manage";
 	}
