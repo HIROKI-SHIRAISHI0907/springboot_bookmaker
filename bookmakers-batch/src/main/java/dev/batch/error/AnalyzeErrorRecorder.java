@@ -3,6 +3,7 @@ package dev.batch.error;
 import java.io.PrintWriter;
 import java.io.StringWriter;
 import java.util.Collections;
+import java.util.List;
 import java.util.Set;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -137,6 +138,48 @@ public class AnalyzeErrorRecorder {
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, ex,
 					"analyze_error_match の未対応キーの取得に失敗（自動解決はしない）: bm=" + bmNumber);
 			return Collections.emptySet();
+		}
+	}
+
+	/**
+	 * BM の未対応エラー（突き合わせ用）。取得に失敗したら空（例外は投げない）。
+	 */
+	public List<AnalyzeErrorMatchEntity> findUnresolvedRows(String bmNumber) {
+		final String METHOD_NAME = "findUnresolvedRows";
+		try {
+			return this.analyzeErrorWriter.findUnresolvedRows(bmNumber);
+		} catch (RuntimeException ex) {
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, ex,
+					"analyze_error_match の未対応エラーの取得に失敗（自動解決はしない）: bm=" + bmNumber);
+			return Collections.emptyList();
+		}
+	}
+
+	/**
+	 * 原因が解消した未対応エラーを対応済みにする（resolved_by = 'AUTO'。失敗しても例外は投げない）。
+	 *
+	 * @param bmNumber BM 番号
+	 * @param seqs 対応済みにする seq
+	 * @param note 理由（メモが空の行だけに入る）
+	 * @return 対応済みにした件数（失敗したら 0）
+	 */
+	public int resolveBySeqs(String bmNumber, List<String> seqs, String note) {
+		final String METHOD_NAME = "resolveBySeqs";
+		if (seqs == null || seqs.isEmpty()) {
+			return 0;
+		}
+		try {
+			int n = this.analyzeErrorWriter.resolveBySeqs(bmNumber, seqs, note);
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					bmNumber + " 原因が解消したため未対応エラーを対応済みにしました: " + n + "件 (" + note + ")");
+			return n;
+		} catch (RuntimeException ex) {
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, ex,
+					"analyze_error_match の自動解決に失敗（処理は続行）: bm=" + bmNumber + ", 件数=" + seqs.size());
+			return 0;
 		}
 	}
 

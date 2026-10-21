@@ -90,6 +90,32 @@ public class AnalyzeErrorWriter {
 	}
 
 	/**
+	 * BM の未対応エラー（突き合わせ用。seq・種別・試合・補足だけ）。
+	 */
+	public List<AnalyzeErrorMatchEntity> findUnresolvedRows(String bmNumber) {
+		List<AnalyzeErrorMatchEntity> rows = this.analyzeErrorMatchBatchRepository.findUnresolvedRows(nvl(bmNumber));
+		return rows == null ? new java.util.ArrayList<>() : rows;
+	}
+
+	/**
+	 * 指定した seq の未対応エラーを対応済みにする（別トランザクション。1000 件ずつ）。
+	 *
+	 * @return 更新件数
+	 */
+	@Transactional(transactionManager = "bmTxManager", propagation = Propagation.REQUIRES_NEW, rollbackFor = Exception.class)
+	public int resolveBySeqs(String bmNumber, List<String> seqs, String note) {
+		if (seqs == null || seqs.isEmpty()) {
+			return 0;
+		}
+		int n = 0;
+		for (int from = 0; from < seqs.size(); from += 1000) {
+			List<String> part = seqs.subList(from, Math.min(from + 1000, seqs.size()));
+			n += this.analyzeErrorMatchBatchRepository.resolveBySeqs(nvl(bmNumber), part, note);
+		}
+		return n;
+	}
+
+	/**
 	 * BM の未対応エラーの試合キー（{@link #teamKey} の形式）。
 	 */
 	public Set<String> findUnresolvedTeamKeys(String bmNumber) {

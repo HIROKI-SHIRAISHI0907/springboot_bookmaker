@@ -62,6 +62,8 @@ import dev.common.util.ExecuteMainUtil;
  *   <li>置き場所は「国-リーグ-ラウンドN/ホーム-アウェー.csv」。同じ名前があれば _2, _3 …（前年の同じ対戦が残っていても試合ごとに別の CSV）。</li>
  * </ol>
  * <p>CSV を作れなかった理由（カテゴリ・チーム名・作成失敗・シーズン）は {@link CsvExportErrorReporter} で analyze_error_match に記録する。</p>
+ * <p>実行の最後に {@link #reconcileErrors}（2026-10-21 追加）で、csv_detail_manage の空のシーズンを補い、
+ *    原因が解消した未対応エラーを対応済み（AUTO）にする。</p>
  */
 @Component
 public class ExportCsvService {
@@ -74,7 +76,7 @@ public class ExportCsvService {
 	 * この処理の版（起動ログに出す。ECS で動いているイメージが最新か確認する用）。
 	 * 2026-10-21: 仮のカテゴリ（XXX: YYY）のフォルダの CSV は「作成済み」に数えない・作らない（二重のガード）。
 	 */
-	private static final String LOGIC_VERSION = "2026-10-21 placeholder-guard";
+	private static final String LOGIC_VERSION = "2026-10-21 placeholder-guard+error-reconcile+gone-match";
 	/** 新規CSVグループの一時キーに付与するプレフィックス */
 	private static final String CSV_NEW_PREFIX = "mk";
 	/** seqList.txt（JSON形式）の読み書き用ObjectMapper */
@@ -236,6 +238,7 @@ public class ExportCsvService {
 						csvInfoRow, currentGroups);
 				logInfo(METHOD_NAME, "管理ファイルPUT終了");
 			}
+			reconcileErrors(csvInfoRow, Collections.emptyList(), currentGroups);
 			String messageCd = MessageCdConst.MCD00014I_NO_MAP_DATA;
 			String fillChar = "追加レコードがないため処理終了 (既存CSV数: " + csvInfoRow.size() + "件)";
 			endLog(METHOD_NAME, messageCd, fillChar);
@@ -252,6 +255,7 @@ public class ExportCsvService {
 						csvInfoRow, currentGroups);
 				logInfo(METHOD_NAME, "管理ファイルPUT終了");
 			}
+			reconcileErrors(csvInfoRow, Collections.emptyList(), currentGroups);
 			String messageCd = MessageCdConst.MCD00014I_NO_MAP_DATA;
 			String fillChar = "追加レコードがないため処理終了 (workItems=0)";
 			endLog(METHOD_NAME, messageCd, fillChar);
@@ -314,6 +318,7 @@ public class ExportCsvService {
 			logError(METHOD_NAME, "seqList.txt 更新/PUT(final) 失敗", e);
 			throw (e instanceof IOException) ? (IOException) e : new IOException(e);
 		}
+		reconcileErrors(csvInfoRow, processResult.succeeded, currentGroups);
 		if (processResult.failedCount > 0) {
 			logWarn(METHOD_NAME, "失敗あり failedCount=" + processResult.failedCount
 					+ ", failedRelativeKeys.size=" + processResult.failedRelativeKeys.size());
@@ -371,6 +376,7 @@ public class ExportCsvService {
 				logInfo(METHOD_NAME, "処理対象なしのため管理ファイルのみ更新");
 				upsertDataTeamList(localTeamPath, csvInfoRow, Collections.emptyList(), Collections.emptySet());
 				writeSeqListJson(localSeqPath, currentGroups);
+				reconcileErrors(csvInfoRow, Collections.emptyList(), currentGroups);
 				String messageCd = MessageCdConst.MCD00014I_NO_MAP_DATA;
 				String fillChar = "追加レコードがないため処理終了 (既存CSV数: " + csvInfoRow.size() + "件)";
 				endLog(METHOD_NAME, messageCd, fillChar);
@@ -392,6 +398,7 @@ public class ExportCsvService {
 				logInfo(METHOD_NAME, "workItems=0 のため管理ファイルのみ更新");
 				upsertDataTeamList(localTeamPath, csvInfoRow, Collections.emptyList(), Collections.emptySet());
 				writeSeqListJson(localSeqPath, currentGroups);
+				reconcileErrors(csvInfoRow, Collections.emptyList(), currentGroups);
 				String messageCd = MessageCdConst.MCD00014I_NO_MAP_DATA;
 				String fillChar = "追加レコードがないため処理終了 (workItems=0)";
 				endLog(METHOD_NAME, messageCd, fillChar);
@@ -435,6 +442,7 @@ public class ExportCsvService {
 			logInfo(METHOD_NAME, "seqListJson 更新開始");
 			writeSeqListJson(localSeqPath, currentGroups);
 			logInfo(METHOD_NAME, "seqListJson 更新終了");
+			reconcileErrors(csvInfoRow, processResult.succeeded, currentGroups);
 			if (processResult.failedCount > 0) {
 				logWarn(METHOD_NAME, "失敗あり failedCount=" + processResult.failedCount);
 			}
@@ -854,7 +862,8 @@ public class ExportCsvService {
 	                item.getRelativeKey(),
 	                resolvedCategory,
 	                homeTeamName,
-	                awayTeamName);
+	                awayTeamName,
+	                item.getSeqIds());
 	        step = "writeLocalCsv";
 	        logInfo(METHOD_NAME, "writeLocalCsv() 開始 filePath=" + art.getFilePath());
 	        writeLocalCsv(art);
@@ -881,7 +890,8 @@ public class ExportCsvService {
 	                + ", relativeKey=" + shortKey(item.getRelativeKey())
 	                + ", fullPath=" + baseDir.resolve(item.getRelativeKey()),
 	                ex);
-	        this.errorReporter.csvFailed(step, item.getRelativeKey(), resolvedCategory, homeTeamName, awayTeamName, ex);
+	        this.errorReporter.csvFailed(step, item.getRelativeKey(), resolvedCategory, homeTeamName, awayTeamName,
+	                item.getSeqIds(), ex);
 	        return CsvTaskResult.failed(item.getRelativeKey());
 	    }
 	}
@@ -975,20 +985,20 @@ public class ExportCsvService {
 				String[] cl = CsvExportErrorReporter.countryLeague(dataCategory);
 				this.errorReporter.seasonUnresolved(
 						cl == null ? AnalyzeErrorType.INVALID_CATEGORY : AnalyzeErrorType.SEASON_NOT_FOUND,
-						dataCategory, cl == null ? null : cl[0], cl == null ? null : cl[1], home, away, csvId, null);
+						dataCategory, cl == null ? null : cl[0], cl == null ? null : cl[1], home, away, csvId,
+						CsvExportErrorReporter.matchIdOfSeqs(meta.getSeqIds()), null);
 			}
 			try {
 				upsertCsvDetailManage(csvId, dataCategory, season, home, away, parentMethod);
 			} catch (Exception ex) {
 				logError(METHOD_NAME, "csv_detail_manage 更新失敗 index=" + index
 						+ ", csvId=" + shortKey(csvId), ex);
-				this.errorReporter.detailManageFailed(csvId, dataCategory, season, home, away, ex);
+				this.errorReporter.detailManageFailed(csvId, dataCategory, season, home, away,
+						CsvExportErrorReporter.matchIdOfSeqs(meta.getSeqIds()), ex);
 				throw ex;
 			}
-			if (!season.isEmpty()) {
-				// CSV を作れてシーズン付きで登録できた → 同じ対戦の未対応エラーを対応済みにする
-				this.errorReporter.resolved(home, away);
-			}
+			// 未対応エラーの自動解決は実行の最後の reconcileErrors でまとめて行う
+			// （以前はここでホーム・アウェーだけで解決していたが、前のシーズンの同じ対戦も解決してしまうためやめた）
 		}
 		logInfo(METHOD_NAME, "終了");
 	}
@@ -1155,6 +1165,115 @@ public class ExportCsvService {
 		String league = base.substring(firstHyphen + 1).trim();
 		return new String[] { country, league };
 	}
+	/**
+	 * 実行の最後: 未対応エラー（analyze_error_match の BM_B011）のうち、原因が解消したものを対応済みにする（2026-10-21 追加）。
+	 * <ol>
+	 *   <li>csv_detail_manage のシーズンが空の行に、今のマスタでシーズンを補う（仮のフォルダの CSV は除く）。</li>
+	 *   <li>今ある CSV（既存 + この実行で作った分。仮のフォルダは除く）の match_id・CSV キーと、
+	 *       csv_detail_manage の登録・シーズンの状態を集める。</li>
+	 *   <li>今回の対象試合（currentGroups）の match_id を集める。対象から外れた試合（延期で退避された・削除された等）の
+	 *       エラーは「試合のデータが無くなった」として対応済みにする（2026-10-21 追加）。</li>
+	 *   <li>{@link CsvExportErrorReporter#reconcile} で未対応の行を 1 行ずつ判定し、解消した行を対応済みにする。</li>
+	 * </ol>
+	 * <p>失敗してもバッチは止めない（ログのみ。次の実行でまた突き合わせる）。</p>
+	 *
+	 * @param csvInfoRow 既存CSVレジストリ（csvId→seqKeyリスト。この実行の前の状態）
+	 * @param succeeded この実行で作った CSV
+	 * @param currentGroups 今回の対象試合（seqKey リストの一覧。sortSeqs の結果）
+	 */
+	private void reconcileErrors(Map<String, List<String>> csvInfoRow, List<CsvOutputMeta> succeeded,
+			List<List<String>> currentGroups) {
+		final String METHOD_NAME = "reconcileErrors";
+		try {
+			// 今回の対象試合（B011 の対象は行が増えるだけで減らないので、ここに無い試合はデータが無くなった試合）
+			Set<String> currentMatchIds = new LinkedHashSet<>();
+			if (currentGroups != null) {
+				for (List<String> g : currentGroups) {
+					addMatchIds(currentMatchIds, g);
+				}
+			}
+			// 今ある CSV（仮のフォルダは除く）
+			Set<String> existingCsvIds = new LinkedHashSet<>();
+			Set<String> matchIdsWithCsv = new LinkedHashSet<>();
+			if (csvInfoRow != null) {
+				for (Map.Entry<String, List<String>> e : csvInfoRow.entrySet()) {
+					String ck = canonicalizeCsvId(e.getKey());
+					if (ck.isBlank() || isPlaceholderCsvKey(ck)) {
+						continue;
+					}
+					existingCsvIds.add(ck);
+					addMatchIds(matchIdsWithCsv, e.getValue());
+				}
+			}
+			if (succeeded != null) {
+				for (CsvOutputMeta m : succeeded) {
+					if (m == null) {
+						continue;
+					}
+					String ck = canonicalizeCsvId(m.getRelativeCsvKey());
+					if (ck.isBlank() || isPlaceholderCsvKey(ck)) {
+						continue;
+					}
+					existingCsvIds.add(ck);
+					addMatchIds(matchIdsWithCsv, m.getSeqIds());
+				}
+			}
+
+			// csv_detail_manage: 空のシーズンを補い、登録・シーズンの状態を集める
+			Set<String> registeredCsvIds = new LinkedHashSet<>();
+			Set<String> csvIdsWithSeason = new LinkedHashSet<>();
+			int seasonFilled = 0;
+			List<CsvDetailManageEntity> rows = this.csvDetailManageRepository.findAllForReconcile();
+			for (CsvDetailManageEntity r : rows == null ? Collections.<CsvDetailManageEntity>emptyList() : rows) {
+				String ck = canonicalizeCsvId(r.getCsvId());
+				if (ck.isBlank()) {
+					continue;
+				}
+				registeredCsvIds.add(ck);
+				String season = safe(r.getSeason()).trim();
+				if (season.isEmpty() && !isPlaceholderCsvKey(ck)) {
+					String resolved = resolveSeasonSafely(r.getCsvId(), safe(r.getDataCategory()).trim());
+					if (!resolved.isEmpty()
+							&& this.csvDetailManageRepository.updateSeasonIfBlank(r.getCsvId(), resolved) > 0) {
+						season = resolved;
+						seasonFilled++;
+					}
+				}
+				if (!season.isEmpty()) {
+					csvIdsWithSeason.add(ck);
+				}
+			}
+			if (seasonFilled > 0) {
+				logInfo(METHOD_NAME, "csv_detail_manage の空のシーズンを補った件数=" + seasonFilled);
+			}
+
+			int resolvedCount = this.errorReporter.reconcile(
+					matchIdsWithCsv, currentMatchIds, existingCsvIds, registeredCsvIds, csvIdsWithSeason,
+					this::canonicalizeCsvId);
+			logInfo(METHOD_NAME, "未対応エラーの自動解決 件数=" + resolvedCount
+					+ " (対象試合=" + currentMatchIds.size()
+					+ ", CSV のある試合=" + matchIdsWithCsv.size()
+					+ ", CSV=" + existingCsvIds.size()
+					+ ", csv_detail_manage=" + registeredCsvIds.size()
+					+ ", うちシーズンあり=" + csvIdsWithSeason.size() + ")");
+		} catch (Exception e) {
+			logError(METHOD_NAME, "未対応エラーの自動解決に失敗（処理は続行。次の実行で再度突き合わせる）", e);
+		}
+	}
+
+	/** seq_key の一覧から match_id を集める */
+	private static void addMatchIds(Set<String> out, List<String> seqIds) {
+		if (seqIds == null) {
+			return;
+		}
+		for (String seq : seqIds) {
+			String m = CsvExportErrorReporter.matchIdOfSeqKey(seq);
+			if (m != null && !m.isBlank()) {
+				out.add(m);
+			}
+		}
+	}
+
 	/**
 	 * JSON作成
 	 * @param out
@@ -2528,15 +2647,22 @@ public class ExportCsvService {
 		private final String dataCategory;
 		private final String homeTeamName;
 		private final String awayTeamName;
+		/** CSV にした seq_key（match_id の判定に使う） */
+		private final List<String> seqIds;
 		private CsvOutputMeta(
 				String relativeCsvKey,
 				String dataCategory,
 				String homeTeamName,
-				String awayTeamName) {
+				String awayTeamName,
+				List<String> seqIds) {
 			this.relativeCsvKey = relativeCsvKey;
 			this.dataCategory = dataCategory;
 			this.homeTeamName = homeTeamName;
 			this.awayTeamName = awayTeamName;
+			this.seqIds = seqIds == null ? Collections.emptyList() : seqIds;
+		}
+		public List<String> getSeqIds() {
+			return seqIds;
 		}
 		public String getRelativeCsvKey() {
 			return relativeCsvKey;

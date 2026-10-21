@@ -23,6 +23,9 @@ import dev.common.error.AnalyzeErrorMatchEntity;
  *   <li>{@link #resolveByTeams}: その試合の CSV が作れたとき、未対応のエラーを自動で対応済みにする。
  *       CSV は試合単位なので、国・リーグは見ずにホーム・アウェー（NFKC 正規化）で突き合わせる
  *       （キーが読めず国・リーグ空で記録したエラーも、カテゴリが直って CSV が作れたら解決できるように）。</li>
+ *   <li>{@link #findUnresolvedRows} / {@link #resolveBySeqs}: 実行の最後の突き合わせ（2026-10-21 追加）。
+ *       未対応の行を読み、原因が解消した行（試合の CSV ができた・シーズンが入った 等）の seq を対応済みにする。
+ *       どの行が解消したかの判定は呼び出し側（B011 は CsvExportErrorReporter#reconcile）で行う。</li>
  * </ul>
  *
  * <h2>懸念点</h2>
@@ -117,4 +120,50 @@ public interface AnalyzeErrorMatchBatchRepository {
 			@Param("bmNumber") String bmNumber,
 			@Param("homeTeamName") String homeTeamName,
 			@Param("awayTeamName") String awayTeamName);
+
+	/**
+	 * BM の未対応エラー（突き合わせ用。seq・種別・試合・補足だけ）。
+	 *
+	 * @param bmNumber BM 番号
+	 * @return 未対応の行
+	 */
+	@Select({
+			"SELECT seq, error_type, data_category, home_team_name, away_team_name, match_id, detail ",
+			"FROM analyze_error_match ",
+			"WHERE bm_number = #{bmNumber} AND resolved_flg = FALSE ",
+			"ORDER BY seq"
+	})
+	@Results(id = "aemBatchUnresolvedRow", value = {
+			@Result(column = "seq", property = "seq"),
+			@Result(column = "error_type", property = "errorType"),
+			@Result(column = "data_category", property = "dataCategory"),
+			@Result(column = "home_team_name", property = "homeTeamName"),
+			@Result(column = "away_team_name", property = "awayTeamName"),
+			@Result(column = "match_id", property = "matchId"),
+			@Result(column = "detail", property = "detail")
+	})
+	List<AnalyzeErrorMatchEntity> findUnresolvedRows(@Param("bmNumber") String bmNumber);
+
+	/**
+	 * 指定した seq の未対応エラーを自動で対応済みにする（resolved_by = 'AUTO'）。
+	 * メモが空の行だけ note に理由を入れる（画面で書いたメモは消さない）。
+	 *
+	 * @param bmNumber BM 番号（他の BM の行を触らないための条件）
+	 * @param seqs 対応済みにする seq（空のときは呼ばないこと）
+	 * @param note 理由（メモが空の行だけに入る）
+	 * @return 更新件数
+	 */
+	@Update({
+			"<script>",
+			"UPDATE analyze_error_match SET resolved_flg = TRUE, resolved_at = NOW(), resolved_by = 'AUTO', ",
+			"note = COALESCE(NULLIF(BTRIM(note), ''), #{note}), ",
+			"update_id = 'SYSTEM', update_time = NOW() ",
+			"WHERE bm_number = #{bmNumber} AND resolved_flg = FALSE AND seq IN ",
+			"<foreach collection='seqs' item='s' open='(' separator=',' close=')'>#{s}</foreach>",
+			"</script>"
+	})
+	int resolveBySeqs(
+			@Param("bmNumber") String bmNumber,
+			@Param("seqs") List<String> seqs,
+			@Param("note") String note);
 }
