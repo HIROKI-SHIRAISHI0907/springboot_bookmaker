@@ -143,14 +143,18 @@ public class CsvDataUploadService {
 		return null;
 	}
 
-	/** データカテゴリ統一のフォーマットに付ける参考の列（アップロードでは読まない） */
-	private static final List<String> DATA_CATEGORY_REFERENCE_COLUMNS = List.of(
-			"件数（参考）", "国リーグ判定（参考）", "国リーグ候補（参考）", "形式（参考）");
+	/**
+	 * データカテゴリ統一のフォーマットに付ける参考の列（アップロードでは読まない）
+	 * <p>アップロード画面の「CSV の列」と同じ 6 列にそろえるため、件数・国リーグ判定・候補・形式を 1 列にまとめる
+	 *    （例: 12件 / 国リーグ: 一致（日本: J1リーグ） / 形式不一致）。</p>
+	 */
+	public static final String DATA_CATEGORY_REFERENCE_COLUMN = "件数（参考）など";
 
 	/**
 	 * データカテゴリ統一のフォーマット（画面に表示中のデータを入れたもの。2026-10-21 追加）
 	 * <p>名前は「dataCategory_ + 日時（日本時間）」。例: dataCategory_20261021203000.zip の中に dataCategory_20261021203000.csv</p>
-	 * <p>列: 処理区分・ホームチーム・アウェーチーム・現在のデータカテゴリ・新しいデータカテゴリ ＋ 参考の列。
+	 * <p>列: 処理区分・ホームチーム・アウェーチーム・現在のデータカテゴリ・新しいデータカテゴリ・件数（参考）など（6 列。
+	 *    アップロード画面の「CSV の列」と同じ並び）。
 	 *    画面で新しい値を入れていた行は処理区分 2・新しい値入り、それ以外は空欄。</p>
 	 *
 	 * @param req 表示中の行（空ならヘッダーだけ）
@@ -158,7 +162,7 @@ public class CsvDataUploadService {
 	public CsvUtil.CsvFile createDataCategoryFormat(DataCategoryFormatRequest req) throws IOException {
 		String baseName = Prefix.DATA_CATEGORY + LocalDateTime.now(JST).format(FILE_TS);
 		List<String> header = new ArrayList<>(CsvUtil.headerOf(DataCategoryCsvRow.class));
-		header.addAll(DATA_CATEGORY_REFERENCE_COLUMNS);
+		header.add(DATA_CATEGORY_REFERENCE_COLUMN);
 		List<String[]> lines = new ArrayList<>();
 		if (req != null && req.getRows() != null) {
 			for (DataCategoryFormatRequest.Row r : req.getRows()) {
@@ -176,14 +180,31 @@ public class CsvDataUploadService {
 						nvl(r.getAwayTeamName()).strip(),
 						current,
 						next,
-						r.getCount() == null ? "" : String.valueOf(r.getCount()),
-						nvl(r.getLeagueCheck()),
-						r.getLeagueCandidates() == null ? "" : String.join(" / ", r.getLeagueCandidates()),
-						nvl(r.getFormat()) });
+						referenceOf(r) });
 			}
 		}
 		return new CsvUtil.CsvFile(baseName + FileName.ZIP_EXT,
 				CsvUtil.zipSingle(baseName + FileName.CSV_EXT, CsvUtil.writeCsv(header, lines)));
+	}
+
+	/** 参考の列の値（例: 12件 / 国リーグ: 一致（日本: J1リーグ） / 形式不一致。無い項目は省く） */
+	private static String referenceOf(DataCategoryFormatRequest.Row r) {
+		List<String> parts = new ArrayList<>();
+		if (r.getCount() != null) {
+			parts.add(r.getCount() + "件");
+		}
+		String check = nvl(r.getLeagueCheck()).strip();
+		List<String> candidates = r.getLeagueCandidates() == null ? List.of() : r.getLeagueCandidates();
+		if (!check.isEmpty()) {
+			parts.add("国リーグ: " + check + (candidates.isEmpty() ? "" : "（" + String.join("、", candidates) + "）"));
+		} else if (!candidates.isEmpty()) {
+			parts.add("国リーグ候補: " + String.join("、", candidates));
+		}
+		String format = nvl(r.getFormat()).strip();
+		if (!format.isEmpty()) {
+			parts.add(format);
+		}
+		return String.join(" / ", parts);
 	}
 
 	// =========================================================
