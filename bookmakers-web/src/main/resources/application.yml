@@ -76,7 +76,8 @@ security:
   jwt:
     issuer: bookmakers-web
     secret: ${JWT_SECRET:test}
-    expires-in: 3600
+    # JWT の有効期限（秒）。既定 12 時間。環境変数 JWT_EXPIRES_IN で変えられる（以前は 3600 = 1 時間）
+    expires-in: ${JWT_EXPIRES_IN:43200}
     
 google:
   cloud:
