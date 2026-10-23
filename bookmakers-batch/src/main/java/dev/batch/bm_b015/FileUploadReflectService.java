@@ -764,7 +764,8 @@ public class FileUploadReflectService {
 	 * <ul>
 	 *   <li>処理区分が空欄 → 何もしない（{@link #SKIP}）</li>
 	 *   <li>処理区分は 2（更新）だけ。ホーム・アウェー・新しいデータカテゴリは必須</li>
-	 *   <li>新しいデータカテゴリは「国: リーグ - ラウンド N」。仮の値（XXX / YYY）・現在と同じ値は不可</li>
+	 *   <li>新しいデータカテゴリは「国: リーグ - ラウンド N」。仮の値（XXX / YYY）は不可。
+	 *       現在と同じ値は「すでにこちらの対戦情報に「…」が設定されています。」のエラー</li>
 	 *   <li>キーに該当する static_data が 0 件ならエラー（future_master は 0 件でもよい）</li>
 	 * </ul>
 	 */
@@ -793,7 +794,7 @@ public class FileUploadReflectService {
 			throw new RowException(key, "新しいデータカテゴリに仮の値（XXX: YYY）は使えません。");
 		}
 		if (norm(next).equals(norm(current))) {
-			throw new RowException(key, "新しいデータカテゴリが現在と同じです。（変えない行は処理区分を空欄にしてください）");
+			throw new RowException(key, "すでにこちらの対戦情報に「" + next + "」が設定されています。（変えない行は処理区分を空欄にしてください）");
 		}
 		markSeen(seen, "k:" + norm(home + "|" + away + "|" + current), key);
 		if (realtimeRepository.countByCategoryKey(home, away, current) == 0) {
