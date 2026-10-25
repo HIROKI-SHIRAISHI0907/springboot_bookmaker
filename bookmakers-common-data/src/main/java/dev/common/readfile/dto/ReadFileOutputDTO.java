@@ -73,5 +73,10 @@ public class ReadFileOutputDTO extends AbstractResultErrDetailOutputDTO {
 	 */
 	private List<TeamLocationEntity> teamLocationList;
 
+	/**
+	 * 試合詳細データ（1 ファイル分）
+	 */
+	private MatchDetailDataDTO matchDetailData;
+
 
 }

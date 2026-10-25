@@ -162,6 +162,13 @@ public class PathConfig {
 	private String s3BucketsUploadCheck;
 
 	/**
+	 * S3バケット（detail-data。試合詳細スクレイピング B016 の出力）
+	 * 設定が無い環境でも起動できるように既定値を持たせる（環境変数 S3_DETAIL_DATA でも変更可）
+	 */
+	@Value("${process.s3.buckets.detailData:${S3_DETAIL_DATA:aws-s3-detail-data-csv}}")
+	private String s3BucketsDetailData;
+
+	/**
 	 * JSONフォルダ作成パスを返す
 	 * @return
 	 */
@@ -381,6 +388,15 @@ public class PathConfig {
 	 */
 	public String getS3BucketsUploadCheck() {
 	    return s3BucketsUploadCheck;
+	}
+
+	/**
+	 * DetailData（試合詳細データ）用のS3バケット名を取得する。
+	 *
+	 * @return DetailData用S3バケット名
+	 */
+	public String getS3BucketsDetailData() {
+	    return s3BucketsDetailData;
 	}
 
 }
