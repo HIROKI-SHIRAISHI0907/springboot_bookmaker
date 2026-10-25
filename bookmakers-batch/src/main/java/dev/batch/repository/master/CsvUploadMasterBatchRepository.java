@@ -134,6 +134,20 @@ public interface CsvUploadMasterBatchRepository {
 	@Select("SELECT COUNT(*) FROM country_league_master WHERE id = CAST(#{id} AS BIGINT)")
 	int countTeamById(@Param("id") long id);
 
+	/**
+	 * データカテゴリ統一（2026-10-24 追加）: チームが その国・リーグに有効（del_flg = '0'）で登録されている件数。
+	 * 新しいデータカテゴリの「国: リーグ」と country_league_master の整合性チェックに使う。
+	 */
+	@Select("""
+			SELECT COUNT(*)
+			  FROM country_league_master
+			 WHERE normalize(BTRIM(country), NFKC) = normalize(BTRIM(#{country}), NFKC)
+			   AND normalize(BTRIM(league), NFKC) = normalize(BTRIM(#{league}), NFKC)
+			   AND normalize(BTRIM(team), NFKC) = normalize(BTRIM(#{team}), NFKC)
+			   AND del_flg = '0'
+			""")
+	int countActiveTeamLeague(@Param("country") String country, @Param("league") String league, @Param("team") String team);
+
 	/** 登録（表示状態） */
 	@Insert("""
 			INSERT INTO country_league_master (

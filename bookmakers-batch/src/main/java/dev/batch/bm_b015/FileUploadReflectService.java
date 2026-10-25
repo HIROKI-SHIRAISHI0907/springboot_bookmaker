@@ -796,6 +796,7 @@ public class FileUploadReflectService {
 		if (norm(next).equals(norm(current))) {
 			throw new RowException(key, "すでにこちらの対戦情報に「" + next + "」が設定されています。（変えない行は処理区分を空欄にしてください）");
 		}
+		requireTeamsInLeague(home, away, next, key);
 		markSeen(seen, "k:" + norm(home + "|" + away + "|" + current), key);
 		if (realtimeRepository.countByCategoryKey(home, away, current) == 0) {
 			throw new RowException(key, "対象のデータがありません。（ホームチーム + アウェーチーム + 現在のデータカテゴリ に該当する行がありません）");
@@ -807,6 +808,31 @@ public class FileUploadReflectService {
 			// 試合予定は無い試合もあるので 0 件でもよい
 			masterRepository.updateFutureCategoryByKey(home, away, current, next, USER);
 		});
+	}
+
+	/**
+	 * 新しいデータカテゴリの「国: リーグ」に、ホーム・アウェーの両チームが country_league_master で
+	 * 有効（del_flg = '0'）に登録されていること（2026-10-24 追加）。
+	 * 例: 新しい値が「ウクライナ: ペルシャ・リーハ - ラウンド 5」なのに、SCポルタヴァが
+	 *     ウクライナ: ペルシャ・リーハ に登録されていなければエラー。
+	 */
+	private void requireTeamsInLeague(String home, String away, String next, String key) {
+		String base = next.substring(0, next.lastIndexOf(" - ラウンド ")).strip();
+		int colon = base.indexOf(": ");
+		String country = base.substring(0, colon).strip();
+		String league = base.substring(colon + 2).strip();
+		List<String> missing = new ArrayList<>();
+		if (masterRepository.countActiveTeamLeague(country, league, home) == 0) {
+			missing.add("ホームチーム「" + home + "」");
+		}
+		if (masterRepository.countActiveTeamLeague(country, league, away) == 0) {
+			missing.add("アウェーチーム「" + away + "」");
+		}
+		if (!missing.isEmpty()) {
+			throw new RowException(key, "新しいデータカテゴリの国リーグ「" + country + ": " + league + "」に、"
+					+ String.join("・", missing) + "が登録されていません。"
+					+ "（チームマスタ country_league_master に有効な行がありません。チームマスタを直すか、国リーグを見直してください）");
+		}
 	}
 
 	/** 仮の値（国が XXX またはリーグが YYY） */
