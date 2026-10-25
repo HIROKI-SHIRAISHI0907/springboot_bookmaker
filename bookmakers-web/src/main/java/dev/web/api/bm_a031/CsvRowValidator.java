@@ -307,7 +307,7 @@ public final class CsvRowValidator {
 				r.add("新しいデータカテゴリに仮の値（XXX: YYY）は使えません。");
 			}
 			if (norm(next).equals(norm(current))) {
-				r.add("新しいデータカテゴリが現在と同じです。（変えない行は処理区分を空欄にしてください）");
+				r.add("すでにこちらの対戦情報に「" + next + "」が設定されています。（変えない行は処理区分を空欄にしてください）");
 			}
 		}
 		if (!seen.add("k:" + norm(home + "|" + away + "|" + current))) {

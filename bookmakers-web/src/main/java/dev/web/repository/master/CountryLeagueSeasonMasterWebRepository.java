@@ -1,5 +1,6 @@
 package dev.web.repository.master;
 
+import java.time.LocalDate;
 import java.time.OffsetDateTime;
 import java.util.List;
 import java.util.Map;
@@ -22,6 +23,7 @@ import dev.web.api.bm_a002.CountryLeagueSeasonSearchCondition;
  *       （値を列名として探して「The column name 2026-01-02 00:00:00+00 was not found」→ bad SQL grammar になっていた）。</li>
  *   <li>updateRow: start_season_date / end_season_date（timestamptz）に文字列をそのまま入れていたため、
  *       CAST(NULLIF(:x, '') AS timestamptz) に変更（空文字は NULL）。</li>
+ *   <li>2026-10-24 findSeasonPeriods 追加（データカテゴリ統一管理のシーズン期間判定用。日本時間の日付で返す）。</li>
  * </ul>
  * @author shiraishitoshio
  */
@@ -311,6 +313,64 @@ public class CountryLeagueSeasonMasterWebRepository {
 		return masterJdbcTemplate.update(
 				sql,
 				new MapSqlParameterSource().addValue("id", id));
+	}
+
+	/** シーズン期間（日本時間の日付）。データカテゴリ統一管理のシーズン期間判定用 */
+	public static class SeasonPeriodRow {
+		private final String country;
+		private final String league;
+		private final LocalDate startDate;
+		private final LocalDate endDate;
+
+		public SeasonPeriodRow(String country, String league, LocalDate startDate, LocalDate endDate) {
+			this.country = country;
+			this.league = league;
+			this.startDate = startDate;
+			this.endDate = endDate;
+		}
+
+		public String getCountry() {
+			return country;
+		}
+
+		public String getLeague() {
+			return league;
+		}
+
+		/** 開始日（日本時間）。未設定は null */
+		public LocalDate getStartDate() {
+			return startDate;
+		}
+
+		/** 終了日（日本時間）。未設定は null */
+		public LocalDate getEndDate() {
+			return endDate;
+		}
+	}
+
+	/**
+	 * 有効（del_flg = '0'）なシーズンの 国・リーグ・開始日・終了日 を返す。
+	 * start_season_date / end_season_date（timestamptz）は日本時間の日付にして返す（未設定は null）。
+	 */
+	public List<SeasonPeriodRow> findSeasonPeriods() {
+		String sql = """
+				    SELECT
+				      country,
+				      league,
+				      to_char(start_season_date AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS start_date,
+				      to_char(end_season_date   AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS end_date
+				    FROM country_league_season_master
+				    WHERE del_flg = '0'
+				""";
+		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> new SeasonPeriodRow(
+				rs.getString("country"),
+				rs.getString("league"),
+				toDate(rs.getString("start_date")),
+				toDate(rs.getString("end_date"))));
+	}
+
+	private static LocalDate toDate(String s) {
+		return s == null || s.isBlank() ? null : LocalDate.parse(s.trim());
 	}
 
 	private boolean hasText(String s) {

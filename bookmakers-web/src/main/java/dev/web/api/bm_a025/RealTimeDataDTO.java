@@ -45,4 +45,25 @@ public class RealTimeDataDTO {
 	/** 「国: リーグ」の候補（一致・不一致は1件、混在は2件以上） */
 	private List<String> leagueCandidates;
 
+	/** グループの最初の記録日時（static_data.record_time。日本時間 "yyyy-MM-dd HH:mm:ss"）。手動取得（add_manual_flg = '1'）の行は除く */
+	private String minRecordTime;
+
+	/** グループの最後の記録日時（同上） */
+	private String maxRecordTime;
+
+	/** 手動取得（add_manual_flg = '1'）の行の最初の記録日時。取り直した日なので試合の日とは限らない（試合の日より後） */
+	private String minManualRecordTime;
+
+	/** 手動取得の行の最後の記録日時（同上） */
+	private String maxManualRecordTime;
+
+	/**
+	 * country_league_season_master のシーズン期間に入っているか（期間内 / 期間外 / 期間不明）。
+	 * 開始の1日前〜終了の7日後までを期間内とする（SeasonPeriodChecker）。
+	 */
+	private String seasonCheck;
+
+	/** シーズン期間の判定の説明（例: 期間内（2026-02-14〜2026-12-06）、期間不明（シーズン未登録）） */
+	private String seasonLabel;
+
 }

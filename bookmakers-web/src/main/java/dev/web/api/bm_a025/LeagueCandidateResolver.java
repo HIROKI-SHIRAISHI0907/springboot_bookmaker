@@ -16,7 +16,8 @@ import dev.web.repository.master.TeamLeagueMasterRepository.TeamLeagueRow;
  *
  * <p>候補の決め方（バッチの DataCategoryBatchService と同じ考え方）</p>
  * <ol>
- *   <li>チームごとの候補は有効行（del_flg = '0'）を優先し、無ければ削除済みの行も使う。</li>
+ *   <li>チームごとの候補は有効行（del_flg = '0'）だけ。削除済みの行しか無いチームは「マスタに無い」扱い
+ *       （2026-10-24 変更。以前は削除済みの行も使っていた）。</li>
  *   <li>両チームの候補の共通部分があればそれ。
  *       例: LDU キト = {エクアドル: リーガ・プロ}、ｳﾆﾍﾞﾙｼﾀﾞ･ｶﾄﾘｶ = {エクアドル: リーガ・プロ, チリ: リーガ・デ・プリメーラ}
  *       → 共通部分は「エクアドル: リーガ・プロ」1つ。</li>
@@ -36,8 +37,6 @@ public class LeagueCandidateResolver {
 
 	/** チームキー → 国・リーグ（有効のみ） */
 	private final Map<String, Set<String>> active = new HashMap<>();
-	/** チームキー → 国・リーグ（削除済みを含む） */
-	private final Map<String, Set<String>> all = new HashMap<>();
 
 	public LeagueCandidateResolver(Collection<TeamLeagueRow> rows) {
 		for (TeamLeagueRow r : rows) {
@@ -46,7 +45,6 @@ public class LeagueCandidateResolver {
 				continue;
 			}
 			String base = r.getCountry().trim() + ": " + r.getLeague().trim();
-			all.computeIfAbsent(key, k -> new LinkedHashSet<>()).add(base);
 			if (r.isActive()) {
 				active.computeIfAbsent(key, k -> new LinkedHashSet<>()).add(base);
 			}
@@ -129,11 +127,8 @@ public class LeagueCandidateResolver {
 
 	private Set<String> teamCandidates(String team) {
 		String key = teamKey(team);
+		// 有効行だけ（削除済みの行しか無いチームは候補なし → 両チームとも無ければ「不明」）
 		Set<String> s = active.get(key);
-		if (s != null && !s.isEmpty()) {
-			return s;
-		}
-		s = all.get(key);
 		return s != null ? s : Set.of();
 	}
 
