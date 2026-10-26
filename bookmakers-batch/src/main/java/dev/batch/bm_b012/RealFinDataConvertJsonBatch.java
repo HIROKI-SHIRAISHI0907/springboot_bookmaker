@@ -7,12 +7,6 @@ import dev.batch.common.AbstractJobBatchTemplate;
 
 /**
  * JSON変換用
- *
- * <ol>
- *   <li>前日の「終了済が無い試合」を fin/b008_fin_getting_data_N.json にする（{@link RealFinDataConvertJsonStat}）。</li>
- *   <li>前日・前々日に開始した試合の詳細ページ URL を b016_game_detail_path.json にする（{@link GameDetailPathJsonStat}。B016 試合詳細スクレイピングの入力）。</li>
- * </ol>
- * <p>2 つは独立しているので、片方が失敗してももう片方は実行する。どちらかが失敗したら最後に例外を投げる（バッチは異常終了）。</p>
  * @author shiraishitoshio
  *
  */
@@ -57,36 +51,12 @@ public class RealFinDataConvertJsonBatch extends AbstractJobBatchTemplate {
 	@Autowired
 	private RealFinDataConvertJsonStat realFinDataConvertJsonStat;
 
-	/** GameDetailPathJsonStat（B016 の入力 JSON） */
-	@Autowired
-	private GameDetailPathJsonStat gameDetailPathJsonStat;
-
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	protected void doExecute(JobContext ctx) throws Exception {
-		Exception failure = null;
-
-		try {
-			this.realFinDataConvertJsonStat.execute();
-		} catch (Exception e) {
-			failure = e;
-		}
-
-		try {
-			this.gameDetailPathJsonStat.execute();
-		} catch (Exception e) {
-			if (failure == null) {
-				failure = e;
-			} else {
-				failure.addSuppressed(e);
-			}
-		}
-
-		if (failure != null) {
-			throw failure;
-		}
+		this.realFinDataConvertJsonStat.execute();
 	}
 
 }

@@ -9,7 +9,6 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
-import dev.batch.bm_b012.GameDetailPathRow;
 import dev.common.entity.FutureEntity;
 
 /**
@@ -25,10 +24,6 @@ import dev.common.entity.FutureEntity;
  * <p>2026-10 追加2（B010）</p>
  * <ul>
  *   <li>findGameTeamCategoryByMid: mid が一致する予定のカテゴリ（DataCategoryBatchService のラウンド取得）。</li>
- * </ul>
- * <p>2026-10 追加（B012 → B016）</p>
- * <ul>
- *   <li>findGameDetailPathTargets: 期間内に開始した試合の game_link（B016 試合詳細スクレイピングの入力 b016_game_detail_path.json 用）。</li>
  * </ul>
  * <p>2026-10 修正（B012）</p>
  * <ul>
@@ -420,32 +415,5 @@ public interface FutureMasterRepository {
 			@Param("awayTeamName") String awayTeamName,
 			@Param("matchId") String matchId,
 			@Param("baseTime") String baseTime);
-
-	/**
-	 * B012 → B016: 期間内（rangeStart 以上・rangeEnd 以下）に開始した試合（start_flg = '1'）のうち、game_link があるもの。
-	 * 試合日は日本時間の日付（yyyy-MM-dd）。同じ試合が複数行あっても、ここでは全部返す（呼び出し側で mid ごとに 1 件にする）。
-	 */
-	@Select("""
-			SELECT
-				to_char(future_time AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS matchDate,
-				to_char(future_time AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD HH24:MI:SS') AS futureTime,
-				game_team_category AS gameTeamCategory,
-				home_team_name AS homeTeamName,
-				away_team_name AS awayTeamName,
-				BTRIM(game_link) AS gameLink
-			FROM
-				future_master
-			WHERE
-				future_time >= #{rangeStart}::timestamptz
-				AND future_time <= #{rangeEnd}::timestamptz
-				AND start_flg = '1'
-				AND NULLIF(BTRIM(game_link), '') IS NOT NULL
-			ORDER BY
-				future_time ASC,
-				seq ASC
-		""")
-	List<GameDetailPathRow> findGameDetailPathTargets(
-			@Param("rangeStart") String rangeStart,
-			@Param("rangeEnd") String rangeEnd);
 
 }

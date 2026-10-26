@@ -29,6 +29,9 @@ public class BatchJobRunner implements CommandLineRunner {
 	/** クラス名 */
 	private static final String CLASS_NAME = BatchJobRunner.class.getName();
 
+	/** 終了処理がこの時間で終わらなければ強制終了する（ミリ秒） */
+	private static final long EXIT_WATCHDOG_MILLIS = 60_000L;
+
 	/** コンテキスト */
     private final ApplicationContext ctx;
 
@@ -63,6 +66,8 @@ public class BatchJobRunner implements CommandLineRunner {
         	this.manageLoggerComponent.debugWarnLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
 					"[BATCH] bm.job is empty. exit.");
+            // worker なのに BM_JOB が無い: 何もせずに終了する（return だけだとタスクが残り続ける）
+            exitJvm(0);
             return;
         }
 
@@ -77,8 +82,35 @@ public class BatchJobRunner implements CommandLineRunner {
         int result = batch.execute(readyFlg);
 
         int exit = (result == BatchConstant.BATCH_SUCCESS) ? 0 : 1;
-        SpringApplication.exit(ctx, () -> exit);
-        return;
+        exitJvm(exit);
 
+    }
+
+    /**
+     * JVM を確実に終了させる（2026-10 追加）。
+     *
+     * <p>SpringApplication.exit はコンテキストを閉じるだけで JVM は止めない。終わらないスレッドが残ると
+     * ECS のタスクが RUNNING のまま残り、DB の接続（プール）も持ち続ける
+     * （B016 のタスクが 18 時間残り、2 つで 40 本の接続を持ったまま DB の上限に達した）。</p>
+     * <ul>
+     *   <li>コンテキストを閉じてから System.exit で終了する。</li>
+     *   <li>閉じる処理や終了時の処理が止まったままでも、{@link #EXIT_WATCHDOG_MILLIS} 後に Runtime.halt で強制終了する。</li>
+     * </ul>
+     *
+     * @param code 終了コード（0: 正常 / 1: 異常）
+     */
+    private void exitJvm(int code) {
+        Thread watchdog = new Thread(() -> {
+            try {
+                Thread.sleep(EXIT_WATCHDOG_MILLIS);
+            } catch (InterruptedException ignored) {
+                // 終了処理が先に終われば何もしない
+            }
+            System.err.println("[BATCH] exit timed out. halt(" + code + ")");
+            Runtime.getRuntime().halt(code);
+        }, "batch-exit-watchdog");
+        watchdog.setDaemon(true);
+        watchdog.start();
+        System.exit(SpringApplication.exit(ctx, () -> code));
     }
 }
