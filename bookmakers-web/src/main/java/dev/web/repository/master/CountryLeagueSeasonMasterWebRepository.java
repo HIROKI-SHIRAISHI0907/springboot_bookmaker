@@ -2,10 +2,12 @@ package dev.web.repository.master;
 
 import java.time.LocalDate;
 import java.time.OffsetDateTime;
+import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 
 import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.jdbc.core.RowCallbackHandler;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
@@ -24,6 +26,7 @@ import dev.web.api.bm_a002.CountryLeagueSeasonSearchCondition;
  *   <li>updateRow: start_season_date / end_season_date（timestamptz）に文字列をそのまま入れていたため、
  *       CAST(NULLIF(:x, '') AS timestamptz) に変更（空文字は NULL）。</li>
  *   <li>2026-10-24 findSeasonPeriods 追加（データカテゴリ統一管理のシーズン期間判定用。日本時間の日付で返す）。</li>
+ *   <li>2026-10-27 findEndSeasonDateMap 追加（b025_fin_season_all_data.json 出力用。国-リーグ → 終了日時）。</li>
  * </ul>
  * @author shiraishitoshio
  */
@@ -367,6 +370,33 @@ public class CountryLeagueSeasonMasterWebRepository {
 				rs.getString("league"),
 				toDate(rs.getString("start_date")),
 				toDate(rs.getString("end_date"))));
+	}
+
+	/**
+	 * 有効（del_flg = '0'）なシーズンの「国-リーグ → 終了日時（日本時間）」を返す。
+	 * キーは b025_fin_season_data.json と同じ "国-リーグ" 形式。
+	 * 終了日時は "yyyy-MM-dd HH:mm:ss+09"（画面表示と同じ形式）。終了日が無いリーグは値が null。
+	 * 同じ国リーグが複数行ある場合は、終了日時が一番新しいものを残す。
+	 */
+	public Map<String, String> findEndSeasonDateMap() {
+		String sql = """
+				    SELECT
+				      country,
+				      league,
+				      to_char(end_season_date AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD HH24:MI:SS') || '+09' AS end_date
+				    FROM country_league_season_master
+				    WHERE del_flg = '0'
+				    ORDER BY country, league, end_season_date NULLS FIRST
+				""";
+		Map<String, String> map = new LinkedHashMap<>();
+		masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (RowCallbackHandler) rs -> {
+			String key = rs.getString("country") + "-" + rs.getString("league");
+			String endDate = rs.getString("end_date");
+			if (endDate != null || !map.containsKey(key)) {
+				map.put(key, endDate);
+			}
+		});
+		return map;
 	}
 
 	private static LocalDate toDate(String s) {
