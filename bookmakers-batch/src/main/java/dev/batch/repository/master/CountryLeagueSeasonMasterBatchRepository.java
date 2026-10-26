@@ -79,6 +79,24 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			""")
 	List<CountryLeagueSeasonMasterEntity> findDateList();
 
+	/**
+	 * b025_fin_season_all_data.json 同期用。有効なシーズンの 国・リーグ・終了日時（日本時間）を返す。
+	 * endSeasonDate は "yyyy-MM-dd HH:mm:ss+09"（web の出力と同じ形式）。終了日が無い行は NULL。
+	 * 同じ国リーグが複数行ある場合に新しい終了日時が後に来るよう、NULL を先に並べる。
+	 */
+	@Select("""
+			    SELECT
+			        country,
+			        league,
+			        to_char(end_season_date AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD HH24:MI:SS') || '+09' AS endSeasonDate
+			    FROM
+			        country_league_season_master
+			    WHERE
+			        del_flg = '0'
+			    ORDER BY country, league, end_season_date NULLS FIRST
+			""")
+	List<CountryLeagueSeasonMasterEntity> findEndSeasonDateJstList();
+
 	@Select("""
 			    SELECT
 			        country,

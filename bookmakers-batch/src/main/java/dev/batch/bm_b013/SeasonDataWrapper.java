@@ -23,6 +23,7 @@ import java.util.stream.Collectors;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
+import com.fasterxml.jackson.core.type.TypeReference;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.batch.repository.master.CountryLeagueSeasonMasterBatchRepository;
@@ -51,6 +52,9 @@ public class SeasonDataWrapper {
 	private static final String FILE_PREFIX = "b025_fin_season_data";
 	private static final String SEASON_READFIN_MARKER = "(season=READFIN)";
 	private static final String TEAM_READFIN_MARKER = "(team=READFIN)";
+
+	/** 全リーグのシーズン終了日時（web A021 が出力）。終了処理が済んだリーグに (season=READFIN) を付ける */
+	private static final String ALL_DATA_KEY = "b025_fin_season_all_data.json";
 
 	/** シーズンバッチレポジトリ */
 	@Autowired
@@ -144,6 +148,9 @@ public class SeasonDataWrapper {
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00001I_BATCH_EXECUTION_GREEN_FIN,
 					"システム日時が超えているシーズンデータがありません。");
+			// Lambda が起動したのに対象 0 件 = b025_fin_season_all_data.json の終了日時が DB とずれている。
+			// DB に合わせておかないと、翌日も Lambda が B013 を起動してしまう。
+			syncAllData(countryLeagueMap);
 			return;
 		}
 
@@ -297,18 +304,33 @@ public class SeasonDataWrapper {
 					continue;
 				}
 
-				// READFIN 付き → 絶対保持
-				if (existingValue.contains(SEASON_READFIN_MARKER)
-						|| existingValue.contains(TEAM_READFIN_MARKER)) {
-					preservedCount++;
-					continue;
-				}
-
-				// マーカー無し → 日付新旧比較
 				String existingDatePart = extractDatePart(existingValue);
 				String newDatePart = extractDatePart(newValue);
 				Instant existingInstant = parseFinSeasonDate(existingDatePart);
 				Instant newInstant = parseFinSeasonDate(newDatePart);
+
+				// READFIN 付き → 同じシーズンなら保持。
+				// 終了日が新しい（＝次のシーズンが終わった）ときは、マーカーを外して新しい日付にする。
+				// （B013 は処理したリーグの終了日を NULL にするので、同じシーズンを二度処理することはない。
+				//   保持し続けると、2シーズン目以降の 45 日後の取得が永久に動かなくなる）
+				if (existingValue.contains(SEASON_READFIN_MARKER)
+						|| existingValue.contains(TEAM_READFIN_MARKER)) {
+					if (newInstant != null && existingInstant != null
+							&& newInstant.isAfter(existingInstant)) {
+						mergedMap.put(key, newValue);
+						updatedCount++;
+						this.manageLoggerComponent.debugInfoLog(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+								MessageCdConst.MCD00001I_BATCH_EXECUTION_GREEN_FIN,
+								"次シーズン終了のため READFIN を外して更新: " + key
+										+ " [" + existingValue + " -> " + newValue + "]");
+					} else {
+						preservedCount++;
+					}
+					continue;
+				}
+
+				// マーカー無し → 日付新旧比較
 
 				if (newInstant != null && existingInstant != null
 						&& newInstant.isAfter(existingInstant)) {
@@ -388,9 +410,123 @@ public class SeasonDataWrapper {
 		    throw e;
 		}
 
+		// b025_fin_season_all_data.json を DB に合わせ、終了処理が成功したリーグに (season=READFIN) を付ける
+		syncAllData(countryLeagueMap);
+
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	}
+
+	/**
+	 * b025_fin_season_all_data.json を DB（country_league_season_master）に合わせ、
+	 * 今回終了処理したリーグに (season=READFIN) を付けて S3 に書き戻す。
+	 * <ul>
+	 *   <li>DB の終了日時と既存の日付が同じ → 既存の値（マーカー付き）をそのまま残す。</li>
+	 *   <li>DB の終了日時が変わった → DB の値で上書き（マーカーは外れる）。</li>
+	 *   <li>DB の終了日が空（終了処理済み） → 既存の値を残す（45日後の次シーズン取得の判定に使う）。</li>
+	 *   <li>DB に無いリーグ（削除・del_flg=1） → 出力しない。</li>
+	 *   <li>今回終了処理したリーグ → (season=READFIN) を付ける。ファイルに無ければ「終了日時 (season=READFIN)」で追加。</li>
+	 * </ul>
+	 * web（A021）の出力と同じ規則。既存ファイルが読めない場合は、マーカーを消さないよう書き戻さない。
+	 * 終了処理は完了しているので、ここで失敗しても例外にしない（ログのみ）。
+	 *
+	 * @param processedMap 今回終了処理した "国-リーグ" → 終了日時（JST）。0 件なら同期だけ行う
+	 */
+	private void syncAllData(Map<String, String> processedMap) {
+		final String METHOD_NAME = "syncAllData";
+		final String bucket = config.getS3BucketsOutputsNextSeason();
+
+		try {
+			Map<String, String> existing = new LinkedHashMap<>();
+			if (s3Operator.existsOnS3(bucket, ALL_DATA_KEY)) {
+				String json = s3Operator.downloadTextUtf8(bucket, ALL_DATA_KEY);
+				if (json != null && !json.isBlank()) {
+					Map<String, String> read = objectMapper.readValue(
+							json, new TypeReference<LinkedHashMap<String, String>>() {
+							});
+					if (read != null) {
+						existing.putAll(read);
+					}
+				}
+			}
+
+			// DB の 国-リーグ → 終了日時（新しいものを後勝ち、NULL は既存が無いときだけ）
+			Map<String, String> dbMap = new LinkedHashMap<>();
+			for (CountryLeagueSeasonMasterEntity e : countryLeagueSeasonMasterBatchRepository.findEndSeasonDateJstList()) {
+				if (e == null || e.getCountry() == null || e.getLeague() == null) {
+					continue;
+				}
+				String key = e.getCountry() + "-" + e.getLeague();
+				if (e.getEndSeasonDate() != null || !dbMap.containsKey(key)) {
+					dbMap.put(key, e.getEndSeasonDate());
+				}
+			}
+
+			Map<String, String> out = new LinkedHashMap<>();
+			for (Map.Entry<String, String> e : dbMap.entrySet()) {
+				String key = e.getKey();
+				String dbValue = e.getValue();
+				String oldValue = existing.get(key);
+
+				if (dbValue == null) {
+					if (oldValue != null && !oldValue.isBlank()) {
+						out.put(key, oldValue);
+					}
+					continue;
+				}
+				if (oldValue != null && dbValue.equals(stripMarkers(oldValue))) {
+					out.put(key, oldValue);
+				} else {
+					out.put(key, dbValue);
+				}
+			}
+
+			int marked = 0;
+			for (Map.Entry<String, String> entry : processedMap.entrySet()) {
+				String key = entry.getKey();
+				String value = out.get(key);
+				if (value == null || value.isBlank()) {
+					out.put(key, (nvl(entry.getValue()) + " " + SEASON_READFIN_MARKER).trim());
+					marked++;
+				} else if (!value.contains(SEASON_READFIN_MARKER)) {
+					out.put(key, value.trim() + " " + SEASON_READFIN_MARKER);
+					marked++;
+				}
+			}
+
+			if (out.equals(existing)) {
+				this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						MessageCdConst.MCD00001I_BATCH_EXECUTION_GREEN_FIN,
+						ALL_DATA_KEY + " は変更なし（" + out.size() + " 件）");
+				return;
+			}
+
+			String outJson = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(out);
+			s3Operator.putJson(bucket, ALL_DATA_KEY, outJson);
+
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00001I_BATCH_EXECUTION_GREEN_FIN,
+					ALL_DATA_KEY + " を更新しました: " + SEASON_READFIN_MARKER + " 付与 " + marked
+							+ " 件 / 全 " + out.size() + " 件（更新前 " + existing.size() + " 件）");
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+					ALL_DATA_KEY + " の更新に失敗しました（bucket=" + bucket
+							+ "。403 の場合は batch のタスクロールに s3:GetObject / s3:PutObject があるか確認）");
+		}
+	}
+
+	/** 値から "(season=READFIN)" などのマーカーを除いて日付部分だけにする */
+	private static String stripMarkers(String value) {
+		return value == null ? "" : value.replaceAll("\\([A-Za-z]+=READFIN\\)", "").trim();
+	}
+
+	private static String nvl(String s) {
+		return s == null ? "" : s;
 	}
 
 	/**
