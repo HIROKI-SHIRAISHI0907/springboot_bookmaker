@@ -2,6 +2,8 @@ package dev.batch.config;
 
 import javax.sql.DataSource;
 
+import com.zaxxer.hikari.HikariDataSource;
+
 import org.apache.ibatis.session.SqlSessionFactory;
 import org.mybatis.spring.SqlSessionFactoryBean;
 import org.mybatis.spring.SqlSessionTemplate;
@@ -28,8 +30,9 @@ public class BmMyBatisConfig {
 	}
 
 	@Bean(name = "bmDataSource")
-	public DataSource bmDataSource(@Qualifier("bmDataSourceProperties") DataSourceProperties props) {
-		return props.initializeDataSourceBuilder().build();
+	@ConfigurationProperties(prefix = "spring.datasource.bm.hikari")
+	public HikariDataSource bmDataSource(@Qualifier("bmDataSourceProperties") DataSourceProperties props) {
+		return createPool(props, "batch-bm", 6);
 	}
 
 	@Bean(name = "transactionManager")   // ← デフォルト名にする
@@ -54,5 +57,26 @@ public class BmMyBatisConfig {
 	@Bean(name = "bmSqlSessionTemplate")
 	public SqlSessionTemplate bmSqlSessionTemplate(@Qualifier("bmSqlSessionFactory") SqlSessionFactory f) {
 		return new SqlSessionTemplate(f);
+	}
+
+	/**
+	 * 接続プールを作る（2026-10 追加）。
+	 * <p>以前は Hikari の既定（最大 10・常に 10 本つなぎっぱなし）だったため、アプリ 1 つで DB ごとに 10 本ずつ接続を持ち、
+	 * web・常駐バッチ・バッチのタスクを合わせると RDS の上限（max_connections=79）に達して
+	 * 「Failed to obtain JDBC Connection」になった。</p>
+	 * <ul>
+	 *   <li>最大 maxPoolSize 本・普段は 1 本だけ持つ（minimumIdle=1）。使わない接続は 1 分で閉じる。</li>
+	 *   <li>10 分で接続を作り直す（RDS 側で切られた接続を使い続けないように）。</li>
+	 *   <li>spring.datasource.&lt;名前&gt;.hikari.* （環境変数 SPRING_DATASOURCE_&lt;名前&gt;_HIKARI_MAXIMUM_POOL_SIZE など）で上書きできる。</li>
+	 * </ul>
+	 */
+	private static HikariDataSource createPool(DataSourceProperties props, String poolName, int maxPoolSize) {
+		HikariDataSource ds = props.initializeDataSourceBuilder().type(HikariDataSource.class).build();
+		ds.setPoolName(poolName);
+		ds.setMaximumPoolSize(maxPoolSize);
+		ds.setMinimumIdle(1);
+		ds.setIdleTimeout(60_000L);
+		ds.setMaxLifetime(600_000L);
+		return ds;
 	}
 }
