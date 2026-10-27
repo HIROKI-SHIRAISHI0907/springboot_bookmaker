@@ -30,4 +30,7 @@ public class IngestedRowDTO {
     /** 同一試合群に「終了済」data が存在するか */
     private Boolean hasFinishedData;
 
+    /** 統計詳細データ（match_detail_match）が登録済みか。matchKey（mid）で判定 */
+    private Boolean hasDetailData;
+
 }

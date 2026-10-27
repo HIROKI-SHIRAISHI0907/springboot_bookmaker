@@ -8,6 +8,8 @@ import java.util.HashMap;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
@@ -16,6 +18,7 @@ import dev.common.constant.BookMakersCommonConst;
 import dev.web.api.bm_a003.CountryLeagueDTO;
 import dev.web.api.bm_a003.CountryLeagueSearchCondition;
 import dev.web.repository.bm.BookDataRepository;
+import dev.web.repository.bm.MatchDetailDataWebRepository;
 import dev.web.repository.master.CountryLeagueMasterWebRepository;
 import dev.web.repository.master.FuturesRepository;
 import lombok.AllArgsConstructor;
@@ -27,6 +30,7 @@ public class IngestedDataService {
 	private final BookDataRepository bookDataRepository;
 	private final FuturesRepository futuresRepository;
 	private final CountryLeagueMasterWebRepository countryLeagueMasterWebRepository;
+	private final MatchDetailDataWebRepository matchDetailDataWebRepository;
 
 	public IngestedDataReferenceResponse search(IngestedDataReferenceRequest req) {
 
@@ -164,11 +168,23 @@ public class IngestedDataService {
 		        .filter(r -> !isNotYetStarted(r))
 		        .collect(Collectors.toList());
 
-		// ===== チェックボックス条件 =====
+		// ===== 統計詳細データ（match_detail_match）の登録有無。matchKey（mid）で判定 =====
+		Set<String> registeredDetailIds = matchDetailDataWebRepository.findRegisteredMatchIds(
+				merged.stream()
+						.map(r -> trimToNull(r.getMatchKey()))
+						.filter(Objects::nonNull)
+						.collect(Collectors.toList()));
+		for (IngestedRowDTO r : merged) {
+			String mk = trimToNull(r.getMatchKey());
+			r.setHasDetailData(mk != null && registeredDetailIds.contains(mk));
+		}
+
+		// ===== チェックボックス条件: 終了済・未来（試合予定）・統計詳細のいずれかが無いものだけ =====
 		if (req.isOnlyMissingFinishedOrFuture()) {
 		    merged = merged.stream()
 		            .filter(r -> Boolean.FALSE.equals(r.getHasFinishedData())
-		                    || Boolean.FALSE.equals(r.getFutureExists()))
+		                    || Boolean.FALSE.equals(r.getFutureExists())
+		                    || Boolean.FALSE.equals(r.getHasDetailData()))
 		            .collect(Collectors.toList());
 		}
 
