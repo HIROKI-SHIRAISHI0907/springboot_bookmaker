@@ -23,8 +23,12 @@ import dev.common.logger.ManageLoggerComponent;
  *
  * 最小パターン:
  * 1) Update: link一致 > (country+teamKey一致) で同一判定できたら差分更新
- * 2) Insert: 同一判定できなければ新規登録
- * 3) Logical Delete: 同一 country+league のスナップショット差分で論理削除
+ * 2) Reactivate: 現役に無ければ、同じ国の論理削除済み（del_flg=1）から link一致 > teamKey一致 で探し、
+ *    見つかればその行を生き返らせる（del_flg=0 にして UPDATE）。
+ *    シーズン終了（B013）でリーグのチームをまとめて論理削除したあと、新シーズンで同じチームが来たときに
+ *    同じチームの行が増え続けないようにするため（2026-10-30 追加）。
+ * 3) Insert: どちらでも同一判定できなければ新規登録
+ * 4) Logical Delete: 同一 country+league のスナップショット差分で論理削除
  */
 @Component
 public class CountryLeagueDBPart {
@@ -112,6 +116,24 @@ public class CountryLeagueDBPart {
 				}
 			}
 
+			// 3-2) DB：同一国の論理削除済み（生き返らせる候補）。新しく更新された順なので、
+			//      同じチームが複数あるときは一番新しい行を使う（putIfAbsent）
+			List<CountryLeagueMasterEntity> dbDeletedRows =
+					countryLeagueMasterRepository.findDeletedByCountry(country);
+			Map<String, CountryLeagueMasterEntity> deletedByLink = new HashMap<>();
+			Map<String, CountryLeagueMasterEntity> deletedByTeamKey = new HashMap<>();
+			for (CountryLeagueMasterEntity db : dbDeletedRows) {
+				if (!isBlank(db.getLink())) {
+					deletedByLink.putIfAbsent(db.getLink(), db);
+				}
+				String tk = teamKey(db.getTeam());
+				if (!isBlank(tk)) {
+					deletedByTeamKey.putIfAbsent(tk, db);
+				}
+			}
+			// 生き返らせた行（同じ行を2回使わない）
+			Set<Integer> reactivatedIds = new HashSet<>();
+
 			// 4) CSV：このリーグスナップショットに存在する teamKey 集合（削除判定用）
 			Set<String> presentTeamKeys = new HashSet<>();
 			for (CountryLeagueMasterEntity csv : csvRows) {
@@ -173,6 +195,31 @@ public class CountryLeagueDBPart {
 						}
 					}
 				} else {
+					// (C) 論理削除済みに同じチームがあれば生き返らせる（link一致 > teamKey一致）
+					CountryLeagueMasterEntity revive = null;
+					if (!isBlank(csv.getLink())) {
+						revive = deletedByLink.get(csv.getLink());
+					}
+					if (revive == null) {
+						revive = deletedByTeamKey.get(teamKey(csv.getTeam()));
+					}
+					if (revive != null && !reactivatedIds.contains(revive.getId())) {
+						int rev = countryLeagueMasterRepository.reactivateById(
+								csv.getLeague(), csv.getTeam(), csv.getLink(), revive.getId());
+						if (rev == 1) {
+							reactivatedIds.add(revive.getId());
+							manageLoggerComponent.debugInfoLog(
+									PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
+									"reactivate id=" + revive.getId() + " country=" + country
+											+ " league=" + csv.getLeague() + " team=" + csv.getTeam()
+											+ "（前: league=" + revive.getLeague() + " link=" + revive.getLink() + "）");
+							continue;
+						}
+						manageLoggerComponent.debugWarnLog(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME, ERROR_CODE,
+								"reactivate skipped (already active?) id=" + revive.getId() + ". insert as new.");
+					}
+
 					// INSERT
 					int ins = countryLeagueMasterRepository.insert(csv);
 					if (ins != 1) {

@@ -264,6 +264,12 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			""")
 	List<CountryLeagueSeasonMasterEntity> findData();
 
+	/**
+	 * 国・リーグの行を1件取得（B003 の登録・更新判定用）。
+	 * 非表示（del_flg = '1'）の行も対象にする（現役を優先、同じなら新しい id）。
+	 * 以前は del_flg = '0' だけを見ていたため、非表示のリーグの新シーズンを取得すると
+	 * 同じ国・リーグの行が新しく INSERT され、行が増えていた（2026-10-30 修正）。
+	 */
 	@Select("""
 			    SELECT
 			        id,
@@ -280,8 +286,9 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			    FROM country_league_season_master
 			    WHERE country = #{country}
 			      AND league = #{league}
-			      AND del_flg = '0'
-			    ORDER BY id DESC
+			    ORDER BY
+			      CASE WHEN del_flg = '0' THEN 0 ELSE 1 END,
+			      id DESC
 			    LIMIT 1
 			""")
 	CountryLeagueSeasonMasterEntity findLatestByCountryLeague(

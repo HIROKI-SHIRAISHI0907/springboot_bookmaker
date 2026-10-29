@@ -477,7 +477,8 @@ public class CountryLeagueSeasonDBService {
 		merged.setPath(firstMeaningful(incoming.getPath(), existing.getPath()));
 		merged.setIcon(firstMeaningful(incoming.getIcon(), existing.getIcon()));
 		merged.setValidFlg(firstMeaningful(incoming.getValidFlg(), existing.getValidFlg()));
-		merged.setDelFlg("0");
+		// 表示・非表示は既存の行のまま（管理画面で非表示にしたリーグを、シーズンの取り直しで勝手に表示に戻さない）
+		merged.setDelFlg(firstMeaningful(existing.getDelFlg(), "0"));
 
 		return merged;
 	}

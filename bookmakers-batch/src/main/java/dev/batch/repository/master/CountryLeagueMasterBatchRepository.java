@@ -226,6 +226,49 @@ public interface CountryLeagueMasterBatchRepository {
 			""")
 	int logicalDeleteById(@Param("id") Integer id);
 
+	/**
+	 * 指定した国の「論理削除済み（del_flg=1）」一覧を取得（新しく更新された順）。
+	 * B004 で、シーズン終了（B013）などで論理削除したチームを、新シーズンで同じチームが来たときに
+	 * 新規登録せず生き返らせる（UPDATE する）ために使う。
+	 */
+	@Select("""
+			    SELECT
+			    	id,
+			        country,
+			        league,
+			        sub_league AS subLeague,
+			        team,
+			        link,
+			        del_flg AS delFlg
+			    FROM
+			    	country_league_master
+			    WHERE
+			    	country = #{country} AND
+			    	del_flg = '1'
+			    ORDER BY
+			    	update_time DESC NULLS LAST,
+			    	id DESC;
+			""")
+	List<CountryLeagueMasterEntity> findDeletedByCountry(@Param("country") String country);
+
+	/**
+	 * 論理削除済みの行を生き返らせる（del_flg を 0 にして、リーグ・チーム名・リンクを今回の値にする）
+	 */
+	@Update("""
+			    UPDATE country_league_master
+			    SET
+			        league = #{league},
+					team   = #{team},
+					link   = #{link},
+					del_flg = '0',
+					update_time = CURRENT_TIMESTAMP
+			    WHERE id = #{id} AND del_flg = '1';
+			""")
+	int reactivateById(@Param("league") String league,
+			@Param("team") String team,
+			@Param("link") String link,
+			@Param("id") Integer id);
+
 	@Update("""
 			    UPDATE country_league_master
 			    SET
