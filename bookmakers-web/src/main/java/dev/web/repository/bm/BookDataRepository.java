@@ -15,6 +15,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.DataEntity;
 import dev.common.util.RecordTimeConvertUtil;
 import dev.web.api.bm_a025.RealTimeDataDTO;
@@ -859,6 +860,67 @@ public class BookDataRepository {
 		});
 	}
 
+	/**
+	 * 突合確認参照（bm_a011）用: 指定国の static_data を、同じ試合の行ごとに SQL 側でまとめて取得する。
+	 * 1分ごとの行（1試合あたり数十行）をそのまま返さず、
+	 * match_id / game_id / game_link / data_category / home / away が同じ行を1行にして
+	 * 件数（rowCount）と「終了済の行があるか」（finished）を付けて返す。
+	 * 代表の seq は record_time が一番新しい行のもの（以前の実装と同じ）。
+	 *
+	 * @param country 国名（例: 日本）。空なら全件
+	 */
+	public List<DataIngestRow> findDataGroupedForIngest(String country) {
+
+		StringBuilder sql = new StringBuilder("""
+				SELECT
+				    (array_agg(seq_key ORDER BY record_time DESC NULLS LAST, seq_key DESC))[1] AS seq_key,
+				    data_category,
+				    match_id,
+				    game_id,
+				    game_link,
+				    home_team_name,
+				    away_team_name,
+				    MAX(record_time) AS record_time,
+				    COUNT(*) AS row_count,
+				    BOOL_OR(
+				        btrim(times) = :fin
+				        OR regexp_replace(times, '\\s', '', 'g') LIKE '%ペナルティ%'
+				    ) AS finished
+				FROM static_data
+				WHERE 1 = 1
+				""");
+
+		MapSqlParameterSource params = new MapSqlParameterSource();
+		params.addValue("fin", BookMakersCommonConst.FIN);
+
+		if (country != null && !country.isBlank()) {
+			sql.append("""
+					AND data_category LIKE :countryLike
+					""");
+			params.addValue("countryLike", country.trim() + ":%");
+		}
+
+		sql.append("""
+				GROUP BY match_id, game_id, game_link, data_category, home_team_name, away_team_name
+				ORDER BY MAX(record_time) DESC NULLS LAST, 1 DESC
+				""");
+
+		return bmJdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> {
+			DataIngestRow r = new DataIngestRow();
+			r.seq = rs.getString("seq_key");
+			r.dataCategory = rs.getString("data_category");
+			r.recordTime = rs.getTimestamp("record_time");
+			r.matchId = rs.getString("match_id");
+			r.gameId = rs.getString("game_id");
+			r.gameLink = rs.getString("game_link");
+			r.homeTeamName = rs.getString("home_team_name");
+			r.awayTeamName = rs.getString("away_team_name");
+			r.rowCount = rs.getInt("row_count");
+			r.finished = rs.getBoolean("finished");
+			return r;
+		});
+	}
+
 	public static class DataIngestRow {
 		public String seq;
 		public String dataCategory;
@@ -869,6 +931,10 @@ public class BookDataRepository {
 		public String gameId;
 		public String gameLink;
 		public String matchId;
+		/** findDataGroupedForIngest のみ: まとめた行数 */
+		public int rowCount = 1;
+		/** findDataGroupedForIngest のみ: 終了済（またはペナルティ）の行があるか */
+		public boolean finished;
 	}
 
 	/** dataを全件 DataEntity で取得（重いので注意） */

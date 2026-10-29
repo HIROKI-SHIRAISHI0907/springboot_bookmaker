@@ -10,29 +10,75 @@ import java.util.List;
 import java.util.Map;
 import java.util.Objects;
 import java.util.Set;
+import java.util.concurrent.ConcurrentHashMap;
 import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
-import dev.common.constant.BookMakersCommonConst;
-import dev.web.api.bm_a003.CountryLeagueDTO;
-import dev.web.api.bm_a003.CountryLeagueSearchCondition;
 import dev.web.repository.bm.BookDataRepository;
 import dev.web.repository.bm.MatchDetailDataWebRepository;
-import dev.web.repository.master.CountryLeagueMasterWebRepository;
 import dev.web.repository.master.FuturesRepository;
-import lombok.AllArgsConstructor;
+import lombok.RequiredArgsConstructor;
 
 @Service
-@AllArgsConstructor
+@RequiredArgsConstructor
 public class IngestedDataService {
 
 	private final BookDataRepository bookDataRepository;
 	private final FuturesRepository futuresRepository;
-	private final CountryLeagueMasterWebRepository countryLeagueMasterWebRepository;
 	private final MatchDetailDataWebRepository matchDetailDataWebRepository;
 
+	/** 集計結果をキャッシュする時間（ページ切り替え・一括起動のページ取得で使い回す） */
+	private static final long CACHE_TTL_MILLIS = 60_000L;
+
+	/** 国・絞り込み条件 → 集計結果（ページ分けする前の全件） */
+	private final Map<String, CachedResult> cache = new ConcurrentHashMap<>();
+
+	private static final class CachedResult {
+		private final long createdAt;
+		private final List<IngestedRowDTO> rows;
+
+		private CachedResult(long createdAt, List<IngestedRowDTO> rows) {
+			this.createdAt = createdAt;
+			this.rows = rows;
+		}
+	}
+
+	/**
+	 * 検索。集計結果（全件）は国・条件ごとに CACHE_TTL_MILLIS の間キャッシュし、ページ分けだけを毎回行う。
+	 * 1ページ目（offset=0）は「検索」ボタンなので、キャッシュを使わず作り直す。
+	 */
 	public IngestedDataReferenceResponse search(IngestedDataReferenceRequest req) {
+		String cacheKey = String.valueOf(trimToNull(req.getCountry())) + "|" + req.isOnlyMissingFinishedOrFuture();
+		long now = System.currentTimeMillis();
+
+		// 古いキャッシュを捨てる
+		cache.values().removeIf(c -> now - c.createdAt > CACHE_TTL_MILLIS);
+
+		CachedResult cached = (req.getOffset() > 0) ? cache.get(cacheKey) : null;
+		List<IngestedRowDTO> merged;
+		if (cached != null) {
+			merged = cached.rows;
+		} else {
+			merged = buildAll(req);
+			cache.put(cacheKey, new CachedResult(now, merged));
+		}
+
+		// ===== paging =====
+		int fromIdx = Math.min(Math.max(req.getOffset(), 0), merged.size());
+		int toIdx = Math.min(fromIdx + Math.max(req.getLimit(), 0), merged.size());
+		List<IngestedRowDTO> paged = new ArrayList<>(merged.subList(fromIdx, toIdx));
+
+		IngestedDataReferenceResponse res = new IngestedDataReferenceResponse();
+		res.setRows(paged);
+		res.setTotal(merged.size());
+		return res;
+	}
+
+	/**
+	 * 条件に合う行を全件集計する（ページ分けなし）。
+	 */
+	private List<IngestedRowDTO> buildAll(IngestedDataReferenceRequest req) {
 
 		// groupKey -> 集約結果
 		Map<String, IngestedRowDTO> grouped = new LinkedHashMap<>();
@@ -40,30 +86,11 @@ public class IngestedDataService {
 		// groupKey -> 同一試合群の data 件数
 		Map<String, Integer> sameMatchDataCountByGroupKey = new HashMap<>();
 
-		// data_categoryに国が付与なしの場合を考慮して、チーム一覧を取得
-		CountryLeagueSearchCondition search = new CountryLeagueSearchCondition();
-		search.setCountry(req.getCountry());
-		List<CountryLeagueDTO> teamList = countryLeagueMasterWebRepository.search(search);
-
-		// チームに紐づく future_master データを取得（チームごとに蓄積）
-		List<FuturesRepository.FutureMasterIngestRow> futuresList = new ArrayList<>();
-		for (CountryLeagueDTO dto : teamList) {
-		    futuresList.addAll(futuresRepository.findFutureMasterByRegisterTime(null, dto.getTeam()));
-		}
-
-		// ===== future_master（従来の国プレフィックス絞り込み） =====
-		List<FuturesRepository.FutureMasterIngestRow> futuresByCountry =
-		        futuresRepository.findFutureMasterByRegisterTime(req.getCountry(), null);
-
-		// futuresList と futuresByCountry をマージし、seq（主キー）で重複排除
-		Map<Long, FuturesRepository.FutureMasterIngestRow> futuresBySeq = new LinkedHashMap<>();
-		for (var r : futuresList) {
-		    futuresBySeq.put(r.seq, r);
-		}
-		for (var r : futuresByCountry) {
-		    futuresBySeq.putIfAbsent(r.seq, r);
-		}
-		List<FuturesRepository.FutureMasterIngestRow> futures = new ArrayList<>(futuresBySeq.values());
+		// ===== future_master =====
+		// 「国:」で始まるカテゴリの行と、その国のチーム（country_league_master）が出る行を1回の SQL で取得
+		// （data_category に国が付与なしの場合を考慮。以前はチームごとに検索していた）
+		List<FuturesRepository.FutureMasterIngestRow> futures =
+				futuresRepository.findFutureMasterForIngest(req.getCountry());
 
 		for (var r : futures) {
 			String gk = buildGroupKeyForFuture(r);
@@ -102,7 +129,8 @@ public class IngestedDataService {
 		}
 
 		// ===== data =====
-		var dataRows = bookDataRepository.findDataByRegisterTime(req.getCountry());
+		// 同じ試合の行は SQL 側でまとめて取得（件数・終了済の有無つき）
+		var dataRows = bookDataRepository.findDataGroupedForIngest(req.getCountry());
 
 		for (var r : dataRows) {
 			String gk = buildGroupKeyForData(r);
@@ -110,7 +138,7 @@ public class IngestedDataService {
 				gk = "DATA:" + r.seq;
 			}
 
-			sameMatchDataCountByGroupKey.merge(gk, 1, Integer::sum);
+			sameMatchDataCountByGroupKey.merge(gk, r.rowCount, Integer::sum);
 
 			IngestedRowDTO row = grouped.get(gk);
 			if (row == null) {
@@ -134,7 +162,7 @@ public class IngestedDataService {
 				}
 			}
 
-			if (isFinishedLikeTimes(r.times)) {
+			if (r.finished) {
 				row.setHasFinishedData(true);
 			}
 
@@ -204,15 +232,7 @@ public class IngestedDataService {
 			return tb.compareTo(ta);
 		});
 
-		// ===== paging =====
-		int fromIdx = Math.min(req.getOffset(), merged.size());
-		int toIdx = Math.min(fromIdx + req.getLimit(), merged.size());
-		List<IngestedRowDTO> paged = merged.subList(fromIdx, toIdx);
-
-		IngestedDataReferenceResponse res = new IngestedDataReferenceResponse();
-		res.setRows(paged);
-		res.setTotal(merged.size());
-		return res;
+		return java.util.Collections.unmodifiableList(merged);
 	}
 
 	// =========================================================
@@ -388,17 +408,6 @@ public class IngestedDataService {
 			return null;
 		String t = s.trim();
 		return t.isBlank() ? null : t;
-	}
-
-	private static boolean isFinishedLikeTimes(String times) {
-		String t = trimToNull(times);
-		if (t == null)
-			return false;
-
-		String norm = t.replaceAll("\\s+", "");
-
-		return BookMakersCommonConst.FIN.equals(t)
-				|| norm.contains("ペナルティ");
 	}
 
 	private static int categoryPriority(String category) {

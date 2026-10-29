@@ -148,6 +148,72 @@ public class FuturesRepository {
 	}
 
 	/**
+	 * 突合確認参照（bm_a011）用: 指定国の future_master を1回の SQL で取得する。
+	 * <ul>
+	 *   <li>game_team_category が「国:」で始まる行</li>
+	 *   <li>または、home / away チームがその国の country_league_master のチーム（NFKC 正規化で一致）の行
+	 *       （game_team_category に国が付いていない行も拾うため）</li>
+	 * </ul>
+	 * 以前はチームごとに検索していた（チーム数ぶん future_master を全件走査）のを1回にまとめたもの。
+	 * country が空なら全件。
+	 *
+	 * @param country 国名（例: 日本）
+	 */
+	public List<FutureMasterIngestRow> findFutureMasterForIngest(String country) {
+		StringBuilder sql = new StringBuilder("""
+				SELECT
+					f.seq,
+					f.game_team_category,
+					f.future_time,
+					f.home_team_name,
+					f.away_team_name,
+					f.game_link,
+					f.start_flg
+				FROM future_master f
+				""");
+
+		MapSqlParameterSource params = new MapSqlParameterSource();
+
+		if (country != null && !country.isBlank()) {
+			sql.append("""
+					WHERE f.game_team_category LIKE :countryLike
+					   OR normalize(f.home_team_name, NFKC) IN (SELECT t.team_norm FROM teams t)
+					   OR normalize(f.away_team_name, NFKC) IN (SELECT t.team_norm FROM teams t)
+					""");
+			sql.insert(0, """
+					WITH teams AS (
+						SELECT DISTINCT normalize(team, NFKC) AS team_norm
+						FROM country_league_master
+						WHERE country = :country
+						  AND team IS NOT NULL
+					)
+					""");
+			params.addValue("country", country.trim());
+			params.addValue("countryLike", country.trim() + ":%");
+		}
+
+		sql.append("""
+				ORDER BY f.future_time ASC, f.seq ASC
+				""");
+
+		return masterJdbcTemplate.query(sql.toString(), params, (rs, rowNum) -> {
+			FutureMasterIngestRow r = new FutureMasterIngestRow();
+			r.seq = rs.getLong("seq");
+			r.gameTeamCategory = rs.getString("game_team_category");
+
+			OffsetDateTime ft = DateOffsetDecisionUtil.getOffsetDateTime(rs, "future_time");
+			r.futureTime = DateOffsetDecisionUtil.toIsoJstString(ft);
+
+			r.homeTeamName = rs.getString("home_team_name");
+			r.awayTeamName = rs.getString("away_team_name");
+			r.gameLink = rs.getString("game_link");
+			r.startFlg = rs.getString("start_flg");
+
+			return r;
+		});
+	}
+
+	/**
 	 * 互換用オーバーロード
 	 */
 	public List<FutureMasterIngestRow> findFutureMasterByRegisterTime(String country, String keyword,
