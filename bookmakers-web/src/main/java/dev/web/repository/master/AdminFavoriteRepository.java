@@ -24,7 +24,9 @@ public class AdminFavoriteRepository {
 	/**
 	 * country_league_master の行（別名 m）が非表示か。SQL の条件に埋め込んで使う。
 	 */
-	public static final String HIDDEN_EXISTS = """
+	// 先頭に半角スペースを付ける（テキストブロックは行末の空白を消すため、
+	// 「CASE WHEN 」「AND NOT 」のあとに直接つなぐと WHENEXISTS / NOTEXISTS になる）
+	public static final String HIDDEN_EXISTS = " " + """
 			EXISTS (
 			    SELECT 1 FROM admin_favorites_master a
 			    WHERE a.disp_flg = '1'
@@ -43,7 +45,8 @@ public class AdminFavoriteRepository {
 	}
 
 	/**
-	 * 強制制御画面用: country_league_master の全チームに、非表示かどうか（delFlg = "1" / "0"）を付けて返す。
+	 * 強制制御画面用: country_league_master の有効なチーム（del_flg = '0'）に、非表示かどうか（delFlg = "1" / "0"）を付けて返す。
+	 * del_flg = '1' の行は B004（リンクが変わった古い行）・B013（シーズン終了）などが論理削除したものなので出さない。
 	 * 画面の型（CountryLeagueDTO）に合わせ、非表示を delFlg に入れる（マスタの del_flg ではない）。
 	 */
 	public List<CountryLeagueDTO> findTeamsWithHidden() {
@@ -53,6 +56,7 @@ public class AdminFavoriteRepository {
 				  CASE WHEN """ + HIDDEN_EXISTS + """
 				  THEN '1' ELSE '0' END AS hidden
 				FROM country_league_master m
+				WHERE m.del_flg = '0'
 				ORDER BY m.country, m.league, m.team
 				""";
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {
