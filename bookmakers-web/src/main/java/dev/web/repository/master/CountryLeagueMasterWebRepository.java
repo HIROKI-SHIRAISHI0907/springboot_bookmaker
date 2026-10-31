@@ -302,14 +302,21 @@ public class CountryLeagueMasterWebRepository {
 						.addValue("team", team));
 	}
 
-	/** 削除 */
+	/**
+	 * 新規データ確認モーダルの「選択行を削除」。
+	 * 2026-10-31: 物理削除（DELETE）から論理削除（del_flg = '1'）に変更（誤ってまとめて消すと戻せないため）。
+	 * 論理削除した行は、同じチームがまた来たときに B004 が生き返らせる。
+	 */
 	public int deleteRow(String country, String league, String team) {
 	    String sql = """
-	        DELETE FROM country_league_master
+	        UPDATE country_league_master
+	        SET del_flg = '1',
+	            update_time = CURRENT_TIMESTAMP
 	        WHERE
 	          country = :country AND
 	          league = :league AND
-	          team = :team
+	          team = :team AND
+	          del_flg = '0'
 	    """;
 
 	    return masterJdbcTemplate.update(sql,

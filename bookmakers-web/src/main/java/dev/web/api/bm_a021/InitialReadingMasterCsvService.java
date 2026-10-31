@@ -370,6 +370,20 @@ public class InitialReadingMasterCsvService {
 		response.setUpdatedTargets(updatedTargets);
 		response.setMessage(updateCount == 0 ? "処理失敗しました。" : "処理成功しました。");
 
+		// 削除して、その国・リーグに確認する行（有効な行）が残っていなければ「新規データ確認」を確認済み（initial_flg = '1'）にする。
+		// しないと、確認画面に出す行が無いのに未確認のまま残り、管理画面の入口チェックが解消できない。
+		// 一部だけ削除した場合は、残りの行を確認画面で確認する（OK で確認済みになる）。
+		Map<String, InitialReadingMasterCsvUpdateStatusTargetRequest> doneTargets = new LinkedHashMap<>();
+		for (InitialReadingMasterCsvUpdateStatusTargetRequest t : updatedTargets) {
+			doneTargets.putIfAbsent(t.getCountry() + "___" + t.getLeague(), t);
+		}
+		for (InitialReadingMasterCsvUpdateStatusTargetRequest t : doneTargets.values()) {
+			if (!hasActiveRows(request.getMasterName(), t.getCountry(), t.getLeague())) {
+				this.initialReadingMasterCsvRepository.updateInitialFlg(
+						request.getMasterName(), t.getCountry(), t.getLeague());
+			}
+		}
+
 		// シーズンマスタの行を削除したら、シーズン終了日時一覧を S3 へ出力し直す
 		if (updateCount > 0
 				&& MasterNameConstant.COUNTRY_LEAGUE_SEASON_MASTER.equals(request.getMasterName())) {
@@ -443,6 +457,25 @@ public class InitialReadingMasterCsvService {
 	/** 値から "(season=READFIN)" などのマーカーを除いて日付部分だけにする */
 	private static String stripMarkers(String value) {
 		return value == null ? "" : value.replaceAll("\\([A-Za-z]+=READFIN\\)", "").trim();
+	}
+
+	/** その国・リーグに、確認画面に出す有効な行（del_flg = '0'）が残っているか */
+	private boolean hasActiveRows(String masterName, String country, String league) {
+		if (MasterNameConstant.COUNTRY_LEAGUE_SEASON_MASTER.equals(masterName)) {
+			CountryLeagueSeasonSearchCondition c = new CountryLeagueSeasonSearchCondition();
+			c.setCountry(country);
+			c.setLeague(league);
+			c.setDelFlg("0");
+			return !this.countryLeagueSeasonMasterWebRepository.search(c).isEmpty();
+		}
+		if (MasterNameConstant.COUNTRY_LEAGUE_MASTER.equals(masterName)) {
+			CountryLeagueSearchCondition c = new CountryLeagueSearchCondition();
+			c.setCountry(country);
+			c.setLeague(league);
+			c.setDelFlg("0");
+			return !this.countryLeagueMasterWebRepository.search(c).isEmpty();
+		}
+		return true;
 	}
 
 	/**

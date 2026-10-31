@@ -22,20 +22,59 @@ public class SetupCheckRepository {
 	}
 
 	/**
-	 * 新規登録で、まだ画面で確認していない国・リーグ（initial_reading_csv_master の initial_flg = '0'）
-	 * @param masterName master_name（例: country_league_season_master）
+	 * 新規登録で、まだ画面で確認していない国・リーグ（initial_reading_csv_master の initial_flg = '0'）。
+	 * 確認画面（モーダル）に出せるもの = 対応するマスタに有効な行（del_flg = '0'）がある国・リーグだけを数える。
+	 * マスタに行が無い・非表示（del_flg = '1'）の国・リーグは、モーダルに出ず確認も削除もできないので数えない
+	 * （数えると、解消する手段が無いまま管理画面がブロックされ続けるため）。
+	 *
+	 * @param masterName master_name（MasterNameConstant の値。テーブル名と同じ）
 	 * @return 「国 / リーグ」の一覧
 	 */
 	public List<String> findInitialPending(String masterName) {
+		String table = masterTable(masterName);
 		String sql = """
-				SELECT country, league
-				FROM initial_reading_csv_master
-				WHERE master_name = :masterName
-				  AND initial_flg = '0'
-				ORDER BY country, league
+				SELECT i.country, i.league
+				FROM initial_reading_csv_master i
+				WHERE i.master_name = :masterName
+				  AND i.initial_flg = '0'
+				  AND EXISTS (
+				    SELECT 1 FROM """ + " " + table + """
+				 m
+				    WHERE m.country = i.country AND m.league = i.league AND m.del_flg = '0'
+				  )
+				ORDER BY i.country, i.league
 				""";
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource("masterName", masterName),
 				(rs, n) -> rs.getString("country") + " / " + rs.getString("league"));
+	}
+
+	/**
+	 * 確認画面に出せない「未確認」（マスタに有効な行が無い国・リーグ）。ログ・調査用。
+	 */
+	public List<String> findInitialOrphans(String masterName) {
+		String table = masterTable(masterName);
+		String sql = """
+				SELECT i.country, i.league
+				FROM initial_reading_csv_master i
+				WHERE i.master_name = :masterName
+				  AND i.initial_flg = '0'
+				  AND NOT EXISTS (
+				    SELECT 1 FROM """ + " " + table + """
+				 m
+				    WHERE m.country = i.country AND m.league = i.league AND m.del_flg = '0'
+				  )
+				ORDER BY i.country, i.league
+				""";
+		return masterJdbcTemplate.query(sql, new MapSqlParameterSource("masterName", masterName),
+				(rs, n) -> rs.getString("country") + " / " + rs.getString("league"));
+	}
+
+	/** master_name → 対応するマスタのテーブル名（SQL に埋め込むので、del_flg を持つ決まったテーブルだけ許す） */
+	private static String masterTable(String masterName) {
+		if ("country_league_season_master".equals(masterName) || "country_league_master".equals(masterName)) {
+			return masterName;
+		}
+		throw new IllegalArgumentException("未対応の master_name: " + masterName);
 	}
 
 	/**

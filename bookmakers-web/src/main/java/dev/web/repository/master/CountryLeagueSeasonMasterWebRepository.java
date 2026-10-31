@@ -307,10 +307,19 @@ public class CountryLeagueSeasonMasterWebRepository {
 	}
 
 	/** 削除 */
+	/**
+	 * 新規データ確認モーダルの「選択行を削除」。
+	 * 2026-10-31: 物理削除（DELETE）から論理削除（del_flg = '1'）に変更。
+	 * まとめて選んで押すと、今シーズンのシーズン行がすべて消えてダンプから戻すしかなくなっていたため。
+	 * 論理削除した行は、次にシーズンを取得したとき B003 が同じ行を使う（非表示のまま更新される）。
+	 */
 	public int deleteRow(Integer id) {
 		String sql = """
-				    DELETE FROM country_league_season_master
+				    UPDATE country_league_season_master
+				    SET del_flg = '1',
+				        update_time = CURRENT_TIMESTAMP
 				    WHERE id = :id
+				      AND del_flg = '0'
 				""";
 
 		return masterJdbcTemplate.update(
