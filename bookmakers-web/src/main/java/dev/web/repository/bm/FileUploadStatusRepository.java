@@ -150,6 +150,40 @@ public class FileUploadStatusRepository {
 				.addValue("id", id));
 	}
 
+	/**
+	 * 正常終了（バッチを通さずに web でその場で反映したもの。2026-11-01 追加: 大会一括アップロード cup）
+	 * <p>success/ の場所（置けなかったときは null）と、登録・更新の件数を記録して終わりにする。</p>
+	 */
+	public int markSuccess(long id, String message, int totalCount, int insertCount, int updateCount,
+			String s3Bucket, String s3Key, String loginUser) {
+		String sql = """
+				UPDATE file_upload_status_manage
+				   SET status       = :status,
+				       error_phase  = NULL,
+				       message      = :message,
+				       total_count  = :totalCount,
+				       insert_count = :insertCount,
+				       update_count = :updateCount,
+				       error_count  = 0,
+				       s3_bucket    = :s3Bucket,
+				       s3_key       = :s3Key,
+				       finished_at  = CURRENT_TIMESTAMP,
+				       update_id    = :user,
+				       update_time  = CURRENT_TIMESTAMP
+				 WHERE id = :id
+				""";
+		return bmJdbcTemplate.update(sql, new MapSqlParameterSource()
+				.addValue("status", Status.SUCCESS)
+				.addValue("message", message)
+				.addValue("totalCount", totalCount)
+				.addValue("insertCount", insertCount)
+				.addValue("updateCount", updateCount)
+				.addValue("s3Bucket", s3Bucket)
+				.addValue("s3Key", s3Key)
+				.addValue("user", loginUser)
+				.addValue("id", id));
+	}
+
 	/** 検索条件の WHERE（入力があるものだけ） */
 	private static String where(FileUploadStatusSearchCondition c, MapSqlParameterSource p) {
 		StringBuilder sql = new StringBuilder(" WHERE 1 = 1 ");

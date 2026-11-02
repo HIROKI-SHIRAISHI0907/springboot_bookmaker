@@ -86,6 +86,15 @@ public class CsvUploadArchiver {
 		return put(key, errorZip.getBytes(), masterName, uploadId, loginUser);
 	}
 
+	/**
+	 * web でその場で反映できた zip を success/ に置く（バッチを通さない種類。2026-11-01 追加: 大会一括アップロード cup）
+	 * @throws RuntimeException S3 に置けなかったとき（呼び出し側では反映済みのまま、場所なしで正常終了にする）
+	 */
+	public Stored putSuccess(String masterName, long uploadId, String zipName, byte[] zipBytes, String loginUser) {
+		String key = buildKey(SUCCESS_DIR, masterName, uploadId, CsvUtil.baseName(zipName));
+		return put(key, zipBytes, masterName, uploadId, loginUser);
+	}
+
 	private Stored put(String key, byte[] bytes, String masterName, long uploadId, String loginUser) {
 		String bucket = pathConfig.getS3BucketsUploadCheck();
 		Map<String, String> metadata = new LinkedHashMap<>();
