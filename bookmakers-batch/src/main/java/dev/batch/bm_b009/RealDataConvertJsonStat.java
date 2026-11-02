@@ -5,11 +5,14 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.util.ArrayList;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
+import java.util.TreeMap;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -19,14 +22,26 @@ import com.fasterxml.jackson.databind.DatabindException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.batch.repository.master.AllLeagueMasterBatchRepository;
+import dev.batch.repository.master.CountryLeagueMasterBatchRepository;
 import dev.common.config.PathConfig;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.AllLeagueMasterEntity;
+import dev.common.entity.CountryLeagueMasterEntity;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
 
 /**
  * RealDataConvertJsonStatロジック
+ * <ul>
+ *   <li>スクレイピング対象（all_league_scrape_master.disp_flg = '0'）の国・リーグを b001_country_league.json にして、
+ *       各スクレイパーのバケットの json/ に置く。</li>
+ *   <li>大会のバケット（cupSchedule）には、同じキー json/b001_country_league.json に「チーム名つき」を置く（2026-11-02 追加）。
+ *       大会の結果タブのスクレイパー（CupResultData_aws_S3.py）が、このチームの出た試合だけを取る。
+ *       <pre>
+ * {"日本": [{"league": "J1 リーグ",
+ *            "teams": [{"team": "ガンバ大阪", "link": "/team/gamba-osaka/zLQAGOBK/"}, ...]}, ...], ...}
+ *       </pre></li>
+ * </ul>
  * @author shiraishitoshio
  *
  */
@@ -46,6 +61,10 @@ public class RealDataConvertJsonStat {
 	/** AllLeagueMasterBatchRepository */
 	@Autowired
 	private AllLeagueMasterBatchRepository allLeagueMasterBatchRepository;
+
+	/** CountryLeagueMasterBatchRepository（チーム名つき b001 用） */
+	@Autowired
+	private CountryLeagueMasterBatchRepository countryLeagueMasterBatchRepository;
 
 	/** JSON 生成に利用する ObjectMapper。 */
 	@Autowired
@@ -110,6 +129,21 @@ public class RealDataConvertJsonStat {
 		upload(delayPostponeBucket, s3Key, jsonFilePath);
 		upload(nextSeasonBucket, s3Key, jsonFilePath);
 
+		// 大会のバケットには「チーム名つき」を同じキーで置く（失敗してもほかのバケットの出力はそのまま）
+		String cupBucket = pathConfig.getS3BucketsCupSchedule();
+		try {
+			final Path cupJsonFilePath = Paths.get(jsonFolder, "cup", "b001_country_league.json");
+			Files.createDirectories(cupJsonFilePath.getParent());
+			List<CountryLeagueMasterEntity> teams = countryLeagueMasterBatchRepository.findActiveTeamsAtCupJson();
+			this.objectMapper.writerWithDefaultPrettyPrinter()
+					.writeValue(cupJsonFilePath.toFile(), buildCountryLeagueTeamMap(countryLeagueMap, teams));
+			upload(cupBucket, s3Key, cupJsonFilePath);
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00023E_S3_UPLOAD_FAILED, e,
+					"チーム名つき b001 を作れませんでした bucket: " + cupBucket + ", key: " + s3Key);
+		}
+
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
@@ -134,6 +168,49 @@ public class RealDataConvertJsonStat {
 					.add(entity.getLeague());
 		}
 		return map;
+	}
+
+	/**
+	 * 国・リーグ・チームを「チーム名つき b001」の形に変換する。
+	 *
+	 * <p>国・リーグは b001 と同じ（スクレイピング対象）。チームがまだ無いリーグも teams = [] で出す。
+	 * 国・リーグ・チームは名前順。</p>
+	 *
+	 * @param countryLeagueMap 国 → リーグ（b001 と同じもの）
+	 * @param teams スクレイピング対象のリーグにいる有効なチーム
+	 * @return 国 → [{league, teams: [{team, link}]}]
+	 */
+	private Map<String, List<Map<String, Object>>> buildCountryLeagueTeamMap(
+			Map<String, Set<String>> countryLeagueMap, List<CountryLeagueMasterEntity> teams) {
+		Map<String, Map<String, List<Map<String, String>>>> tmp = new TreeMap<>();
+		for (Map.Entry<String, Set<String>> e : countryLeagueMap.entrySet()) {
+			Map<String, List<Map<String, String>>> leagues = tmp.computeIfAbsent(e.getKey(), k -> new TreeMap<>());
+			for (String league : e.getValue()) {
+				leagues.computeIfAbsent(league, k -> new ArrayList<>());
+			}
+		}
+		for (CountryLeagueMasterEntity t : teams) {
+			Map<String, List<Map<String, String>>> leagues = tmp.get(t.getCountry());
+			if (leagues == null || !leagues.containsKey(t.getLeague()) || t.getTeam() == null || t.getTeam().isBlank()) {
+				continue;
+			}
+			Map<String, String> tm = new LinkedHashMap<>();
+			tm.put("team", t.getTeam());
+			tm.put("link", t.getLink() == null ? "" : t.getLink());
+			leagues.get(t.getLeague()).add(tm);
+		}
+		Map<String, List<Map<String, Object>>> out = new LinkedHashMap<>();
+		for (Map.Entry<String, Map<String, List<Map<String, String>>>> c : tmp.entrySet()) {
+			List<Map<String, Object>> list = new ArrayList<>();
+			for (Map.Entry<String, List<Map<String, String>>> l : c.getValue().entrySet()) {
+				Map<String, Object> lm = new LinkedHashMap<>();
+				lm.put("league", l.getKey());
+				lm.put("teams", l.getValue());
+				list.add(lm);
+			}
+			out.put(c.getKey(), list);
+		}
+		return out;
 	}
 
 	/**

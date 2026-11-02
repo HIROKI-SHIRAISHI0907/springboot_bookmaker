@@ -358,4 +358,29 @@ public interface CountryLeagueMasterBatchRepository {
 			""")
 	List<CountryLeagueMasterEntity> findCountryLeaguesByTeam(@Param("team") String team);
 
+
+	/**
+	 * スクレイピング対象（all_league_scrape_master.disp_flg = '0'）のリーグにいる有効なチーム（JSON用）
+	 * <p>B009 が大会のバケットへ出力する「チーム名つき b001_country_league.json」に使う（2026-11-02 追加）。</p>
+	 */
+	@Select("""
+			    SELECT
+			        c.country,
+			        c.league,
+			        c.team,
+			        c.link
+			    FROM
+			    	country_league_master c
+			    WHERE
+			    	c.del_flg = '0'
+			    	AND EXISTS (
+			    	    SELECT 1 FROM all_league_scrape_master a
+			    	     WHERE a.country = c.country
+			    	       AND a.league = c.league
+			    	       AND a.disp_flg = '0'
+			    	)
+			    ORDER BY
+			    	c.country, c.league, c.team;
+			""")
+	List<CountryLeagueMasterEntity> findActiveTeamsAtCupJson();
 }
