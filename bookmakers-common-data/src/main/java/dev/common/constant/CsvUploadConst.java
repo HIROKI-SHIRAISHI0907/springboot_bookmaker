@@ -125,6 +125,8 @@ public final class CsvUploadConst {
 		public static final String REALTIME = "realtime";
 		/** データカテゴリ統一（static_data.data_category・future_master.game_team_category の書き換え。2026-10-21 追加） */
 		public static final String DATA_CATEGORY = "dataCategory";
+		/** 大会（cup_competition_master。バッチを通さず web でその場で反映して正常終了にする。2026-11-01 追加） */
+		public static final String CUP = "cup";
 
 		/** 種類 → 表示名 */
 		public static final Map<String, String> LABELS;
@@ -135,6 +137,7 @@ public final class CsvUploadConst {
 			m.put(FUTURE, "試合予定データ");
 			m.put(REALTIME, "リアルタイムデータ");
 			m.put(DATA_CATEGORY, "データカテゴリ統一");
+			m.put(CUP, "大会データ");
 			LABELS = Collections.unmodifiableMap(m);
 		}
 

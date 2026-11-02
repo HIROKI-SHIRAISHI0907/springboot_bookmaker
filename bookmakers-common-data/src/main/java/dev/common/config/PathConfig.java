@@ -150,6 +150,13 @@ public class PathConfig {
 	private String s3BucketsOutputsNextSeason;
 
 	/**
+	 * S3バケット（cupSchedule。大会の日程・結果スクレイパー用。2026-11-02 追加）
+	 * <p>未設定の環境でも起動できるよう既定値を持たせる。</p>
+	 */
+	@Value("${process.s3.buckets.cupSchedule:aws-s3-cup-schedule-csv}")
+	private String s3BucketsCupSchedule;
+
+	/**
 	 * S3バケット（mail）
 	 */
 	@Value("${process.s3.buckets.mail}")
@@ -370,6 +377,15 @@ public class PathConfig {
 	 */
 	public String getS3BucketsOutputsNextSeason() {
 	    return s3BucketsOutputsNextSeason;
+	}
+
+	/**
+	 * 大会の日程・結果スクレイパー用のS3バケット名を取得する。
+	 *
+	 * @return cupSchedule用S3バケット名
+	 */
+	public String getS3BucketsCupSchedule() {
+	    return s3BucketsCupSchedule;
 	}
 
 	/**
