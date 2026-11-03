@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import dev.common.util.DateOffsetDecisionUtil;
 import dev.web.api.bm_a018.MatchDataByDateItemResource;
 
 /**
@@ -41,7 +42,7 @@ public class MatchDataRepository {
                         ORDER BY d.record_time DESC NULLS LAST, d.seq_key DESC
                     ) AS rn
                 FROM static_data d
-                WHERE CAST(d.record_time AS DATE) = CAST(:targetDate AS DATE)
+                WHERE d.record_time >= :fromTime AND d.record_time < :toTime
             )
             SELECT COUNT(*)
             FROM ranked
@@ -50,7 +51,7 @@ public class MatchDataRepository {
 
         Integer count = bmJdbcTemplate.queryForObject(
                 sql,
-                new MapSqlParameterSource().addValue("targetDate", targetDate),
+                dateParams(targetDate),
                 Integer.class);
 
         return count == null ? 0 : count;
@@ -76,7 +77,7 @@ public class MatchDataRepository {
                     d.home_team_name  AS homeTeamName,
                     d.away_team_name  AS awayTeamName,
                     d.add_manual_flg  AS addManualFlg,
-                    TO_CHAR(d.record_time, 'YYYY-MM-DD HH24:MI:SS') AS recordTime,
+                    d.record_time     AS recordTime,
                     d.record_time     AS sortRecordTime,
                     ROW_NUMBER() OVER (
                         PARTITION BY COALESCE(
@@ -87,7 +88,7 @@ public class MatchDataRepository {
                         ORDER BY d.record_time DESC NULLS LAST, d.seq_key DESC
                     ) AS rn
                 FROM static_data d
-                WHERE CAST(d.record_time AS DATE) = CAST(:targetDate AS DATE)
+                WHERE d.record_time >= :fromTime AND d.record_time < :toTime
             )
             SELECT
                 match_key     AS matchKey,
@@ -106,8 +107,7 @@ public class MatchDataRepository {
 
         return bmJdbcTemplate.query(
             sql,
-            new MapSqlParameterSource()
-                .addValue("targetDate", targetDate)
+            dateParams(targetDate)
                 .addValue("limit", limit)
                 .addValue("offset", offset),
             (rs, n) -> {
@@ -119,7 +119,7 @@ public class MatchDataRepository {
                 item.setHomeTeamName(rs.getString("homeTeamName"));
                 item.setAwayTeamName(rs.getString("awayTeamName"));
                 item.setAddManualFlg(rs.getString("addManualFlg"));
-                item.setRecordTime(rs.getString("recordTime"));
+                item.setRecordTime(DateOffsetDecisionUtil.getJstLocalDateTimeString(rs, "recordTime")); // 日本時間（2026-11-04）
                 return item;
             }
         );
@@ -187,4 +187,14 @@ public class MatchDataRepository {
         return new HashSet<>(rows);
     }
 
+
+    /**
+     * 指定日（日本時間 0:00〜翌 0:00）のパラメータ。DateOffsetDecisionUtil で日本時間の境目を作る
+     * （接続のタイムゾーンに左右されない。2026-11-04 変更）。
+     */
+    private static MapSqlParameterSource dateParams(String targetDate) {
+        return new MapSqlParameterSource()
+                .addValue("fromTime", DateOffsetDecisionUtil.toStartOfDayJstOffsetDateTime(targetDate))
+                .addValue("toTime", DateOffsetDecisionUtil.toNextStartOfDayJstOffsetDateTime(targetDate));
+    }
 }

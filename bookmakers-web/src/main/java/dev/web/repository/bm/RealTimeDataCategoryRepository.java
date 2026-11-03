@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import dev.common.util.DateOffsetDecisionUtil;
 import dev.web.api.bm_a025.RealTimeDataDTO;
 
 /**
@@ -104,10 +105,10 @@ public class RealTimeDataCategoryRepository {
 				    g.home_team_name,
 				    g.away_team_name,
 				    g.cnt,
-				    to_char(g.min_record_time, 'YYYY-MM-DD HH24:MI:SS') AS min_record_time,
-				    to_char(g.max_record_time, 'YYYY-MM-DD HH24:MI:SS') AS max_record_time,
-				    to_char(g.min_manual_record_time, 'YYYY-MM-DD HH24:MI:SS') AS min_manual_record_time,
-				    to_char(g.max_manual_record_time, 'YYYY-MM-DD HH24:MI:SS') AS max_manual_record_time,
+				    g.min_record_time,
+				    g.max_record_time,
+				    g.min_manual_record_time,
+				    g.max_manual_record_time,
 				    fc.category_format_icon
 				FROM grouped g
 				JOIN format_consistency fc
@@ -123,10 +124,11 @@ public class RealTimeDataCategoryRepository {
 			dto.setAwayTeamName(rs.getString("away_team_name"));
 			dto.setCnt(rs.getLong("cnt"));
 			dto.setCategoryFormatIcon(rs.getString("category_format_icon"));
-			dto.setMinRecordTime(rs.getString("min_record_time"));
-			dto.setMaxRecordTime(rs.getString("max_record_time"));
-			dto.setMinManualRecordTime(rs.getString("min_manual_record_time"));
-			dto.setMaxManualRecordTime(rs.getString("max_manual_record_time"));
+			// 日本時間の「yyyy-MM-dd HH:mm:ss」（2026-11-04: to_char はセッションのタイムゾーンになるため Util に変更）
+			dto.setMinRecordTime(DateOffsetDecisionUtil.getJstLocalDateTimeString(rs, "min_record_time"));
+			dto.setMaxRecordTime(DateOffsetDecisionUtil.getJstLocalDateTimeString(rs, "max_record_time"));
+			dto.setMinManualRecordTime(DateOffsetDecisionUtil.getJstLocalDateTimeString(rs, "min_manual_record_time"));
+			dto.setMaxManualRecordTime(DateOffsetDecisionUtil.getJstLocalDateTimeString(rs, "max_manual_record_time"));
 			return dto;
 		});
 	}

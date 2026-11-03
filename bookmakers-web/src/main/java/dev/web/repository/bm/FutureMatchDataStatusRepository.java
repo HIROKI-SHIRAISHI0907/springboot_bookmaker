@@ -1,5 +1,7 @@
 package dev.web.repository.bm;
 
+import dev.common.util.DateOffsetDecisionUtil;
+
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
@@ -74,9 +76,9 @@ public class FutureMatchDataStatusRepository {
 				  COUNT(d.record_time) FILTER (WHERE d.fin)                  AS finished_count,
 				  COUNT(d.record_time) FILTER (WHERE NOT d.fin)              AS live_count,
 				  COUNT(d.record_time) FILTER (
-				    WHERE d.record_time >= (CURRENT_TIMESTAMP AT TIME ZONE 'Asia/Tokyo') - INTERVAL '40 minutes'
+				    WHERE d.record_time >= CURRENT_TIMESTAMP - INTERVAL '40 minutes'
 				  )                                                          AS current_live_count,
-				  to_char(MAX(d.record_time), 'YYYY-MM-DD"T"HH24:MI:SS')     AS last_updated_at
+				  MAX(d.record_time)                                         AS last_updated_at
 				FROM m
 				LEFT JOIN LATERAL (
 				  SELECT
@@ -105,8 +107,9 @@ public class FutureMatchDataStatusRepository {
 			r.setFinishedCount(rs.getInt("finished_count"));
 			r.setLiveCount(rs.getInt("live_count"));
 			r.setCurrentLiveCount(rs.getInt("current_live_count"));
-			String last = rs.getString("last_updated_at");
-			r.setLastUpdatedAt(last == null ? null : last + "+09:00");
+			// 日本時間の ISO 形式（例: 2026-11-03T12:00+09:00）。以前は DB のセッションのタイムゾーンで to_char して
+			// "+09:00" を付けていたため、セッションが UTC の本番では 9 時間ずれていた（2026-11-04）
+			r.setLastUpdatedAt(DateOffsetDecisionUtil.getIsoJstString(rs, "last_updated_at"));
 			return r;
 		});
 		for (MatchStatusRow r : rows) {

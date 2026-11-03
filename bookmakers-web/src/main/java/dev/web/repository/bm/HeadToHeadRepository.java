@@ -7,6 +7,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import dev.common.util.DateOffsetDecisionUtil;
 import dev.web.api.headToHead.bm_w001.HeadToHeadResponse;
 import dev.web.api.headToHead.headToHeadDTO.HeadToHeadMatchDTO;
 import dev.web.api.headToHead.headToHeadDTO.HeadToHeadRecordDTO;
@@ -41,8 +42,8 @@ public class HeadToHeadRepository {
 				       away_matches, away_wins, away_draws, away_losses, away_goals_for, away_goals_against,
 				       pk_wins, pk_losses, clean_sheets, failed_to_score, both_scored,
 				       scored_first, conceded_first, seasons,
-				       to_char(first_match_time AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD HH24:MI:SS') AS first_match_time,
-				       to_char(last_match_time  AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD HH24:MI:SS') AS last_match_time
+				       first_match_time,
+				       last_match_time
 				FROM head_to_head_summary
 				WHERE team_key     = normalize(BTRIM(:team), NFKC)
 				  AND opponent_key = normalize(BTRIM(:opponent), NFKC)
@@ -62,8 +63,8 @@ public class HeadToHeadRepository {
 			res.setScoredFirst(rs.getInt("scored_first"));
 			res.setConcededFirst(rs.getInt("conceded_first"));
 			res.setSeasons(rs.getInt("seasons"));
-			res.setFirstMatchTime(rs.getString("first_match_time"));
-			res.setLastMatchTime(rs.getString("last_match_time"));
+			res.setFirstMatchTime(DateOffsetDecisionUtil.getJstLocalDateTimeString(rs, "first_match_time"));
+			res.setLastMatchTime(DateOffsetDecisionUtil.getJstLocalDateTimeString(rs, "last_match_time"));
 			return Boolean.TRUE;
 		});
 		return !found.isEmpty();
@@ -73,7 +74,7 @@ public class HeadToHeadRepository {
 	public List<HeadToHeadMatchDTO> findMatches(String team, String opponent, int limit) {
 		String sql = """
 				SELECT season, country, league, round_no, data_category,
-				       to_char(match_time AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD HH24:MI:SS') AS match_time,
+				       match_time,
 				       ha, home_team_name, away_team_name, home_score, away_score,
 				       result, pk_flg, pk_goals_for, pk_goals_against,
 				       goals_for_1st, goals_against_1st, first_goal
@@ -91,7 +92,7 @@ public class HeadToHeadRepository {
 			m.setLeague(rs.getString("league"));
 			m.setRoundNo((Integer) rs.getObject("round_no", Integer.class));
 			m.setDataCategory(rs.getString("data_category"));
-			m.setMatchTime(rs.getString("match_time"));
+			m.setMatchTime(DateOffsetDecisionUtil.getJstLocalDateTimeString(rs, "match_time"));
 			m.setHa(rs.getString("ha"));
 			m.setHomeTeamName(rs.getString("home_team_name"));
 			m.setAwayTeamName(rs.getString("away_team_name"));

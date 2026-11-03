@@ -41,6 +41,14 @@ public class CountryLeagueSeasonMasterWebRepository {
 	}
 
 	// ---- 全件 ----
+	/**
+	 * 全件（シーズンデータ取得情報の一覧）
+	 * <p>start_season_date / end_season_date（timestamptz）は DateOffsetDecisionUtil で日本時間の文字列
+	 * 「yyyy-MM-dd HH:mm:ss+09:00」にして返す（2026-11-04 変更）。
+	 * そのまま文字列にすると DB のタイムゾーン（UTC）の「…15:00:00+00」になり、画面の表示と
+	 * シーズン状態（日付だけで判定）が 1 日ずれていたため。未設定は null。
+	 * 編集で送り返された「…+09:00」の文字列は updateRow で timestamptz に正しく戻る。</p>
+	 */
 	public List<CountryLeagueSeasonDTO> findAll() {
 		StringBuilder sql = new StringBuilder("""
 				    SELECT
@@ -67,8 +75,8 @@ public class CountryLeagueSeasonMasterWebRepository {
 			dto.setId(rs.getString("id"));
 			dto.setCountry(rs.getString("country"));
 			dto.setLeague(rs.getString("league"));
-			dto.setStartSeasonDate(rs.getString("start_season_date"));
-			dto.setEndSeasonDate(rs.getString("end_season_date"));
+			dto.setStartSeasonDate(DateOffsetDecisionUtil.getJstDateTimeString(rs, "start_season_date"));
+			dto.setEndSeasonDate(DateOffsetDecisionUtil.getJstDateTimeString(rs, "end_season_date"));
 			dto.setSeasonYear(rs.getString("season_year"));
 			dto.setRound(rs.getString("round"));
 			dto.setPath(rs.getString("path"));
@@ -369,16 +377,16 @@ public class CountryLeagueSeasonMasterWebRepository {
 				    SELECT
 				      country,
 				      league,
-				      to_char(start_season_date AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS start_date,
-				      to_char(end_season_date   AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS end_date
+				      start_season_date,
+				      end_season_date
 				    FROM country_league_season_master
 				    WHERE del_flg = '0'
 				""";
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> new SeasonPeriodRow(
 				rs.getString("country"),
 				rs.getString("league"),
-				toDate(rs.getString("start_date")),
-				toDate(rs.getString("end_date"))));
+				DateOffsetDecisionUtil.getJstDate(rs, "start_season_date"),
+				DateOffsetDecisionUtil.getJstDate(rs, "end_season_date")));
 	}
 
 	/**
@@ -392,7 +400,7 @@ public class CountryLeagueSeasonMasterWebRepository {
 				    SELECT
 				      country,
 				      league,
-				      to_char(end_season_date AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD HH24:MI:SS') || '+09' AS end_date
+				      end_season_date
 				    FROM country_league_season_master
 				    WHERE del_flg = '0'
 				    ORDER BY country, league, end_season_date NULLS FIRST
@@ -400,16 +408,14 @@ public class CountryLeagueSeasonMasterWebRepository {
 		Map<String, String> map = new LinkedHashMap<>();
 		masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (RowCallbackHandler) rs -> {
 			String key = rs.getString("country") + "-" + rs.getString("league");
-			String endDate = rs.getString("end_date");
+			// "yyyy-MM-dd HH:mm:ss+09"（b025_fin_season_data.json と同じ形のまま。日本時間は Util で）
+			String local = DateOffsetDecisionUtil.getJstLocalDateTimeString(rs, "end_season_date");
+			String endDate = local == null ? null : local + "+09";
 			if (endDate != null || !map.containsKey(key)) {
 				map.put(key, endDate);
 			}
 		});
 		return map;
-	}
-
-	private static LocalDate toDate(String s) {
-		return s == null || s.isBlank() ? null : LocalDate.parse(s.trim());
 	}
 
 	private boolean hasText(String s) {

@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import dev.common.util.DateOffsetDecisionUtil;
 import dev.common.constant.CsvUploadConst.Limit;
 import dev.common.constant.CsvUploadConst.Status;
 import dev.web.api.bm_a032.FileUploadStatusDTO;
@@ -58,8 +59,8 @@ public class FileUploadStatusRepository {
 			      show_count,
 			      error_count,
 			      login_user,
-			      to_char(started_at  AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD HH24:MI:SS') AS started_at,
-			      to_char(finished_at AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD HH24:MI:SS') AS finished_at,
+			      started_at,
+			      finished_at,
 			      EXTRACT(EPOCH FROM (finished_at - started_at))::bigint AS elapsed_sec,
 			      s3_bucket,
 			      s3_key
@@ -197,13 +198,13 @@ public class FileUploadStatusRepository {
 		}
 		if (notEmpty(c.getDateFrom())) {
 			// 日本時間のその日の 0:00 から
-			sql.append(" AND started_at >= (CAST(:dateFrom AS date)::timestamp AT TIME ZONE 'Asia/Tokyo') ");
-			p.addValue("dateFrom", c.getDateFrom());
+			sql.append(" AND started_at >= :dateFrom ");
+			p.addValue("dateFrom", DateOffsetDecisionUtil.toStartOfDayJstOffsetDateTime(c.getDateFrom()));
 		}
 		if (notEmpty(c.getDateTo())) {
 			// 日本時間のその日の終わりまで（翌日 0:00 より前）
-			sql.append(" AND started_at < ((CAST(:dateTo AS date) + 1)::timestamp AT TIME ZONE 'Asia/Tokyo') ");
-			p.addValue("dateTo", c.getDateTo());
+			sql.append(" AND started_at < :dateTo ");
+			p.addValue("dateTo", DateOffsetDecisionUtil.toNextStartOfDayJstOffsetDateTime(c.getDateTo()));
 		}
 		if (notEmpty(c.getLoginUser())) {
 			sql.append(" AND login_user ILIKE :loginUser ");
@@ -270,8 +271,8 @@ public class FileUploadStatusRepository {
 		d.setShowCount(rs.getInt("show_count"));
 		d.setErrorCount(rs.getInt("error_count"));
 		d.setLoginUser(rs.getString("login_user"));
-		d.setStartedAt(rs.getString("started_at"));
-		d.setFinishedAt(rs.getString("finished_at"));
+		d.setStartedAt(DateOffsetDecisionUtil.getJstLocalDateTimeString(rs, "started_at"));
+		d.setFinishedAt(DateOffsetDecisionUtil.getJstLocalDateTimeString(rs, "finished_at"));
 		long elapsed = rs.getLong("elapsed_sec");
 		d.setElapsedSec(rs.wasNull() ? null : elapsed);
 		d.setS3Bucket(rs.getString("s3_bucket"));

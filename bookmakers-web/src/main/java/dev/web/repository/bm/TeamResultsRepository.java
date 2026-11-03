@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import dev.common.util.DateOffsetDecisionUtil;
 import dev.web.api.team.bm_w001.TeamResultRow;
 
 
@@ -47,15 +48,15 @@ public class TeamResultsRepository {
 	/** そのシーズンの最初の試合時刻（JST。無ければ null） */
 	public LocalDateTime findSeasonStart(String country, String league, String season) {
 		String sql = """
-				SELECT MIN(match_time) AT TIME ZONE 'Asia/Tokyo'
+				SELECT MIN(match_time) AS match_time
 				FROM surface_overview_match
 				WHERE normalize(country, NFKC) = normalize(:country, NFKC)
 				  AND normalize(league, NFKC)  = normalize(:league, NFKC)
 				  AND season = :season
 				""";
-		Timestamp ts = bmJdbcTemplate.queryForObject(sql, params(country, league, null).addValue("season", season),
-				Timestamp.class);
-		return ts == null ? null : ts.toLocalDateTime();
+		List<LocalDateTime> r = bmJdbcTemplate.query(sql, params(country, league, null).addValue("season", season),
+				(rs, n) -> DateOffsetDecisionUtil.getJstLocalDateTime(rs, "match_time"));
+		return r.isEmpty() ? null : r.get(0);
 	}
 
 	/** surface_overview_match のチームの試合（そのシーズン・ラウンドの新しい順） */
@@ -64,7 +65,7 @@ public class TeamResultsRepository {
 		String sql = """
 				SELECT round_no, opponent, ha, goals_for, goals_against, result, pk_flg,
 				       pk_goals_for, pk_goals_against,
-				       CAST(match_time AT TIME ZONE 'Asia/Tokyo' AS text) AS match_time
+				       match_time
 				FROM surface_overview_match
 				WHERE normalize(country, NFKC) = normalize(:country, NFKC)
 				  AND normalize(league, NFKC)  = normalize(:league, NFKC)
@@ -86,7 +87,7 @@ public class TeamResultsRepository {
 			r.setPk(rs.getBoolean("pk_flg"));
 			r.setPkGoalsFor((Integer) rs.getObject("pk_goals_for", Integer.class));
 			r.setPkGoalsAgainst((Integer) rs.getObject("pk_goals_against", Integer.class));
-			r.setMatchTime(rs.getString("match_time"));
+			r.setMatchTime(DateOffsetDecisionUtil.getJstLocalDateTimeString(rs, "match_time"));
 			return r;
 		});
 	}
@@ -103,7 +104,7 @@ public class TeamResultsRepository {
 				       x.round_no, x.home_team_name, x.away_team_name,
 				       COALESCE(CASE WHEN x.has_score THEN BTRIM(x.home_score) END, sc.home_score) AS home_score,
 				       COALESCE(CASE WHEN x.has_score THEN BTRIM(x.away_score) END, sc.away_score) AS away_score,
-				       CAST(x.record_time AS text) AS record_time
+				       x.record_time AS record_time
 				FROM (
 				  SELECT d.*,
 				         NULLIF(SUBSTRING(d.data_category FROM 'ラウンド\\s*([0-9]+)'), '')::INTEGER AS round_no,
@@ -138,7 +139,7 @@ public class TeamResultsRepository {
 			r.setAwayTeamName(rs.getString("away_team_name"));
 			r.setHomeScore(rs.getString("home_score"));
 			r.setAwayScore(rs.getString("away_score"));
-			r.setMatchTime(rs.getString("record_time"));
+			r.setMatchTime(DateOffsetDecisionUtil.getJstLocalDateTimeString(rs, "record_time")); // 日本時間（2026-11-04）
 			return r;
 		});
 	}

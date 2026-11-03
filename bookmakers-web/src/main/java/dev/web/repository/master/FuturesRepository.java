@@ -223,11 +223,21 @@ public class FuturesRepository {
 
 	// ========= 指定日の試合予定一覧（bm_a030） =========
 
-	/** 指定日（日本時間 0:00〜翌 0:00）の条件。future_time は timestamptz なので、日本時間の 0:00 を timestamptz に直して比べる（接続のタイムゾーンに左右されない） */
+	/**
+	 * 指定日（日本時間 0:00〜翌 0:00）の条件。境目は DateOffsetDecisionUtil で日本時間の 0:00 を
+	 * OffsetDateTime にして渡す（接続のタイムゾーンに左右されない。2026-11-04 Util に変更）。
+	 */
 	private static final String FUTURE_DATE_WHERE = """
-			WHERE f.future_time >= (CAST(:date AS timestamp) AT TIME ZONE 'Asia/Tokyo')
-			  AND f.future_time <  ((CAST(:date AS timestamp) + INTERVAL '1 day') AT TIME ZONE 'Asia/Tokyo')
+			WHERE f.future_time >= :fromTime
+			  AND f.future_time <  :toTime
 			""";
+
+	/** 指定日の条件のパラメータ（日本時間の 0:00 と翌日 0:00） */
+	private static MapSqlParameterSource futureDateParams(LocalDate date) {
+		return new MapSqlParameterSource()
+				.addValue("fromTime", DateOffsetDecisionUtil.toStartOfDayJstOffsetDateTime(date.toString()))
+				.addValue("toTime", DateOffsetDecisionUtil.toNextStartOfDayJstOffsetDateTime(date.toString()));
+	}
 
 	/**
 	 * 指定日の試合予定を、試合開始日時順に1ページ分取得する。
@@ -242,7 +252,6 @@ public class FuturesRepository {
 				  f.seq,
 				  f.game_team_category,
 				  f.future_time,
-				  to_char(f.future_time AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD HH24:MI:SS') AS future_time_local,
 				  f.home_team_name,
 				  f.away_team_name,
 				  NULLIF(BTRIM(f.game_link), '') AS game_link,
@@ -256,8 +265,7 @@ public class FuturesRepository {
 				LIMIT :limit
 				""".formatted(FUTURE_DATE_WHERE);
 
-		MapSqlParameterSource params = new MapSqlParameterSource()
-				.addValue("date", date.toString())
+		MapSqlParameterSource params = futureDateParams(date)
 				.addValue("offset", offset)
 				.addValue("limit", limit);
 
@@ -268,7 +276,7 @@ public class FuturesRepository {
 
 			OffsetDateTime ft = DateOffsetDecisionUtil.getOffsetDateTime(rs, "future_time");
 			r.setFutureTime(DateOffsetDecisionUtil.toIsoJstString(ft));
-			r.setFutureTimeLocal(rs.getString("future_time_local"));
+			r.setFutureTimeLocal(DateOffsetDecisionUtil.toJstLocalDateTimeString(ft));
 
 			r.setHomeTeamName(rs.getString("home_team_name"));
 			r.setAwayTeamName(rs.getString("away_team_name"));
@@ -292,7 +300,7 @@ public class FuturesRepository {
 				""".formatted(FUTURE_DATE_WHERE);
 
 		Long cnt = masterJdbcTemplate.queryForObject(sql,
-				new MapSqlParameterSource().addValue("date", date.toString()), Long.class);
+				futureDateParams(date), Long.class);
 		return cnt == null ? 0L : cnt;
 	}
 

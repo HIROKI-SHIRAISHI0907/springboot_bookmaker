@@ -15,6 +15,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import dev.common.util.DateOffsetDecisionUtil;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.entity.DataEntity;
 import dev.common.util.RecordTimeConvertUtil;
@@ -670,7 +671,7 @@ public class BookDataRepository {
 		e.setHomeInterceptCount(rs.getString("home_intercept_count"));
 		e.setAwayInterceptCount(rs.getString("away_intercept_count"));
 
-		e.setRecordTime(rs.getString("record_time"));
+		e.setRecordTime(DateOffsetDecisionUtil.getJstDateTimeString(rs, "record_time")); // 日本時間（2026-11-04）
 		e.setWeather(rs.getString("weather"));
 		e.setTemparature(rs.getString("temparature"));
 		e.setHumid(rs.getString("humid"));

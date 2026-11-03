@@ -9,6 +9,7 @@ import org.springframework.jdbc.datasource.DataSourceTransactionManager;
 import org.springframework.stereotype.Repository;
 import org.springframework.transaction.support.TransactionTemplate;
 
+import dev.common.util.DateOffsetDecisionUtil;
 import dev.web.api.bm_a033.LeagueLevelDTO;
 
 /**
@@ -51,7 +52,7 @@ public class LeagueLevelWebRepository {
 				  COUNT(DISTINCT COALESCE(league_level, 0)) > 1       AS mixed,
 				  COUNT(*) FILTER (WHERE del_flg = '0')::INTEGER      AS active_teams,
 				  COUNT(*)::INTEGER                                   AS total_rows,
-				  TO_CHAR(MAX(update_time) AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD HH24:MI:SS') AS update_time,
+				  MAX(update_time)                                    AS update_time,
 				  (ARRAY_AGG(update_id ORDER BY update_time DESC NULLS LAST))[1] AS update_id
 				FROM country_league_master
 				GROUP BY country, league
@@ -67,7 +68,7 @@ public class LeagueLevelWebRepository {
 			d.setLeagueLevel(d.isMixed() ? null : level);
 			d.setActiveTeams(rs.getInt("active_teams"));
 			d.setTotalRows(rs.getInt("total_rows"));
-			d.setUpdateTime(rs.getString("update_time"));
+			d.setUpdateTime(DateOffsetDecisionUtil.getJstLocalDateTimeString(rs, "update_time"));
 			d.setUpdateId(rs.getString("update_id"));
 			return d;
 		});

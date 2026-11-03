@@ -9,6 +9,7 @@ import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
 import org.springframework.jdbc.core.namedparam.NamedParameterJdbcTemplate;
 import org.springframework.stereotype.Repository;
 
+import dev.common.util.DateOffsetDecisionUtil;
 import dev.web.api.dashboard.matchDTO.DashboardMatchRow;
 import dev.web.api.dashboard.teamDTO.DashboardTeamRateRow;
 
@@ -78,7 +79,7 @@ public class DashboardMatchRepository {
 				  CAST(l.away_shoot_in AS text) AS away_shoot_in,
 				  CAST(l.home_donation AS text) AS home_donation,
 				  CAST(l.away_donation AS text) AS away_donation,
-				  CAST(l.record_time AS text)   AS record_time,
+				  l.record_time                 AS record_time,
 				  CAST(ht.home_score AS text)   AS ht_home_score,
 				  CAST(ht.away_score AS text)   AS ht_away_score
 				FROM latest l
@@ -104,7 +105,7 @@ public class DashboardMatchRepository {
 			r.setAwayShootIn(rs.getString("away_shoot_in"));
 			r.setHomeDonation(rs.getString("home_donation"));
 			r.setAwayDonation(rs.getString("away_donation"));
-			r.setRecordTime(rs.getString("record_time"));
+			r.setRecordTime(DateOffsetDecisionUtil.getJstDateTimeString(rs, "record_time")); // 日本時間（2026-11-04）
 			r.setHtHomeScore(rs.getString("ht_home_score"));
 			r.setHtAwayScore(rs.getString("ht_away_score"));
 			return r;

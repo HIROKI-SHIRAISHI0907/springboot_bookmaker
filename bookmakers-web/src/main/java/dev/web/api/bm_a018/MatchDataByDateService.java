@@ -6,6 +6,7 @@ import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
 
+import dev.common.util.DateOffsetDecisionUtil;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
@@ -101,7 +102,7 @@ public class MatchDataByDateService {
 
     private String normalizeTargetDate(String targetDate) {
         if (targetDate == null || targetDate.isBlank()) {
-            return LocalDate.now().toString();
+            return LocalDate.now(DateOffsetDecisionUtil.getZoneId()).toString(); // 日本時間の今日（2026-11-04）
         }
         try {
             return LocalDate.parse(targetDate.trim()).toString();
