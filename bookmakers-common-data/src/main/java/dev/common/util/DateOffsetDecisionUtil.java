@@ -99,6 +99,72 @@ public final class DateOffsetDecisionUtil {
 		return odt.atZoneSameInstant(ZONE).toOffsetDateTime().toString();
 	}
 
+	/** 画面表示用の書式（例: 2026-01-31 00:00:00+09:00）。秒が 0 でも省略しない */
+	private static final DateTimeFormatter JST_DATE_TIME = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ssXXX");
+
+	/**
+	 * timestamptz の値を対象タイムゾーン（日本時間）の「yyyy-MM-dd HH:mm:ss+09:00」にする（2026-11-04 追加）。
+	 * <p>DB のセッションのタイムゾーン（UTC）のまま rs.getString すると「2026-01-30 15:00:00+00」になり、
+	 * 画面の表示や日付だけでの判定が 1 日ずれるため、表示用はこれを使う。
+	 * toIsoJstString と違い、秒が 0 でも「00:00:00」まで出す。この文字列は timestamptz にそのまま戻せる。</p>
+	 * @param odt 値（null なら null）
+	 */
+	public static String toJstDateTimeString(OffsetDateTime odt) {
+		if (odt == null)
+			return null;
+		return odt.atZoneSameInstant(ZONE).format(JST_DATE_TIME);
+	}
+
+	/**
+	 * ResultSet の timestamptz 列を日本時間の「yyyy-MM-dd HH:mm:ss+09:00」で取得する（2026-11-04 追加）。
+	 * @param columnLabel 列名（例: "start_season_date"）
+	 * @return 文字列（NULL なら null）
+	 */
+	public static String getJstDateTimeString(ResultSet rs, String columnLabel) throws SQLException {
+		return toJstDateTimeString(getOffsetDateTime(rs, columnLabel));
+	}
+
+	/** 画面表示用の書式（オフセットなし。例: 2026-01-31 00:00:00） */
+	private static final DateTimeFormatter JST_LOCAL_DATE_TIME = DateTimeFormatter.ofPattern("uuuu-MM-dd HH:mm:ss");
+
+	/**
+	 * timestamptz の値を対象タイムゾーン（日本時間）の「yyyy-MM-dd HH:mm:ss」（オフセットなし）にする（2026-11-04 追加）。
+	 * 画面にそのまま文字で出すだけの項目用。DB のセッションのタイムゾーンに関係なく日本時間になる。
+	 */
+	public static String toJstLocalDateTimeString(OffsetDateTime odt) {
+		if (odt == null)
+			return null;
+		return odt.atZoneSameInstant(ZONE).format(JST_LOCAL_DATE_TIME);
+	}
+
+	/** ResultSet の timestamptz 列を日本時間の「yyyy-MM-dd HH:mm:ss」（オフセットなし）で取得する（2026-11-04 追加）。 */
+	public static String getJstLocalDateTimeString(ResultSet rs, String columnLabel) throws SQLException {
+		return toJstLocalDateTimeString(getOffsetDateTime(rs, columnLabel));
+	}
+
+	/** ResultSet の timestamptz 列を ISO 形式の日本時間（例: 2026-01-31T00:00+09:00）で取得する（2026-11-04 追加）。 */
+	public static String getIsoJstString(ResultSet rs, String columnLabel) throws SQLException {
+		return toIsoJstString(getOffsetDateTime(rs, columnLabel));
+	}
+
+	/** timestamptz の値を対象タイムゾーン（日本時間）の日付にする（2026-11-04 追加。null なら null） */
+	public static LocalDate toJstDate(OffsetDateTime odt) {
+		if (odt == null)
+			return null;
+		return odt.atZoneSameInstant(ZONE).toLocalDate();
+	}
+
+	/** ResultSet の timestamptz 列を日本時間の日付で取得する（2026-11-04 追加） */
+	public static LocalDate getJstDate(ResultSet rs, String columnLabel) throws SQLException {
+		return toJstDate(getOffsetDateTime(rs, columnLabel));
+	}
+
+	/** ResultSet の timestamptz 列を日本時間の LocalDateTime で取得する（2026-11-04 追加） */
+	public static LocalDateTime getJstLocalDateTime(ResultSet rs, String columnLabel) throws SQLException {
+		OffsetDateTime odt = getOffsetDateTime(rs, columnLabel);
+		return odt == null ? null : odt.atZoneSameInstant(ZONE).toLocalDateTime();
+	}
+
 	// toOffsetDateTimeJst も同様に
 	public static OffsetDateTime toOffsetDateTimeJst(OffsetDateTime odt) {
 		if (odt == null)
