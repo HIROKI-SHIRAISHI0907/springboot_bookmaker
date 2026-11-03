@@ -39,7 +39,8 @@ import dev.common.s3.S3Operator;
  *   <li>スクレイピング対象（all_league_scrape_master.disp_flg = '0'）の国・リーグを b001_country_league.json にして、
  *       各スクレイパーのバケットの json/ に置く。</li>
  *   <li>大会のバケット（cupSchedule）には、同じキー json/b001_country_league.json に「チーム名つき」を置く（2026-11-02 追加）。
- *       大会の結果タブのスクレイパー（CupResultData_aws_S3.py）が、このチームの出た試合だけを取る。
+ *       中身はスクレイピング対象の国リーグに紐づくチーム。大会の結果タブのスクレイパー（CupResultData_aws_S3.py）は、
+ *       このチームのどちらかが出た試合だけを取る（例: ACL のガンバ大阪-ブリーラムは取る。両方サウジのアルナスル-アルヒラルは取らない）。
  *       <pre>
  * {"日本": [{"league": "J1 リーグ",
  *            "teams": [{"team": "ガンバ大阪", "link": "/team/gamba-osaka/zLQAGOBK/"}, ...]}, ...], ...}
@@ -60,6 +61,9 @@ public class RealDataConvertJsonStat {
 
 	/** チームのリンクのチームID（/team/gamba-osaka/zLQAGOBK/ → zLQAGOBK） */
 	private static final Pattern TEAM_ID = Pattern.compile("/team/[^/]+/([A-Za-z0-9]+)/?");
+
+	/** 大会のバケットに置くチーム名つき b001（キーはほかのバケットと同じ json/b001_country_league.json） */
+	public static final String CUP_TEAM_FILE = "b001_country_league.json";
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "REAL_DATA_CONVERT_JSON";
@@ -137,17 +141,18 @@ public class RealDataConvertJsonStat {
 
 		// 大会のバケットには「チーム名つき」を同じキーで置く（失敗してもほかのバケットの出力はそのまま）
 		String cupBucket = pathConfig.getS3BucketsCupSchedule();
+		final String cupS3Key = "json/" + CUP_TEAM_FILE;
 		try {
-			final Path cupJsonFilePath = Paths.get(jsonFolder, "cup", "b001_country_league.json");
+			final Path cupJsonFilePath = Paths.get(jsonFolder, "cup", CUP_TEAM_FILE);
 			Files.createDirectories(cupJsonFilePath.getParent());
 			List<CountryLeagueMasterEntity> teams = countryLeagueMasterBatchRepository.findActiveTeamsAtCupJson();
 			this.objectMapper.writerWithDefaultPrettyPrinter()
 					.writeValue(cupJsonFilePath.toFile(), buildCountryLeagueTeamMap(countryLeagueMap, teams));
-			upload(cupBucket, s3Key, cupJsonFilePath);
+			upload(cupBucket, cupS3Key, cupJsonFilePath);
 		} catch (Exception e) {
 			this.manageLoggerComponent.debugErrorLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00023E_S3_UPLOAD_FAILED, e,
-					"チーム名つき b001 を作れませんでした bucket: " + cupBucket + ", key: " + s3Key);
+					"チーム名つき b001 を作れませんでした bucket: " + cupBucket + ", key: " + cupS3Key);
 		}
 
 		// endLog
