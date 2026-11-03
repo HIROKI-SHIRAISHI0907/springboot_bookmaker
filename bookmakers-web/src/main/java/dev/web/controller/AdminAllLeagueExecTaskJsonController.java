@@ -11,7 +11,9 @@ import org.springframework.web.bind.annotation.RestController;
 
 import dev.web.api.bm_w013.StatRequestResource;
 import dev.web.api.bm_w013.StatResponseResource;
+import dev.web.api.dashboard.auth.DashboardAuthResolver;
 import dev.web.batch.EcsBatchTaskRunner;
+import dev.web.repository.master.SetupPendingRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -26,6 +28,11 @@ public class AdminAllLeagueExecTaskJsonController {
 
     private final EcsBatchTaskRunner runner;
 
+    /** 「対象データアップロード実行」待ちを解消する（2026-11-03 追加） */
+    private final SetupPendingRepository setupPendingRepository;
+
+    private final DashboardAuthResolver authResolver;
+
     /**
      * /all-league-scrape-master-json を叩いたら B009 のFargateタスクを起動する
      */
@@ -38,6 +45,12 @@ public class AdminAllLeagueExecTaskJsonController {
         // 例: env.put("LEAGUE", req.getLeague());
 
         String taskArn = runner.runBatch("B009", env);
+
+        // B009 を起動できたら、リーグ所属チームの変更による「対象データアップロード実行」待ちを解消する
+        // （起動に失敗したときは runBatch が例外を投げるので、ここには来ない＝待ちのまま）
+        String operator = authResolver.currentUserId();
+        setupPendingRepository.resolve(SetupPendingRepository.SCRAPE_TARGET_UPLOAD,
+                operator == null || operator.isBlank() ? "ADMIN" : operator);
 
         StatResponseResource res = new StatResponseResource();
         // あなたのDTO設計に合わせて詰めてOK

@@ -15,6 +15,7 @@ import org.springframework.transaction.annotation.Transactional;
 
 import dev.web.api.dashboard.auth.DashboardAuthResolver;
 import dev.web.repository.master.LeagueTeamRepository;
+import dev.web.repository.master.SetupPendingRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -41,6 +42,9 @@ public class LeagueTeamService {
 	private final LeagueTeamRepository repository;
 
 	private final DashboardAuthResolver authResolver;
+
+	/** 付け替え・外したら「対象データアップロード実行」待ちにする（2026-11-03 追加） */
+	private final SetupPendingRepository setupPendingRepository;
 
 	/** GET /api/admin/league-team/countries */
 	@Transactional(readOnly = true)
@@ -175,8 +179,12 @@ public class LeagueTeamService {
 		int moved = 0;
 		if (!moveIds.isEmpty()) {
 			String operator = authResolver.currentUserId();
-			moved = repository.moveTeams(country, from, to, moveIds,
-					operator == null || operator.isBlank() ? "ADMIN" : operator);
+			String op = operator == null || operator.isBlank() ? "ADMIN" : operator;
+			moved = repository.moveTeams(country, from, to, moveIds, op);
+			if (moved > 0) {
+				setupPendingRepository.markPending(SetupPendingRepository.SCRAPE_TARGET_UPLOAD,
+						country + "：" + moved + " チームを「" + from + "」から「" + to + "」へ付け替え", op);
+			}
 		}
 
 		res.setResponseCode("0");
@@ -204,8 +212,12 @@ public class LeagueTeamService {
 		}
 
 		String operator = authResolver.currentUserId();
-		int n = repository.removeTeams(country, league, ids,
-				operator == null || operator.isBlank() ? "ADMIN" : operator);
+		String op = operator == null || operator.isBlank() ? "ADMIN" : operator;
+		int n = repository.removeTeams(country, league, ids, op);
+		if (n > 0) {
+			setupPendingRepository.markPending(SetupPendingRepository.SCRAPE_TARGET_UPLOAD,
+					country + "：" + n + " チームを「" + league + "」から外した", op);
+		}
 
 		res.setResponseCode("0");
 		res.setMovedCount(n);
