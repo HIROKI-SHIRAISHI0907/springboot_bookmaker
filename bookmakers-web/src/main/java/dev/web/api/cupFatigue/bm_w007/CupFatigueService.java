@@ -30,7 +30,10 @@ import lombok.RequiredArgsConstructor;
  * <ul>
  *   <li>リーグ戦の試合（今後の試合予定・試合中）のチームが、基準の日時（その試合の開始日時）の前後 days 日に
  *       大会の試合があるかを返す。「2 日前に ACL に出ていたので疲れているかも」を見るため。</li>
- *   <li>大会の試合 = S3 の b026_cup_schedule.json（日程スクレイパーが出力）。チームはチームID（/team/xxx/&lt;ID&gt;/）で突き合わせる。</li>
+ *   <li>大会の試合 = S3 の b026_cup_schedule.json（日程スクレイパー）と json/b026_cup_result.json（結果スクレイパー）。
+ *       チームはチームID（/team/xxx/&lt;ID&gt;/）で突き合わせる。</li>
+ *   <li>大会に出るチーム = 大会出場チーム登録設定で選んだチーム、または日程・結果の targets にいるチーム
+ *       （結果スクレイパーの対象 = json/b001_country_league.json（チーム名つき） のスクレイピング対象の国リーグのチーム）。</li>
  *   <li>出場選手 = B016 が登録した match_detail_lineup（出場=1）。出場時間は match_detail_member_stat にあればそれ、
  *       無ければ交代の分から計算する（90 分として）。</li>
  * </ul>
@@ -87,24 +90,47 @@ public class CupFatigueService {
 		if (team.isEmpty()) {
 			return tf;
 		}
-		// 大会の出場チームか（国・リーグ・チーム名が同じ行。リーグが変わっていても国・チーム名が同じならよい）
+		// 大会に出るチームか（2026-11-03 変更: どちらかに当てはまれば対象）
+		//  ① 大会出場チーム登録設定で選んだ出場チーム（国・チーム名が同じ行。リーグが変わっていてもよい）
+		//  ② 日程・結果の JSON の targets にいるチーム（結果スクレイパーは json/b001_country_league.json（チーム名つき） =
+		//     スクレイピング対象の国リーグのチームが出た試合を拾う。画面で選んでいなくても対象になる）
 		List<CupCompetitionResponse.Team> mine = cupTeams.stream()
 				.filter(t -> team.equals(t.getTeam()) && (country.isEmpty() || country.equals(t.getCountry())))
 				.collect(Collectors.toList());
-		if (mine.isEmpty()) {
-			return tf;
-		}
-		tf.setCupTeam(true);
-		tf.setCompetitions(mine.stream().map(t -> competitionNames.getOrDefault(t.getCompetitionId(), ""))
-				.filter(s -> !s.isEmpty()).distinct().collect(Collectors.joining("、")));
-
+		Set<String> competitions = new LinkedHashSet<>();
 		Set<String> teamIds = new HashSet<>();
 		for (CupCompetitionResponse.Team t : mine) {
+			String name = competitionNames.getOrDefault(t.getCompetitionId(), "");
+			if (!name.isEmpty()) {
+				competitions.add(name);
+			}
 			String id = CupScheduleStore.teamIdOfLink(t.getLink());
 			if (!id.isEmpty()) {
 				teamIds.add(id);
 			}
 		}
+		boolean inTargets = false;
+		for (CupScheduleStore.ScheduleItem it : schedule) {
+			for (CupScheduleStore.ScheduleTarget t : it.targets) {
+				if (team.equals(t.team) && (country.isEmpty() || country.equals(t.country))) {
+					inTargets = true;
+					String name = it.competitionName.isEmpty()
+							? competitionNames.getOrDefault(it.competitionId, "")
+							: it.competitionName;
+					if (!name.isEmpty()) {
+						competitions.add(name);
+					}
+					if (t.teamId != null && !t.teamId.isEmpty()) {
+						teamIds.add(t.teamId);
+					}
+				}
+			}
+		}
+		if (mine.isEmpty() && !inTargets) {
+			return tf;
+		}
+		tf.setCupTeam(true);
+		tf.setCompetitions(String.join("、", competitions));
 		if (teamIds.isEmpty() && !league.isEmpty()) {
 			String id = CupScheduleStore.teamIdOfLink(competitionRepository.findTeamLink(country, league, team));
 			if (!id.isEmpty()) {

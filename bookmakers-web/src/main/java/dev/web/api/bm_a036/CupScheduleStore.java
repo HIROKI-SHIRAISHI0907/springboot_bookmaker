@@ -38,8 +38,6 @@ public class CupScheduleStore {
 
 	public static final String COMPETITION_KEY = "b026_cup_competition.json";
 	public static final String SCHEDULE_KEY = "b026_cup_schedule.json";
-	/** 結果タブのスクレイパー（CupResultData_aws_S3.py）が読む大会URLの一覧（大会一括アップロード画面のボタンで出力。2026-11-01 追加） */
-	public static final String URL_KEY = "json/b026_cup_url.json";
 	/** 結果タブのスクレイパーが出力する結果（日程と同じ形。getSchedule で日程と合わせて読む。2026-11-01 追加） */
 	public static final String RESULT_KEY = "json/b026_cup_result.json";
 	public static final String REQUEST_KEY = "b026_cup_detail_request.json";
@@ -86,13 +84,6 @@ public class CupScheduleStore {
 		String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(body);
 		s3Operator.putJson(bucket, COMPETITION_KEY, json);
 		log.info("[A036] 大会と出場チームを出力しました: s3://{}/{}", bucket, COMPETITION_KEY);
-	}
-
-	/** 大会URLの一覧の JSON を出力する（json/b026_cup_url.json） */
-	public void putUrlJson(Object body) throws Exception {
-		String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(body);
-		s3Operator.putJson(bucket, URL_KEY, json);
-		log.info("[A036] 大会URLの一覧を出力しました: s3://{}/{}", bucket, URL_KEY);
 	}
 
 	/** 日程（無ければ空）。60 秒キャッシュ */

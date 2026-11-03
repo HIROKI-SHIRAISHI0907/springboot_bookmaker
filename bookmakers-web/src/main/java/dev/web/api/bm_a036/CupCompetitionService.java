@@ -268,43 +268,23 @@ public class CupCompetitionService {
 	}
 
 	/**
-	 * 大会URLの一覧を S3 の json/b026_cup_url.json へ出力する（大会一括アップロード画面のボタン。2026-11-01 追加）。
-	 * <p>対象は有効（del_flg='0'）で「日程を取る」（scrape_flg='1'）の大会。結果タブのスクレイパー
-	 * （CupResultData_aws_S3.py）がこの URL の results/ を読む。</p>
-	 * <pre>
-	 * {"generatedAt": "2026-11-01 12:00:00", "count": 1,
-	 *  "competitions": [{"competitionId": 1, "competitionName": "AFCチャンピオンズリーグエリート",
-	 *                    "url": "https://www.flashscore.co.jp/soccer/asia/afc-champions-league/"}]}
-	 * </pre>
+	 * 登録した大会を S3 の b026_cup_competition.json へ出力する（大会一括アップロード画面のボタン。2026-11-03 変更）。
+	 * <p>対象は有効（del_flg='0'）で「日程を取る」（scrape_flg='1'）の大会。中身は大会ごとの大会名・URL（と画面で選んだ出場チーム）。
+	 * 結果タブのスクレイパー（CupResultData_aws_S3.py）はこの URL の results/ を読み、
+	 * json/b001_country_league.json（チーム名つき）のチームが出た試合だけを取る。</p>
 	 */
 	public CupCompetitionResponse.Result exportUrlJson() {
-		List<Map<String, Object>> competitions = new ArrayList<>();
-		for (CupCompetitionResponse.Competition c : repository.findCompetitions()) {
-			if (!"1".equals(c.getScrapeFlg())) {
-				continue;
-			}
-			Map<String, Object> cm = new LinkedHashMap<>();
-			cm.put("competitionId", c.getId());
-			cm.put("competitionName", c.getCompetitionName());
-			cm.put("url", c.getCompetitionUrl());
-			competitions.add(cm);
-		}
-		if (competitions.isEmpty()) {
+		long n = repository.findCompetitions().stream().filter(c -> "1".equals(c.getScrapeFlg())).count();
+		if (n == 0) {
 			return CupCompetitionResponse.Result.ng("出力する大会がありません（先に大会を登録してください）。");
 		}
-		Map<String, Object> body = new LinkedHashMap<>();
-		body.put("generatedAt", LocalDateTime.now(CupScheduleStore.JST).format(CupScheduleStore.DATETIME));
-		body.put("count", competitions.size());
-		body.put("competitions", competitions);
-		try {
-			store.putUrlJson(body);
-		} catch (Exception e) {
-			log.error("[A036] 大会URLの一覧を出力できませんでした: s3://{}/{}", store.getBucket(), CupScheduleStore.URL_KEY, e);
-			return CupCompetitionResponse.Result.ng("S3（" + store.getBucket() + "）へ JSON を出力できませんでした: "
-					+ e.getMessage() + "（バケットがあるか、web のタスクロールに s3:PutObject があるか確認してください）");
+		CupCompetitionResponse.Result r = CupCompetitionResponse.Result.ok("", (int) n);
+		exportJson(r);
+		if (!"0".equals(r.getResponseCode())) {
+			return CupCompetitionResponse.Result.ng(r.getMessage());
 		}
-		return CupCompetitionResponse.Result.ok("s3://" + store.getBucket() + "/" + CupScheduleStore.URL_KEY
-				+ " に " + competitions.size() + " 大会の URL を出力しました", competitions.size());
+		return CupCompetitionResponse.Result.ok("s3://" + store.getBucket() + "/" + CupScheduleStore.COMPETITION_KEY
+				+ " に " + n + " 大会を出力しました", (int) n);
 	}
 
 	/**

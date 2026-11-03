@@ -28,7 +28,7 @@ import lombok.RequiredArgsConstructor;
  * 大会一括アップロード（CupCsvUploadPage.tsx）
  * <ul>
  *   <li>GET  /v1/api/admin/csv/upload/cup/format  フォーマット（cup_yyyyMMddHHmmss.zip。中に見出し行だけの CSV）</li>
- *   <li>POST /v1/api/admin/csv/upload/cup/url-json  登録した大会の URL を S3 の json/b026_cup_url.json に出力
+ *   <li>POST /v1/api/admin/csv/upload/cup/url-json  登録した大会（大会名・URL）を S3 の b026_cup_competition.json に出力
  *       （結果タブのスクレイパー CupResultData_aws_S3.py が読む。200: 出力した / 400: 大会が無い / 500: S3 に置けない）</li>
  *   <li>POST /v1/api/admin/csv/upload/cup         zip のアップロード（multipart/form-data、項目名 file。Authorization: Bearer {JWT}）
  *       <ul>
