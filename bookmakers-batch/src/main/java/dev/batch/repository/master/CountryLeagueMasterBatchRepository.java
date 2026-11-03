@@ -361,10 +361,13 @@ public interface CountryLeagueMasterBatchRepository {
 
 	/**
 	 * スクレイピング対象（all_league_scrape_master.disp_flg = '0'）のリーグにいる有効なチーム（JSON用）
-	 * <p>B009 が大会のバケットへ出力する「チーム名つき b001_country_league.json」に使う（2026-11-02 追加）。</p>
+	 * <p>B009 が大会のバケットへ出力する「チーム名つき b001_country_league.json」に使う（2026-11-02 追加）。
+	 * リーグ所属チーム付け替え設定（bm_a034）に表示されるチームと同じ条件（del_flg = '0'）。
+	 * 同じチームの行が複数あるときは id の大きい（新しい）行を先に返す（B009 で 1 チーム 1 行にまとめる）。</p>
 	 */
 	@Select("""
 			    SELECT
+			        c.id,
 			        c.country,
 			        c.league,
 			        c.team,
@@ -380,7 +383,7 @@ public interface CountryLeagueMasterBatchRepository {
 			    	       AND a.disp_flg = '0'
 			    	)
 			    ORDER BY
-			    	c.country, c.league, c.team;
+			    	c.country, c.league, c.team, c.id DESC;
 			""")
 	List<CountryLeagueMasterEntity> findActiveTeamsAtCupJson();
 }

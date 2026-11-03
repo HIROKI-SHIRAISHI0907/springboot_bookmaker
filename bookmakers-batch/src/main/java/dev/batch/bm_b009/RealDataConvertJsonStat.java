@@ -5,6 +5,7 @@ import java.io.IOException;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.Normalizer;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
@@ -13,6 +14,8 @@ import java.util.List;
 import java.util.Map;
 import java.util.Set;
 import java.util.TreeMap;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
@@ -54,6 +57,9 @@ public class RealDataConvertJsonStat {
 
 	/** クラス名 */
 	private static final String CLASS_NAME = RealDataConvertJsonStat.class.getName();
+
+	/** チームのリンクのチームID（/team/gamba-osaka/zLQAGOBK/ → zLQAGOBK） */
+	private static final Pattern TEAM_ID = Pattern.compile("/team/[^/]+/([A-Za-z0-9]+)/?");
 
 	/** 実行モード */
 	private static final String EXEC_MODE = "REAL_DATA_CONVERT_JSON";
@@ -175,6 +181,8 @@ public class RealDataConvertJsonStat {
 	 *
 	 * <p>国・リーグは b001 と同じ（スクレイピング対象）。チームがまだ無いリーグも teams = [] で出す。
 	 * 国・リーグ・チームは名前順。</p>
+	 * <p>同じリーグに同じチームが複数行あるとき（リンクのチームIDが同じ。リンクが無ければチーム名が同じ）は 1 行にまとめる。
+	 * 残すのは id の大きい（新しい）行（teams は id の大きい順に来る）。</p>
 	 *
 	 * @param countryLeagueMap 国 → リーグ（b001 と同じもの）
 	 * @param teams スクレイピング対象のリーグにいる有効なチーム
@@ -189,10 +197,14 @@ public class RealDataConvertJsonStat {
 				leagues.computeIfAbsent(league, k -> new ArrayList<>());
 			}
 		}
+		Set<String> seen = new java.util.HashSet<>();
 		for (CountryLeagueMasterEntity t : teams) {
 			Map<String, List<Map<String, String>>> leagues = tmp.get(t.getCountry());
 			if (leagues == null || !leagues.containsKey(t.getLeague()) || t.getTeam() == null || t.getTeam().isBlank()) {
 				continue;
+			}
+			if (!seen.add(t.getCountry() + "\t" + t.getLeague() + "\t" + sameTeamKey(t))) {
+				continue; // 同じリーグに同じチームが 2 行目以降
 			}
 			Map<String, String> tm = new LinkedHashMap<>();
 			tm.put("team", t.getTeam());
@@ -211,6 +223,17 @@ public class RealDataConvertJsonStat {
 			out.put(c.getKey(), list);
 		}
 		return out;
+	}
+
+	/** 同じチームかの比較キー（リンクのチームID、無ければチーム名を NFKC・空白除去・小文字にしたもの） */
+	private static String sameTeamKey(CountryLeagueMasterEntity t) {
+		if (t.getLink() != null) {
+			Matcher m = TEAM_ID.matcher(t.getLink().trim());
+			if (m.find()) {
+				return "id:" + m.group(1);
+			}
+		}
+		return "name:" + Normalizer.normalize(t.getTeam(), Normalizer.Form.NFKC).replaceAll("\\s+", "").toLowerCase();
 	}
 
 	/**
