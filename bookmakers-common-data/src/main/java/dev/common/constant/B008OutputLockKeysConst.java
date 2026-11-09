@@ -12,4 +12,7 @@ public final class B008OutputLockKeysConst {
 	/** fin/b008_fin_getting_data_*.json の read-check-write区間を排他するためのキー */
 	public static final long B008_FIN_GETTING_JSON = 2008080100L;
 
+	/** b016_game_detail_path_&lt;連番&gt;.json の連番を決めて書く区間を排他するためのキー（2026-11 追加。FinGettingService） */
+	public static final long B016_GAME_DETAIL_PATH_JSON = 2016110100L;
+
 }
