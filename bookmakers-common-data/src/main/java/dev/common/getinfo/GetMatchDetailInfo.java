@@ -51,6 +51,8 @@ import dev.common.util.CsvContentUtil;
  *     manifest_*.json                                       … スクレイパーが最後に置く（これがあれば全ファイルそろっている）
  * バケット直下の b016_game_detail_path.json（スクレイパーの入力）と _done/（取得済みマーカー）は対象外。
  * </pre>
+ * <p>大会（ACL など）の試合は {@link GetCupMatchDetailInfo} で読む（読み方はこのクラスの
+ * {@link #getData(String, String, String)} を使う）。</p>
  *
  * <ul>
  *   <li>manifest が無いフォルダはアップロード途中とみなして読まない（次回読む）。</li>
@@ -117,10 +119,21 @@ public class GetMatchDetailInfo {
 	 * @return key = フォルダのキー、value = その試合のデータ
 	 */
 	public Map<String, MatchDetailDataDTO> getData(String matchDate) {
+		return getData(config.getS3BucketsDetailData(), "", matchDate);
+	}
+
+	/**
+	 * 取得メソッド（バケット・フォルダを指定）
+	 * @param bucket バケット名
+	 * @param rootPrefix 試合日フォルダの上のフォルダ（末尾 /。バケット直下なら空）
+	 * @param matchDate 試合日（yyyy-MM-dd）。null・空なら全試合
+	 * @return key = フォルダのキー（rootPrefix を外したもの）、value = その試合のデータ
+	 */
+	public Map<String, MatchDetailDataDTO> getData(String bucket, String rootPrefix, String matchDate) {
 		final String METHOD_NAME = "getData";
 
-		String bucket = config.getS3BucketsDetailData();
-		String prefix = (matchDate == null || matchDate.isBlank()) ? "" : matchDate.trim() + "/";
+		final String root = rootPrefix == null ? "" : rootPrefix;
+		String prefix = root + ((matchDate == null || matchDate.isBlank()) ? "" : matchDate.trim() + "/");
 
 		List<String> keys;
 		try {
@@ -134,7 +147,10 @@ public class GetMatchDetailInfo {
 		// 1) フォルダごとにまとめる（試合日→フォルダ名の昇順）
 		Map<String, MatchDetailDataDTO> folders = new TreeMap<>();
 		for (String key : keys) {
-			Matcher m = DETAIL_KEY.matcher(key);
+			if (!key.startsWith(root)) {
+				continue;
+			}
+			Matcher m = DETAIL_KEY.matcher(key.substring(root.length()));
 			if (!m.matches()) {
 				continue;
 			}
@@ -182,7 +198,7 @@ public class GetMatchDetailInfo {
 		List<MatchDetailDataDTO> taskOwners = new ArrayList<>();
 		for (MatchDetailDataDTO d : targets) {
 			for (String key : d.getS3Keys()) {
-				if (key.equals(d.getManifestKey()) || ReadMatchDetail.kindOf(key) != null) {
+				if (key.equals(d.getManifestKey()) || ReadMatchDetail.kindOf(key.substring(root.length())) != null) {
 					taskKeys.add(key);
 					taskOwners.add(d);
 				}
@@ -197,7 +213,8 @@ public class GetMatchDetailInfo {
 			for (int i = 0; i < taskKeys.size(); i++) {
 				final String key = taskKeys.get(i);
 				final boolean isManifest = key.equals(taskOwners.get(i).getManifestKey());
-				tasks.add(() -> isManifest ? readManifest(bucket, key) : readCsv(bucket, key));
+				final String relKey = key.substring(root.length());
+				tasks.add(() -> isManifest ? readManifest(bucket, key) : readCsv(bucket, key, relKey));
 			}
 
 			// invokeAll の結果は tasks と同じ順番（i 番目 = taskKeys の i 番目）
@@ -294,8 +311,10 @@ public class GetMatchDetailInfo {
 
 	/**
 	 * CSV を 1 つ読む（ヘッダのみなら中身が空の結果）
+	 * @param key S3 のキー
+	 * @param relKey 試合日から始まるキー（ReadMatchDetail はこの形でファイルの種類を判定する）
 	 */
-	private ReadFileOutputDTO readCsv(String bucket, String key) throws Exception {
+	private ReadFileOutputDTO readCsv(String bucket, String key, String relKey) throws Exception {
 		byte[] bytes;
 		try (InputStream is = s3Operator.download(bucket, key)) {
 			bytes = is.readAllBytes();
@@ -307,7 +326,7 @@ public class GetMatchDetailInfo {
 			return empty;
 		}
 		try (InputStream is = new ByteArrayInputStream(bytes)) {
-			return readMatchDetail.getFileBodyFromStream(is, key);
+			return readMatchDetail.getFileBodyFromStream(is, relKey);
 		}
 	}
 
