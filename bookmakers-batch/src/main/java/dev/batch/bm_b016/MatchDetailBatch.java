@@ -6,6 +6,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import dev.batch.common.AbstractJobBatchTemplate;
+import dev.common.config.PathConfig;
+import dev.common.getinfo.GetCupMatchDetailInfo;
 import dev.common.getinfo.GetMatchDetailInfo;
 import dev.common.readfile.dto.MatchDetailDataDTO;
 
@@ -14,6 +16,8 @@ import dev.common.readfile.dto.MatchDetailDataDTO;
  * <p>
  * 試合詳細スクレイピング（Python: MatchDetailData_aws_S3.py）が aws-s3-detail-data-csv に出力した
  * CSV（1 試合 = 1 フォルダ）を読み、soccer_bm の match_detail_* テーブルに登録する。
+ * 続けて、大会の結果スクレイパー（CupResultData_aws_S3.py）が aws-s3-cup-schedule-csv の detail/ 配下に置いた
+ * 大会の試合も同じように登録する。
  * </p>
  *
  * <p><b>実行方式</b></p>
@@ -66,6 +70,14 @@ public class MatchDetailBatch extends AbstractJobBatchTemplate {
 	@Autowired
 	private GetMatchDetailInfo getMatchDetailInfo;
 
+	/** Config */
+	@Autowired
+	private PathConfig config;
+
+	/** 大会試合詳細データ取得管理クラス */
+	@Autowired
+	private GetCupMatchDetailInfo getCupMatchDetailInfo;
+
 	/** MatchDetailStatクラス */
 	@Autowired
 	private MatchDetailStat matchDetailStat;
@@ -75,13 +87,17 @@ public class MatchDetailBatch extends AbstractJobBatchTemplate {
 	 */
 	@Override
 	protected void doExecute(JobContext ctx) throws Exception {
+		// 1) 試合詳細（aws-s3-detail-data-csv）
 		Map<String, MatchDetailDataDTO> map = this.getMatchDetailInfo.getData();
-		if (map == null || map.isEmpty()) {
-			endLog();
-			return;
+		if (map != null && !map.isEmpty()) {
+			this.matchDetailStat.matchDetailStat(map, this.config.getS3BucketsDetailData());
 		}
 
-		this.matchDetailStat.matchDetailStat(map);
+		// 2) 大会の試合（aws-s3-cup-schedule-csv/detail/）
+		Map<String, MatchDetailDataDTO> cupMap = this.getCupMatchDetailInfo.getData();
+		if (cupMap != null && !cupMap.isEmpty()) {
+			this.matchDetailStat.matchDetailStat(cupMap, this.getCupMatchDetailInfo.getBucket());
+		}
 		endLog();
 	}
 

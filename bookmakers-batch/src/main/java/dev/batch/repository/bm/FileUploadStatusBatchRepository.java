@@ -2,6 +2,7 @@ package dev.batch.repository.bm;
 
 import java.util.List;
 
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
@@ -155,4 +156,19 @@ public interface FileUploadStatusBatchRepository {
 			   AND update_time < CURRENT_TIMESTAMP - make_interval(mins => #{minutes})
 			""")
 	int failStaleProcessing(@Param("minutes") int minutes, @Param("message") String message, @Param("user") String user);
+
+	/**
+	 * アップロードから指定月数を過ぎた状況管理を削除する（B095 用）
+	 * <p>取込前（PENDING・判定前）は B015 がまだ取り込んでいないので残す。それ以外（受付・判定中・正常終了・異常終了）は削除する。</p>
+	 * @param months 経過月数（started_at がこれより前のものが対象）
+	 * @param pendingStatus 残す状態（PENDING）
+	 * @return 削除件数
+	 */
+	@Delete("""
+			DELETE
+			  FROM file_upload_status_manage
+			 WHERE status <> #{pendingStatus}
+			   AND started_at < CURRENT_TIMESTAMP - make_interval(months => #{months})
+			""")
+	int deleteData(@Param("months") int months, @Param("pendingStatus") String pendingStatus);
 }

@@ -68,10 +68,18 @@ public class MatchDetailStat implements MatchDetailEntityIF {
 	 */
 	@Override
 	public void matchDetailStat(Map<String, MatchDetailDataDTO> map) throws Exception {
+		matchDetailStat(map, config.getS3BucketsDetailData());
+	}
+
+	/**
+	 * 試合詳細データ登録処理（読んだバケットを指定。登録できた試合のファイルはこのバケットから消す）
+	 * @param map key = S3 のフォルダ（試合）、value = その試合のデータ
+	 * @param bucket 読んだバケット（aws-s3-detail-data-csv / aws-s3-cup-schedule-csv）
+	 * @throws Exception 1 試合でも登録に失敗した場合（成功した試合は登録済み）
+	 */
+	public void matchDetailStat(Map<String, MatchDetailDataDTO> map, String bucket) throws Exception {
 		final String METHOD_NAME = "matchDetailStat";
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
-
-		String bucket = config.getS3BucketsDetailData();
 		int success = 0;
 		int skipped = 0;
 		List<String> failed = new ArrayList<>();
@@ -118,7 +126,7 @@ public class MatchDetailStat implements MatchDetailEntityIF {
 
 		this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 				MessageCdConst.MCD00099I_LOG,
-				"試合詳細データ登録結果: 対象=" + map.size() + " 登録=" + success
+				"試合詳細データ登録結果: bucket=" + bucket + " 対象=" + map.size() + " 登録=" + success
 						+ " 基本情報なしで未登録=" + skipped + " 失敗=" + failed.size());
 
 		this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);

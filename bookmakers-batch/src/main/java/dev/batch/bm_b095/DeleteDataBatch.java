@@ -51,12 +51,17 @@ public class DeleteDataBatch extends AbstractJobBatchTemplate {
 	@Autowired
 	private DeleteDataService deleteDataService;
 
+	/** DeleteFileService */
+	@Autowired
+	private DeleteFileService deleteFileService;
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	protected void doExecute(JobContext ctx) throws Exception {
 		this.deleteDataService.execute();
+		this.deleteFileService.execute();
 	}
 
 }
