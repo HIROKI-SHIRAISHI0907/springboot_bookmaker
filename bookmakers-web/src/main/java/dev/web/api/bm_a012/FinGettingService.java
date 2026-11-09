@@ -57,7 +57,7 @@ public class FinGettingService {
 	private static final Pattern GAME_DETAIL_PATH_PATTERN = Pattern.compile(
 			"^" + Pattern.quote(GAME_DETAIL_PATH_PREFIX) + "(\\d+)\\.json$");
 
-	/** 連番が他のリクエストとぶつかったときに取り直す回数 */
+	/** 同じ名前のファイルが既にあったときに次の連番で取り直す回数 */
 	private static final int GAME_DETAIL_PATH_RETRY = 5;
 
 	/** matchUrl が相対パスのときに付けるサイト */
@@ -130,7 +130,9 @@ public class FinGettingService {
 	 *   <li>matchUrl の mid と matchId が違うものは入れない（別の試合のページを取らないように）。</li>
 	 *   <li>リクエストごとに新しいファイル（次の連番）を作る（2026-11 変更）。以前は 1 つのファイルに上書きしていたため、
 	 *       「全件で B008 一括起動」で続けて送ると、スクレイパーが読む前に前の分が消えていた。</li>
-	 *   <li>連番がほかのリクエストとぶつかったら（S3 の条件付き書き込み If-None-Match が 412）、次の連番で取り直す。</li>
+	 *   <li>連番を決めて書くまでは advisory lock（{@link B008OutputLockKeysConst#B016_GAME_DETAIL_PATH_JSON}）で排他する
+ *       （続けて届いたリクエスト同士で同じ連番にならないように）。念のため、書く前に同じ名前が無いことも確かめる。
+ *       S3 の条件付き書き込み（If-None-Match）は、web の AWS SDK が古く使えないため使わない。</li>
 	 *   <li>スクレイパー（MatchDetailData_aws_S3.py）は直下の b016_game_detail_path*.json をまとめて読み、読み終わったものを消す。
 	 *       同じ試合が複数のファイルにあっても 1 回だけ取る。</li>
 	 *   <li>形: { "yyyy-MM-dd": [ {"url": ..., "matchKey": ...}, ... ] }（日付キーの昇順）</li>
@@ -188,25 +190,26 @@ public class FinGettingService {
 		}
 		String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(out);
 
-		// 次の連番で新しく作る（既にあれば 412 → 連番を取り直す）
-		for (int attempt = 1; attempt <= GAME_DETAIL_PATH_RETRY; attempt++) {
+		// 次の連番で新しく作る（連番を決めて書くまでを排他する）
+		final int matches = rowByMid.size();
+		final int noUrlCount = noUrl;
+		final int mismatchCount = mismatch;
+		return advisoryLock.runExclusive(B008OutputLockKeysConst.B016_GAME_DETAIL_PATH_JSON, () -> {
 			int seq = s3Operator.findNextSequenceNumber(bucket, GAME_DETAIL_PATH_PREFIX, GAME_DETAIL_PATH_PATTERN);
-			String key = GAME_DETAIL_PATH_PREFIX + seq + ".json";
-			try {
-				s3Operator.putTextConditional(bucket, key, json, null);
-				log.info("[A012] アップロード完了: s3://{}/{} 試合数={}（matchUrl なし {}・mid 不一致 {}）",
-						bucket, key, rowByMid.size(), noUrl, mismatch);
-				return rowByMid.size();
-			} catch (Exception e) {
-				if (!s3Operator.isPreconditionFailed(e)) {
-					throw e;
+			for (int attempt = 1; attempt <= GAME_DETAIL_PATH_RETRY; attempt++, seq++) {
+				String key = GAME_DETAIL_PATH_PREFIX + seq + ".json";
+				if (s3Operator.existsOnS3(bucket, key)) {
+					log.info("[A012] {} が既にあるため次の連番にします（{}/{}）", key, attempt, GAME_DETAIL_PATH_RETRY);
+					continue;
 				}
-				log.info("[A012] {} はほかのリクエストが先に作ったため、次の連番で作り直します（{}/{}）",
-						key, attempt, GAME_DETAIL_PATH_RETRY);
+				s3Operator.putJson(bucket, key, json);
+				log.info("[A012] アップロード完了: s3://{}/{} 試合数={}（matchUrl なし {}・mid 不一致 {}）",
+						bucket, key, matches, noUrlCount, mismatchCount);
+				return matches;
 			}
-		}
-		throw new IllegalStateException("B016 の入力 JSON の連番を取れませんでした（ほかのリクエストと " + GAME_DETAIL_PATH_RETRY
-				+ " 回ぶつかりました）。もう一度実行してください。");
+			throw new IllegalStateException("B016 の入力 JSON の連番を決められませんでした（" + GAME_DETAIL_PATH_RETRY
+					+ " 回続けて同じ名前のファイルがありました）。もう一度実行してください。");
+		});
 	}
 
 	/** 相対パス（/match/...）ならサイトを付ける。前後の空白は除く。空なら null */
