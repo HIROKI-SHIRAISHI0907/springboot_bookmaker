@@ -33,8 +33,8 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <ol>
  *   <li>fin/b008_fin_getting_data_N.json（B010 の入力）を作る（既存の処理）。</li>
- *   <li>b016_game_detail_path.json（B016 試合詳細スクレイピングの入力）を aws-s3-detail-data-csv の直下に作る（2026-10 追加）。
- *       {@link #uploadGameDetailPath} を参照。</li>
+ *   <li>b016_game_detail_path_&lt;連番&gt;.json（B016 試合詳細スクレイピングの入力）を aws-s3-detail-data-csv の直下に作る
+ *       （2026-10 追加。2026-11 連番にした）。{@link #uploadGameDetailPath} を参照。</li>
  * </ol>
  */
 @Slf4j
@@ -47,8 +47,18 @@ public class FinGettingService {
 	private static final Pattern FILE_PATTERN = Pattern.compile(
 			"^" + Pattern.quote(S3_PREFIX + FILE_PREFIX) + "(\\d+)\\.json$"
 	);
-	/** B016 の入力 JSON（aws-s3-detail-data-csv の直下） */
+	/** B016 の入力 JSON（以前の形。連番なし。スクレイパーは残っていれば読む） */
 	public static final String GAME_DETAIL_PATH_KEY = "b016_game_detail_path.json";
+
+	/** B016 の入力 JSON（aws-s3-detail-data-csv の直下。b016_game_detail_path_&lt;連番&gt;.json。2026-11 追加） */
+	public static final String GAME_DETAIL_PATH_PREFIX = "b016_game_detail_path_";
+
+	/** B016 の入力 JSON の連番（_cup など連番でないものは数えない） */
+	private static final Pattern GAME_DETAIL_PATH_PATTERN = Pattern.compile(
+			"^" + Pattern.quote(GAME_DETAIL_PATH_PREFIX) + "(\\d+)\\.json$");
+
+	/** 連番が他のリクエストとぶつかったときに取り直す回数 */
+	private static final int GAME_DETAIL_PATH_RETRY = 5;
 
 	/** matchUrl が相対パスのときに付けるサイト */
 	private static final String SITE = "https://www.flashscore.co.jp";
@@ -112,14 +122,17 @@ public class FinGettingService {
 	}
 
 	/**
-	 * b016_game_detail_path.json（B016 試合詳細スクレイピングの入力）を作り、aws-s3-detail-data-csv の直下に置く。
+	 * b016_game_detail_path_&lt;連番&gt;.json（B016 試合詳細スクレイピングの入力）を作り、aws-s3-detail-data-csv の直下に置く。
 	 *
 	 * <ul>
 	 *   <li>対象: リクエストの matches のうち、matchUrl があり試合ID（?mid= または古い形式 /match/&lt;試合ID&gt;/）が分かるもの。
 	 *       matchUrl が無い・試合ID が分からないものは入れない（ログに出す）。</li>
 	 *   <li>matchUrl の mid と matchId が違うものは入れない（別の試合のページを取らないように）。</li>
-	 *   <li>まだスクレイパーが読んでいない JSON が残っていれば、その中身と合わせる（同じ試合は 1 件。新しいリクエストを優先）。
-	 *       スクレイパーは読み終わると JSON を消すので、残っている = 未処理。</li>
+	 *   <li>リクエストごとに新しいファイル（次の連番）を作る（2026-11 変更）。以前は 1 つのファイルに上書きしていたため、
+	 *       「全件で B008 一括起動」で続けて送ると、スクレイパーが読む前に前の分が消えていた。</li>
+	 *   <li>連番がほかのリクエストとぶつかったら（S3 の条件付き書き込み If-None-Match が 412）、次の連番で取り直す。</li>
+	 *   <li>スクレイパー（MatchDetailData_aws_S3.py）は直下の b016_game_detail_path*.json をまとめて読み、読み終わったものを消す。
+	 *       同じ試合が複数のファイルにあっても 1 回だけ取る。</li>
 	 *   <li>形: { "yyyy-MM-dd": [ {"url": ..., "matchKey": ...}, ... ] }（日付キーの昇順）</li>
 	 * </ul>
 	 *
@@ -129,39 +142,10 @@ public class FinGettingService {
 	public int uploadGameDetailPath(List<FinGettingRequest.Item> items) throws Exception {
 		final String bucket = pathConfig.getS3BucketsDetailData();
 
-		// matchKey → {date, row}（同じ試合は 1 件）
+		// matchKey → {date, row}（同じ試合は 1 件。後のものを優先）
 		Map<String, String> dateByMid = new LinkedHashMap<>();
 		Map<String, Map<String, Object>> rowByMid = new LinkedHashMap<>();
 
-		// まだ読まれていない既存の JSON があれば先に入れる（後から入れるリクエストの方で上書き）
-		if (s3Operator.existsOnS3(bucket, GAME_DETAIL_PATH_KEY)) {
-			try {
-				String content = s3Operator.downloadTextUtf8(bucket, GAME_DETAIL_PATH_KEY);
-				if (content != null && !content.isBlank()) {
-					Map<String, List<Map<String, Object>>> existing = objectMapper.readValue(content,
-							new TypeReference<LinkedHashMap<String, List<Map<String, Object>>>>() {});
-					for (Map.Entry<String, List<Map<String, Object>>> e : existing.entrySet()) {
-						if (e.getValue() == null) {
-							continue;
-						}
-						for (Map<String, Object> row : e.getValue()) {
-							Object url = row.get("url");
-							String mid = extractMid(url == null ? null : String.valueOf(url));
-							if (mid == null) {
-								continue;
-							}
-							dateByMid.put(mid, e.getKey());
-							rowByMid.put(mid, row);
-						}
-					}
-				}
-			} catch (Exception e) {
-				// 読めない（形が違う）既存 JSON は捨てて作り直す
-				log.warn("[A012] 既存の {} を読めないため作り直します: {}", GAME_DETAIL_PATH_KEY, e.getMessage());
-			}
-		}
-
-		int added = 0;
 		int noUrl = 0;
 		int mismatch = 0;
 		for (FinGettingRequest.Item it : items) {
@@ -190,7 +174,6 @@ public class FinGettingService {
 			rowByMid.remove(mid);
 			dateByMid.put(mid, it.getMatchDate().toString());
 			rowByMid.put(mid, row);
-			added++;
 		}
 
 		if (rowByMid.isEmpty()) {
@@ -203,12 +186,27 @@ public class FinGettingService {
 		for (Map.Entry<String, Map<String, Object>> e : rowByMid.entrySet()) {
 			out.computeIfAbsent(dateByMid.get(e.getKey()), k -> new ArrayList<>()).add(e.getValue());
 		}
-
 		String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(out);
-		s3Operator.putJson(bucket, GAME_DETAIL_PATH_KEY, json);
-		log.info("[A012] アップロード完了: s3://{}/{} 試合数={}（今回 {}・matchUrl なし {}・mid 不一致 {}）",
-				bucket, GAME_DETAIL_PATH_KEY, rowByMid.size(), added, noUrl, mismatch);
-		return rowByMid.size();
+
+		// 次の連番で新しく作る（既にあれば 412 → 連番を取り直す）
+		for (int attempt = 1; attempt <= GAME_DETAIL_PATH_RETRY; attempt++) {
+			int seq = s3Operator.findNextSequenceNumber(bucket, GAME_DETAIL_PATH_PREFIX, GAME_DETAIL_PATH_PATTERN);
+			String key = GAME_DETAIL_PATH_PREFIX + seq + ".json";
+			try {
+				s3Operator.putTextConditional(bucket, key, json, null);
+				log.info("[A012] アップロード完了: s3://{}/{} 試合数={}（matchUrl なし {}・mid 不一致 {}）",
+						bucket, key, rowByMid.size(), noUrl, mismatch);
+				return rowByMid.size();
+			} catch (Exception e) {
+				if (!s3Operator.isPreconditionFailed(e)) {
+					throw e;
+				}
+				log.info("[A012] {} はほかのリクエストが先に作ったため、次の連番で作り直します（{}/{}）",
+						key, attempt, GAME_DETAIL_PATH_RETRY);
+			}
+		}
+		throw new IllegalStateException("B016 の入力 JSON の連番を取れませんでした（ほかのリクエストと " + GAME_DETAIL_PATH_RETRY
+				+ " 回ぶつかりました）。もう一度実行してください。");
 	}
 
 	/** 相対パス（/match/...）ならサイトを付ける。前後の空白は除く。空なら null */
