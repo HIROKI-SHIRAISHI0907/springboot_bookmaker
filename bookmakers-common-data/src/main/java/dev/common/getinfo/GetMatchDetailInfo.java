@@ -49,7 +49,7 @@ import dev.common.util.CsvContentUtil;
  *     formation_*.csv / lineup_*.csv / missing_*.csv / memberStat_*.csv
  *     memberStat_&lt;タブ&gt;_*.csv / memberStatHeader_*.csv   … memberStat と重複するので読まない
  *     manifest_*.json                                       … スクレイパーが最後に置く（これがあれば全ファイルそろっている）
- * バケット直下の b016_game_detail_path.json（スクレイパーの入力）と _done/（取得済みマーカー）は対象外。
+ * バケット直下の b016_game_detail_path*.json（スクレイパーの入力。連番・_cup つき）と _done/（取得済みマーカー）は対象外。
  * </pre>
  * <p>大会（ACL など）の試合は {@link GetCupMatchDetailInfo} で読む（読み方はこのクラスの
  * {@link #getData(String, String, String)} を使う）。</p>
