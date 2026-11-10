@@ -249,6 +249,30 @@ public interface FutureMasterRepository {
 			@Param("recordTime") String recordTime);
 
 	/**
+	 * B012（2026-11 追加）: 期間内（todayStart 以上・todayEnd 以下）に開始した試合（start_flg = '1'）のうち、
+	 * game_link に試合ID（?mid=）があるもの。B016 試合詳細スクレイピングの入力 JSON を作るのに使う。
+	 * futureTime は future_time をそのまま返す（日本時間の日付への変換は Java 側）。
+	 */
+	@Select("""
+			SELECT
+				game_link      AS gameLink,
+				future_time    AS futureTime,
+				home_team_name AS homeTeamName,
+				away_team_name AS awayTeamName
+			FROM
+				future_master
+			WHERE
+				(future_time >= #{todayStart}::timestamptz
+				AND future_time <= #{todayEnd}::timestamptz)
+				AND start_flg = '1'
+				AND game_link ~ '[?&]mid='
+			ORDER BY future_time, seq
+		""")
+	List<FutureEntity> findFinishedGameLinks(
+			@Param("todayStart") String todayStart,
+			@Param("todayEnd") String todayEnd);
+
+	/**
 	 * 期間内（todayStart 以上・todayEnd 以下）に開始した試合（start_flg = '1'）。
 	 */
 	@Select("""

@@ -27,6 +27,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import dev.batch.bm_b010.SeqKeyDTO;
 import dev.batch.repository.bm.BookDataRepository;
+import dev.batch.repository.bm.MatchDetailBatchRepository;
 import dev.batch.repository.master.FutureMasterRepository;
 import dev.common.config.PathConfig;
 import dev.common.constant.MessageCdConst;
@@ -50,6 +51,17 @@ import dev.common.util.DateOffsetDecisionUtil;
  *   <li>matchUrl は mid が matchKey と一致するものを優先して取り、一致しない URL は付けない
  *       （別の試合のページを読んで matchKey の試合として保存するのを防ぐ）。</li>
  *   <li>出力する日付は前日（日本時間）のものだけ。</li>
+ * </ul>
+ *
+ * <p>2026-11 追加: B016 試合詳細スクレイピングの入力 JSON も作る（{@link #writeGameDetailPath}）</p>
+ * <ul>
+ *   <li>前日に開始した試合（future_master の start_flg = '1'）のうち、game_link に試合ID（?mid=）があり、
+ *       まだ match_detail_match に登録されていないもの。終了済の有無に関係なく全部（試合詳細は終了済データとは別に取る）。</li>
+ *   <li>aws-s3-detail-data-csv の直下に b016_game_detail_path_&lt;連番&gt;.json として置く
+ *       （web の FinGettingService と同じ名前の付け方。既に同じ名前があれば次の連番）。
+ *       起動 Lambda（ecs-precheck-runner-detail-data）が見つけてスクレイパーを起動し、スクレイパーは読み終わったら消す。</li>
+ *   <li>形: { "yyyy-MM-dd": [ {"url": ..., "matchKey": ...}, ... ] }</li>
+ *   <li>ここで失敗しても fin の JSON の作成は続ける（ログに出すだけ）。</li>
  * </ul>
  * @author shiraishitoshio
  */
@@ -79,10 +91,25 @@ public class RealFinDataConvertJsonStat {
 	/** URL の mid= */
 	private static final Pattern MID_PATTERN = Pattern.compile("[?&]mid=([^&#]+)");
 
+	/** B016 の入力 JSON（aws-s3-detail-data-csv の直下。web の FinGettingService と同じ） */
+	private static final String GAME_DETAIL_PATH_PREFIX = "b016_game_detail_path_";
+
+	/** B016 の入力 JSON の連番 */
+	private static final Pattern GAME_DETAIL_PATH_PATTERN = Pattern.compile(
+			"^" + Pattern.quote(GAME_DETAIL_PATH_PREFIX) + "(\\d+)\\.json$");
+
+	/** 同じ名前のファイルが既にあったときに次の連番で取り直す回数 */
+	private static final int GAME_DETAIL_PATH_RETRY = 5;
+
+	/** matchUrl が相対パスのときに付けるサイト */
+	private static final String SITE = "https://www.flashscore.co.jp";
+
 	@Autowired
 	private BookDataRepository bookDataRepository;
 	@Autowired
 	private FutureMasterRepository futureMasterRepository;
+	@Autowired
+	private MatchDetailBatchRepository matchDetailBatchRepository;
 	@Autowired
 	private ObjectMapper objectMapper;
 	@Autowired
@@ -132,6 +159,15 @@ public class RealFinDataConvertJsonStat {
 			info(METHOD_NAME, "前日の予定試合が0件のためスキップします");
 			return;
 		}
+
+		// 0.5) B016 試合詳細スクレイピングの入力 JSON（失敗しても fin の JSON は作る）
+		try {
+			writeGameDetailPath(dayStart, dayEnd, targetDate);
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG, e, "B016 の入力 JSON の作成に失敗しました（fin の JSON は続けて作ります）: " + e.getMessage());
+		}
+
 		List<TeamPair> teamPairs = futureList.stream()
 				.map(f -> new TeamPair(f.getHomeTeamName(), f.getAwayTeamName()))
 				.collect(Collectors.toList());
@@ -214,6 +250,84 @@ public class RealFinDataConvertJsonStat {
 		final String s3Key = S3_PREFIX + fileName;
 		s3Operator.uploadFile(outputBucket, s3Key, jsonFilePath);
 		info(METHOD_NAME, "アップロード完了: s3://" + outputBucket + "/" + s3Key + " 件数=" + itemsByMatchId.size());
+	}
+
+	/**
+	 * B016 試合詳細スクレイピングの入力 JSON（b016_game_detail_path_&lt;連番&gt;.json）を作る（2026-11 追加）
+	 * @return 書いた試合数（0 なら何もしない）
+	 */
+	int writeGameDetailPath(String dayStart, String dayEnd, LocalDate targetDate) throws Exception {
+		final String METHOD_NAME = "writeGameDetailPath";
+		final String bucket = pathConfig.getS3BucketsDetailData();
+
+		List<FutureEntity> games = futureMasterRepository.findFinishedGameLinks(dayStart, dayEnd);
+		// 試合ID → {日付, url}（同じ試合は 1 件）
+		Map<String, String> dateByMid = new LinkedHashMap<>();
+		Map<String, String> urlByMid = new LinkedHashMap<>();
+		int registered = 0;
+		int otherDate = 0;
+		for (FutureEntity g : games) {
+			String url = normalizeUrl(g.getGameLink());
+			String mid = extractMid(url);
+			if (mid == null || mid.isEmpty() || urlByMid.containsKey(mid)) {
+				continue;
+			}
+			LocalDate date = toJstMatchDate(g.getFutureTime());
+			if (date == null || !targetDate.equals(date)) {
+				otherDate++;
+				continue;
+			}
+			if (matchDetailBatchRepository.countMatch(mid) > 0) {
+				registered++;
+				continue;
+			}
+			dateByMid.put(mid, date.toString());
+			urlByMid.put(mid, url);
+		}
+		info(METHOD_NAME, "B016 対象: 前日の試合=" + games.size() + " / 試合詳細登録済み=" + registered
+				+ " / 前日以外=" + otherDate + " / 出力=" + urlByMid.size());
+		if (urlByMid.isEmpty()) {
+			return 0;
+		}
+
+		// 日付キー（昇順）→ [{url, matchKey}, ...]
+		Map<String, List<Map<String, Object>>> out = new TreeMap<>();
+		for (Map.Entry<String, String> e : urlByMid.entrySet()) {
+			Map<String, Object> row = new LinkedHashMap<>();
+			row.put("url", e.getValue());
+			row.put("matchKey", e.getKey());
+			out.computeIfAbsent(dateByMid.get(e.getKey()), k -> new ArrayList<>()).add(row);
+		}
+		String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(out);
+
+		// 次の連番で新しく作る（既に同じ名前があれば次の連番）
+		int seq = s3Operator.findNextSequenceNumber(bucket, GAME_DETAIL_PATH_PREFIX, GAME_DETAIL_PATH_PATTERN);
+		for (int attempt = 1; attempt <= GAME_DETAIL_PATH_RETRY; attempt++, seq++) {
+			String key = GAME_DETAIL_PATH_PREFIX + seq + ".json";
+			if (s3Operator.existsOnS3(bucket, key)) {
+				continue;
+			}
+			s3Operator.putJson(bucket, key, json);
+			info(METHOD_NAME, "アップロード完了: s3://" + bucket + "/" + key + " 試合数=" + urlByMid.size());
+			return urlByMid.size();
+		}
+		throw new IllegalStateException("B016 の入力 JSON の連番を決められませんでした（" + GAME_DETAIL_PATH_RETRY
+				+ " 回続けて同じ名前のファイルがありました）");
+	}
+
+	/** 相対パス（/match/...）ならサイトを付ける。前後の空白は除く。空なら null */
+	static String normalizeUrl(String link) {
+		if (link == null || link.isBlank()) {
+			return null;
+		}
+		String u = link.trim();
+		if (u.startsWith("//")) {
+			return "https:" + u;
+		}
+		if (u.startsWith("/")) {
+			return SITE + u;
+		}
+		return u;
 	}
 
 	private void info(String method, String message) {
