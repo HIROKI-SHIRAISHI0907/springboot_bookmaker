@@ -49,7 +49,7 @@ public class IngestedDataService {
 	 * 1ページ目（offset=0）は「検索」ボタンなので、キャッシュを使わず作り直す。
 	 */
 	public IngestedDataReferenceResponse search(IngestedDataReferenceRequest req) {
-		String cacheKey = String.valueOf(trimToNull(req.getCountry())) + "|" + req.isOnlyMissingFinishedOrFuture();
+		String cacheKey = String.valueOf(trimToNull(req.getCountry())) + "|" + req.missingFilterKey();
 		long now = System.currentTimeMillis();
 
 		// 古いキャッシュを捨てる
@@ -207,12 +207,17 @@ public class IngestedDataService {
 			r.setHasDetailData(mk != null && registeredDetailIds.contains(mk));
 		}
 
-		// ===== チェックボックス条件: 終了済・未来（試合予定）・統計詳細のいずれかが無いものだけ =====
-		if (req.isOnlyMissingFinishedOrFuture()) {
+		// ===== チェックボックス条件（2026-11 変更: 未来・終了済・統計詳細を別々に選べる。選んだもののいずれかが無いもの） =====
+		//   onlyMissingFinishedOrFuture（以前の 1 つのチェック）は 3 つ全部を選んだのと同じ
+		if (req.hasMissingFilter()) {
+		    String key = req.missingFilterKey();
+		    boolean future = key.charAt(0) == '1';
+		    boolean finished = key.charAt(1) == '1';
+		    boolean detail = key.charAt(2) == '1';
 		    merged = merged.stream()
-		            .filter(r -> Boolean.FALSE.equals(r.getHasFinishedData())
-		                    || Boolean.FALSE.equals(r.getFutureExists())
-		                    || Boolean.FALSE.equals(r.getHasDetailData()))
+		            .filter(r -> (future && Boolean.FALSE.equals(r.getFutureExists()))
+		                    || (finished && Boolean.FALSE.equals(r.getHasFinishedData()))
+		                    || (detail && Boolean.FALSE.equals(r.getHasDetailData())))
 		            .collect(Collectors.toList());
 		}
 

@@ -33,6 +33,10 @@ import lombok.extern.slf4j.Slf4j;
  *
  * <ol>
  *   <li>fin/b008_fin_getting_data_N.json（B010 の入力）を作る（既存の処理）。</li>
+ *   <li>2026-11 追加: 試合ごとの needFinished・needDetail で、取るものを分ける。
+ *       終了済データがもうある試合は fin の JSON に入れず、統計詳細データがもうある試合は B016 の JSON に入れない
+ *       （画面で「統計詳細データなし」だけで絞って起動したときに、終了済データを取り直さないため）。
+ *       入れる試合が 1 件も無い JSON は作らない。</li>
  *   <li>b016_game_detail_path_&lt;連番&gt;.json（B016 試合詳細スクレイピングの入力）を aws-s3-detail-data-csv の直下に作る
  *       （2026-10 追加。2026-11 連番にした）。{@link #uploadGameDetailPath} を参照。</li>
  * </ol>
@@ -83,7 +87,7 @@ public class FinGettingService {
 	 *
 	 * 続けて b016_game_detail_path.json（B016 の入力）も作る（{@link #uploadGameDetailPath}）。
 	 *
-	 * @return アップロードしたS3 key（fin の JSON）
+	 * @return アップロードしたS3 key（fin の JSON。終了済データを取る試合が無ければ null）
 	 */
 	public String convertAndUpload(FinGettingRequest req) throws Exception {
 		// 1) 入力チェック(S3状態に依存しないためロック外)
@@ -92,11 +96,27 @@ public class FinGettingService {
 		}
 		final String outputBucket = pathConfig.getS3BucketsOutputsFin();
 
+		// 終了済データを取る試合（needFinished が false のものは入れない）
+		final List<FinGettingRequest.Item> finItems = req.getMatches().stream()
+				.filter(it -> it != null && it.wantsFinished())
+				.collect(Collectors.toList());
+		// 統計詳細データを取る試合（needDetail が false のものは入れない）
+		final List<FinGettingRequest.Item> detailItems = req.getMatches().stream()
+				.filter(it -> it != null && it.wantsDetail())
+				.collect(Collectors.toList());
+		log.info("[A012] リクエスト {} 試合（終了済データを取る {}・統計詳細データを取る {}）",
+				req.getMatches().size(), finItems.size(), detailItems.size());
+
 		// 2)〜5) 既存matchKeyの読み取りからアップロードまでを排他制御する
-		final String finKey = advisoryLock.runExclusive(B008OutputLockKeysConst.B008_FIN_GETTING_JSON, () -> {
+		final String finKey = finItems.isEmpty() ? null
+				: advisoryLock.runExclusive(B008OutputLockKeysConst.B008_FIN_GETTING_JSON, () -> {
 			Set<String> existingMatchKeys = loadExistingMatchKeys(outputBucket);
 
-			Map<String, List<Map<String, Object>>> out = toOutputMap(req.getMatches(), existingMatchKeys);
+			Map<String, List<Map<String, Object>>> out = toOutputMap(finItems, existingMatchKeys);
+			if (out.isEmpty()) {
+				log.info("[A012] fin の JSON に入れる試合がありません（すべて処理待ちの JSON にあります）");
+				return null;
+			}
 
 			final int nextSeq = s3Operator.findNextSequenceNumber(
 					outputBucket,
@@ -116,7 +136,9 @@ public class FinGettingService {
 		});
 
 		// 6) B016 試合詳細スクレイピングの入力 JSON も作る（fin の JSON とは独立。失敗したら例外で知らせる）
-		uploadGameDetailPath(req.getMatches());
+		if (!detailItems.isEmpty()) {
+			uploadGameDetailPath(detailItems);
+		}
 
 		return finKey;
 	}

@@ -26,9 +26,11 @@ public class AdminIngestedDataReferenceController {
      * 投入済みデータ参照（期間＋テーブル指定）
      *
      * GET /api/admin/ingested
-     *   ?from=2026-02-12T00:00:00Z
-     *   &to=2026-02-19T23:59:59Z
-     *   &tables=FUTURE_MASTER,DATA
+     *   ?country=日本
+     *   &onlyNeedsAttention=true   … 未来・終了済・統計詳細のいずれかが無いもの（以前からの指定。下の 3 つ全部と同じ）
+     *   &missingFuture=true        … 未来データが無いもの（2026-11 追加）
+     *   &missingFinished=true      … 終了済データが無いもの（2026-11 追加）
+     *   &missingDetail=true        … 統計詳細データが無いもの（2026-11 追加。複数選んだら「いずれかが無い」）
      *   &limit=100
      *   &offset=0
      */
@@ -37,6 +39,11 @@ public class AdminIngestedDataReferenceController {
     		@RequestParam(required = false) String country,
 
             @RequestParam(required = false) Boolean onlyNeedsAttention,
+
+            // 2026-11 追加: それぞれ「無いもの」で絞る（選んだもののいずれかが無いもの）
+            @RequestParam(required = false) Boolean missingFuture,
+            @RequestParam(required = false) Boolean missingFinished,
+            @RequestParam(required = false) Boolean missingDetail,
 
             @RequestParam(defaultValue = "100")
             int limit,
@@ -47,6 +54,9 @@ public class AdminIngestedDataReferenceController {
     	IngestedDataReferenceRequest req = new IngestedDataReferenceRequest();
     	req.setCountry(country);
     	req.setOnlyMissingFinishedOrFuture(Boolean.TRUE.equals(onlyNeedsAttention));
+    	req.setMissingFuture(Boolean.TRUE.equals(missingFuture));
+    	req.setMissingFinished(Boolean.TRUE.equals(missingFinished));
+    	req.setMissingDetail(Boolean.TRUE.equals(missingDetail));
         req.setLimit(limit);
         req.setOffset(offset);
 
