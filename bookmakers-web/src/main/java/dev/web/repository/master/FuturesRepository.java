@@ -160,36 +160,50 @@ public class FuturesRepository {
 	 * @param country 国名（例: 日本）
 	 */
 	public List<FutureMasterIngestRow> findFutureMasterForIngest(String country) {
-		StringBuilder sql = new StringBuilder("""
-				SELECT
-					f.seq,
-					f.game_team_category,
-					f.future_time,
-					f.home_team_name,
-					f.away_team_name,
-					f.game_link,
-					f.start_flg
-				FROM future_master f
-				""");
-
+		StringBuilder sql = new StringBuilder();
 		MapSqlParameterSource params = new MapSqlParameterSource();
 
 		if (country != null && !country.isBlank()) {
+			// 2026-11 修正: チーム一覧を「x IN (SELECT ...)」で照らすと、future_master を全件読んで
+			// 1 行ずつ normalize() を計算する（Seq Scan）。チーム一覧を配列（ARRAY(SELECT ...)）にして
+			// 「= ANY(配列)」で照らすと、3 つの条件がそれぞれインデックスで引けて BitmapOr でまとまる。
+			//   カテゴリ: idx_future_master_category_prefix（text_pattern_ops）
+			//   ホーム  : idx_future_master_home_norm（normalize(home_team_name, NFKC)）
+			//   アウェー: idx_future_master_away_norm（normalize(away_team_name, NFKC)）
 			sql.append("""
+					SELECT
+						f.seq,
+						f.game_team_category,
+						f.future_time,
+						f.home_team_name,
+						f.away_team_name,
+						f.game_link,
+						f.start_flg
+					FROM future_master f
 					WHERE f.game_team_category LIKE :countryLike
-					   OR normalize(f.home_team_name, NFKC) IN (SELECT t.team_norm FROM teams t)
-					   OR normalize(f.away_team_name, NFKC) IN (SELECT t.team_norm FROM teams t)
-					""");
-			sql.insert(0, """
-					WITH teams AS (
-						SELECT DISTINCT normalize(team, NFKC) AS team_norm
-						FROM country_league_master
-						WHERE country = :country
-						  AND team IS NOT NULL
-					)
+					   OR normalize(f.home_team_name, NFKC) = ANY (ARRAY(
+					          SELECT DISTINCT normalize(team, NFKC)
+					          FROM country_league_master
+					          WHERE country = :country AND team IS NOT NULL))
+					   OR normalize(f.away_team_name, NFKC) = ANY (ARRAY(
+					          SELECT DISTINCT normalize(team, NFKC)
+					          FROM country_league_master
+					          WHERE country = :country AND team IS NOT NULL))
 					""");
 			params.addValue("country", country.trim());
 			params.addValue("countryLike", country.trim() + ":%");
+		} else {
+			sql.append("""
+					SELECT
+						f.seq,
+						f.game_team_category,
+						f.future_time,
+						f.home_team_name,
+						f.away_team_name,
+						f.game_link,
+						f.start_flg
+					FROM future_master f
+					""");
 		}
 
 		sql.append("""
