@@ -97,6 +97,20 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			""")
 	List<CountryLeagueSeasonMasterEntity> findEndSeasonDateJstList();
 
+	/**
+	 * サブリーグ保有国リーグ登録設定（country_league_sub_league_master）で「サブリーグあり」の 国・リーグ（2026-11 追加）
+	 * @return "国-リーグ"（b025_fin_season_data.json のキーと同じ形）
+	 */
+	@Select("""
+			    SELECT
+			        country || '-' || league
+			    FROM
+			        country_league_sub_league_master
+			    WHERE
+			        sub_league_flg = '1'
+			""")
+	List<String> findSubLeagueCountryLeagueKeys();
+
 	@Select("""
 			    SELECT
 			        country,

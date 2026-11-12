@@ -13,11 +13,13 @@ import java.util.AbstractMap;
 import java.util.ArrayList;
 import java.util.Comparator;
 import java.util.HashMap;
+import java.util.HashSet;
 import java.util.Iterator;
 import java.util.LinkedHashMap;
 import java.util.List;
 import java.util.Map;
 import java.util.Objects;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
@@ -55,6 +57,14 @@ public class SeasonDataWrapper {
 
 	/** 全リーグのシーズン終了日時（web A021 が出力）。終了処理が済んだリーグに (season=READFIN) を付ける */
 	private static final String ALL_DATA_KEY = "b025_fin_season_all_data.json";
+
+	/**
+	 * b025_fin_season_data.json のキー（国-リーグ）の語尾（2026-11 追加）。
+	 * サブリーグ保有国リーグ登録設定で「サブリーグあり」の国リーグは、別のサブリーグでシーズンが続くので、
+	 * キーにこの語尾を付け、CSV・テーブルの削除（EachCsvTransaction / EachTableTransaction）をしない。
+	 * この語尾が付いたエントリは JSON からも削除しない。
+	 */
+	public static final String SUB_LEAGUE_SUFFIX = "（サブリーグあり）";
 
 	/** シーズンバッチレポジトリ */
 	@Autowired
@@ -156,6 +166,14 @@ public class SeasonDataWrapper {
 
 		dto.setCountryLeagueMap(countryLeagueMap);
 
+		// サブリーグありの国リーグ（2026-11 追加）。JSON のキーに語尾を付け、CSV・テーブルの削除はしない
+		Set<String> subLeagueKeys = findSubLeagueKeys();
+		Map<String, String> jsonCountryLeagueMap = new LinkedHashMap<>();
+		for (Map.Entry<String, String> e : countryLeagueMap.entrySet()) {
+			String key = subLeagueKeys.contains(e.getKey()) ? e.getKey() + SUB_LEAGUE_SUFFIX : e.getKey();
+			jsonCountryLeagueMap.put(key, e.getValue());
+		}
+
 		// シーズン終了データをまとめたJSONデータをupload
 		String seasonFinBucket = config.getS3BucketsOutputsNextSeason();
 		final String fileName = FILE_PREFIX + ".json"; // b025_fin_season_data.json
@@ -201,7 +219,7 @@ public class SeasonDataWrapper {
 		// 2) 新規 countryLeagueMap を国別にグルーピング(リーグ名変更検出用)
 		//		    国名 -> List<{リーグキー, 日付Instant}>
 		Map<String, List<Map.Entry<String, Instant>>> newByCountry = new HashMap<>();
-		for (Map.Entry<String, String> e : countryLeagueMap.entrySet()) {
+		for (Map.Entry<String, String> e : jsonCountryLeagueMap.entrySet()) {
 			String key = e.getKey();
 			String country = extractCountry(key, KEY_SEPARATOR);
 			if (country == null)
@@ -225,6 +243,10 @@ public class SeasonDataWrapper {
 			String existingKey = e.getKey();
 			String existingValue = e.getValue();
 			if (existingValue == null)
+				continue;
+
+			// サブリーグあり（語尾付き）は削除しない（別のサブリーグでシーズンが続く）
+			if (existingKey.endsWith(SUB_LEAGUE_SUFFIX))
 				continue;
 
 			// 両READFIN付きのみ削除対象
@@ -290,7 +312,7 @@ public class SeasonDataWrapper {
 		int preservedCount = 0;
 		int updatedCount = 0;
 
-		for (Map.Entry<String, String> entry : countryLeagueMap.entrySet()) {
+		for (Map.Entry<String, String> entry : jsonCountryLeagueMap.entrySet()) {
 			String key = entry.getKey();
 			String newValue = entry.getValue();
 
@@ -374,6 +396,18 @@ public class SeasonDataWrapper {
 				.filter(entity -> entity.getEndSeasonDate() != null)
 				.filter(entity -> isBeforeNow(entity.getEndSeasonDate(), formatter, now))
 				.map(entity -> entity.getCountry() + "-" + entity.getLeague())
+				// サブリーグありの国リーグは CSV・テーブルを削除しない（2026-11 追加）
+				.filter(key -> {
+					if (subLeagueKeys.contains(key)) {
+						this.manageLoggerComponent.debugInfoLog(
+								PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+								MessageCdConst.MCD00001I_BATCH_EXECUTION_GREEN_FIN,
+								"サブリーグありのため CSV・テーブルの削除をしません: " + key);
+						return false;
+					}
+					return true;
+				})
+				.distinct()
 				.collect(Collectors.toList());
 
 		dto.setCountryLeague(countryLeagueList);
@@ -517,6 +551,32 @@ public class SeasonDataWrapper {
 					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
 					ALL_DATA_KEY + " の更新に失敗しました（bucket=" + bucket
 							+ "。403 の場合は batch のタスクロールに s3:GetObject / s3:PutObject があるか確認）");
+		}
+	}
+
+	/**
+	 * サブリーグありの 国-リーグ（2026-11 追加）。読めないときは、削除してしまわないよう例外にする
+	 */
+	private Set<String> findSubLeagueKeys() throws Exception {
+		final String METHOD_NAME = "findSubLeagueKeys";
+		try {
+			Set<String> keys = new HashSet<>();
+			for (String k : countryLeagueSeasonMasterBatchRepository.findSubLeagueCountryLeagueKeys()) {
+				if (k != null && !k.isBlank()) {
+					keys.add(k.trim());
+				}
+			}
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00001I_BATCH_EXECUTION_GREEN_FIN,
+					"サブリーグありの国リーグ: " + keys.size() + " 件");
+			return keys;
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+					"country_league_sub_league_master の取得に失敗したため、CSV・テーブルを削除せずに終了します");
+			throw e;
 		}
 	}
 
