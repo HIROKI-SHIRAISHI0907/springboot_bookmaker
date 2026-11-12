@@ -30,8 +30,10 @@ import dev.batch.repository.bm.BookDataRepository;
 import dev.batch.repository.bm.MatchDetailBatchRepository;
 import dev.batch.repository.master.FutureMasterRepository;
 import dev.common.config.PathConfig;
+import dev.common.constant.B008OutputLockKeysConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.FutureEntity;
+import dev.common.lock.PgAdvisoryLock;
 import dev.common.logger.ManageLoggerComponent;
 import dev.common.s3.S3Operator;
 import dev.common.util.DateOffsetDecisionUtil;
@@ -116,6 +118,9 @@ public class RealFinDataConvertJsonStat {
 	private PathConfig pathConfig;
 	@Autowired
 	private S3Operator s3Operator;
+	/** b016_game_detail_path_<連番>.json の連番を決めて書くまでの排他（Web の FinGettingService と同じキー） */
+	@Autowired
+	private PgAdvisoryLock advisoryLock;
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
 
@@ -300,19 +305,24 @@ public class RealFinDataConvertJsonStat {
 		}
 		String json = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(out);
 
-		// 次の連番で新しく作る（既に同じ名前があれば次の連番）
-		int seq = s3Operator.findNextSequenceNumber(bucket, GAME_DETAIL_PATH_PREFIX, GAME_DETAIL_PATH_PATTERN);
-		for (int attempt = 1; attempt <= GAME_DETAIL_PATH_RETRY; attempt++, seq++) {
-			String key = GAME_DETAIL_PATH_PREFIX + seq + ".json";
-			if (s3Operator.existsOnS3(bucket, key)) {
-				continue;
+		// 次の連番で新しく作る（既に同じ名前があれば次の連番）。
+		// Web（FinGettingService#uploadGameDetailPath）と同じロックキーで、連番を決めて書くまでを排他する。
+		final int matches = urlByMid.size();
+		return advisoryLock.runExclusive(B008OutputLockKeysConst.B016_GAME_DETAIL_PATH_JSON, () -> {
+			int seq = s3Operator.findNextSequenceNumber(bucket, GAME_DETAIL_PATH_PREFIX, GAME_DETAIL_PATH_PATTERN);
+			for (int attempt = 1; attempt <= GAME_DETAIL_PATH_RETRY; attempt++, seq++) {
+				String key = GAME_DETAIL_PATH_PREFIX + seq + ".json";
+				if (s3Operator.existsOnS3(bucket, key)) {
+					info(METHOD_NAME, key + " が既にあるため次の連番にします（" + attempt + "/" + GAME_DETAIL_PATH_RETRY + "）");
+					continue;
+				}
+				s3Operator.putJson(bucket, key, json);
+				info(METHOD_NAME, "アップロード完了: s3://" + bucket + "/" + key + " 試合数=" + matches);
+				return matches;
 			}
-			s3Operator.putJson(bucket, key, json);
-			info(METHOD_NAME, "アップロード完了: s3://" + bucket + "/" + key + " 試合数=" + urlByMid.size());
-			return urlByMid.size();
-		}
-		throw new IllegalStateException("B016 の入力 JSON の連番を決められませんでした（" + GAME_DETAIL_PATH_RETRY
-				+ " 回続けて同じ名前のファイルがありました）");
+			throw new IllegalStateException("B016 の入力 JSON の連番を決められませんでした（" + GAME_DETAIL_PATH_RETRY
+					+ " 回続けて同じ名前のファイルがありました）");
+		});
 	}
 
 	/** 相対パス（/match/...）ならサイトを付ける。前後の空白は除く。空なら null */
