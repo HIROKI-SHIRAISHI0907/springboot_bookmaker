@@ -8,6 +8,7 @@ import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
 import dev.batch.repository.bm.BookDataRepository;
+import dev.batch.repository.bm.MatchDetailBatchRepository;
 import dev.batch.repository.master.CountryLeagueMasterBatchRepository;
 import dev.batch.repository.master.FutureMasterRepository;
 import dev.batch.repository.master.InitialMasterCsvRepository;
@@ -52,6 +53,10 @@ public class EachTableTransaction {
 	@Autowired
 	private BookDataRepository bookDataRepository;
 
+	/** 統計詳細データ（match_detail_*）レポジトリ（2026-11 追加） */
+	@Autowired
+	private MatchDetailBatchRepository matchDetailBatchRepository;
+
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
@@ -64,6 +69,37 @@ public class EachTableTransaction {
 		// ログ出力
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+
+		// 統計詳細データ（match_detail_* の 9 テーブル）削除（2026-11 追加）
+		// static_data の match_id で対象の試合を決めるので、static_data を消す（このメソッドの最後のループ）より前に行う。
+		// サブリーグありの国リーグは dto.getCountryLeague() に入っていない（SeasonDataWrapper で外す）ので消さない。
+		int delMDResultSum = 0;
+		for (String countryLeague : dto.getCountryLeague()) {
+			String[] pair = splitCountryLeague(countryLeague);
+			String country = pair[0];
+			String league = pair[1];
+			if (country.isEmpty() || league.isEmpty()) {
+				continue;
+			}
+			String colon = country + ": " + league;
+			String slash = country + " / " + league;
+			try {
+				int delMDResult = matchDetailBatchRepository.deleteByLeague(
+						colon, escapeLike(colon), slash, escapeLike(slash));
+				delMDResultSum += delMDResult;
+				this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+						"match_detail_delete: " + colon + " 試合数=" + delMDResult);
+			} catch (Exception e) {
+				this.manageLoggerComponent.debugErrorLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e);
+				throw e;
+			}
+		}
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+				"match_detail_delete_sum=" + delMDResultSum);
 
 		// initial_reading_csv_masterの対象レコード削除
 		for (String countryLeague : dto.getCountryLeague()) {
@@ -188,6 +224,11 @@ public class EachTableTransaction {
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
+	}
+
+	/** LIKE のワイルドカード（\\ % _）をエスケープする（PostgreSQL の既定のエスケープ文字は \\） */
+	private static String escapeLike(String s) {
+		return s.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
 	}
 
 	/**

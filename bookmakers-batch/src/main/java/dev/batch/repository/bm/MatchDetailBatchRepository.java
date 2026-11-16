@@ -38,6 +38,47 @@ public interface MatchDetailBatchRepository {
 	int countMatch(@Param("matchId") String matchId);
 
 	/**
+	 * 試合詳細（統計詳細データ）: 国・リーグ の試合を 9 テーブルからまとめて削除する（B013 シーズン終了処理用。2026-11 追加）
+	 * <p>対象の試合ID（match_id）は次のどちらかで決める。1 文で消すので、途中で失敗しても一部だけ消えることはない。</p>
+	 * <ul>
+	 *   <li>static_data のうち data_category が「国: リーグ」または「国: リーグ - ...」の行の match_id</li>
+	 *   <li>match_detail_match のうち category が「国: リーグ」「国 / リーグ」（前にパンくずが付く「... / 国 / リーグ」も）で、
+	 *       そのまま終わるか「 - ...」（ラウンドなど）が続くもの</li>
+	 * </ul>
+	 * 引数は LIKE 用にエスケープ済み（\ % _）の値を渡す（{@code EachTableTransaction#execute}）。
+	 * static_data を消す前に呼ぶこと（EachTableTransaction の最初のループ）。
+	 *
+	 * @param colon     「国: リーグ」（エスケープなし。= で比べる）
+	 * @param colonLike 「国: リーグ」（エスケープ済み）
+	 * @param slash     「国 / リーグ」（エスケープなし）
+	 * @param slashLike 「国 / リーグ」（エスケープ済み）
+	 * @return 削除した試合数（match_detail_match の行数）
+	 */
+	@Delete("""
+			WITH m AS (
+			    SELECT match_id FROM static_data
+			     WHERE match_id IS NOT NULL AND match_id <> ''
+			       AND (data_category = #{colon} OR data_category LIKE #{colonLike} || ' - %')
+			    UNION
+			    SELECT match_id FROM match_detail_match
+			     WHERE category = #{colon} OR category LIKE #{colonLike} || ' - %'
+			        OR category = #{slash} OR category LIKE #{slashLike} || ' - %'
+			        OR category LIKE '% / ' || #{slashLike} OR category LIKE '% / ' || #{slashLike} || ' - %'
+			),
+			d1 AS (DELETE FROM match_detail_member_stat       WHERE match_id IN (SELECT match_id FROM m)),
+			d2 AS (DELETE FROM match_detail_missing           WHERE match_id IN (SELECT match_id FROM m)),
+			d3 AS (DELETE FROM match_detail_lineup            WHERE match_id IN (SELECT match_id FROM m)),
+			d4 AS (DELETE FROM match_detail_formation         WHERE match_id IN (SELECT match_id FROM m)),
+			d5 AS (DELETE FROM match_detail_goal              WHERE match_id IN (SELECT match_id FROM m)),
+			d6 AS (DELETE FROM match_detail_summary           WHERE match_id IN (SELECT match_id FROM m)),
+			d7 AS (DELETE FROM match_detail_momentum_incident WHERE match_id IN (SELECT match_id FROM m)),
+			d8 AS (DELETE FROM match_detail_momentum          WHERE match_id IN (SELECT match_id FROM m))
+			DELETE FROM match_detail_match WHERE match_id IN (SELECT match_id FROM m)
+			""")
+	int deleteByLeague(@Param("colon") String colon, @Param("colonLike") String colonLike,
+			@Param("slash") String slash, @Param("slashLike") String slashLike);
+
+	/**
 	 * 試合詳細: 試合の基本情報: 試合の行を削除
 	 * @param matchId 試合ID
 	 * @return 削除件数
