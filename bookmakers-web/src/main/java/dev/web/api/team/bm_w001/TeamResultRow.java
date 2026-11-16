@@ -36,4 +36,10 @@ public class TeamResultRow {
 
 	/** 試合時刻（JST の文字列） */
 	private String matchTime;
+
+	/** STATIC: static_data の seq_key（試合詳細 /match-detail?seqKey= へのリンク用。2026-11 追加） */
+	private String seqKey;
+
+	/** STATIC: 試合ID（Flashscore の mid。統計詳細データの有無を見る。2026-11 追加） */
+	private String matchId;
 }

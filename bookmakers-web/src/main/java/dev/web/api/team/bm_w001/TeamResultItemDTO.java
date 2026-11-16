@@ -37,4 +37,13 @@ public class TeamResultItemDTO {
 
 	/** 試合時刻（JST "yyyy-MM-dd HH:mm:ss"） */
 	private String matchTime;
+
+	/** 試合詳細（/match-detail?seqKey=）へのキー。分からなければ null（2026-11 追加） */
+	private String seqKey;
+
+	/** 試合ID（Flashscore の mid。分からなければ null） */
+	private String matchId;
+
+	/** 統計詳細データ（match_detail_*）がある（2026-11 追加） */
+	private boolean hasDetail;
 }

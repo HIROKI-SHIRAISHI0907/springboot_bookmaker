@@ -101,7 +101,7 @@ public class TeamResultsRepository {
 	public List<TeamResultRow> findStaticFinished(String country, String league, String team, LocalDateTime from) {
 		String sql = """
 				SELECT DISTINCT ON (x.round_no)
-				       x.round_no, x.home_team_name, x.away_team_name,
+				       x.round_no, x.home_team_name, x.away_team_name, x.seq_key, x.match_id,
 				       COALESCE(CASE WHEN x.has_score THEN BTRIM(x.home_score) END, sc.home_score) AS home_score,
 				       COALESCE(CASE WHEN x.has_score THEN BTRIM(x.away_score) END, sc.away_score) AS away_score,
 				       x.record_time AS record_time
@@ -140,6 +140,8 @@ public class TeamResultsRepository {
 			r.setHomeScore(rs.getString("home_score"));
 			r.setAwayScore(rs.getString("away_score"));
 			r.setMatchTime(DateOffsetDecisionUtil.getJstLocalDateTimeString(rs, "record_time")); // 日本時間（2026-11-04）
+			r.setSeqKey(rs.getString("seq_key"));
+			r.setMatchId(rs.getString("match_id"));
 			return r;
 		});
 	}

@@ -2,13 +2,18 @@ package dev.web.api.team.bm_w001;
 
 import java.time.LocalDateTime;
 import java.util.ArrayList;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
+import java.util.Objects;
+import java.util.Set;
 import java.util.TreeMap;
+import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
 import dev.web.api.dashboard.support.DashboardSupport;
+import dev.web.repository.bm.MatchDetailDataWebRepository;
 import dev.web.repository.bm.TeamResultsRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -41,6 +46,9 @@ public class TeamResultsService {
 
 	private final TeamResultsRepository repository;
 
+	/** 統計詳細データの有無（2026-11 追加） */
+	private final MatchDetailDataWebRepository matchDetailDataWebRepository;
+
 	/**
 	 * GET /v1/api/team-results
 	 */
@@ -72,8 +80,11 @@ public class TeamResultsService {
 		if (from == null) {
 			from = LocalDateTime.now(DashboardSupport.JST).minusDays(FALLBACK_DAYS);
 		}
+		// static_data の行は、集計済み（OVERVIEW）のラウンドでも試合詳細へのリンク（seq_key・match_id）に使う
+		Map<Integer, TeamResultRow> staticByRound = new HashMap<>();
 		for (TeamResultRow r : this.repository.findStaticFinished(c, l, t, from)) {
 			byRound.putIfAbsent(r.getRoundNo(), fromStatic(r, t));
+			staticByRound.putIfAbsent(r.getRoundNo(), r);
 		}
 		if (byRound.isEmpty()) {
 			return res;
@@ -88,6 +99,11 @@ public class TeamResultsService {
 				item.setRoundNo(round);
 				item.setSource("NONE");
 			}
+			TeamResultRow st = staticByRound.get(round);
+			if (st != null && !"NONE".equals(item.getSource())) {
+				item.setSeqKey(blankToNull(st.getSeqKey()));
+				item.setMatchId(blankToNull(st.getMatchId()));
+			}
 			res.getItems().add(item);
 			if ("W".equals(item.getResult())) {
 				res.setWins(res.getWins() + 1);
@@ -101,7 +117,22 @@ public class TeamResultsService {
 				res.setGoalsAgainst(res.getGoalsAgainst() + item.getGoalsAgainst());
 			}
 		}
+		// 統計詳細データがある試合に印を付ける
+		Set<String> detailIds = this.matchDetailDataWebRepository.findRegisteredMatchIds(
+				res.getItems().stream().map(TeamResultItemDTO::getMatchId).filter(Objects::nonNull)
+						.collect(Collectors.toList()));
+		for (TeamResultItemDTO item : res.getItems()) {
+			item.setHasDetail(item.getMatchId() != null && detailIds.contains(item.getMatchId()));
+		}
 		return res;
+	}
+
+	private static String blankToNull(String s) {
+		if (s == null) {
+			return null;
+		}
+		String v = s.trim();
+		return v.isEmpty() ? null : v;
 	}
 
 	/** 直近 n ラウンドの W/D/L（新しい順。分からないラウンドは null）。お気に入りの表示用 */
