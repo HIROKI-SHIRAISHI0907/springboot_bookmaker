@@ -1,6 +1,7 @@
 package dev.batch.bm_b014;
 
 import java.text.Normalizer;
+import java.util.Comparator;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.HashSet;
@@ -55,6 +56,10 @@ import dev.common.util.FileDeleteUtil;
  *       （以前は B014 まで届かず、ファイルが S3 に残り続けていた）。
  *       入力 JSON は次の事前準備（readyFlg = true）で、緯度経度がまだ無い行から作り直される。</li>
  *   <li>2026-10: readyFlg = true のときに終了ログが出ていなかったのを修正。</li>
+ *   <li>2026-11: 本拠地の移転に対応（{@link #refreshCurrentStadium}）。同じチームでスタジアムの行が複数あるとき、
+ *       直近 {@value #RECENT_DAYS} 日のホームゲームで一番多く使ったスタジアムを「今の本拠地」とし、
+ *       ほかの行は valid_to を昨日にして期間を終わらせる（行は消さない）。元の本拠地に戻ったら、その行をまた有効にする。
+ *       緯度経度の取り込み（readyFlg = false）で valid_from・valid_to を空で上書きしないようにした。</li>
  * </ul>
  *
  * <h2>懸念点</h2>
@@ -81,6 +86,9 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 
 	/** Pythonバッチ(B015)への入力JSONファイル名 */
 	private static final String GEOGRAFIC_INPUT_KEY = "b015_geografic_input.json";
+
+	/** 今の本拠地を決めるときに見るホームゲームの期間（日） */
+	static final int RECENT_DAYS = 120;
 
 	/** B014 が登録した行の geocode_source */
 	private static final String GEOCODE_SOURCE_B014 = "B014_batch";
@@ -221,6 +229,9 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00005I_INSERT_SUCCESS,
 				"全体登録件数: " + insertedAll + "件（対象行 " + total + "、カテゴリに国が無くスキップ " + skippedNoCountry + "）");
 
+		// 本拠地を移したチームは、古いスタジアムの期間を終わらせる
+		refreshCurrentStadium();
+
 		// 今回の登録分だけでなく、緯度経度がまだ無い行すべてを入力にする（前回の JSON が処理されなかった分も拾う）
 		uploadGeograficInputJson(teamLocationRepository.selectPendingGeocode());
 	}
@@ -263,6 +274,13 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 					+ ", スタジアム: " + bef.getStadiumName();
 
 			TeamLocationEntity updateEntity = buildUpdateEntity(bef.getId(), aft);
+			// 結果 CSV に有効期間が無ければ、今の値を残す（空で上書きすると、終わらせた期間が元に戻る）
+			if (updateEntity.getValidFrom() == null) {
+				updateEntity.setValidFrom(bef.getValidFrom());
+			}
+			if (updateEntity.getValidTo() == null) {
+				updateEntity.setValidTo(bef.getValidTo());
+			}
 			teamLocationDBService.updateInBatch(updateEntity, fillChar);
 		}
 
@@ -277,6 +295,71 @@ public class TeamLocationStat implements TeamLocationEntityIF {
 			TeamLocationEntity insertEntity = buildInsertEntity(aft);
 			teamLocationDBService.insertInBatch(insertEntity, fillChar);
 		}
+
+		// 新しいスタジアムに緯度経度が入ったので、本拠地を移したチームの古いスタジアムを終わらせる
+		refreshCurrentStadium();
+	}
+
+	/**
+	 * 本拠地の移転（2026-11 追加）
+	 * <ol>
+	 *   <li>直近 {@value #RECENT_DAYS} 日の static_data から、チーム（国・ホームチーム）ごとにスタジアムの試合数を数える。</li>
+	 *   <li>一番多いスタジアムを「今の本拠地」にする（同数なら一番新しく使ったほう）。</li>
+	 *   <li>team_location_master のそのチームの、ほかのスタジアムのまだ有効な行は valid_to を昨日にする
+	 *       （今の本拠地の行が緯度経度つきで登録済みのときだけ。まだなら次回）。</li>
+	 *   <li>今の本拠地の行を以前に終わらせていたら（元に戻った場合）、また有効にする。</li>
+	 * </ol>
+	 * 直近の試合が無いチーム（シーズンオフなど）は何もしない。カップ戦などで 1 試合だけ別のスタジアムを使っても、
+	 * 試合数で決めるので本拠地は変わらない。
+	 */
+	private void refreshCurrentStadium() {
+		final String METHOD_NAME = "refreshCurrentStadium";
+
+		// 国|チーム → スタジアム → [試合数, 最終日時]
+		Map<String, Map<String, Object[]>> byTeam = new HashMap<>();
+		for (TeamRecentStadiumDTO r : bookDataRepository.findRecentHomeStadiums(RECENT_DAYS)) {
+			String country = parseCountry(r.getDataCategory());
+			String team = trimToNull(r.getHomeTeamName());
+			String stadium = ExecuteMainUtil.splitStadiumAndCity(r.getStudium()).getStadiumName();
+			if (country == null || team == null || stadium == null || stadium.isBlank()) {
+				continue;
+			}
+			Map<String, Object[]> m = byTeam.computeIfAbsent(country + "|" + team, k -> new HashMap<>());
+			Object[] v = m.computeIfAbsent(stadium, k -> new Object[] { 0, "" });
+			v[0] = (Integer) v[0] + r.getMatchCount();
+			String last = nvl(r.getLastTime());
+			if (last.compareTo((String) v[1]) > 0) {
+				v[1] = last;
+			}
+		}
+
+		int ended = 0;
+		int reopened = 0;
+		for (Map.Entry<String, Map<String, Object[]>> e : byTeam.entrySet()) {
+			String[] ct = e.getKey().split("\\|", 2);
+			String current = e.getValue().entrySet().stream()
+					.max(Comparator.<Map.Entry<String, Object[]>> comparingInt(x -> (Integer) x.getValue()[0])
+							.thenComparing(x -> (String) x.getValue()[1]))
+					.map(Map.Entry::getKey)
+					.orElse(null);
+			if (current == null) {
+				continue;
+			}
+			int r = teamLocationRepository.reopenStadium(ct[0], ct[1], current);
+			int n = teamLocationRepository.endOtherStadiums(ct[0], ct[1], current);
+			reopened += r;
+			ended += n;
+			if (r > 0 || n > 0) {
+				this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+						"本拠地: 国: " + ct[0] + ", チーム: " + ct[1] + ", 今のスタジアム: " + current
+								+ "（直近" + RECENT_DAYS + "日 " + e.getValue().get(current)[0] + "試合）"
+								+ " / 期間を終わらせた行: " + n + " / また有効にした行: " + r);
+			}
+		}
+		this.manageLoggerComponent.debugInfoLog(
+				PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+				"本拠地の見直し: チーム " + byTeam.size() + " / 期間を終わらせた行 " + ended + " / また有効にした行 " + reopened);
 	}
 
 	/**

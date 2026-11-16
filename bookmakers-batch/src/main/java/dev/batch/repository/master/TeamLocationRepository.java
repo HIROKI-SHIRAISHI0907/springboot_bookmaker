@@ -4,6 +4,7 @@ import java.util.List;
 
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
@@ -189,6 +190,49 @@ public interface TeamLocationRepository {
 			    id = #{id}
 			""")
 	int updateById(TeamLocationEntity entity);
+
+	/**
+	 * 本拠地の移転: 今の本拠地（stadiumName）以外の、まだ有効な行の期間を昨日で終わらせる（2026-11 追加）。
+	 * 今の本拠地の行が緯度経度つきで登録済みのときだけ（地図が出なくならないように）。
+	 * @return 期間を終わらせた行数
+	 */
+	@Update("""
+			UPDATE team_location_master t
+			SET valid_to    = CURRENT_DATE - INTERVAL '1 second',
+			    update_id   = 'SYSTEM',
+			    update_time = CURRENT_TIMESTAMP
+			WHERE t.country = #{country}
+			  AND t.team_name = #{teamName}
+			  AND t.stadium_name IS DISTINCT FROM #{stadiumName}
+			  AND COALESCE(t.valid_to, TIMESTAMP '9999-12-31') >= CURRENT_DATE
+			  AND EXISTS (
+			      SELECT 1 FROM team_location_master c
+			      WHERE c.country = #{country}
+			        AND c.team_name = #{teamName}
+			        AND c.stadium_name = #{stadiumName}
+			        AND COALESCE(c.latitude, c.latitude_en) IS NOT NULL
+			  )
+			""")
+	int endOtherStadiums(@Param("country") String country, @Param("teamName") String teamName,
+			@Param("stadiumName") String stadiumName);
+
+	/**
+	 * 今の本拠地の行が以前に終わらせた行なら、また有効にする（元の本拠地に戻った場合。2026-11 追加）
+	 * @return 有効にした行数
+	 */
+	@Update("""
+			UPDATE team_location_master
+			SET valid_to    = TIMESTAMP '9999-12-31 23:59:59.999',
+			    update_id   = 'SYSTEM',
+			    update_time = CURRENT_TIMESTAMP
+			WHERE country = #{country}
+			  AND team_name = #{teamName}
+			  AND stadium_name = #{stadiumName}
+			  AND valid_to < CURRENT_DATE
+			  AND COALESCE(latitude, latitude_en) IS NOT NULL
+			""")
+	int reopenStadium(@Param("country") String country, @Param("teamName") String teamName,
+			@Param("stadiumName") String stadiumName);
 
 	/**
 	 * 緯度経度がまだ無い行（B014 が登録し、B015 の結果がまだ反映されていない行）。

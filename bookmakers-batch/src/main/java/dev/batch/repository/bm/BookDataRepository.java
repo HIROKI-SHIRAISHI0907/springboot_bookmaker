@@ -352,6 +352,25 @@ public interface BookDataRepository {
 			""")
 	List<DataEntity> findStadium(@Param("limit") int limit, @Param("offset") int offset);
 
+	/**
+	 * 直近 days 日のホームゲームのスタジアム（カテゴリ・ホームチーム・スタジアムごとの試合数と最終日時。2026-11 追加）
+	 * B014 で「今の本拠地」を決めるのに使う（TeamLocationStat#refreshCurrentStadium）。
+	 */
+	@Select("""
+			SELECT data_category AS dataCategory,
+			       home_team_name AS homeTeamName,
+			       studium,
+			       COUNT(DISTINCT COALESCE(NULLIF(BTRIM(match_id), ''), seq_key)) AS matchCount,
+			       to_char(MAX(record_time), 'YYYY-MM-DD HH24:MI:SS') AS lastTime
+			FROM static_data
+			WHERE data_category IS NOT NULL AND data_category <> ''
+			  AND home_team_name IS NOT NULL AND home_team_name <> ''
+			  AND studium IS NOT NULL AND studium <> ''
+			  AND record_time >= CURRENT_TIMESTAMP - make_interval(days => #{days})
+			GROUP BY data_category, home_team_name, studium
+			""")
+	List<dev.batch.bm_b014.TeamRecentStadiumDTO> findRecentHomeStadiums(@Param("days") int days);
+
 	@Select("""
 			SELECT
 			    seq_key AS seqKey,
