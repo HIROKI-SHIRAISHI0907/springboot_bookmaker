@@ -30,7 +30,21 @@ public class IngestedRowDTO {
     /** 同一試合群に「終了済」data が存在するか */
     private Boolean hasFinishedData;
 
-    /** 統計詳細データ（match_detail_match）が登録済みか。matchKey（mid）で判定 */
+    /**
+     * 統計詳細データがそろっているか。matchKey（mid）で判定
+     * 2026-11-18 変更: 必ずあるはずの 5 データ（試合情報・サマリー・フォーメーション・ラインアップ・選手スタッツ）が
+     * すべてあれば true（以前は match_detail_match に 1 行あれば true）。
+     * false の試合は「統計詳細データ取得」ボタンで取り直しの対象になる。
+     */
     private Boolean hasDetailData;
+
+    /** 統計詳細データ 9 データのうち、データがある数（2026-11-18 追加） */
+    private Integer detailTableCount;
+
+    /** 統計詳細データの全データ数（9） */
+    private Integer detailTableTotal;
+
+    /** 統計詳細データで、データが無いもの（日本語名。2026-11-18 追加） */
+    private java.util.List<String> detailMissingTables;
 
 }

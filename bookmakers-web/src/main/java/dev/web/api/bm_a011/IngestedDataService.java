@@ -28,6 +28,24 @@ public class IngestedDataService {
 	private final FuturesRepository futuresRepository;
 	private final MatchDetailDataWebRepository matchDetailDataWebRepository;
 
+	/** 統計詳細データの日本語名（MatchDetailDataWebRepository.DETAIL_TABLES のキー → 名前） */
+	private static final Map<String, String> DETAIL_TABLE_LABELS = Map.of(
+			"match", "試合情報",
+			"summary", "サマリー",
+			"goal", "ゴール",
+			"momentum", "モメンタム",
+			"momentumIncident", "モメンタムの出来事",
+			"formation", "フォーメーション",
+			"lineup", "ラインアップ",
+			"missing", "欠場者",
+			"memberStat", "選手スタッツ");
+
+	/**
+	 * 必ずあるはずの統計詳細データ（これがそろえば「あり」）。
+	 * ゴール（0-0）・欠場者（いない）・モメンタム（リーグによってページに無い）は、無くても取り直さない。
+	 */
+	private static final Set<String> DETAIL_REQUIRED_TABLES = Set.of("match", "summary", "formation", "lineup", "memberStat");
+
 	/** 集計結果をキャッシュする時間（ページ切り替え・一括起動のページ取得で使い回す） */
 	private static final long CACHE_TTL_MILLIS = 60_000L;
 
@@ -196,15 +214,26 @@ public class IngestedDataService {
 		        .filter(r -> !isNotYetStarted(r))
 		        .collect(Collectors.toList());
 
-		// ===== 統計詳細データ（match_detail_match）の登録有無。matchKey（mid）で判定 =====
-		Set<String> registeredDetailIds = matchDetailDataWebRepository.findRegisteredMatchIds(
+		// ===== 統計詳細データ（9 テーブル）のうち、データがあるもの。matchKey（mid）で判定（2026-11-18 変更） =====
+		Map<String, Set<String>> detailTables = matchDetailDataWebRepository.findDetailTablesByMatchIds(
 				merged.stream()
 						.map(r -> trimToNull(r.getMatchKey()))
 						.filter(Objects::nonNull)
 						.collect(Collectors.toList()));
 		for (IngestedRowDTO r : merged) {
 			String mk = trimToNull(r.getMatchKey());
-			r.setHasDetailData(mk != null && registeredDetailIds.contains(mk));
+			Set<String> has = (mk == null) ? java.util.Collections.emptySet()
+					: detailTables.getOrDefault(mk, java.util.Collections.emptySet());
+			List<String> missing = new ArrayList<>();
+			for (String key : MatchDetailDataWebRepository.DETAIL_TABLES.keySet()) {
+				if (!has.contains(key)) {
+					missing.add(DETAIL_TABLE_LABELS.getOrDefault(key, key));
+				}
+			}
+			r.setDetailTableCount(has.size());
+			r.setDetailTableTotal(MatchDetailDataWebRepository.DETAIL_TABLES.size());
+			r.setDetailMissingTables(missing);
+			r.setHasDetailData(has.containsAll(DETAIL_REQUIRED_TABLES));
 		}
 
 		// ===== チェックボックス条件（2026-11 変更: 未来・終了済・統計詳細を別々に選べる。選んだもののいずれかが無いもの） =====
