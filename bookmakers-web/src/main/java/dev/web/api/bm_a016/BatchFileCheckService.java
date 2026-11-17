@@ -3,6 +3,8 @@ package dev.web.api.bm_a016;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
+import java.util.function.Supplier;
+import java.util.regex.Pattern;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
@@ -32,6 +34,15 @@ public class BatchFileCheckService {
 	private static final String BUCKET_UPLOAD_CHECK = "aws-s3-upload-check-csv";
 
 	/** 共通キー */
+	/** B010: 日付フォルダ名（yyyy-MM-dd） */
+	private static final Pattern DATE_FOLDER = Pattern.compile("\\d{4}-\\d{2}-\\d{2}");
+
+	/** B015: 判定前 zip の置き場所 */
+	private static final String UPLOADED_PREFIX = "uploaded/";
+
+	/** 再帰カウントの深さ上限 */
+	private static final int MAX_DEPTH = 3;
+
 	private static final String JSON_B001_COUNTRY_LEAGUE = "json/b001_country_league.json";
 	private static final String FILE_SEASON_DATA = "season_data.csv";
 	private static final String FILE_ALL_LEAGUE_DATA = "all_league_master.csv";
@@ -57,17 +68,18 @@ public class BatchFileCheckService {
 	public BatchFileCheckResponseWrapper getAllStatuses() {
 		List<BatchFileCheckTaskWrapper> tasks = new ArrayList<>();
 
-		tasks.add(buildB002());
-		tasks.add(buildB003());
-		tasks.add(buildB004());
-		tasks.add(buildB005());
-		tasks.add(buildB007());
-		tasks.add(buildB008());
-		tasks.add(buildB010());
-		tasks.add(buildB011());
-		tasks.add(buildB014ReadyFlgTrue());
-		tasks.add(buildB014ReadyFlgFalse());
-		tasks.add(buildB015());
+		// 1 タスクの S3 参照が失敗（権限不足など）しても、他のタスクの判定は返す
+		tasks.add(safe("B002", this::buildB002));
+		tasks.add(safe("B003", this::buildB003));
+		tasks.add(safe("B004", this::buildB004));
+		tasks.add(safe("B005", this::buildB005));
+		tasks.add(safe("B007", this::buildB007));
+		tasks.add(safe("B008", this::buildB008));
+		tasks.add(safe("B010", this::buildB010));
+		tasks.add(safe("B011", this::buildB011));
+		tasks.add(safe("B014T", this::buildB014ReadyFlgTrue));
+		tasks.add(safe("B014F", this::buildB014ReadyFlgFalse));
+		tasks.add(safe("B015", this::buildB015));
 
 		return BatchFileCheckResponseWrapper.builder()
 				.tasks(tasks)
@@ -193,15 +205,27 @@ public class BatchFileCheckService {
 
 	/**
 	 * B010
-	 * fin/ 配下の json ファイルが1件以上あれば実行可能
+	 * aws-s3-outputs-fin-csv 直下の日付フォルダ（yyyy-MM-dd/）配下にファイルが1件以上あれば実行可能
+	 * （json / fin / list フォルダや直下のファイルは対象外）
 	 */
 	private BatchFileCheckTaskWrapper buildB010() {
 		String bucket = BUCKET_OUTPUTS_FIN;
-		long finJsonFileCount = countDirectFoldersExcluding(bucket, Set.of("json", "fin", "list"));
-		boolean ready = finJsonFileCount >= 1;
+		List<String> dateFolders = new ArrayList<>();
+		for (String name : this.s3FileCountService.listDirectFolderNames(bucket)) {
+			String folder = trimSlash(name);
+			if (DATE_FOLDER.matcher(folder).matches()) {
+				dateFolders.add(folder);
+			}
+		}
+		long fileCount = 0;
+		for (String folder : dateFolders) {
+			fileCount += countFilesRecursive(bucket, folder + "/", 0, null);
+		}
+		boolean ready = fileCount >= 1;
 		List<BatchFileCheckItemWrapper> items = new ArrayList<>();
-		items.add(countItem("finフォルダ内のjsonファイル数", bucket, finJsonFileCount, true, ready));
-		return task("B010", ready, ready ? "準備OK" : "件数取得失敗", items);
+		items.add(countItem("日付フォルダ数", bucket, (long) dateFolders.size(), false, !dateFolders.isEmpty()));
+		items.add(countItem("日付フォルダ配下のファイル数", bucket, fileCount, true, ready));
+		return task("B010", ready, ready ? "準備OK" : "必須不足", items);
 	}
 
 	/**
@@ -267,12 +291,14 @@ public class BatchFileCheckService {
 	 */
 	private BatchFileCheckTaskWrapper buildB015() {
 		String bucket = BUCKET_UPLOAD_CHECK;
-		long uploadedZipCount = countDirectFoldersExcluding(bucket, Set.of("success", "error"));
+		// uploaded/{種類}/{yyyyMMdd}/{状況管理ID}/{zip 名}（CsvUploadArchiver）
+		long uploadedZipCount = countFilesRecursive(bucket, UPLOADED_PREFIX, 0, ".zip");
 		boolean ready = uploadedZipCount >= 1;
 		List<BatchFileCheckItemWrapper> items = new ArrayList<>();
-		items.add(countItem("finフォルダ内のjsonファイル数", bucket, uploadedZipCount, true, ready));
-		return task("B015", ready, ready ? "準備OK" : "件数取得失敗", items);
+		items.add(countItem("uploaded/ 内の zip ファイル数", bucket, uploadedZipCount, true, ready));
+		return task("B015", ready, ready ? "準備OK" : "必須不足", items);
 	}
+
 
 	// =========================================================
 	// Helper
@@ -305,6 +331,35 @@ public class BatchFileCheckService {
 				.map(this::trimSlash)
 				.filter(name -> !excludeFolderNames.contains(name))
 				.count();
+	}
+
+	/**
+	 * 1 タスク分の判定。S3 参照で例外が出たら「確認失敗」として返す
+	 */
+	private BatchFileCheckTaskWrapper safe(String taskCode, Supplier<BatchFileCheckTaskWrapper> builder) {
+		try {
+			return builder.get();
+		} catch (Exception e) {
+			log.warn("batch file check failed task={} : {}", taskCode, e.getMessage());
+			return task(taskCode, false, "確認失敗（S3 参照エラー）", new ArrayList<>());
+		}
+	}
+
+	/**
+	 * prefix 配下のファイル数（サブフォルダも MAX_DEPTH まで数える。suffix 指定時はその拡張子だけ）
+	 */
+	private long countFilesRecursive(String bucket, String prefix, int depth, String suffix) {
+		long count = this.s3FileCountService.listDirectFileKeys(bucket, prefix).stream()
+				.map(this::fileName)
+				.filter(name -> suffix == null || name.toLowerCase().endsWith(suffix))
+				.count();
+		if (depth >= MAX_DEPTH) {
+			return count;
+		}
+		for (String sub : this.s3FileCountService.listDirectFolderNames(bucket, prefix)) {
+			count += countFilesRecursive(bucket, prefix + trimSlash(sub) + "/", depth + 1, suffix);
+		}
+		return count;
 	}
 
 	private String fileName(String key) {
