@@ -51,6 +51,9 @@ import com.opencsv.exceptions.CsvException;
 public class CsvUtil {
 
 	/** BOM */
+	/** 例の行の印（処理区分の列の先頭。フォーマットのサンプル行。2026-11-18 追加） */
+	public static final String SAMPLE_MARK = "#";
+
 	private static final byte[] UTF8_BOM = { (byte) 0xEF, (byte) 0xBB, (byte) 0xBF };
 
 	/** コンストラクタ生成禁止 */
@@ -83,10 +86,25 @@ public class CsvUtil {
 	public static class CsvTable {
 		private final List<String> header;
 		private final List<String[]> rows;
+		/** rows の各行が CSV の何行目か（見出しが 1 行目。例の行・空行も数える）。無ければ null */
+		private final List<Integer> lineNumbers;
 
 		public CsvTable(List<String> header, List<String[]> rows) {
+			this(header, rows, null);
+		}
+
+		public CsvTable(List<String> header, List<String[]> rows, List<Integer> lineNumbers) {
 			this.header = header;
 			this.rows = rows;
+			this.lineNumbers = lineNumbers;
+		}
+
+		/** i 行目（0 始まり）が CSV の何行目か（エラーの行番号に使う） */
+		public int lineNo(int i) {
+			if (lineNumbers != null && i >= 0 && i < lineNumbers.size()) {
+				return lineNumbers.get(i);
+			}
+			return i + 2;
 		}
 
 		public List<String> getHeader() {
@@ -221,9 +239,13 @@ public class CsvUtil {
 		}
 
 		List<String[]> nonEmpty = new ArrayList<>();
-		for (String[] line : all) {
-			if (!isEmptyLine(line)) {
+		List<Integer> lineNos = new ArrayList<>();
+		for (int i = 0; i < all.size(); i++) {
+			String[] line = all.get(i);
+			// 空行と、例の行（先頭の列が # で始まる。フォーマットに入れているサンプル）は読まない（2026-11-18 追加）
+			if (!isEmptyLine(line) && !(nonEmpty.size() > 0 && isSampleLine(line))) {
 				nonEmpty.add(line);
+				lineNos.add(i + 1);
 			}
 		}
 		if (nonEmpty.isEmpty()) {
@@ -231,9 +253,18 @@ public class CsvUtil {
 		}
 		List<String> header = new ArrayList<>();
 		for (String h : nonEmpty.get(0)) {
-			header.add(h == null ? "" : h.replace("﻿", "").strip());
+			header.add(h == null ? "" : h.replace("\uFEFF", "").strip());
 		}
-		return new CsvTable(header, new ArrayList<>(nonEmpty.subList(1, nonEmpty.size())));
+		return new CsvTable(header, new ArrayList<>(nonEmpty.subList(1, nonEmpty.size())),
+				new ArrayList<>(lineNos.subList(1, lineNos.size())));
+	}
+
+	/** 例の行（先頭の列が # で始まる）か。フォーマットのサンプル行で、アップロードしても反映しない */
+	public static boolean isSampleLine(String[] line) {
+		if (line == null || line.length == 0 || line[0] == null) {
+			return false;
+		}
+		return line[0].replace("\uFEFF", "").strip().startsWith(SAMPLE_MARK);
 	}
 
 	/** 読めれば表、読めなければ null */
@@ -327,7 +358,15 @@ public class CsvUtil {
 	 * @param type Bean クラス（@CsvBindByName の列名を宣言順に並べる）
 	 */
 	public static CsvFile createFormatZip(String baseName, Class<?> type) throws IOException {
-		return new CsvFile(baseName + ".zip", zipSingle(baseName + ".csv", writeCsv(headerOf(type), new ArrayList<>())));
+		return createFormatZip(baseName, type, new ArrayList<>());
+	}
+
+	/**
+	 * ヘッダー行と例の行（samples）の CSV を zip にして返す（2026-11-18 追加）
+	 * 例の行は先頭の列（処理区分）を「#」で始めておくと、アップロードしても読まない（isSampleLine）
+	 */
+	public static CsvFile createFormatZip(String baseName, Class<?> type, List<String[]> samples) throws IOException {
+		return new CsvFile(baseName + ".zip", zipSingle(baseName + ".csv", writeCsv(headerOf(type), samples)));
 	}
 
 	/** Bean の列名（宣言順） */

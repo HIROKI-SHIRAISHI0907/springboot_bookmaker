@@ -118,7 +118,9 @@ public class CsvDataUploadService {
 	}
 
 	/**
-	 * アップロード用フォーマット（ヘッダー行だけの CSV を zip にしたもの）
+	 * アップロード用フォーマット（ヘッダー行と例の行の CSV を zip にしたもの）
+	 * <p>2026-11-18 変更: 例の行（処理区分が「#」で始まる）を入れた。例の行はアップロードしても読まない
+	 *    （CsvUtil.isSampleLine。バッチ側の UploadCsvUtil も同じ）ので、消さずに残したままでもよい。</p>
 	 * <p>名前は「接頭辞 + 日時（日本時間）」。例: season_20261018203000.zip の中に season_20261018203000.csv</p>
 	 * @param masterName season / team / future / realtime
 	 * @return zip。masterName が不正なら null
@@ -126,21 +128,85 @@ public class CsvDataUploadService {
 	public CsvUtil.CsvFile downloadFormat(String masterName) throws IOException {
 		String ts = LocalDateTime.now(JST).format(FILE_TS);
 		if (Master.SEASON.equals(masterName)) {
-			return CsvUtil.createFormatZip(Prefix.SEASON + ts, SeasonCsvRow.class);
+			return CsvUtil.createFormatZip(Prefix.SEASON + ts, SeasonCsvRow.class, samples(SeasonCsvRow.class,
+					sample("#1（例:登録）", "国", "日本", "リーグ", "J1リーグ", "シーズン年", "2026",
+							"シーズン開始日", "2026-02-14", "シーズン終了日", "2026-12-05", "ラウンド数", "38",
+							"パス", "/soccer/japan/j1-league/",
+							"アイコン", "https://static.flashscore.com/res/image/data/xxxxxxxx.png", "有効フラグ", "1"),
+					sample("#2（例:更新。空欄の列は変えない）", "ID", "123", "国", "日本", "リーグ", "J1リーグ",
+							"シーズン終了日", "2026-12-06"),
+					sample("#4（例:非表示）", "国", "日本", "リーグ", "J3リーグ")));
 		}
 		if (Master.TEAM.equals(masterName)) {
-			return CsvUtil.createFormatZip(Prefix.TEAM + ts, TeamCsvRow.class);
+			return CsvUtil.createFormatZip(Prefix.TEAM + ts, TeamCsvRow.class, samples(TeamCsvRow.class,
+					sample("#1（例:登録）", "国", "日本", "リーグ", "J1リーグ", "チーム", "サンフレッチェ広島",
+							"リンク", "/team/sanfrecce-hiroshima/xxxxxxxx/"),
+					sample("#2（例:更新。空欄の列は変えない）", "ID", "456", "国", "日本", "リーグ", "J1リーグ",
+							"チーム", "サンフレッチェ広島", "リンク", "/team/sanfrecce-hiroshima/yyyyyyyy/"),
+					sample("#3（例:削除）", "国", "日本", "リーグ", "J2リーグ", "チーム", "削除するチーム名")));
 		}
 		if (Master.FUTURE.equals(masterName)) {
-			return CsvUtil.createFormatZip(Prefix.FUTURE + ts, FutureCsvRow.class);
+			return CsvUtil.createFormatZip(Prefix.FUTURE + ts, FutureCsvRow.class, samples(FutureCsvRow.class,
+					sample("#1（例:登録）", "試合国及びカテゴリ", "日本: J1リーグ - ラウンド 30",
+							"試合予定時間", "2026-10-18 19:30", "ホーム順位", "3", "アウェー順位", "8",
+							"ホームチーム", "サンフレッチェ広島", "アウェーチーム", "鹿島アントラーズ",
+							"ホームチーム最大得点取得者", "選手A", "アウェーチーム最大得点取得者", "選手B",
+							"ホームチームホーム得点", "25", "ホームチームホーム失点", "10",
+							"アウェーチームホーム得点", "22", "アウェーチームホーム失点", "12",
+							"ホームチームアウェー得点", "18", "ホームチームアウェー失点", "14",
+							"アウェーチームアウェー得点", "20", "アウェーチームアウェー失点", "15",
+							"試合リンク文字列", "https://www.flashscore.co.jp/match/soccer/sanfrecce-hiroshima-xxxxxxxx/kashima-antlers-yyyyyyyy/?mid=zzzzzzzz",
+							"データ取得時間", ""),
+					sample("#2（例:更新。空欄の列は変えない）", "ID", "789", "試合国及びカテゴリ", "日本: J1リーグ - ラウンド 30",
+							"試合予定時間", "2026-10-19 15:00", "ホームチーム", "サンフレッチェ広島", "アウェーチーム", "鹿島アントラーズ"),
+					sample("#4（例:非表示）", "試合国及びカテゴリ", "日本: J1リーグ - ラウンド 30",
+							"ホームチーム", "サンフレッチェ広島", "アウェーチーム", "鹿島アントラーズ")));
 		}
 		if (Master.REALTIME.equals(masterName)) {
-			return CsvUtil.createFormatZip(Prefix.REALTIME + ts, RealtimeCsvRow.class);
+			return CsvUtil.createFormatZip(Prefix.REALTIME + ts, RealtimeCsvRow.class, samples(RealtimeCsvRow.class,
+					sample("#4（例:非表示）", "ホームチーム", "サンフレッチェ広島", "アウェーチーム", "鹿島アントラーズ",
+							"データカテゴリ", "日本: J1リーグ - ラウンド 30"),
+					sample("#5（例:再表示）", "ホームチーム", "サンフレッチェ広島", "アウェーチーム", "鹿島アントラーズ",
+							"データカテゴリ", "日本: J1リーグ - ラウンド 30")));
 		}
 		if (Master.DATA_CATEGORY.equals(masterName)) {
 			return createDataCategoryFormat(new DataCategoryFormatRequest());
 		}
 		return null;
+	}
+
+	/**
+	 * 例の行 1 行分（処理区分 + 「列名, 値」の並び）。2026-11-18 追加
+	 */
+	private static Map<String, String> sample(String operation, String... columnAndValues) {
+		Map<String, String> m = new LinkedHashMap<>();
+		m.put("処理区分", operation);
+		for (int i = 0; i + 1 < columnAndValues.length; i += 2) {
+			m.put(columnAndValues[i], columnAndValues[i + 1]);
+		}
+		return m;
+	}
+
+	/**
+	 * 例の行を Bean の列の並びにする（書いていない列は空欄）。2026-11-18 追加
+	 */
+	@SafeVarargs
+	private static List<String[]> samples(Class<?> type, Map<String, String>... rows) {
+		List<String> header = CsvUtil.headerOf(type);
+		List<String[]> out = new ArrayList<>();
+		for (Map<String, String> row : rows) {
+			for (String col : row.keySet()) {
+				if (!header.contains(col)) {
+					throw new IllegalStateException("フォーマットの例に無い列があります: " + col + "（" + type.getSimpleName() + "）");
+				}
+			}
+			String[] line = new String[header.size()];
+			for (int i = 0; i < header.size(); i++) {
+				line[i] = row.getOrDefault(header.get(i), "");
+			}
+			out.add(line);
+		}
+		return out;
 	}
 
 	/**
@@ -287,7 +353,7 @@ public class CsvDataUploadService {
 				CsvRowValidator.Result r = validator.apply(row, seen);
 				if (r.hasError()) {
 					rowErrors.put(i, r.getErrors());
-					res.getErrors().add(new CsvUploadRowError(i + 2, nvl(operationOf(row)), r.getKey(),
+					res.getErrors().add(new CsvUploadRowError(table.lineNo(i), nvl(operationOf(row)), r.getKey(),
 							String.join(Message.ERROR_DELIMITER, r.getErrors())));
 				}
 			}
