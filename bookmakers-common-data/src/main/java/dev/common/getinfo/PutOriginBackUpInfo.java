@@ -31,6 +31,8 @@ import lombok.extern.slf4j.Slf4j;
  * 既に {@code bucket/mid名.zip} が存在する場合はダウンロード・解凍してCSVを追加し、
  * 存在しない場合は新規に作成したうえで、同じファイル名で再度zip化してアップロードする。
  * 利用者からは同じzipファイル名のままに見えるが、中身のCSVは増えていく。
+ * <p>2026-11-18 変更: zip の中では realData/ フォルダの下に置く（統計詳細データの detailData/ と分けるため）。
+ *    以前の置き方（zip 直下の yyyy-MM-dd/）は、書き直すときに realData/ の下へ移す（{@link BackupZipLayout}）。</p>
  * </p>
  * <p>
  * mid単位で成否を判定し、バックアップ格納に成功したlocalPathと失敗したlocalPathを
@@ -146,11 +148,12 @@ public class PutOriginBackUpInfo {
 				Path downloadedZip = workDir.resolve("download-" + zipKey);
 				s3Operator.downloadToFile(bucket, zipKey, downloadedZip);
 				zipArchiveHandler.decompress(downloadedZip, extractDir);
+				BackupZipLayout.moveLegacyRealData(extractDir);
 			}
 
 			for (LocalCsv csv : csvList) {
 				Path source = resolveActualLocalPath(csv);
-				Path dest = extractDir.resolve(csv.s3Key);
+				Path dest = extractDir.resolve(BackupZipLayout.REAL_DATA_DIR).resolve(csv.s3Key);
 				if (dest.getParent() != null) {
 					Files.createDirectories(dest.getParent());
 				}

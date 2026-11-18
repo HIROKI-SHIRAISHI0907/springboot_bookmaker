@@ -51,6 +51,8 @@ import lombok.extern.slf4j.Slf4j;
  * <p>
  * zip内のCSVは {@code yyyy-MM-dd/mid=XXXX/seq=000001_yyyyMMddTHHmmss+0900.csv}
  * という形式であることを前提とする。
+ * 2026-11-18 から zip の中では realData/ の下に置く（以前の直下のものも読む。detailData/ は読まない）。
+ * entryKey は以前と同じ yyyy-MM-dd/... の形にそろえる（{@link BackupZipLayout#toRealDataKey}）。
  * </p>
  */
 @Slf4j
@@ -270,8 +272,9 @@ public class GetOriginBackUpInfo {
 					.filter(Files::isRegularFile)
 					.collect(Collectors.toList());
 			for (Path csvFile : files) {
-				String relative = extractDir.relativize(csvFile).toString().replace('\\', '/');
-				if (!isTargetCsvKey(relative)) {
+				String relative = BackupZipLayout.toRealDataKey(
+						extractDir.relativize(csvFile).toString().replace('\\', '/'));
+				if (relative == null || !isTargetCsvKey(relative)) {
 					log.debug("[B001] zip内対象外エントリをスキップ: mid={}, entry={}", mid, relative);
 					continue;
 				}
