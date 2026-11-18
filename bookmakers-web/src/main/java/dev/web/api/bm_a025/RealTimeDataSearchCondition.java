@@ -19,4 +19,7 @@ public class RealTimeDataSearchCondition {
 	/** アウェー */
 	private String awayTeamName;
 
+	/** チーム（ホーム・アウェーのどちらかに含む。2026-11-18 追加） */
+	private String teamName;
+
 }

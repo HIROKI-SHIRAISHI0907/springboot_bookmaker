@@ -57,7 +57,7 @@ public class RealTimeDataService {
 	 */
 	@Transactional(readOnly = true)
 	public List<RealTimeDataDTO> findGroupingAll() {
-		return withLeagueCheck(realTimeDataCategoryRepository.findGrouping(null, null));
+		return withLeagueCheck(realTimeDataCategoryRepository.findGrouping(null, null, null));
 	}
 
 	/**
@@ -65,7 +65,8 @@ public class RealTimeDataService {
 	 */
 	@Transactional(readOnly = true)
 	public List<RealTimeDataDTO> search(RealTimeDataSearchCondition cond) {
-		return withLeagueCheck(realTimeDataCategoryRepository.findGrouping(cond.getHomeTeamName(), cond.getAwayTeamName()));
+		return withLeagueCheck(realTimeDataCategoryRepository.findGrouping(
+				cond.getHomeTeamName(), cond.getAwayTeamName(), cond.getTeamName()));
 	}
 
 	/**

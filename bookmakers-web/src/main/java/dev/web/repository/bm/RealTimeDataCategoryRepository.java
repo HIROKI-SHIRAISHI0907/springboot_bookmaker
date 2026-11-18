@@ -40,25 +40,40 @@ public class RealTimeDataCategoryRepository {
 			END
 			""";
 
+	/** 列に :param を含むか（NFKC 正規化・大文字小文字を区別しない部分一致） */
+	private static String contains(String column, String param) {
+		return "lower(normalize(" + column + ", NFKC)) LIKE '%' || lower(normalize(:" + param + ", NFKC)) || '%' ESCAPE '\\'";
+	}
+
+	/** LIKE のワイルドカード（\ % _）をエスケープした検索語 */
+	private static String likeValue(String s) {
+		return s.trim().replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_");
+	}
+
 	/**
 	 * dataCategory × home × away でグルーピングした件数と、home/away 単位の形式判定を取得する。
 	 *
-	 * @param homeTeamName 絞り込むホームチーム名（null・空なら絞り込まない。NFKC 正規化して比較）
+	 * <p>2026-11-18 変更: 完全一致 → 部分一致（NFKC 正規化・大文字小文字を区別しない）。teamName を追加。</p>
+	 *
+	 * @param homeTeamName 絞り込むホームチーム名（null・空なら絞り込まない。部分一致）
 	 * @param awayTeamName 絞り込むアウェーチーム名（同上）
+	 * @param teamName     ホーム・アウェーのどちらかに含むチーム名（同上）
 	 */
-	public List<RealTimeDataDTO> findGrouping(String homeTeamName, String awayTeamName) {
-		boolean filterHome = homeTeamName != null && !homeTeamName.isBlank();
-		boolean filterAway = awayTeamName != null && !awayTeamName.isBlank();
-
+	public List<RealTimeDataDTO> findGrouping(String homeTeamName, String awayTeamName, String teamName) {
 		StringBuilder where = new StringBuilder();
 		MapSqlParameterSource params = new MapSqlParameterSource();
-		if (filterHome) {
-			where.append(" AND normalize(home_team_name, NFKC) = normalize(:homeTeamName, NFKC)");
-			params.addValue("homeTeamName", homeTeamName.trim());
+		if (homeTeamName != null && !homeTeamName.isBlank()) {
+			where.append(" AND ").append(contains("home_team_name", "homeTeamName"));
+			params.addValue("homeTeamName", likeValue(homeTeamName));
 		}
-		if (filterAway) {
-			where.append(" AND normalize(away_team_name, NFKC) = normalize(:awayTeamName, NFKC)");
-			params.addValue("awayTeamName", awayTeamName.trim());
+		if (awayTeamName != null && !awayTeamName.isBlank()) {
+			where.append(" AND ").append(contains("away_team_name", "awayTeamName"));
+			params.addValue("awayTeamName", likeValue(awayTeamName));
+		}
+		if (teamName != null && !teamName.isBlank()) {
+			where.append(" AND (").append(contains("home_team_name", "teamName"))
+					.append(" OR ").append(contains("away_team_name", "teamName")).append(")");
+			params.addValue("teamName", likeValue(teamName));
 		}
 
 		String sql = """
