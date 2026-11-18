@@ -35,13 +35,31 @@ public final class UploadCsvUtil {
 	}
 
 	/** CSV の表（見出し + データ行。空行は除いてある） */
+	/** 例の行の印（web の CsvUtil.SAMPLE_MARK と同じ。2026-11-18 追加） */
+	public static final String SAMPLE_MARK = "#";
+
 	public static class CsvTable {
 		private final List<String> header;
 		private final List<String[]> rows;
+		/** rows の各行が CSV の何行目か（見出しが 1 行目。例の行・空行も数える）。無ければ null */
+		private final List<Integer> lineNumbers;
 
 		public CsvTable(List<String> header, List<String[]> rows) {
+			this(header, rows, null);
+		}
+
+		public CsvTable(List<String> header, List<String[]> rows, List<Integer> lineNumbers) {
 			this.header = header;
 			this.rows = rows;
+			this.lineNumbers = lineNumbers;
+		}
+
+		/** i 行目（0 始まり）が CSV の何行目か（エラーの行番号に使う） */
+		public int lineNo(int i) {
+			if (lineNumbers != null && i >= 0 && i < lineNumbers.size()) {
+				return lineNumbers.get(i);
+			}
+			return i + 2;
 		}
 
 		public List<String> getHeader() {
@@ -133,9 +151,13 @@ public final class UploadCsvUtil {
 		String text = new String(stripBom(csvBytes), StandardCharsets.UTF_8);
 		List<String[]> all = parse(text);
 		List<String[]> nonEmpty = new ArrayList<>();
-		for (String[] line : all) {
-			if (!isEmptyLine(line)) {
+		List<Integer> lineNos = new ArrayList<>();
+		for (int i = 0; i < all.size(); i++) {
+			String[] line = all.get(i);
+			// 空行と、例の行（先頭の列が # で始まる。フォーマットに入れているサンプル）は読まない（2026-11-18 追加）
+			if (!isEmptyLine(line) && !(nonEmpty.size() > 0 && isSampleLine(line))) {
 				nonEmpty.add(line);
+				lineNos.add(i + 1);
 			}
 		}
 		if (nonEmpty.isEmpty()) {
@@ -143,9 +165,18 @@ public final class UploadCsvUtil {
 		}
 		List<String> header = new ArrayList<>();
 		for (String h : nonEmpty.get(0)) {
-			header.add(h == null ? "" : h.replace("﻿", "").strip());
+			header.add(h == null ? "" : h.replace("\uFEFF", "").strip());
 		}
-		return new CsvTable(header, new ArrayList<>(nonEmpty.subList(1, nonEmpty.size())));
+		return new CsvTable(header, new ArrayList<>(nonEmpty.subList(1, nonEmpty.size())),
+				new ArrayList<>(lineNos.subList(1, lineNos.size())));
+	}
+
+	/** 例の行（先頭の列が # で始まる）か。フォーマットのサンプル行で、アップロードしても反映しない */
+	public static boolean isSampleLine(String[] line) {
+		if (line == null || line.length == 0 || line[0] == null) {
+			return false;
+		}
+		return line[0].replace("\uFEFF", "").strip().startsWith(SAMPLE_MARK);
 	}
 
 	/** CSV の文字列を行・値に分ける（RFC 4180 相当。"" で囲んだ値の中の , " 改行に対応） */

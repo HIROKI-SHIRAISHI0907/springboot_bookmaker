@@ -93,6 +93,9 @@ public class FileUploadReflectService {
 
 	/** 反映の結果 */
 	public static class Result {
+		/** 行番号（CSV の何行目か）を出すための表（2026-11-18 追加） */
+		CsvTable table;
+
 		private boolean success;
 		/** 反映の途中で DB エラーになった（すべて元に戻した） */
 		private boolean applyFailed;
@@ -161,7 +164,7 @@ public class FileUploadReflectService {
 
 		void addRowError(int index, String operation, String key, String message) {
 			rowErrors.computeIfAbsent(index, k -> new ArrayList<>()).add(message);
-			errors.add(new UploadRowError(index + 2, operation, key, message));
+			errors.add(new UploadRowError(table != null ? table.lineNo(index) : index + 2, operation, key, message));
 		}
 
 		void count(UploadOperation op) {
@@ -256,6 +259,7 @@ public class FileUploadReflectService {
 	 */
 	public Result reflect(String masterName, CsvTable table) {
 		Result res = new Result();
+		res.table = table;
 		res.totalCount = table.getRows().size();
 
 		// 列のチェック（web でも見ているが、念のため）
