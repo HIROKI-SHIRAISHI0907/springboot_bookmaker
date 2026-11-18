@@ -1,12 +1,16 @@
 package dev.batch.repository.bm;
 
+import java.util.LinkedHashMap;
 import java.util.List;
 
 import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Options;
 import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.mapping.ResultSetType;
+import org.apache.ibatis.session.ResultHandler;
 
 import dev.common.entity.MatchDetailMatchEntity;
 import dev.common.entity.MatchDetailMomentumEntity;
@@ -77,6 +81,60 @@ public interface MatchDetailBatchRepository {
 			""")
 	int deleteByLeague(@Param("colon") String colon, @Param("colonLike") String colonLike,
 			@Param("slash") String slash, @Param("slashLike") String slashLike);
+
+	/**
+	 * 試合詳細（統計詳細データ）: 国・リーグの試合で、match_detail_match に登録済みの試合ID
+	 * （B013 シーズン終了時のバックアップ用。対象の決め方は {@link #deleteByLeague} と同じ。2026-11-18 追加）
+	 */
+	@Select("""
+			WITH m AS (
+			    SELECT match_id FROM static_data
+			     WHERE match_id IS NOT NULL AND match_id <> ''
+			       AND (data_category = #{colon} OR data_category LIKE #{colonLike} || ' - %')
+			    UNION
+			    SELECT match_id FROM match_detail_match
+			     WHERE category = #{colon} OR category LIKE #{colonLike} || ' - %'
+			        OR category = #{slash} OR category LIKE #{slashLike} || ' - %'
+			        OR category LIKE '% / ' || #{slashLike} OR category LIKE '% / ' || #{slashLike} || ' - %'
+			)
+			SELECT match_id FROM match_detail_match WHERE match_id IN (SELECT match_id FROM m) ORDER BY match_id
+			""")
+	List<String> findMatchIdsByLeague(@Param("colon") String colon, @Param("colonLike") String colonLike,
+			@Param("slash") String slash, @Param("slashLike") String slashLike);
+
+	/**
+	 * テーブルの列名（定義順）。バックアップ CSV の見出しに使う（2026-11-18 追加）
+	 * @param table テーブル名
+	 */
+	@Select("""
+			SELECT column_name FROM information_schema.columns
+			 WHERE table_schema = current_schema() AND table_name = #{table}
+			 ORDER BY ordinal_position
+			""")
+	List<String> findColumns(@Param("table") String table);
+
+	/**
+	 * 試合詳細（統計詳細データ）: 国・リーグの試合の行を 1 行ずつ handler に渡す（B013 シーズン終了時のバックアップ用。2026-11-18 追加）
+	 * <p>対象の決め方は {@link #deleteByLeague} と同じ。table は呼び出し側で 9 テーブルのどれかに限ること（${} で埋め込むため）。</p>
+	 */
+	@Select("""
+			WITH m AS (
+			    SELECT match_id FROM static_data
+			     WHERE match_id IS NOT NULL AND match_id <> ''
+			       AND (data_category = #{colon} OR data_category LIKE #{colonLike} || ' - %')
+			    UNION
+			    SELECT match_id FROM match_detail_match
+			     WHERE category = #{colon} OR category LIKE #{colonLike} || ' - %'
+			        OR category = #{slash} OR category LIKE #{slashLike} || ' - %'
+			        OR category LIKE '% / ' || #{slashLike} OR category LIKE '% / ' || #{slashLike} || ' - %'
+			)
+			SELECT t.* FROM ${table} t WHERE t.match_id IN (SELECT match_id FROM m) ORDER BY t.match_id
+			""")
+	@Options(fetchSize = 1000, resultSetType = ResultSetType.FORWARD_ONLY)
+	void selectByLeague(@Param("table") String table,
+			@Param("colon") String colon, @Param("colonLike") String colonLike,
+			@Param("slash") String slash, @Param("slashLike") String slashLike,
+			ResultHandler<LinkedHashMap<String, Object>> handler);
 
 	/**
 	 * 試合詳細: 試合の基本情報: 試合の行を削除

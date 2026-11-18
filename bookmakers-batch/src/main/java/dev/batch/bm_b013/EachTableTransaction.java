@@ -23,7 +23,7 @@ import dev.common.logger.ManageLoggerComponent;
  *
  */
 @Component
-@Transactional
+@Transactional(rollbackFor = Exception.class)
 public class EachTableTransaction {
 
 	/** プロジェクト名 */
@@ -57,6 +57,10 @@ public class EachTableTransaction {
 	@Autowired
 	private MatchDetailBatchRepository matchDetailBatchRepository;
 
+	/** 統計詳細データのバックアップ（aws-s3-outputs-csv-bk の &lt;mid&gt;.zip の detailData/。2026-11-18 追加） */
+	@Autowired
+	private MatchDetailBackupService matchDetailBackupService;
+
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
@@ -64,7 +68,7 @@ public class EachTableTransaction {
 	/**
 	 * 実行
 	 */
-	public void execute(TransactionDTO dto) {
+	public void execute(TransactionDTO dto) throws Exception {
 		final String METHOD_NAME = "execute";
 		// ログ出力
 		this.manageLoggerComponent.debugStartInfoLog(
@@ -84,6 +88,8 @@ public class EachTableTransaction {
 			String colon = country + ": " + league;
 			String slash = country + " / " + league;
 			try {
+				// 消す前に aws-s3-outputs-csv-bk の <mid>.zip（detailData/）に入れる（置けなければ例外 → ロールバックして消さない。2026-11-18 追加）
+				matchDetailBackupService.backup(colon, escapeLike(colon), slash, escapeLike(slash));
 				int delMDResult = matchDetailBatchRepository.deleteByLeague(
 						colon, escapeLike(colon), slash, escapeLike(slash));
 				delMDResultSum += delMDResult;
