@@ -27,6 +27,9 @@ public class AllLeagueMasterWebRepository {
 	// --------------------------------------------------------
 	// 全件: GET /api/all-league-master
 	// --------------------------------------------------------
+	/** 「新しく入ってきたリーグ」とみなす日数（登録からこの日数以内。2026-11-20 追加） */
+	public static final int NEW_LEAGUE_DAYS = 30;
+
 	public List<AllLeagueDTO> findAll() {
 		String sql = """
 				    SELECT
@@ -35,12 +38,14 @@ public class AllLeagueMasterWebRepository {
 				      league,
 				      sub_league,
 				      logic_flg,
-				      disp_flg
+				      disp_flg,
+				      to_char(register_time, 'YYYY-MM-DD HH24:MI:SS') AS register_time,
+				      (register_time >= CURRENT_TIMESTAMP - make_interval(days => :newDays)) AS new_league
 				    FROM all_league_scrape_master
 				    ORDER BY country, league
 				""";
 
-		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {
+		return masterJdbcTemplate.query(sql, new MapSqlParameterSource().addValue("newDays", NEW_LEAGUE_DAYS), (rs, n) -> {
 			AllLeagueDTO dto = new AllLeagueDTO();
 			dto.setId(rs.getString("id"));
 			dto.setCountry(rs.getString("country"));
@@ -48,6 +53,8 @@ public class AllLeagueMasterWebRepository {
 			dto.setSubLeague(rs.getString("sub_league"));
 			dto.setLogicFlg(rs.getString("logic_flg"));
 			dto.setDispFlg(rs.getString("disp_flg"));
+			dto.setRegisterTime(rs.getString("register_time"));
+			dto.setNewLeague(rs.getBoolean("new_league"));
 			return dto;
 		});
 	}
