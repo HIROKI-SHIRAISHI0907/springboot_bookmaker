@@ -1,0 +1,96 @@
+package dev.application.batchjob.mail;
+
+// 2026-11-20 bookmakers-batch（dev.batch.bm_b096.MailSendBatchService）から移動（B011 を統計用の bookmakers-app で動かすため）
+
+import org.springframework.stereotype.Service;
+
+import dev.application.domain.repository.bm.b011.MailSendBatchRepository;
+import dev.application.domain.repository.master.b011.MailInfoMasterBatchRepository;
+import dev.common.entity.MailInfoMasterEntity;
+import dev.common.entity.MailSendManagementEntity;
+import dev.common.enums.MailNoticeEnum;
+import dev.common.util.ProcessKeyUtil;
+import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
+
+/**
+ * MailSendServiceクラス
+ *
+ * メールID（mail_info_master.mail_id）をキーに件名・本文を取得し、
+ * メール送信管理テーブル（mail_send_management）へ送信予定として登録する。
+ *
+ * 実際のSMTP送信（Transport.send）は別バッチで行う想定のため、
+ * このクラスは「送信内容の確定 ＋ 送信管理テーブルへのinsert」までを担う。
+ *
+ * @author shiraishitoshio
+ */
+@Slf4j
+@Service
+@RequiredArgsConstructor
+public class MailSendBatchService {
+
+	/** プロジェクト名 */
+	private static final String CLASS_NAME = MailSendBatchService.class
+			.getProtectionDomain()
+			.getCodeSource()
+			.getLocation()
+			.getPath();
+
+	/** メール情報マスタが見つからない等、システム都合で送信できない場合のメッセージ */
+	private static final String SYSTEM_ERROR_MESSAGE = "システムエラーが起きました。システム管理者に連絡してください。";
+
+	private final MailInfoMasterBatchRepository mailInfoMasterBatchRepository;
+	private final MailSendBatchRepository mailSendBatchRepository;
+
+	private static final String ENVELOPE_ADDRESS = "no-reply@sample.com";
+
+	private static final String BATCH = "BATCH";
+
+	/**
+	 * 送信先メールアドレスを直接指定してメール送信を登録する。
+	 *
+	 * @param mailId    メール情報マスタのメールID
+	 * @param bucketName バケット名
+	 * @param toAddress 送信先メールアドレス（画面入力値など、呼び出し元で確定済みのもの）
+	 * @param bikou バッチ実行時の件数情報など
+	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
+	 */
+	public String send(String mailId, String bucketName, String toAddress, String bikou) {
+		// メール情報マスタに存在するか
+		log.info("send check, mailId={},bucketName={},toAddress={}"
+				+ ",bikou={}", mailId, bucketName, toAddress, bikou);
+		MailInfoMasterEntity mailInfo = mailInfoMasterBatchRepository.findMailByMailIdInfo(mailId);
+		if (mailInfo == null) {
+			log.error("メール情報マスタに該当データがありません。mailId={}", mailId);
+			new RuntimeException(SYSTEM_ERROR_MESSAGE);
+		}
+		;
+
+		// メール送信キーを取得
+		String mailSendKey = ProcessKeyUtil.getMailSendKey();
+
+		MailSendManagementEntity management = new MailSendManagementEntity();
+		management.setMailSendKey(mailSendKey);
+		management.setMessageId(null); // 実際の送信は別バッチのため、message_idはその際に更新する想定
+		management.setToAddress(toAddress);
+		management.setMailId(mailInfo.getMailId());
+		management.setEnvelopeFrom(ENVELOPE_ADDRESS);
+		management.setBucketInfo(bucketName);
+		management.setNotifyStatus(MailNoticeEnum.NOTIFY_STATUS_PENDING.getNoticeStatus());
+		management.setFailSendCount(0);
+		management.setBikou(bikou);
+		management.setSourceInfo(BATCH);
+
+		log.info("send check MailSendManagementEntity={}",management);
+
+		try {
+            mailSendBatchRepository.insert(management);
+            return mailSendKey;
+        } catch (Exception e) {
+            log.error("[{}] mail_send_management登録エラー。mailId={}, mailSendKey={}, bucketName={}",
+                    CLASS_NAME, mailId, mailSendKey, bucketName, e);
+        }
+		return null;
+	}
+
+}

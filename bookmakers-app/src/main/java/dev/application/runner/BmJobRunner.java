@@ -5,9 +5,10 @@ import org.springframework.boot.ApplicationArguments;
 import org.springframework.boot.ApplicationRunner;
 import org.springframework.stereotype.Component;
 
-import dev.application.analyze.bm_m001.OriginService;
 import dev.application.analyze.bm_m097.AnalyzeManualStat;
 import dev.application.main.service.MainStat;
+import dev.application.analyze.bm_b011.ExportCsvBatch;
+import dev.common.constant.BatchConstant;
 import lombok.extern.slf4j.Slf4j;
 
 @Slf4j
@@ -18,10 +19,11 @@ public class BmJobRunner implements ApplicationRunner {
 	private MainStat mainStat;
 
 	@Autowired
-	private OriginService originService;
-
-	@Autowired
 	private AnalyzeManualStat analyzeManualStat;
+
+	/** B011 統計CSVデータ生成（2026-11-20 bookmakers-batch から移動） */
+	@Autowired
+	private ExportCsvBatch exportCsvBatch;
 
 	@Override
 	public void run(ApplicationArguments args) throws Exception {
@@ -56,8 +58,15 @@ public class BmJobRunner implements ApplicationRunner {
 				exit = mainStat.execute();
 			}
 			case "B008" -> {
-				log.info("Execute B008 -> OriginService");
-				exit = originService.execute();
+				// 2026-11-20: B008（開催中データ登録）は bookmakers-batch（@Service("B008") RealDataBatch）に移動した
+				log.warn("B008 は bookmakers-batch に移動しました（bookmakers-app では実行しません）。skip.");
+				exit = 0;
+			}
+			case "B011" -> {
+				// 2026-11-20: bookmakers-batch から移動（統計用のプロジェクトで動かす）
+				log.info("Execute B011 -> ExportCsvBatch");
+				int rc = exportCsvBatch.execute(false);
+				exit = (rc == BatchConstant.BATCH_SUCCESS) ? 0 : 1;
 			}
 			case "B012" -> {
 				log.info("Execute B012 -> AnalyzeManualStat");

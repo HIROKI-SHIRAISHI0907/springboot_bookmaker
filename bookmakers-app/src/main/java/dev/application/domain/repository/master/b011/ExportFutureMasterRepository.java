@@ -1,0 +1,445 @@
+package dev.application.domain.repository.master.b011;
+
+// 2026-11-20 bookmakers-batch（dev.batch.repository.master.FutureMasterRepository）から移動（B011 を統計用の bookmakers-app で動かすため）
+
+import java.util.List;
+
+import org.apache.ibatis.annotations.Delete;
+import org.apache.ibatis.annotations.Insert;
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+import org.apache.ibatis.annotations.Update;
+
+import dev.common.entity.FutureEntity;
+
+/**
+ * future_master の Repository（batch）
+ *
+ * <p>2026-10 追加</p>
+ * <ul>
+ *   <li>findGameTeamCategoryNearTime / updateGameTeamCategoryNearTime:
+ *       基準時刻（試合の記録時刻。空なら現在時刻 JST）の前後1日の同じカードの予定だけを見る・書き換える。
+ *       DataCategoryBatchService で使う（去年・来年の同じカードの予定を混ぜない）。</li>
+ *   <li>findGameLinkForMatch（B012）: mid が matchId と一致する game_link を優先、無ければ試合時刻が一番近いもの。</li>
+ * </ul>
+ * <p>2026-10 追加2（B010）</p>
+ * <ul>
+ *   <li>findGameTeamCategoryByMid: mid が一致する予定のカテゴリ（DataCategoryBatchService のラウンド取得）。</li>
+ * </ul>
+ * <p>2026-10 修正（B012）</p>
+ * <ul>
+ *   <li>findTodayFinData: 始まりを含む（&gt;=）ようにした（0:00 ちょうどの試合が漏れていた）。</li>
+ * </ul>
+ */
+@Mapper
+public interface ExportFutureMasterRepository {
+
+	@Insert("""
+			    INSERT INTO future_master (
+			        game_team_category,
+			        future_time,
+			        home_rank,
+			        away_rank,
+			        home_team_name,
+			        away_team_name,
+					home_max_getting_scorer,
+					away_max_getting_scorer,
+					home_team_home_score,
+					home_team_home_lost,
+					away_team_home_score,
+					away_team_home_lost,
+					home_team_away_score,
+					home_team_away_lost,
+					away_team_away_score,
+					away_team_away_lost,
+					game_link,
+					data_time,
+					start_flg,
+					register_id,
+			        register_time,
+			        update_id,
+			        update_time
+			    ) VALUES (
+			        #{gameTeamCategory},
+			        COALESCE(
+                		(CAST(NULLIF(BTRIM(CAST(#{futureTime} AS text)), '') AS timestamp) AT TIME ZONE 'Asia/Tokyo'),
+                		(CAST(NULLIF(BTRIM(CAST(#{dataTime}   AS text)), '') AS timestamp) AT TIME ZONE 'Asia/Tokyo'),
+                		CURRENT_TIMESTAMP
+            		),
+			        #{homeRank},
+			        #{awayRank},
+			        #{homeTeamName},
+			        #{awayTeamName},
+			        #{homeMaxGettingScorer},
+			        #{awayMaxGettingScorer},
+			        #{homeTeamHomeScore},
+			        #{homeTeamHomeLost},
+			        #{awayTeamHomeScore},
+			        #{awayTeamHomeLost},
+			        #{homeTeamAwayScore},
+			        #{homeTeamAwayLost},
+			        #{awayTeamAwayScore},
+			        #{awayTeamAwayLost},
+			        #{gameLink},
+			        COALESCE(
+						(CAST(NULLIF(BTRIM(CAST(#{dataTime} AS text)), '') AS timestamp) AT TIME ZONE 'Asia/Tokyo'),
+						NULL
+					),
+			        1,
+			        'SYSTEM',
+			        CURRENT_TIMESTAMP,
+			        'SYSTEM',
+			        CURRENT_TIMESTAMP)
+			""")
+	int insert(FutureEntity entity);
+
+	@Select("""
+			    SELECT
+			        COUNT(*)
+			    FROM
+			    	future_master
+			    WHERE
+			        normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC);
+			""")
+	int findDataCount(FutureEntity entity);
+
+	@Select("""
+	        SELECT
+	            COUNT(*)
+	        FROM
+	            future_master
+	        WHERE
+	            game_link IS NOT NULL
+	            AND substring(game_link from 'mid=([^&]+)') = #{mid}
+	        """)
+	int findCountByMid(@Param("mid") String mid);
+
+	@Update("""
+			  UPDATE future_master
+			  SET start_flg = #{startFlg}
+			  WHERE seq = CAST(#{seq} AS INTEGER)
+			""")
+	int updateStartFlg(@Param("seq") String seq, @Param("startFlg") String startFlg);
+
+	@Select("""
+			    SELECT
+			        seq
+			    FROM
+			    	future_master
+			    WHERE
+			        normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC);
+			""")
+	List<FutureEntity> findOnlyTeam(FutureEntity entity);
+
+	@Update("""
+			UPDATE future_master
+			SET start_flg = #{startFlg}
+			WHERE future_time < now()
+			""")
+	int updateFutureTimeFlg(@Param("startFlg") String startFlg);
+
+	@Select("""
+		    SELECT
+		        COUNT(*)
+		    FROM
+		    	future_master;
+		""")
+	int findAll();
+
+	@Delete("""
+			DELETE
+			FROM future_master
+			WHERE game_team_category LIKE CONCAT(#{gameTeamCategoryLike}, '%')
+			""")
+	int deleteByDataCategory(@Param("gameTeamCategoryLike") String gameTeamCategoryLike);
+
+	@Select("""
+			SELECT
+				game_team_category
+			FROM
+				future_master
+			WHERE
+				home_team_name = #{homeTeamName}
+				AND away_team_name = #{awayTeamName}
+				AND game_team_category IS NOT NULL
+				AND BTRIM(game_team_category) <> ''
+			ORDER BY
+				future_time DESC NULLS LAST,
+				seq DESC
+			LIMIT 1
+		""")
+	String findLatestGameTeamCategoryByTeams(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
+
+	@Select("""
+			SELECT
+				game_team_category
+			FROM
+				future_master
+			WHERE
+				normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+				AND game_team_category IS NOT NULL
+				AND BTRIM(game_team_category) <> ''
+			LIMIT 1
+		""")
+	String findGameTeamCategoryByBothTeams(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
+
+	@Update("""
+			UPDATE future_master
+			SET	game_team_category = #{dataCategory}
+			WHERE
+				normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC);
+		""")
+	int updateGameTeamCategoryByTeams(
+			@Param("dataCategory") String dataCategory,
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
+
+	/**
+	 * 同じカードの game_link（並び順の指定なしの LIMIT 1）。
+	 * ※ 別の試合の URL が返ることがあるため B012 では使わない（{@link #findGameLinkForMatch} を使う）。
+	 */
+	@Select("""
+			SELECT
+ 				game_link
+ 			FROM
+ 				future_master
+			WHERE
+				normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+			LIMIT 1
+		""")
+	String findGameLinkWithoutFinishedCategoryByTeamsWithTeam(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
+
+	/**
+	 * B012: この試合の game_link。
+	 * <ol>
+	 *   <li>URL の mid が matchId と一致するもの</li>
+	 *   <li>無ければ、試合開始時刻が recordTime（日本時間 "yyyy-MM-dd HH:mm:ss"）に一番近いもの</li>
+	 * </ol>
+	 * 呼び出し側で mid と matchId が一致するか確認すること（一致しなければ使わない）。無ければ null。
+	 */
+	@Select("""
+			SELECT
+				game_link
+			FROM
+				future_master
+			WHERE
+				normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+				AND NULLIF(BTRIM(game_link), '') IS NOT NULL
+			ORDER BY
+				(substring(game_link from 'mid=([^&]+)') = #{matchId}) DESC NULLS LAST,
+				ABS(EXTRACT(EPOCH FROM (future_time - (COALESCE(CAST(NULLIF(BTRIM(#{recordTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) AT TIME ZONE 'Asia/Tokyo')))) ASC NULLS LAST,
+				seq DESC
+			LIMIT 1
+		""")
+	String findGameLinkForMatch(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName,
+			@Param("matchId") String matchId,
+			@Param("recordTime") String recordTime);
+
+	/**
+	 * B012（2026-11 追加）: 期間内（todayStart 以上・todayEnd 以下）に開始した試合（start_flg = '1'）のうち、
+	 * game_link に試合ID（?mid=）があるもの。B016 試合詳細スクレイピングの入力 JSON を作るのに使う。
+	 * futureTime は future_time をそのまま返す（日本時間の日付への変換は Java 側）。
+	 */
+	@Select("""
+			SELECT
+				game_link      AS gameLink,
+				future_time    AS futureTime,
+				home_team_name AS homeTeamName,
+				away_team_name AS awayTeamName
+			FROM
+				future_master
+			WHERE
+				(future_time >= #{todayStart}::timestamptz
+				AND future_time <= #{todayEnd}::timestamptz)
+				AND start_flg = '1'
+				AND game_link ~ '[?&]mid='
+			ORDER BY future_time, seq
+		""")
+	List<FutureEntity> findFinishedGameLinks(
+			@Param("todayStart") String todayStart,
+			@Param("todayEnd") String todayEnd);
+
+	/**
+	 * 期間内（todayStart 以上・todayEnd 以下）に開始した試合（start_flg = '1'）。
+	 */
+	@Select("""
+			SELECT
+ 				home_team_name AS homeTeamName,
+ 				away_team_name AS awayTeamName,
+ 				future_time AS futureTime
+ 			FROM
+ 				future_master
+			WHERE
+				(future_time >= #{todayStart}::timestamptz
+				AND future_time <= #{todayEnd}::timestamptz)
+				AND start_flg = '1'
+		""")
+	List<FutureEntity> findTodayFinData(
+			@Param("todayStart") String todayStart,
+			@Param("todayEnd") String todayEnd);
+
+	@Select("""
+			SELECT
+				game_team_category AS gameTeamCategory,
+ 				home_team_name AS homeTeamName,
+ 				away_team_name AS awayTeamName
+ 			FROM
+ 				future_master
+			WHERE
+				(future_time > #{todayStart}::timestamptz
+				AND future_time <= #{todayEnd}::timestamptz)
+				AND start_flg = '1'
+		""")
+	List<FutureEntity> findWeeksData(
+			@Param("todayStart") String todayStart,
+			@Param("todayEnd") String todayEnd);
+
+	@Select("""
+			SELECT
+				game_team_category
+			FROM
+				future_master
+			WHERE
+				(
+					normalize(home_team_name, NFKC) = normalize(#{team}, NFKC)
+				OR
+					normalize(away_team_name, NFKC) = normalize(#{team}, NFKC)
+				)
+				AND
+				game_team_category IS NOT NULL
+			LIMIT 1
+		""")
+	String findGameTeamCategoryByTeams(
+			@Param("team") String team);
+
+	@Update("""
+	        UPDATE future_master
+	        SET game_team_category = #{dataCategory}
+	        WHERE normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+	          AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+	          AND (game_team_category IS NULL OR game_team_category NOT LIKE '%ラウンド%')
+	        """)
+	int updateByGameTeamCategoryWithNotRound(
+	        @Param("dataCategory") String dataCategory,
+	        @Param("homeTeamName") String homeTeamName,
+	        @Param("awayTeamName") String awayTeamName);
+
+	// ===================== 2026-10 追加 =====================
+
+	/**
+	 * 基準時刻の前後1日の同じカードの予定の game_team_category（試合開始時刻が基準時刻に一番近いもの）。
+	 * 仮の値「XXX: YYY …」は除く。無ければ null。
+	 */
+	@Select("""
+			SELECT
+				game_team_category
+			FROM
+				future_master
+			WHERE
+				normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+				AND game_team_category IS NOT NULL
+				AND BTRIM(game_team_category) <> ''
+				AND game_team_category !~* '^\\s*XXX\\s*:'
+				AND future_time BETWEEN (COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) AT TIME ZONE 'Asia/Tokyo') - INTERVAL '1 day' AND (COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) AT TIME ZONE 'Asia/Tokyo') + INTERVAL '1 day'
+			ORDER BY ABS(EXTRACT(EPOCH FROM (future_time - (COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) AT TIME ZONE 'Asia/Tokyo'))))
+			LIMIT 1
+		""")
+	String findGameTeamCategoryNearTime(
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName,
+			@Param("baseTime") String baseTime);
+
+	/**
+	 * 基準時刻の前後1日の同じカードの予定の game_team_category を更新する（それ以外の時期の同じカードは触らない）。
+	 */
+	@Update("""
+			UPDATE future_master
+			SET	game_team_category = #{dataCategory}
+			WHERE
+				normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+				AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+				AND future_time BETWEEN (COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) AT TIME ZONE 'Asia/Tokyo') - INTERVAL '1 day' AND (COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) AT TIME ZONE 'Asia/Tokyo') + INTERVAL '1 day'
+				AND game_team_category IS DISTINCT FROM #{dataCategory}
+		""")
+	int updateGameTeamCategoryNearTime(
+			@Param("dataCategory") String dataCategory,
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName,
+			@Param("baseTime") String baseTime);
+
+	// ===================== 2026-10 追加2 =====================
+
+	/**
+	 * B010: game_link の mid が matchId と一致する予定の game_team_category（仮の値 XXX は除く）。
+	 * 時刻がずれていても同じ試合の予定を拾える。ラウンドを含むものを優先。無ければ null。
+	 */
+	@Select("""
+			SELECT
+				game_team_category
+			FROM
+				future_master
+			WHERE
+				NULLIF(BTRIM(game_link), '') IS NOT NULL
+				AND substring(game_link from 'mid=([^&]+)') = #{matchId}
+				AND game_team_category IS NOT NULL
+				AND BTRIM(game_team_category) <> ''
+				AND game_team_category !~* '^\\s*XXX\\s*:'
+			ORDER BY
+				(game_team_category LIKE '%ラウンド%') DESC,
+				seq DESC
+			LIMIT 1
+		""")
+	String findGameTeamCategoryByMid(@Param("matchId") String matchId);
+
+	// ===================== 2026-10 追加3 =====================
+
+	/**
+	 * 同じ試合の予定（game_link の mid が一致、または同じカードで基準時刻の前後1日）の game_team_category を更新する。
+	 * 既に「国: リーグ - ラウンド N」（試合ページのパンくず由来）が入っている行は書き換えない
+	 * （国なし・ラウンドなし・仮の値 XXX の行だけ直す）。
+	 */
+	@Update("""
+			UPDATE future_master
+			SET	game_team_category = #{dataCategory}
+			WHERE
+				(
+					(NULLIF(BTRIM(#{matchId,jdbcType=VARCHAR}), '') IS NOT NULL
+					 AND substring(game_link from 'mid=([^&]+)') = #{matchId,jdbcType=VARCHAR})
+				 OR (
+					normalize(home_team_name, NFKC) = normalize(#{homeTeamName}, NFKC)
+					AND normalize(away_team_name, NFKC) = normalize(#{awayTeamName}, NFKC)
+					AND future_time BETWEEN (COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) AT TIME ZONE 'Asia/Tokyo') - INTERVAL '1 day' AND (COALESCE(CAST(NULLIF(BTRIM(#{baseTime,jdbcType=VARCHAR}), '') AS timestamp), CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp)) AT TIME ZONE 'Asia/Tokyo') + INTERVAL '1 day'
+				 )
+				)
+				AND (
+					game_team_category IS NULL
+				 OR game_team_category !~ '^\\s*[^:：]+[:：]\\s*\\S'
+				 OR game_team_category ~* '^\\s*XXX\\s*:'
+				 OR game_team_category !~ 'ラウンド\\s*[1-9]'
+				)
+				AND game_team_category IS DISTINCT FROM #{dataCategory}
+		""")
+	int updateGameTeamCategoryForMatch(
+			@Param("dataCategory") String dataCategory,
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName,
+			@Param("matchId") String matchId,
+			@Param("baseTime") String baseTime);
+
+}
