@@ -1,0 +1,86 @@
+package dev.batch.b008repository.bm;
+
+// 2026-11-20 bookmakers-app（dev.application.domain.repository.bm.SeqCounterRepository）から移動（B008 を bookmakers-batch で動かすため）
+
+import org.apache.ibatis.annotations.Mapper;
+import org.apache.ibatis.annotations.Options;
+import org.apache.ibatis.annotations.Options.FlushCachePolicy;
+import org.apache.ibatis.annotations.Param;
+import org.apache.ibatis.annotations.Select;
+
+/**
+ * 採番カウンタ（seq_counter）Mapper。
+ *
+ * <h2>何をするクラスか</h2>
+ * <p>
+ * 「テーブル名 × シーズン」ごとの最終番号を1つ進めて返す。
+ * PostgreSQL の INSERT ... ON CONFLICT DO UPDATE ... RETURNING を使い、
+ * 「行がなければ 1 で作成、あれば +1」を1文で原子的に行う。
+ * </p>
+ *
+ * <h2>懸念点</h2>
+ * <ul>
+ *   <li><b>MyBatis のローカルキャッシュ</b>: 同じトランザクション内で同じ引数の @Select を2回呼ぶと、
+ *       2回目は DB に行かずキャッシュ値（同じ番号）が返る。
+ *       {@code flushCache = TRUE} / {@code useCache = false} を必ず付けること（本メソッドは対応済み）。</li>
+ *   <li><b>行ロックの保持時間</b>: 番号を進めた行は、呼び出し元のトランザクションが終わるまでロックされる。
+ *       同じテーブル×シーズンを採番する他の処理は、その間待たされる（番号の重複・欠番は起きない）。</li>
+ *   <li><b>PostgreSQL 専用構文</b>: 他の DB に移行する場合は書き換えが必要。</li>
+ * </ul>
+ *
+ * <p>DDL:</p>
+ * <pre>
+ * CREATE TABLE IF NOT EXISTS seq_counter (
+ *   table_name    VARCHAR(100)                NOT NULL,
+ *   season        VARCHAR(20)                 NOT NULL,
+ *   last_no       BIGINT                      NOT NULL,
+ *   register_id   VARCHAR(100)                NOT NULL,
+ *   register_time TIMESTAMP(0) WITH TIME ZONE NOT NULL,
+ *   update_id     VARCHAR(100)                NOT NULL,
+ *   update_time   TIMESTAMP(0) WITH TIME ZONE NOT NULL,
+ *   PRIMARY KEY (table_name, season)
+ * );
+ * </pre>
+ */
+@Mapper
+public interface SeqCounterRepository {
+
+	/**
+	 * 指定テーブル×シーズンの番号を1つ進めて、進めた後の番号を返す。
+	 *
+	 * @param tableName テーブル名
+	 * @param season シーズン
+	 * @return 採番した番号（1 始まり）
+	 */
+	@Select({
+			"INSERT INTO seq_counter (table_name, season, last_no,",
+			"  register_id, register_time, update_id, update_time)",
+			"VALUES (#{tableName}, #{season}, 1, 'SYSTEM', NOW(), 'SYSTEM', NOW())",
+			"ON CONFLICT (table_name, season)",
+			"DO UPDATE SET last_no = seq_counter.last_no + 1,",
+			"  update_id = 'SYSTEM', update_time = NOW()",
+			"RETURNING last_no"
+	})
+	@Options(flushCache = FlushCachePolicy.TRUE, useCache = false)
+	long nextNumber(@Param("tableName") String tableName, @Param("season") String season);
+
+	/**
+	 * 【追加】まとめて count 個採番し、採番後の最終番号を返す（今回の番号は 最終番号-count+1 〜 最終番号）。
+	 * 1試合で数百行を登録する BM（BM_M023 など）で、1行ずつ採番すると seq_counter の更新が数百回になるため。
+	 *
+	 * @param count 採番する個数（1 以上）
+	 * @return 採番後の last_no
+	 */
+	@Select({
+			"INSERT INTO seq_counter (table_name, season, last_no,",
+			"  register_id, register_time, update_id, update_time)",
+			"VALUES (#{tableName}, #{season}, #{count}, 'SYSTEM', NOW(), 'SYSTEM', NOW())",
+			"ON CONFLICT (table_name, season)",
+			"DO UPDATE SET last_no = seq_counter.last_no + #{count},",
+			"  update_id = 'SYSTEM', update_time = NOW()",
+			"RETURNING last_no"
+	})
+	@Options(flushCache = FlushCachePolicy.TRUE, useCache = false)
+	long nextNumberBlock(@Param("tableName") String tableName, @Param("season") String season,
+			@Param("count") int count);
+}
