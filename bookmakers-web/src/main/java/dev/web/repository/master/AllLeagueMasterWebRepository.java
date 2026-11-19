@@ -76,6 +76,35 @@ public class AllLeagueMasterWebRepository {
 						.addValue("disp_flg", disp_flg));
 	}
 
+	/**
+	 * 国・リーグで検索（初期読み込み CSV の未確認データ確認用。2026-11-20 追加）
+	 */
+	public List<AllLeagueDTO> findByCountryLeague(String country, String league) {
+		String sql = """
+				    SELECT id, country, league, sub_league, logic_flg, disp_flg
+				    FROM all_league_scrape_master
+				    WHERE country = :country AND league = :league
+				    ORDER BY id
+				""";
+		return masterJdbcTemplate.query(sql,
+				new MapSqlParameterSource().addValue("country", country).addValue("league", league), (rs, n) -> {
+					AllLeagueDTO dto = new AllLeagueDTO();
+					dto.setId(rs.getString("id"));
+					dto.setCountry(rs.getString("country"));
+					dto.setLeague(rs.getString("league"));
+					dto.setSubLeague(rs.getString("sub_league"));
+					dto.setLogicFlg(rs.getString("logic_flg"));
+					dto.setDispFlg(rs.getString("disp_flg"));
+					return dto;
+				});
+	}
+
+	/** 削除（初期読み込み CSV の未確認データ確認で削除。2026-11-20 追加） */
+	public int deleteRow(Integer id) {
+		return masterJdbcTemplate.update("DELETE FROM all_league_scrape_master WHERE id = :id",
+				new MapSqlParameterSource().addValue("id", id));
+	}
+
 	/** 更新 */
 	public int updateRow(Integer id, String country, String league) {
 		String sql = """

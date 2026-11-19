@@ -172,7 +172,8 @@ public class InitialReadingMasterCsvService {
 		}
 
 		if ((request.getMasterEntities() == null || request.getMasterEntities().isEmpty())
-				&& (request.getSeasonMasterEntities() == null || request.getSeasonMasterEntities().isEmpty())) {
+				&& (request.getSeasonMasterEntities() == null || request.getSeasonMasterEntities().isEmpty())
+				&& (request.getAllLeagueMasterEntities() == null || request.getAllLeagueMasterEntities().isEmpty())) {
 			response.setMessage("更新対象がありません。");
 			response.setUpdateCount(0);
 			response.setUpdatedTargets(updatedTargets);
@@ -366,6 +367,24 @@ public class InitialReadingMasterCsvService {
 			}
 		}
 
+		// 2026-11-20 追加: スクレイピング対象データ設定（all_league_scrape_master）の未確認データの削除
+		if (MasterNameConstant.ALL_LEAGUE_SCRAPE_MASTER.equals(request.getMasterName())
+				&& request.getAllLeagueMasterEntities() != null) {
+			for (AllLeagueMasterEntity target : request.getAllLeagueMasterEntities()) {
+				if (target == null || target.getId() == null || !hasText(target.getCountry()) || !hasText(target.getLeague())) {
+					continue;
+				}
+				int result = this.allLeagueMasterWebRepository.deleteRow(target.getId());
+				updateCount += result;
+				if (result > 0) {
+					InitialReadingMasterCsvUpdateStatusTargetRequest deleted = new InitialReadingMasterCsvUpdateStatusTargetRequest();
+					deleted.setCountry(target.getCountry());
+					deleted.setLeague(target.getLeague());
+					updatedTargets.add(deleted);
+				}
+			}
+		}
+
 		response.setUpdateCount(updateCount);
 		response.setUpdatedTargets(updatedTargets);
 		response.setMessage(updateCount == 0 ? "処理失敗しました。" : "処理成功しました。");
@@ -475,6 +494,9 @@ public class InitialReadingMasterCsvService {
 			c.setDelFlg("0");
 			return !this.countryLeagueMasterWebRepository.search(c).isEmpty();
 		}
+		if (MasterNameConstant.ALL_LEAGUE_SCRAPE_MASTER.equals(masterName)) {
+			return !this.allLeagueMasterWebRepository.findByCountryLeague(country, league).isEmpty();
+		}
 		return true;
 	}
 
@@ -488,6 +510,7 @@ public class InitialReadingMasterCsvService {
 
 		List<CountryLeagueSeasonMasterEntity> seasonLists = new ArrayList<>();
 		List<CountryLeagueMasterEntity> masterLists = new ArrayList<>();
+		List<AllLeagueMasterEntity> allLeagueLists = new ArrayList<>();
 
 		if (list == null) {
 			list = new ArrayList<>();
@@ -543,6 +566,21 @@ public class InitialReadingMasterCsvService {
 				}
 				break;
 			}
+			case MasterNameConstant.ALL_LEAGUE_SCRAPE_MASTER: {
+				// 2026-11-20 追加: スクレイピング対象データ設定の「未確認データ確認」（以前は Unexpected value で 500 になっていた）
+				for (dev.web.api.bm_a005.AllLeagueDTO dto : this.allLeagueMasterWebRepository
+						.findByCountryLeague(entity.getCountry(), entity.getLeague())) {
+					AllLeagueMasterEntity e = new AllLeagueMasterEntity();
+					e.setId(dto.getId() == null ? null : Integer.valueOf(dto.getId()));
+					e.setCountry(dto.getCountry());
+					e.setLeague(dto.getLeague());
+					e.setSubLeague(dto.getSubLeague());
+					e.setLogicFlg(dto.getLogicFlg());
+					e.setDispFlg(dto.getDispFlg());
+					allLeagueLists.add(e);
+				}
+				break;
+			}
 			default:
 				throw new IllegalArgumentException("Unexpected value: " + masterName);
 			}
@@ -551,6 +589,7 @@ public class InitialReadingMasterCsvService {
 		response.setMasterName(masterName);
 		response.setCountryLeagueSeasonMasterEntityList(seasonLists);
 		response.setCountryLeagueMasterEntityList(masterLists);
+		response.setAllLeagueMasterEntityList(allLeagueLists);
 	}
 
 	/**
