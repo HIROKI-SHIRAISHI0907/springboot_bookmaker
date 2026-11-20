@@ -21,10 +21,10 @@ public class DeleteDataBatch extends AbstractJobBatchTemplate {
 	private static final String CLASS_NAME = DeleteDataBatch.class.getName();
 
 	/** エラーコード（運用ルールに合わせて変更） */
-	private static final String ERROR_CODE = "BM_B096_ERROR";
+	private static final String ERROR_CODE = "BM_B095_ERROR";
 
 	/** バッチコード */
-	private static final String BATCH_CODE = "B096";
+	private static final String BATCH_CODE = "B095";
 
 	/** オーバーライド */
 	@Override

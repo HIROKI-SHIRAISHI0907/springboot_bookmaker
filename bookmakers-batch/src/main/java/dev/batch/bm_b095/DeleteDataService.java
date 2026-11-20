@@ -32,7 +32,8 @@ public class DeleteDataService {
 	private static final String EXEC_MODE = "DELETE_DATA";
 
 	/** 失敗回数 */
-	private static final int FAIL_SEND_COUNT = 3;
+	/** メール送信管理の保持日数 */
+	private static final int MAIL_KEEP_DAYS = 1;
 
 	/** ファイルアップロード状況管理を残す月数 */
 	private static final int FILE_UPLOAD_KEEP_MONTHS = 1;
@@ -49,8 +50,7 @@ public class DeleteDataService {
 	/**
 	 * 不要データ削除処理を行う。以下のデータを削除する
 	 * <p>
-	 * 1. メール送信管理(mail_send_manage)のメール送信済もしくは送信失敗が3回以上
-	 * (notify_status='1' or fail_send_count >= 3)
+	 * 1. メール送信管理(mail_send_manage)の登録から1日以上経過したもの
 	 * 2. バッチ実行管理(batch_job_exec)のステータスがstatus=10 or 99
 	 * 3. ファイルアップロード状況管理(file_upload_status_manage)のアップロードから1ヶ月を経過したもの
 	 * (取込前 status='PENDING' は除く)
@@ -61,7 +61,7 @@ public class DeleteDataService {
 		this.manageLoggerComponent.init(EXEC_MODE, null);
 		this.manageLoggerComponent.debugStartInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// 1. メール送信管理(mail_send_manage)のメール送信済もしくは送信失敗が3回以上
+		// 1. メール送信管理(mail_send_manage)の1日以上経過分
 		deleteMailSendManageWithNoticeFinAndFailThreeTimesOver();
 		// 2. バッチ実行管理(batch_job_exec)のステータスがstatus=10 or 99
 		deleteBatchJobExecStatusSuccessAndFailed();
@@ -74,14 +74,14 @@ public class DeleteDataService {
 	}
 
 	/**
-	 * メール送信管理(mail_send_manage)のメール送信済もしくは送信失敗が3回以上の削除を削除する
+	 * メール送信管理(mail_send_manage)の登録から1日以上経過したものを削除する
 	 */
 	private void deleteMailSendManageWithNoticeFinAndFailThreeTimesOver() {
 		final String METHOD_NAME = "deleteMailSendManageWithNoticeFinAndFailThreeTimesOver";
 
 		int result = 0;
 		try {
-			result = mailSendBatchRepository.deleteData(FAIL_SEND_COUNT);
+			result = mailSendBatchRepository.deleteData(MAIL_KEEP_DAYS);
 		} catch (Exception e) {
 			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 					MessageCdConst.MCD00099I_LOG, e,

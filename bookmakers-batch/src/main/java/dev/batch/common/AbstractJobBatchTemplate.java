@@ -4,18 +4,13 @@ import java.time.LocalDateTime;
 
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.beans.factory.annotation.Value;
 
-import dev.batch.bm_b096.MailSendBatchService;
 import dev.batch.interf.BatchIF;
 import dev.batch.interf.JobExecControlIF;
 import dev.batch.util.JobIdUtil;
 import dev.common.constant.BatchConstant;
-import dev.common.enums.BatchCodeToMailEnum;
 import dev.common.logger.ManageLoggerComponent;
-import dev.common.mail.PutMailNoticeJson;
 import dev.common.util.DateOffsetDecisionUtil;
-import dev.common.util.MailConvertS3BucketUtil;
 
 /**
  * ジョブ実行制御（jobStart/jobRunning/jobEnd/jobException/jobHeartbeat）と
@@ -33,14 +28,6 @@ import dev.common.util.MailConvertS3BucketUtil;
  */
 public abstract class AbstractJobBatchTemplate implements BatchIF {
 
-	private static final String BATCH_MAIL_ID = "bm-mail-002";
-
-	/**
-	 * メール送信元アドレス
-	 */
-	@Value("${mail.accounts.system.username}")
-	private String sourceMailAddress;
-
 	@Autowired
 	@Qualifier("batchJobExecControl")
 	protected JobExecControlIF jobExecControl;
@@ -50,12 +37,6 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 
 	@Autowired
 	protected ManageLoggerComponent manageLoggerComponent;
-
-	@Autowired
-	protected PutMailNoticeJson putMailNoticeJson;
-
-	@Autowired
-	protected MailSendBatchService mailSendBatchService;
 
 	/** バッチコード（例: B002） */
 	protected abstract String batchCode();
@@ -165,9 +146,6 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 		final LocalDateTime startTime = LocalDateTime.now(
 				DateOffsetDecisionUtil.getZoneId());
 
-		String finTime = null;
-		String batchCode = null;
-
 		boolean jobInserted = false;
 		boolean historyStarted = false;
 
@@ -218,24 +196,6 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 					METHOD_NAME,
 					null,
 					code + " finished. jobId=" + jobId);
-
-			// メール送信バッチ以外はメール送信管理に登録
-			if (!BatchCodeToMailEnum.B094.getBatchCode().equals(batchCode()) &&
-					!BatchCodeToMailEnum.B096.getBatchCode().equals(batchCode())) {
-				batchCode = "BATCH_NAME=" + batchCode();
-				// 完了時間
-				finTime = "EXECUTED_AT=" + LocalDateTime.now(DateOffsetDecisionUtil.getZoneId());
-				// 成功で、メール送信
-				String fileName =
-						MailConvertS3BucketUtil.getJsonFileName(
-								batchCode() + "-" + BATCH_MAIL_ID);
-				String mailSendKey = mailSendBatchService.send(BATCH_MAIL_ID, fileName,
-						sourceMailAddress, batchCode + "," + finTime);
-
-				// 送信できた処理キーをJSONに格納
-				if (mailSendKey != null)
-					putJson(fileName, mailSendKey);
-			}
 
 			return BatchConstant.BATCH_SUCCESS;
 
@@ -288,15 +248,6 @@ public abstract class AbstractJobBatchTemplate implements BatchIF {
 		}
 	}
 
-	/**
-	 * 処理キーを特定のJSONファイルに保存する
-	 * @param fileName
-	 * @param mailProcessKey
-	 * @throws Exception
-	 */
-	private void putJson(String fileName, String mailProcessKey) throws Exception {
-		putMailNoticeJson.putJson(fileName, mailProcessKey);
-	}
 
 	/**
 	 * サブクラスから jobId / batchCode / heartbeat を扱うためのコンテキスト。

@@ -386,4 +386,21 @@ public interface CountryLeagueMasterBatchRepository {
 			    	c.country, c.league, c.team, c.id DESC;
 			""")
 	List<CountryLeagueMasterEntity> findActiveTeamsAtCupJson();
+
+	/**
+	 * 有効なチーム（del_flg='0'）を全件取得する（country・league・team のみ）。
+	 * B017（取るべきリーグ候補の通知）で「対象リーグのチームが出場しているか」の判定に使う。
+	 */
+	@Select("""
+			    SELECT
+			        country,
+			        league,
+			        team
+			    FROM
+			    	country_league_master
+			    WHERE
+			        del_flg = '0'
+			""")
+	List<CountryLeagueMasterEntity> findAllActiveTeams();
+
 }
