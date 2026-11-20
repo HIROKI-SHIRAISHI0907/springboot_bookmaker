@@ -33,7 +33,8 @@ import java.time.format.DateTimeParseException;
  *     <ul>
  *       <li>システム: データなし=「データなし」、最後の記録から40分以内=「更新あり」、それ以外=「更新なし」</li>
  *       <li>リアルタイム: 開始から2時間10分以内=「ライブ」、超えたら「終了済」（強制）。
- *           ただし 2時間10分以内でも、データがあり最後の記録から30分以上来ていなければ「中断の可能性」（2026-11-21）</li>
+ *           ただし 2時間10分以内でも、データがあり最後の記録から30分以上来ていなければ「中断の可能性」（2026-11-21）。
+ *           2時間10分を超えても、最後の記録から40分以内にデータが来ていれば（中断からの再開など）開始から6時間までは「ライブ」（2026-11-21）</li>
  *     </ul></li>
  * </ol>
  * <p>
@@ -76,6 +77,12 @@ public final class MatchStatusResolver {
 	 * リアルタイムデータはおおむね20分ごとに来るので、1回分抜けても出ないよう 30 分にする。
 	 */
 	public static final Duration SUSPECT_AFTER = Duration.ofMinutes(30);
+
+	/**
+	 * リアルタイム: LIVE_UNTIL を過ぎても、最後の記録から UPDATED_WITHIN 以内にデータが来ていればライブのままにする上限
+	 * （中断からの再開など。static_data を同じ試合とみなす範囲（開始から6時間）に合わせる。2026-11-21 追加）
+	 */
+	public static final Duration LIVE_EXTEND_LIMIT = Duration.ofHours(6);
 
 	/** 中断: 開始からこれを超えたら終了済 */
 	public static final Duration SUSPENDED_FINISH_AFTER = Duration.ofHours(4);
@@ -172,8 +179,15 @@ public final class MatchStatusResolver {
 			system = new Status(SYS_NOT_UPDATED, "最後の記録から40分以上更新が無いため");
 		}
 		Status realtime;
-		if (start != null && now.isAfter(start.plus(LIVE_UNTIL))) {
-			realtime = new Status(RT_FINISHED, "試合開始から2時間10分を超えたため");
+		if (start != null && now.isAfter(start.plus(LIVE_UNTIL))
+				&& recentlyUpdated && !now.isAfter(start.plus(LIVE_EXTEND_LIMIT))) {
+			// 予定の終了時刻は過ぎたが、まだ新しいデータが来ている（中断からの再開・遅れて開始など）。
+			// 終了済データが来るまでライブのまま（2026-11-21）
+			realtime = new Status(RT_LIVE, "試合開始から2時間10分を超えたが、最後の記録から40分以内にデータが来ているため（中断からの再開など）");
+		} else if (start != null && now.isAfter(start.plus(LIVE_UNTIL))) {
+			realtime = new Status(RT_FINISHED, recentlyUpdated
+					? "試合開始から6時間を超えたため"
+					: "試合開始から2時間10分を超え、最後の記録から40分以上データが来ていないため");
 		} else if (hasData && last != null && now.isAfter(last.plus(SUSPECT_AFTER))) {
 			// 試合中のはずなのに新しいデータが来ない。サイト側で「中断中」になっていて
 			// スクレイパーが拾えないことがあるので、中断の情報が無くても「中断の可能性」にする（2026-11-21）
