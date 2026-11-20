@@ -76,7 +76,7 @@ public class FutureMatchDataStatusRepository {
 				  COUNT(d.record_time) FILTER (WHERE d.fin)                  AS finished_count,
 				  COUNT(d.record_time) FILTER (WHERE NOT d.fin)              AS live_count,
 				  COUNT(d.record_time) FILTER (
-				    WHERE d.record_time >= CURRENT_TIMESTAMP - INTERVAL '40 minutes'
+				    WHERE d.record_time >= CAST(now() AT TIME ZONE 'Asia/Tokyo' AS timestamp) - INTERVAL '40 minutes'
 				  )                                                          AS current_live_count,
 				  MAX(d.record_time)                                         AS last_updated_at
 				FROM m

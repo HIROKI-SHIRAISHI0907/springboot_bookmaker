@@ -32,7 +32,8 @@ import java.time.format.DateTimeParseException;
  *   <li><b>通常</b>（開始後の遅延情報は無視する）
  *     <ul>
  *       <li>システム: データなし=「データなし」、最後の記録から40分以内=「更新あり」、それ以外=「更新なし」</li>
- *       <li>リアルタイム: 開始から2時間10分以内=「ライブ」、超えたら「終了済」（強制）</li>
+ *       <li>リアルタイム: 開始から2時間10分以内=「ライブ」、超えたら「終了済」（強制）。
+ *           ただし 2時間10分以内でも、データがあり最後の記録から30分以上来ていなければ「中断の可能性」（2026-11-21）</li>
  *     </ul></li>
  * </ol>
  * <p>
@@ -55,6 +56,8 @@ public final class MatchStatusResolver {
 	public static final String RT_BEFORE = "開始前";
 	public static final String RT_LIVE = "ライブ";
 	public static final String RT_FINISHED = "終了済";
+	/** 試合中のはずなのにデータが来ない（中断・中断中の可能性。2026-11-21 追加） */
+	public static final String RT_SUSPECTED = "中断の可能性";
 
 	/* ---- S3 の延期・遅延情報（status_type） ---- */
 	public static final String POSTPONED = "延期";
@@ -67,6 +70,12 @@ public final class MatchStatusResolver {
 
 	/** リアルタイム: 開始からこれを超えたら終了済 */
 	public static final Duration LIVE_UNTIL = Duration.ofMinutes(130);
+
+	/**
+	 * 中断の可能性: 試合中（開始から LIVE_UNTIL 以内）なのに、最後の記録からこれ以上データが来ない（2026-11-21 追加）。
+	 * リアルタイムデータはおおむね20分ごとに来るので、1回分抜けても出ないよう 30 分にする。
+	 */
+	public static final Duration SUSPECT_AFTER = Duration.ofMinutes(30);
 
 	/** 中断: 開始からこれを超えたら終了済 */
 	public static final Duration SUSPENDED_FINISH_AFTER = Duration.ofHours(4);
@@ -165,6 +174,11 @@ public final class MatchStatusResolver {
 		Status realtime;
 		if (start != null && now.isAfter(start.plus(LIVE_UNTIL))) {
 			realtime = new Status(RT_FINISHED, "試合開始から2時間10分を超えたため");
+		} else if (hasData && last != null && now.isAfter(last.plus(SUSPECT_AFTER))) {
+			// 試合中のはずなのに新しいデータが来ない。サイト側で「中断中」になっていて
+			// スクレイパーが拾えないことがあるので、中断の情報が無くても「中断の可能性」にする（2026-11-21）
+			long min = Duration.between(last, now).toMinutes();
+			realtime = new Status(RT_SUSPECTED, "試合中のはずだが、最後の記録から" + min + "分データが来ていないため（中断している可能性）");
 		} else {
 			realtime = new Status(RT_LIVE, null);
 		}
