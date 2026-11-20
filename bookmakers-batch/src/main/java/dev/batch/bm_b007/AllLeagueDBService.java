@@ -97,6 +97,11 @@ public class AllLeagueDBService {
 						.findByCountryLeague(country, league);
 
 				if (master == null) {
+					// 2026-11-20: 新しく見つかったリーグはスクレイピング対象外（disp_flg='1'）で入れる（管理画面で選んだものだけ対象）
+					entity.setDispFlg("1");
+					if (entity.getLogicFlg() == null || entity.getLogicFlg().isBlank()) {
+						entity.setLogicFlg("0");
+					}
 					insertEntities.add(entity);
 				}
 			}

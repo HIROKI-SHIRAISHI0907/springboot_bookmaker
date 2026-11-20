@@ -101,7 +101,7 @@ public class AllLeagueDBPart {
 			        entity.setCountry(country);
 			        entity.setLeague(league);
 			        entity.setLogicFlg("0");
-			        entity.setDispFlg("0");
+			        entity.setDispFlg("1");   // 2026-11-20: 新しいリーグは対象外（管理画面で選んだものだけ対象にする）
 
 			        int insert = allLeagueMasterBatchRepository.insert(entity);
 			        if (insert == 0) {
