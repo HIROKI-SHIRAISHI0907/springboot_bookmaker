@@ -14,7 +14,10 @@ public enum MailNoticeEnum {
 	NOTIFY_STATUS_SENDED("通知後", "1"),
 
 	/** 使用済み */
-	NOTIFY_STATUS_USED("使用済み", "2");
+	NOTIFY_STATUS_USED("使用済み", "2"),
+
+	/** 送信失敗（SMTP送信でエラー） */
+	NOTIFY_STATUS_FAILED("送信失敗", "9");
 
 	/** 日本語の意味 */
 	private final String noticeName;
