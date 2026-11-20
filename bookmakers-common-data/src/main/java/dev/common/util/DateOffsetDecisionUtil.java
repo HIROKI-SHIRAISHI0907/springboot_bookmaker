@@ -60,7 +60,15 @@ public final class DateOffsetDecisionUtil {
 		if (DB_TIMESTAMP_PATTERN.matcher(columnLabel.trim()).matches()) {
 			return parseDbTimestamp(columnLabel);
 		}
-		return rs.getObject(columnLabel, OffsetDateTime.class);
+		// 2026-11-21: timestamp（タイムゾーンなし）の列は日本時間の壁時計として読む。
+		// 以前は getObject(OffsetDateTime) で UTC とみなされ、static_data.record_time などが 9 時間進んで表示されていた。
+		int idx = rs.findColumn(columnLabel);
+		String typeName = rs.getMetaData().getColumnTypeName(idx);
+		if ("timestamp".equalsIgnoreCase(typeName)) {
+			LocalDateTime ldt = rs.getObject(idx, LocalDateTime.class);
+			return ldt == null ? null : ldt.atZone(ZONE).toOffsetDateTime();
+		}
+		return rs.getObject(idx, OffsetDateTime.class);
 	}
 
 	/**
