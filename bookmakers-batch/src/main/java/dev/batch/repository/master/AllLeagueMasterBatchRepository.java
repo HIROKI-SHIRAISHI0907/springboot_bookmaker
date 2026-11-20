@@ -32,7 +32,7 @@ public interface AllLeagueMasterBatchRepository {
 			    // 2026-11-20: 新しく見つかったリーグはスクレイピング対象外（'1'）で入れる。
 			    //   以前は disp_flg を入れておらず DB の既定値（'0' = 対象）になり、設定していないリーグが勝手に対象になっていた
 			    "    COALESCE(#{dispFlg}, '1'),",
-			    "    'SYSTEM', "
+			    "    'SYSTEM', ",
 			    "    CURRENT_TIMESTAMP, ",
 			    "    'SYSTEM', ",
 			    "    CURRENT_TIMESTAMP)",
