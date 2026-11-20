@@ -37,7 +37,7 @@ public class TeamColorService {
 		try {
 			int updated = repo.update(dto.getCountry(),
 					dto.getLeague(), dto.getTeam(), dto.getTeamColorMainHex(),
-					dto.getTeamColorSubHex());
+					dto.getTeamColorSubHex(), dto.getDelFlg());
 			if (updated == 1) {
 				res.setResponseCode("200");
 				res.setMessage("更新成功しました。");

@@ -28,4 +28,7 @@ public class TeamColorRequest {
 	/** サブカラーコード */
 	private String teamColorSubHex;
 
+
+	/** 削除フラグ（'0' = 有効 / '1' = 無効。2026-11-20 追加。チームデータ取得情報の del_flg と同じ扱い） */
+	private String delFlg;
 }

@@ -186,19 +186,20 @@ public class BatchFileCheckService {
 	/**
 	 * B008
 	 * aws-s3-outputs-csv の json/b001_country_league.json が存在
-	 * かつ json, fin 以外の直フォルダが1以上
+	 * かつ json, fin, seqmap 以外の直フォルダが1以上
+	 * （2026-11-20: seqmap/ は B008 の管理用で取り込むものではないので数えない）
 	 */
 	private BatchFileCheckTaskWrapper buildB008() {
 		String bucket = BUCKET_OUTPUTS;
 
 		boolean jsonExists = exists(bucket, JSON_B001_COUNTRY_LEAGUE);
-		long directFolderCount = countDirectFoldersExcluding(bucket, Set.of("json", "fin"));
+		long directFolderCount = countDirectFoldersExcluding(bucket, Set.of("json", "fin", "seqmap"));
 
 		boolean ready = jsonExists && directFolderCount >= 1;
 
 		List<BatchFileCheckItemWrapper> items = new ArrayList<>();
 		items.add(fileItem("入力JSON", bucket, JSON_B001_COUNTRY_LEAGUE, jsonExists, true, "json"));
-		items.add(countItem("対象直フォルダ数（json / fin 除外後）", bucket, directFolderCount, true, directFolderCount >= 1));
+		items.add(countItem("対象直フォルダ数（json / fin / seqmap 除外後）", bucket, directFolderCount, true, directFolderCount >= 1));
 
 		return task("B008", ready, summary(ready), items);
 	}
