@@ -6,19 +6,14 @@ import java.time.ZoneOffset;
 import java.util.LinkedHashMap;
 import java.util.Map;
 
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
 
-import dev.common.enums.ScrapeCodeToMailEnum;
-import dev.common.util.DateOffsetDecisionUtil;
-import dev.common.util.MailConvertS3BucketUtil;
 import dev.common.util.ProcessKeyUtil;
 import dev.web.api.bm_a009.EcsScrapeTaskProgressRecordEntity;
 import dev.web.com.OpenProgressRecord;
-import dev.web.mail.MailSendService;
 import dev.web.repository.bm.EcsScrapeTaskProgressWebRepository;
 import lombok.extern.slf4j.Slf4j;
 import software.amazon.awssdk.services.ecs.EcsClient;
@@ -41,17 +36,9 @@ public class EcsScrapeTaskProgressWebService {
 
     private static final String SYSTEM_ID = "SYSTEM";
 
-    /** スクレイピングタスク完了通知メールのmail_info_master.mail_id */
-    private static final String SCRAPE_COMPLETE_MAIL_ID = "bm-mail-003";
-
     private final EcsClient ecs;
     private final EcsScrapeTaskProgressWebRepository repository;
     private final ObjectMapper objectMapper;
-    private final MailSendService mailSendService;
-
-    /** システム通知（バッチ・ECSタスク完了通知など）の送り先固定アドレス */
-    @Value("${app.notification.admin-email}")
-    private String adminNotificationEmail;
 
     /**
      * コンストラクタ。
@@ -59,17 +46,14 @@ public class EcsScrapeTaskProgressWebService {
      * @param ecs             ECSクライアント
      * @param repository      進捗管理リポジトリ
      * @param objectMapper    メタデータのJSON変換用ObjectMapper
-     * @param mailSendService スクレイピング処理完了通知メールの登録に使用するサービス
      */
     public EcsScrapeTaskProgressWebService(
             EcsClient ecs,
             EcsScrapeTaskProgressWebRepository repository,
-            ObjectMapper objectMapper,
-            MailSendService mailSendService) {
+            ObjectMapper objectMapper) {
         this.ecs = ecs;
         this.repository = repository;
         this.objectMapper = objectMapper;
-        this.mailSendService = mailSendService;
     }
 
     /**
@@ -167,7 +151,6 @@ public class EcsScrapeTaskProgressWebService {
                 null,
                 SYSTEM_ID
         );
-        notifyScrapeCompletion(batchCd, "SUCCESS");
         return true;
     }
 
@@ -204,7 +187,6 @@ public class EcsScrapeTaskProgressWebService {
                     null,
                     SYSTEM_ID
             );
-            notifyScrapeCompletion(batchCd, "SUCCESS");
             return true;
         }
         DescribeTasksResponse dt = ecs.describeTasks(DescribeTasksRequest.builder()
@@ -224,7 +206,6 @@ public class EcsScrapeTaskProgressWebService {
                     null,
                     SYSTEM_ID
             );
-            notifyScrapeCompletion(batchCd, "SUCCESS");
             return true;
         }
         Task task = dt.tasks().get(0);
@@ -254,50 +235,7 @@ public class EcsScrapeTaskProgressWebService {
                 errorMessage,
                 SYSTEM_ID
         );
-        notifyScrapeCompletion(batchCd, finalStatus);
         return true;
-    }
-
-    /**
-     * スクレイピングタスク完了通知メールを登録する。
-     *
-     * ここは進捗レコードを「開いた状態→終了状態」へ実際に更新できたときにしか
-     * 呼ばれない（completeLatestOpenRecord / completeOpenRecordWithoutTaskArnがtrueを返す
-     * 経路のみ）ため、進捗画面のポーリングが何回行われても多重送信にはならない。
-     *
-     * 失敗（FAILED）は通知対象外。管理画面の進捗一覧で確認する運用のため、
-     * ここでは成功時のみメールを登録する。
-     *
-     * メール送信自体の失敗（管理者メールアドレス未設定、メール情報マスタ未登録など）で
-     * 進捗更新処理そのものを失敗させたくないので、例外はここで握りつぶしてログのみ出す。
-     *
-     * @param batchCd     バッチコード（例: B002）
-     * @param finalStatus "SUCCESS" or "FAILED"
-     */
-    private void notifyScrapeCompletion(String batchCd, String finalStatus) {
-        if (!"SUCCESS".equals(finalStatus)) {
-            // 失敗時は通知対象外
-            return;
-        }
-
-        try {
-            // バッチコード（B002等）をスクレイプコード（S002等）に変換したうえで、
-            // ScrapeCodeToMailEnumで日本語のスクレイピング処理名に変換してから
-            // {{SCRAPE_NAME}}として渡す（bm-mail-003の件名・本文プレースホルダーに合わせる）。
-            String scrapeCode = batchCd == null ? null : batchCd.replaceFirst("^B", "S");
-            String scrapeName = ScrapeCodeToMailEnum.resolveScrapeName(scrapeCode);
-            Map<String, String> placeholders = new LinkedHashMap<>();
-            placeholders.put("SCRAPE_NAME", scrapeName);
-            placeholders.put("EXECUTED_AT", String.valueOf(
-                    LocalDateTime.now(DateOffsetDecisionUtil.getZoneId())));
-            mailSendService.sendSystemNotification(SCRAPE_COMPLETE_MAIL_ID,
-                    MailConvertS3BucketUtil.getJsonFileName(
-                            scrapeCode + "-" + SCRAPE_COMPLETE_MAIL_ID),
-                    adminNotificationEmail, placeholders, false);
-        } catch (Exception e) {
-            log.error("スクレイピングタスク完了通知メールの登録に失敗しました。batchCd={}, finalStatus={}",
-                    batchCd, finalStatus, e);
-        }
     }
 
     /**

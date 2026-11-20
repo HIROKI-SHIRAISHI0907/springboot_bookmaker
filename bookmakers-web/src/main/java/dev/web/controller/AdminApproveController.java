@@ -19,9 +19,6 @@ import com.auth0.jwt.interfaces.DecodedJWT;
 
 import dev.common.config.MailConfig;
 import dev.common.constant.MailIdConstant;
-import dev.common.constant.S3BucketConstant;
-import dev.common.mail.PutMailNoticeJson;
-import dev.common.util.MailConvertS3BucketUtil;
 import dev.web.api.bm_a028.AdminApproveActionResponse;
 import dev.web.api.bm_a028.AdminApproveListResponse;
 import dev.web.api.bm_a028.AdminApproveService;
@@ -72,7 +69,6 @@ public class AdminApproveController {
 	private final UserRepository userRepository;
 	private final AdminApproveService approveService;
 	private final MailSendService mailSendService;
-	private final PutMailNoticeJson putMailNoticeJson;
 	private final MailConfig mailConfig;
 
 	// ------------------------------------------------------------
@@ -105,10 +101,7 @@ public class AdminApproveController {
 			placeholders.put("TARGET_NAME", String.valueOf(current.userId));
 			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 			placeholders.put("APPROVE_ID", res.getApproveId());
-			placeholders.put("MIX_BUCKET", S3BucketConstant.S3_MAIL_ACCEPT);
-			notifyApproveFlow(current.email, MailConvertS3BucketUtil.getJsonFileName(
-					S3BucketConstant.S3_MAIL_ACCEPT),
-					placeholders);
+			notifyApproveFlow(current.email, placeholders);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
@@ -162,10 +155,7 @@ public class AdminApproveController {
 			placeholders.put("TARGET_NAME", String.valueOf(mailConfig.getSourceMailAddress()));
 			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 			placeholders.put("APPROVE_ID", res.getApproveId());
-			placeholders.put("MIX_BUCKET", S3BucketConstant.S3_MAIL_ACCEPT);
-			notifyApproveFlow(current.email, MailConvertS3BucketUtil.getJsonFileName(
-					S3BucketConstant.S3_MAIL_ACCEPT),
-					placeholders);
+			notifyApproveFlow(current.email, placeholders);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
@@ -198,10 +188,7 @@ public class AdminApproveController {
 			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 			placeholders.put("APPROVE_ID", res.getApproveId());
 			placeholders.put("REASON_SENTENCE", res.getComment());
-			placeholders.put("MIX_BUCKET", S3BucketConstant.S3_MAIL_REJECT);
-			notifyApproveFlow(current.email, MailConvertS3BucketUtil.getJsonFileName(
-					S3BucketConstant.S3_MAIL_REJECT),
-					placeholders);
+			notifyApproveFlow(current.email, placeholders);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
@@ -233,10 +220,7 @@ public class AdminApproveController {
 			placeholders.put("TARGET_NAME", String.valueOf(current.userId));
 			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 			placeholders.put("APPROVE_ID", res.getApproveId());
-			placeholders.put("MIX_BUCKET", S3BucketConstant.S3_MAIL_CANCEL);
-			notifyApproveFlow(current.email, MailConvertS3BucketUtil.getJsonFileName(
-					S3BucketConstant.S3_MAIL_CANCEL),
-					placeholders);
+			notifyApproveFlow(current.email, placeholders);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
@@ -272,10 +256,7 @@ public class AdminApproveController {
 			placeholders.put("TARGET_NAME", String.valueOf(current.userId));
 			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 			placeholders.put("APPROVE_ID", res.getApproveId());
-			placeholders.put("MIX_BUCKET", S3BucketConstant.S3_MAIL_DELETE);
-			notifyApproveFlow(current.email, MailConvertS3BucketUtil.getJsonFileName(
-					S3BucketConstant.S3_MAIL_DELETE),
-					placeholders);
+			notifyApproveFlow(current.email, placeholders);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
@@ -310,13 +291,10 @@ public class AdminApproveController {
 			placeholders.put("TARGET_NAME", String.valueOf(current.userId));
 			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 			placeholders.put("APPROVE_ID", res.getApproveId());
-			placeholders.put("MIX_BUCKET", S3BucketConstant.S3_MAIL_INSTRUCTION);
 			// 指令は宛先の担当者全員へ通知する（1通ずつ登録する）。
 			if (res.getToMailAddressList() != null) {
 				for (String toAddress : res.getToMailAddressList()) {
-					notifyApproveFlow(toAddress, MailConvertS3BucketUtil.getJsonFileName(
-							S3BucketConstant.S3_MAIL_INSTRUCTION),
-							placeholders);
+					notifyApproveFlow(toAddress, placeholders);
 				}
 			}
 		}
@@ -394,10 +372,7 @@ public class AdminApproveController {
 			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 			placeholders.put("APPROVE_ID", res.getApproveId());
 			placeholders.put("REASON_SENTENCE", res.getComment());
-			placeholders.put("MIX_BUCKET", S3BucketConstant.S3_MAIL_REJECT);
-			notifyApproveFlow(current.email, MailConvertS3BucketUtil.getJsonFileName(
-					S3BucketConstant.S3_MAIL_REJECT),
-					placeholders);
+			notifyApproveFlow(current.email, placeholders);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
@@ -429,10 +404,7 @@ public class AdminApproveController {
 			placeholders.put("TARGET_NAME", String.valueOf(current.userId));
 			placeholders.put("REJECTED_AT", String.valueOf(res.getReturnDate()));
 			placeholders.put("APPROVE_ID", res.getApproveId());
-			placeholders.put("MIX_BUCKET", S3BucketConstant.S3_MAIL_CANCEL);
-			notifyApproveFlow(current.email, MailConvertS3BucketUtil.getJsonFileName(
-					S3BucketConstant.S3_MAIL_CANCEL),
-					placeholders);
+			notifyApproveFlow(current.email, placeholders);
 		}
 		return ResponseEntity.status(parseStatus(res.getResponseCode())).body(res);
 	}
@@ -442,34 +414,22 @@ public class AdminApproveController {
 	// ------------------------------------------------------------
 
 	/**
-	 * 承認フロー（依頼/指令）の状態変化を知らせる通知メールを登録する。
+	 * 承認フロー（依頼/指令）の状態変化を知らせる通知メールを送信する。
 	 *
-	 * targetKindがNOTICE/SCREEN/MAIL_INFOのいずれであっても、常に同じ固定テンプレート
-	 * （MailIdConstant.BM_MAIL_XXX。あらかじめmail_info_masterに登録済みであること）を使う。
-	 * 承認対象そのもの（mailInfo.getMailId()など、まだマスタ未登録かもしれない値）を
-	 * ここに使ってはいけない。
-	 *
-	 * メール送信登録はベストエフォートとして扱い、失敗しても承認フロー自体の処理結果
-	 * （既にコミット済み）には影響させない。
+	 * 固定テンプレート（MailIdConstant.BM_MAIL_XXX。mail_info_master に登録済みであること）を使い、
+	 * その場で SMTP 送信する（2026-11-21 メール処理作り直し：S3通知JSON/B096 経由は廃止）。
+	 * 送信はベストエフォートとして扱い、失敗しても承認フロー自体の処理結果（コミット済み）には影響させない。
 	 */
-	private void notifyApproveFlow(String toAddress, String bucketInfo,
-			Map<String, String> placeholders) {
+	private void notifyApproveFlow(String toAddress, Map<String, String> placeholders) {
 		try {
 			MailSendResponse response = mailSendService.sendSystemNotification(
-					MailIdConstant.BM_MAIL_XXX, bucketInfo, toAddress, placeholders, false);
+					MailIdConstant.BM_MAIL_XXX, toAddress, placeholders);
 			if (!"200".equals(response.getResponseCode())) {
-				log.warn("承認フロー通知メールの登録に失敗しました。responseCode={}, message={}, toAddress={}",
+				log.warn("承認フロー通知メールの送信に失敗しました。responseCode={}, message={}, toAddress={}",
 						response.getResponseCode(), response.getMessage(), toAddress);
-				return;
-			}
-			String mailSendKey = response.getMailSendKey();
-			if (mailSendKey != null) {
-				putMailNoticeJson.putJson(
-						MailConvertS3BucketUtil.getJsonFileName(MailIdConstant.BM_MAIL_XXX),
-						mailSendKey);
 			}
 		} catch (Exception e) {
-			log.error("承認フロー通知メールの送信登録中に例外が発生しました。toAddress={}", toAddress, e);
+			log.error("承認フロー通知メールの送信中に例外が発生しました。toAddress={}", toAddress, e);
 		}
 	}
 

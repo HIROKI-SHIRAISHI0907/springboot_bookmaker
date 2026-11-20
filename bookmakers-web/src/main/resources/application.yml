@@ -6,6 +6,7 @@ app:
   b001-json-folder: /tmp/json/
   b008-json-folder: /tmp/json/
   notification.admin-email: hirokishiraishi73@gmail.com
+  password-reset.base-url: ${PASSWORD_RESET_BASE_URL:https://bm-stats-real.com/reset-password}
   
 process:
   python:

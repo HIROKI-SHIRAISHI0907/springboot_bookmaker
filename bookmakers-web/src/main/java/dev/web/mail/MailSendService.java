@@ -1,39 +1,40 @@
 package dev.web.mail;
 
-import java.util.ArrayList;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.List;
 import java.util.Map;
+import java.util.Optional;
 import java.util.stream.Collectors;
 
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.dao.DataIntegrityViolationException;
 import org.springframework.stereotype.Service;
-import org.springframework.web.context.request.RequestContextHolder;
-import org.springframework.web.context.request.ServletRequestAttributes;
 
-import dev.common.config.MailConfig;
 import dev.common.entity.MailInfoMasterEntity;
 import dev.common.entity.MailSendManagementEntity;
 import dev.common.enums.MailNoticeEnum;
-import dev.common.mail.PutMailNoticeJson;
-import dev.common.util.MailConvertS3BucketUtil;
+import dev.common.mail.SmtpMailSender;
 import dev.common.util.ProcessKeyUtil;
-import dev.web.jwt.JwtCurrentUserService;
-import dev.web.jwt.JwtCurrentUserService.CurrentUser;
 import dev.web.repository.bm.MailSendManagementRepository;
 import dev.web.repository.master.MailInfoMasterRepository;
 import dev.web.repository.user.UserRepository;
-import jakarta.servlet.http.HttpServletRequest;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 
 /**
- * MailSendServiceクラス
+ * MailSendServiceクラス（2026-11-21 作り直し）
  *
- * メールID（mail_info_master.mail_id）をキーに件名・本文を取得し、
- * メール送信管理テーブル（mail_send_management）へ送信予定として登録する。
+ * メールID（mail_info_master.mail_id）をキーに件名・本文テンプレートを取得し、
+ * プレースホルダーを置換して <b>その場で SMTP 送信</b> する。
  *
- * 実際のSMTP送信（Transport.send）は別バッチで行う想定のため、
- * このクラスは「送信内容の確定 ＋ 送信管理テーブルへのinsert」までを担う。
+ * 旧方式（mail_send_manage へ「送信予定」登録 → S3 通知JSON → B096 が送信）は廃止。
+ * mail_send_manage は以下の用途だけに残す。
+ * <ul>
+ *   <li>送信ログ（成功=1 / 失敗=9）</li>
+ *   <li>パスワード再設定リンクのキー保管（PasswordResetService が 1→2 に更新して使い切る）</li>
+ * </ul>
+ * 古い行は B095 が1日で削除する。
  *
  * @author shiraishitoshio
  */
@@ -53,206 +54,153 @@ public class MailSendService {
 
 	private static final String WEB = "WEB";
 
-	private final PutMailNoticeJson putMailNoticeJson;
+	/** パスワード再設定URLのプレースホルダー（本文に含まれていれば送信キー付きURLに置換する） */
+	private static final String PASSWORD_RESET_URL_PLACEHOLDER = "{{PASSWORD_RESET_URL}}";
+
 	private final MailInfoMasterRepository mailInfoMasterRepository;
 	private final MailSendManagementRepository mailSendManagementRepository;
 	private final UserRepository userRepository;
-	private final JwtCurrentUserService jwtCurrentUserService;
-	private final MailConfig mailConfig;
+	private final SmtpMailSender smtpMailSender;
+
+	/** パスワード再設定画面のURL（?key=送信キー を付けて本文に埋め込む） */
+	@Value("${app.password-reset.base-url:https://bm-stats-real.com/reset-password}")
+	private String passwordResetBaseUrl;
 
 	/**
-	 * ログイン中ユーザー宛にメール送信を登録する。
-	 * 送信先メールアドレスは、現在のHTTPリクエストのAuthorizationヘッダーをJWTとして
-	 * 検証し、JwtCurrentUserService経由で解決する。
-	 *
-	 * @param mailId メール情報マスタのメールID
-	 * @param bucketInfo バケット情報
-	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
-	 */
-	public MailSendResponse send(String mailId, String bucketInfo) {
-		String toAddress = resolveCurrentUserEmail();
-		// この経路は常にメール情報マスタの実データを参照するため、mailFlg=falseで存在チェックを行う。
-		return send(mailId, bucketInfo, toAddress, false);
-	}
-
-	/**
-	 * 送信先メールアドレスを直接指定してメール送信を登録する。
-	 * パスワード再発行など、未ログイン状態で画面から入力されたメールアドレスを使うケースで使用する。
-	 * 送信先は必ずusersテーブルに登録済みのメールアドレスである必要がある
-	 * （ユーザー向けの通知のため。管理者への固定アドレス通知等はsendSystemNotification()を使う）。
+	 * 登録済みユーザー宛にメールを送信する（パスワード再設定など）。
+	 * 送信先は users テーブルに登録済みのメールアドレスである必要がある。
 	 *
 	 * @param mailId    メール情報マスタのメールID
-	 * @param bucketInfo  バケット情報
-	 * @param toAddress 送信先メールアドレス（画面入力値など、呼び出し元で確定済みのもの）
-	 * @param mailFlg   trueの場合、メール情報マスタの存在チェックを行わない
-	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
+	 * @param toAddress 送信先メールアドレス
+	 * @return 結果（成功時は mailSendKey を返す）
 	 */
-	public MailSendResponse send(String mailId, String bucketInfo,
-			String toAddress, boolean mailFlg) {
-		// メール情報マスタに存在するか（mailFlg=trueのときはDBを引かず、mailIdだけを持つ
-		// mailInfoをそのまま組み立てる。まだマスタに登録されていない対象向け）。
-		MailInfoMasterEntity mailInfo = resolveMailInfo(mailId, mailFlg);
-
+	public MailSendResponse send(String mailId, String toAddress) {
 		MailSendResponse response = new MailSendResponse();
-
-		// 送信先メールアドレスが登録されているものか
-		if (userRepository.findEmail(toAddress) == 0) {
+		if (toAddress == null || toAddress.isBlank() || userRepository.findEmail(toAddress) == 0) {
 			response.setResponseCode("404");
 			response.setMessage("使用されていないメールアドレスです。");
 			return response;
 		}
-
-		return insertManagement(mailInfo, bucketInfo, toAddress, null, null);
+		return sendNow(mailId, toAddress, null);
 	}
 
 	/**
-	 * システム通知メール（バッチ・ECSタスク完了通知など）を、送信先を固定アドレスとして登録する。
-	 * send()と違い、送信先がusersテーブルに登録済みかどうかのチェックは行わない
-	 * （管理者への通知アドレスは、必ずしもログインユーザーのメールアドレスとは限らないため）。
-	 *
-	 * placeholdersはmail_send_manage.bikouに"KEY=VALUE,KEY=VALUE"の形式で保存され、
-	 * バッチ側（MailLaunchService.applyBikouPlaceholders）でメール件名・本文中の
-	 * {{KEY}}プレースホルダーの置換に使われる。
-	 *
-	 * ※値の中にカンマ（,）や等号（=）を含めないこと。含まれているとbikouのパースが
-	 *   壊れて他のキーの置換もできなくなる（例: エラーメッセージ全文などの自由文はNG）。
+	 * システム通知（承認フロー通知、取るべきリーグ候補通知など）を送信する。
+	 * send() と違い、送信先が users に登録済みかどうかはチェックしない。
 	 *
 	 * @param mailId       メール情報マスタのメールID
-	 * @param bucketInfo   バケット情報
-	 * @param toAddress    送信先メールアドレス（管理者通知用の固定アドレス等）
-	 * @param placeholders 件名・本文中の{{KEY}}を置換するためのkey-valueペア（無ければnullでよい）
-	 * @param mailFlg      trueの場合、メール情報マスタの存在チェックを行わずmailIdをそのまま使う
-	 *                     （承認フローの対象がMAIL_INFOで、まだマスタに登録されていない場合など）
-	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
+	 * @param toAddress    送信先
+	 * @param placeholders 件名・本文中の {{KEY}} を置換する値（null 可）
+	 * @return 結果
 	 */
-	public MailSendResponse sendSystemNotification(String mailId, String bucketInfo,
-			String toAddress, Map<String, String> placeholders,
-			boolean mailFlg) {
-		MailInfoMasterEntity mailInfo = resolveMailInfo(mailId, mailFlg);
-
-		// placeHoldersのvalue側(B or S始まりのコード)だけをまとめる
-		List<String> placeholderValues = (placeholders != null && !placeholders.isEmpty())
-				? placeholders.values().stream()
-						.filter(v -> v != null && (v.startsWith("B") || v.startsWith("S")))
-						.collect(Collectors.toList())
-				: new ArrayList<String>();
-
-		log.info("sendSystemNotification check "
-				+ "mailId={},bucketInfo={},toAddress={},placeholders={},flg={}",
-				mailId, bucketInfo, toAddress, placeholders, mailFlg);
-
-		return insertManagement(mailInfo, bucketInfo, toAddress, toBikou(placeholders), placeholderValues);
+	public MailSendResponse sendSystemNotification(String mailId, String toAddress,
+			Map<String, String> placeholders) {
+		return sendNow(mailId, toAddress, placeholders);
 	}
 
 	/**
-	 * mailFlgに応じてmailInfoを解決する。
-	 * mailFlg=falseの場合はメール情報マスタから取得し、存在しなければ例外を投げる。
-	 * mailFlg=trueの場合はマスタを引かず、mailIdだけを持つmailInfoをそのまま組み立てて返す
-	 * （承認フローの対象がMAIL_INFOで、まだマスタに登録されていない場合など）。
-	 *
-	 * @param mailId  メールID
-	 * @param mailFlg trueの場合、マスタの存在チェックをスキップする
-	 * @return 解決したmailInfo（常に非null）
+	 * テンプレート取得 → 置換 → ログ行登録(0) → SMTP送信 → ログ更新(1 or 9)。
 	 */
-	private MailInfoMasterEntity resolveMailInfo(String mailId, boolean mailFlg) {
-		if (mailFlg) {
-			MailInfoMasterEntity mailInfo = new MailInfoMasterEntity();
-			mailInfo.setMailId(mailId);
-			log.info("resolveMailInfo mailFlg=true check, mailId={}", mailId);
-			return mailInfo;
-		}
-		log.info("resolveMailInfo mailFlg=false check, mailId={}", mailId);
-		return mailInfoMasterRepository.findById(mailId)
-				.orElseThrow(() -> {
-					log.error("メール情報マスタに該当データがありません。mailId={}", mailId);
-					return new RuntimeException(SYSTEM_ERROR_MESSAGE);
-				});
-	}
-
-	/**
-	 * メール送信管理テーブルへ、送信予定として1件登録する共通処理。
-	 * send() / sendSystemNotification() のどちらからも呼ばれる。
-	 *
-	 * mailInfoは呼び出し元（resolveMailInfo経由）で必ず非nullが渡される。
-	 * mailFlg=trueの経路ではマスタから取得したものではなく、mailIdだけを持つ
-	 * mailInfoがそのまま渡ってくる。
-	 *
-	 * @param mailInfo  メール情報（少なくともmailIdは設定済み）
-	 * @param toAddress 送信先メールアドレス
-	 * @param bikou     mail_send_manage.bikouに保存する値（プレースホルダー置換用。無ければnull）
-	 * @return 発行したメール送信キー（mail_send_management.mail_send_key）
-	 */
-	private MailSendResponse insertManagement(MailInfoMasterEntity mailInfo, String bucketInfo,
-			String toAddress, String bikou,
-			List<String> placeholderValues) {
+	private MailSendResponse sendNow(String mailId, String toAddress, Map<String, String> placeholders) {
 		MailSendResponse response = new MailSendResponse();
 
-		// メール送信キーを取得
-		String mailSendKey = ProcessKeyUtil.getMailSendKey();
-		String mailId = mailInfo.getMailId();
+		Optional<MailInfoMasterEntity> mailInfoOpt = mailInfoMasterRepository.findById(mailId);
+		if (mailInfoOpt.isEmpty()) {
+			log.error("メール情報マスタに該当データがありません。mailId={}", mailId);
+			response.setResponseCode("500");
+			response.setMessage(SYSTEM_ERROR_MESSAGE);
+			return response;
+		}
+		MailInfoMasterEntity mailInfo = mailInfoOpt.get();
 
+		String mailSendKey = ProcessKeyUtil.getMailSendKey();
+		String subject = applyPlaceholders(mailInfo.getMailSubject(), placeholders);
+		String body = mailInfo.getMailBody();
+		if (body != null && body.contains(PASSWORD_RESET_URL_PLACEHOLDER)) {
+			String url = passwordResetBaseUrl + "?key="
+					+ URLEncoder.encode(mailSendKey, StandardCharsets.UTF_8);
+			body = body.replace(PASSWORD_RESET_URL_PLACEHOLDER, url);
+		}
+		body = applyPlaceholders(body, placeholders);
+
+		// 送信前にログ行(通知前=0)を登録（パスワード再設定のキーとしても使う）
 		MailSendManagementEntity management = new MailSendManagementEntity();
 		management.setMailSendKey(mailSendKey);
-		management.setMessageId(null); // 実際の送信は別バッチのため、message_idはその際に更新する想定
 		management.setToAddress(toAddress);
 		management.setMailId(mailId);
-		management.setEnvelopeFrom(mailConfig.getSourceMailAddress());
-		management.setBucketInfo(bucketInfo);
+		management.setEnvelopeFrom(smtpMailSender.fromAddress());
 		management.setNotifyStatus(MailNoticeEnum.NOTIFY_STATUS_PENDING.getNoticeStatus());
 		management.setFailSendCount(0);
 		management.setSourceInfo(WEB);
-		management.setBikou(bikou);
-
-		log.info("insertManagement check MailSendManagementEntity={}",management);
-
+		management.setBikou(toBikou(placeholders));
 		try {
-			int result = mailSendManagementRepository.insert(management);
-			if (result != 1) {
+			if (mailSendManagementRepository.insert(management) != 1) {
 				response.setResponseCode("500");
-				response.setMessage("メール送信管理に登録できませんでした。");
+				response.setMessage(SYSTEM_ERROR_MESSAGE);
 				return response;
 			}
 		} catch (Exception e) {
+			log.error("メール送信ログの登録に失敗しました。mailId={}", mailId, e);
 			response.setResponseCode("500");
 			response.setMessage(SYSTEM_ERROR_MESSAGE);
 			return response;
 		}
 
-		log.info("insertManagement json"
-				+ " check placeholderValues={}",placeholderValues);
-
-		// JSON保存
 		try {
-			// placeholderValuesは1つのみの想定
-			if (placeholderValues != null &&
-					!placeholderValues.isEmpty()) {
-				putJson(bucketInfo, placeholderValues.get(0));
-			}
-			response.setResponseCode("200");
-			response.setMessage("処理が成功しました。");
-			response.setMailSendKey(mailSendKey);
+			String messageId = smtpMailSender.send(toAddress, subject, body);
+			mailSendManagementRepository.updateMessageId(mailSendKey, messageId);
+			mailSendManagementRepository.updateNotifyStatus(mailSendKey,
+					MailNoticeEnum.NOTIFY_STATUS_SENDED.getNoticeStatus());
 		} catch (Exception e) {
+			log.error("メール送信に失敗しました。mailId={}, to={}", mailId, toAddress, e);
+			try {
+				mailSendManagementRepository.updateNotifyStatus(mailSendKey,
+						MailNoticeEnum.NOTIFY_STATUS_FAILED.getNoticeStatus());
+			} catch (Exception ignore) {
+				// ログ更新失敗は無視
+			}
 			response.setResponseCode("500");
-			response.setMessage(SYSTEM_ERROR_MESSAGE + ": " + e);
+			response.setMessage("メールを送信できませんでした。時間をおいて再度お試しください。");
+			return response;
 		}
 
+		response.setResponseCode("200");
+		response.setMessage("メールを送信しました。");
+		response.setMailSendKey(mailSendKey);
 		return response;
 	}
 
 	/**
-	 * KEY-VALUEのMapを、mail_send_manage.bikouに保存する"KEY1=VALUE1,KEY2=VALUE2"形式に変換する。
-	 *
-	 * @param placeholders 件名・本文中の{{KEY}}を置換するためのkey-valueペア
-	 * @return "KEY1=VALUE1,KEY2=VALUE2"形式の文字列。placeholdersがnull/空の場合はnull
+	 * text 中の {{KEY}}（旧テンプレート互換で （KEY） も）を値に置換し、
+	 * 値が無いまま残った {{...}} は空文字にする。
 	 */
+	static String applyPlaceholders(String text, Map<String, String> placeholders) {
+		if (text == null) {
+			return "";
+		}
+		String result = text;
+		if (placeholders != null) {
+			for (Map.Entry<String, String> e : placeholders.entrySet()) {
+				if (e.getKey() == null || e.getValue() == null) {
+					continue;
+				}
+				result = result.replace("{{" + e.getKey() + "}}", e.getValue());
+				result = result.replace("（" + e.getKey() + "）", e.getValue());
+			}
+		}
+		return result.replaceAll("\\{\\{\\s*[^{}]*?\\s*\\}\\}", "");
+	}
+
+	/** placeholders を mail_send_manage.bikou 保存用の "KEY=VALUE,..." にする（ログ用） */
 	private String toBikou(Map<String, String> placeholders) {
 		if (placeholders == null || placeholders.isEmpty()) {
 			return null;
 		}
-		return placeholders.entrySet().stream()
-				.filter(e -> e.getKey() != null && !e.getKey().isBlank() && e.getValue() != null)
+		String s = placeholders.entrySet().stream()
+				.filter(e -> e.getKey() != null && e.getValue() != null)
 				.map(e -> e.getKey() + "=" + e.getValue())
 				.collect(Collectors.joining(","));
+		return s.length() > 1000 ? s.substring(0, 1000) : s;
 	}
 
 	/**
@@ -388,48 +336,5 @@ public class MailSendService {
 					return new RuntimeException(SYSTEM_ERROR_MESSAGE);
 				});
 		return mailInfo;
-	}
-
-	/**
-	 * 現在のHTTPリクエストのAuthorizationヘッダーからJWTを検証し、
-	 * ログイン中ユーザーのメールアドレスを取得する。
-	 *
-	 * JWTが無効・未ログインの場合はJwtCurrentUserService側でResponseStatusException
-	 * （401 Unauthorized）が投げられるので、ここでは特にcatchしていません。
-	 *
-	 * @return ログイン中ユーザーのメールアドレス
-	 */
-	private String resolveCurrentUserEmail() {
-		HttpServletRequest request = currentHttpRequest();
-		String authorizationHeader = request.getHeader("Authorization");
-		CurrentUser currentUser = jwtCurrentUserService.resolve(authorizationHeader);
-		return currentUser.getEmail();
-	}
-
-	/**
-	 * 現在のHTTPリクエストを取得する。
-	 * HTTPリクエストコンテキスト外から呼び出された場合はRuntimeExceptionを投げる。
-	 *
-	 * @return 現在のHttpServletRequest
-	 */
-	private HttpServletRequest currentHttpRequest() {
-		var attributes = RequestContextHolder.getRequestAttributes();
-		if (!(attributes instanceof ServletRequestAttributes)) {
-			log.error("HTTPリクエストコンテキスト外からsend(mailId)が呼び出されました。");
-			throw new RuntimeException(SYSTEM_ERROR_MESSAGE);
-		}
-		ServletRequestAttributes servletAttributes = (ServletRequestAttributes) attributes;
-		return servletAttributes.getRequest();
-	}
-
-	/**
-	 * 処理キーを特定のJSONファイルに保存する
-	 * @param id
-	 * @param mailProcessKey
-	 * @throws Exception
-	 */
-	private void putJson(String id, String mailProcessKey) throws Exception {
-		putMailNoticeJson.putJson(MailConvertS3BucketUtil
-				.getJsonFileName(id), mailProcessKey);
 	}
 }

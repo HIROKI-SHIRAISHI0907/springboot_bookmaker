@@ -15,7 +15,6 @@ import org.springframework.web.bind.annotation.RestController;
 
 import com.auth0.jwt.interfaces.DecodedJWT;
 
-import dev.common.util.MailConvertS3BucketUtil;
 import dev.web.api.bm_u004.AuthResponse;
 import dev.web.api.bm_u004.AuthService;
 import dev.web.api.bm_u004.ForgotPasswordRequest;
@@ -39,7 +38,6 @@ public class AuthController {
 	private static final String PASSWORD_RESET_MAIL_ID = "bm-mail-001";
 
 	/** prefix */
-	private static final String PREFIX = "password-reset-";
 
 	private final JwtService jwtService;
 	private final AuthService authService;
@@ -128,7 +126,7 @@ public class AuthController {
 	}
 
 	/**
-	 * パスワード再設定を行うメール情報をDBに登録する。
+	 * パスワード再設定メールをその場で送信する（送信キーは mail_send_manage に保存）。
 	 *
 	 * PATCH /api/auth/passwd/reset/view
 	 */
@@ -137,9 +135,7 @@ public class AuthController {
 			@RequestBody ForgotPasswordRequest req) {
 
 		String email = req.getEmail();
-		MailSendResponse res = service.send(PASSWORD_RESET_MAIL_ID,
-				MailConvertS3BucketUtil.getJsonFileName(PREFIX + PASSWORD_RESET_MAIL_ID),
-				email, false);
+		MailSendResponse res = service.send(PASSWORD_RESET_MAIL_ID, email);
 
 		HttpStatus status = switch (res.getResponseCode()) {
 		case "200" -> HttpStatus.OK;
