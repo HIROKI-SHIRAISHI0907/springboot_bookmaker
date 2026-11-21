@@ -51,6 +51,10 @@ public class FutureDBService {
 	@Autowired
 	private PostponedRescheduleService postponedRescheduleService;
 
+	/** シーズン期間外の判定（2026-11-21 追加） */
+	@Autowired
+	private SeasonRangeChecker seasonRangeChecker;
+
 	/** ログ管理クラス */
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
@@ -69,6 +73,7 @@ public class FutureDBService {
 	 * <p>
 	 * 判定の順番:
 	 * 0. 延期中の試合で日時が変わっていれば future_master を上書きし、登録しない（rescheduled に積む）
+	 * 0-2. シーズン期間外（{@link SeasonRangeChecker}）は登録しない（2026-11-21）
 	 * 1. game_link に含まれる mid= の値が一致するデータが既に存在する場合は登録しない（最優先）
 	 * 2. mid が取得できない場合のみ、従来通り home_team_name/away_team_name の一致で判定する（優先度を下げる）
 	 * あわせて、同一バッチ内に同じ mid が複数含まれる場合（同じ試合の重複スクレイピング）も
@@ -85,6 +90,8 @@ public class FutureDBService {
 		final String METHOD_NAME = "selectInBatch";
 		List<FutureEntity> entities = new ArrayList<>();
 		Set<String> seenMidsInBatch = new HashSet<>();
+		SeasonRangeChecker.Checker season = this.seasonRangeChecker.newChecker();
+		int outOfSeason = 0;
 
 		for (FutureEntity entity : chkEntities) {
 			String mid = extractMid(entity.getGameLink());
@@ -115,6 +122,19 @@ public class FutureDBService {
 				}
 			}
 
+			// シーズン期間外（国・リーグのシーズンの開始日〜終了日の外）は登録しない（2026-11-21）。
+			// CSV は登録後に他の行とまとめて削除される
+			String outSeason = season.outOfSeason(entity);
+			if (outSeason != null) {
+				outOfSeason++;
+				this.manageLoggerComponent.debugInfoLog(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+						"シーズン期間外のため登録しません: " + fillChar + " (" + outSeason + " / "
+								+ entity.getGameTeamCategory() + " / " + entity.getFutureTime() + " / "
+								+ entity.getHomeTeamName() + " vs " + entity.getAwayTeamName() + ")");
+				continue;
+			}
+
 			if (mid != null && !mid.isBlank()) {
 				// DB上に同じmidの試合が既に存在するかどうか（最優先の重複判定）
 				if (futureRepository.findCountByMid(mid) > 0) {
@@ -128,6 +148,11 @@ public class FutureDBService {
 			}
 
 			entities.add(entity);
+		}
+		if (outOfSeason > 0) {
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					"シーズン期間外のため登録しなかった試合: " + outOfSeason + "件 " + fillChar);
 		}
 		return entities;
 	}

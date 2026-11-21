@@ -93,6 +93,7 @@ CREATE TABLE IF NOT EXISTS country_league_season_master (
   icon              VARCHAR(2048),
   valid_flg         VARCHAR(1) DEFAULT '0' NOT NULL,
   del_flg           CHAR(1),
+  season_end_flg    CHAR(1) DEFAULT '0' NOT NULL,  -- シーズン終了フラグ（B013 が立てる。2026-11-21）
   register_id       VARCHAR(100),
   register_time     TIMESTAMP WITH TIME ZONE,
   update_id         VARCHAR(100),

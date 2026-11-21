@@ -76,7 +76,8 @@ public class CountryLeagueSeasonDBPart {
 				// シーズン年を元にシーズン開始日と終了日を埋める
 				String[] years = SeasonDateBuilder.convertSeasonYear(row.getSeasonYear());
 				String startDate = SeasonDateBuilder.buildDate(years[0], row.getStartSeasonDate());
-				String endDate   = SeasonDateBuilder.buildDate(years[1], row.getEndSeasonDate());
+				// 2026-11-21: 終了日は「開始日以降になる最初の年」で作る（以前は常に最後の年）
+				String endDate   = SeasonDateBuilder.buildEndDate(years, startDate, row.getEndSeasonDate());
 				row.setStartSeasonDate(startDate);
 				row.setEndSeasonDate(endDate);
 

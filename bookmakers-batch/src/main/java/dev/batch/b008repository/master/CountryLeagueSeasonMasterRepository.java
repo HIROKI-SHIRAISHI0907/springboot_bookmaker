@@ -48,6 +48,7 @@ public interface CountryLeagueSeasonMasterRepository {
 			"league = #{league},",
 			"season_year = #{seasonYear},",
 			"start_season_date = CAST(#{startSeasonDate} AS timestamptz),",
+			"season_end_flg = CASE WHEN CAST(#{endSeasonDate} AS timestamptz) IS DISTINCT FROM end_season_date THEN '0' ELSE season_end_flg END, ",
 			"end_season_date = CAST(#{endSeasonDate} AS timestamptz) ",
 			"WHERE id = CAST(#{id,jdbcType=VARCHAR} AS INTEGER);"
 	})

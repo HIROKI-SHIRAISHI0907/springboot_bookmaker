@@ -434,7 +434,7 @@ public class SeasonDataWrapper {
 		}
 
 		try {
-		    // CSV/テーブル削除が両方成功した後に end_season_date をクリアする
+		    // CSV/テーブル削除が両方成功した後に season_end_flg を立てる（2026-11-21: 以前は end_season_date をクリアしていた）
 		    this.autoSeasonHyphenTransaction.execute(dto);
 		} catch (Exception e) {
 		    this.manageLoggerComponent.debugErrorLog(

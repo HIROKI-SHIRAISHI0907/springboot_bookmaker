@@ -80,6 +80,7 @@ public interface CsvUploadMasterBatchRepository {
 			  <if test="league != null">league = #{league},</if>
 			  <if test="seasonYear != null">season_year = #{seasonYear},</if>
 			  <if test="startSeasonDate != null">start_season_date = CAST(#{startSeasonDate} AS timestamptz),</if>
+			  <if test="endSeasonDate != null">season_end_flg = CASE WHEN CAST(#{endSeasonDate} AS timestamptz) IS DISTINCT FROM end_season_date THEN '0' ELSE season_end_flg END,</if>
 			  <if test="endSeasonDate != null">end_season_date = CAST(#{endSeasonDate} AS timestamptz),</if>
 			  <if test="round != null">round = #{round},</if>
 			  <if test="path != null">path = #{path},</if>

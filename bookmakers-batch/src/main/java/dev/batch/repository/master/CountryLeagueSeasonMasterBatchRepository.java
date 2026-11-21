@@ -51,10 +51,16 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			""")
 	List<CountryLeagueSeasonMasterEntity> findHyphen();
 
+	/**
+	 * シーズン終了フラグを立てる（B013。2026-11-21 変更）。
+	 * 以前は end_season_date を NULL にしていたが、終了日が無いとシーズン期間で絞る処理（試合予定の表示・登録）で
+	 * 過去の試合まで期間外になるため、終了日は残してフラグだけ立てる。
+	 * 新しいシーズンの終了日が入ると（end_season_date が変わると）各 UPDATE で '0' に戻る。
+	 */
 	@Update("""
 			    UPDATE country_league_season_master
 			    SET
-			        end_season_date = NULL,
+			        season_end_flg = '1',
 			        del_flg = '0',
 			        update_time = CURRENT_TIMESTAMP,
 			        update_id = 'BATCH'
@@ -62,7 +68,7 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			        country = #{country}
 			        AND league = #{league}
 			""")
-	int clearEndSeasonDate(@Param("country") String country,
+	int markSeasonEnd(@Param("country") String country,
 			@Param("league") String league);
 
 	@Select("""
@@ -74,6 +80,7 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			        country_league_season_master
 			    WHERE
 			        del_flg = '0'
+					AND COALESCE(season_end_flg, '0') = '0'
 			""")
 	List<CountryLeagueSeasonMasterEntity> findDateList();
 
@@ -231,6 +238,7 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			"	    SET ",
 			"	        season_year = #{seasonYear},",
 			"			start_season_date = #{startSeasonDate}::timestamptz,",
+			"			season_end_flg = CASE WHEN #{endSeasonDate}::timestamptz IS DISTINCT FROM end_season_date THEN '0' ELSE season_end_flg END,",
 			"			end_season_date = #{endSeasonDate}::timestamptz,",
 			"			round = #{round},",
 			"			path = #{path},",
@@ -328,6 +336,14 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			           WHEN BTRIM(#{startSeasonDate}) = '-' THEN start_season_date
 			           WHEN BTRIM(#{startSeasonDate}) = '未定' THEN start_season_date
 			           ELSE CAST(#{startSeasonDate} AS timestamptz)
+			       END,
+
+			       season_end_flg = CASE
+			           WHEN #{endSeasonDate} IS NULL THEN season_end_flg
+			           WHEN BTRIM(#{endSeasonDate}) IN ('', '-', '未定') THEN season_end_flg
+			           WHEN LOWER(BTRIM(#{endSeasonDate})) IN ('n/a', 'null') THEN season_end_flg
+			           WHEN CAST(#{endSeasonDate} AS timestamptz) IS DISTINCT FROM end_season_date THEN '0'
+			           ELSE season_end_flg
 			       END,
 
 			       end_season_date = CASE

@@ -64,6 +64,10 @@ public class OriginService implements OriginIF {
 	@Autowired
 	private OriginFutureStartFlgService futureStartFlgService;
 
+	/** サブリーグ保有国リーグ登録設定の自動反映（2026-11-21 追加） */
+	@Autowired
+	private SubLeagueAutoRegisterService subLeagueAutoRegisterService;
+
 	/**
 	 * ログ管理クラス
 	 */
@@ -128,6 +132,20 @@ public class OriginService implements OriginIF {
 		// 未来データフラグ更新
 		try {
 			this.futureStartFlgService.execute(getStatMap);
+		} catch (Exception e) {
+			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
+			this.loggerComponent.createSystemException(
+					PROJECT_NAME,
+					CLASS_NAME,
+					METHOD_NAME,
+					messageCd,
+					null,
+					e);
+		}
+
+		// サブリーグ保有国リーグ登録設定の自動反映（データカテゴリのサブリーグ名。失敗しても続行）
+		try {
+			this.subLeagueAutoRegisterService.execute(getStatMap);
 		} catch (Exception e) {
 			String messageCd = MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION;
 			this.loggerComponent.createSystemException(

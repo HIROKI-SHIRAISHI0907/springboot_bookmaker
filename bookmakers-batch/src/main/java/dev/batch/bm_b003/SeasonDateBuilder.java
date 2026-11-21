@@ -90,4 +90,29 @@ public class SeasonDateBuilder {
 	    return year + "-" + monthStr + "-" + dayStr;
 	}
 
+	/**
+	 * 終了日の構築（2026-11-21 追加）。
+	 * 「2026/2027」のシーズンでも、日程が少しずつ公開されるリーグ（例: ジャマイカ）は終了日が最初の年（2026-11-16 など）になる。
+	 * 以前は常に最後の年で作っていたため 2027-11-16 になっていた。
+	 * 最初の年で作った日付がシーズン開始日以降ならそれを、前なら最後の年を使う。
+	 *
+	 * @param years convertSeasonYear の戻り値（[0]=開始年, [1]=終了年）
+	 * @param startDate buildDate(years[0], 開始日) の結果（yyyy-MM-dd。null 可）
+	 * @param seasonDate CSV の終了日（dd.mm.）
+	 */
+	public static String buildEndDate(String[] years, String startDate, String seasonDate) {
+		if (seasonDate == null || seasonDate.isEmpty()) {
+			return null;
+		}
+		String first = buildDate(years[0], seasonDate);
+		if (years[0].equals(years[1]) || startDate == null || startDate.isEmpty()) {
+			return buildDate(years[1], seasonDate);
+		}
+		// yyyy-MM-dd 同士なので文字列比較でよい
+		if (first.compareTo(startDate) >= 0) {
+			return first;
+		}
+		return buildDate(years[1], seasonDate);
+	}
+
 }

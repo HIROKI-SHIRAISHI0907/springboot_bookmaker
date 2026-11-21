@@ -49,18 +49,18 @@ public class AutoSeasonHyphenTransaction {
 				continue;
 			}
 
-			// シーズン終了日をNULLに更新
+			// シーズン終了フラグを立てる（2026-11-21: 終了日は消さずに残す）
 			String[] keyArray = key.split("-", 2);
 			String country = keyArray[0];
 			String league = keyArray[1];
 
 			int result = countryLeagueSeasonMasterBatchRepository
-					.clearEndSeasonDate(country, league);
+					.markSeasonEnd(country, league);
 
 			if (result == 0) {
 				this.manageLoggerComponent.debugErrorLog(
 						PROJECT_NAME, CLASS_NAME, METHOD_NAME, null, null,
-						"clearEndSeasonDate result==0 country=" + country + ", league=" + league);
+						"markSeasonEnd result==0 country=" + country + ", league=" + league);
 				continue;
 			}
 
