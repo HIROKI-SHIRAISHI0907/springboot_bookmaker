@@ -467,6 +467,16 @@ public class SeasonDataWrapper {
 	 *
 	 * @param processedMap 今回終了処理した "国-リーグ" → 終了日時（JST）。0 件なら同期だけ行う
 	 */
+	/**
+	 * b025_fin_season_all_data.json を DB の終了日時に合わせるだけ（終了処理はしない）。
+	 * B003（シーズン登録）で終了日が変わったときに呼ぶ（2026-11-21 追加。
+	 * 以前は B013・web A021 だけが更新していたため、終了日の取り直しで延びた終了日が次の B013 まで反映されなかった）。
+	 * 失敗しても例外にしない（ログのみ）。
+	 */
+	public void syncAllDataWithDb() {
+		syncAllData(new LinkedHashMap<>());
+	}
+
 	private void syncAllData(Map<String, String> processedMap) {
 		final String METHOD_NAME = "syncAllData";
 		final String bucket = config.getS3BucketsOutputsNextSeason();

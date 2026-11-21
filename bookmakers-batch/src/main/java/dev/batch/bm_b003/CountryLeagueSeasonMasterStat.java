@@ -7,6 +7,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.batch.bm_b013.SeasonDataWrapper;
 import dev.batch.interf.SeasonEntityIF;
 import dev.common.config.PathConfig;
 import dev.common.constant.MessageCdConst;
@@ -57,6 +58,10 @@ public class CountryLeagueSeasonMasterStat implements SeasonEntityIF {
 	@Autowired
 	private ManageLoggerComponent manageLoggerComponent;
 
+	/** b025_fin_season_all_data.json の同期（2026-11-21 追加） */
+	@Autowired
+	private SeasonDataWrapper seasonDataWrapper;
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -98,6 +103,10 @@ public class CountryLeagueSeasonMasterStat implements SeasonEntityIF {
 
 		// 途中で例外が起きなければファイルを削除する
 		deleteProcessedFile(METHOD_NAME);
+
+		// 終了日が変わったリーグ（シーズン終了日の取り直しで延びたものなど）を b025_fin_season_all_data.json にも反映する。
+		// DB と同じ値のリーグは (season=READFIN) を残したまま変えない（失敗してもログのみ）
+		this.seasonDataWrapper.syncAllDataWithDb();
 
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
