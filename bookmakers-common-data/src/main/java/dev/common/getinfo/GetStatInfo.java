@@ -5,10 +5,10 @@ import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.LinkedHashMap;
+import java.util.LinkedHashSet;
 import java.util.List;
 import java.util.Map;
 import java.util.Set;
-import java.util.TreeSet;
 import java.util.concurrent.CompletableFuture;
 import java.util.concurrent.Semaphore;
 import java.util.regex.Matcher;
@@ -38,8 +38,11 @@ public class GetStatInfo {
 	 * 1.csv
 	 * Japan-J1-ラウンド5/9.csv
 	 * stats/Japan-J1-ラウンド5/9.csv
+	 * 2026-11-22: B011 の CSV 名が「国-リーグ-ラウンドN/ホーム-アウェー.csv」になったため、
+	 * フォルダ配下の CSV は名前を問わず対象にする（直下は従来どおり数字.csv のみ）。
+	 * 例: 日本-J1リーグ-ラウンド5/鹿島アントラーズ-清水エスパルス.csv
 	 */
-	private static final Pattern SEQ_CSV_KEY = Pattern.compile("^(?:.+/)?\\d+\\.csv$");
+	private static final Pattern SEQ_CSV_KEY = Pattern.compile("^(?:.+/[^/]+|\\d+)\\.csv$");
 	private static final Pattern ROUND_NO_PATTERN = Pattern.compile("ラウンド(\\d+)");
 
 	@Autowired
@@ -140,7 +143,7 @@ public class GetStatInfo {
 			return new LinkedHashMap<>();
 		}
 
-		Map<String, Set<Integer>> acc = new LinkedHashMap<>();
+		Map<String, Set<String>> acc = new LinkedHashMap<>();
 
 		final int concurrency = 2;
 		final Semaphore gate = new Semaphore(concurrency);
@@ -164,7 +167,7 @@ public class GetStatInfo {
 
 					// key 自体を一意な識別子として使う
 					synchronized (acc) {
-						acc.computeIfAbsent(key, k -> new TreeSet<>()).addAll(idx.getSeqs());
+						acc.computeIfAbsent(key, k -> new LinkedHashSet<>()).addAll(idx.getSeqKeys());
 					}
 
 				} catch (Exception ignore) {
@@ -181,9 +184,7 @@ public class GetStatInfo {
 		        .sorted((a, b) -> compareCsvKey(a.getKey(), b.getKey()))
 		        .collect(Collectors.toMap(
 		                Map.Entry::getKey,
-		                e -> e.getValue().stream()
-		                        .map(String::valueOf)
-		                        .collect(Collectors.toCollection(ArrayList::new)),
+		                e -> new ArrayList<>(e.getValue()),
 		                (x, y) -> x,
 		                LinkedHashMap::new));
 	}
@@ -408,7 +409,7 @@ public class GetStatInfo {
 			return new LinkedHashMap<>();
 		}
 
-		Map<String, Set<Integer>> acc = new LinkedHashMap<>();
+		Map<String, Set<String>> acc = new LinkedHashMap<>();
 
 		final int concurrency = 2;
 		final Semaphore gate = new Semaphore(concurrency);
@@ -426,12 +427,12 @@ public class GetStatInfo {
 				try (InputStream is = s3Operator.download(bucket, key)) {
 
 					StatCsvIndexDTO idx = readStat.readIndex(is, key);
-					if (idx == null || idx.getSeqs() == null || idx.getSeqs().isEmpty()) {
+					if (idx == null || idx.getSeqKeys() == null || idx.getSeqKeys().isEmpty()) {
 						return;
 					}
 
 					synchronized (acc) {
-						acc.computeIfAbsent(key, k -> new TreeSet<>()).addAll(idx.getSeqs());
+						acc.computeIfAbsent(key, k -> new LinkedHashSet<>()).addAll(idx.getSeqKeys());
 					}
 
 				} catch (Exception ignore) {
@@ -448,9 +449,7 @@ public class GetStatInfo {
 		        .sorted((a, b) -> compareCsvKey(a.getKey(), b.getKey()))
 		        .collect(Collectors.toMap(
 		                Map.Entry::getKey,
-		                e -> e.getValue().stream()
-		                        .map(String::valueOf)
-		                        .collect(Collectors.toCollection(ArrayList::new)),
+		                e -> new ArrayList<>(e.getValue()),
 		                (a, b) -> a,
 		                LinkedHashMap::new));
 	}

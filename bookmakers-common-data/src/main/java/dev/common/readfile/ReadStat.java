@@ -256,6 +256,8 @@ public class ReadStat {
         if (s == null) return;
         String t = s.trim();
         if (t.isEmpty()) return;
+        // 2026-11-22: seq_key（"zRLNYw4L-37" 等）は文字列のまま保持する（数値でないため seqs には入らない）
+        dto.getSeqKeys().add(t);
         try { dto.getSeqs().add(Integer.parseInt(t)); }
         catch (NumberFormatException ignore) {}
     }
