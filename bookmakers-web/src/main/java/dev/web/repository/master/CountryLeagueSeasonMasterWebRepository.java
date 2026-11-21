@@ -296,6 +296,8 @@ public class CountryLeagueSeasonMasterWebRepository {
 				      league = :league,
 				      season_year = :seasonYear,
 				      start_season_date = CAST(NULLIF(BTRIM(CAST(:startSeasonDate AS text)), '') AS timestamptz),
+				      season_end_flg    = CASE WHEN CAST(NULLIF(BTRIM(CAST(:endSeasonDate AS text)), '') AS timestamptz)
+				                                    IS DISTINCT FROM end_season_date THEN '0' ELSE season_end_flg END,
 				      end_season_date   = CAST(NULLIF(BTRIM(CAST(:endSeasonDate AS text)), '') AS timestamptz),
 				      round = NULLIF(BTRIM(CAST(:round AS text)), ''),
 				      update_id   = 'SYSTEM',

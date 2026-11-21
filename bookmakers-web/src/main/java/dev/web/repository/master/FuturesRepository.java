@@ -241,10 +241,43 @@ public class FuturesRepository {
 	 * 指定日（日本時間 0:00〜翌 0:00）の条件。境目は DateOffsetDecisionUtil で日本時間の 0:00 を
 	 * OffsetDateTime にして渡す（接続のタイムゾーンに左右されない。2026-11-04 Util に変更）。
 	 */
+	/**
+	 * 指定日の条件。
+	 * 2026-11-21: 国・リーグのシーズン期間（country_league_season_master）の外の試合は表示しない
+	 * （例: コロンビア プリメーラ A のクラウスーラ終了後のプレーオフ）。
+	 * <ul>
+	 *   <li>カテゴリ「国: リーグ …」の 国 と、リーグ（完全一致、または「リーグ - …」）でシーズンの行を探す。</li>
+	 *   <li>シーズンの行が無い（カップ戦など）・開始日か終了日が無い → 表示する（判断できないため）。</li>
+	 *   <li>開始日〜終了日に試合開始日時が入る行が1つでもあれば表示する。</li>
+	 *   <li>シーズンが終わっても終了日は残る（season_end_flg を立てる。2026-11-21）ので、終了日より前の試合は表示される。</li>
+	 * </ul>
+	 * バッチ（B005 の future_master 登録）の SeasonRangeChecker と同じ考え方。
+	 */
 	private static final String FUTURE_DATE_WHERE = """
 			WHERE f.future_time >= :fromTime
 			  AND f.future_time <  :toTime
-			""";
+			  AND NOT (
+			    EXISTS (
+			      SELECT 1 FROM country_league_season_master s
+			      WHERE %1$s
+			        AND s.start_season_date IS NOT NULL
+			        AND s.end_season_date IS NOT NULL
+			    )
+			    AND NOT EXISTS (
+			      SELECT 1 FROM country_league_season_master s
+			      WHERE %1$s
+			        AND s.start_season_date IS NOT NULL
+			        AND s.end_season_date IS NOT NULL
+			        AND f.future_time >= s.start_season_date
+			        AND f.future_time <= s.end_season_date
+			    )
+			  )
+			""".formatted("""
+			s.del_flg = '0'
+			        AND s.country = BTRIM(split_part(f.game_team_category, ':', 1))
+			        AND left(BTRIM(substr(f.game_team_category, strpos(f.game_team_category, ':') + 1)), length(s.league)) = s.league
+			        AND (length(BTRIM(substr(f.game_team_category, strpos(f.game_team_category, ':') + 1))) = length(s.league)
+			             OR substr(BTRIM(substr(f.game_team_category, strpos(f.game_team_category, ':') + 1)), length(s.league) + 1, 2) = ' -')""");
 
 	/** 指定日の条件のパラメータ（日本時間の 0:00 と翌日 0:00） */
 	private static MapSqlParameterSource futureDateParams(LocalDate date) {
