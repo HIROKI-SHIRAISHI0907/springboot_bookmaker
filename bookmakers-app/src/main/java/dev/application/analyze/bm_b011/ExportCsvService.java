@@ -78,7 +78,7 @@ public class ExportCsvService {
 	 * この処理の版（起動ログに出す。ECS で動いているイメージが最新か確認する用）。
 	 * 2026-10-21: 仮のカテゴリ（XXX: YYY）のフォルダの CSV は「作成済み」に数えない・作らない（二重のガード）。
 	 */
-	private static final String LOGIC_VERSION = "2026-10-21 placeholder-guard+error-reconcile+gone-match";
+	private static final String LOGIC_VERSION = "2026-11-22 seqkey-csvinfo+round0-guard";
 	/** 新規CSVグループの一時キーに付与するプレフィックス */
 	private static final String CSV_NEW_PREFIX = "mk";
 	/** seqList.txt（JSON形式）の読み書き用ObjectMapper */
@@ -96,7 +96,9 @@ public class ExportCsvService {
 	 * <p>「国: リーグ - ラウンド N」または「国: リーグ - サブリーグ - ラウンド N」。最後が「- ラウンド N」（数字）。</p>
 	 */
 	private static final Pattern STRICT_ROUND_CATEGORY = Pattern.compile(
-			"^\\s*([^:\\s][^:]*?)\\s*:\\s*(\\S.*?)\\s*-\\s*ラウンド\\s*[0-9]+\\s*$");
+			"^\\s*([^:\\s][^:]*?)\\s*:\\s*(\\S.*?)\\s*-\\s*ラウンド\\s*([0-9]+)\\s*$");
+	/** 仮のラウンド（「ラウンド 0」）のフォルダ名の最後の部分（正規化後「ラウンド0」。0 が続く表記も含む） */
+	private static final Pattern ZERO_ROUND_SEGMENT = Pattern.compile("^ラウンド\\s*0+$");
 	/** 仮の dataCategory（「XXX: YYY - ラウンド 0」）の国 */
 	private static final String PLACEHOLDER_COUNTRY = "XXX";
 	/** 仮の dataCategory（「XXX: YYY - ラウンド 0」）のリーグ */
@@ -2318,7 +2320,8 @@ public class ExportCsvService {
 	}
 
 	/**
-	 * フォルダ名（正規化済み「国-リーグ-ラウンドN」）が仮のカテゴリ（国が XXX またはリーグが YYY）か。
+	 * フォルダ名（正規化済み「国-リーグ-ラウンドN」）が仮のカテゴリ（国が XXX またはリーグが YYY、
+	 * またはラウンドが 0（2026-11-22 追加））か。
 	 *
 	 * @param folder フォルダ名
 	 * @return 仮のカテゴリなら true
@@ -2330,7 +2333,12 @@ public class ExportCsvService {
 		String[] parts = Normalizer.normalize(folder, Normalizer.Form.NFKC).trim().split("-");
 		String country = parts.length > 0 ? parts[0].trim() : "";
 		String league = parts.length > 1 ? parts[1].trim() : "";
-		return PLACEHOLDER_COUNTRY.equalsIgnoreCase(country) || PLACEHOLDER_LEAGUE.equalsIgnoreCase(league);
+		if (PLACEHOLDER_COUNTRY.equalsIgnoreCase(country) || PLACEHOLDER_LEAGUE.equalsIgnoreCase(league)) {
+			return true;
+		}
+		// 2026-11-22: 「国-リーグ-ラウンド0」も仮のフォルダ扱い（作成済みに数えない。正しいラウンドで作り直す）
+		String last = parts.length > 2 ? parts[parts.length - 1].trim() : "";
+		return ZERO_ROUND_SEGMENT.matcher(last).matches();
 	}
 
 	/**
@@ -2338,6 +2346,7 @@ public class ExportCsvService {
 	 * <ul>
 	 *   <li>「国: リーグ - ラウンド N」「国: リーグ - サブリーグ - ラウンド N」の形（最後が「- ラウンド N」）</li>
 	 *   <li>仮の値（国が XXX・リーグが YYY。例「XXX: YYY - ラウンド 0」）でない</li>
+	 *   <li>ラウンドが 0 でない（2026-11-22 追加。「ラウンド 0」は正しいラウンド名が付くまで待つ）</li>
 	 * </ul>
 	 * 全角の数字・コロンは NFKC で半角にしてから判定する。
 	 *
@@ -2356,6 +2365,11 @@ public class ExportCsvService {
 		String country = m.group(1).trim();
 		String league = m.group(2).trim().split("\\s*-\\s*", 2)[0].trim();
 		if (country.isEmpty() || league.isEmpty()) {
+			return false;
+		}
+		// 2026-11-22: 「ラウンド 0」は仮のラウンド（正しいラウンド名が付く前の値）なので作らない。
+		// 正しいラウンドになったら（static_data の修正、または future_master で補えたら）次の実行で作る。
+		if (m.group(3).matches("0+")) {
 			return false;
 		}
 		return !(PLACEHOLDER_COUNTRY.equalsIgnoreCase(country) || PLACEHOLDER_LEAGUE.equalsIgnoreCase(league));
