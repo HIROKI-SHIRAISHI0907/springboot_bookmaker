@@ -18,7 +18,24 @@
 		<java.version>17</java.version>
 		<!-- AWS SDK for Java v2 のバージョンは親 pom で一括管理する（ここでは指定しない） -->
 		<pdfbox.version>3.0.3</pdfbox.version>
+		<!-- 2026-11-22: 親 pom の AWS SDK（2.25.18）は S3 の条件付き書き込み（PutObjectRequest.ifMatch / ifNoneMatch）が無く、
+		     common-data の S3Operator.putTextConditional（大会の「取り直す」等）が NoSuchMethodError になるため、
+		     common-data と同じ 2.29.21 にそろえる（親 pom を 2.29.21 に上げたら、この指定は消してよい） -->
+		<aws.sdk.web.version>2.29.21</aws.sdk.web.version>
 	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<!-- 子の dependencyManagement は親より優先される -->
+			<dependency>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>bom</artifactId>
+				<version>${aws.sdk.web.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
 
 	<dependencies>
 		<dependency>

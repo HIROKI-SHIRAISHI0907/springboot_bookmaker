@@ -71,6 +71,36 @@ public class CupCompetitionRepository {
 		});
 	}
 
+	/**
+	 * 有効な大会の件数（2026-11-22 追加。未対応チェック CUP_UNREGISTERED 用）
+	 * @return del_flg = '0' の大会の件数
+	 */
+	public int countCompetitions() {
+		Integer n = masterJdbcTemplate.queryForObject(
+				"SELECT COUNT(*) FROM cup_competition_master WHERE del_flg = '0'",
+				new MapSqlParameterSource(), Integer.class);
+		return n == null ? 0 : n;
+	}
+
+	/**
+	 * 日程を取る大会（scrape_flg = '1'）のうち、出場チームが 1 つも無い大会の大会名
+	 * （2026-11-22 追加。未対応チェック CUP_TEAM_UNSET 用。表示順・id 順）
+	 */
+	public List<String> findCompetitionNamesWithoutTeams() {
+		String sql = """
+				SELECT c.competition_name
+				FROM cup_competition_master c
+				WHERE c.del_flg = '0'
+				  AND c.scrape_flg = '1'
+				  AND NOT EXISTS (
+				    SELECT 1 FROM cup_competition_team_master t
+				    WHERE t.competition_id = c.id AND t.del_flg = '0'
+				  )
+				ORDER BY c.disp_order, c.id
+				""";
+		return masterJdbcTemplate.queryForList(sql, new MapSqlParameterSource(), String.class);
+	}
+
 	/** 同じ URL の有効な大会の id（自分以外）。無ければ空 */
 	public List<Integer> findOtherIdsByUrl(String url, Integer exceptId) {
 		String sql = """
