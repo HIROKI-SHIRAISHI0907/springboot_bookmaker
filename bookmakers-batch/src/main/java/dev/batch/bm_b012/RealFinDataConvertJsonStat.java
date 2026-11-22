@@ -102,6 +102,14 @@ public class RealFinDataConvertJsonStat {
 
 	/** 同じ名前のファイルが既にあったときに次の連番で取り直す回数 */
 	private static final int GAME_DETAIL_PATH_RETRY = 5;
+	/**
+	 * 2026-11-22: 試合詳細の取り直し。試合日が「前日の RETRY_DETAIL_TO_DAYS 日前〜RETRY_DETAIL_FROM_DAYS 日前」
+	 * （＝今日の 2〜7 日前）の試合で、リーグとしては提供されているのに無いデータ（J2・J3 の選手スタッツ等）があるものを足す。
+	 * 毎日見るので、1 試合あたり最大 6 回取り直す（取れたら翌日からは対象外）。
+	 * 2026-11-22: J2・J3 の選手スタッツは試合当日には無く、2〜7 日の間に出るため 2〜4 日前 → 2〜7 日前に延ばした。
+	 */
+	private static final int RETRY_DETAIL_FROM_DAYS = 1;
+	private static final int RETRY_DETAIL_TO_DAYS = 6;
 
 	/** matchUrl が相対パスのときに付けるサイト */
 	private static final String SITE = "https://www.flashscore.co.jp";
@@ -157,6 +165,15 @@ public class RealFinDataConvertJsonStat {
 			throw new IllegalStateException("前日の日付を求められません: " + dayStart);
 		}
 
+		// 0.5) B016 試合詳細スクレイピングの入力 JSON（失敗しても fin の JSON は作る）
+		//      2026-11-22: 取り直し（2〜7 日前の試合）があるので、前日の予定試合が 0 件でも先に作る
+		try {
+			writeGameDetailPath(dayStart, dayEnd, targetDate);
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099I_LOG, e, "B016 の入力 JSON の作成に失敗しました（fin の JSON は続けて作ります）: " + e.getMessage());
+		}
+
 		// 0) 前日に予定されていた試合（future_master）
 		List<FutureEntity> futureList = futureMasterRepository.findTodayFinData(dayStart, dayEnd);
 		info(METHOD_NAME, "前日の予定試合件数: " + futureList.size());
@@ -165,13 +182,6 @@ public class RealFinDataConvertJsonStat {
 			return;
 		}
 
-		// 0.5) B016 試合詳細スクレイピングの入力 JSON（失敗しても fin の JSON は作る）
-		try {
-			writeGameDetailPath(dayStart, dayEnd, targetDate);
-		} catch (Exception e) {
-			this.manageLoggerComponent.debugErrorLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME,
-					MessageCdConst.MCD00099I_LOG, e, "B016 の入力 JSON の作成に失敗しました（fin の JSON は続けて作ります）: " + e.getMessage());
-		}
 
 		List<TeamPair> teamPairs = futureList.stream()
 				.map(f -> new TeamPair(f.getHomeTeamName(), f.getAwayTeamName()))
@@ -291,6 +301,27 @@ public class RealFinDataConvertJsonStat {
 		}
 		info(METHOD_NAME, "B016 対象: 前日の試合=" + games.size() + " / 試合詳細登録済み=" + registered
 				+ " / 前日以外=" + otherDate + " / 出力=" + urlByMid.size());
+
+		// 2026-11-22: 取り直し（今日の 2〜7 日前の試合で、リーグとしては提供されているのに無いデータがあるもの）
+		int retry = 0;
+		try {
+			LocalDate from = targetDate.minusDays(RETRY_DETAIL_TO_DAYS);
+			LocalDate to = targetDate.minusDays(RETRY_DETAIL_FROM_DAYS);
+			for (Map<String, Object> r : matchDetailBatchRepository.findRetryDetailTargets(from, to)) {
+				String mid = String.valueOf(r.get("matchId"));
+				String url = normalizeUrl(r.get("matchUrl") == null ? null : String.valueOf(r.get("matchUrl")));
+				if (mid == null || mid.isBlank() || url == null || urlByMid.containsKey(mid)) {
+					continue;
+				}
+				dateByMid.put(mid, String.valueOf(r.get("matchDate")));
+				urlByMid.put(mid, url);
+				retry++;
+			}
+			info(METHOD_NAME, "B016 取り直し: 試合日 " + from + "〜" + to + " で足りないデータがある試合=" + retry);
+		} catch (Exception e) {
+			// 取り直しが失敗しても、前日の試合の出力は続ける
+			info(METHOD_NAME, "B016 取り直しの候補を取れませんでした（前日の試合だけ出力します）: " + e);
+		}
 		if (urlByMid.isEmpty()) {
 			return 0;
 		}

@@ -42,6 +42,62 @@ public interface MatchDetailBatchRepository {
 	int countMatch(@Param("matchId") String matchId);
 
 	/**
+	 * 試合詳細の取り直し候補（2026-11-22 追加。B012 が毎日 b016_game_detail_path_&lt;連番&gt;.json に足す）
+	 * <p>試合日が from〜to の登録済みの試合のうち、必ずあるはずのデータ（サマリー・フォーメーション・ラインアップ・選手スタッツ）が
+	 * 無く、かつ同じリーグの直近 50 試合で 1 割以上の試合にはそのデータがあるもの（＝リーグとしては提供されている）。
+	 * 例: J2・J3 の選手スタッツは試合の翌日にはまだタブが無いことがあるので、2〜7 日後に取り直す。
+	 * リーグで提供されていないデータ（J2 のモメンタム等）・ゴール 0-0・欠場者なしでは取り直さない
+	 * （web の DetailAvailabilityService と同じ判定）。リーグの試合が 5 試合未満なら判断しない（取り直さない）。</p>
+	 *
+	 * @param from 試合日（から）
+	 * @param to   試合日（まで）
+	 * @return match_id・match_url・match_date（yyyy-MM-dd）
+	 */
+	@Select("""
+			WITH x AS (
+			  SELECT match_id, match_url, match_date, league,
+			         ROW_NUMBER() OVER (PARTITION BY league ORDER BY match_date DESC NULLS LAST, scraped_at DESC NULLS LAST) AS rn
+			  FROM (
+			    SELECT match_id, match_url, match_date, scraped_at,
+			           CASE WHEN strpos(COALESCE(category, ''), ' - ') > 0
+			                THEN btrim(substr(category, 1, strpos(category, ' - ') - 1))
+			                ELSE btrim(COALESCE(category, '')) END AS league
+			    FROM match_detail_match
+			  ) y
+			),
+			h AS (
+			  SELECT x.*,
+			         EXISTS (SELECT 1 FROM match_detail_summary t     WHERE t.match_id = x.match_id) AS has_summary,
+			         EXISTS (SELECT 1 FROM match_detail_formation t   WHERE t.match_id = x.match_id) AS has_formation,
+			         EXISTS (SELECT 1 FROM match_detail_lineup t      WHERE t.match_id = x.match_id) AS has_lineup,
+			         EXISTS (SELECT 1 FROM match_detail_member_stat t WHERE t.match_id = x.match_id) AS has_member_stat
+			  FROM x
+			  WHERE x.rn <= 50 OR x.match_date BETWEEN #{from} AND #{to}
+			),
+			lg AS (
+			  SELECT league, COUNT(*) AS total,
+			         COUNT(*) FILTER (WHERE has_summary)     AS n_summary,
+			         COUNT(*) FILTER (WHERE has_formation)   AS n_formation,
+			         COUNT(*) FILTER (WHERE has_lineup)      AS n_lineup,
+			         COUNT(*) FILTER (WHERE has_member_stat) AS n_member_stat
+			  FROM h WHERE rn <= 50
+			  GROUP BY league
+			)
+			SELECT h.match_id AS "matchId", h.match_url AS "matchUrl", to_char(h.match_date, 'YYYY-MM-DD') AS "matchDate"
+			FROM h JOIN lg ON lg.league = h.league
+			WHERE h.match_date BETWEEN #{from} AND #{to}
+			  AND COALESCE(h.match_url, '') <> ''
+			  AND lg.total >= 5
+			  AND (   (NOT h.has_summary     AND lg.n_summary     >= lg.total * 0.1)
+			       OR (NOT h.has_formation   AND lg.n_formation   >= lg.total * 0.1)
+			       OR (NOT h.has_lineup      AND lg.n_lineup      >= lg.total * 0.1)
+			       OR (NOT h.has_member_stat AND lg.n_member_stat >= lg.total * 0.1))
+			ORDER BY h.match_date, h.match_id
+			""")
+	List<java.util.Map<String, Object>> findRetryDetailTargets(@Param("from") java.time.LocalDate from,
+			@Param("to") java.time.LocalDate to);
+
+	/**
 	 * 試合詳細（統計詳細データ）: 国・リーグ の試合を 9 テーブルからまとめて削除する（B013 シーズン終了処理用。2026-11 追加）
 	 * <p>対象の試合ID（match_id）は次のどちらかで決める。1 文で消すので、途中で失敗しても一部だけ消えることはない。</p>
 	 * <ul>
