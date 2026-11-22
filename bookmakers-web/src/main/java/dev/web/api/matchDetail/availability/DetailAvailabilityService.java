@@ -61,6 +61,23 @@ public class DetailAvailabilityService {
 
 	private final MatchDetailAvailabilityRepository repository;
 
+	/**
+	 * 2026-11-22: リーグごとの判定のキャッシュ（{@link #CACHE_MILLIS} の間は DB を見ない）。
+	 * 「提供なし」はリーグの直近 50 試合で決まるので、数分古くても結果はほぼ変わらない。
+	 */
+	private static final long CACHE_MILLIS = 10 * 60 * 1000L;
+	private final java.util.concurrent.ConcurrentHashMap<String, Cached> cache = new java.util.concurrent.ConcurrentHashMap<>();
+
+	private static final class Cached {
+		final long at;
+		final Set<String> unavailable;
+
+		Cached(long at, Set<String> unavailable) {
+			this.at = at;
+			this.unavailable = unavailable;
+		}
+	}
+
 	/** 1 試合の判定結果 */
 	public static final class Judge {
 		/** 取れるはずのテーブル（分母） */
@@ -95,9 +112,22 @@ public class DetailAvailabilityService {
 		if (ls.isEmpty()) {
 			return out;
 		}
-		Map<String, Map<String, Integer>> counts = repository.findLeagueTableCounts(ls,
-				MatchDetailDataWebRepository.DETAIL_TABLES, RECENT);
+		long now = System.currentTimeMillis();
+		Set<String> need = new LinkedHashSet<>();
 		for (String l : ls) {
+			Cached c = cache.get(l);
+			if (c != null && now - c.at < CACHE_MILLIS) {
+				out.put(l, c.unavailable);
+			} else {
+				need.add(l);
+			}
+		}
+		if (need.isEmpty()) {
+			return out;
+		}
+		Map<String, Map<String, Integer>> counts = repository.findLeagueTableCounts(need,
+				MatchDetailDataWebRepository.DETAIL_TABLES, RECENT);
+		for (String l : need) {
 			Map<String, Integer> c = counts.getOrDefault(l, Map.of());
 			int total = c.getOrDefault(MatchDetailAvailabilityRepository.TOTAL, 0);
 			Set<String> un = new LinkedHashSet<>();
@@ -112,6 +142,7 @@ public class DetailAvailabilityService {
 				}
 			}
 			out.put(l, un);
+			cache.put(l, new Cached(now, un));
 		}
 		return out;
 	}
