@@ -289,6 +289,48 @@ public class CupCompetitionRepository {
 	}
 
 	/** 国・リーグ・チームの有効なリンク（country_league_master）。無ければ空文字 */
+	/**
+	 * 大会ごとの出場チームのキー（「大会ID\t国\tリーグ\tチーム」）。外した（del_flg = '1'）行も含む（2026-11-22 追加）。
+	 * 自動登録で、すでにある・手で外したチームを入れ直さないために使う。
+	 */
+	public java.util.Set<String> findAllTeamKeys() {
+		java.util.Set<String> out = new java.util.HashSet<>();
+		masterJdbcTemplate.query("""
+				SELECT competition_id, country, league, team FROM cup_competition_team_master
+				""", new MapSqlParameterSource(), rs -> {
+			out.add(rs.getInt("competition_id") + "\t" + rs.getString("country") + "\t"
+					+ rs.getString("league") + "\t" + rs.getString("team"));
+		});
+		return out;
+	}
+
+	/**
+	 * 「出場チームから外す」をしたチーム（del_flg = '1' で、同じ大会・チームの有効な行が無いもの）（2026-11-22 追加）。
+	 * 日程スクレイパーに渡し（excludedTeams）、自動登録の候補から外す。
+	 */
+	public List<CupCompetitionResponse.Team> findExcludedTeams() {
+		String sql = """
+				SELECT t.id, t.competition_id, t.country, t.league, t.team, t.link
+				FROM cup_competition_team_master t
+				WHERE t.del_flg = '1'
+				  AND NOT EXISTS (
+				    SELECT 1 FROM cup_competition_team_master a
+				    WHERE a.competition_id = t.competition_id AND a.country = t.country
+				      AND a.league = t.league AND a.team = t.team AND a.del_flg = '0'
+				  )
+				""";
+		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {
+			CupCompetitionResponse.Team t = new CupCompetitionResponse.Team();
+			t.setId(rs.getInt("id"));
+			t.setCompetitionId(rs.getInt("competition_id"));
+			t.setCountry(rs.getString("country"));
+			t.setLeague(rs.getString("league"));
+			t.setTeam(rs.getString("team"));
+			t.setLink(rs.getString("link"));
+			return t;
+		});
+	}
+
 	public String findTeamLink(String country, String league, String team) {
 		List<String> links = masterJdbcTemplate.queryForList("""
 				SELECT COALESCE(link, '') FROM country_league_master

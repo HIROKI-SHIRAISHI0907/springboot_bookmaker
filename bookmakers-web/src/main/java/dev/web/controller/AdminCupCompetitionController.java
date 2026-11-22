@@ -86,6 +86,12 @@ public class AdminCupCompetitionController {
 		return ResponseEntity.ok(service.retry(req));
 	}
 
+	/** 試合予定（日程・結果）から出場チームを自動で登録する（2026-11-22 追加） */
+	@PostMapping("/teams/auto")
+	public ResponseEntity<CupCompetitionResponse.Result> autoTeams() {
+		return ResponseEntity.ok(service.autoRegisterTeams());
+	}
+
 	@PostMapping("/export")
 	public ResponseEntity<CupCompetitionResponse.Result> export() {
 		return ResponseEntity.ok(service.export());

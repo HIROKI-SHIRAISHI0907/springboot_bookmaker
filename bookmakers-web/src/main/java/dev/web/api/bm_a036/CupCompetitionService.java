@@ -183,6 +183,59 @@ public class CupCompetitionService {
 		return r;
 	}
 
+	/**
+	 * 日程・結果（b026_cup_schedule.json / json/b026_cup_result.json）の targets から、出場チームを自動で登録する（2026-11-22 追加）。
+	 * <ul>
+	 *   <li>日程スクレイパーは、登録した出場チームに加えて b001 のチーム（スクレイピング対象のリーグのチーム）が出た試合も拾う。</li>
+	 *   <li>有効な大会（del_flg = '0'）・候補（スクレイピング対象のリーグのチーム）にあるチームだけ。</li>
+	 *   <li>すでに登録してある・「出場チームから外す」をしたチーム（del_flg = '1' の行がある）は入れない。</li>
+	 *   <li>1 チームでも登録したら、大会と出場チームの JSON を出力し直す。</li>
+	 * </ul>
+	 * 呼び出し: 毎時の {@link CupTeamAutoRegisterScheduler} と、画面の「試合予定から出場チームを取り込む」。
+	 */
+	@Transactional
+	public CupCompetitionResponse.Result autoRegisterTeams(String operatorId) {
+		store.invalidate();
+		List<CupScheduleStore.ScheduleItem> items = store.getSchedule();
+		Set<Integer> activeIds = repository.findCompetitions().stream()
+				.map(CupCompetitionResponse.Competition::getId).collect(Collectors.toSet());
+		Set<String> candidates = repository.findCandidateTeams().stream()
+				.map(t -> key(t.getCountry(), t.getLeague(), t.getTeam()))
+				.collect(Collectors.toSet());
+		Set<String> existing = repository.findAllTeamKeys();
+		Map<Integer, List<String>> added = new LinkedHashMap<>();
+		int n = 0;
+		for (CupScheduleStore.ScheduleItem it : items) {
+			if (it.competitionId == null || !activeIds.contains(it.competitionId)) {
+				continue;
+			}
+			for (CupScheduleStore.ScheduleTarget t : it.targets) {
+				String k = key(t.country, t.league, t.team);
+				String ck = it.competitionId + "\t" + k;
+				if (trim(t.team).isEmpty() || !candidates.contains(k) || existing.contains(ck)) {
+					continue;
+				}
+				existing.add(ck);
+				n += repository.upsertTeam(it.competitionId, trim(t.country), trim(t.league), trim(t.team),
+						repository.findTeamLink(trim(t.country), trim(t.league), trim(t.team)), operatorId);
+				added.computeIfAbsent(it.competitionId, x -> new ArrayList<>()).add(trim(t.team));
+			}
+		}
+		if (n == 0) {
+			return CupCompetitionResponse.Result.ok("試合予定から新しく登録する出場チームはありませんでした", 0);
+		}
+		log.info("[A036] 試合予定から出場チームを自動で登録しました: {} チーム {}", n, added);
+		CupCompetitionResponse.Result r = CupCompetitionResponse.Result.ok(
+				"試合予定から " + n + " チームを出場チームに登録しました", n);
+		exportJson(r);
+		return r;
+	}
+
+	/** POST /api/admin/cup-competition/teams/auto（画面の「試合予定から出場チームを取り込む」） */
+	public CupCompetitionResponse.Result autoRegisterTeams() {
+		return autoRegisterTeams(operator());
+	}
+
 	/** POST /api/admin/cup-competition/teams/remove */
 	@Transactional
 	public CupCompetitionResponse.Result removeTeams(CupCompetitionRequest.RemoveTeams req) {
@@ -296,6 +349,9 @@ public class CupCompetitionService {
 			Map<Integer, List<CupCompetitionResponse.Team>> teamsByCompetition = repository.findTeams(null).stream()
 					.collect(Collectors.groupingBy(CupCompetitionResponse.Team::getCompetitionId, LinkedHashMap::new,
 							Collectors.toList()));
+			Map<Integer, List<CupCompetitionResponse.Team>> excludedByCompetition = repository.findExcludedTeams().stream()
+					.collect(Collectors.groupingBy(CupCompetitionResponse.Team::getCompetitionId, LinkedHashMap::new,
+							Collectors.toList()));
 			List<Map<String, Object>> competitions = new ArrayList<>();
 			for (CupCompetitionResponse.Competition c : repository.findCompetitions()) {
 				if (!"1".equals(c.getScrapeFlg())) {
@@ -318,6 +374,16 @@ public class CupCompetitionService {
 				cm.put("url", c.getCompetitionUrl());
 				cm.put("seasonYear", c.getSeasonYear() == null ? "" : c.getSeasonYear());
 				cm.put("teams", teams);
+				// 2026-11-22: 「出場チームから外す」をしたチーム（日程スクレイパーの自動登録の候補から外す）
+				List<Map<String, Object>> excluded = new ArrayList<>();
+				for (CupCompetitionResponse.Team t : excludedByCompetition.getOrDefault(c.getId(), List.of())) {
+					Map<String, Object> tm = new LinkedHashMap<>();
+					tm.put("country", t.getCountry());
+					tm.put("league", t.getLeague());
+					tm.put("team", t.getTeam());
+					excluded.add(tm);
+				}
+				cm.put("excludedTeams", excluded);
 				competitions.add(cm);
 			}
 			Map<String, Object> body = new LinkedHashMap<>();
