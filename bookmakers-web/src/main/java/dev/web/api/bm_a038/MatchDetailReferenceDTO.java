@@ -59,4 +59,10 @@ public class MatchDetailReferenceDTO {
 	private int missingCount;
 
 	private int memberStatCount;
+
+	/** 取れるはずなのに無いデータ（取り直す余地あり。日本語名。2026-11-22 追加）。空なら「OK」 */
+	private java.util.List<String> missingTables;
+
+	/** このリーグでは提供されていないデータ（日本語名。2026-11-22 追加） */
+	private java.util.List<String> unavailableTables;
 }

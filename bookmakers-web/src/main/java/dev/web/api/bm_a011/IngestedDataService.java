@@ -15,7 +15,9 @@ import java.util.stream.Collectors;
 
 import org.springframework.stereotype.Service;
 
+import dev.web.api.matchDetail.availability.DetailAvailabilityService;
 import dev.web.repository.bm.BookDataRepository;
+import dev.web.repository.bm.MatchDetailAvailabilityRepository;
 import dev.web.repository.bm.MatchDetailDataWebRepository;
 import dev.web.repository.master.FuturesRepository;
 import lombok.RequiredArgsConstructor;
@@ -27,22 +29,15 @@ public class IngestedDataService {
 	private final BookDataRepository bookDataRepository;
 	private final FuturesRepository futuresRepository;
 	private final MatchDetailDataWebRepository matchDetailDataWebRepository;
+	/** 2026-11-22: リーグで提供されていないデータを分母から外す */
+	private final MatchDetailAvailabilityRepository matchDetailAvailabilityRepository;
+	private final DetailAvailabilityService detailAvailabilityService;
 
-	/** 統計詳細データの日本語名（MatchDetailDataWebRepository.DETAIL_TABLES のキー → 名前） */
-	private static final Map<String, String> DETAIL_TABLE_LABELS = Map.of(
-			"match", "試合情報",
-			"summary", "サマリー",
-			"goal", "ゴール",
-			"momentum", "モメンタム",
-			"momentumIncident", "モメンタムの出来事",
-			"formation", "フォーメーション",
-			"lineup", "ラインアップ",
-			"missing", "欠場者",
-			"memberStat", "選手スタッツ");
 
 	/**
 	 * 必ずあるはずの統計詳細データ（これがそろえば「あり」）。
 	 * ゴール（0-0）・欠場者（いない）・モメンタム（リーグによってページに無い）は、無くても取り直さない。
+	 * 2026-11-22: このうちリーグで提供されていないもの（DetailAvailabilityService の「提供なし」）は、無くても「あり」にする。
 	 */
 	private static final Set<String> DETAIL_REQUIRED_TABLES = Set.of("match", "summary", "formation", "lineup", "memberStat");
 
@@ -220,20 +215,30 @@ public class IngestedDataService {
 						.map(r -> trimToNull(r.getMatchKey()))
 						.filter(Objects::nonNull)
 						.collect(Collectors.toList()));
+		// 2026-11-22: リーグで提供されていないデータ（例: J2 のモメンタム）は分母から外し、取り直しの対象にもしない。
+		//   ゴール（0-0）・欠場者（いない）は無くても正常。n/m の m は「その試合で取れるはずの数」。
+		Map<String, String> leagueByMid = matchDetailAvailabilityRepository.findLeagueByMatchIds(detailTables.keySet());
+		Map<String, Set<String>> unavailableByLeague = detailAvailabilityService.unavailableByLeague(leagueByMid.values());
 		for (IngestedRowDTO r : merged) {
 			String mk = trimToNull(r.getMatchKey());
 			Set<String> has = (mk == null) ? java.util.Collections.emptySet()
 					: detailTables.getOrDefault(mk, java.util.Collections.emptySet());
-			List<String> missing = new ArrayList<>();
-			for (String key : MatchDetailDataWebRepository.DETAIL_TABLES.keySet()) {
-				if (!has.contains(key)) {
-					missing.add(DETAIL_TABLE_LABELS.getOrDefault(key, key));
+			Set<String> unavailable = (mk == null) ? Set.of()
+					: unavailableByLeague.getOrDefault(leagueByMid.getOrDefault(mk, ""), Set.of());
+			DetailAvailabilityService.Judge j = DetailAvailabilityService.judge(has, unavailable);
+			r.setDetailTableCount(has.size());
+			r.setDetailTableTotal(has.isEmpty() ? MatchDetailDataWebRepository.DETAIL_TABLES.size() : j.expected.size());
+			r.setDetailMissingTables(has.isEmpty()
+					? new ArrayList<>(DetailAvailabilityService.LABELS.values()) : j.missingLabels());
+			r.setDetailUnavailableTables(j.unavailableLabels());
+			// 必ずあるはずのデータ（提供なしは除く）がそろえば「あり」（統計詳細データ取得の対象にしない）
+			boolean ok = !has.isEmpty();
+			for (String k : DETAIL_REQUIRED_TABLES) {
+				if (!has.contains(k) && !unavailable.contains(k)) {
+					ok = false;
 				}
 			}
-			r.setDetailTableCount(has.size());
-			r.setDetailTableTotal(MatchDetailDataWebRepository.DETAIL_TABLES.size());
-			r.setDetailMissingTables(missing);
-			r.setHasDetailData(has.containsAll(DETAIL_REQUIRED_TABLES));
+			r.setHasDetailData(ok);
 		}
 
 		// ===== チェックボックス条件（2026-11 変更: 未来・終了済・統計詳細を別々に選べる。選んだもののいずれかが無いもの） =====

@@ -47,4 +47,7 @@ public class IngestedRowDTO {
     /** 統計詳細データで、データが無いもの（日本語名。2026-11-18 追加） */
     private java.util.List<String> detailMissingTables;
 
+    /** 統計詳細データで、このリーグでは提供されていないもの（日本語名。分母から外した。2026-11-22 追加） */
+    private java.util.List<String> detailUnavailableTables;
+
 }
