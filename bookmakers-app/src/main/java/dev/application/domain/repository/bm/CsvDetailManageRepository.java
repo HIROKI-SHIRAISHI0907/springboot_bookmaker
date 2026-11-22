@@ -15,6 +15,21 @@ import dev.common.entity.CsvDetailManageEntity;
 public interface CsvDetailManageRepository {
 
 	/**
+	 * まだ統計に反映していない（check_fin_flg='0'）CSV の csv_id（= 統計 CSV バケットの S3 キー）。登録順。
+	 * 2026-11-22 追加: B006 の通常の実行は、CSV 番号の範囲（csv_seq_manage）ではなくこの一覧で読む CSV を決める
+	 * （B011 の CSV 名が「国-リーグ-ラウンドN/ホーム-アウェー.csv」になり番号が無いため）。
+	 */
+	@Select("""
+			SELECT csv_id
+			FROM csv_detail_manage
+			WHERE check_fin_flg = '0'
+			  AND COALESCE(csv_id, '') <> ''
+			GROUP BY csv_id
+			ORDER BY MIN(id)
+			""")
+	List<String> findUnfinishedCsvIds();
+
+	/**
 	 * check_fin_flg='1' の既存件数
 	 */
 	@Select("""

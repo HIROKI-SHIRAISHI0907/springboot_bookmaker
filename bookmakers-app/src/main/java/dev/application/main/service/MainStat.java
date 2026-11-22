@@ -28,7 +28,10 @@ import lombok.extern.slf4j.Slf4j;
  * 1ファイル終わるごとに処理済みの番号を記録する（途中で止まっても次回は続きから）。
  * </p>
  * <ul>
- *   <li>通常: csv_seq_manage の範囲（from〜to）の CSV。</li>
+ *   <li>通常（2026-11-22 変更）: csv_detail_manage で未反映（check_fin_flg='0'）の csv_id のうち、S3 にある CSV。
+ *       以前は csv_seq_manage の CSV 番号の範囲（from〜to）で決めていたが、B011 の CSV 名が
+ *       「国-リーグ-ラウンドN/ホーム-アウェー.csv」になって番号が無く、範囲の絞り込みで全部外れていた。
+ *       csv_seq_manage は使わない・更新しない。</li>
  *   <li>BM_COUNTRY・BM_LEAGUE 指定: その国・リーグの CSV 全部（csv_seq_manage は使わない・更新しない）。</li>
  *   <li>BM_JOB=B014: 範囲で絞らず全 CSV（csv_seq_manage は使わない・更新しない）。</li>
  * </ul>
@@ -80,6 +83,10 @@ public class MainStat implements ServiceIF {
 	@Autowired
 	private CsvSeqManageService csvSeqManageService;
 
+	/** 2026-11-22: 未反映の CSV を決める */
+	@Autowired
+	private dev.application.domain.repository.bm.CsvDetailManageRepository csvDetailManageRepository;
+
 	@Autowired
 	private CoreStat coreStat;
 
@@ -104,24 +111,13 @@ public class MainStat implements ServiceIF {
 			}
 
 			boolean countryLeagueMode = !country.isEmpty() && !league.isEmpty();
-			boolean useCsvSeqManage = !JOB_ALL.equals(job) && !countryLeagueMode;
-
-			// 処理する CSV の範囲（csv_seq_manage を使う場合だけ）
+			// 2026-11-22: 通常の実行は csv_detail_manage の未反映の CSV を読む（csv_seq_manage の番号の範囲は使わない）
+			boolean pendingMode = !JOB_ALL.equals(job) && !countryLeagueMode;
 			CsvSeqManageService.CsvSeqRange range = null;
-			if (useCsvSeqManage) {
-				range = this.dbRetryExecutor.call("csvSeqManageService.decideRangeOrNull",
-						() -> this.csvSeqManageService.decideRangeOrNull());
-				if (range == null) {
-					log.info("[MainStat] csv_seq_manage: 処理する範囲がありません");
-					return BatchResultConst.BATCH_OK;
-				}
-				log.info("[MainStat] csv_seq_manage: range = {}:{}", range.getFrom(), range.getTo());
-			} else {
-				log.info("[MainStat] csv_seq_manage を使わないモード: BM_JOB={}, BM_COUNTRY={}, BM_LEAGUE={}",
-						job, country, league);
-			}
+			log.info("[MainStat] モード: {}（BM_JOB={}, BM_COUNTRY={}, BM_LEAGUE={}）",
+					pendingMode ? "未反映の CSV" : countryLeagueMode ? "国・リーグ指定" : "全 CSV", job, country, league);
 
-			List<String> keys = listTargetKeys(countryLeagueMode, country, league, range);
+			List<String> keys = pendingMode ? listPendingKeys() : listTargetKeys(countryLeagueMode, country, league, range);
 			if (keys == null || keys.isEmpty()) {
 				log.info("[MainStat] target keys is empty");
 				return BatchResultConst.BATCH_OK;
@@ -162,6 +158,34 @@ public class MainStat implements ServiceIF {
 		} finally {
 			this.manageLoggerComponent.debugEndInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 		}
+	}
+
+	/**
+	 * 未反映（csv_detail_manage.check_fin_flg='0'）の CSV の key 一覧（S3 にあるものだけ。2026-11-22 追加）。
+	 * csv_id は統計 CSV バケットの S3 キー（B011 が prefix なしで出力）。S3 に無い csv_id は数だけログに出す。
+	 */
+	private List<String> listPendingKeys() throws Exception {
+		List<String> ids = this.dbRetryExecutor.call("csvDetailManageRepository.findUnfinishedCsvIds",
+				() -> this.csvDetailManageRepository.findUnfinishedCsvIds());
+		if (ids == null || ids.isEmpty()) {
+			log.info("[MainStat] 未反映の CSV はありません（csv_detail_manage.check_fin_flg='0' が 0 件）");
+			return java.util.Collections.emptyList();
+		}
+		List<String> all = this.dbRetryExecutor.call("getStatInfo.listCsvKeysInRange(all)",
+				() -> this.getStatInfo.listCsvKeysInRange(null, null));
+		java.util.Set<String> onS3 = new java.util.HashSet<>(all == null ? java.util.List.of() : all);
+		List<String> keys = new java.util.ArrayList<>();
+		int missing = 0;
+		for (String id : ids) {
+			if (onS3.contains(id)) {
+				keys.add(id);
+			} else {
+				missing++;
+			}
+		}
+		log.info("[MainStat] 未反映の CSV: csv_detail_manage={} 件 / S3 にある={} 件 / S3 に無い={} 件",
+				ids.size(), keys.size(), missing);
+		return keys;
 	}
 
 	/**
