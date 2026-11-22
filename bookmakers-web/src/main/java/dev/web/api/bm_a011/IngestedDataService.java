@@ -219,6 +219,7 @@ public class IngestedDataService {
 		//   ゴール（0-0）・欠場者（いない）は無くても正常。n/m の m は「その試合で取れるはずの数」。
 		Map<String, String> leagueByMid = matchDetailAvailabilityRepository.findLeagueByMatchIds(detailTables.keySet());
 		Map<String, Set<String>> unavailableByLeague = detailAvailabilityService.unavailableByLeague(leagueByMid.values());
+		Map<String, String> dateByMid = matchDetailAvailabilityRepository.findMatchDateByMatchIds(detailTables.keySet());
 		for (IngestedRowDTO r : merged) {
 			String mk = trimToNull(r.getMatchKey());
 			Set<String> has = (mk == null) ? java.util.Collections.emptySet()
@@ -238,7 +239,11 @@ public class IngestedDataService {
 					ok = false;
 				}
 			}
-			r.setHasDetailData(ok);
+			// 2026-11-22: 取り直しの期間を過ぎて取れていないもの → 取得終了（灰色。統計詳細データ取得の対象にもしない）
+			boolean expired = !has.isEmpty() && !j.missing.isEmpty()
+					&& DetailAvailabilityService.isRetryExpired(dateByMid.get(mk));
+			r.setDetailRetryExpired(expired);
+			r.setHasDetailData(ok || expired);
 		}
 
 		// ===== チェックボックス条件（2026-11 変更: 未来・終了済・統計詳細を別々に選べる。選んだもののいずれかが無いもの） =====

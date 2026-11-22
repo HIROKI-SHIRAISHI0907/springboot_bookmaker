@@ -65,4 +65,7 @@ public class MatchDetailReferenceDTO {
 
 	/** このリーグでは提供されていないデータ（日本語名。2026-11-22 追加） */
 	private java.util.List<String> unavailableTables;
+
+	/** 取れていないデータがあるが、取り直しの期間を過ぎた（取得終了。2026-11-22 追加） */
+	private boolean retryExpired;
 }

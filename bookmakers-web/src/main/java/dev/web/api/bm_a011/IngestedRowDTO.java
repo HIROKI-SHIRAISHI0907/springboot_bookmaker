@@ -50,4 +50,10 @@ public class IngestedRowDTO {
     /** 統計詳細データで、このリーグでは提供されていないもの（日本語名。分母から外した。2026-11-22 追加） */
     private java.util.List<String> detailUnavailableTables;
 
+    /**
+     * 取れていないデータがあるが、取り直しの期間（試合から DetailAvailabilityService.RETRY_LAST_DAYS 日）を過ぎた
+     * （＝取得終了。これ以上取らない。2026-11-22 追加）
+     */
+    private Boolean detailRetryExpired;
+
 }

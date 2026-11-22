@@ -87,6 +87,7 @@ public class MatchDetailReferenceService {
 					unavailableByLeague.getOrDefault(MatchDetailAvailabilityRepository.leagueOf(d.getCategory()), Set.of()));
 			d.setMissingTables(j.missingLabels());
 			d.setUnavailableTables(j.unavailableLabels());
+			d.setRetryExpired(!j.missing.isEmpty() && DetailAvailabilityService.isRetryExpired(d.getMatchDate()));
 		}
 	}
 

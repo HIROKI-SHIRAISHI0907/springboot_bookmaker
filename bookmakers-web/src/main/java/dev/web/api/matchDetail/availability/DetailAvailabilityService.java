@@ -40,6 +40,30 @@ public class DetailAvailabilityService {
 	/** データがある試合の割合がこれ未満なら「提供なし」 */
 	public static final double UNAVAILABLE_RATE = 0.10;
 
+	/**
+	 * 自動の取り直し（B012）の最後の日 = 試合日の何日後か（B012 は「今日の 2〜7 日前の試合」を取り直す。
+	 * J2・J3 の選手スタッツは 2〜7 日の間に出るため）。
+	 * これを過ぎても取れていないデータは「取得終了」（Flashscore が出さなかった。これ以上取らない）。
+	 */
+	public static final int RETRY_LAST_DAYS = 7;
+
+	/**
+	 * 取り直しの期間を過ぎたか（2026-11-22 追加）
+	 * @param matchDate 試合日（yyyy-MM-dd）。読めなければ false
+	 */
+	public static boolean isRetryExpired(String matchDate) {
+		if (matchDate == null || matchDate.isBlank()) {
+			return false;
+		}
+		try {
+			java.time.LocalDate d = java.time.LocalDate.parse(matchDate.trim().substring(0, 10));
+			java.time.LocalDate today = java.time.LocalDate.now(java.time.ZoneId.of("Asia/Tokyo"));
+			return d.isBefore(today.minusDays(RETRY_LAST_DAYS));
+		} catch (Exception e) {
+			return false;
+		}
+	}
+
 	/** 無くても正常なテーブル（ゴール 0-0・欠場者なし） */
 	public static final Set<String> OPTIONAL_TABLES = Set.of("goal", "missing");
 

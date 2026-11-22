@@ -64,6 +64,29 @@ public class MatchDetailAvailabilityRepository {
 	}
 
 	/**
+	 * 試合ID → 試合日（yyyy-MM-dd。match_detail_match にある試合だけ。2026-11-22 追加: 取り直しの期間を過ぎたかの判定用）
+	 */
+	public Map<String, String> findMatchDateByMatchIds(Collection<String> matchIds) {
+		Map<String, String> out = new HashMap<>();
+		if (matchIds == null || matchIds.isEmpty()) {
+			return out;
+		}
+		List<String> ids = new ArrayList<>(new LinkedHashSet<>(matchIds));
+		for (int i = 0; i < ids.size(); i += IN_CHUNK_SIZE) {
+			List<String> chunk = ids.subList(i, Math.min(i + IN_CHUNK_SIZE, ids.size()));
+			bmJdbcTemplate.query(
+					"SELECT match_id, to_char(match_date, 'YYYY-MM-DD') AS d FROM match_detail_match WHERE match_id IN (:ids)",
+					new MapSqlParameterSource("ids", chunk),
+					rs -> {
+						if (rs.getString("d") != null) {
+							out.put(rs.getString("match_id"), rs.getString("d"));
+						}
+					});
+		}
+		return out;
+	}
+
+	/**
 	 * リーグ → （テーブルのキー → データがある試合の数）。{@link #TOTAL} にリーグの試合数（直近 recent 試合まで）。
 	 *
 	 * @param leagues リーグ（{@link #leagueOf}）
