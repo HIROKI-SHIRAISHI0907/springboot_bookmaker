@@ -42,7 +42,7 @@ public class AllLeagueMasterWebRepository {
 				      to_char(register_time, 'YYYY-MM-DD HH24:MI:SS') AS register_time,
 				      (register_time >= CURRENT_TIMESTAMP - make_interval(days => :newDays)) AS new_league
 				    FROM all_league_scrape_master
-				    ORDER BY country, league
+				    ORDER BY country COLLATE "ja-x-icu", league COLLATE "ja-x-icu"
 				""";
 
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource().addValue("newDays", NEW_LEAGUE_DAYS), (rs, n) -> {

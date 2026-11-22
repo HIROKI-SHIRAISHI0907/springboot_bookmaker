@@ -48,14 +48,14 @@ public class AllLeagueDataManualUpdateRepository {
 				    NULLIF(TRIM(clm.sub_league), '') AS sub_league
 				FROM country_league_master clm
 				ORDER BY
-				    clm.country,
-				    clm.league,
+				    clm.country COLLATE "ja-x-icu",
+				    clm.league COLLATE "ja-x-icu",
 				    CASE
 				        WHEN NULLIF(TRIM(clm.sub_league), '') IS NULL THEN 0
 				        ELSE 1
 				    END,
 				    NULLIF(TRIM(clm.sub_league), ''),
-				    clm.team
+				    clm.team COLLATE "ja-x-icu"
 				""";
 
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {
@@ -87,7 +87,7 @@ public class AllLeagueDataManualUpdateRepository {
 				        ELSE 1
 				    END,
 				    NULLIF(TRIM(clm.sub_league), ''),
-				    clm.team
+				    clm.team COLLATE "ja-x-icu"
 				""";
 
 		MapSqlParameterSource params = new MapSqlParameterSource()
@@ -162,11 +162,12 @@ public class AllLeagueDataManualUpdateRepository {
 	 */
 	public List<CountryLeagueTargetRow> findAllCountryLeagueTargets() {
 		String sql = """
-				SELECT DISTINCT
+				SELECT
 				    country,
 				    league
 				FROM country_league_master
-				ORDER BY country, league
+				GROUP BY country, league
+				ORDER BY country COLLATE "ja-x-icu", league COLLATE "ja-x-icu"
 				""";
 
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {

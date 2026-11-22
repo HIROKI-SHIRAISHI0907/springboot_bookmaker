@@ -88,7 +88,7 @@ public class PointSettingWebRepository {
 				  del_flg
 				FROM point_setting_master
 				WHERE del_flg = '0'
-				ORDER BY country, league, COALESCE(remarks, '')
+				ORDER BY country COLLATE "ja-x-icu", league COLLATE "ja-x-icu", COALESCE(remarks, '')
 				""";
 
 		return masterJdbcTemplate.query(

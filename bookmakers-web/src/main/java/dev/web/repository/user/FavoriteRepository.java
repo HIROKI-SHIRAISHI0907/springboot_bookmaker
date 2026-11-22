@@ -115,7 +115,7 @@ public class FavoriteRepository {
 
         // 1) 国のみ（国に league/team があれば除外）
         String countriesSql = """
-            SELECT DISTINCT f.country
+            SELECT f.country
             FROM favorites f
             WHERE f.user_id = :userId
               AND f."level" = '1'
@@ -126,7 +126,8 @@ public class FavoriteRepository {
                   AND x.country = f.country
                   AND x."level" IN ('2', '3')
               )
-            ORDER BY f.country
+            GROUP BY f.country
+            ORDER BY f.country COLLATE "ja-x-icu"
             """;
 
         Set<String> allowedCountries = new LinkedHashSet<>(userJdbcTemplate.query(
@@ -137,7 +138,7 @@ public class FavoriteRepository {
 
         // 2) 国リーグのみ（同一country+leagueに team があれば除外）
         String leaguesSql = """
-            SELECT DISTINCT f.country, f.league
+            SELECT f.country, f.league
             FROM favorites f
             WHERE f.user_id = :userId
               AND f."level" = '2'
@@ -149,7 +150,8 @@ public class FavoriteRepository {
                   AND x.league  = f.league
                   AND x."level" = '3'
               )
-            ORDER BY f.country, f.league
+            GROUP BY f.country, f.league
+            ORDER BY f.country COLLATE "ja-x-icu", f.league COLLATE "ja-x-icu"
             """;
 
         Map<String, Set<String>> leaguesByCountrySet = new LinkedHashMap<>();
@@ -163,11 +165,12 @@ public class FavoriteRepository {
 
         // 3) 国リーグチーム（team登録）
         String teamsSql = """
-            SELECT DISTINCT f.country, f.league, f.team
+            SELECT f.country, f.league, f.team
             FROM favorites f
             WHERE f.user_id = :userId
               AND f."level" = '3'
-            ORDER BY f.country, f.league, f.team
+            GROUP BY f.country, f.league, f.team
+            ORDER BY f.country COLLATE "ja-x-icu", f.league COLLATE "ja-x-icu", f.team COLLATE "ja-x-icu"
             """;
 
         Map<String, Set<String>> teamsByCountryLeagueSet = new LinkedHashMap<>();
@@ -201,7 +204,7 @@ public class FavoriteRepository {
             SELECT country, league, team
             FROM favorites
             WHERE user_id = :userId
-            ORDER BY "level", country, league, team
+            ORDER BY "level", country COLLATE "ja-x-icu", league COLLATE "ja-x-icu", team COLLATE "ja-x-icu"
         """;
 
         return userJdbcTemplate.query(sql,
@@ -238,7 +241,7 @@ public class FavoriteRepository {
 			FROM favorites
 			WHERE user_id = :userId
 			  AND "level" = '3'
-			ORDER BY country, league, team
+			ORDER BY country COLLATE "ja-x-icu", league COLLATE "ja-x-icu", team COLLATE "ja-x-icu"
 			""";
 		return userJdbcTemplate.query(sql, new MapSqlParameterSource().addValue("userId", userId), (rs, n) -> {
 			FavoriteTeamDTO d = new FavoriteTeamDTO();

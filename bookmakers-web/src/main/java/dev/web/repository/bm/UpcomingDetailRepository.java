@@ -88,7 +88,7 @@ public class UpcomingDetailRepository {
 				+ " SELECT s.*, (s.goals_for - s.goals_against) AS goal_diff,"
 				+ "        RANK() OVER (ORDER BY s.points DESC, (s.goals_for - s.goals_against) DESC, s.goals_for DESC)::INTEGER AS rank_no"
 				+ " FROM s"
-				+ " ORDER BY rank_no, s.team";
+				+ " ORDER BY rank_no, s.team COLLATE \"ja-x-icu\"";
 		return bmJdbcTemplate.query(sql, params(country, league, season, null), (rs, n) -> {
 			StandingRowDTO r = new StandingRowDTO();
 			r.setRank(rs.getInt("rank_no"));

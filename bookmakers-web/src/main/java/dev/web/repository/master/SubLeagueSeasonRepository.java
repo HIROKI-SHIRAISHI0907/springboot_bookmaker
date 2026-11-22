@@ -72,10 +72,11 @@ public class SubLeagueSeasonRepository {
 	 */
 	public List<String[]> findTargets() {
 		String sql = """
-				SELECT DISTINCT country, league
+				SELECT country, league
 				FROM country_league_season_master
 				WHERE del_flg = '0'
-				ORDER BY country, league
+				GROUP BY country, league
+				ORDER BY country COLLATE "ja-x-icu", league COLLATE "ja-x-icu"
 				""";
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(),
 				(rs, n) -> new String[] { rs.getString("country"), rs.getString("league") });
@@ -123,7 +124,7 @@ public class SubLeagueSeasonRepository {
 		String sql = """
 				SELECT country, league, sub_league
 				FROM country_league_sub_league_name_master
-				ORDER BY country, league, disp_order, id
+				ORDER BY country COLLATE "ja-x-icu", league COLLATE "ja-x-icu", disp_order, id
 				""";
 		Map<String, List<String>> map = new LinkedHashMap<>();
 		masterJdbcTemplate.query(sql, new MapSqlParameterSource(), rs -> {
@@ -148,7 +149,7 @@ public class SubLeagueSeasonRepository {
 				    SELECT 1 FROM country_league_sub_league_master m
 				    WHERE m.country = s.country AND m.league = s.league
 				)
-				ORDER BY s.country, s.league
+				ORDER BY s.country COLLATE "ja-x-icu", s.league COLLATE "ja-x-icu"
 				""";
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> rs.getString("label"));
 	}

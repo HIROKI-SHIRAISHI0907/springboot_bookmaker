@@ -64,7 +64,7 @@ public class CountryLeagueSeasonMasterWebRepository {
 				    FROM country_league_season_master
 				    WHERE
 				      del_flg = :delFlg
-				    ORDER BY country
+				    ORDER BY country COLLATE "ja-x-icu"
 				""");
 
 		MapSqlParameterSource params = new MapSqlParameterSource();
@@ -128,7 +128,7 @@ public class CountryLeagueSeasonMasterWebRepository {
 			params.addValue("delFlg", cond.getDelFlg());
 		}
 
-		sql.append(" ORDER BY country ASC ");
+		sql.append(" ORDER BY country COLLATE \"ja-x-icu\" ASC ");
 
 		return masterJdbcTemplate.query(sql.toString(), params, (rs, n) -> {
 			CountryLeagueSeasonDTO dto = new CountryLeagueSeasonDTO();
@@ -405,7 +405,7 @@ public class CountryLeagueSeasonMasterWebRepository {
 				      end_season_date
 				    FROM country_league_season_master
 				    WHERE del_flg = '0'
-				    ORDER BY country, league, end_season_date NULLS FIRST
+				    ORDER BY country COLLATE "ja-x-icu", league COLLATE "ja-x-icu", end_season_date NULLS FIRST
 				""";
 		Map<String, String> map = new LinkedHashMap<>();
 		masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (RowCallbackHandler) rs -> {

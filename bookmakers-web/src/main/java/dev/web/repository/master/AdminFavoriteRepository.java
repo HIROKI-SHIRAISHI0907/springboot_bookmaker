@@ -57,7 +57,7 @@ public class AdminFavoriteRepository {
 				  THEN '1' ELSE '0' END AS hidden
 				FROM country_league_master m
 				WHERE m.del_flg = '0'
-				ORDER BY m.country, m.league, m.team
+				ORDER BY m.country COLLATE "ja-x-icu", m.league COLLATE "ja-x-icu", m.team COLLATE "ja-x-icu"
 				""";
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {
 			CountryLeagueDTO dto = new CountryLeagueDTO();

@@ -175,7 +175,7 @@ public class CupCompetitionRepository {
 				JOIN cup_competition_master c ON c.id = t.competition_id AND c.del_flg = '0'
 				WHERE t.del_flg = '0'
 				  AND (CAST(:competitionId AS INTEGER) IS NULL OR t.competition_id = :competitionId)
-				ORDER BY t.competition_id, t.country, t.league, t.team
+				ORDER BY t.competition_id, t.country COLLATE "ja-x-icu", t.league COLLATE "ja-x-icu", t.team COLLATE "ja-x-icu"
 				""";
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource("competitionId", competitionId), (rs, n) -> {
 			CupCompetitionResponse.Team t = new CupCompetitionResponse.Team();
@@ -204,7 +204,7 @@ public class CupCompetitionRepository {
 				    WHERE a.disp_flg = '0' AND a.country = m.country AND a.league = m.league
 				  )
 				GROUP BY m.country, m.league, m.team
-				ORDER BY m.country, m.league, m.team
+				ORDER BY m.country COLLATE "ja-x-icu", m.league COLLATE "ja-x-icu", m.team COLLATE "ja-x-icu"
 				""";
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {
 			CupCompetitionResponse.CandidateTeam t = new CupCompetitionResponse.CandidateTeam();

@@ -84,7 +84,7 @@ public class DashboardMatchRepository {
 				  CAST(ht.away_score AS text)   AS ht_away_score
 				FROM latest l
 				LEFT JOIN halftime ht ON ht.match_key = l.match_key
-				ORDER BY l.data_category, l.seq_key
+				ORDER BY l.data_category COLLATE "ja-x-icu", l.seq_key
 				""";
 		MapSqlParameterSource params = new MapSqlParameterSource().addValue("since", Timestamp.valueOf(since));
 		return bmJdbcTemplate.query(sql, params, (rs, n) -> {

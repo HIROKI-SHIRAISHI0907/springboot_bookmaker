@@ -56,7 +56,7 @@ public class LeagueLevelWebRepository {
 				  (ARRAY_AGG(update_id ORDER BY update_time DESC NULLS LAST))[1] AS update_id
 				FROM country_league_master
 				GROUP BY country, league
-				ORDER BY country, MIN(league_level) NULLS LAST, league
+				ORDER BY country COLLATE "ja-x-icu", MIN(league_level) NULLS LAST, league COLLATE "ja-x-icu"
 				""";
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {
 			LeagueLevelDTO d = new LeagueLevelDTO();

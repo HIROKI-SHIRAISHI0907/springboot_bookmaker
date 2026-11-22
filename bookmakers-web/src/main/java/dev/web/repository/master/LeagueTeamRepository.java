@@ -1,6 +1,9 @@
 package dev.web.repository.master;
 
+import java.text.Collator;
+import java.util.Comparator;
 import java.util.List;
+import java.util.Locale;
 
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.jdbc.core.namedparam.MapSqlParameterSource;
@@ -32,6 +35,15 @@ public class LeagueTeamRepository {
 
 	private final NamedParameterJdbcTemplate masterJdbcTemplate;
 
+	/**
+	 * 2026-11-22: 国・リーグ・チーム名をあいうえお順に並べるための比較（Java の日本語照合順序）。
+	 * DB の照合順序（lc_collate）では日本語が「文字数→文字コード」の順になってしまうため、取得後に Java で並べ直す。
+	 */
+	private static Comparator<String> kanaOrder() {
+		Collator c = Collator.getInstance(Locale.JAPANESE);
+		return (a, b) -> c.compare(a == null ? "" : a, b == null ? "" : b);
+	}
+
 	public LeagueTeamRepository(
 			@Qualifier("webMasterJdbcTemplate") NamedParameterJdbcTemplate masterJdbcTemplate) {
 		this.masterJdbcTemplate = masterJdbcTemplate;
@@ -41,12 +53,14 @@ public class LeagueTeamRepository {
 	public List<LeagueTeamResponse.Country> findCountries() {
 		String sql = "SELECT country, COUNT(*) AS league_count FROM (" + LEAGUES + ") x "
 				+ "WHERE NULLIF(BTRIM(country), '') IS NOT NULL GROUP BY country ORDER BY country";
-		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {
+		List<LeagueTeamResponse.Country> list = masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {
 			LeagueTeamResponse.Country c = new LeagueTeamResponse.Country();
 			c.setCountry(rs.getString("country"));
 			c.setLeagueCount(rs.getInt("league_count"));
 			return c;
 		});
+		list.sort(Comparator.comparing(LeagueTeamResponse.Country::getCountry, kanaOrder()));
+		return list;
 	}
 
 	/** 国のリーグ一覧（シーズンのマスタにあるか・シーズン年つき） */
@@ -68,13 +82,15 @@ public class LeagueTeamRepository {
 				WHERE x.country = :country
 				ORDER BY x.league
 				""";
-		return masterJdbcTemplate.query(sql, new MapSqlParameterSource("country", country), (rs, n) -> {
+		List<LeagueTeamResponse.League> list = masterJdbcTemplate.query(sql, new MapSqlParameterSource("country", country), (rs, n) -> {
 			LeagueTeamResponse.League l = new LeagueTeamResponse.League();
 			l.setLeague(rs.getString("league"));
 			l.setSeasonYear(rs.getString("season_year"));
 			l.setInSeason(rs.getBoolean("in_season"));
 			return l;
 		});
+		list.sort(Comparator.comparing(LeagueTeamResponse.League::getLeague, kanaOrder()));
+		return list;
 	}
 
 	/** 国の有効なチーム（リーグ・チーム名順） */
@@ -85,7 +101,7 @@ public class LeagueTeamRepository {
 				WHERE country = :country AND del_flg = '0'
 				ORDER BY league, team, id
 				""";
-		return masterJdbcTemplate.query(sql, new MapSqlParameterSource("country", country), (rs, n) -> {
+		List<LeagueTeamResponse.Team> list = masterJdbcTemplate.query(sql, new MapSqlParameterSource("country", country), (rs, n) -> {
 			LeagueTeamResponse.Team t = new LeagueTeamResponse.Team();
 			t.setId(rs.getInt("id"));
 			t.setLeague(rs.getString("league"));
@@ -93,6 +109,11 @@ public class LeagueTeamRepository {
 			t.setLink(rs.getString("link"));
 			return t;
 		});
+		Comparator<String> kana = kanaOrder();
+		list.sort(Comparator.comparing(LeagueTeamResponse.Team::getLeague, kana)
+				.thenComparing(LeagueTeamResponse.Team::getTeam, kana)
+				.thenComparing(LeagueTeamResponse.Team::getId, Comparator.nullsLast(Comparator.naturalOrder())));
+		return list;
 	}
 
 	/**

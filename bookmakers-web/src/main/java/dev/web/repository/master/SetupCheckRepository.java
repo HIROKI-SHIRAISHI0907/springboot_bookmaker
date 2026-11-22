@@ -42,7 +42,7 @@ public class SetupCheckRepository {
 				 m
 				    WHERE m.country = i.country AND m.league = i.league AND m.del_flg = '0'
 				  )
-				ORDER BY i.country, i.league
+				ORDER BY i.country COLLATE "ja-x-icu", i.league COLLATE "ja-x-icu"
 				""";
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource("masterName", masterName),
 				(rs, n) -> rs.getString("country") + " / " + rs.getString("league"));
@@ -63,7 +63,7 @@ public class SetupCheckRepository {
 				 m
 				    WHERE m.country = i.country AND m.league = i.league AND m.del_flg = '0'
 				  )
-				ORDER BY i.country, i.league
+				ORDER BY i.country COLLATE "ja-x-icu", i.league COLLATE "ja-x-icu"
 				""";
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource("masterName", masterName),
 				(rs, n) -> rs.getString("country") + " / " + rs.getString("league"));
@@ -97,7 +97,7 @@ public class SetupCheckRepository {
 				WHERE lk IS NOT NULL
 				GROUP BY country, lk
 				HAVING COUNT(*) > 1
-				ORDER BY country, lk
+				ORDER BY country COLLATE "ja-x-icu", lk
 				""";
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(),
 				(rs, n) -> rs.getString("country") + ": " + rs.getString("team") + " チームが "

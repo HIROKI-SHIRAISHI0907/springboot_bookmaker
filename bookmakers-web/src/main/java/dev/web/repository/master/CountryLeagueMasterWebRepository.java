@@ -40,7 +40,7 @@ public class CountryLeagueMasterWebRepository {
 				    FROM country_league_master
 				    WHERE
 				      del_flg = :delFlg
-				    ORDER BY country, league, team
+				    ORDER BY country COLLATE "ja-x-icu", league COLLATE "ja-x-icu", team COLLATE "ja-x-icu"
 				""");
 
 		MapSqlParameterSource params = new MapSqlParameterSource();
@@ -99,7 +99,7 @@ public class CountryLeagueMasterWebRepository {
 	        params.addValue("delFlg", cond.getDelFlg());
 	    }
 
-	    sql.append(" ORDER BY country, league, team ");
+	    sql.append(" ORDER BY country COLLATE \"ja-x-icu\", league COLLATE \"ja-x-icu\", team COLLATE \"ja-x-icu\" ");
 
 	    return masterJdbcTemplate.query(sql.toString(), params, (rs, n) -> {
 	        CountryLeagueDTO dto = new CountryLeagueDTO();
@@ -207,7 +207,7 @@ public class CountryLeagueMasterWebRepository {
 	          id, country, league, team, link, del_flg
 	        FROM country_league_master
 	        WHERE del_flg = '0'
-	        ORDER BY country, league, team
+	        ORDER BY country COLLATE "ja-x-icu", league COLLATE "ja-x-icu", team COLLATE "ja-x-icu"
 	    """;
 
 	    return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {

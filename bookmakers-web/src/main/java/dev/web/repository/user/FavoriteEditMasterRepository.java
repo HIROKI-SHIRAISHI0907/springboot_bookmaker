@@ -39,7 +39,7 @@ public class FavoriteEditMasterRepository {
 				  AND NULLIF(BTRIM(m.league), '') IS NOT NULL
 				  AND NOT """ + AdminFavoriteRepository.HIDDEN_EXISTS + """
 				GROUP BY m.country, m.league
-				ORDER BY m.country, m.league
+				ORDER BY m.country COLLATE "ja-x-icu", m.league COLLATE "ja-x-icu"
 				""";
 		List<FavoriteLeagueDTO> list = masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {
 			FavoriteLeagueDTO d = new FavoriteLeagueDTO();
@@ -69,7 +69,7 @@ public class FavoriteEditMasterRepository {
 				  AND (:league  = '' OR m.league  = :league)
 				  AND NOT """ + AdminFavoriteRepository.HIDDEN_EXISTS + """
 				GROUP BY m.country, m.league, m.team
-				ORDER BY m.country, m.league, m.team
+				ORDER BY m.country COLLATE "ja-x-icu", m.league COLLATE "ja-x-icu", m.team COLLATE "ja-x-icu"
 				LIMIT :limit
 				""";
 		MapSqlParameterSource p = new MapSqlParameterSource()

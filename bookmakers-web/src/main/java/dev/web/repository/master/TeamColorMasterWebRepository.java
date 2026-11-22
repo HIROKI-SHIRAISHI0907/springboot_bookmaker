@@ -39,7 +39,7 @@ public class TeamColorMasterWebRepository {
 				      team_color_sub_hex,
 				      del_flg
 				    FROM team_color_master
-				    ORDER BY country, league, team
+				    ORDER BY country COLLATE "ja-x-icu", league COLLATE "ja-x-icu", team COLLATE "ja-x-icu"
 				""";
 
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {
@@ -101,7 +101,7 @@ public class TeamColorMasterWebRepository {
 			params.addValue("team_color_sub_hex", cond.getTeamColorSubHex());
 		}
 
-		sql.append(" ORDER BY country, league, team ");
+		sql.append(" ORDER BY country COLLATE \"ja-x-icu\", league COLLATE \"ja-x-icu\", team COLLATE \"ja-x-icu\" ");
 
 		return masterJdbcTemplate.query(sql.toString(), params, (rs, n) -> {
 			TeamColorDTO dto = new TeamColorDTO();

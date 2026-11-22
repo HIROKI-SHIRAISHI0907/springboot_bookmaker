@@ -59,7 +59,7 @@ public class DashboardFutureRepository {
 				+ " WHERE f.future_time > CURRENT_TIMESTAMP"
 				+ "   AND f.future_time <= CURRENT_TIMESTAMP + make_interval(hours => :hours)"
 				+ " ORDER BY f.home_team_name, f.away_team_name, f.future_time, f.seq DESC) t"
-				+ " ORDER BY future_time, home_team_name"
+				+ " ORDER BY future_time, home_team_name COLLATE \"ja-x-icu\""
 				+ " LIMIT :limit";
 		MapSqlParameterSource params = new MapSqlParameterSource()
 				.addValue("hours", hours)

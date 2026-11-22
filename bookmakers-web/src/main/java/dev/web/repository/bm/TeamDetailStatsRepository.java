@@ -145,7 +145,7 @@ public class TeamDetailStatsRepository {
 				FROM match_detail_member_stat s JOIN tm ON tm.match_id = s.match_id AND UPPER(s.side) = tm.side
 				WHERE NULLIF(BTRIM(s.player_name), '') IS NOT NULL
 				GROUP BY pkey
-				ORDER BY apps DESC, minutes DESC NULLS LAST, player_name
+				ORDER BY apps DESC, minutes DESC NULLS LAST, player_name COLLATE "ja-x-icu"
 				""";
 		return bmJdbcTemplate.query(sql, params(country, league, team), (rs, i) -> {
 			TeamDetailStatsResponse.Player p = new TeamDetailStatsResponse.Player();

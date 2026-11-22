@@ -134,6 +134,10 @@ CREATE TABLE IF NOT EXISTS static_data (
 
 CREATE INDEX IF NOT EXISTS idx_static_data_match_id    ON static_data (match_id);
 CREATE INDEX IF NOT EXISTS idx_static_data_record_time ON static_data (record_time);
+-- 2026-11-21: 試合予定データ取得情報（FutureMatchDataStatusRepository）で、mid が無い試合を
+-- チーム名（NFKC）＋記録時刻で探すためのインデックス
+CREATE INDEX IF NOT EXISTS idx_static_data_norm_teams_record_time
+  ON static_data ((normalize(home_team_name, NFKC)), (normalize(away_team_name, NFKC)), record_time);
 
 COMMIT;
 

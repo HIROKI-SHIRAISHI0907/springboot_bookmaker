@@ -38,7 +38,7 @@ public class TeamLocationWebRepository {
 				  team_name,
 				  home_city
 				FROM team_location_master
-				ORDER BY country, teamName
+				ORDER BY country COLLATE "ja-x-icu", team_name COLLATE "ja-x-icu"
 				""";
 
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {
@@ -77,7 +77,7 @@ public class TeamLocationWebRepository {
 			params.addValue("teamName", cond.getTeamName());
 		}
 
-		sql.append(" ORDER BY country, teamName ");
+		sql.append(" ORDER BY country COLLATE \"ja-x-icu\", team_name COLLATE \"ja-x-icu\" ");
 
 		return masterJdbcTemplate.query(sql.toString(), params, (rs, n) -> {
 			GeograficDTO dto = new GeograficDTO();
