@@ -14,6 +14,26 @@
 	<artifactId>bookmakers-batch</artifactId>
 	<name>bookmakers-batch</name>
 
+	<properties>
+		<!-- 2026-11-22: 親 pom の AWS SDK（2.25.18）は S3 の条件付き書き込み（PutObjectRequest.ifMatch / ifNoneMatch）が無く、
+		     common-data の S3Operator.putTextConditional（B005 延期・B008 遅延/中断の JSON 更新）が NoSuchMethodError になるため、
+		     common-data と同じ 2.29.21 にそろえる（親 pom を 2.29.21 に上げたら、この指定は消してよい） -->
+		<aws.sdk.batch.version>2.29.21</aws.sdk.batch.version>
+	</properties>
+
+	<dependencyManagement>
+		<dependencies>
+			<!-- 子の dependencyManagement は親より優先される -->
+			<dependency>
+				<groupId>software.amazon.awssdk</groupId>
+				<artifactId>bom</artifactId>
+				<version>${aws.sdk.batch.version}</version>
+				<type>pom</type>
+				<scope>import</scope>
+			</dependency>
+		</dependencies>
+	</dependencyManagement>
+
 	<dependencies>
 		<dependency>
 			<groupId>org.springframework.boot</groupId>
