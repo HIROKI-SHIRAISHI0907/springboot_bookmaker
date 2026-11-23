@@ -94,6 +94,18 @@ public class CountryLeagueSeasonDBService {
 
 				normalizeEntity(existing);
 
+				// 2026-11-24 管理画面で開始日・終了日を手修正した行は、同じシーズン年の間は日付を上書きしない
+				// （例: メキシコをレギュラーシーズンだけにするため終了日を前に直したのに、翌日プレーオフ込みの日付に戻っていた）
+				if (existing.getId() != null
+						&& normalizeValue(existing.getSeasonYear()).equals(normalizeValue(entity.getSeasonYear()))
+						&& countryLeagueSeasonMasterRepository.countManualDateLocked(existing.getId()) > 0) {
+					log.info("[{}][CountryLeagueSeasonDBService#selectInBatch] manual date locked. keep start/end. country={}, league={}, seasonYear={}, start={}, end={}",
+							BM_NUMBER, safe(existing.getCountry()), safe(existing.getLeague()), safe(existing.getSeasonYear()),
+							safe(existing.getStartSeasonDate()), safe(existing.getEndSeasonDate()));
+					entity.setStartSeasonDate(existing.getStartSeasonDate());
+					entity.setEndSeasonDate(existing.getEndSeasonDate());
+				}
+
 				if (shouldUpdate(existing, entity)) {
 					CountryLeagueSeasonMasterEntity merged = mergeForUpdate(existing, entity);
 
@@ -524,6 +536,17 @@ public class CountryLeagueSeasonDBService {
 
 		String startDate = normalizeSeasonDate(years[0], entity.getStartSeasonDate());
 		String endDate = normalizeSeasonDate(years[1], entity.getEndSeasonDate());
+
+		// 2026-11-24: 「2026/2027」のような2年表記で、終了日（日.月.）を常に後ろの年にしていたため、
+		// 1年目の中で終わる日付（例: メキシコ 開始 17.07. → 終了 29.11.）が 2027-11-29 になっていた。
+		// 前の年で組み立てた終了日が開始日より後なら、前の年を使う（欧州型 15.08.〜23.05. は後ろの年のまま）。
+		if (startDate != null && isDayMonthFormat(trim(entity.getEndSeasonDate()))
+				&& !years[0].equals(years[1])) {
+			String endInFirstYear = normalizeSeasonDate(years[0], entity.getEndSeasonDate());
+			if (endInFirstYear != null && endInFirstYear.compareTo(startDate) > 0) {
+				endDate = endInFirstYear;
+			}
+		}
 
 		entity.setStartSeasonDate(startDate);
 		entity.setEndSeasonDate(endDate);

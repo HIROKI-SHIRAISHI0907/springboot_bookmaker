@@ -316,6 +316,15 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			@Param("league") String league);
 
 	/**
+	 * 管理画面で開始日・終了日を手修正した行か（manual_date_flg = '1'。2026-11-24 追加）
+	 */
+	@Select("""
+			    SELECT COUNT(*) FROM country_league_season_master
+			    WHERE id = #{id} AND manual_date_flg = '1'
+			""")
+	int countManualDateLocked(@Param("id") Integer id);
+
+	/**
 	 * ID指定更新
 	 *
 	 * 仕様:
@@ -327,6 +336,9 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			   SET country = #{country},
 			       league = #{league},
 			       season_year = #{seasonYear},
+
+			       -- 2026-11-24 シーズン年が変わったら手修正の目印を外す
+			       manual_date_flg = CASE WHEN season_year IS DISTINCT FROM #{seasonYear} THEN '0' ELSE manual_date_flg END,
 
 			       start_season_date = CASE
 			           WHEN #{startSeasonDate} IS NULL THEN start_season_date
