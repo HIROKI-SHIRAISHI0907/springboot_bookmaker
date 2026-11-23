@@ -58,6 +58,9 @@ public class SeasonDataWrapper {
 	/** 全リーグのシーズン終了日時（web A021 が出力）。終了処理が済んだリーグに (season=READFIN) を付ける */
 	private static final String ALL_DATA_KEY = "b025_fin_season_all_data.json";
 
+	/** スクレイピング対象外の 国-リーグ（次シーズンを取りに行かない。2026-11-24 追加） */
+	private static final String SCRAPE_EXCLUDED_KEY = "b025_scrape_excluded_leagues.json";
+
 	/**
 	 * b025_fin_season_data.json のキー（国-リーグ）の語尾（2026-11 追加）。
 	 * サブリーグ保有国リーグ登録設定で「サブリーグあり」の国リーグは、別のサブリーグでシーズンが続くので、
@@ -481,6 +484,8 @@ public class SeasonDataWrapper {
 		final String METHOD_NAME = "syncAllData";
 		final String bucket = config.getS3BucketsOutputsNextSeason();
 
+		writeScrapeExcludedLeagues(bucket);
+
 		try {
 			Map<String, String> existing = new LinkedHashMap<>();
 			if (s3Operator.existsOnS3(bucket, ALL_DATA_KEY)) {
@@ -561,6 +566,34 @@ public class SeasonDataWrapper {
 					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
 					ALL_DATA_KEY + " の更新に失敗しました（bucket=" + bucket
 							+ "。403 の場合は batch のタスクロールに s3:GetObject / s3:PutObject があるか確認）");
+		}
+	}
+
+	/**
+	 * スクレイピング対象外の 国-リーグ を b025_scrape_excluded_leagues.json（JSON 配列）に書く（2026-11-24 追加）。
+	 * Lambda next-season-data-check-json-outputs がこれを読み、対象外のリーグの次シーズンは取りに行かない。
+	 * 対象に戻したリーグは次の B013 でファイルから外れ、翌日から取りに行く。失敗しても例外にしない（ログのみ）。
+	 */
+	private void writeScrapeExcludedLeagues(String bucket) {
+		final String METHOD_NAME = "writeScrapeExcludedLeagues";
+		try {
+			java.util.TreeSet<String> keys = new java.util.TreeSet<>();
+			for (String k : countryLeagueSeasonMasterBatchRepository.findScrapeExcludedCountryLeagueKeys()) {
+				if (k != null && !k.isBlank()) {
+					keys.add(k.trim());
+				}
+			}
+			s3Operator.putJson(bucket, SCRAPE_EXCLUDED_KEY,
+					objectMapper.writerWithDefaultPrettyPrinter().writeValueAsString(keys));
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00001I_BATCH_EXECUTION_GREEN_FIN,
+					SCRAPE_EXCLUDED_KEY + " を更新しました: スクレイピング対象外 " + keys.size() + " 件");
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugErrorLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+					MessageCdConst.MCD00099E_UNEXPECTED_EXCEPTION, e,
+					SCRAPE_EXCLUDED_KEY + " の更新に失敗しました（bucket=" + bucket + "）");
 		}
 	}
 

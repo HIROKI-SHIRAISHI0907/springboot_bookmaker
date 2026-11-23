@@ -116,6 +116,21 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			""")
 	List<String> findSubLeagueCountryLeagueKeys();
 
+	/**
+	 * スクレイピング対象外の 国・リーグ（all_league_scrape_master の同じ国・リーグの行がすべて disp_flg = '1'。2026-11-24 追加）
+	 * 次シーズン取得の判定（Lambda next-season-data-check-json-outputs）で取りに行かないようにするため。
+	 * @return "国-リーグ"（b025_fin_season_all_data.json のキーと同じ形）
+	 */
+	@Select("""
+			    SELECT BTRIM(country) || '-' || BTRIM(league)
+			    FROM all_league_scrape_master
+			    WHERE NULLIF(BTRIM(country), '') IS NOT NULL
+			      AND NULLIF(BTRIM(league), '') IS NOT NULL
+			    GROUP BY BTRIM(country), BTRIM(league)
+			    HAVING NOT BOOL_OR(COALESCE(disp_flg, '0') = '0')
+			""")
+	List<String> findScrapeExcludedCountryLeagueKeys();
+
 	@Select("""
 			    SELECT
 			        country,
