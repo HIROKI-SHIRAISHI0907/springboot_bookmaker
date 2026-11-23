@@ -112,4 +112,34 @@ public interface BookCsvDetailManageRepository {
 			""")
 	int updateSeasonIfBlank(@Param("csvId") String csvId, @Param("season") String season);
 
+	/**
+	 * 同じ csv_id の行数（2026-11-23 追加）。
+	 * シーズン切替後に同じ試合へ別シーズンが付いても、同じCSVは1行にするため。
+	 */
+	@Select("""
+			SELECT COUNT(*) FROM csv_detail_manage WHERE csv_id = #{csvId}
+			""")
+	int countByCsvId(@Param("csvId") String csvId);
+
+	/**
+	 * csv_id 指定で、カテゴリ・シーズン・チーム・取り込み状態を更新する（2026-11-23 追加）。
+	 * シーズンが空で来た場合は、既存のシーズンを残す。
+	 *
+	 * @return 更新件数
+	 */
+	@Update("""
+			UPDATE csv_detail_manage
+			SET
+			    data_category = #{dataCategory},
+			    season = COALESCE(NULLIF(BTRIM(#{season}), ''), season),
+			    home_team_name = #{homeTeamName},
+			    away_team_name = #{awayTeamName},
+			    check_fin_flg = #{checkFinFlg},
+			    update_time = CURRENT_TIMESTAMP,
+			    update_id = 'ADMIN'
+			WHERE
+				csv_id = #{csvId}
+			""")
+	int updateByCsvId(CsvDetailManageEntity entity);
+
 }

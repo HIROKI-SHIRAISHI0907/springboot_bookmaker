@@ -307,4 +307,29 @@ public interface BookCsvDataRepository {
             </script>
             """)
     List<CsvPreviewRow> findPreviewByData(@Param("seqList") List<String> seqList);
+
+    /**
+     * 試合日（static_data の最初の記録日 yyyy-MM-dd）を match_id で取得（2026-11-23 追加）。
+     */
+    @Select("""
+            SELECT LEFT(CAST(MIN(record_time) AS TEXT), 10)
+            FROM static_data
+            WHERE match_id = #{matchId}
+            """)
+    String findMatchDateByMatchId(@Param("matchId") String matchId);
+
+    /**
+     * 試合日（static_data の最初の記録日 yyyy-MM-dd）をカテゴリ・チームで取得（2026-11-23 追加）。
+     * カテゴリは空白の有無を無視して比較する。
+     */
+    @Select("""
+            SELECT LEFT(CAST(MIN(record_time) AS TEXT), 10)
+            FROM static_data
+            WHERE home_team_name = #{homeTeamName}
+              AND away_team_name = #{awayTeamName}
+              AND REPLACE(data_category, ' ', '') = REPLACE(#{dataCategory}, ' ', '')
+            """)
+    String findMatchDateByTeams(@Param("dataCategory") String dataCategory,
+                                @Param("homeTeamName") String homeTeamName,
+                                @Param("awayTeamName") String awayTeamName);
 }

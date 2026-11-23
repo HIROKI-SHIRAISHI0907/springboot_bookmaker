@@ -8,6 +8,7 @@ import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.nio.file.StandardOpenOption;
 import java.text.Normalizer;
+import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.Comparator;
@@ -40,6 +41,7 @@ import dev.application.batchjob.service.FileExistsService;
 import dev.common.config.PathConfig;
 import dev.common.constant.BookMakersCommonConst;
 import dev.common.constant.MessageCdConst;
+import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.entity.CsvDetailManageEntity;
 import dev.common.entity.DataEntity;
 import dev.common.error.AnalyzeErrorType;
@@ -78,7 +80,7 @@ public class ExportCsvService {
 	 * この処理の版（起動ログに出す。ECS で動いているイメージが最新か確認する用）。
 	 * 2026-10-21: 仮のカテゴリ（XXX: YYY）のフォルダの CSV は「作成済み」に数えない・作らない（二重のガード）。
 	 */
-	private static final String LOGIC_VERSION = "2026-11-23 csvinfo-no-range";
+	private static final String LOGIC_VERSION = "2026-11-23 csvinfo-no-range+csvid-upsert+season-by-date";
 	/** 新規CSVグループの一時キーに付与するプレフィックス */
 	private static final String CSV_NEW_PREFIX = "mk";
 	/** seqList.txt（JSON形式）の読み書き用ObjectMapper */
@@ -984,7 +986,9 @@ public class ExportCsvService {
 				logWarn(METHOD_NAME, "csvId blank をスキップ index=" + index);
 				continue;
 			}
-			String season = resolveSeasonSafely(csvId, dataCategory);
+			String matchDate = findMatchDateSafely(
+					CsvExportErrorReporter.matchIdOfSeqs(meta.getSeqIds()), dataCategory, home, away);
+			String season = resolveSeasonSafely(csvId, dataCategory, matchDate);
 			if (season.isEmpty()) {
 				String[] cl = CsvExportErrorReporter.countryLeague(dataCategory);
 				this.errorReporter.seasonUnresolved(
@@ -1016,6 +1020,20 @@ public class ExportCsvService {
 	 * @return シーズン年（取得できない場合は空文字）
 	 */
 	private String resolveSeasonSafely(String csvId, String dataCategory) {
+		return resolveSeasonSafely(csvId, dataCategory, null);
+	}
+	/**
+	 * 試合日をもとにシーズン年を決める（2026-11-23 追加）。
+	 * <ul>
+	 *   <li>マスタの開始日より前の試合 → 1つ前のシーズン（2026/2027 → 2025/2026、2026 → 2025）</li>
+	 *   <li>それ以外（期間内・終了日後の延期試合・試合日不明） → マスタの season_year</li>
+	 *   <li>マスタに行がない → 空</li>
+	 * </ul>
+	 * 以前はその時点のマスタの値をそのまま使っていたため、シーズン切替の前後で同じ試合のシーズンが変わっていた。
+	 *
+	 * @param matchDate 試合日（yyyy-MM-dd。不明なら null）
+	 */
+	private String resolveSeasonSafely(String csvId, String dataCategory, String matchDate) {
 		final String METHOD_NAME = "resolveSeasonSafely";
 		String country = "";
 		String league = "";
@@ -1049,8 +1067,25 @@ public class ExportCsvService {
 			return "";
 		}
 		try {
-			String season = countryLeagueSeasonMasterBatchRepository.findSeasonYear(country, league);
-			return safe(season).trim();
+			CountryLeagueSeasonMasterEntity row = countryLeagueSeasonMasterBatchRepository.findSeasonRange(country, league);
+			if (row == null) {
+				return "";
+			}
+			String season = safe(row.getSeasonYear()).trim();
+			LocalDate md = parseDateLoose(matchDate);
+			LocalDate start = parseDateLoose(row.getStartSeasonDate());
+			if (!season.isEmpty() && md != null && start != null && md.isBefore(start)) {
+				String prev = previousSeason(season);
+				if (!prev.isEmpty()) {
+					this.manageLoggerComponent.debugInfoLog(
+							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+							MessageCdConst.MCD00099I_LOG,
+							"試合日がシーズン開始前のため前シーズンを採用. season=" + season + " -> " + prev
+									+ ", matchDate=" + md + ", start=" + start + ", csvId=" + csvId);
+					return prev;
+				}
+			}
+			return season;
 		} catch (Exception e) {
 			this.manageLoggerComponent.debugWarnLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
@@ -1058,6 +1093,51 @@ public class ExportCsvService {
 					"season取得失敗. country=" + country + ", league=" + league + ", csvId=" + csvId);
 			return "";
 		}
+	}
+	/**
+	 * 試合日を取得する（match_id 優先、なければカテゴリ・チーム）。失敗時は null（2026-11-23 追加）。
+	 */
+	private String findMatchDateSafely(String matchId, String dataCategory, String home, String away) {
+		try {
+			String d = null;
+			if (matchId != null && !matchId.isBlank()) {
+				d = this.bookCsvDataRepository.findMatchDateByMatchId(matchId.trim());
+			}
+			if ((d == null || d.isBlank()) && !safe(home).isBlank() && !safe(away).isBlank()) {
+				d = this.bookCsvDataRepository.findMatchDateByTeams(safe(dataCategory), home, away);
+			}
+			return (d == null || d.isBlank()) ? null : d.trim();
+		} catch (Exception e) {
+			logWarn("findMatchDateSafely", "試合日の取得失敗 matchId=" + matchId + ", e=" + e);
+			return null;
+		}
+	}
+	/** yyyy-MM-dd / yyyy/MM/dd（後ろに時刻があってもよい）を日付にする。読めなければ null */
+	static LocalDate parseDateLoose(String s) {
+		if (s == null) {
+			return null;
+		}
+		String t = s.trim().replace('/', '-');
+		if (t.length() < 10) {
+			return null;
+		}
+		try {
+			return LocalDate.parse(t.substring(0, 10));
+		} catch (Exception e) {
+			return null;
+		}
+	}
+	/** 1つ前のシーズン表記（2026/2027 → 2025/2026、2026 → 2025）。形式外は空 */
+	static String previousSeason(String season) {
+		Matcher m2 = Pattern.compile("^(\\d{4})\\s*/\\s*(\\d{4})$").matcher(season.trim());
+		if (m2.matches()) {
+			return (Integer.parseInt(m2.group(1)) - 1) + "/" + (Integer.parseInt(m2.group(2)) - 1);
+		}
+		Matcher m1 = Pattern.compile("^(\\d{4})$").matcher(season.trim());
+		if (m1.matches()) {
+			return String.valueOf(Integer.parseInt(m1.group(1)) - 1);
+		}
+		return "";
 	}
 	/**
 	 * csv_detail_manageテーブルへ1件分の情報をupsertする。
@@ -1101,6 +1181,21 @@ public class ExportCsvService {
 			this.manageLoggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME, messageCd,
 					"csv_detail_manage 更新件数: " + result + "件 (" + context + ", csvId=" + csvId + ")");
+		} else if (this.csvDetailManageRepository.countByCsvId(csvId) > 0) {
+			// 2026-11-23 同じCSV（csv_id）の行が別シーズン等で既にある場合は、その行を更新する。
+			// シーズンマスタ切替後に同じ試合へ新シーズンが付き、同じCSVが2行になるのを防ぐ。
+			int result = this.csvDetailManageRepository.updateByCsvId(entity);
+			if (result < 1) {
+				String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
+				this.rootCauseWrapper.throwUnexpectedRowCount(
+						PROJECT_NAME, CLASS_NAME, METHOD_NAME,
+						messageCd,
+						1, result,
+						context + ", csvId=" + csvId);
+			}
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00006I_UPDATE_SUCCESS,
+					"csv_detail_manage csv_id一致で更新: " + result + "件 (" + context + ", csvId=" + csvId + ")");
 		} else {
 			int result = this.csvDetailManageRepository.insert(entity);
 			if (result != 1) {
@@ -1236,7 +1331,9 @@ public class ExportCsvService {
 				registeredCsvIds.add(ck);
 				String season = safe(r.getSeason()).trim();
 				if (season.isEmpty() && !isPlaceholderCsvKey(ck)) {
-					String resolved = resolveSeasonSafely(r.getCsvId(), safe(r.getDataCategory()).trim());
+					String rc = safe(r.getDataCategory()).trim();
+					String resolved = resolveSeasonSafely(r.getCsvId(), rc,
+							findMatchDateSafely(null, rc, safe(r.getHomeTeamName()).trim(), safe(r.getAwayTeamName()).trim()));
 					if (!resolved.isEmpty()
 							&& this.csvDetailManageRepository.updateSeasonIfBlank(r.getCsvId(), resolved) > 0) {
 						season = resolved;

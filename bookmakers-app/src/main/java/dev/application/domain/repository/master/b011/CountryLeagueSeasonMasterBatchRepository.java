@@ -28,6 +28,25 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 	String findSeasonYear(@Param("country") String country,
 			@Param("league") String league);
 
+	/**
+	 * シーズン年と開始日・終了日（B011 の試合日によるシーズン判定用。2026-11-23 追加）。
+	 */
+	@Select("""
+			    SELECT
+			        season_year       AS seasonYear,
+			        start_season_date AS startSeasonDate,
+			        end_season_date   AS endSeasonDate
+			    FROM
+			        country_league_season_master
+			    WHERE
+			        country = #{country}
+			        AND league = #{league}
+			        AND del_flg = '0'
+			    LIMIT 1
+			""")
+	CountryLeagueSeasonMasterEntity findSeasonRange(@Param("country") String country,
+			@Param("league") String league);
+
 	@Select("""
 			    SELECT
 			        country,
