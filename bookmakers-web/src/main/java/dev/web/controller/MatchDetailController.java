@@ -1,5 +1,6 @@
 package dev.web.controller;
 
+import dev.web.api.dashboard.support.LeagueVisibility;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -32,13 +33,31 @@ public class MatchDetailController {
 
 	private final MatchDetailExtraService extraService;
 
+	/** スクレイピング対象外・強制非表示の国・リーグは found=false（2026-11-23 追加） */
+	private final LeagueVisibility leagueVisibility;
+
 	@GetMapping
 	public ResponseEntity<MatchDetailResponse> detail(@RequestParam(name = "seqKey") String seqKey) {
-		return ResponseEntity.ok(service.getDetail(seqKey, authResolver.isLoggedIn()));
+		MatchDetailResponse res = service.getDetail(seqKey, authResolver.isLoggedIn());
+		if (res != null && res.isFound() && leagueVisibility.isHidden(res.getCountry(), res.getLeague())) {
+			MatchDetailResponse hidden = new MatchDetailResponse();
+			hidden.setFound(false);
+			hidden.setSeqKey(seqKey);
+			hidden.setLoggedIn(res.isLoggedIn());
+			return ResponseEntity.ok(hidden);
+		}
+		return ResponseEntity.ok(res);
 	}
 
 	@GetMapping("/extra")
 	public ResponseEntity<MatchDetailExtraResponse> extra(@RequestParam(name = "matchId") String matchId) {
-		return ResponseEntity.ok(extraService.getExtra(matchId));
+		MatchDetailExtraResponse res = extraService.getExtra(matchId);
+		if (res != null && res.isFound() && leagueVisibility.isHiddenCategory(res.getCategory())) {
+			MatchDetailExtraResponse hidden = new MatchDetailExtraResponse();
+			hidden.setFound(false);
+			hidden.setMatchId(matchId);
+			return ResponseEntity.ok(hidden);
+		}
+		return ResponseEntity.ok(res);
 	}
 }

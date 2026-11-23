@@ -9,6 +9,7 @@ import java.util.Set;
 import org.springframework.stereotype.Service;
 
 import dev.web.api.dashboard.bm_w003.DashboardLiveService;
+import dev.web.api.dashboard.bm_w005.DashboardUpcomingService;
 import dev.web.api.dashboard.futureDTO.DashboardFutureRow;
 import dev.web.api.dashboard.matchDTO.DashboardMatchRow;
 import dev.web.api.dashboard.support.DashboardSupport;
@@ -34,6 +35,8 @@ public class DashboardSummaryService {
 	private final DashboardLiveService liveService;
 
 	private final DashboardFutureRepository futureRepository;
+
+	private final DashboardUpcomingService upcomingService;
 
 	/**
 	 * GET /v1/api/dashboard/summary
@@ -89,7 +92,9 @@ public class DashboardSummaryService {
 		// 今日このあとの試合（JST の 24 時まで）
 		LocalDateTime now = LocalDateTime.now(DashboardSupport.JST);
 		int hours = (int) Math.max(1, Math.ceil(Duration.between(now, now.toLocalDate().plusDays(1).atStartOfDay()).toMinutes() / 60.0));
-		List<DashboardFutureRow> upcoming = this.futureRepository.findUpcoming(hours, 500);
+		List<DashboardFutureRow> upcoming = new java.util.ArrayList<>(this.futureRepository.findUpcoming(hours, 500));
+		// スクレイピング対象外・強制非表示の国・リーグは数えない（2026-11-23 追加）
+		upcoming.removeIf(this.upcomingService::isHidden);
 		res.setUpcomingTodayCount(upcoming.size());
 		if (!upcoming.isEmpty()) {
 			DashboardFutureRow next = upcoming.get(0);

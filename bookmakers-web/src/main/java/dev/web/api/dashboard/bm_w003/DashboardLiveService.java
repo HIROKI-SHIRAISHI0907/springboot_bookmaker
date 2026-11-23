@@ -14,6 +14,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.web.api.dashboard.bm_w002.DashboardForecastService;
 import dev.web.api.dashboard.matchDTO.DashboardMatchRow;
 import dev.web.api.dashboard.support.DashboardSupport;
+import dev.web.api.dashboard.support.LeagueVisibility;
 import dev.web.repository.bm.DashboardMatchRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -38,6 +39,9 @@ public class DashboardLiveService {
 	private final DashboardMatchRepository matchRepository;
 
 	private final DashboardForecastService forecastService;
+
+	/** 一般ユーザー画面に出さない国・リーグ（2026-11-23 追加） */
+	private final LeagueVisibility leagueVisibility;
 
 	/** ライブ1試合（計算済み） */
 	public static final class LiveItem {
@@ -97,6 +101,10 @@ public class DashboardLiveService {
 
 		Snapshot snap = new Snapshot();
 		for (DashboardMatchRow row : this.matchRepository.findLatestSince(since)) {
+			// スクレイピング対象外・強制非表示の国・リーグは出さない（ライブ・今日の結果・数字カード・お気に入りに効く）
+			if (this.leagueVisibility.isHiddenCategory(row.getDataCategory())) {
+				continue;
+			}
 			LocalDateTime recorded = DashboardSupport.toLocalDateTime(row.getRecordTime());
 			if (DashboardSupport.isFinished(row.getTimes())) {
 				if (recorded == null || !recorded.isBefore(todayStart)) {

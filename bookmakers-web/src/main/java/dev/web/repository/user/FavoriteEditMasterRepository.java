@@ -10,6 +10,7 @@ import org.springframework.stereotype.Repository;
 
 import dev.web.api.favorite.bm_w001.FavoriteLeagueDTO;
 import dev.web.api.favorite.bm_w001.FavoriteTeamCandidateDTO;
+import dev.web.api.dashboard.support.LeagueVisibility;
 import dev.web.repository.master.AdminFavoriteRepository;
 import dev.web.util.JapaneseOrderUtil;
 
@@ -38,6 +39,7 @@ public class FavoriteEditMasterRepository {
 				  AND NULLIF(BTRIM(m.country), '') IS NOT NULL
 				  AND NULLIF(BTRIM(m.league), '') IS NOT NULL
 				  AND NOT """ + AdminFavoriteRepository.HIDDEN_EXISTS + """
+				  AND """ + LeagueVisibility.SCRAPE_VISIBLE + """
 				GROUP BY m.country, m.league
 				ORDER BY m.country COLLATE "ja-x-icu", m.league COLLATE "ja-x-icu"
 				""";
@@ -68,6 +70,7 @@ public class FavoriteEditMasterRepository {
 				  AND (:country = '' OR m.country = :country)
 				  AND (:league  = '' OR m.league  = :league)
 				  AND NOT """ + AdminFavoriteRepository.HIDDEN_EXISTS + """
+				  AND """ + LeagueVisibility.SCRAPE_VISIBLE + """
 				GROUP BY m.country, m.league, m.team
 				ORDER BY m.country COLLATE "ja-x-icu", m.league COLLATE "ja-x-icu", m.team COLLATE "ja-x-icu"
 				LIMIT :limit
@@ -97,6 +100,7 @@ public class FavoriteEditMasterRepository {
 				FROM country_league_master m
 				WHERE m.del_flg = '0' AND m.country = :country AND m.league = :league AND m.team = :team
 				  AND NOT """ + AdminFavoriteRepository.HIDDEN_EXISTS + """
+				  AND """ + LeagueVisibility.SCRAPE_VISIBLE + """
 				""";
 		Integer c = masterJdbcTemplate.queryForObject(sql, new MapSqlParameterSource()
 				.addValue("country", country).addValue("league", league).addValue("team", team), Integer.class);

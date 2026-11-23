@@ -5,6 +5,7 @@ import java.util.List;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.web.api.dashboard.support.LeagueVisibility;
 import dev.web.repository.master.AllLeagueMasterWebRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -18,6 +19,9 @@ import lombok.RequiredArgsConstructor;
 public class AllLeagueService {
 
 	private final AllLeagueMasterWebRepository repo;
+
+	/** 対象外にしたリーグをすぐユーザー画面から外すため（2026-11-23 追加） */
+	private final LeagueVisibility leagueVisibility;
 
 	/**
 	 * 全選択
@@ -35,6 +39,7 @@ public class AllLeagueService {
 	public AllLeagueResponse upsert(String country, String league, String logicFlg, String dispFlg) {
 		AllLeagueResponse res = new AllLeagueResponse();
 		int result = repo.update(country, league, logicFlg, dispFlg);
+		leagueVisibility.invalidate();
 		if (result == 0) {
 			res.setResponseCode("9");
 			res.setMessage("更新エラー");

@@ -12,6 +12,7 @@ import dev.web.api.dashboard.bm_w003.DashboardLiveService;
 import dev.web.api.dashboard.bm_w005.DashboardUpcomingService;
 import dev.web.api.dashboard.futureDTO.DashboardFutureRow;
 import dev.web.api.dashboard.support.DashboardSupport;
+import dev.web.api.dashboard.support.LeagueVisibility;
 import dev.web.api.team.bm_w001.TeamResultsService;
 import dev.web.repository.master.DashboardFutureRepository;
 import lombok.RequiredArgsConstructor;
@@ -43,6 +44,9 @@ public class DashboardFavoriteService {
 
 	private final DashboardFutureRepository futureRepository;
 
+	/** 一般ユーザー画面に出さない国・リーグ（2026-11-23 追加） */
+	private final LeagueVisibility leagueVisibility;
+
 	/**
 	 * GET /v1/api/dashboard/favorites
 	 */
@@ -62,6 +66,10 @@ public class DashboardFavoriteService {
 				NEXT_WINDOW_DAYS * 24);
 
 		for (DashboardFavoriteTeam t : teams) {
+			// スクレイピング対象外・強制非表示の国・リーグのチームはトップ画面に出さない（お気に入り編集画面には残る）
+			if (this.leagueVisibility.isHidden(t.getCountry(), t.getLeague())) {
+				continue;
+			}
 			String key = DashboardSupport.norm(t.getTeamName());
 			DashboardFavoriteItemDTO item = fromLive(t, key, snap);
 			if (item == null) {
@@ -123,6 +131,9 @@ public class DashboardFavoriteService {
 
 	private DashboardFavoriteItemDTO fromFuture(DashboardFavoriteTeam t, String key, List<DashboardFutureRow> future) {
 		for (DashboardFutureRow f : future) {
+			if (this.upcomingService.isHidden(f)) {
+				continue;
+			}
 			boolean home = key.equals(DashboardSupport.norm(f.getHomeTeamName()));
 			boolean away = key.equals(DashboardSupport.norm(f.getAwayTeamName()));
 			if (!home && !away) {

@@ -1,5 +1,7 @@
 package dev.web.controller;
 
+import org.springframework.http.HttpStatus;
+import dev.web.api.dashboard.support.LeagueVisibility;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -29,12 +31,18 @@ public class TeamResultsController {
 
 	private final TeamMembersService membersService;
 
+	/** スクレイピング対象外・強制非表示の国・リーグは 404（2026-11-23 追加） */
+	private final LeagueVisibility leagueVisibility;
+
 	@GetMapping
 	public ResponseEntity<TeamResultsResponse> results(
 			@RequestParam(name = "country") String country,
 			@RequestParam(name = "league") String league,
 			@RequestParam(name = "team") String team,
 			@RequestParam(name = "limit", required = false) Integer limit) {
+		if (leagueVisibility.isHidden(country, league)) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+		}
 		return ResponseEntity.ok(service.getResults(country, league, team, limit));
 	}
 
@@ -43,6 +51,9 @@ public class TeamResultsController {
 			@RequestParam(name = "country") String country,
 			@RequestParam(name = "league") String league,
 			@RequestParam(name = "team") String team) {
+		if (leagueVisibility.isHidden(country, league)) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).build();
+		}
 		return ResponseEntity.ok(membersService.getMembers(country, league, team));
 	}
 }

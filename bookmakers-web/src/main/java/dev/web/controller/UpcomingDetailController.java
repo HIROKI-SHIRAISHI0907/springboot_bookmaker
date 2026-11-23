@@ -1,5 +1,7 @@
 package dev.web.controller;
 
+import org.springframework.http.HttpStatus;
+import dev.web.api.dashboard.support.LeagueVisibility;
 import java.util.Map;
 
 import org.springframework.http.ResponseEntity;
@@ -26,6 +28,9 @@ public class UpcomingDetailController {
 
 	private final UpcomingDetailService service;
 
+	/** スクレイピング対象外・強制非表示の国・リーグは 404（2026-11-23 追加） */
+	private final LeagueVisibility leagueVisibility;
+
 	@GetMapping
 	public ResponseEntity<?> detail(
 			@RequestParam(name = "country", required = false) String country,
@@ -33,6 +38,9 @@ public class UpcomingDetailController {
 			@RequestParam(name = "home", required = false) String home,
 			@RequestParam(name = "away", required = false) String away,
 			@RequestParam(name = "h2hLimit", required = false) Integer h2hLimit) {
+		if (leagueVisibility.isHidden(country, league)) {
+			return ResponseEntity.status(HttpStatus.NOT_FOUND).body(Map.of("message", "このリーグは現在表示していません"));
+		}
 		try {
 			return ResponseEntity.ok(service.get(country, league, home, away, h2hLimit));
 		} catch (IllegalArgumentException e) {

@@ -11,6 +11,7 @@ import org.springframework.stereotype.Service;
 import dev.web.api.dashboard.bm_w002.DashboardForecastService;
 import dev.web.api.dashboard.futureDTO.DashboardFutureRow;
 import dev.web.api.dashboard.support.DashboardSupport;
+import dev.web.api.dashboard.support.LeagueVisibility;
 import dev.web.repository.master.DashboardFutureRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -47,6 +48,9 @@ public class DashboardUpcomingService {
 	private final DashboardFutureRepository futureRepository;
 
 	private final DashboardForecastService forecastService;
+
+	/** 一般ユーザー画面に出さない国・リーグ（2026-11-23 追加） */
+	private final LeagueVisibility leagueVisibility;
 
 	/**
 	 * GET /v1/api/dashboard/upcoming（トップ画面）
@@ -90,6 +94,9 @@ public class DashboardUpcomingService {
 					row.getAwayTeamName())) {
 				continue;
 			}
+			if (isHidden(row)) {
+				continue;
+			}
 			String label = leagueLabelOf(row);
 			if (leagueFilter != null && !leagueFilter.equals(DashboardSupport.norm(label))) {
 				continue;
@@ -119,6 +126,12 @@ public class DashboardUpcomingService {
 				Comparator.nullsLast(Comparator.naturalOrder())));
 
 		return new DashboardUpcomingResponse(loggedIn, flat.size(), total, byLeague.size(), hours, flat, leagues);
+	}
+
+	/** スクレイピング対象外・強制非表示の国・リーグの試合か（2026-11-23 追加） */
+	public boolean isHidden(DashboardFutureRow row) {
+		String[] cl = categoryOf(row);
+		return cl != null && this.leagueVisibility.isHidden(cl[0], cl[1]);
 	}
 
 	/** カテゴリを {国, リーグ, ラウンド} に（国が無ければ country_league_master のチームの国、それも無ければ「その他」） */
