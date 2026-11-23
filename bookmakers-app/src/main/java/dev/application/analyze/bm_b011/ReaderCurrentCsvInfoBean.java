@@ -21,7 +21,10 @@ public class ReaderCurrentCsvInfoBean {
 	private Map<String, List<String>> csvInfo = Collections.emptyMap();
 
 	public void init() {
-		this.csvInfo = getStatInfo.getCsvInfo("0", null);
+		// 2026-11-23 範囲指定なしで全CSVを読む。
+		// "0" を渡すと番号付きCSV（123.csv）の範囲絞り込みが働き、
+		// 「国-リーグ-ラウンドN/ホーム-アウェー.csv」形式のCSVが全件除外されて「作成済み=0」になっていた。
+		this.csvInfo = getStatInfo.getCsvInfo(null, null);
 		if (this.csvInfo == null) {
 			this.csvInfo = Collections.emptyMap();
 		}

@@ -78,7 +78,7 @@ public class ExportCsvService {
 	 * この処理の版（起動ログに出す。ECS で動いているイメージが最新か確認する用）。
 	 * 2026-10-21: 仮のカテゴリ（XXX: YYY）のフォルダの CSV は「作成済み」に数えない・作らない（二重のガード）。
 	 */
-	private static final String LOGIC_VERSION = "2026-11-22 seqkey-csvinfo+round0-guard";
+	private static final String LOGIC_VERSION = "2026-11-23 csvinfo-no-range";
 	/** 新規CSVグループの一時キーに付与するプレフィックス */
 	private static final String CSV_NEW_PREFIX = "mk";
 	/** seqList.txt（JSON形式）の読み書き用ObjectMapper */
