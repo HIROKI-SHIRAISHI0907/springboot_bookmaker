@@ -4,6 +4,7 @@ package dev.application.domain.repository.master.b011;
 
 import java.util.List;
 
+import org.apache.ibatis.annotations.Delete;
 import org.apache.ibatis.annotations.Insert;
 import org.apache.ibatis.annotations.Mapper;
 import org.apache.ibatis.annotations.Param;
@@ -80,18 +81,17 @@ public interface BatchJobExecRepository {
 			""")
 	int heartbeat(@Param("jobId") String jobId);
 
-	@Update("""
-		 DELETE
-			FROM batch_job_exec
-			<if test="teamPairs != null and teamPairs.size() > 0">
-				WHERE status IN (
-					VALUES
-					<foreach collection="statusPairs" item="pair" separator=",">
-			      		#{pair.status}
-			    	</foreach>
-				)
-		    </if>
-		""")
+	@Delete("""
+			<script>
+			DELETE FROM batch_job_exec
+			WHERE CAST(status AS TEXT) IN
+			<foreach collection="statusPairs" item="pair" open="(" separator="," close=")">
+				#{pair.status}
+			</foreach>
+			</script>
+			""")
+	// 2026-11-24 修正: <script> が無く動的 SQL にならず「Parameter 'pair' not found」になっていた。
+	// あわせて条件の名前違い（teamPairs）・VALUES を直し、リストが空でも全件削除にならないよう WHERE を必須にした
 	int deleteData(@Param("statusPairs") List<StatusPair> statusPairs);
 
 }
