@@ -299,6 +299,10 @@ public class CountryLeagueSeasonMasterWebRepository {
 				      season_end_flg    = CASE WHEN CAST(NULLIF(BTRIM(CAST(:endSeasonDate AS text)), '') AS timestamptz)
 				                                    IS DISTINCT FROM end_season_date THEN '0' ELSE season_end_flg END,
 				      end_season_date   = CAST(NULLIF(BTRIM(CAST(:endSeasonDate AS text)), '') AS timestamptz),
+				      -- 2026-11-24 開始日・終了日を手で変えたら、同じシーズン年の間は B003 が上書きしない目印を立てる
+				      manual_date_flg   = CASE WHEN CAST(NULLIF(BTRIM(CAST(:startSeasonDate AS text)), '') AS timestamptz) IS DISTINCT FROM start_season_date
+				                                 OR CAST(NULLIF(BTRIM(CAST(:endSeasonDate AS text)), '') AS timestamptz) IS DISTINCT FROM end_season_date
+				                               THEN '1' ELSE manual_date_flg END,
 				      round = NULLIF(BTRIM(CAST(:round AS text)), ''),
 				      update_id   = 'SYSTEM',
 				      update_time = NOW()
