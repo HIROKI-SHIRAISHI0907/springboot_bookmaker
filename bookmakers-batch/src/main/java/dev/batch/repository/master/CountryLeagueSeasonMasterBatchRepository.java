@@ -352,8 +352,15 @@ public interface CountryLeagueSeasonMasterBatchRepository {
 			       league = #{league},
 			       season_year = #{seasonYear},
 
-			       -- 2026-11-24 シーズン年が変わったら手修正の目印を外す
-			       manual_date_flg = CASE WHEN season_year IS DISTINCT FROM #{seasonYear} THEN '0' ELSE manual_date_flg END,
+			       -- 2026-11-24 シーズン年が変わった・開始日が変わった（同じシーズン年の次のサブリーグ）ら手修正の目印を外す
+			       manual_date_flg = CASE
+			           WHEN season_year IS DISTINCT FROM #{seasonYear} THEN '0'
+			           WHEN #{startSeasonDate} IS NULL THEN manual_date_flg
+			           WHEN BTRIM(#{startSeasonDate}) IN ('', '-', '未定') THEN manual_date_flg
+			           WHEN LOWER(BTRIM(#{startSeasonDate})) IN ('n/a', 'null') THEN manual_date_flg
+			           WHEN CAST(#{startSeasonDate} AS timestamptz) IS DISTINCT FROM start_season_date THEN '0'
+			           ELSE manual_date_flg
+			       END,
 
 			       start_season_date = CASE
 			           WHEN #{startSeasonDate} IS NULL THEN start_season_date

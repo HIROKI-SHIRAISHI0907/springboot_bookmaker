@@ -62,11 +62,17 @@ public class AutoSeasonHyphenBatch extends AbstractJobBatchTemplate {
 	@Autowired
 	private SeasonDataWrapper seasonDataWrapper;
 
+	/** 新規シーズンデータの未確認の期限チェック（2026-11-24 追加） */
+	@Autowired
+	private SeasonUnconfirmedCheckService seasonUnconfirmedCheckService;
+
 	/**
 	 * {@inheritDoc}
 	 */
 	@Override
 	protected void doExecute(JobContext ctx) throws Exception {
+		// 未確認のシーズンデータ: 期限が近ければメール、終了日を過ぎていれば確認済みにする（失敗しても続ける）
+		this.seasonUnconfirmedCheckService.execute();
 		this.seasonDataWrapper.execute();
 	}
 }

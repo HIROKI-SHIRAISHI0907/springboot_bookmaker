@@ -9,6 +9,7 @@ import org.apache.ibatis.annotations.Param;
 import org.apache.ibatis.annotations.Select;
 import org.apache.ibatis.annotations.Update;
 
+import dev.common.entity.CountryLeagueSeasonMasterEntity;
 import dev.common.entity.InitialReadingMasterCsvEntity;
 
 @Mapper
@@ -99,4 +100,22 @@ public interface InitialMasterCsvRepository {
 			@Param("league") String league,
 			@Param("initialFlg") String initialFlg);
 
+	/**
+	 * 未確認（initial_flg = '0'）のシーズンデータと、その開始日・終了日（日本時間の日付）。2026-11-24 追加
+	 * 確認画面（モーダル）に出せる行（country_league_season_master の del_flg = '0'）だけ。B013 の期限チェック用。
+	 */
+	@Select("""
+			SELECT m.country,
+			       m.league,
+			       m.season_year AS seasonYear,
+			       TO_CHAR(m.start_season_date AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS startSeasonDate,
+			       TO_CHAR(m.end_season_date AT TIME ZONE 'Asia/Tokyo', 'YYYY-MM-DD') AS endSeasonDate
+			FROM initial_reading_csv_master i
+			JOIN country_league_season_master m
+			  ON m.country = i.country AND m.league = i.league AND m.del_flg = '0'
+			WHERE i.master_name = 'country_league_season_master'
+			  AND i.initial_flg = '0'
+			ORDER BY m.country, m.league
+			""")
+	List<CountryLeagueSeasonMasterEntity> findUnconfirmedSeasons();
 }

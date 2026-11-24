@@ -96,8 +96,11 @@ public class CountryLeagueSeasonDBService {
 
 				// 2026-11-24 管理画面で開始日・終了日を手修正した行は、同じシーズン年の間は日付を上書きしない
 				// （例: メキシコをレギュラーシーズンだけにするため終了日を前に直したのに、翌日プレーオフ込みの日付に戻っていた）
+				// ただし取得した開始日が手修正の終了日より後なら、同じシーズン年の次のサブリーグ（前期 → 後期）とみなして保護しない
+				// （updateById で開始日が変わると manual_date_flg が '0' に戻る）
 				if (existing.getId() != null
 						&& normalizeValue(existing.getSeasonYear()).equals(normalizeValue(entity.getSeasonYear()))
+						&& !startsAfter(entity.getStartSeasonDate(), existing.getEndSeasonDate())
 						&& countryLeagueSeasonMasterRepository.countManualDateLocked(existing.getId()) > 0) {
 					log.info("[{}][CountryLeagueSeasonDBService#selectInBatch] manual date locked. keep start/end. country={}, league={}, seasonYear={}, start={}, end={}",
 							BM_NUMBER, safe(existing.getCountry()), safe(existing.getLeague()), safe(existing.getSeasonYear()),
@@ -568,6 +571,23 @@ public class CountryLeagueSeasonDBService {
 		}
 
 		throw new IllegalArgumentException("Invalid seasonDate format: " + seasonDate);
+	}
+
+	/**
+	 * 開始日（yyyy-MM-dd…）が終了日（yyyy-MM-dd… / yyyy/MM/dd…）より後か。どちらかが読めなければ false（2026-11-24 追加）
+	 */
+	private boolean startsAfter(String start, String end) {
+		String s = dayPart(start);
+		String e = dayPart(end);
+		return s != null && e != null && s.compareTo(e) > 0;
+	}
+
+	private String dayPart(String value) {
+		if (!hasMeaningfulValue(value)) {
+			return null;
+		}
+		String v = value.trim().replace('/', '-');
+		return v.length() >= 10 && v.substring(0, 10).matches("\\d{4}-\\d{2}-\\d{2}") ? v.substring(0, 10) : null;
 	}
 
 	private boolean isIsoDate(String value) {
