@@ -16,6 +16,7 @@ import org.springframework.transaction.annotation.Transactional;
 import dev.web.api.dashboard.auth.DashboardAuthResolver;
 import dev.web.repository.master.LeagueTeamRepository;
 import dev.web.repository.master.SetupPendingRepository;
+import dev.web.repository.master.TeamLeagueMoveRepository;
 import lombok.RequiredArgsConstructor;
 
 /**
@@ -45,6 +46,9 @@ public class LeagueTeamService {
 
 	/** 付け替え・外したら「対象データアップロード実行」待ちにする（2026-11-03 追加） */
 	private final SetupPendingRepository setupPendingRepository;
+
+	/** リーグ名の変更で付け替えたチームは、昇格・降格の確認に出さない（自動で RENAME として確定。2026-11-24 追加） */
+	private final TeamLeagueMoveRepository teamLeagueMoveRepository;
 
 	/** GET /api/admin/league-team/countries */
 	@Transactional(readOnly = true)
@@ -182,6 +186,7 @@ public class LeagueTeamService {
 			String op = operator == null || operator.isBlank() ? "ADMIN" : operator;
 			moved = repository.moveTeams(country, from, to, moveIds, op);
 			if (moved > 0) {
+				teamLeagueMoveRepository.markRename(country, from, to, op);
 				setupPendingRepository.markPending(SetupPendingRepository.SCRAPE_TARGET_UPLOAD,
 						country + "：" + moved + " チームを「" + from + "」から「" + to + "」へ付け替え", op);
 			}
