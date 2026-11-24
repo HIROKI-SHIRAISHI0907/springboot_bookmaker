@@ -74,6 +74,23 @@ public class AdminCountryLeagueSeasonWebController {
 		return ResponseEntity.ok(service.search(cond));
 	}
 
+	/**
+	 * 開始日・終了日を直す（シーズンデータ取得情報の一覧の「日付」。2026-11-24 追加）
+	 *
+	 * POST /api/country-league-season-master/dates  { id, startSeasonDate: "yyyy-MM-dd", endSeasonDate: "yyyy-MM-dd" }
+	 */
+	@PostMapping("/country-league-season-master/dates")
+	public ResponseEntity<CountryLeagueSeasonResponse> updateDates(@RequestBody CountryLeagueSeasonDTO dto) {
+		CountryLeagueSeasonResponse res = service.updateDates(dto);
+		HttpStatus status = switch (res.getResponseCode()) {
+		case "200" -> HttpStatus.OK;
+		case "400" -> HttpStatus.BAD_REQUEST;
+		case "404" -> HttpStatus.NOT_FOUND;
+		default -> HttpStatus.INTERNAL_SERVER_ERROR;
+		};
+		return ResponseEntity.status(status).body(res);
+	}
+
 	@PostMapping("/country-league-season-master/update")
 	public ResponseEntity<CountryLeagueSeasonResponse> update(@RequestBody CountryLeagueSeasonDTO dto) {
 		return ResponseEntity.ok(service.update(dto));

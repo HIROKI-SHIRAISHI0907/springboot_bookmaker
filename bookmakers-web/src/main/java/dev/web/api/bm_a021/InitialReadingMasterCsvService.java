@@ -426,7 +426,7 @@ public class InitialReadingMasterCsvService {
 	 * 既存ファイルが読めない場合は、マーカーを消さないよう出力しない。
 	 * S3 出力に失敗しても画面の更新処理は成功のままにする（ログのみ）。
 	 */
-	private void uploadFinSeasonAllData() {
+	public void uploadFinSeasonAllData() {
 		final String bucket = this.pathConfig.getS3BucketsOutputsNextSeason();
 		try {
 			Map<String, String> existing = new LinkedHashMap<>();

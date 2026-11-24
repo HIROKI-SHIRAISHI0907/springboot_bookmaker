@@ -320,6 +320,37 @@ public class CountryLeagueSeasonMasterWebRepository {
 						.addValue("round", round));
 	}
 
+	/**
+	 * 開始日・終了日だけを更新する（シーズンデータ取得情報の一覧の「日付」。確認済みの行も直せる。2026-11-24 追加）。
+	 * 値が変わったら手修正の目印（manual_date_flg = '1'）を立て、終了日が変わったらシーズン終了フラグを外す。
+	 * 非表示（del_flg = '1'）の行は対象にしない。
+	 *
+	 * @param startSeasonDate timestamptz に変換できる文字列（例 "2026-07-17 00:00:00+09"）
+	 * @param endSeasonDate   timestamptz に変換できる文字列（例 "2026-11-23 23:59:59+09"）
+	 * @return 更新件数
+	 */
+	public int updateDates(Integer id, String startSeasonDate, String endSeasonDate) {
+		String sql = """
+				    UPDATE country_league_season_master
+				    SET
+				      manual_date_flg   = CASE WHEN CAST(:startSeasonDate AS timestamptz) IS DISTINCT FROM start_season_date
+				                                 OR CAST(:endSeasonDate AS timestamptz) IS DISTINCT FROM end_season_date
+				                               THEN '1' ELSE manual_date_flg END,
+				      season_end_flg    = CASE WHEN CAST(:endSeasonDate AS timestamptz) IS DISTINCT FROM end_season_date
+				                               THEN '0' ELSE season_end_flg END,
+				      start_season_date = CAST(:startSeasonDate AS timestamptz),
+				      end_season_date   = CAST(:endSeasonDate AS timestamptz),
+				      update_id   = 'SYSTEM',
+				      update_time = NOW()
+				    WHERE id = :id
+				      AND del_flg = '0'
+				""";
+		return masterJdbcTemplate.update(sql, new MapSqlParameterSource()
+				.addValue("id", id)
+				.addValue("startSeasonDate", startSeasonDate)
+				.addValue("endSeasonDate", endSeasonDate));
+	}
+
 	/** 削除 */
 	/**
 	 * 新規データ確認モーダルの「選択行を削除」。
