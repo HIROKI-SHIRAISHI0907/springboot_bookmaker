@@ -138,7 +138,8 @@ public class TeamColorMasterWebRepository {
 				    WHERE
 				      country = :country AND
 				      league = :league AND
-				      team = :team
+				      team = :team AND
+				      COALESCE(del_flg, '0') = '0'
 				""";
 
 		return masterJdbcTemplate.update(
@@ -151,6 +152,117 @@ public class TeamColorMasterWebRepository {
 						.addValue("team_color_sub_hex", team_color_sub_hex)
 						.addValue("del_flg", delFlg == null || delFlg.isBlank() ? null : delFlg.trim()));
 	}
+
+	// --------------------------------------------------------
+	// チームマスタとの同期（2026-11-24 追加）
+	// --------------------------------------------------------
+	/**
+	 * チームカラーをチームマスタ（country_league_master の del_flg = '0'）に合わせる。何度実行しても同じ結果になる。
+	 * <ol>
+	 *   <li>fillLinkExact: リンクを入れる（同じ国・リーグ・チーム）</li>
+	 *   <li>fillLinkByTeam: リンクを入れる（リーグが変わった古い行。同じ国・チーム名でリンクが 1 つだけ）</li>
+	 *   <li>deactivateNotInMaster: チームマスタで有効でない行を無効にする（履歴として残す）</li>
+	 *   <li>deactivateDuplicates: 同じ国・リーグ・チームの有効な行が複数あれば、新しい id だけ残す</li>
+	 *   <li>reactivate: チームマスタで有効に戻ったチームは、無効にしていた行を有効に戻す</li>
+	 *   <li>insertMissing: チームマスタで有効なのにカラーの行が無いチームの行を作る（色は空）</li>
+	 *   <li>carryColors: 色が空の有効な行に、同じチーム（リンク）の前のリーグの色を引き継ぐ</li>
+	 * </ol>
+	 * リーグから外れた・昇格降格前のリーグの行は消さずに無効（del_flg = '1'）にして履歴として残す。
+	 * 同じチームかどうかは link（チームページの URL。チームマスタと同じ）で判断する。
+	 *
+	 * @return 手順ごとの件数（"手順名=件数"）
+	 */
+	public java.util.List<String> syncWithTeamMaster() {
+		java.util.List<String> result = new java.util.ArrayList<>();
+		for (String[] step : SYNC_SQLS) {
+			int n = masterJdbcTemplate.getJdbcTemplate().update(step[1]);
+			result.add(step[0] + "=" + n);
+		}
+		return result;
+	}
+
+	/** {手順名, SQL}（bookmakers-batch の TeamColorMasterRepository と同じ SQL） */
+	private static final String[][] SYNC_SQLS = {
+		{ "fillLinkExact", """
+				UPDATE team_color_master c
+				   SET link = m.link
+				  FROM country_league_master m
+				 WHERE c.link IS NULL
+				   AND m.country = c.country AND m.league = c.league AND m.team = c.team
+				   AND NULLIF(BTRIM(m.link), '') IS NOT NULL
+				""" },
+		{ "fillLinkByTeam", """
+				UPDATE team_color_master c
+				   SET link = u.link
+				  FROM (SELECT country, team, MIN(link) AS link
+				          FROM country_league_master
+				         WHERE NULLIF(BTRIM(link), '') IS NOT NULL
+				         GROUP BY country, team
+				        HAVING COUNT(DISTINCT link) = 1) u
+				 WHERE c.link IS NULL
+				   AND u.country = c.country AND u.team = c.team
+				""" },
+		{ "deactivateNotInMaster", """
+				UPDATE team_color_master c
+				   SET del_flg = '1', update_id = 'SYNC', update_time = CURRENT_TIMESTAMP
+				 WHERE COALESCE(c.del_flg, '0') = '0'
+				   AND NOT EXISTS (SELECT 1 FROM country_league_master m
+				                    WHERE m.del_flg = '0'
+				                      AND m.country = c.country AND m.league = c.league AND m.team = c.team)
+				""" },
+		{ "deactivateDuplicates", """
+				UPDATE team_color_master c
+				   SET del_flg = '1', update_id = 'SYNC', update_time = CURRENT_TIMESTAMP
+				 WHERE COALESCE(c.del_flg, '0') = '0'
+				   AND EXISTS (SELECT 1 FROM team_color_master x
+				                WHERE COALESCE(x.del_flg, '0') = '0'
+				                  AND x.country = c.country AND x.league = c.league AND x.team = c.team
+				                  AND x.id > c.id)
+				""" },
+		{ "reactivate", """
+				UPDATE team_color_master c
+				   SET del_flg = '0', update_id = 'SYNC', update_time = CURRENT_TIMESTAMP
+				 WHERE c.del_flg = '1'
+				   AND EXISTS (SELECT 1 FROM country_league_master m
+				                WHERE m.del_flg = '0'
+				                  AND m.country = c.country AND m.league = c.league AND m.team = c.team)
+				   AND NOT EXISTS (SELECT 1 FROM team_color_master v
+				                    WHERE COALESCE(v.del_flg, '0') = '0'
+				                      AND v.country = c.country AND v.league = c.league AND v.team = c.team)
+				   AND c.id = (SELECT MAX(x.id) FROM team_color_master x
+				                WHERE x.country = c.country AND x.league = c.league AND x.team = c.team)
+				""" },
+		{ "insertMissing", """
+				INSERT INTO team_color_master (
+				    country, league, sub_league, team, link,
+				    team_color_main_hex, team_color_sub_hex, del_flg,
+				    register_id, register_time, update_id, update_time)
+				SELECT DISTINCT ON (m.country, m.league, m.team)
+				       m.country, m.league, COALESCE(m.sub_league, ''), m.team, m.link,
+				       NULL, NULL, '0',
+				       'SYNC', CURRENT_TIMESTAMP, 'SYNC', CURRENT_TIMESTAMP
+				  FROM country_league_master m
+				 WHERE m.del_flg = '0'
+				   AND NOT EXISTS (SELECT 1 FROM team_color_master v
+				                    WHERE COALESCE(v.del_flg, '0') = '0'
+				                      AND v.country = m.country AND v.league = m.league AND v.team = m.team)
+				 ORDER BY m.country, m.league, m.team, m.id DESC
+				""" },
+		{ "carryColors", """
+				UPDATE team_color_master c
+				   SET team_color_main_hex = p.team_color_main_hex,
+				       team_color_sub_hex  = COALESCE(NULLIF(BTRIM(c.team_color_sub_hex), ''), p.team_color_sub_hex),
+				       update_id = 'SYNC', update_time = CURRENT_TIMESTAMP
+				  FROM (SELECT DISTINCT ON (link) link, team_color_main_hex, team_color_sub_hex
+				          FROM team_color_master
+				         WHERE link IS NOT NULL
+				           AND NULLIF(BTRIM(team_color_main_hex), '') IS NOT NULL
+				         ORDER BY link, update_time DESC NULLS LAST, id DESC) p
+				 WHERE COALESCE(c.del_flg, '0') = '0'
+				   AND NULLIF(BTRIM(c.team_color_main_hex), '') IS NULL
+				   AND c.link = p.link
+				""" },
+	};
 
 	private boolean hasText(String s) {
 	    return s != null && !s.isBlank();
