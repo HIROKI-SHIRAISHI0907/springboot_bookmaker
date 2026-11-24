@@ -68,8 +68,9 @@ public class BmJobRunner implements ApplicationRunner {
 				int rc = exportCsvBatch.execute(false);
 				exit = (rc == BatchConstant.BATCH_SUCCESS) ? 0 : 1;
 			}
-			case "B012" -> {
-				log.info("Execute B012 -> AnalyzeManualStat");
+			case "B018" -> {
+				// 2026-11-24: B012 から B018 に変更（bookmakers-batch の B012 FinDataJsonOutputs と番号が重なっていたため）
+				log.info("Execute B018 -> AnalyzeManualStat");
 				exit = analyzeManualStat.manualStat();
 			}
 			default -> {
