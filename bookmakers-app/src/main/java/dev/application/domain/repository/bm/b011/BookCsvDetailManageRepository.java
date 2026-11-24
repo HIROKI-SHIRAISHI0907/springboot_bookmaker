@@ -113,6 +113,25 @@ public interface BookCsvDetailManageRepository {
 	int updateSeasonIfBlank(@Param("csvId") String csvId, @Param("season") String season);
 
 	/**
+	 * まだ統計に取り込んでいない（check_fin_flg = '0'）行のシーズンを直す（csv_id 指定。2026-11-24 追加）。
+	 * シーズンの開始日・終了日を管理画面で直したとき、試合日で判定し直したシーズンにそろえるため。
+	 *
+	 * @return 更新件数
+	 */
+	@Update("""
+			UPDATE csv_detail_manage
+			SET
+			    season = #{season},
+			    update_time = CURRENT_TIMESTAMP,
+			    update_id = 'SYSTEM'
+			WHERE
+				csv_id = #{csvId}
+			AND check_fin_flg = '0'
+			AND season IS DISTINCT FROM #{season}
+			""")
+	int updateSeasonIfUnfinished(@Param("csvId") String csvId, @Param("season") String season);
+
+	/**
 	 * 同じ csv_id の行数（2026-11-23 追加）。
 	 * シーズン切替後に同じ試合へ別シーズンが付いても、同じCSVは1行にするため。
 	 */

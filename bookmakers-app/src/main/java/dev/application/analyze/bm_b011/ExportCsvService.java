@@ -80,7 +80,7 @@ public class ExportCsvService {
 	 * この処理の版（起動ログに出す。ECS で動いているイメージが最新か確認する用）。
 	 * 2026-10-21: 仮のカテゴリ（XXX: YYY）のフォルダの CSV は「作成済み」に数えない・作らない（二重のガード）。
 	 */
-	private static final String LOGIC_VERSION = "2026-11-23 csvinfo-no-range+csvid-upsert+season-by-date";
+	private static final String LOGIC_VERSION = "2026-11-24 season-by-date+recheck-unfinished";
 	/** 新規CSVグループの一時キーに付与するプレフィックス */
 	private static final String CSV_NEW_PREFIX = "mk";
 	/** seqList.txt（JSON形式）の読み書き用ObjectMapper */
@@ -1322,6 +1322,7 @@ public class ExportCsvService {
 			Set<String> registeredCsvIds = new LinkedHashSet<>();
 			Set<String> csvIdsWithSeason = new LinkedHashSet<>();
 			int seasonFilled = 0;
+			int seasonChanged = 0;
 			List<CsvDetailManageEntity> rows = this.csvDetailManageRepository.findAllForReconcile();
 			for (CsvDetailManageEntity r : rows == null ? Collections.<CsvDetailManageEntity>emptyList() : rows) {
 				String ck = canonicalizeCsvId(r.getCsvId());
@@ -1340,12 +1341,35 @@ public class ExportCsvService {
 						seasonFilled++;
 					}
 				}
+				// 2026-11-24 まだ統計に取り込んでいない行は、今のシーズンマスタ（開始日・終了日）と試合日でシーズンを判定し直す
+				// （管理画面で開始日・終了日を直したとき、作成済みの CSV のシーズンもそろえる。取り込み済み（'1'）は変えない）
+				else if (!season.isEmpty() && "0".equals(safe(r.getCheckFinFlg()).trim()) && !isPlaceholderCsvKey(ck)) {
+					String rc = safe(r.getDataCategory()).trim();
+					String resolved = resolveSeasonSafely(r.getCsvId(), rc,
+							findMatchDateSafely(null, rc, safe(r.getHomeTeamName()).trim(), safe(r.getAwayTeamName()).trim()));
+					if (!resolved.isEmpty() && !resolved.equals(season)) {
+						try {
+							if (this.csvDetailManageRepository.updateSeasonIfUnfinished(r.getCsvId(), resolved) > 0) {
+								logInfo(METHOD_NAME, "csv_detail_manage のシーズンを直しました csvId=" + shortKey(r.getCsvId())
+										+ ", " + season + " -> " + resolved);
+								season = resolved;
+								seasonChanged++;
+							}
+						} catch (Exception ex) {
+							logWarn(METHOD_NAME, "csv_detail_manage のシーズンを直せませんでした（同じ試合の行が別にある等） csvId="
+									+ shortKey(r.getCsvId()) + ", " + season + " -> " + resolved + ", e=" + ex);
+						}
+					}
+				}
 				if (!season.isEmpty()) {
 					csvIdsWithSeason.add(ck);
 				}
 			}
 			if (seasonFilled > 0) {
 				logInfo(METHOD_NAME, "csv_detail_manage の空のシーズンを補った件数=" + seasonFilled);
+			}
+			if (seasonChanged > 0) {
+				logInfo(METHOD_NAME, "csv_detail_manage のシーズンを試合日で直した件数=" + seasonChanged);
 			}
 
 			int resolvedCount = this.errorReporter.reconcile(
