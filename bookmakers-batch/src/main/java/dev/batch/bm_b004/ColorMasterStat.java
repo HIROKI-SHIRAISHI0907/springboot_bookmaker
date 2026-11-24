@@ -66,6 +66,16 @@ public class ColorMasterStat implements MasterEntityIF {
 			}
 		}
 
+		// 2026-11-24: チームマスタと同期（外れたチームは無効・昇格降格したチームは色を引き継ぐ）。失敗しても B004 は止めない
+		try {
+			String synced = this.colorDBService.syncWithTeamMaster();
+			this.manageLoggerComponent.debugInfoLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, "MCD00099I", "team_color_master をチームマスタと同期: " + synced);
+		} catch (Exception e) {
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, "MCD00099I", "team_color_master の同期に失敗（次回やり直す）: " + e);
+		}
+
 		// endLog
 		this.manageLoggerComponent.debugEndInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);

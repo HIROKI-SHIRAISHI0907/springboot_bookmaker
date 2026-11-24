@@ -112,6 +112,8 @@ CREATE TABLE IF NOT EXISTS team_color_master (
   team            VARCHAR(255) NOT NULL,
   team_color_hex  VARCHAR(7),
   team_color_sub_hex  VARCHAR(7),
+  link            VARCHAR(2048),  -- チームページの URL（country_league_master.link と同じ。同じチームの判定に使う。2026-11-24）
+  del_flg         CHAR(1) DEFAULT '0',  -- '1' = 今はそのリーグにいない（履歴。チームマスタと自動同期）
   register_id     VARCHAR(100),
   register_time   TIMESTAMP WITH TIME ZONE,
   update_id       VARCHAR(100),

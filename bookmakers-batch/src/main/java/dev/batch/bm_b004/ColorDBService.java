@@ -96,4 +96,19 @@ public class ColorDBService {
 		return 0;
 	}
 
+	/**
+	 * チームカラーをチームマスタ（country_league_master の del_flg = '0'）に合わせる（2026-11-24 追加。web の画面と同じ SQL）。
+	 * リーグから外れた・昇格降格前のリーグの行は無効にして履歴に残し、昇格降格したチームは同じリンクの前のリーグの色を引き継ぐ。
+	 *
+	 * @return 手順ごとの件数
+	 */
+	public String syncWithTeamMaster() {
+		return "fillLinkExact=" + this.teamColorMasterRepository.syncFillLinkExact()
+				+ ", fillLinkByTeam=" + this.teamColorMasterRepository.syncFillLinkByTeam()
+				+ ", deactivateNotInMaster=" + this.teamColorMasterRepository.syncDeactivateNotInMaster()
+				+ ", deactivateDuplicates=" + this.teamColorMasterRepository.syncDeactivateDuplicates()
+				+ ", reactivate=" + this.teamColorMasterRepository.syncReactivate()
+				+ ", insertMissing=" + this.teamColorMasterRepository.syncInsertMissing()
+				+ ", carryColors=" + this.teamColorMasterRepository.syncCarryColors();
+	}
 }
