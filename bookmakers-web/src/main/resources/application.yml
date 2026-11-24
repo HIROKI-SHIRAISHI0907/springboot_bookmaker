@@ -203,7 +203,7 @@ ecs:
     B013: {}
     B016: {}
 
-    # B006,B012 は bookmakers-appを起動（統計）
+    # B006,B018 は bookmakers-appを起動（統計）
     # 2026-11-20: B011（統計CSVデータ生成）も統計用の bookmakers-app に移動
     B011:
       cluster: ${ECS_B011_CLUSTER:stats-backend}
@@ -220,11 +220,12 @@ ecs:
     # 2026-11-20: B008（開催中データ登録）は bookmakers-batch に移動（defaults の batch-backend / bookmakers-batch で起動）
     B008: {}
       
-    B012:
-      cluster: ${ECS_B012_CLUSTER:stats-backend}
-      taskDefinition: ${ECS_B012_TASK_DEF:bookmakers-app}
-      container: ${ECS_B012_CONTAINER:bookmakers-app}
-      logGroup: ${ECS_B012_LOG_GROUP:/ecs/bookmakers-app}
+    # 2026-11-24 B012 から B018 に変更（bookmakers-batch の B012 と番号が重なっていたため）
+    B018:
+      cluster: ${ECS_B018_CLUSTER:stats-backend}
+      taskDefinition: ${ECS_B018_TASK_DEF:bookmakers-app}
+      container: ${ECS_B018_CONTAINER:bookmakers-app}
+      logGroup: ${ECS_B018_LOG_GROUP:/ecs/bookmakers-app}
 
 s3-job:
   jobs:

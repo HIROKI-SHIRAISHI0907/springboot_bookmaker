@@ -22,7 +22,7 @@ public class AdminAnalyzeManualExecTaskController {
 	private final EcsBatchTaskRunner runner;
 
 	/**
-     * /analyze-manual を叩いたら B012 のFargateタスクを起動する
+     * /analyze-manual を叩いたら B018（終了済データのみの試合の分析。2026-11-24 に B012 から変更）のFargateタスクを起動する
      */
     @PostMapping("/analyze-manual")
     public ResponseEntity<StatResponseResource> execute(@RequestBody StatRequestResource req) {
@@ -32,7 +32,7 @@ public class AdminAnalyzeManualExecTaskController {
         // 例: env.put("COUNTRY", req.getCountry());
         // 例: env.put("LEAGUE", req.getLeague());
 
-        String taskArn = runner.runBatch("B012", env);
+        String taskArn = runner.runBatch("B018", env);
 
         StatResponseResource res = new StatResponseResource();
         // あなたのDTO設計に合わせて詰めてOK
