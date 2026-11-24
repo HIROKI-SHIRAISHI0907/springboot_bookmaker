@@ -13,6 +13,7 @@ import lombok.RequiredArgsConstructor;
  * チームの昇格・降格の未確定（2026-11-24 追加）
  * <p>country_league_master のトリガーが記録した、チームの所属リーグの移動（team_league_move_history.confirm_flg = '0'）。
  * system_view_master の check_code = TEAM_MOVE_UNCONFIRMED（path = team-league-move, block_flg = '1'）で、
+ * 移動先リーグがスクレイピング対象外のものは数えない（保留。対象に戻したら出る）。
  * 「チーム昇格・降格確認設定」で確定・取り消しするまでほかの画面を開けなくする。</p>
  * @author shiraishitoshio
  */

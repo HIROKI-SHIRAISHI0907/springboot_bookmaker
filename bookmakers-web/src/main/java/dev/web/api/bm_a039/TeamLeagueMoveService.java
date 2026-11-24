@@ -30,6 +30,8 @@ import lombok.extern.slf4j.Slf4j;
  *       お気に入りは別 DB のため先に付け替える（途中で失敗しても、もう一度確定すれば続きから付け替わる）。</li>
  *   <li>{@link #cancel}: 誤検知を取り消す（チームマスタは変えない。記録を '9' にするだけ）。</li>
  * </ul>
+ * 移動先リーグがスクレイピング対象外の移動は保留（一覧・入口チェックに出さず、確定もしない）。
+ * スクレイピング対象データ設定でそのリーグを対象に戻すと、未確定として出てくる。
  * 未確定が残っていると、未対応チェック TEAM_MOVE_UNCONFIRMED で他の管理画面が開けない。
  * @author shiraishitoshio
  */
@@ -78,7 +80,7 @@ public class TeamLeagueMoveService {
 		for (Map.Entry<Long, String> e : types.entrySet()) {
 			TeamLeagueMoveDTO m = repository.findUnconfirmed(e.getKey());
 			if (m == null) {
-				res.getWarnings().add("id=" + e.getKey() + ": 確定済み・取り消し済みか、見つかりません（画面を再取得してください）");
+				res.getWarnings().add("id=" + e.getKey() + ": 確定済み・取り消し済み・移動先がスクレイピング対象外か、見つかりません（画面を再取得してください）");
 				continue;
 			}
 			// 1. お気に入り（user DB。別トランザクション）

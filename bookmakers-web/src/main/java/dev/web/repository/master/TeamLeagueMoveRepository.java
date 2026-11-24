@@ -16,6 +16,8 @@ import dev.web.api.bm_a039.TeamLeagueMoveDTO;
  * <ul>
  *   <li>team_league_move_history : チームの所属リーグの移動。country_league_master のトリガー
  *       （fn_team_league_move_detect）が記録する。confirm_flg = '0' 未確定 / '1' 確定 / '9' 取り消し。</li>
+ *   <li>確認するのは移動先リーグがスクレイピング対象（all_league_scrape_master.disp_flg = '0'）のものだけ（2026-11-24）。
+ *       対象外のリーグへの移動は記録だけ残して保留し、そのリーグを対象に戻したときに未確定として出る。</li>
  *   <li>確定したときに、大会出場チーム（cup_competition_team_master）のリーグと、
  *       移動したチームの行のリーグレベル（country_league_master.league_level）を移動先に合わせる。</li>
  * </ul>
@@ -45,17 +47,28 @@ public class TeamLeagueMoveRepository {
 		transactionTemplate.executeWithoutResult(status -> work.run());
 	}
 
+	/** 移動先リーグがスクレイピング対象か（h = team_league_move_history） */
+	public static final String TO_SCRAPE_TARGET = """
+			EXISTS (SELECT 1 FROM all_league_scrape_master a
+			         WHERE a.disp_flg = '0'
+			           AND BTRIM(a.country) = BTRIM(h.country)
+			           AND BTRIM(a.league)  = BTRIM(h.to_league))
+			""";
+
 	private static final String SELECT = """
 			SELECT id, country, team, link, team_id, from_league, to_league, from_level, to_level,
 			       suggest_type, move_type, source, confirm_flg,
 			       TO_CHAR(detected_time, 'YYYY-MM-DD HH24:MI:SS') AS detected_time,
 			       TO_CHAR(confirm_time,  'YYYY-MM-DD HH24:MI:SS') AS confirm_time,
-			       update_id
-			FROM team_league_move_history
+			       update_id,
+			       """ + TO_SCRAPE_TARGET + """
+			       AS scrape_target
+			FROM team_league_move_history h
 			""";
 
 	/**
-	 * 一覧。all = false なら未確定だけ、true なら全件（新しい順に最大 limit 件。未確定は必ず全部）
+	 * 一覧。all = false なら未確定（移動先がスクレイピング対象のものだけ）、
+	 * true なら全件（対象外で保留中の未確定も含む。確定・取り消し済みは新しい順に最大 limit 件）
 	 */
 	public List<TeamLeagueMoveDTO> findAll(boolean all, int limit) {
 		String sql = all
@@ -67,7 +80,7 @@ public class TeamLeagueMoveRepository {
 						         detected_time DESC, country COLLATE "ja-x-icu", team COLLATE "ja-x-icu", id
 						"""
 				: SELECT + """
-						WHERE confirm_flg = '0'
+						WHERE confirm_flg = '0' AND """ + TO_SCRAPE_TARGET + """
 						ORDER BY country COLLATE "ja-x-icu", from_league COLLATE "ja-x-icu", team COLLATE "ja-x-icu", id
 						""";
 		return masterJdbcTemplate.query(sql, new MapSqlParameterSource("limit", limit), (rs, n) -> {
@@ -88,13 +101,15 @@ public class TeamLeagueMoveRepository {
 			d.setDetectedTime(rs.getString("detected_time"));
 			d.setConfirmTime(rs.getString("confirm_time"));
 			d.setUpdateId(rs.getString("update_id"));
+			d.setScrapeTarget(rs.getBoolean("scrape_target"));
 			return d;
 		});
 	}
 
-	/** 未確定の 1 件（無い・確定済みなら null） */
+	/** 未確定で、移動先がスクレイピング対象の 1 件（無い・確定済み・対象外なら null） */
 	public TeamLeagueMoveDTO findUnconfirmed(long id) {
-		List<TeamLeagueMoveDTO> list = masterJdbcTemplate.query(SELECT + " WHERE id = :id AND confirm_flg = '0'",
+		List<TeamLeagueMoveDTO> list = masterJdbcTemplate.query(
+				SELECT + " WHERE id = :id AND confirm_flg = '0' AND " + TO_SCRAPE_TARGET,
 				new MapSqlParameterSource("id", id), (rs, n) -> {
 					TeamLeagueMoveDTO d = new TeamLeagueMoveDTO();
 					d.setId(rs.getLong("id"));
@@ -110,10 +125,10 @@ public class TeamLeagueMoveRepository {
 		return list.isEmpty() ? null : list.get(0);
 	}
 
-	/** 未確定の件数 */
+	/** 未確定の件数（移動先がスクレイピング対象のものだけ） */
 	public int countUnconfirmed() {
 		Integer n = masterJdbcTemplate.queryForObject(
-				"SELECT COUNT(*) FROM team_league_move_history WHERE confirm_flg = '0'",
+				"SELECT COUNT(*) FROM team_league_move_history h WHERE confirm_flg = '0' AND " + TO_SCRAPE_TARGET,
 				new MapSqlParameterSource(), Integer.class);
 		return n == null ? 0 : n;
 	}

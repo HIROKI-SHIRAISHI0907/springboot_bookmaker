@@ -47,4 +47,7 @@ public class TeamLeagueMoveDTO {
 	private String confirmTime;
 
 	private String updateId;
+
+	/** 移動先リーグがスクレイピング対象か（対象外の未確定は保留。確認・確定の対象にしない） */
+	private boolean scrapeTarget;
 }
