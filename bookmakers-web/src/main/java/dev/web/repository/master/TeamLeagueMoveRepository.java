@@ -47,8 +47,11 @@ public class TeamLeagueMoveRepository {
 		transactionTemplate.executeWithoutResult(status -> work.run());
 	}
 
-	/** 移動先リーグがスクレイピング対象か（h = team_league_move_history） */
-	public static final String TO_SCRAPE_TARGET = """
+	/**
+	 * 移動先リーグがスクレイピング対象か（h = team_league_move_history）。
+	 * 先頭に空白を付ける（テキストブロックは行末の空白が消えるため、"... AND """ + これ で "ANDEXISTS" になっていた。2026-11-26 修正）
+	 */
+	public static final String TO_SCRAPE_TARGET = " " + """
 			EXISTS (SELECT 1 FROM all_league_scrape_master a
 			         WHERE a.disp_flg = '0'
 			           AND BTRIM(a.country) = BTRIM(h.country)
