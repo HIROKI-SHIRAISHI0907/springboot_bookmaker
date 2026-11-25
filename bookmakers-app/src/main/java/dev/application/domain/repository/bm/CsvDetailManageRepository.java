@@ -30,6 +30,24 @@ public interface CsvDetailManageRepository {
 	List<String> findUnfinishedCsvIds();
 
 	/**
+	 * 同じ試合の行の件数（check_fin_flg を問わない。B018 の対象外判定用。2026-11-25 追加）。
+	 * '0' = B011 の CSV が B006 の取り込み待ち、'1' = 反映済み。どちらでも B018 では反映しない。
+	 */
+	@Select("""
+			SELECT COUNT(*)
+			FROM csv_detail_manage
+			WHERE data_category = #{dataCategory}
+			  AND season = #{season}
+			  AND home_team_name = #{homeTeamName}
+			  AND away_team_name = #{awayTeamName}
+			""")
+	int existsAnyCount(
+			@Param("dataCategory") String dataCategory,
+			@Param("season") String season,
+			@Param("homeTeamName") String homeTeamName,
+			@Param("awayTeamName") String awayTeamName);
+
+	/**
 	 * check_fin_flg='1' の既存件数
 	 */
 	@Select("""
@@ -75,6 +93,37 @@ public interface CsvDetailManageRepository {
 		"</script>"
 	})
 	List<CsvDetailManageEntity> selectCheckedNotFinByExactKeys(
+			@Param("candidates") List<CsvDetailEntityOutputDTO> candidates);
+
+	/**
+	 * 取り込み待ち（check_fin_flg='0'）の行を csv_id・カテゴリ・チームで探す（シーズンは見ない。2026-11-25 追加）。
+	 * B011 は試合日でシーズンを決めるので、B006 側でシーズンを決め直すと食い違って取り込めなくなるため。
+	 * 返す行のシーズンは csv_detail_manage の値（B011 が決めたもの）。
+	 */
+	@Select({
+		"<script>",
+		"SELECT",
+		"    csv_id AS csvId,",
+		"    data_category AS dataCategory,",
+		"    season AS season,",
+		"    home_team_name AS homeTeamName,",
+		"    away_team_name AS awayTeamName,",
+		"    check_fin_flg AS checkFinFlg",
+		"FROM csv_detail_manage",
+		"WHERE check_fin_flg = '0'",
+		"  AND (",
+		"  <foreach collection='candidates' item='item' separator=' OR '>",
+		"    (",
+		"      csv_id = #{item.csvId}",
+		"      AND data_category = #{item.dataCategory}",
+		"      AND home_team_name = #{item.homeTeamName}",
+		"      AND away_team_name = #{item.awayTeamName}",
+		"    )",
+		"  </foreach>",
+		"  )",
+		"</script>"
+	})
+	List<CsvDetailManageEntity> selectNotFinByCsvKeys(
 			@Param("candidates") List<CsvDetailEntityOutputDTO> candidates);
 
 	/**

@@ -381,15 +381,35 @@ public interface BookDataRepository {
 			    time_sort_seconds AS timeSortSeconds,
 			    add_manual_flg AS addManualFlg
 			FROM static_data d
-			WHERE d.add_manual_flg = '1'
-			  AND (d.times = '終了済' OR d.times LIKE 'ペナルティ%')
+			WHERE (d.times = '終了済' OR d.times LIKE 'ペナルティ%')
 			  AND d.match_id IS NOT NULL
 			  AND d.match_id <> ''
-			  AND (
-			      SELECT COUNT(*)
-			      FROM static_data d2
-			      WHERE d2.match_id = d.match_id
-			  ) = 1
+			  -- B018 で反映済みの試合は除く
+			  AND NOT EXISTS (SELECT 1 FROM analyze_manual_data a WHERE a.match_id = d.match_id)
+			  -- B011 が CSV にできる試合（前半・ハーフタイム・後半・終了済が揃っている）は除く。
+			  -- 順番は B011 と同じく seq_key 末尾の連番（取れなければ seq）。
+			  AND NOT EXISTS (
+			      SELECT 1
+			      FROM (
+			          SELECT MIN(x.ord) FILTER (WHERE x.times = 'ハーフタイム') AS ht,
+			                 MIN(x.ord) FILTER (WHERE x.times = '終了済')     AS fn
+			          FROM (SELECT s.times,
+			                       COALESCE(CAST(NULLIF(SUBSTRING(s.seq_key FROM '([0-9]+)$'), '') AS BIGINT), s.seq) AS ord
+			                  FROM static_data s
+			                 WHERE s.match_id = d.match_id) x
+			      ) p
+			      WHERE p.ht IS NOT NULL AND p.fn IS NOT NULL AND p.ht < p.fn
+			        AND EXISTS (SELECT 1 FROM static_data y
+			                     WHERE y.match_id = d.match_id
+			                       AND BTRIM(y.times) ~ '^[0-9:+'']+$'
+			                       AND COALESCE(CAST(NULLIF(SUBSTRING(y.seq_key FROM '([0-9]+)$'), '') AS BIGINT), y.seq) < p.ht)
+			        AND EXISTS (SELECT 1 FROM static_data y
+			                     WHERE y.match_id = d.match_id
+			                       AND BTRIM(y.times) ~ '^[0-9:+'']+$'
+			                       AND COALESCE(CAST(NULLIF(SUBSTRING(y.seq_key FROM '([0-9]+)$'), '') AS BIGINT), y.seq) > p.ht
+			                       AND COALESCE(CAST(NULLIF(SUBSTRING(y.seq_key FROM '([0-9]+)$'), '') AS BIGINT), y.seq) < p.fn)
+			  )
+			ORDER BY d.match_id, d.add_manual_flg DESC
 			""")
 	List<DataEntity> getFinData();
 

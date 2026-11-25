@@ -165,7 +165,8 @@ public abstract class AbstractSeasonResolvingWriter {
 	 */
 	private SeasonResult lookup(String country, String league) {
 		final String METHOD_NAME = "resolveSeason";
-		String cacheKey = country + "\u0000" + league;
+		// 2026-11-26: 試合日でシーズンが変わるため、キーに試合日を含める
+		String cacheKey = country + "\u0000" + league + "\u0000" + MatchDateContext.get();
 		Map<String, SeasonResult> cache = SEASON_CACHE.get();
 		SeasonResult r = cache.get(cacheKey);
 		if (r != null) {

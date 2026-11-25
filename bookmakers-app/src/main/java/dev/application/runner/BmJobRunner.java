@@ -67,6 +67,28 @@ public class BmJobRunner implements ApplicationRunner {
 				log.info("Execute B011 -> ExportCsvBatch");
 				int rc = exportCsvBatch.execute(false);
 				exit = (rc == BatchConstant.BATCH_SUCCESS) ? 0 : 1;
+				// 2026-11-24: B011 が終わったら、同じタスクで続けて B006（統計CSV取り込み）を動かす。
+				// 5:00 の B006 は B011 が実行中だと起動しないため、B011 が長引く日が続くと取り込まれなくなる。
+				// B011 が失敗しても、作れた CSV は取り込む（B006 は未取り込みの CSV だけを対象にする）。
+				// 止めたいときは環境変数 B011_CHAIN_B006=false。
+				if (chainB006AfterB011()) {
+					log.info("Execute B006 -> MainStat (B011 の続き。B011 exit={})", exit);
+					int b006 = runB006AfterB011();
+					log.info("B006 (B011 の続き) end: exit={}", b006);
+					exit = Math.max(exit, b006);
+					// 2026-11-25: 続けて B018（終了済データだけの試合の反映）。日付で絞らず、未反映のものを過去分も含めて全部。
+					// 止めたいときは B011_CHAIN_B018=false。
+					if (chainEnabled("B011_CHAIN_B018")) {
+						log.info("Execute B018 -> AnalyzeManualStat (B011・B006 の続き)");
+						int b018 = runAfterB011("B018", () -> analyzeManualStat.manualStat());
+						log.info("B018 (B011 の続き) end: exit={}", b018);
+						exit = Math.max(exit, b018);
+					} else {
+						log.info("B011_CHAIN_B018=false のため、B018 は続けて動かしません");
+					}
+				} else {
+					log.info("B011_CHAIN_B006=false のため、B006 は続けて動かしません");
+				}
 			}
 			case "B018" -> {
 				// 2026-11-24: B012 から B018 に変更（bookmakers-batch の B012 FinDataJsonOutputs と番号が重なっていたため）
@@ -85,5 +107,41 @@ public class BmJobRunner implements ApplicationRunner {
 
 		log.info("BmJobRunner end: BM_JOB={}, exit={}", job, exit);
 		System.exit(exit);
+	}
+
+	/** B011 の後に続けて B006 を動かすか（環境変数 B011_CHAIN_B006。未設定は true） */
+	private static boolean chainB006AfterB011() {
+		return chainEnabled("B011_CHAIN_B006");
+	}
+
+	/** 環境変数が false 以外（未設定を含む）なら true */
+	private static boolean chainEnabled(String name) {
+		String v = System.getenv(name);
+		return v == null || v.isBlank() || !"false".equalsIgnoreCase(v.trim());
+	}
+
+	@FunctionalInterface
+	private interface Job {
+		int run() throws Exception;
+	}
+
+	/** B011 の続きのジョブ。例外は B011 の結果を消さないようにここで受ける（exit 9） */
+	private int runAfterB011(String name, Job job) {
+		try {
+			return job.run();
+		} catch (Exception e) {
+			log.error("{} (B011 の続き) failed", name, e);
+			return 9;
+		}
+	}
+
+	/** B011 の続きの B006。例外は B011 の結果を消さないようにここで受ける（exit 9） */
+	private int runB006AfterB011() {
+		try {
+			return mainStat.execute();
+		} catch (Exception e) {
+			log.error("B006 (B011 の続き) failed", e);
+			return 9;
+		}
 	}
 }

@@ -153,7 +153,8 @@ public interface BookCsvDetailManageRepository {
 			    season = COALESCE(NULLIF(BTRIM(#{season}), ''), season),
 			    home_team_name = #{homeTeamName},
 			    away_team_name = #{awayTeamName},
-			    check_fin_flg = #{checkFinFlg},
+			    -- 2026-11-25: 反映済み（'1'）は取り込み待ちに戻さない（二重反映を防ぐ）
+			    check_fin_flg = CASE WHEN check_fin_flg = '1' THEN '1' ELSE #{checkFinFlg} END,
 			    update_time = CURRENT_TIMESTAMP,
 			    update_id = 'ADMIN'
 			WHERE

@@ -3,8 +3,12 @@ package dev.application.analyze.common.service;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.time.LocalDate;
+
 import dev.application.analyze.interf.SeasonResolverIF;
 import dev.application.domain.repository.master.CountryLeagueSeasonMasterRepository;
+import dev.application.domain.repository.master.b011.CountryLeagueSeasonMasterBatchRepository;
+import dev.common.entity.CountryLeagueSeasonMasterEntity;
 
 /**
  * country_league_season_master から「現在のシーズン」を取得する {@link SeasonResolverIF} の実装。
@@ -27,6 +31,20 @@ import dev.application.domain.repository.master.CountryLeagueSeasonMasterReposit
  * season_year の値は "2026/2027"（秋春制）や "2026"（春秋制）。seq は "2026/2027-000001" のようになる。
  * </p>
  *
+ * <h2>試合日で決める（2026-11-26 追加）</h2>
+ * <p>
+ * {@link MatchDateContext} に試合日（record_time の日付）が入っていれば、「今日」ではなく試合日で決める
+ * （B011・csv_detail_manage と同じ決め方。{@link MatchSeasonResolver}）。
+ * </p>
+ * <ul>
+ *   <li>試合日がマスタの開始日より前 → 1つ前のシーズン（2026/2027 → 2025/2026、2026 → 2025）</li>
+ *   <li>それ以外 → マスタの season_year</li>
+ * </ul>
+ * <p>
+ * 以前は「今日」基準だったため、シーズンマスタが次のシーズンに切り替わった後に前シーズンの試合を反映すると、
+ * 新しいシーズンで集計されていた。試合日が無い（MatchDateContext 未設定・マスタに開始日が無い）ときは下の従来の決め方。
+ * </p>
+ *
  * <h2>懸念点</h2>
  * <ul>
  *   <li><b>「今日」基準である</b>: 試合日ではなく処理日でシーズンを決める。シーズン切替直後に
@@ -47,6 +65,9 @@ public class CountryLeagueSeasonResolver implements SeasonResolverIF {
 	@Autowired
 	private CountryLeagueSeasonMasterRepository countryLeagueSeasonMasterRepository;
 
+	@Autowired
+	private CountryLeagueSeasonMasterBatchRepository countryLeagueSeasonMasterBatchRepository;
+
 	/**
 	 * {@inheritDoc}
 	 */
@@ -54,6 +75,12 @@ public class CountryLeagueSeasonResolver implements SeasonResolverIF {
 	public String resolveSeason(String country, String league) {
 		if (isBlank(country) || isBlank(league)) {
 			throw new IllegalStateException("country/league が空です: country=" + country + ", league=" + league);
+		}
+
+		// 試合日があれば試合日で決める（2026-11-26）
+		String byMatchDate = resolveByMatchDate(country, league, MatchDateContext.get());
+		if (!isBlank(byMatchDate)) {
+			return byMatchDate.trim();
 		}
 
 		String season = this.countryLeagueSeasonMasterRepository.findSeasonYearInPeriod(country, league);
@@ -68,6 +95,29 @@ public class CountryLeagueSeasonResolver implements SeasonResolverIF {
 					"country_league_season_master にシーズンがありません: country=" + country + ", league=" + league);
 		}
 		return season.trim();
+	}
+
+	/**
+	 * 試合日でシーズンを決める。試合日が無い・マスタに行や開始日が無いときは null（従来の決め方にする）。
+	 */
+	private String resolveByMatchDate(String country, String league, LocalDate matchDate) {
+		if (matchDate == null) {
+			return null;
+		}
+		CountryLeagueSeasonMasterEntity row = this.countryLeagueSeasonMasterBatchRepository.findSeasonRange(country, league);
+		if (row == null || isBlank(row.getSeasonYear())) {
+			return null;
+		}
+		String season = row.getSeasonYear().trim();
+		LocalDate start = MatchSeasonResolver.parseDateLoose(row.getStartSeasonDate());
+		if (start == null) {
+			return null;
+		}
+		if (matchDate.isBefore(start)) {
+			String prev = MatchSeasonResolver.previousSeason(season);
+			return isBlank(prev) ? null : prev;
+		}
+		return season;
 	}
 
 	private static boolean isBlank(String s) {

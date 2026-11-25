@@ -1167,6 +1167,15 @@ public class ExportCsvService {
 		entity.setCheckFinFlg("0");
 		String context = buildCsvDetailContext(dataCategory, season, home, away);
 		CsvDetailManageEntity selectEntity = this.csvDetailManageRepository.select(entity);
+		if (selectEntity != null && "1".equals(safe(selectEntity.getCheckFinFlg()).trim())) {
+			// 2026-11-25: 同じ試合がすでに統計に反映済み（B018 の終了済データだけでの反映・B006 の取り込み済み）なら変えない。
+			// 取り込み待ち（'0'）に戻すと B006 がもう一度取り込み、統計が二重になるため。CSV は S3 に残るが取り込まない。
+			this.manageLoggerComponent.debugWarnLog(
+					PROJECT_NAME, CLASS_NAME, METHOD_NAME, MessageCdConst.MCD00099I_LOG,
+					"統計に反映済みの試合のため csv_detail_manage は変えません（取り込みません） ("
+							+ context + ", 既存csvId=" + selectEntity.getCsvId() + ", 新csvId=" + csvId + ")");
+			return;
+		}
 		if (selectEntity != null) {
 			int result = this.csvDetailManageRepository.update(entity);
 			if (result != 1) {

@@ -29,6 +29,8 @@ import dev.application.analyze.bm_m023.ScoreBasedFeatureStat;
 import dev.application.analyze.bm_m024.CalcCorrelationStat;
 import dev.application.analyze.bm_m031.SurfaceOverviewStat;
 import dev.application.analyze.bm_m034.MatchTeamSnapshotFactStat;
+import dev.application.analyze.common.service.MatchDateContext;
+import dev.application.analyze.common.service.MatchSeasonResolver;
 import dev.application.analyze.interf.AnalyzeEntityIF;
 import dev.application.analyze.interf.StatIF;
 import dev.application.domain.repository.bm.CsvDetailManageRepository;
@@ -101,7 +103,10 @@ import dev.common.util.ExecuteMainUtil;
  *   <li><b>filePath から補ったカテゴリ（"Japan-J1-ラウンド5" 形式）</b>: csv_detail_manage の記録には使うが、
  *       Stat が見るのは Map の外側のキー（「国: リーグ - ラウンドN」形式でなければ無視）なので、統計には入らない。</li>
  *   <li><b>stat は処理後に clear する</b>（呼び出し元のメモリを空けるため）。呼び出し後に同じ Map を使わないこと。</li>
- *   <li>csv_detail_manage のシーズンはマスタの最新シーズン。各 Writer のシーズン（SeasonResolverIF）と同じ値になる前提。</li>
+ *   <li>csv_detail_manage のシーズン（2026-11-25 変更）: CSV は B011 が試合日で決めた値をそのまま使う（ここでは決め直さない）。
+ *       手動データは {@link MatchSeasonResolver}（試合日。B011 と同じ決め方）。
+ *       以前はマスタの値で決め直していたため、シーズンマスタが次のシーズンになると前シーズンの CSV が見つからず取り込めなかった。
+ *       各 Writer のシーズン（SeasonResolverIF）とは別。</li>
  * </ul>
  */
 @Service
@@ -155,6 +160,10 @@ public class CoreStat implements StatIF {
 	@Autowired
 	private CsvDetailManageRepository csvDetailManageRepository;
 
+	/** 手動データ（B018）の csv_detail_manage のシーズンを試合日で決める（B011 と同じ。2026-11-25） */
+	@Autowired
+	private MatchSeasonResolver matchSeasonResolver;
+
 	@Autowired
 	private ManageLoggerComponent loggerComponent;
 
@@ -187,6 +196,9 @@ public class CoreStat implements StatIF {
 
 		// gameTeamCategory が空文字の行は filePath の親フォルダ名から補完する（csv_detail_manage の記録用）
 		fillBlankGameTeamCategoryFromFilePath(stat);
+
+		// 2026-11-26: 統計の各 Writer のシーズンを、今日ではなく試合日（record_time）で決める
+		MatchDateContext.set(earliestRecordDate(stat));
 
 		try {
 			// CSV: 未完了の試合だけ / 手動: まだ記録の無い試合だけ（反映済みなら空）
@@ -233,6 +245,7 @@ public class CoreStat implements StatIF {
 			throw e;
 
 		} finally {
+			MatchDateContext.clear();
 			if (stat != null) {
 				stat.clear();
 			}
@@ -277,8 +290,12 @@ public class CoreStat implements StatIF {
 					continue;
 				}
 
-				String season = seasonCache.computeIfAbsent(dataCategory, this::resolveSeasonSafely);
-				if (season.isEmpty()) {
+				// CSV はシーズンを見ずに探す（B011 が試合日で決めたシーズンを使う）。手動は試合日で決める
+				String season = manualFlg
+						? seasonCache.computeIfAbsent(dataCategory + "||" + safe(row.getMatchId()) + "||" + home + "||" + away,
+								k -> this.matchSeasonResolver.resolve(dataCategory, row.getMatchId(), home, away))
+						: "";
+				if (manualFlg && season.isEmpty()) {
 					this.loggerComponent.debugWarnLog(
 							PROJECT_NAME, CLASS_NAME, METHOD_NAME,
 							MessageCdConst.MCD00099I_LOG,
@@ -286,7 +303,7 @@ public class CoreStat implements StatIF {
 					continue;
 				}
 
-				if (!candidateKeySet.add(String.join("||", dataCategory, season, home, away))) {
+				if (!candidateKeySet.add(String.join("||", dataCategory, season, home, away, manualFlg ? "" : safe(row.getFilePath())))) {
 					continue;
 				}
 
@@ -316,9 +333,9 @@ public class CoreStat implements StatIF {
 			return candidates;
 		}
 
-		// CSV データ: 未完了（check_fin_flg='0'）の試合だけ
+		// CSV データ: 未完了（check_fin_flg='0'）の試合だけ（シーズンは見ない。2026-11-25）
 		List<CsvDetailManageEntity> existingNotFinList = this.csvDetailManageRepository
-				.selectCheckedNotFinByExactKeys(candidates);
+				.selectNotFinByCsvKeys(candidates);
 		if (existingNotFinList == null || existingNotFinList.isEmpty()) {
 			this.loggerComponent.debugInfoLog(
 					PROJECT_NAME, CLASS_NAME, METHOD_NAME,
@@ -393,6 +410,48 @@ public class CoreStat implements StatIF {
 		return safe(seasons.get(0)).trim();
 	}
 
+	/**
+	 * 入力の中で一番早い record_time の日付（試合日。読めなければ null）。2026-11-26 追加。
+	 */
+	private static java.time.LocalDate earliestRecordDate(Map<String, Map<String, List<BookDataEntity>>> stat) {
+		java.time.LocalDate min = null;
+		if (stat == null) {
+			return null;
+		}
+		for (Map<String, List<BookDataEntity>> inner : stat.values()) {
+			if (inner == null) {
+				continue;
+			}
+			for (List<BookDataEntity> rows : inner.values()) {
+				if (rows == null) {
+					continue;
+				}
+				for (BookDataEntity e : rows) {
+					java.time.LocalDate d = parseYmd(e == null ? null : e.getRecordTime());
+					if (d != null && (min == null || d.isBefore(min))) {
+						min = d;
+					}
+				}
+			}
+		}
+		return min;
+	}
+
+	private static java.time.LocalDate parseYmd(String s) {
+		if (s == null) {
+			return null;
+		}
+		String t = s.trim().replace('/', '-');
+		if (t.length() < 10) {
+			return null;
+		}
+		try {
+			return java.time.LocalDate.parse(t.substring(0, 10));
+		} catch (Exception ex) {
+			return null;
+		}
+	}
+
 	private BookDataEntity buildRepresentativeRow(List<BookDataEntity> rows) {
 		if (rows == null || rows.isEmpty()) {
 			return null;
@@ -402,6 +461,7 @@ public class CoreStat implements StatIF {
 		row.setHomeTeamName(firstNonBlank(rows, BookDataEntity::getHomeTeamName));
 		row.setAwayTeamName(firstNonBlank(rows, BookDataEntity::getAwayTeamName));
 		row.setFilePath(firstNonBlank(rows, BookDataEntity::getFilePath));
+		row.setMatchId(firstNonBlank(rows, BookDataEntity::getMatchId));
 		return row;
 	}
 

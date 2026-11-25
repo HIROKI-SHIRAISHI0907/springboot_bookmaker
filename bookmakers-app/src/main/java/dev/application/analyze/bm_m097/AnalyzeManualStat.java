@@ -14,6 +14,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 import org.springframework.transaction.annotation.Transactional;
 
+import dev.application.analyze.common.service.MatchSeasonResolver;
 import dev.application.domain.repository.bm.AnalyzeManualRepository;
 import dev.application.domain.repository.bm.BookDataRepository;
 import dev.application.domain.repository.bm.CsvDetailManageRepository;
@@ -67,6 +68,10 @@ public class AnalyzeManualStat {
 	@Autowired
 	private CoreStat coreStat;
 
+	/** csv_detail_manage のシーズンを試合日で決める（B011・CoreStat と同じ。2026-11-25） */
+	@Autowired
+	private MatchSeasonResolver matchSeasonResolver;
+
 	@Autowired
 	private GetStatInfo getStatInfo;
 
@@ -90,7 +95,7 @@ public class AnalyzeManualStat {
 		this.manageLoggerComponent.debugStartInfoLog(
 				PROJECT_NAME, CLASS_NAME, METHOD_NAME);
 
-		// 1) データが1件しかない手動データ取得
+		// 1) 終了済の行（B011 が CSV にできない試合＝前半・ハーフタイム・後半・終了済が揃っていない試合。2026-11-25 変更）
 		List<DataEntity> finList = bookDataRepository.getFinData();
 		if (finList == null || finList.isEmpty()) {
 			this.manageLoggerComponent.debugWarnLog(
@@ -183,9 +188,7 @@ public class AnalyzeManualStat {
 			return 0;
 		}
 
-		// 7) 以降に進むには条件がある
-		// csv_detail_manage(check_fin_flg='1') に存在しないこと
-		// data テーブルに1件しか存在しないこと
+		// 7) csv_detail_manage に同じ試合の行が無いこと（B011 の CSV がある・反映済みなら除く）
 		List<DataEntity> analyzeTargetList = filterAnalyzeTargets(targetList);
 
 		if (analyzeTargetList.isEmpty()) {
@@ -307,32 +310,36 @@ public class AnalyzeManualStat {
 	}
 
 	/**
-	 * 分析対象の最終抽出
-	 * csv_detail_manage(check_fin_flg='1') に存在せず、
-	 * data テーブルにも存在しないものだけを残す
+	 * 分析対象の最終抽出（2026-11-25 見直し）。
+	 * <ul>
+	 *   <li>以前: static_data にその試合の行が終了済の 1 件だけのとき。開催中データが途中まで入った試合は、
+	 *       B011（4 つ揃った試合だけ CSV）でも B018 でも反映されなかった。</li>
+	 *   <li>今: 前半・ハーフタイム・後半・終了済が揃っていない試合（{@link BookDataRepository#getFinData} で絞り込み済み）は、
+	 *       終了済の行だけで反映する（ハーフタイム・前半・後半はその時に試合を取っていないと取れないため）。</li>
+	 *   <li>csv_detail_manage に同じ試合の行がある（B011 の CSV が取り込み待ち '0'・反映済み '1'）ものは除く。</li>
+	 * </ul>
 	 *
-	 * @param validTargetList
-	 * @return
+	 * @param validTargetList 終了済の行（試合ごとに 1 行）
+	 * @return 反映する行
 	 */
 	private List<DataEntity> filterAnalyzeTargets(List<DataEntity> validTargetList) {
 		Map<String, String> seasonCache = new LinkedHashMap<>();
 		Map<String, Boolean> csvExistsCache = new LinkedHashMap<>();
-		Map<String, Boolean> dataExistsCache = new LinkedHashMap<>();
 
 		List<DataEntity> analyzeTargetList = new ArrayList<>();
 
 		for (DataEntity dataEntity : validTargetList) {
-			// シーズン取得をキャッシュ
 			String dataCategory = nvl(dataEntity.getDataCategory());
+			// シーズンは試合日で決める（2026-11-25。以前はマスタの今のシーズン）
 			String season = seasonCache.computeIfAbsent(
-					dataCategory,
-					this::resolveSeasonSafely);
+					dataCategory + "||" + nvl(dataEntity.getMatchId()),
+					k -> this.matchSeasonResolver.resolve(dataCategory, dataEntity.getMatchId(),
+							dataEntity.getHomeTeamName(), dataEntity.getAwayTeamName()));
 
 			if (season.isEmpty()) {
 				continue;
 			}
 
-			// csv_detail_manage 用キー
 			String csvKey = buildCsvDetailKey(
 					dataEntity.getDataCategory(),
 					season,
@@ -340,31 +347,14 @@ public class AnalyzeManualStat {
 					dataEntity.getAwayTeamName());
 
 			boolean csvExists = csvExistsCache.computeIfAbsent(csvKey, k ->
-					this.csvDetailManageRepository.existsCheckedFinCount(
+					this.csvDetailManageRepository.existsAnyCount(
 							dataEntity.getDataCategory(),
 							season,
 							dataEntity.getHomeTeamName(),
 							dataEntity.getAwayTeamName()) > 0
 			);
 
-			// data 用キー
-			String dataKey = buildDataRestrictKey(
-					dataEntity.getDataCategory(),
-					dataEntity.getHomeTeamName(),
-					dataEntity.getAwayTeamName(),
-					dataEntity.getMatchId());
-
-			boolean dataOneExists = dataExistsCache.computeIfAbsent(dataKey, k ->
-					this.bookDataRepository.getAnalyzeManualRestrictCount(
-							dataEntity.getDataCategory(),
-							dataEntity.getHomeTeamName(),
-							dataEntity.getAwayTeamName(),
-							dataEntity.getMatchId()) == 1
-			);
-
-			// csv_detail_manageには存在せず、dataテーブルには1件のみ（終了済orペナルティ終了データのみの想定）
-			// パターンのみ対象
-			if (!csvExists && dataOneExists) {
+			if (!csvExists) {
 				analyzeTargetList.add(dataEntity);
 			}
 		}
