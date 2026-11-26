@@ -38,7 +38,7 @@ import java.time.format.DateTimeParseException;
  *     </ul></li>
  * </ol>
  * <p>
- * 「開始した」は start_flg = 1 だけで判断する（データの有無・試合開始日時は見ない）。
+ * 「開始した」は start_flg = 1 で判断する。ただし試合開始日時の前でデータも無ければ開始前（2026-11-27）。
  * データの件数・最後の記録には、試合時間が「中断」「延期」「中止」の行を含めない（FutureMatchDataStatusRepository）。
  * 時刻はすべて日本時間の壁時計（future_time / record_time は timestamp）で比べる。
  * </p>
@@ -138,6 +138,11 @@ public final class MatchStatusResolver {
 		boolean hasData = in.finishedCount + in.liveCount > 0;
 		boolean recentlyUpdated = last != null && !now.isAfter(last.plus(UPDATED_WITHIN));
 		boolean started = "1".equals(trimToNull(in.startFlg));
+		// 2026-11-27: start_flg = 1 でも、試合開始日時の前でデータも無ければ開始前として扱う
+		// （B010 が同じカードの別の試合の予定を 1 にしていたため、まだ始まっていない試合が「ライブ」になっていた）
+		if (started && !hasData && start != null && now.isBefore(start)) {
+			started = false;
+		}
 
 		// 1) 延期・中止（開始フラグに関係なく優先。延期になると start_flg は 0 に戻る）
 		if (POSTPONED.equals(delay) || CANCELLED.equals(delay)) {
