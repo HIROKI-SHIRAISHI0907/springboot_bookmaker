@@ -14,7 +14,16 @@ import dev.common.entity.FutureEntity;
 import dev.common.logger.ManageLoggerComponent;
 
 /**
- * 未来データ更新サービスクラス
+ * 未来データ更新サービスクラス（B010 終了済データ取り込み。future_master.start_flg を 1 = 開始済みにする）
+ *
+ * <p>2026-11-27 修正（まだ始まっていない試合が「ライブ」になる）</p>
+ * <ul>
+ *   <li>同じ試合の予定をチーム名の完全一致だけ（日付・start_flg の指定なし）で探していたため、
+ *       終了済データが入った試合と同じカードの「これからの試合」（2回戦目など）を 1 にしていた。
+ *       → B008 と同じ {@link OriginFutureMasterRepository#findStartFlgTarget}（mid 優先、無ければ同じカードで
+ *       記録時刻の前後1日・start_flg = '0' のうち試合開始日時が一番近いもの）にした。</li>
+ *   <li>試合開始日時を過ぎた試合の更新も B008 と同じ（start_flg = '0' の行だけ）にした。</li>
+ * </ul>
  * @author shiraishitoshio
  *
  */
@@ -37,6 +46,10 @@ public class FutureStartFlgService {
 	 */
 	@Autowired
 	private FutureMasterRepository futureMasterRepository;
+
+	/** B008 と同じ探し方・更新（2026-11-27） */
+	@Autowired
+	private dev.batch.b008repository.master.OriginFutureMasterRepository originFutureMasterRepository;
 
 	/** ログ管理クラス */
 	@Autowired
@@ -94,7 +107,7 @@ public class FutureStartFlgService {
 					String away = dto.getAwayTeamName();
 
 					if (home != null && away != null) {
-						startFlgUpdate(home, away, STRAT_FLG_1);
+						startFlgUpdate(home, away, dto.getMatchId(), dto.getRecordTime(), STRAT_FLG_1);
 
 						// 1つのCSVにつき1試合を更新
 						break;
@@ -133,6 +146,8 @@ public class FutureStartFlgService {
 	private synchronized void startFlgUpdate(
 			String home,
 			String away,
+			String matchId,
+			String recordTime,
 			String flg) throws Exception {
 
 		final String METHOD_NAME = "startFlgUpdate";
@@ -143,8 +158,8 @@ public class FutureStartFlgService {
 		entity.setHomeTeamName(home);
 		entity.setAwayTeamName(away);
 
-		List<FutureEntity> findList =
-				this.futureMasterRepository.findOnlyTeam(entity);
+		FutureEntity target = this.originFutureMasterRepository.findStartFlgTarget(home, away, matchId, recordTime);
+		List<FutureEntity> findList = target == null ? java.util.List.of() : java.util.List.of(target);
 
 		String messageCdLog = MessageCdConst.MCD00099I_LOG;
 
@@ -209,7 +224,7 @@ public class FutureStartFlgService {
 		final String METHOD_NAME = "startFlgUpdate";
 
 		int result =
-				this.futureMasterRepository.updateFutureTimeFlg(flg);
+				this.originFutureMasterRepository.updateFutureTimeFlg(flg, null);
 
 		String messageCd =
 				MessageCdConst.MCD00006I_UPDATE_SUCCESS;
