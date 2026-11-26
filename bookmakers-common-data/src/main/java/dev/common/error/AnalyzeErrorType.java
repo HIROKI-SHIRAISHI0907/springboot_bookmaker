@@ -42,6 +42,12 @@ public enum AnalyzeErrorType {
 	/** 【追加】csv_detail_manage への登録に失敗した（B011） */
 	CSV_DETAIL_REGISTER_FAILED("CSV 管理情報を登録できません"),
 
+	/** 【追加 2026-11-27】統計用CSV作成前詳細設定（stat_size_finalize_master）の条件で CSV を作らなかった（B011。理由は detail） */
+	CSV_CONDITION_SKIPPED("統計用CSV作成前詳細設定の条件で除外"),
+
+	/** 【追加 2026-11-27】統計CSVの取り込み（統計への反映）に失敗した（B006。どの CSV かは detail の csv=） */
+	STAT_IMPORT_FAILED("統計CSVを取り込めません"),
+
 	/** 上記以外の予期しないエラー */
 	UNEXPECTED("予期しないエラー");
 
