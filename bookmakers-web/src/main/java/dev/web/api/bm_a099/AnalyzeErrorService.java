@@ -66,14 +66,20 @@ public class AnalyzeErrorService {
 	private static final String DEFAULT_RESOLVED_BY = "ADMIN";
 
 	/** エラー種別の表示名（バッチの AnalyzeErrorType と同じ） */
-	private static final Map<String, String> ERROR_TYPE_LABELS = Map.of(
-			"SEASON_RESOLVER_MISSING", "シーズン取得処理がありません",
-			"SEASON_NOT_FOUND", "シーズンが見つかりません",
-			"SEASON_RESOLVE_FAILED", "シーズン取得でエラー",
-			"INVALID_CATEGORY", "国・リーグを取得できません",
-			"MISSING_VALUE", "必須項目が空です",
-			"INVALID_VALUE", "値を読み取れません",
-			"UNEXPECTED", "予期しないエラー");
+	private static final Map<String, String> ERROR_TYPE_LABELS = Map.ofEntries(
+			Map.entry("SEASON_RESOLVER_MISSING", "シーズン取得処理がありません"),
+			Map.entry("SEASON_NOT_FOUND", "シーズンが見つかりません"),
+			Map.entry("SEASON_RESOLVE_FAILED", "シーズン取得でエラー"),
+			Map.entry("INVALID_CATEGORY", "国・リーグを取得できません"),
+			Map.entry("ROUND_NOT_FOUND", "ラウンド番号を取得できません"),
+			Map.entry("MISSING_VALUE", "必須項目が空です"),
+			Map.entry("INVALID_VALUE", "値を読み取れません"),
+			Map.entry("CSV_CREATE_FAILED", "CSV を作成できません"),
+			Map.entry("CSV_DETAIL_REGISTER_FAILED", "CSV 管理情報を登録できません"),
+			// 2026-11-27 追加
+			Map.entry("CSV_CONDITION_SKIPPED", "統計用CSV作成前詳細設定の条件で除外"),
+			Map.entry("STAT_IMPORT_FAILED", "統計CSVを取り込めません"),
+			Map.entry("UNEXPECTED", "予期しないエラー"));
 
 	private final AnalyzeErrorMatchWebRepository repo;
 
