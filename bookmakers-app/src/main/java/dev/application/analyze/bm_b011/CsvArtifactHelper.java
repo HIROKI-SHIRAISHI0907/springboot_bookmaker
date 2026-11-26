@@ -134,6 +134,34 @@ public class CsvArtifactHelper {
 	 * @param csvArtifactResource
 	 * @return
 	 */
+	/**
+	 * csvCondition が false になった理由（ログ用。2026-11-27 追加）。
+	 * 統計用CSV作成前詳細設定（stat_size_finalize_master の valid_flg = '0'）の
+	 * 選択肢1（スコア）・選択肢2（国:リーグ）のどちらで外れたかと、設定値・試合のカテゴリを返す。
+	 */
+	public String csvConditionReason(List<DataEntity> result, CsvArtifactResource csvArtifactResource) {
+		StringBuilder sb = new StringBuilder();
+		if (!restrict1st(result, csvArtifactResource)) {
+			sb.append("選択肢1（スコア ").append(csvArtifactResource.getHomeScore()).append("-")
+					.append(csvArtifactResource.getAwayScore()).append(" を一度も通っていない）");
+		}
+		if (!restrict2nd(result, csvArtifactResource)) {
+			if (sb.length() > 0) {
+				sb.append(" / ");
+			}
+			String cat = "";
+			for (DataEntity d : result == null ? List.<DataEntity> of() : result) {
+				if (d != null && d.getDataCategory() != null && !d.getDataCategory().isBlank()) {
+					cat = d.getDataCategory();
+					break;
+				}
+			}
+			sb.append("選択肢2（国:リーグ ").append(csvArtifactResource.getCountry()).append(":")
+					.append(csvArtifactResource.getLeague()).append(" に含まれない。試合=").append(cat).append("）");
+		}
+		return sb.length() == 0 ? "（条件に一致）" : sb.toString();
+	}
+
 	public boolean csvCondition(List<DataEntity> result, CsvArtifactResource csvArtifactResource) {
 		// 条件に当てはまればそのまま素通りする処理を入れる箇所
 		boolean option1stFlg = restrict1st(result, csvArtifactResource);
@@ -226,7 +254,8 @@ public class CsvArtifactHelper {
 						newLeague = newLeague.split("／")[1].trim();
 					}
 					// 組み合わせが1つでも引っかかったらOK
-					if (country.get(i).equals(resultCountry) && newLeague.equals(resultLeague)) {
+					// 2026-11-27: 全角・半角・空白の違いは無視する（「J1リーグ」と「J1 リーグ」など）
+					if (sameName(country.get(i), resultCountry) && sameName(newLeague, resultLeague)) {
 						return true;
 					}
 				}
@@ -267,6 +296,15 @@ public class CsvArtifactHelper {
 		}
 		return Optional.empty();
 	}
+	/** 全角・半角（NFKC）と空白の違いを無視して比べる */
+	private static boolean sameName(String a, String b) {
+		if (a == null || b == null) {
+			return false;
+		}
+		return java.text.Normalizer.normalize(a, java.text.Normalizer.Form.NFKC).replaceAll("\\s+", "")
+				.equals(java.text.Normalizer.normalize(b, java.text.Normalizer.Form.NFKC).replaceAll("\\s+", ""));
+	}
+
 	// 共通の正規化関数を用意
 	private static String normalizeTimes(String times) {
 		if (times == null)

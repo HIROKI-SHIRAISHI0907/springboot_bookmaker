@@ -153,12 +153,43 @@ public class BmM002ConditionResultDataBean {
 	 * @throws Exception ファイルが取得できない場合、または読み込み時の例外
 	 */
 	private String getConditionData() throws Exception {
-		// TODO: 将来 S3 から取得する場合はここを差し替える
 		String data = this.readStat.getConditionDataFileBody(this.findPath);
 		if (data == null || data.isBlank()) {
-			throw new IllegalStateException("条件分岐データが取得できません: path=" + this.findPath);
+			// 2026-11-27: ECS（コンテナ）には Mac のパス（/Users/...）が無く、B006 が毎回 BM_M002 で止まっていた。
+			// ファイルが無ければ、jar に同梱した classpath:conditiondata/conditiondata.csv を読む
+			// （ReadStat#getConditionDataFileBody と同じく、行をつなげて前後の空白と半角スペースを除く → ハッシュは Mac で読んだときと同じ）。
+			data = readClasspath(CLASSPATH_CONDITION);
+			if (data != null && !data.isBlank()) {
+				this.loggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, "getConditionData",
+						MessageCdConst.MCD00099I_LOG,
+						"条件分岐データを jar 内（classpath:" + CLASSPATH_CONDITION + "）から読みました。path=" + this.findPath + " は無し");
+			}
+		}
+		if (data == null || data.isBlank()) {
+			throw new IllegalStateException("条件分岐データが取得できません: path=" + this.findPath
+					+ "（classpath:" + CLASSPATH_CONDITION + " も無し）");
 		}
 		return data;
+	}
+
+	/** jar に同梱した条件分岐データ（bookmakers-app/src/main/resources/conditiondata/conditiondata.csv。2026-11-27 追加） */
+	static final String CLASSPATH_CONDITION = "conditiondata/conditiondata.csv";
+
+	/** classpath のファイルを ReadStat と同じ形（行をつなげ、前後の空白・半角スペースを除く）で読む。無ければ null */
+	private static String readClasspath(String path) throws java.io.IOException {
+		org.springframework.core.io.ClassPathResource r = new org.springframework.core.io.ClassPathResource(path);
+		if (!r.exists()) {
+			return null;
+		}
+		try (java.io.BufferedReader br = new java.io.BufferedReader(
+				new java.io.InputStreamReader(r.getInputStream(), StandardCharsets.UTF_8))) {
+			StringBuilder sb = new StringBuilder();
+			String line;
+			while ((line = br.readLine()) != null) {
+				sb.append(line);
+			}
+			return sb.toString().strip().replace(" ", "");
+		}
 	}
 
 	/**

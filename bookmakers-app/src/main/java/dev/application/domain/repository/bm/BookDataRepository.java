@@ -387,14 +387,14 @@ public interface BookDataRepository {
 			  -- B018 で反映済みの試合は除く
 			  AND NOT EXISTS (SELECT 1 FROM analyze_manual_data a WHERE a.match_id = d.match_id)
 			  -- B011 が CSV にできる試合（前半・ハーフタイム・後半・終了済が揃っている）は除く。
-			  -- 順番は B011 と同じく seq_key 末尾の連番（取れなければ seq）。
+			  -- 順番は B011 と同じく seq_key 末尾の連番（static_data に seq 列は無い。2026-11-27 修正）。
 			  AND NOT EXISTS (
 			      SELECT 1
 			      FROM (
 			          SELECT MIN(x.ord) FILTER (WHERE x.times = 'ハーフタイム') AS ht,
 			                 MIN(x.ord) FILTER (WHERE x.times = '終了済')     AS fn
 			          FROM (SELECT s.times,
-			                       COALESCE(CAST(NULLIF(SUBSTRING(s.seq_key FROM '([0-9]+)$'), '') AS BIGINT), s.seq) AS ord
+			                       CAST(NULLIF(SUBSTRING(s.seq_key FROM '([0-9]+)$'), '') AS BIGINT) AS ord
 			                  FROM static_data s
 			                 WHERE s.match_id = d.match_id) x
 			      ) p
@@ -402,12 +402,12 @@ public interface BookDataRepository {
 			        AND EXISTS (SELECT 1 FROM static_data y
 			                     WHERE y.match_id = d.match_id
 			                       AND BTRIM(y.times) ~ '^[0-9:+'']+$'
-			                       AND COALESCE(CAST(NULLIF(SUBSTRING(y.seq_key FROM '([0-9]+)$'), '') AS BIGINT), y.seq) < p.ht)
+			                       AND CAST(NULLIF(SUBSTRING(y.seq_key FROM '([0-9]+)$'), '') AS BIGINT) < p.ht)
 			        AND EXISTS (SELECT 1 FROM static_data y
 			                     WHERE y.match_id = d.match_id
 			                       AND BTRIM(y.times) ~ '^[0-9:+'']+$'
-			                       AND COALESCE(CAST(NULLIF(SUBSTRING(y.seq_key FROM '([0-9]+)$'), '') AS BIGINT), y.seq) > p.ht
-			                       AND COALESCE(CAST(NULLIF(SUBSTRING(y.seq_key FROM '([0-9]+)$'), '') AS BIGINT), y.seq) < p.fn)
+			                       AND CAST(NULLIF(SUBSTRING(y.seq_key FROM '([0-9]+)$'), '') AS BIGINT) > p.ht
+			                       AND CAST(NULLIF(SUBSTRING(y.seq_key FROM '([0-9]+)$'), '') AS BIGINT) < p.fn)
 			  )
 			ORDER BY d.match_id, d.add_manual_flg DESC
 			""")

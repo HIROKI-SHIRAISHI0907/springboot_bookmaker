@@ -1658,7 +1658,8 @@ public class ExportCsvService {
 		}
 		List<DataEntity> result = stateFiltered;
 		boolean condition = this.helper.csvCondition(result, csvArtifactResource);
-		logInfo(METHOD_NAME, "csvCondition 判定 label=" + label + ", result=" + condition);
+		logInfo(METHOD_NAME, "csvCondition 判定 label=" + label + ", result=" + condition
+				+ (condition ? "" : ", 理由=" + this.helper.csvConditionReason(result, csvArtifactResource)));
 		if (!condition) {
 			result = null;
 		} else {

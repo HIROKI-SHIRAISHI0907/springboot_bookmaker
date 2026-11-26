@@ -1,0 +1,79 @@
+"def conditionChk(game_info_sub_info_text, home_rank, away_rank, home_score, away_score, home_exp, away_exp, weather, temperature, humid,"
+"                 home_shoot_all, away_shoot_all, home_shoot_in, away_shoot_in, live_fin_text,  home_formation, away_formation, judge_member, studium, capacity, audience, home_manager, away_manager,"
+"                 home_team_home_score, home_team_home_lost, away_team_home_score, away_team_home_lost, home_team_away_score, home_team_away_lost, away_team_away_score, away_team_away_lost,"
+"                 home_team_max_getting_scorer, away_team_max_getting_scorer, home_team_max_getting_scorer_participating, away_team_max_getting_scorer_participating):"
+    # --- 追加: None耐性 ---
+    live_fin_text = s(live_fin_text)  # ここで必ず文字列化
+""
+"    home_rank_rep = s(home_rank).replace(""."", """") or ""999"""
+"    away_rank_rep = s(away_rank).replace(""."", """") or ""999"""
+""
+    chkResult = []
+"    time_flg = """""
+""
+    # 90+ / 68' / 45:13 いずれでも落ちないように try をつける
+    try:
+"        if ""+"" in live_fin_text:"
+"            t = live_fin_text.replace(""+"", """").replace(""'"", """")"
+"            if to_int(t, 99) < 20:"
+"                time_flg = ""OK"""
+"        elif ""'"" in live_fin_text:"
+"            t = live_fin_text.replace(""'"", """")"
+"            if to_int(t, 99) < 20:"
+"                time_flg = ""OK"""
+"        elif "":"" in live_fin_text:"
+"            t = live_fin_text.replace("":"", """")"
+"            if to_int(t, 9999) < 2000:"
+"                time_flg = ""OK"""
+    except Exception:
+        pass
+""
+    print(live_fin_text)
+""
+""
+    # アフリカの以下の国は順位がホームが上であること
+"    if ""ケニア"" in game_info_sub_info_text or ""タンザニア"" in game_info_sub_info_text or ""ウガンダ"" in game_info_sub_info_text:"
+        if (int(home_rank_rep) > int(away_rank_rep)) and (int(home_rank_rep) < 4 and int(away_rank_rep) > 9):
+"            chkResult.append(""ケニア,タンザニア,ウガンダのいずれかです"")"
+            chkResult.append(time_flg)
+            return chkResult
+        else:
+"            if (home_shoot_in != """" and home_shoot_all != """" and away_shoot_in != """" and away_shoot_all != """" and ("
+                    (float(int(home_shoot_in) / int(home_shoot_all)) >= 0.6) or (
+                    float(int(away_shoot_in) / int(away_shoot_all)) >= 0.6))):
+"                chkResult.append(""ケニア,タンザニア,ウガンダのいずれかで期待値は0.6以上です"")"
+                chkResult.append(time_flg)
+                return chkResult
+""
+    # 得点した方が得点数と枠内シュート数が同数（ただし1点）
+"    if time_flg == ""OK"" and (home_score == ""1"" or away_score == ""1"") and (home_score == home_shoot_all or away_score == away_shoot_all):"
+"        chkResult.append(""得点した方が得点数と枠内シュート数が同数（ただし1点）です"")"
+        chkResult.append(time_flg)
+        return chkResult
+""
+"    # シュートが3本以上,枠内シュート2本以上,アウェーはシュートが2本以上,枠内シュート1本以上"
+"    if (home_shoot_all != """" and home_shoot_in != """") and (away_shoot_all != """" and away_shoot_in != """") and ("
+            int(home_shoot_all) >= 3 and int(home_shoot_in) >= 2) and (
+            int(away_shoot_all) >= 2 and int(away_shoot_in) >= 1):
+        if ((float(int(home_shoot_in) / int(home_shoot_all)) >= 0.6) or (
+                float(int(away_shoot_in) / int(away_shoot_all)) >= 0.6)):
+"            chkResult.append(""シュートが3本以上,枠内シュート2本以上,アウェーはシュートが2本以上,枠内シュート1本以上です"")"
+            chkResult.append(time_flg)
+            return chkResult
+"        elif ((home_score == ""1"" or away_score == ""1"") and ("
+                float(int(home_shoot_in) / int(home_shoot_all)) >= 0.4) and (
+                      float(int(away_shoot_in) / int(away_shoot_all)) >= 0.4)):
+"            chkResult.append(""片方が1点取っており,どちらも4割以上の枠内シュートです。"")"
+            chkResult.append(time_flg)
+            return chkResult
+""
+"    # ハーフタイム時に期待値が1.10以上,お互いシュート数が3本以上"
+"    if live_fin_text == 'ハーフタイム' and home_exp != """" and float(home_exp) >= 1.1 and int(home_shoot_all) >= 3 and int("
+            away_shoot_all) >= 3:
+"        chkResult.append(""ハーフタイム時に期待値が1.10以上,お互いシュート数が3本以上です"")"
+        chkResult.append(time_flg)
+        return chkResult
+""
+"    chkResult.append("""")"
+"    chkResult.append("""")"
+    return chkResult
