@@ -66,6 +66,10 @@ import lombok.extern.slf4j.Slf4j;
 @Slf4j
 public class MainStat implements ServiceIF {
 
+	/** 最初からこの本数続けて失敗したら全体を止める（2026-11-27 追加） */
+	private static final int SYSTEMIC_FAIL_LIMIT = 5;
+
+
 	private static final String PROJECT_NAME = MainStat.class.getProtectionDomain()
 			.getCodeSource().getLocation().getPath();
 
@@ -128,9 +132,26 @@ public class MainStat implements ServiceIF {
 			int process = 0;
 			int total = (range != null) ? range.getLastOnDb() : keys.size();
 
+			// 2026-11-27: 1 本の CSV の失敗で全体を止めない（以前は 1 本失敗すると残り全部が翌日回しになり、
+			// 同じ CSV で毎日止まり続けた）。失敗した CSV は csv_detail_manage が '0' のまま残り、次の実行で取り直す
+			// （統計の保存は UPSERT なので二重にならない）。
+			// ただし最初から SYSTEMIC_FAIL_LIMIT 本続けて失敗したら、設定ミスなど全体の問題とみなして止める。
+			int failed = 0;
+			int okCount = 0;
 			for (String key : keys) {
 				process++;
-				int statResult = processKey(key);
+				int statResult;
+				try {
+					statResult = processKey(key);
+					okCount++;
+				} catch (Exception ex) {
+					failed++;
+					log.error("[MainStat] CSV の取り込みに失敗しました（次の実行で取り直します） key={}, e={}", key, ex.toString(), ex);
+					if (okCount == 0 && failed >= SYSTEMIC_FAIL_LIMIT) {
+						throw new IllegalStateException("最初の " + failed + " 本の CSV がすべて失敗したため止めます（設定・環境の問題の可能性）。最後の例外: " + ex, ex);
+					}
+					continue;
+				}
 
 				if (range != null) {
 					lastProcessed = Math.max(lastProcessed, extractSeq(key));
@@ -140,12 +161,13 @@ public class MainStat implements ServiceIF {
 						process, total, key, statResult, range != null ? lastProcessed : "-");
 			}
 
-			if (range != null) {
+			if (range != null && failed == 0) {
 				markSuccess(range.getTo());
 				log.info("[MainStat] final mark success. seq={}", range.getTo());
 			}
 
-			return BatchResultConst.BATCH_OK;
+			log.info("[MainStat] 終了 対象={}, 成功={}, 失敗={}", keys.size(), okCount, failed);
+			return failed == 0 ? BatchResultConst.BATCH_OK : BatchResultConst.BATCH_ERR;
 
 		} catch (Exception e) {
 			log.error("[MainStat] failed", e);
