@@ -1661,6 +1661,14 @@ public class ExportCsvService {
 		logInfo(METHOD_NAME, "csvCondition 判定 label=" + label + ", result=" + condition
 				+ (condition ? "" : ", 理由=" + this.helper.csvConditionReason(result, csvArtifactResource)));
 		if (!condition) {
+			// 2026-11-27: 未反映データ参照（analyze_error_match）に出す
+			try {
+				DataEntity first = result.get(0);
+				this.errorReporter.conditionSkipped(first.getDataCategory(), first.getHomeTeamName(),
+						first.getAwayTeamName(), ids, this.helper.csvConditionReason(result, csvArtifactResource));
+			} catch (Exception ex) {
+				logWarn(METHOD_NAME, "条件で除外した試合の記録に失敗（処理は続行） label=" + label + ", e=" + ex);
+			}
 			result = null;
 		} else {
 			result = this.helper.abnormalChk(result);

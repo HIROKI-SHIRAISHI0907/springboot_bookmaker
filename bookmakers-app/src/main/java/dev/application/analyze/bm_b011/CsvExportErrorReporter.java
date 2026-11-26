@@ -155,6 +155,7 @@ public class CsvExportErrorReporter {
 		// 試合単位のエラーで、その試合が今回の対象に無い（延期で退避・削除などでデータが無くなった）
 		boolean matchLevel = (type == AnalyzeErrorType.INVALID_CATEGORY && !seasonRow)
 				|| type == AnalyzeErrorType.ROUND_NOT_FOUND
+				|| type == AnalyzeErrorType.CSV_CONDITION_SKIPPED
 				|| type == AnalyzeErrorType.CSV_CREATE_FAILED
 				|| type == AnalyzeErrorType.MISSING_VALUE;
 		if (matchLevel && matchId != null && currentMatchIds != null && !currentMatchIds.isEmpty()
@@ -169,6 +170,7 @@ public class CsvExportErrorReporter {
 			}
 			return matchId != null && matchIdsWithCsv.contains(matchId) ? "自動解決: 試合の CSV を作成済み" : null;
 		case ROUND_NOT_FOUND:
+		case CSV_CONDITION_SKIPPED:
 			return matchId != null && matchIdsWithCsv.contains(matchId) ? "自動解決: 試合の CSV を作成済み" : null;
 		case CSV_CREATE_FAILED:
 			if (matchId != null && matchIdsWithCsv.contains(matchId)) {
@@ -264,6 +266,19 @@ public class CsvExportErrorReporter {
 				.detail(join("CSV のフォルダを決められないため未作成", seqDetail(seqIds)))
 				.field("dataCategory", category);
 		record(type, category, i, null, null);
+	}
+
+	/**
+	 * 前半・ハーフタイム・後半・終了済は揃っているが、統計用CSV作成前詳細設定の条件で CSV を作らなかった（2026-11-27 追加）。
+	 * この試合は B018（終了済データだけの反映）の対象にもならないため、未反映データ参照に出す。
+	 * 条件を変えて CSV ができれば、実行の最後の突き合わせで自動解決する。
+	 *
+	 * @param reason 外れた理由（CsvArtifactHelper#csvConditionReason）
+	 */
+	public void conditionSkipped(String category, String home, String away, List<String> seqIds, String reason) {
+		AnalyzeErrorInfo i = info(category, home, away).matchId(matchIdOfSeqs(seqIds))
+				.detail(join("CSV 未作成（統計にも B018 にも入らない）", seqDetail(seqIds)));
+		record(AnalyzeErrorType.CSV_CONDITION_SKIPPED, reason, i, null, null);
 	}
 
 	/**

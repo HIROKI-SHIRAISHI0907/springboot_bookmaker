@@ -10,10 +10,13 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 
 import dev.application.analyze.bm_m098.CsvSeqManageService;
+import dev.application.analyze.common.error.AnalyzeErrorRecorder;
 import dev.application.analyze.interf.ServiceIF;
 import dev.common.constant.BatchResultConst;
 import dev.common.constant.MessageCdConst;
 import dev.common.entity.BookDataEntity;
+import dev.common.error.AnalyzeErrorInfo;
+import dev.common.error.AnalyzeErrorType;
 import dev.common.getinfo.GetStatInfo;
 import dev.common.logger.ManageLoggerComponent;
 import lombok.extern.slf4j.Slf4j;
@@ -81,6 +84,13 @@ public class MainStat implements ServiceIF {
 	/** S3 key のファイル名の番号（"…/123.csv" の 123） */
 	private static final Pattern SEQ_FROM_KEY = Pattern.compile("(?:^|.*/)([0-9]+)\\.csv$");
 
+	/** 取り込めなかった CSV を未反映データ参照（analyze_error_match。BM_B006）に出す（2026-11-27 追加） */
+	@Autowired
+	private AnalyzeErrorRecorder analyzeErrorRecorder;
+
+	/** 未反映データ参照の BM 番号 */
+	private static final String ERROR_BM = "BM_B006";
+
 	@Autowired
 	private GetStatInfo getStatInfo;
 
@@ -144,9 +154,14 @@ public class MainStat implements ServiceIF {
 				try {
 					statResult = processKey(key);
 					okCount++;
+					// 前に失敗していた CSV が取り込めたら、未反映データ参照の行を自動解決
+					this.analyzeErrorRecorder.resolve(ERROR_BM, errorInfoOfKey(key));
 				} catch (Exception ex) {
 					failed++;
 					log.error("[MainStat] CSV の取り込みに失敗しました（次の実行で取り直します） key={}, e={}", key, ex.toString(), ex);
+					String msg = ex.getMessage() == null || ex.getMessage().isBlank() ? ex.getClass().getSimpleName() : ex.getMessage();
+					this.analyzeErrorRecorder.record(ERROR_BM, AnalyzeErrorType.STAT_IMPORT_FAILED,
+							AnalyzeErrorType.STAT_IMPORT_FAILED.message(msg), errorInfoOfKey(key), null, ex);
 					if (okCount == 0 && failed >= SYSTEMIC_FAIL_LIMIT) {
 						throw new IllegalStateException("最初の " + failed + " 本の CSV がすべて失敗したため止めます（設定・環境の問題の可能性）。最後の例外: " + ex, ex);
 					}
@@ -273,5 +288,44 @@ public class MainStat implements ServiceIF {
 
 	private static String safe(String s) {
 		return s == null ? "" : s;
+	}
+
+	/**
+	 * CSV のキー（例: 日本-J1 リーグ-ラウンド4/ガンバ大阪-サンフレッチェ広島.csv）から、未反映データ参照の試合の情報を作る（2026-11-27 追加）。
+	 * フォルダ「国-リーグ-ラウンドN」の最初の "-" までを国、最後の "-" までをリーグ、ファイル名の最初の "-" でホーム・アウェーに分ける
+	 * （名前に "-" を含むチームは分け方がずれることがあるが、記録と自動解決で同じ分け方なので対応はとれる）。
+	 */
+	static AnalyzeErrorInfo errorInfoOfKey(String key) {
+		String k = key == null ? "" : key.replace('\\', '/');
+		int slash = k.lastIndexOf('/');
+		String folder = slash > 0 ? k.substring(0, slash) : "";
+		int prevSlash = folder.lastIndexOf('/');
+		if (prevSlash >= 0) {
+			folder = folder.substring(prevSlash + 1);
+		}
+		String file = slash >= 0 ? k.substring(slash + 1) : k;
+		if (file.toLowerCase().endsWith(".csv")) {
+			file = file.substring(0, file.length() - 4);
+		}
+		String country = null;
+		String league = null;
+		int d1 = folder.indexOf('-');
+		int d2 = folder.lastIndexOf('-');
+		if (d1 > 0 && d2 > d1) {
+			country = folder.substring(0, d1).trim();
+			league = folder.substring(d1 + 1, d2).trim();
+		}
+		String home = file;
+		String away = null;
+		int t = file.indexOf('-');
+		if (t > 0) {
+			home = file.substring(0, t).trim();
+			away = file.substring(t + 1).trim();
+		}
+		AnalyzeErrorInfo i = AnalyzeErrorInfo.match(folder.isEmpty() ? null : folder, home, away).detail("csv=" + key);
+		if (country != null && league != null) {
+			i.countryLeague(country, league);
+		}
+		return i;
 	}
 }
