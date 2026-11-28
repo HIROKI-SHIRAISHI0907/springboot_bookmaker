@@ -21,6 +21,7 @@ import dev.common.util.FileDeleteUtil;
  * - 新規データは insert
  * - 既存データは必要時 update
  * - 新規/更新どちらも initial_reading_master_csv に反映
+ * - CSV（1 リーグの順位表）に無いチームは論理削除（2026-11-28 追加。CountryLeagueDBService#deactivateMissingTeams）
  *
  * <p>2026-10 修正（ヘッダしかない CSV が S3 に残り続ける問題）</p>
  * <ul>
@@ -84,6 +85,9 @@ public class CountryLeagueMasterStat implements MasterEntityIF {
 				String messageCd = MessageCdConst.MCD00008E_UPDATE_FAILED;
 				throw new Exception(messageCd);
 			}
+
+			// 順位表に無くなったチーム（降格など）を論理削除する（2026-11-28 追加）
+			this.countryLeagueDBService.deactivateMissingTeams(entities);
 
 			// CSVに存在した country + league は、差分有無に関係なくモーダル表示対象へ戻す
 			int initialFlgResetResult = this.countryLeagueDBService.resetInitialFlgByIncomingTargets(entities);

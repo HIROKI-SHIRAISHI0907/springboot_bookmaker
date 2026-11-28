@@ -511,4 +511,105 @@ public class CountryLeagueDBService {
 	private String trim(String value) {
 		return value == null ? null : value.trim();
 	}
+
+	/** 差分の論理削除をするのに必要な、CSV のチーム数の下限（これより少ないスナップショットは信用しない） */
+	private static final int MIN_SNAPSHOT_TEAMS = 8;
+
+	/**
+	 * CSV（1 ファイル = 1 リーグの順位表のスナップショット）に無いチームを論理削除する（2026-11-28 追加）。
+	 *
+	 * <p>B004 は登録・更新しかしていなかったため、降格したチームの行が元のリーグに残り、
+	 * 「ブンデスリーガ 21 チーム」のようにチーム数が増えていた。
+	 * 降格先がスクレイピング対象外のリーグだと、昇格・降格の検知（トリガー）でも拾えない。</p>
+	 *
+	 * <p>誤削除を防ぐため、次のときは削除しない。</p>
+	 * <ul>
+	 *   <li>国・リーグが空、またはサブリーグのある行が混じる（順位表がグループ分けされていて、1 ファイルが全チームとは限らない）</li>
+	 *   <li>CSV のチーム数が {@link #MIN_SNAPSHOT_TEAMS} 未満</li>
+	 *   <li>削除する数が、有効なチームの半分を超える（別のリーグ・壊れたスナップショットの可能性）</li>
+	 * </ul>
+	 * 同じチームかどうかは、リンク一致またはチーム名（前後・途中の空白を除く）一致で見る。
+	 *
+	 * @param entities CSV の行
+	 * @return 論理削除した件数
+	 */
+	public int deactivateMissingTeams(List<CountryLeagueMasterEntity> entities) {
+		final String METHOD_NAME = "deactivateMissingTeams";
+		if (entities == null || entities.isEmpty()) {
+			return 0;
+		}
+		java.util.Map<String, List<CountryLeagueMasterEntity>> groups = new java.util.LinkedHashMap<>();
+		for (CountryLeagueMasterEntity e : entities) {
+			if (e == null || !hasMeaningfulValue(e.getCountry()) || !hasMeaningfulValue(e.getLeague())
+					|| !hasMeaningfulValue(e.getTeam())) {
+				continue;
+			}
+			groups.computeIfAbsent(e.getCountry() + "\u0000" + e.getLeague(), k -> new ArrayList<>()).add(e);
+		}
+
+		int total = 0;
+		for (List<CountryLeagueMasterEntity> rows : groups.values()) {
+			String country = rows.get(0).getCountry();
+			String league = rows.get(0).getLeague();
+			String label = country + ": " + league;
+
+			Set<String> links = new HashSet<>();
+			Set<String> teamKeys = new HashSet<>();
+			boolean hasSub = false;
+			for (CountryLeagueMasterEntity r : rows) {
+				if (hasMeaningfulValue(r.getSubLeague())) {
+					hasSub = true;
+				}
+				if (hasMeaningfulValue(r.getLink())) {
+					links.add(r.getLink().trim());
+				}
+				teamKeys.add(teamKey(r.getTeam()));
+			}
+			if (hasSub) {
+				continue;
+			}
+			if (teamKeys.size() < MIN_SNAPSHOT_TEAMS) {
+				this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
+						"[差分削除] " + label + " CSV のチーム数が少ないので削除しません（" + teamKeys.size() + "）");
+				continue;
+			}
+
+			List<CountryLeagueMasterEntity> active =
+					this.countryLeagueMasterRepository.findActiveByCountryAndLeague(country, league);
+			List<CountryLeagueMasterEntity> missing = new ArrayList<>();
+			boolean activeHasSub = false;
+			for (CountryLeagueMasterEntity db : active) {
+				if (hasMeaningfulValue(db.getSubLeague())) {
+					activeHasSub = true;
+				}
+				boolean present = (hasMeaningfulValue(db.getLink()) && links.contains(db.getLink().trim()))
+						|| teamKeys.contains(teamKey(db.getTeam()));
+				if (!present) {
+					missing.add(db);
+				}
+			}
+			if (activeHasSub || missing.isEmpty()) {
+				continue;
+			}
+			if (missing.size() * 2 > active.size()) {
+				this.manageLoggerComponent.debugWarnLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
+						"[差分削除] " + label + " 削除する数が多すぎるので止めます（有効 " + active.size()
+								+ " / CSV に無い " + missing.size() + "）");
+				continue;
+			}
+			for (CountryLeagueMasterEntity db : missing) {
+				int n = this.countryLeagueMasterRepository.logicalDeleteById(db.getId());
+				total += n;
+				this.manageLoggerComponent.debugInfoLog(PROJECT_NAME, CLASS_NAME, METHOD_NAME, null,
+						"[差分削除] " + label + " 順位表に無いので論理削除 id=" + db.getId() + " team=" + db.getTeam()
+								+ (n == 1 ? "" : "（すでに削除済み）"));
+			}
+		}
+		return total;
+	}
+
+	/** チーム名の比較キー（空白を全部除く） */
+	private static String teamKey(String team) {
+		return team == null ? "" : team.replace('\u3000', ' ').replaceAll("\\s+", "");
+	}
 }
