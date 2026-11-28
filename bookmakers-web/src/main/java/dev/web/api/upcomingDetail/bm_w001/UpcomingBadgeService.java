@@ -65,6 +65,12 @@ public class UpcomingBadgeService {
 	static final int STREAK_STOPPED = 3;
 	/** 直近5試合の勝ち数 */
 	static final int LAST5_WINS = 4;
+	/** 直近5試合の勝ち数がこれ以下なら「不調」（2026-11-28 追加） */
+	static final int LAST5_BAD_WINS = 1;
+	/** リーグ内の得点・失点の順位を出す範囲（上位・ワースト何位まで。2026-11-28 追加） */
+	static final int RANK_WITHIN = 3;
+	/** 順位表の上位・下位（何チームまで。2026-11-28 追加） */
+	static final int TABLE_EDGE = 3;
 	/** 大勝・大敗（得失点差） */
 	static final int BIG_MARGIN = 3;
 	/** 今季未勝利（試合数） */
@@ -98,10 +104,10 @@ public class UpcomingBadgeService {
 		POSSESSION_TOP(Metric.POSSESSION, true, "ボール保持率リーグ1位", GOOD, "%"),
 		POSSESSION_LOW(Metric.POSSESSION, false, "ボール保持率リーグ最下位", INFO, "%"),
 		PASS_ACCURACY_TOP(Metric.PASS_ACCURACY, true, "パス成功率リーグ1位", GOOD, "%"),
-		GOALS_FOR_TOP(Metric.GOALS_FOR, true, "得点力リーグ1位", GOOD, "点/試合"),
-		GOALS_FOR_WORST(Metric.GOALS_FOR, false, "得点力リーグワースト", BAD, "点/試合"),
-		GOALS_AGAINST_BEST(Metric.GOALS_AGAINST, false, "失点の少なさリーグ1位", GOOD, "失点/試合"),
-		GOALS_AGAINST_WORST(Metric.GOALS_AGAINST, true, "失点数リーグワースト", BAD, "失点/試合"),
+		GOALS_FOR_TOP(Metric.GOALS_FOR, true, "得点力リーグ1位", GOOD, "点/試合", "得点力リーグ%d位"),
+		GOALS_FOR_WORST(Metric.GOALS_FOR, false, "得点力リーグワースト", BAD, "点/試合", "得点力リーグワースト%d位"),
+		GOALS_AGAINST_BEST(Metric.GOALS_AGAINST, false, "失点の少なさリーグ1位", GOOD, "失点/試合", "失点の少なさリーグ%d位"),
+		GOALS_AGAINST_WORST(Metric.GOALS_AGAINST, true, "失点数リーグワースト", BAD, "失点/試合", "失点数リーグワースト%d位"),
 		SHOTS_TOP(Metric.SHOTS, true, "シュート数リーグ1位", GOOD, "本/90分"),
 		SHOTS_ON_TARGET_TOP(Metric.SHOTS_ON_TARGET, true, "枠内シュート数リーグ1位", GOOD, "本/90分"),
 		CORNERS_TOP(Metric.CORNERS, true, "コーナーキック数リーグ1位", INFO, "本/90分"),
@@ -119,13 +125,20 @@ public class UpcomingBadgeService {
 		final String label;
 		final String tone;
 		final String unit;
+		/** 2 位以下も出すときの表記（%d = 順位）。null なら 1 位だけ（2026-11-28 追加） */
+		final String labelN;
 
 		Rank(Metric metric, boolean high, String label, String tone, String unit) {
+			this(metric, high, label, tone, unit, null);
+		}
+
+		Rank(Metric metric, boolean high, String label, String tone, String unit, String labelN) {
 			this.metric = metric;
 			this.high = high;
 			this.label = label;
 			this.tone = tone;
 			this.unit = unit;
+			this.labelN = labelN;
 		}
 	}
 
@@ -147,11 +160,17 @@ public class UpcomingBadgeService {
 		}
 		res.setSeason(StaticOverviewSource.isStatic(season) ? null : season);
 
-		res.setHomeBadges(teamBadges(country, league, season, home, "H", round, res.getNotes()));
-		res.setAwayBadges(teamBadges(country, league, season, away, "A", round, res.getNotes()));
+		// 前節の時点の順位（チーム → {順位, 節}）。teamBadges で入れる（2026-11-28 追加）
+		Map<String, int[]> lastRank = new LinkedHashMap<>();
+		res.setHomeBadges(teamBadges(country, league, season, home, "H", round, res.getNotes(), lastRank));
+		res.setAwayBadges(teamBadges(country, league, season, away, "A", round, res.getNotes(), lastRank));
 
 		// リーグ順位（数値はリーグ全体で 1 回だけ引く）
 		Map<Metric, List<MetricRow>> cache = new LinkedHashMap<>();
+		// 順位表の上位・下位（サイト表示の順位。チーム数は得点のデータがあるチーム数。2026-11-28 追加）
+		int teamCount = cache.computeIfAbsent(Metric.GOALS_FOR, m -> repository.findMetric(m, country, league, season)).size();
+		addTablePosition(res.getHomeBadges(), lastRank.get(norm(home)), teamCount);
+		addTablePosition(res.getAwayBadges(), lastRank.get(norm(away)), teamCount);
 		for (Rank r : Rank.values()) {
 			List<MetricRow> rows = cache.computeIfAbsent(r.metric, m -> repository.findMetric(m, country, league, season));
 			addRank(res.getHomeBadges(), r, rows, home);
@@ -162,11 +181,27 @@ public class UpcomingBadgeService {
 		return res;
 	}
 
+	/** 順位表の上位・下位（2026-11-28 追加） */
+	private void addTablePosition(List<TeamBadgeDTO> out, int[] rankRound, int teamCount) {
+		if (rankRound == null || teamCount < TABLE_EDGE * 2 + 2) {
+			return;
+		}
+		int rank = rankRound[0];
+		String when = "第" + rankRound[1] + "節の時点（" + teamCount + "チーム中）";
+		if (rank == 1) {
+			add(out, "TABLE_TOP", "首位", GOOD, "順位", when);
+		} else if (rank <= TABLE_EDGE) {
+			add(out, "TABLE_UPPER", "上位（" + rank + "位）", GOOD, "順位", when);
+		} else if (rank > teamCount - TABLE_EDGE) {
+			add(out, "TABLE_LOWER", rank == teamCount ? "最下位" : "下位に低迷（" + rank + "位）", BAD, "順位", when);
+		}
+	}
+
 	// =========================================================
 	// チームの試合から（流れ・前節・今季）
 	// =========================================================
 	private List<TeamBadgeDTO> teamBadges(String country, String league, String season, String team, String venue,
-			Integer round, List<String> notes) {
+			Integer round, List<String> notes, Map<String, int[]> lastRank) {
 		List<TeamBadgeDTO> out = new ArrayList<>();
 		List<MatchRow> all = repository.findMatches(country, league, season, team);
 		Map<Integer, MatchRow> byRound = new LinkedHashMap<>();
@@ -202,6 +237,9 @@ public class UpcomingBadgeService {
 						fullSeason = false;
 						break;
 					}
+				}
+				if (prev.getTeamRank() != null && prev.getTeamRank() > 0) {
+					lastRank.put(norm(team), new int[] { prev.getTeamRank(), prevRound });
 				}
 				streaks(out, byRound, prevRound);
 				previous(out, byRound, prev, prevRound, before, fullSeason);
@@ -271,6 +309,21 @@ public class UpcomingBadgeService {
 		}
 		if (last5 && w5 >= LAST5_WINS && win < 5) {
 			add(out, "LAST5_GOOD", "直近5試合で" + w5 + "勝", GOOD, "流れ", "第" + (prevRound - 4) + "〜" + prevRound + "節");
+		}
+		// 不調（直近5試合で1勝以下。5試合勝ちなし・5連敗のアイコンが出ているときは重ねない。2026-11-28 追加）
+		if (last5 && w5 <= LAST5_BAD_WINS && winless < STREAK_WINLESS && lose < 5) {
+			int d5 = 0;
+			int l5 = 0;
+			for (int r = prevRound; r > prevRound - 5; r--) {
+				String res5 = byRound.get(r).getResult();
+				if ("D".equals(res5)) {
+					d5++;
+				} else if ("L".equals(res5)) {
+					l5++;
+				}
+			}
+			add(out, "LAST5_BAD", w5 == 0 ? "直近5試合で未勝利" : "直近5試合で1勝のみ", BAD, "流れ",
+					"第" + (prevRound - 4) + "〜" + prevRound + "節 " + w5 + "勝" + d5 + "分" + l5 + "敗");
 		}
 	}
 
@@ -414,7 +467,24 @@ public class UpcomingBadgeService {
 				best = r.getValue();
 			}
 		}
-		if (best == null || mine.getValue().compareTo(best) != 0) {
+		if (best == null) {
+			return;
+		}
+		if (mine.getValue().compareTo(best) != 0) {
+			// 2 位以下（labelN があるものだけ。RANK_WITHIN 位まで。2026-11-28 追加）
+			if (def.labelN == null) {
+				return;
+			}
+			final BigDecimal mv = mine.getValue();
+			long better = valid.stream()
+					.filter(r -> def.high ? r.getValue().compareTo(mv) > 0 : r.getValue().compareTo(mv) < 0).count();
+			int pos = (int) better + 1;
+			if (pos > RANK_WITHIN) {
+				return;
+			}
+			long same = valid.stream().filter(r -> r.getValue().compareTo(mv) == 0).count();
+			add(out, def.name(), String.format(def.labelN, pos) + (same > 1 ? "（タイ）" : ""), def.tone, "リーグ順位",
+					fmt(mine.getValue()) + " " + def.unit + "（" + valid.size() + "チーム中・" + mine.getMatchCount() + "試合）");
 			return;
 		}
 		final BigDecimal top = best;

@@ -43,6 +43,8 @@ public class UpcomingBadgeRepository {
 		private boolean flowKnown;
 		private boolean everTrailed;
 		private Timestamp matchTime;
+		/** サイト表示の順位（試合終了の時点。取れなければ null。2026-11-28 追加） */
+		private Integer teamRank;
 	}
 
 	/** リーグ内の数値 1 チーム分 */
@@ -107,7 +109,7 @@ public class UpcomingBadgeRepository {
 	/** チームのシーズンの試合（ラウンド番号のあるものだけ。ラウンド → 試合日時の順） */
 	public List<MatchRow> findMatches(String country, String league, String season, String team) {
 		String sql = "SELECT round_no, ha, opponent, result, goals_for, goals_against, phase, first_goal,"
-				+ " flow_known, ever_trailed, match_time"
+				+ " flow_known, ever_trailed, match_time, team_rank"
 				+ " FROM " + StaticOverviewSource.from(season) + Where.LEAGUE
 				+ " AND " + Where.key("team") + " = " + Where.key("CAST(:team AS text)")
 				+ " AND round_no IS NOT NULL"
@@ -134,6 +136,8 @@ public class UpcomingBadgeRepository {
 			r.setFlowKnown(rs.getBoolean("flow_known"));
 			r.setEverTrailed(rs.getBoolean("ever_trailed"));
 			r.setMatchTime(rs.getTimestamp("match_time"));
+			int tr = rs.getInt("team_rank");
+			r.setTeamRank(rs.wasNull() ? null : tr);
 			return r;
 		});
 	}
