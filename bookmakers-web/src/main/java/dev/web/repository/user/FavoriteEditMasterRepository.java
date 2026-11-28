@@ -18,6 +18,7 @@ import dev.web.util.JapaneseOrderUtil;
 /**
  * お気に入り編集（FavoriteEdit.tsx）用 Repository（soccer_master: country_league_master）
  * 管理者が非表示にした国・リーグ・チーム（admin_favorites_master）は候補・登録から外す。
+ * 国・リーグ・チーム名は前後空白を除いて NFKC 正規化して比べる（表記ゆれで同じリーグが分かれないように。2026-11-28 変更）。
  * @author shiraishitoshio
  */
 @Repository
@@ -33,15 +34,15 @@ public class FavoriteEditMasterRepository {
 	/** 国・リーグの一覧（チーム数つき。国 → リーグのあいうえお順。2026-11 変更） */
 	public List<FavoriteLeagueDTO> findLeagues() {
 		String sql = """
-				SELECT m.country, m.league, COUNT(DISTINCT m.team) AS team_count
+				SELECT MIN(BTRIM(m.country)) AS country, MIN(BTRIM(m.league)) AS league,
+				       COUNT(DISTINCT normalize(BTRIM(m.team), NFKC)) AS team_count
 				FROM country_league_master m
 				WHERE m.del_flg = '0'
 				  AND NULLIF(BTRIM(m.country), '') IS NOT NULL
 				  AND NULLIF(BTRIM(m.league), '') IS NOT NULL
 				  AND NOT """ + AdminFavoriteRepository.HIDDEN_EXISTS + """
 				  AND """ + LeagueVisibility.SCRAPE_VISIBLE + """
-				GROUP BY m.country, m.league
-				ORDER BY m.country COLLATE "ja-x-icu", m.league COLLATE "ja-x-icu"
+				GROUP BY normalize(BTRIM(m.country), NFKC), normalize(BTRIM(m.league), NFKC)
 				""";
 		List<FavoriteLeagueDTO> list = masterJdbcTemplate.query(sql, new MapSqlParameterSource(), (rs, n) -> {
 			FavoriteLeagueDTO d = new FavoriteLeagueDTO();
@@ -62,17 +63,17 @@ public class FavoriteEditMasterRepository {
 	 */
 	public List<FavoriteTeamCandidateDTO> searchTeams(String keyword, String country, String league, int limit) {
 		String sql = """
-				SELECT m.country, m.league, m.team
+				SELECT MIN(BTRIM(m.country)) AS country, MIN(BTRIM(m.league)) AS league, MIN(BTRIM(m.team)) AS team
 				FROM country_league_master m
 				WHERE m.del_flg = '0'
 				  AND NULLIF(BTRIM(m.team), '') IS NOT NULL
 				  AND (:keyword = '' OR normalize(m.team, NFKC) ILIKE '%' || normalize(:keyword, NFKC) || '%')
-				  AND (:country = '' OR m.country = :country)
-				  AND (:league  = '' OR m.league  = :league)
+				  AND (:country = '' OR normalize(BTRIM(m.country), NFKC) = normalize(CAST(:country AS text), NFKC))
+				  AND (:league  = '' OR normalize(BTRIM(m.league), NFKC)  = normalize(CAST(:league AS text), NFKC))
 				  AND NOT """ + AdminFavoriteRepository.HIDDEN_EXISTS + """
 				  AND """ + LeagueVisibility.SCRAPE_VISIBLE + """
-				GROUP BY m.country, m.league, m.team
-				ORDER BY m.country COLLATE "ja-x-icu", m.league COLLATE "ja-x-icu", m.team COLLATE "ja-x-icu"
+				GROUP BY normalize(BTRIM(m.country), NFKC), normalize(BTRIM(m.league), NFKC), normalize(BTRIM(m.team), NFKC)
+				ORDER BY MIN(BTRIM(m.country)) COLLATE "ja-x-icu", MIN(BTRIM(m.league)) COLLATE "ja-x-icu", MIN(BTRIM(m.team)) COLLATE "ja-x-icu"
 				LIMIT :limit
 				""";
 		MapSqlParameterSource p = new MapSqlParameterSource()
@@ -98,7 +99,10 @@ public class FavoriteEditMasterRepository {
 		String sql = """
 				SELECT COUNT(*)
 				FROM country_league_master m
-				WHERE m.del_flg = '0' AND m.country = :country AND m.league = :league AND m.team = :team
+				WHERE m.del_flg = '0'
+				  AND normalize(BTRIM(m.country), NFKC) = normalize(BTRIM(CAST(:country AS text)), NFKC)
+				  AND normalize(BTRIM(m.league), NFKC)  = normalize(BTRIM(CAST(:league AS text)), NFKC)
+				  AND normalize(BTRIM(m.team), NFKC)    = normalize(BTRIM(CAST(:team AS text)), NFKC)
 				  AND NOT """ + AdminFavoriteRepository.HIDDEN_EXISTS + """
 				  AND """ + LeagueVisibility.SCRAPE_VISIBLE + """
 				""";

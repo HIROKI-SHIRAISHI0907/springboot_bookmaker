@@ -39,6 +39,9 @@ public class UpcomingDetailResponse {
 	/** 順位表（順位順。リーグのデータが無ければ空） */
 	private List<StandingRowDTO> standings = new ArrayList<>();
 
+	/** 順位表の元（STATS = 統計 / STATIC = 終了済の試合から計算 / null = 無し。2026-11-28 追加） */
+	private String standingSource;
+
 	/** ゴール数などの統計 */
 	private TeamGoalStatsDTO homeStats;
 

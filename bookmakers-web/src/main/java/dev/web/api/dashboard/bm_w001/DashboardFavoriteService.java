@@ -150,6 +150,8 @@ public class DashboardFavoriteService {
 			d.setOpponent(home ? f.getAwayTeamName() : f.getHomeTeamName());
 			d.setHomeAway(home ? "H" : "A");
 			d.setKickoff(f.getFutureTime());
+			// 試合予定の詳細（/upcoming-detail）を開くためのラウンド（一覧と同じ表記。2026-11-28 追加）
+			d.setRoundLabel(cl == null || cl[2] == null ? null : "ラウンド " + cl[2]);
 			d.setWinProb((int) Math.round((home ? r.home : r.away) * 100));
 			return d;
 		}

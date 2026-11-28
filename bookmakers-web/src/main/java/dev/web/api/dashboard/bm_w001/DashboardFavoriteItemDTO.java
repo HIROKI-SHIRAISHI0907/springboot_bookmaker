@@ -46,6 +46,9 @@ public class DashboardFavoriteItemDTO {
 	/** LIVE: 試合詳細への遷移用（static_data の seq_key） */
 	private String seqKey;
 
+	/** ラウンド（例: 「ラウンド 20」。NEXT のときだけ。試合予定の詳細を開くため。2026-11-28 追加） */
+	private String roundLabel;
+
 	/** 直近5ラウンドの結果（新しい順。W / D / L、分からないラウンドは null） */
 	private List<String> recentForm;
 }

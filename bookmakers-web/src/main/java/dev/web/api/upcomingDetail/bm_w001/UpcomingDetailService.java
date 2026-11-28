@@ -1,6 +1,7 @@
 package dev.web.api.upcomingDetail.bm_w001;
 
 import java.text.Normalizer;
+import java.util.ArrayList;
 import java.util.List;
 
 import org.springframework.stereotype.Service;
@@ -72,9 +73,22 @@ public class UpcomingDetailService {
 
 		// 順位表（試合のリーグの最新シーズン）
 		String season = c != null && l != null ? repository.findLatestSeason(c, l) : null;
+		List<StandingRowDTO> rows = new ArrayList<>();
 		if (season != null) {
 			res.setStandingSeason(season);
-			List<StandingRowDTO> rows = repository.findStandings(c, l, season);
+			rows = repository.findStandings(c, l, season);
+			res.setStandingSource("STATS");
+		}
+		// 統計がまだ無いリーグは、終了済の試合（static_data）から計算する（2026-11-28 追加）
+		if (rows.isEmpty() && c != null && l != null) {
+			try {
+				rows = repository.findStandingsFromStatic(c, l);
+				res.setStandingSource(rows.isEmpty() ? null : "STATIC");
+			} catch (Exception e) {
+				rows = new ArrayList<>();
+			}
+		}
+		if (!rows.isEmpty()) {
 			for (StandingRowDTO r : rows) {
 				String k = norm(r.getTeam());
 				if (k.equals(norm(h))) {
