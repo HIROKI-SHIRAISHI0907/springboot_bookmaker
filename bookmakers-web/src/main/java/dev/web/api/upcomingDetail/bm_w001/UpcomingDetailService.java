@@ -15,6 +15,7 @@ import dev.web.api.upcomingDetail.upcomingDetailDTO.TeamGoalStatsDTO;
 import dev.web.repository.bm.StaticOverviewSource;
 import dev.web.repository.bm.UpcomingDetailRepository;
 import lombok.RequiredArgsConstructor;
+import lombok.extern.slf4j.Slf4j;
 
 /**
  * これからの試合の詳細（UpcomingDetail.tsx）
@@ -28,6 +29,7 @@ import lombok.RequiredArgsConstructor;
  * </ul>
  * @author shiraishitoshio
  */
+@Slf4j
 @Service
 @RequiredArgsConstructor
 public class UpcomingDetailService {
@@ -83,6 +85,7 @@ public class UpcomingDetailService {
 			try {
 				rows = repository.findStandings(c, l, season);
 			} catch (Exception e) {
+				log.warn("[UpcomingDetail] 順位表を取れませんでした {}:{} season={} e={}", c, l, season, e.toString());
 				rows = new ArrayList<>();
 			}
 			if (!rows.isEmpty()) {
@@ -142,6 +145,7 @@ public class UpcomingDetailService {
 		try {
 			list = repository.findGoalStats(country, league, season, team);
 		} catch (Exception e) {
+			log.warn("[UpcomingDetail] 統計を取れませんでした {}:{} season={} team={} e={}", country, league, season, team, e.toString());
 			return false;
 		}
 		for (GoalStatsDTO s : list) {

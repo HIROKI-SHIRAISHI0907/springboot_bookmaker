@@ -80,7 +80,7 @@ public class UpcomingDetailRepository {
 				+ "        COALESCE(SUM(points), 0)::INTEGER AS points,"
 				+ "        COALESCE(SUM(goals_for), 0)::INTEGER AS goals_for,"
 				+ "        COALESCE(SUM(goals_against), 0)::INTEGER AS goals_against,"
-				+ "        (ARRAY_AGG(result::text " + RECENT + "))[1:5] AS form,"
+				+ "        (ARRAY_AGG(result::text " + RECENT + ")) AS form,"
 				+ "        (ARRAY_AGG(team_rank " + RECENT + ") FILTER (WHERE team_rank IS NOT NULL))[1] AS site_rank"
 				+ " FROM " + StaticOverviewSource.from(season)
 				+ WHERE_LEAGUE
@@ -103,7 +103,7 @@ public class UpcomingDetailRepository {
 			r.setGoalsFor(rs.getInt("goals_for"));
 			r.setGoalsAgainst(rs.getInt("goals_against"));
 			r.setGoalDiff(rs.getInt("goal_diff"));
-			r.setForm(toList(rs.getArray("form")));
+			r.setForm(first5(toList(rs.getArray("form"))));
 			return r;
 		});
 	}
@@ -137,7 +137,7 @@ public class UpcomingDetailRepository {
 				+ "  COUNT(*) FILTER (WHERE goals_for + goals_against >= 4)::INTEGER AS over35,"
 				+ "  COUNT(*) FILTER (WHERE first_goal = 'T')::INTEGER AS scored_first,"
 				+ "  COUNT(*) FILTER (WHERE first_goal = 'O')::INTEGER AS conceded_first,"
-				+ "  (ARRAY_AGG(result::text " + RECENT + "))[1:5] AS form"
+				+ "  (ARRAY_AGG(result::text " + RECENT + ")) AS form"
 				+ " FROM " + StaticOverviewSource.from(season)
 				+ WHERE_LEAGUE
 				+ "   AND " + key("team") + " = " + key("CAST(:team AS text)")
@@ -170,7 +170,7 @@ public class UpcomingDetailRepository {
 		d.setOver35(rs.getInt("over35"));
 		d.setScoredFirst(rs.getInt("scored_first"));
 		d.setConcededFirst(rs.getInt("conceded_first"));
-		d.setForm(toList(rs.getArray("form")));
+		d.setForm(first5(toList(rs.getArray("form"))));
 		return d;
 	}
 
@@ -192,6 +192,14 @@ public class UpcomingDetailRepository {
 			}
 		}
 		return list;
+	}
+
+	/**
+	 * 直近 5 試合だけ（新しい順）。
+	 * SQL で配列を [1:5] と切ると、NamedParameterJdbcTemplate が「:5」をパラメータと読んでエラーになるので Java で切る（2026-11-28）。
+	 */
+	private static List<String> first5(List<String> l) {
+		return l.size() <= 5 ? l : new ArrayList<>(l.subList(0, 5));
 	}
 
 	private static MapSqlParameterSource params(String country, String league, String season, String team) {
