@@ -25,6 +25,31 @@ public class TeamColorMasterWebRepository {
 		this.masterJdbcTemplate = masterJdbcTemplate;
 	}
 
+	/**
+	 * 国のチームカラー（有効な行だけ。ランキングの変遷グラフ用。2026-11-28 追加）。
+	 * チームがリーグを移っても使えるよう、リーグでは絞らない（呼び出し側で同じリーグを優先する）。
+	 */
+	public List<TeamColorDTO> findActiveByCountry(String country) {
+		String sql = """
+				    SELECT id, country, league, team, team_color_main_hex, team_color_sub_hex, del_flg
+				    FROM team_color_master
+				    WHERE COALESCE(del_flg, '0') = '0'
+				      AND normalize(BTRIM(country), NFKC) = normalize(BTRIM(CAST(:country AS text)), NFKC)
+				""";
+		return masterJdbcTemplate.query(sql, new MapSqlParameterSource().addValue("country", country == null ? "" : country),
+				(rs, n) -> {
+					TeamColorDTO dto = new TeamColorDTO();
+					dto.setId(rs.getString("id"));
+					dto.setCountry(rs.getString("country"));
+					dto.setLeague(rs.getString("league"));
+					dto.setTeam(rs.getString("team"));
+					dto.setTeamColorMainHex(rs.getString("team_color_main_hex"));
+					dto.setTeamColorSubHex(rs.getString("team_color_sub_hex"));
+					dto.setDelFlg(rs.getString("del_flg"));
+					return dto;
+				});
+	}
+
 	// --------------------------------------------------------
 	// 全件: GET /api/team-color-master
 	// --------------------------------------------------------
