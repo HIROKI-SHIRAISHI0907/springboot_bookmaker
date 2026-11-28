@@ -21,6 +21,8 @@ import lombok.extern.slf4j.Slf4j;
  *   <li>{@link #findStyleLabel}: チームのスタイル（team_style_profile.style_label）</li>
  * </ul>
  * 国・リーグ・チーム名は前後空白を除いて NFKC 正規化して比べる（UpcomingDetailRepository と同じ）。
+ * 統計がまだ無いリーグは season = {@link StaticOverviewSource#SEASON}（終了済の試合から作ったデータ）。
+ * そのときビュー（ボール保持率など）・スタイルは出さない（2026-11-28 追加）。
  * @author shiraishitoshio
  */
 @Slf4j
@@ -106,11 +108,20 @@ public class UpcomingBadgeRepository {
 	public List<MatchRow> findMatches(String country, String league, String season, String team) {
 		String sql = "SELECT round_no, ha, opponent, result, goals_for, goals_against, phase, first_goal,"
 				+ " flow_known, ever_trailed, match_time"
-				+ " FROM surface_overview_match" + Where.LEAGUE
+				+ " FROM " + StaticOverviewSource.from(season) + Where.LEAGUE
 				+ " AND " + Where.key("team") + " = " + Where.key("CAST(:team AS text)")
 				+ " AND round_no IS NOT NULL"
 				+ " ORDER BY round_no, match_time NULLS FIRST";
-		return bmJdbcTemplate.query(sql, params(country, league, season).addValue("team", team), (rs, n) -> {
+		try {
+			return queryMatches(sql, params(country, league, season).addValue("team", team));
+		} catch (Exception e) {
+			log.warn("[UpcomingBadge] 試合を取れませんでした season={} e={}", season, e.toString());
+			return List.of();
+		}
+	}
+
+	private List<MatchRow> queryMatches(String sql, MapSqlParameterSource p) {
+		return bmJdbcTemplate.query(sql, p, (rs, n) -> {
 			MatchRow r = new MatchRow();
 			r.setRoundNo(rs.getInt("round_no"));
 			r.setHa(rs.getString("ha"));
@@ -129,8 +140,16 @@ public class UpcomingBadgeRepository {
 
 	/** リーグ内の数値（値が無いチームは除く）。ビューが無い・失敗したときは空（アイコンを出さないだけ） */
 	public List<MetricRow> findMetric(Metric metric, String country, String league, String season) {
+		String sql = metric.sql;
+		if (StaticOverviewSource.isStatic(season)) {
+			// 終了済の試合から作ったデータで出せるのは得点・失点だけ（統計のビューはまだ無い）
+			if (!sql.contains("FROM surface_overview_match")) {
+				return List.of();
+			}
+			sql = sql.replace("FROM surface_overview_match", "FROM " + StaticOverviewSource.from(season));
+		}
 		try {
-			List<MetricRow> list = bmJdbcTemplate.query(metric.sql, params(country, league, season), (rs, n) -> {
+			List<MetricRow> list = bmJdbcTemplate.query(sql, params(country, league, season), (rs, n) -> {
 				MetricRow r = new MetricRow();
 				r.setTeam(rs.getString("team"));
 				r.setValue(rs.getBigDecimal("value"));
@@ -152,6 +171,9 @@ public class UpcomingBadgeRepository {
 
 	/** チームのスタイル（無ければ null） */
 	public String findStyleLabel(String country, String league, String season, String team) {
+		if (StaticOverviewSource.isStatic(season)) {
+			return null;
+		}
 		try {
 			String sql = "SELECT style_label FROM team_style_profile" + Where.LEAGUE + " AND ha = '*'"
 					+ " AND " + Where.key("team") + " = " + Where.key("CAST(:team AS text)") + " LIMIT 1";

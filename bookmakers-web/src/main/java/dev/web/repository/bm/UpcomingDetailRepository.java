@@ -17,6 +17,7 @@ import dev.web.api.upcomingDetail.upcomingDetailDTO.StandingRowDTO;
 
 /**
  * これからの試合の詳細（soccer_bm: surface_overview_match）
+ * 統計がまだ無いリーグは season = {@link StaticOverviewSource#SEASON} で static_data から作ったデータを使う（順位表・ゴール数などの統計。2026-11-28）
  *
  * <ul>
  *   <li>{@link #findLatestSeason}: 国・リーグの最新シーズン</li>
@@ -81,7 +82,7 @@ public class UpcomingDetailRepository {
 				+ "        COALESCE(SUM(goals_against), 0)::INTEGER AS goals_against,"
 				+ "        (ARRAY_AGG(result::text " + RECENT + "))[1:5] AS form,"
 				+ "        (ARRAY_AGG(team_rank " + RECENT + ") FILTER (WHERE team_rank IS NOT NULL))[1] AS site_rank"
-				+ " FROM surface_overview_match"
+				+ " FROM " + StaticOverviewSource.from(season)
 				+ WHERE_LEAGUE
 				+ " GROUP BY " + key("team")
 				+ ")"
@@ -106,94 +107,6 @@ public class UpcomingDetailRepository {
 			return r;
 		});
 	}
-
-	/**
-	 * 順位表（static_data の終了済の試合から計算。2026-11-28 追加）。
-	 * 統計（surface_overview_match）がまだ無いリーグ用。トップ画面の W/D/L と同じく static_data を見る。
-	 * <ul>
-	 *   <li>対象: 直近 {@value #STATIC_WINDOW_DAYS} 日の、このリーグ・ラウンド番号のある試合。
-	 *       「ラウンド 1」があれば、一番新しいラウンド 1 の 14 日前から（前のシーズンを混ぜない）。</li>
-	 *   <li>1 試合 1 回（match_id、無ければ ホーム・アウェー・ラウンド）。終了済の行がある試合だけ。
-	 *       スコアは同じ試合でスコアが入っている最後の行。</li>
-	 *   <li>site_rank: チームの最新の行の順位（サイト表示）。</li>
-	 * </ul>
-	 * 取れていない試合があると勝ち点が実際より少なくなる（画面に注意書きを出す）。
-	 */
-	public List<StandingRowDTO> findStandingsFromStatic(String country, String league) {
-		String sql = "WITH y AS ("
-				+ " SELECT d.home_team_name, d.away_team_name, d.home_score, d.away_score,"
-				+ "        CAST(d.home_rank AS text) AS home_rank, CAST(d.away_rank AS text) AS away_rank,"
-				+ "        d.times, d.record_time,"
-				+ "        NULLIF(SUBSTRING(d.seq_key FROM '([0-9]+)$'), '')::BIGINT AS seq_no,"
-				+ "        NULLIF(SUBSTRING(d.data_category FROM 'ラウンド\\s*([0-9]+)'), '')::INTEGER AS round_no,"
-				+ "        d.match_id"
-				+ " FROM static_data d"
-				+ " WHERE d.record_time >= CURRENT_TIMESTAMP - INTERVAL '" + STATIC_WINDOW_DAYS + " days'"
-				+ "   AND normalize(BTRIM(split_part(d.data_category, ':', 1)), NFKC) = normalize(CAST(:country AS text), NFKC)"
-				+ "   AND normalize(BTRIM(split_part(split_part(d.data_category, ':', 2), ' - ', 1)), NFKC)"
-				+ "       = normalize(CAST(:league AS text), NFKC)"
-				+ "), st AS ("
-				+ " SELECT COALESCE(MAX(record_time) FILTER (WHERE round_no = 1) - INTERVAL '14 days',"
-				+ "                 CURRENT_TIMESTAMP - INTERVAL '" + STATIC_WINDOW_DAYS + " days') AS from_time"
-				+ " FROM y"
-				+ "), z AS ("
-				+ " SELECT y.*, COALESCE(NULLIF(BTRIM(y.match_id), ''),"
-				+ "          " + key("y.home_team_name") + " || '|' || " + key("y.away_team_name") + " || '|' || y.round_no) AS mk"
-				+ " FROM y, st"
-				+ " WHERE y.round_no IS NOT NULL AND y.record_time >= st.from_time"
-				+ "), m AS ("
-				+ " SELECT DISTINCT ON (mk) mk, round_no, home_team_name, away_team_name, record_time,"
-				+ "        BTRIM(home_score)::INTEGER AS hs, BTRIM(away_score)::INTEGER AS aws"
-				+ " FROM z"
-				+ " WHERE BTRIM(home_score) ~ '^[0-9]+$' AND BTRIM(away_score) ~ '^[0-9]+$'"
-				+ "   AND mk IN (SELECT mk FROM z WHERE BTRIM(times) = '終了済')"
-				+ " ORDER BY mk, seq_no DESC NULLS LAST, record_time DESC"
-				+ "), t AS ("
-				+ " SELECT " + key("home_team_name") + " AS tk, home_team_name AS team, hs AS gf, aws AS ga, round_no, record_time FROM m"
-				+ " UNION ALL"
-				+ " SELECT " + key("away_team_name") + ", away_team_name, aws, hs, round_no, record_time FROM m"
-				+ "), r AS ("
-				+ " SELECT DISTINCT ON (tk) tk, BTRIM(rk)::INTEGER AS site_rank FROM ("
-				+ "   SELECT " + key("home_team_name") + " AS tk, home_rank AS rk, record_time, seq_no FROM z"
-				+ "   UNION ALL"
-				+ "   SELECT " + key("away_team_name") + ", away_rank, record_time, seq_no FROM z"
-				+ " ) q WHERE BTRIM(rk) ~ '^[0-9]+$'"
-				+ " ORDER BY tk, record_time DESC NULLS LAST, seq_no DESC NULLS LAST"
-				+ "), s AS ("
-				+ " SELECT tk AS team_key, MAX(team) AS team, COUNT(*)::INTEGER AS games,"
-				+ "        COUNT(*) FILTER (WHERE gf > ga)::INTEGER AS win,"
-				+ "        COUNT(*) FILTER (WHERE gf = ga)::INTEGER AS draw,"
-				+ "        COUNT(*) FILTER (WHERE gf < ga)::INTEGER AS lose,"
-				+ "        SUM(CASE WHEN gf > ga THEN 3 WHEN gf = ga THEN 1 ELSE 0 END)::INTEGER AS points,"
-				+ "        SUM(gf)::INTEGER AS goals_for, SUM(ga)::INTEGER AS goals_against,"
-				+ "        (ARRAY_AGG(CASE WHEN gf > ga THEN 'W' WHEN gf = ga THEN 'D' ELSE 'L' END"
-				+ "                   ORDER BY round_no DESC, record_time DESC))[1:5] AS form"
-				+ " FROM t GROUP BY tk"
-				+ ")"
-				+ " SELECT s.*, r.site_rank, (s.goals_for - s.goals_against) AS goal_diff,"
-				+ "        RANK() OVER (ORDER BY s.points DESC, (s.goals_for - s.goals_against) DESC, s.goals_for DESC)::INTEGER AS rank_no"
-				+ " FROM s LEFT JOIN r ON r.tk = s.team_key"
-				+ " ORDER BY rank_no, s.team COLLATE \"ja-x-icu\"";
-		return bmJdbcTemplate.query(sql, params(country, league, null, null), (rs, n) -> {
-			StandingRowDTO r = new StandingRowDTO();
-			r.setRank(rs.getInt("rank_no"));
-			r.setSiteRank((Integer) rs.getObject("site_rank", Integer.class));
-			r.setTeam(rs.getString("team"));
-			r.setGames(rs.getInt("games"));
-			r.setWin(rs.getInt("win"));
-			r.setDraw(rs.getInt("draw"));
-			r.setLose(rs.getInt("lose"));
-			r.setPoints(rs.getInt("points"));
-			r.setGoalsFor(rs.getInt("goals_for"));
-			r.setGoalsAgainst(rs.getInt("goals_against"));
-			r.setGoalDiff(rs.getInt("goal_diff"));
-			r.setForm(toList(rs.getArray("form")));
-			return r;
-		});
-	}
-
-	/** static_data から順位表を作るときに見る日数 */
-	static final int STATIC_WINDOW_DAYS = 300;
 
 	/**
 	 * チームの統計（そのシーズン・リーグ）。scope = ALL / HOME / AWAY の 3 行（試合が無い区分は games = 0）。
@@ -225,7 +138,7 @@ public class UpcomingDetailRepository {
 				+ "  COUNT(*) FILTER (WHERE first_goal = 'T')::INTEGER AS scored_first,"
 				+ "  COUNT(*) FILTER (WHERE first_goal = 'O')::INTEGER AS conceded_first,"
 				+ "  (ARRAY_AGG(result::text " + RECENT + "))[1:5] AS form"
-				+ " FROM surface_overview_match"
+				+ " FROM " + StaticOverviewSource.from(season)
 				+ WHERE_LEAGUE
 				+ "   AND " + key("team") + " = " + key("CAST(:team AS text)")
 				+ " GROUP BY GROUPING SETS ((), (ha))";

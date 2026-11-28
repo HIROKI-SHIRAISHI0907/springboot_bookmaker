@@ -21,6 +21,9 @@ public class TeamGoalStatsDTO {
 	/** 試合のリーグと別のリーグで集計したとき true（カップ戦など） */
 	private boolean otherLeague;
 
+	/** 統計がまだ無いので、終了済の試合（static_data）から集計した（2026-11-28 追加） */
+	private boolean fromFinished;
+
 	/** 全試合 */
 	private GoalStatsDTO all;
 

@@ -15,6 +15,7 @@ import java.util.stream.Collectors;
 import org.springframework.stereotype.Service;
 
 import dev.web.api.upcomingDetail.upcomingDetailDTO.TeamBadgeDTO;
+import dev.web.repository.bm.StaticOverviewSource;
 import dev.web.repository.bm.UpcomingBadgeRepository;
 import dev.web.repository.bm.UpcomingBadgeRepository.MatchRow;
 import dev.web.repository.bm.UpcomingBadgeRepository.Metric;
@@ -139,11 +140,12 @@ public class UpcomingBadgeService {
 			return res;
 		}
 		String season = detailRepository.findLatestSeason(country, league);
-		res.setSeason(season);
 		if (season == null) {
-			res.getNotes().add("このリーグの統計がまだありません");
-			return res;
+			// 統計がまだ無いリーグは、終了済の試合（static_data）から作ったデータで出せるものだけ出す（2026-11-28 追加）
+			season = StaticOverviewSource.SEASON;
+			res.getNotes().add("このリーグの統計がまだ無いため、終了済の試合から出せるものだけ出しています（ボール保持率などのリーグ順位・序盤/中盤/終盤は統計ができてから）");
 		}
+		res.setSeason(StaticOverviewSource.isStatic(season) ? null : season);
 
 		res.setHomeBadges(teamBadges(country, league, season, home, "H", round, res.getNotes()));
 		res.setAwayBadges(teamBadges(country, league, season, away, "A", round, res.getNotes()));

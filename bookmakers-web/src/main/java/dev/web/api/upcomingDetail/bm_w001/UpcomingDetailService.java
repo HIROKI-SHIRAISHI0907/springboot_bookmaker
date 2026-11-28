@@ -12,6 +12,7 @@ import dev.web.api.matchDetail.bm_w002.MatchVenueService;
 import dev.web.api.upcomingDetail.upcomingDetailDTO.GoalStatsDTO;
 import dev.web.api.upcomingDetail.upcomingDetailDTO.StandingRowDTO;
 import dev.web.api.upcomingDetail.upcomingDetailDTO.TeamGoalStatsDTO;
+import dev.web.repository.bm.StaticOverviewSource;
 import dev.web.repository.bm.UpcomingDetailRepository;
 import lombok.RequiredArgsConstructor;
 
@@ -72,20 +73,22 @@ public class UpcomingDetailService {
 		res.setVenue(matchVenueService.findHomeVenue(h, c));
 
 		// 順位表（試合のリーグの最新シーズン）
+		// 統計がまだ無いリーグは、終了済の試合（static_data）から作ったデータを使う（2026-11-28 追加）
 		String season = c != null && l != null ? repository.findLatestSeason(c, l) : null;
+		if (season == null && c != null && l != null) {
+			season = StaticOverviewSource.SEASON;
+		}
 		List<StandingRowDTO> rows = new ArrayList<>();
 		if (season != null) {
-			res.setStandingSeason(season);
-			rows = repository.findStandings(c, l, season);
-			res.setStandingSource("STATS");
-		}
-		// 統計がまだ無いリーグは、終了済の試合（static_data）から計算する（2026-11-28 追加）
-		if (rows.isEmpty() && c != null && l != null) {
 			try {
-				rows = repository.findStandingsFromStatic(c, l);
-				res.setStandingSource(rows.isEmpty() ? null : "STATIC");
+				rows = repository.findStandings(c, l, season);
 			} catch (Exception e) {
 				rows = new ArrayList<>();
+			}
+			if (!rows.isEmpty()) {
+				boolean st = StaticOverviewSource.isStatic(season);
+				res.setStandingSeason(st ? null : season);
+				res.setStandingSource(st ? "STATIC" : "STATS");
 			}
 		}
 		if (!rows.isEmpty()) {
@@ -111,6 +114,10 @@ public class UpcomingDetailService {
 		TeamGoalStatsDTO dto = new TeamGoalStatsDTO();
 		dto.setTeam(team);
 		if (season != null && fill(dto, country, league, season, team)) {
+			dto.setFromFinished(StaticOverviewSource.isStatic(season));
+			if (dto.isFromFinished()) {
+				dto.setSeason(null);
+			}
 			return dto;
 		}
 		String[] latest = repository.findTeamLatestLeague(team);
@@ -131,7 +138,13 @@ public class UpcomingDetailService {
 		GoalStatsDTO all = null;
 		GoalStatsDTO home = null;
 		GoalStatsDTO away = null;
-		for (GoalStatsDTO s : repository.findGoalStats(country, league, season, team)) {
+		List<GoalStatsDTO> list;
+		try {
+			list = repository.findGoalStats(country, league, season, team);
+		} catch (Exception e) {
+			return false;
+		}
+		for (GoalStatsDTO s : list) {
 			if ("ALL".equals(s.getScope())) {
 				all = s;
 			} else if ("HOME".equals(s.getScope())) {
