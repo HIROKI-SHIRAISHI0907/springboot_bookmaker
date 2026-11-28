@@ -13,7 +13,9 @@ package dev.web.repository.bm;
  * <p>作り方（bookmakers-app BM_M031 SurfaceOverviewStat と同じ考え方）</p>
  * <ul>
  *   <li>対象: 直近 {@value #WINDOW_DAYS} 日の、このリーグ（data_category の「国: リーグ」）の行。
- *       「ラウンド 1」があれば一番新しいラウンド 1 の 14 日前から（前のシーズンを混ぜない）。取得エラー行は除く。</li>
+ *       「ラウンド 1」があれば一番新しいラウンド 1 の 14 日前から（前のシーズンを混ぜない）。取得エラー行は除く。
+ *       ラウンド 1 の日付は手動取得（add_manual_flg = '1'）の行を見ない（record_time が取り直した日で、試合の日ではないため。
+ *       見ると開始が後ろにずれて、前半の節が丸ごと抜けていた。2026-11-29 修正）。</li>
  *   <li>1 試合 = match_id（無ければ ホーム・アウェー・ラウンド）。終了済（またはペナルティ）の行がある試合だけ。行は通番の数値順。</li>
  *   <li>スコア: ペナルティ以外で、スコアの入った最後の行。PK: ペナルティの最後の行（試合本体が同点のときだけ）。</li>
  *   <li>前半: 最初のハーフタイム（第一ハーフ）の行（最終スコア以下のときだけ）。後半 = 最終 − 前半。</li>
@@ -99,7 +101,8 @@ public final class StaticOverviewSource {
 			+ "        NULLIF(SUBSTRING(normalize(d.data_category, NFKC) FROM 'ラウンド\\s*([0-9]+)'), '')::INTEGER AS round_no,"
 			+ "        BTRIM(split_part(d.data_category, ':', 1)) AS country,"
 			+ "        BTRIM(split_part(split_part(d.data_category, ':', 2), ' - ', 1)) AS league,"
-			+ "        (COALESCE(d.times, '') LIKE '%ペナルティ%') AS pk"
+			+ "        (COALESCE(d.times, '') LIKE '%ペナルティ%') AS pk,"
+			+ "        (BTRIM(COALESCE(CAST(d.add_manual_flg AS text), '')) = '1') AS manual"
 			+ " FROM static_data d"
 			+ " WHERE d.record_time >= CURRENT_TIMESTAMP - INTERVAL '" + WINDOW_DAYS + " days'"
 			+ "   AND " + key("split_part(d.data_category, ':', 1)") + " = " + key("CAST(:country AS text)")
@@ -107,7 +110,7 @@ public final class StaticOverviewSource {
 			+ "   AND COALESCE(BTRIM(d.goal_time), '') <> '取得エラー'"
 			+ "   AND COALESCE(BTRIM(d.goal_team_member), '') <> '取得エラー'"
 			+ "), st AS ("
-			+ " SELECT COALESCE(MAX(record_time) FILTER (WHERE round_no = 1) - INTERVAL '14 days',"
+			+ " SELECT COALESCE(MAX(record_time) FILTER (WHERE round_no = 1 AND NOT manual) - INTERVAL '14 days',"
 			+ "                 CURRENT_TIMESTAMP - INTERVAL '" + WINDOW_DAYS + " days') AS from_time FROM y"
 			+ "), z AS ("
 			+ " SELECT y.*, COALESCE(y.match_id, " + key("y.home_team_name") + " || '|' || " + key("y.away_team_name")
