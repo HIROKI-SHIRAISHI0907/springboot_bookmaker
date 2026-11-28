@@ -139,10 +139,10 @@ public class UpcomingBadgeService {
 			res.getNotes().add("国・リーグ・チームが分からないため、アイコンは出していません");
 			return res;
 		}
-		String season = detailRepository.findLatestSeason(country, league);
-		if (season == null) {
+		String latest = detailRepository.findLatestSeason(country, league);
+		final String season = latest != null ? latest : StaticOverviewSource.SEASON;
+		if (latest == null) {
 			// 統計がまだ無いリーグは、終了済の試合（static_data）から作ったデータで出せるものだけ出す（2026-11-28 追加）
-			season = StaticOverviewSource.SEASON;
 			res.getNotes().add("このリーグの統計がまだ無いため、終了済の試合から出せるものだけ出しています（ボール保持率などのリーグ順位・序盤/中盤/終盤は統計ができてから）");
 		}
 		res.setSeason(StaticOverviewSource.isStatic(season) ? null : season);
