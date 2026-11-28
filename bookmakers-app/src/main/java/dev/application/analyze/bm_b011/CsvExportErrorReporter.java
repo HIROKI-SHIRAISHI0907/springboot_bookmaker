@@ -398,6 +398,18 @@ public class CsvExportErrorReporter {
 		try {
 			List<String> cl = ExecuteMainUtil.getCountryLeagueByRegex(category.trim());
 			if (cl == null || cl.size() < 2 || isBlank(cl.get(0)) || isBlank(cl.get(1))) {
+				// 2026-11-27: 「日本: J3 リーグ」のようにラウンド（" - ラウンド N"）が無いと上の正規表現（"-" が必須）に合わず、
+				// 国・リーグは分かるのに「国・リーグを取得できません」になっていた。"国: リーグ" だけでも国・リーグとして読む
+				// （→ 種別は「ラウンド番号を取得できません」になり、画面の国 / リーグ にも出る）
+				String t = category.trim().replace('\uFF1A', ':');
+				int colon = t.indexOf(':');
+				if (colon > 0 && colon < t.length() - 1 && !t.contains(" - ")) {
+					String c = t.substring(0, colon).trim();
+					String l = t.substring(colon + 1).trim();
+					if (!c.isEmpty() && !l.isEmpty()) {
+						return new String[] { c, l };
+					}
+				}
 				return null;
 			}
 			return new String[] { cl.get(0).trim(), cl.get(1).trim() };
